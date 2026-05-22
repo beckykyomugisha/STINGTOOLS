@@ -60,6 +60,13 @@ namespace StingTools.UI
         public double RiskTolerableRisk     { get; private set; } = 1e-5;
         public bool   RiskAutoApplyClass    { get; private set; } = true;
 
+        // Wave A #5 — explicit Ae for non-rectangular geometry.
+        public double RiskAeOverrideM2      { get; private set; } = 0;
+
+        // Wave A #14 — kc factor inputs (Annex C.3 table).
+        public bool   RiskRingConductor        { get; private set; } = true;
+        public bool   RiskEquipotentialBonding { get; private set; } = true;
+
         private static StingLpsPanel _instance;
         public static StingLpsPanel Instance => _instance;
 
@@ -98,6 +105,25 @@ namespace StingTools.UI
             // confusion). Catalogue load is one-shot at construction.
             try { LoadRiskCatalogue(); }
             catch (Exception ex) { StingLog.Warn($"LoadRiskCatalogue: {ex.Message}"); }
+
+            // Wave B #11 — first-time setup banner. Show when class
+            // is empty so brand-new projects get prompted; hide once
+            // a class lands in ProjectInformation. Deferred to Loaded
+            // because Revit isn't ready at construction.
+            Loaded += (_, __) =>
+            {
+                try
+                {
+                    var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                    if (doc == null) return;
+                    string cls = StingTools.Core.ParameterHelpers.GetString(doc.ProjectInformation, "ELC_LPS_CLASS_TXT");
+                    if (firstTimeBanner != null)
+                        firstTimeBanner.Visibility = string.IsNullOrWhiteSpace(cls)
+                            ? System.Windows.Visibility.Visible
+                            : System.Windows.Visibility.Collapsed;
+                }
+                catch (Exception ex) { StingLog.Warn($"FirstTimeBanner: {ex.Message}"); }
+            };
 
             // Seed default risk factor rows so the RISK tab is non-empty.
             try { SeedDefaultRiskFactors(); }
@@ -239,6 +265,9 @@ namespace StingTools.UI
                 RiskNgFlashDensity = ParseD(txtRiskNg?.Text,   RiskNgFlashDensity);
                 RiskTolerableRisk  = ParseD(txtRiskRt?.Text,   RiskTolerableRisk);
                 RiskAutoApplyClass = chkRiskAutoApply?.IsChecked == true;
+                RiskAeOverrideM2   = ParseD(txtRiskAeOverride?.Text, RiskAeOverrideM2);
+                RiskRingConductor        = chkRingConductor?.IsChecked == true;
+                RiskEquipotentialBonding = chkEquipotentialBonding?.IsChecked == true;
 
                 // Pull C-factors from the editable grid by row index.
                 if (RiskFactorRows.Count >= 5)
@@ -427,6 +456,16 @@ namespace StingTools.UI
             if (doc == null) return;
             try
             {
+                // Wave C #7 — Force a fresh build of the LPS element index
+                // (single FilteredElementCollector sweep across the 2
+                // LPS-hosting BICs) before the per-grid loaders run.
+                // Every loader now reads from this cached index instead
+                // of calling CollectLpsFamily independently → was 14
+                // full sweeps per Load-Model click, now 1.
+                LpsElementIndex.Invalidate(doc);
+                var idx = LpsElementIndex.Get(doc);
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+
                 Action act = () =>
                 {
                     LoadAirTerminalsFromDoc(doc);
@@ -439,7 +478,8 @@ namespace StingTools.UI
                     UpdateStatus(
                         $"Loaded: {AirTerminalRows.Count} AT · {DownConductorRows.Count} DC · " +
                         $"{EarthElectrodeRows.Count} earth · {BondingRows.Count} bond · " +
-                        $"{ZoneRows.Count} rooms · {SpdRows.Count} SPD");
+                        $"{ZoneRows.Count} rooms · {SpdRows.Count} SPD · " +
+                        $"index {idx.TotalElements} elements in {sw.ElapsedMilliseconds}ms");
                 };
                 if (Dispatcher?.CheckAccess() == true) act();
                 else Dispatcher?.Invoke(act);
@@ -461,7 +501,7 @@ namespace StingTools.UI
                 }
 
                 int n = 1;
-                foreach (var at in LpsEngine.CollectLpsFamily(doc, "Air Terminal", "Air_Terminal", "Franklin", "Air-Terminal"))
+                foreach (var at in LpsElementIndex.AirTerminals(doc))
                 {
                     double rM = LpsEngine.GetDoubleParam(at, LpsParams.ROLLING_SPHERE_RADIUS_M);
                     if (rM <= 0) rM = projR;
@@ -493,8 +533,10 @@ namespace StingTools.UI
             {
                 DownConductorRows.Clear();
                 int count = 0;
-                var dcs = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor");
-                double kc = LpsEngine.ComputeKcFactor(dcs.Count);
+                var dcs = LpsElementIndex.DownConductors(doc);
+                // Wave A #14 — use the Annex C.3 table-based kc with the
+                // panel's ring + bonding flags rather than the 1/n approx.
+                double kc = LpsEngine.ComputeKcFactor(dcs.Count, RiskRingConductor, RiskEquipotentialBonding);
                 string classId = ParameterHelpers.GetString(doc.ProjectInformation, LpsParams.CLASS_TXT);
                 if (string.IsNullOrWhiteSpace(classId)) classId = "II";
 
@@ -533,7 +575,7 @@ namespace StingTools.UI
             {
                 EarthElectrodeRows.Clear();
                 int n = 1;
-                foreach (var el in LpsEngine.CollectLpsFamily(doc, "Earth", "Ground Rod", "GroundRod", "Earth_Rod", "Earth Electrode"))
+                foreach (var el in LpsElementIndex.EarthElectrodes(doc))
                 {
                     double L = 0;
                     try
@@ -683,7 +725,7 @@ namespace StingTools.UI
             {
                 // Don't wipe a user-edited grid — only load when empty.
                 if (SpdRows.Count > 0) return;
-                foreach (var fi in LpsEngine.CollectLpsFamily(doc, "SPD", "Surge"))
+                foreach (var fi in LpsElementIndex.Spds(doc))
                 {
                     string loc = ParameterHelpers.GetString(fi, LpsParams.SURGE_PROTECTION_LVL_TXT);
                     SpdRows.Add(new SpdRowVm

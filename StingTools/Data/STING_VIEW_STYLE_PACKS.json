@@ -1760,10 +1760,44 @@
       },
       "filterRules": [
         {
+          "name": "STING - LPS: Air Terminal",
+          "inheritDefaults": true,
+          "visible": true,
+          "projColor": "#E65100",
+          "projWeight": 5
+        },
+        {
+          "name": "STING - LPS: Down Conductor",
+          "inheritDefaults": true,
+          "visible": true,
+          "projColor": "#D32F2F",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - LPS: Earth Electrode",
+          "inheritDefaults": true,
+          "visible": true,
+          "projColor": "#2E7D32",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - LPS: Bonding",
+          "inheritDefaults": true,
+          "visible": true,
+          "projColor": "#FFC107",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - LPS: Surge Protective Device",
+          "inheritDefaults": true,
+          "visible": true,
+          "projColor": "#6A1B9A",
+          "projWeight": 4
+        },
+        {
           "name": "STING - Elec: Lightning Protection",
           "inheritDefaults": true,
           "visible": true,
-          "halftone": false,
           "projColor": "#E65100",
           "projWeight": 5
         }

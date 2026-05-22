@@ -8620,8 +8620,8 @@
       ],
       "annotation": {
         "tagFamilies": {
-          "ElectricalEquipment": "STING_TAG_LPS",
-          "GenericModels": "STING_TAG_LPS"
+          "ElectricalEquipment": "STING_TAG_ELEC",
+          "GenericModels": "STING_TAG_ELEC"
         },
         "rules": [
           {
@@ -8723,8 +8723,8 @@
       ],
       "annotation": {
         "tagFamilies": {
-          "ElectricalEquipment": "STING_TAG_LPS",
-          "GenericModels": "STING_TAG_LPS"
+          "ElectricalEquipment": "STING_TAG_ELEC",
+          "GenericModels": "STING_TAG_ELEC"
         },
         "rules": [
           {

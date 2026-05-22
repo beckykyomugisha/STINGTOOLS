@@ -90,6 +90,15 @@
                 <TextBlock x:Name="txtLpsStatus" Text="Ready" FontSize="9" Margin="14,0,0,0"
                            Foreground="{DynamicResource HeaderFg}" Opacity="0.7"
                            VerticalAlignment="Center"/>
+                <!-- Wave B #11 — first-time setup banner. Shown when ELC_LPS_CLASS_TXT
+                     is empty on ProjectInformation; clicking opens the class wizard. -->
+                <Border x:Name="firstTimeBanner" Background="#FFC107" CornerRadius="3"
+                        Margin="14,0,0,0" Padding="6,1" VerticalAlignment="Center" Visibility="Collapsed">
+                    <Button Style="{StaticResource LpsActionBtn}" Content="⚠ LPS class not set — click to run wizard"
+                            Tag="Lps_ClassSetup" Click="Cmd_Click"
+                            Background="Transparent" Foreground="Black" BorderBrush="Transparent"
+                            FontSize="10" Padding="2,0" Height="18"/>
+                </Border>
                 <Button Style="{StaticResource LpsActionBtn}" Content="⟳ Load model"
                         Tag="Lps_LoadModel" Click="Cmd_Click"
                         Margin="14,0,0,0" Height="20" FontSize="9"
@@ -252,10 +261,20 @@
                                 <TextBox   Grid.Row="1" Grid.Column="4" x:Name="txtRiskNg" Text="0" Margin="2" FontSize="10" ToolTip="Set 0 to use region default."/>
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Rt:" Style="{StaticResource LpsLabel}"/>
                                 <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtRiskRt" Text="1E-5" Margin="2" FontSize="10"/>
-                                <CheckBox  Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="4" x:Name="chkRiskAutoApply"
-                                           Content="Auto-apply recommended class to Project Information"
-                                           IsChecked="True" Margin="4" FontSize="10"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="Ae override (m²):" Style="{StaticResource LpsLabel}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="3" Text="" Width="6"/>
+                                <TextBox   Grid.Row="2" Grid.Column="4" x:Name="txtRiskAeOverride" Text="0" Margin="2" FontSize="10"
+                                           ToolTip="L-shape / multi-volume buildings: enter Ae from a hand-calc or 3D sweep. Set 0 to use the rectangular Annex A.2 formula."/>
                             </Grid>
+                        </Expander>
+
+                        <Expander Header="EARTHING + BONDING TOPOLOGY (kc Annex C.3)" Style="{StaticResource LpsExpander}" IsExpanded="False"
+                                  ToolTip="kc factor table from BS EN 62305-3 Annex C.3: n=2→0.66 · n=3→0.44 · n=4→0.33 · n≥5→1/n. Ring + bonding halves worst-case.">
+                            <StackPanel Margin="4">
+                                <CheckBox x:Name="chkRingConductor"          Content="Ring conductor at base (Type B earthing)" IsChecked="True"  Margin="2" FontSize="10"/>
+                                <CheckBox x:Name="chkEquipotentialBonding"   Content="Equipotential bonding network present"     IsChecked="True"  Margin="2" FontSize="10"/>
+                                <CheckBox x:Name="chkRiskAutoApply"          Content="Auto-apply recommended class to Project Information" IsChecked="True" Margin="2" FontSize="10"/>
+                            </StackPanel>
                         </Expander>
 
                         <Expander Header="C-FACTORS (catalogue-driven)" Style="{StaticResource LpsExpander}" IsExpanded="True">
@@ -674,6 +693,9 @@
                             <Button Style="{StaticResource LpsActionBtn}" Content="SLD overlay"
                                     Tag="Lps_SldOverlay" Click="Cmd_Click"
                                     ToolTip="Decorate the active electrical SLD with LPS markers (★ SPD · ⏚ earth) — leaves existing SLD topology untouched"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="TAG7"
+                                    Tag="Lps_Tag7Paragraph" Click="Cmd_Click"
+                                    ToolTip="Populate ELC_TAG_7_PARA_LPS_TXT (rich narrative paragraph) on every LPS-classified element"/>
                             <Button Style="{StaticResource LpsActionBtn}" Content="Carbon"
                                     Tag="Lps_CarbonReport" Click="Cmd_Click"
                                     ToolTip="Embodied carbon for LPS conductors (ICE Database v3.0 factors)"/>

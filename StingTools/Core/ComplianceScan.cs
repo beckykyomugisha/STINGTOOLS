@@ -121,14 +121,25 @@ namespace StingTools.Core
                 }
             }
 
-            /// <summary>Short summary for status bar display — includes revision, STATUS, container, and stale counts.</summary>
+            /// <summary>Short summary for status bar display — includes revision, STATUS, container, stale, and LPS counts.</summary>
             public string StatusBarText =>
                 $"{RAGStatus} {CompliancePercent:F0}% tagged | {RevisionPercent:F0}% REV | " +
                 $"{(ContainersMissing > 0 ? $"{ContainerCompletePct:F0}% containers | " : "")}" +
                 $"{(StatusMissing > 0 ? $"{StatusMissing} no-STATUS | " : "")}" +
                 $"{(StaleCount > 0 ? $"{StaleCount} stale | " : "")}" +
                 $"{(SheetsUntagged > 0 ? $"{SheetsUntagged}/{TotalSheets} sheets untagged | " : "")}" +
+                $"{(LpsChecksTotal > 0 ? $"LPS {LpsVerdict} ({LpsChecksFail} fail) | " : "")}" +
                 $"{Untagged} untagged";
+
+            // ── Wave B #3 — Lightning Protection compliance ─────────────
+            /// <summary>BS EN 62305 compliance verdict — PASS / WARN / FAIL / NONE.</summary>
+            public string LpsVerdict      { get; set; } = "NONE";
+            public int    LpsChecksTotal  { get; set; }
+            public int    LpsChecksPass   { get; set; }
+            public int    LpsChecksWarn   { get; set; }
+            public int    LpsChecksFail   { get; set; }
+            /// <summary>Project LPS class (I / II / III / IV) — empty when not yet set.</summary>
+            public string LpsClass        { get; set; } = "";
 
             /// <summary>Per-discipline compliance breakdown.</summary>
             public Dictionary<string, DiscComplianceData> ByDisc { get; set; } = new Dictionary<string, DiscComplianceData>();
@@ -437,6 +448,26 @@ namespace StingTools.Core
                         AddIssue(result, $"Sheets untagged");
                 }
                 catch (Exception ex) { StingLog.Warn($"Sheet compliance scan: {ex.Message}"); }
+
+                // Wave B #3 — Sample LPS class from ProjectInformation (cheap)
+                // so the status bar shows "LPS class II" alongside tag metrics.
+                // Verdict fields are populated by UpdateLpsVerdict() — called
+                // by LpsComplianceCheckCommand after a real validation run.
+                try
+                {
+                    string lpsClass = ParameterHelpers.GetString(doc.ProjectInformation, "ELC_LPS_CLASS_TXT");
+                    if (!string.IsNullOrWhiteSpace(lpsClass)) result.LpsClass = lpsClass.Trim();
+                    string verdict = ParameterHelpers.GetString(doc.ProjectInformation, "ELC_LPS_COMPLIANCE_STATUS_TXT");
+                    if (!string.IsNullOrWhiteSpace(verdict))
+                    {
+                        // Preserve the verdict from the last LpsComplianceCheck stamp
+                        // (PASS / WARN / FAIL — embedded "FAIL — 3 items" pattern).
+                        if      (verdict.IndexOf("FAIL", StringComparison.OrdinalIgnoreCase) >= 0) result.LpsVerdict = "FAIL";
+                        else if (verdict.IndexOf("WARN", StringComparison.OrdinalIgnoreCase) >= 0) result.LpsVerdict = "WARN";
+                        else if (verdict.IndexOf("PASS", StringComparison.OrdinalIgnoreCase) >= 0) result.LpsVerdict = "PASS";
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"LPS sample: {ex.Message}"); }
 
                 // Write result under brief lock
                 lock (_cacheLock)
@@ -782,6 +813,29 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
             return System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+        }
+
+        /// <summary>
+        /// Wave B #3 — push the last LPS compliance verdict into the
+        /// cached scan so the status bar + dashboard surface it. Called
+        /// by LpsComplianceCheckCommand at the end of every full audit.
+        /// </summary>
+        public static void UpdateLpsVerdict(string verdict, int total, int pass, int warn, int fail, string lpsClass = null)
+        {
+            try
+            {
+                lock (_cacheLock)
+                {
+                    if (_cached == null) return;
+                    _cached.LpsVerdict     = string.IsNullOrEmpty(verdict) ? "NONE" : verdict;
+                    _cached.LpsChecksTotal = total;
+                    _cached.LpsChecksPass  = pass;
+                    _cached.LpsChecksWarn  = warn;
+                    _cached.LpsChecksFail  = fail;
+                    if (!string.IsNullOrWhiteSpace(lpsClass)) _cached.LpsClass = lpsClass;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateLpsVerdict: {ex.Message}"); }
         }
 
         /// <summary>Record today's compliance snapshot.</summary>

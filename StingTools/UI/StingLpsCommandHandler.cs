@@ -146,6 +146,8 @@ namespace StingTools.UI
                         Run<LpsCarbonReportCommand>(app); break;
                     case "Lps_SpdSpecSheet":
                         Run<LpsSpdSpecSheetCommand>(app); break;
+                    case "Lps_Tag7Paragraph":
+                        Run<LpsTag7ParagraphCommand>(app); break;
 
                     // ── ZONES tab ──────────────────────────────────────
                     case "Lps_ZoneTagRooms":

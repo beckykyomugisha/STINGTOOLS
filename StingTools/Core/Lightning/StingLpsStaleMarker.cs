@@ -81,6 +81,47 @@ namespace StingTools.Core.Lightning
             }
         }
 
+        private static bool LooksLikeLps(Element el)
+        {
+            if (el == null) return false;
+            try
+            {
+                // Tier 1 — explicit param tags set by Mark / Sync / Inventory
+                string elementType = StingTools.Core.ParameterHelpers.GetString(el, LpsParams.ELEMENT_TYPE_TXT);
+                if (!string.IsNullOrWhiteSpace(elementType)) return true;
+                string compStatus = StingTools.Core.ParameterHelpers.GetString(el, LpsParams.COMPLIANCE_STATUS_TXT);
+                if (!string.IsNullOrWhiteSpace(compStatus)) return true;
+
+                // Tier 2 — any of the 6 LPS *_TAG_TXT containers populated
+                foreach (var p in new[] {
+                    LpsParams.AIRTERM_TAG_TXT, LpsParams.DOWNCOND_TAG_TXT,
+                    LpsParams.EARTH_TAG_TXT,   LpsParams.BOND_TAG_TXT,
+                    LpsParams.SPD_TAG_TXT,     LpsParams.TESTCLAMP_TAG_TXT })
+                {
+                    if (!string.IsNullOrWhiteSpace(StingTools.Core.ParameterHelpers.GetString(el, p)))
+                        return true;
+                }
+
+                // Tier 3 — family / type name pattern (catches freshly-placed
+                // families before any STING command has touched them)
+                if (el is FamilyInstance fi)
+                {
+                    string fam = fi.Symbol?.FamilyName ?? "";
+                    string sym = fi.Symbol?.Name ?? "";
+                    string upper = ($"{fam} {sym}").ToUpperInvariant();
+                    if (upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
+                        upper.Contains("AIR TERMINAL") || upper.Contains("FRANKLIN") ||
+                        upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                        upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
+                        upper.Contains("TEST CLAMP") || upper.Contains("EQUIPOTENTIAL") ||
+                        upper.Contains("SPD") || upper.Contains("SURGE"))
+                        return true;
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"LooksLikeLps: {ex.Message}"); }
+            return false;
+        }
+
         private static ElementFilter BuildLpsFilter()
         {
             var cats = new List<ElementFilter>
@@ -108,14 +149,16 @@ namespace StingTools.Core.Lightning
                     var el = doc.GetElement(id);
                     if (el == null) continue;
 
-                    // Only mark elements that look LPS-classified
-                    // (carry ELEMENT_TYPE_TXT or have a non-empty
-                    // compliance status). Skips non-LPS electrical
-                    // equipment so e.g. panel boards don't get
-                    // spammed with STALE flags.
-                    string elementType = StingTools.Core.ParameterHelpers.GetString(el, LpsParams.ELEMENT_TYPE_TXT);
-                    string compStatus  = StingTools.Core.ParameterHelpers.GetString(el, LpsParams.COMPLIANCE_STATUS_TXT);
-                    if (string.IsNullOrWhiteSpace(elementType) && string.IsNullOrWhiteSpace(compStatus))
+                    // Wave A #2 — Three-way LPS-classification check.
+                    // Previous version required ELEMENT_TYPE_TXT to be
+                    // non-empty, but nothing writes that param until
+                    // LpsMarkElementTypesCommand has been run — so the
+                    // marker silently never fired on first-time projects.
+                    // Now also accept (a) family-name pattern matching
+                    // any LPS keyword (works on freshly-placed families)
+                    // and (b) any of the LPS sub-tag containers being
+                    // populated.
+                    if (!LooksLikeLps(el))
                         continue;
 
                     // We're in an IUpdater so a Transaction is already

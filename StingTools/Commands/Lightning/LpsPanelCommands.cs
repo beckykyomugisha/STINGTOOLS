@@ -56,7 +56,10 @@ namespace StingTools.Commands.Lightning
 
             var snap = StingLpsCommandHandler.Snapshot();
 
-            // Build LpsRiskInput from the panel's RISK-tab fields
+            // Build LpsRiskInput from the panel's RISK-tab fields.
+            // Wave A #5 — feed AeOverrideM2 so non-rectangular buildings
+            // bypass the Annex A.2 formula when the user has computed Ae
+            // externally.
             var input = new LpsRiskInput
             {
                 RegionId          = snap.Region,
@@ -65,6 +68,7 @@ namespace StingTools.Commands.Lightning
                 PlanLengthM       = panel.RiskPlanLengthM,
                 PlanWidthM        = panel.RiskPlanWidthM,
                 HeightM           = panel.RiskHeightM,
+                AeOverrideM2      = panel.RiskAeOverrideM2,
                 BuildingTypeCb    = panel.RiskBuildingTypeCb,
                 InternalContentCc = panel.RiskInternalContentCc,
                 OccupantHazardCd  = panel.RiskOccupantHazardCd,

@@ -29,6 +29,12 @@ namespace StingTools.Core.Lightning
         // Reload() clears both maps so a manual reload picks up disk edits.
         private static readonly Dictionary<string, JObject> _overrides
             = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
+        // Wave C #12 — FileSystemWatcher per override file so disk edits
+        // out-of-band (text editor, CDE sync, git pull) invalidate the
+        // cache automatically. Without this, the panel kept serving a
+        // stale catalogue until "Reload catalogue" was clicked manually.
+        private static readonly Dictionary<string, System.IO.FileSystemWatcher> _watchers
+            = new Dictionary<string, System.IO.FileSystemWatcher>(StringComparer.OrdinalIgnoreCase);
 
         // ── Loaders ───────────────────────────────────────────────────
 
@@ -73,6 +79,7 @@ namespace StingTools.Core.Lightning
                     {
                         ov = JObject.Parse(File.ReadAllText(overridePath));
                         _overrides[overridePath] = ov;
+                        EnsureWatcher(overridePath);
                     }
                 }
                 // Deep-clone the corporate baseline so the merge doesn't mutate it.
@@ -167,7 +174,59 @@ namespace StingTools.Core.Lightning
 
         public static void Reload()
         {
-            lock (_lock) { _catalogue = null; _overrides.Clear(); }
+            lock (_lock)
+            {
+                _catalogue = null;
+                _overrides.Clear();
+                foreach (var w in _watchers.Values)
+                {
+                    try { w.EnableRaisingEvents = false; w.Dispose(); }
+                    catch (Exception ex) { StingLog.Warn($"Watcher dispose: {ex.Message}"); }
+                }
+                _watchers.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Wave C #12 — register a FileSystemWatcher on the override
+        /// path so out-of-band edits invalidate the cache. Caller must
+        /// hold _lock. Idempotent: re-registering for the same path
+        /// is a no-op.
+        /// </summary>
+        private static void EnsureWatcher(string overridePath)
+        {
+            if (_watchers.ContainsKey(overridePath)) return;
+            try
+            {
+                string dir = Path.GetDirectoryName(overridePath);
+                string file = Path.GetFileName(overridePath);
+                if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(file)) return;
+                if (!Directory.Exists(dir)) return;
+
+                var w = new System.IO.FileSystemWatcher(dir, file)
+                {
+                    NotifyFilter = System.IO.NotifyFilters.LastWrite |
+                                   System.IO.NotifyFilters.CreationTime |
+                                   System.IO.NotifyFilters.Size,
+                    EnableRaisingEvents = true
+                };
+                System.IO.FileSystemEventHandler invalidate = (sender, args) =>
+                {
+                    try
+                    {
+                        lock (_lock) { _overrides.Remove(overridePath); }
+                        StingLog.Info($"SpdCoordinator: override invalidated by file change: {overridePath}");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Watcher cb: {ex.Message}"); }
+                };
+                w.Changed += invalidate;
+                w.Created += invalidate;
+                w.Deleted += invalidate;
+                w.Renamed += (sender, args) => invalidate(sender, args);
+                _watchers[overridePath] = w;
+                StingLog.Info($"SpdCoordinator: watching {overridePath}");
+            }
+            catch (Exception ex) { StingLog.Warn($"EnsureWatcher: {ex.Message}"); }
         }
 
         // ── Public API ────────────────────────────────────────────────
