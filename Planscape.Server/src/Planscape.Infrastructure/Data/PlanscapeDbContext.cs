@@ -1462,11 +1462,22 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(x => new { x.ProjectId, x.Reference }).IsUnique();
             e.Property(x => x.Reference).HasMaxLength(40).IsRequired();
             e.Property(x => x.Kind).HasMaxLength(20);
+            // Phase 184q — contract family.
+            e.Property(x => x.ContractForm).HasMaxLength(32).HasDefaultValue("JCT2024");
+            e.HasIndex(x => new { x.ProjectId, x.ContractForm });
             e.Property(x => x.Title).HasMaxLength(400);
             e.Property(x => x.Description).HasMaxLength(4000);
             e.Property(x => x.InstructionRef).HasMaxLength(200);
             e.Property(x => x.Currency).HasMaxLength(8);
             e.Property(x => x.Status).HasMaxLength(20);
+            // Phase 184o — reason + liability fields. String-typed (not
+            // enum) so cross-cluster reporting tools can read directly
+            // from Postgres without enum mapping.
+            e.Property(x => x.Reason).HasMaxLength(32).HasDefaultValue("Other");
+            e.Property(x => x.Liability).HasMaxLength(32).HasDefaultValue("Employer");
+            e.Property(x => x.ReasonDetail).HasMaxLength(4000);
+            e.HasIndex(x => new { x.ProjectId, x.Reason });
+            e.HasIndex(x => new { x.ProjectId, x.Liability });
             e.Property(x => x.SubmittedBy).HasMaxLength(200);
             e.Property(x => x.ApprovedBy).HasMaxLength(200);
             e.Property(x => x.RejectionReason).HasMaxLength(2000);
