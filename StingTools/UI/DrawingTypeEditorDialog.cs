@@ -1222,6 +1222,16 @@ namespace StingTools.UI
             [JsonProperty("phaseFilter",   NullValueHandling = NullValueHandling.Ignore)]
             public string PhaseFilter { get; set; }
 
+            // Phase 137 — additional managed-template fields the editor surfaces.
+            [JsonProperty("phaseName",     NullValueHandling = NullValueHandling.Ignore)]
+            public string PhaseName      { get; set; }
+            [JsonProperty("farClipMm",     NullValueHandling = NullValueHandling.Ignore)]
+            public double FarClipMm      { get; set; }
+            [JsonProperty("annotationCrop", NullValueHandling = NullValueHandling.Ignore)]
+            public bool   AnnotationCrop { get; set; }
+            [JsonProperty("viewRange",     NullValueHandling = NullValueHandling.Ignore)]
+            public PackViewRangeUi ViewRange { get; set; }
+
             [JsonIgnore]
             public bool IsManaged =>
                 string.Equals(TemplateMode, "managed", StringComparison.OrdinalIgnoreCase);

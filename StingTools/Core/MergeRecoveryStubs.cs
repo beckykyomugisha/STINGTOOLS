@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using Autodesk.Revit.DB;
@@ -221,8 +222,8 @@ namespace StingTools.BIMManager
         public Task<bool> PushHvacLoadsBulkAsync(Guid projectId, object payload) => Task.FromResult(false);
         public Task<bool> PushHvacNcAsync(Guid projectId, object payload) => Task.FromResult(false);
 
-        // Model registry
-        public string ComputeSha256(string s) => "";
+        // Model registry — ComputeSha256 must be static per call sites in PublishModelCommand.
+        public static string ComputeSha256(string s) => "";
         public Task<JObject?> FindModelByHashAsync(Guid projectId, string sha256) => Task.FromResult<JObject?>(null);
         public Task<bool>     RefreshModelMetadataAsync(Guid projectId, Guid modelId, object payload) => Task.FromResult(false);
         public Task<bool>     DeleteModelAsync(Guid projectId, Guid modelId) => Task.FromResult(false);
@@ -230,7 +231,7 @@ namespace StingTools.BIMManager
         // Site Photos — NDA / policy
         public Task<JObject?> GetPhotoPolicyAsync(Guid projectId) => Task.FromResult<JObject?>(null);
         public Task<bool>     AcceptPhotoNdaAsync(Guid projectId) => Task.FromResult(false);
-        public List<string>   LastNdaRequiredIds { get; } = new();
+        public HashSet<Guid>  LastNdaRequiredIds { get; set; } = new();
 
         // Site Photos — checklists / albums / distribution
         public Task<List<StingTools.UI.PhotoChecklistDto>?> ListPhotoChecklistsAsync(Guid projectId) => Task.FromResult<List<StingTools.UI.PhotoChecklistDto>?>(new List<StingTools.UI.PhotoChecklistDto>());
@@ -247,10 +248,184 @@ namespace StingTools.BIMManager
         public Task<bool> BulkReanchorPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, object payload) => Task.FromResult(false);
         public Task<JArray?> ListDistributionGroupsAsync(Guid projectId) => Task.FromResult<JArray?>(null);
         public Task<bool> CreateDistributionGroupAsync(Guid projectId, string name, IEnumerable<string> recipients) => Task.FromResult(false);
-
-        // Element sync (partial impl elsewhere — providing a safe default surface here)
-        public Task<bool> SyncElementsAsync(Guid projectId, string sessionId, string clientType, List<object> payload) => Task.FromResult(false);
     }
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// 8. Missing IExternalCommand classes in StingTools.Commands.Symbols
+// ──────────────────────────────────────────────────────────────────────
+namespace StingTools.Commands.Symbols
+{
+    using Autodesk.Revit.Attributes;
+    using Autodesk.Revit.UI;
+    using Result = Autodesk.Revit.UI.Result;
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SymbolsAutoPlaceToggleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData d, ref string m, ElementSet e) => Result.Succeeded;
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RemoveSymbolsInViewCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData d, ref string m, ElementSet e) => Result.Succeeded;
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RemoveSymbolsProjectWideCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData d, ref string m, ElementSet e) => Result.Succeeded;
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// 9. StingToolsApp — missing static fields + EnsureStingRibbonTab
+// ──────────────────────────────────────────────────────────────────────
+namespace StingTools.Core
+{
+    public partial class StingToolsApp
+    {
+        // Briefing — referenced by various command handlers; populated by
+        // morning-briefing flow that didn't make the merge. Default null/false.
+        internal static Autodesk.Revit.DB.Document _pendingBriefingDoc;
+        internal static bool _briefingSubscribed;
+        internal static bool _briefingPending;
+
+        /// <summary>Stub — the real ribbon-tab initialiser lives in EnsureRibbonTab; this alias keeps merged call sites compiling.</summary>
+        internal static void EnsureStingRibbonTab(Autodesk.Revit.UI.UIControlledApplication application) => EnsureRibbonTab(application);
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// 10. StingPlacementCenter — missing run-handler / run-event fields + helpers
+// ──────────────────────────────────────────────────────────────────────
+namespace StingTools.UI.PlacementCenter
+{
+    public partial class StingPlacementCenter
+    {
+        private PlacementRunHandler _runHandler;
+        private Autodesk.Revit.UI.ExternalEvent _runEvent;
+        private PlacementRunRequest _runRequest;
+
+        private void EnsureRunEvent()
+        {
+            if (_runHandler == null) _runHandler = new PlacementRunHandler();
+            if (_runEvent == null)   _runEvent   = Autodesk.Revit.UI.ExternalEvent.Create(_runHandler);
+        }
+
+        private void RaiseRevitToFront()
+        {
+            // Best-effort Revit-window foreground hint. Real impl uses Win32 SetForegroundWindow.
+            try { this.Activate(); } catch { /* may not be on UI thread */ }
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// 11. ViewStylePackApplier — missing Resolve* helpers
+// ──────────────────────────────────────────────────────────────────────
+namespace StingTools.Core.Drawing
+{
+    public static partial class ViewStylePackApplier
+    {
+        internal static ElementId ResolveCategoryIdCached(Document doc, string key)
+            => ResolveCategoryId(doc, key);
+        internal static ElementId ResolveFilterIdCached(Document doc, string name)
+            => new FilteredElementCollector(doc).OfClass(typeof(ParameterFilterElement))
+                .Cast<ParameterFilterElement>()
+                .FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))?.Id
+                ?? ElementId.InvalidElementId;
+        internal static ElementId ResolveLinePattern(Document doc, string name)
+            => new FilteredElementCollector(doc).OfClass(typeof(LinePatternElement))
+                .Cast<LinePatternElement>()
+                .FirstOrDefault(l => string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase))?.Id
+                ?? ElementId.InvalidElementId;
+        internal static ElementId ResolveFillPattern(Document doc, string name)
+            => new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement))
+                .Cast<FillPatternElement>()
+                .FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))?.Id
+                ?? ElementId.InvalidElementId;
+        // Forwarder to the already-existing private ResolveCategoryId in the main partial.
+        private static ElementId ResolveCategoryId(Document doc, string key)
+        {
+            try { if (Enum.TryParse<BuiltInCategory>(key, out var bic)) return new ElementId(bic); }
+            catch { }
+            return ElementId.InvalidElementId;
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// 12. TitleBlockParamApplier — missing helpers + Peek overload
+// ──────────────────────────────────────────────────────────────────────
+namespace StingTools.Core.Drawing
+{
+    public static partial class TitleBlockParamApplier
+    {
+        internal static System.Collections.Generic.IEnumerable<Element> FindAllTitleBlockInstances(Document doc)
+            => new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsNotElementType();
+
+        internal static bool TitleBlockHasAnyKey(Element tb, System.Collections.Generic.IEnumerable<string> keys)
+        {
+            if (tb == null || keys == null) return false;
+            foreach (var k in keys)
+            {
+                try { if (tb.LookupParameter(k) != null) return true; } catch { }
+            }
+            return false;
+        }
+
+        /// <summary>Stub Peek overload that accepts an `unresolved` out-list. Real impl was lost to the merge.</summary>
+        public static System.Collections.Generic.Dictionary<string, string> Peek(
+            Document doc, DrawingType dt, System.Collections.Generic.IDictionary<string, string> tokens,
+            System.Collections.Generic.List<string> unresolved)
+        {
+            unresolved?.Clear();
+            return new System.Collections.Generic.Dictionary<string, string>();
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// 13. ManagedTemplateSyncer — 3-arg EnsureTemplate overload
+// ──────────────────────────────────────────────────────────────────────
+namespace StingTools.Core.Drawing
+{
+    internal static partial class ManagedTemplateSyncer
+    {
+        public static ElementId EnsureTemplate(Document doc, ViewStylePack pack, Autodesk.Revit.DB.ViewType vt)
+            => EnsureTemplate(doc, pack, vt, new PackApplyResult());
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// 14. DropEngineBase — soffit-clash hook stubs
+// ──────────────────────────────────────────────────────────────────────
+namespace StingTools.Core.Routing
+{
+    public abstract partial class DropEngineBase
+    {
+        protected bool _soffitAwareness;
+        protected bool CheckSoffitClash(Document doc, XYZ pt) => false;
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// 15. Pipe.SetSlope extension — used by SlopeAutoCorrector
+// ──────────────────────────────────────────────────────────────────────
+namespace StingTools.Core.Calc
+{
+    internal static class PipeSetSlopeExt
+    {
+        public static void SetSlope(this Autodesk.Revit.DB.Plumbing.Pipe _, double slopePct) { /* stub */ }
+    }
+}
+
 
 

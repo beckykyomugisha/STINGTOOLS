@@ -18,6 +18,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using Grid = System.Windows.Controls.Grid;
 using Ellipse = System.Windows.Shapes.Ellipse;
+using Color = System.Windows.Media.Color;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
 using StingTools.Core;

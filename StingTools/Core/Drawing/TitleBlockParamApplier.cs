@@ -34,7 +34,7 @@ namespace StingTools.Core.Drawing
         public List<string> Warnings { get; } = new List<string>();
     }
 
-    public static class TitleBlockParamApplier
+    public static partial class TitleBlockParamApplier
     {
         // Phase 168 — extended grammar:
         //   ${NAME}                 — ProjectInformation read

@@ -36,7 +36,7 @@ namespace StingTools.Core
     /// </summary>
     // Note: CA1416 coverage is provided assembly-wide by
     // [assembly: SupportedOSPlatform("windows")] in Properties/AssemblyInfo.cs.
-    public class StingToolsApp : IExternalApplication
+    public partial class StingToolsApp : IExternalApplication
     {
         public static string AssemblyPath { get; private set; }
         public static string DataPath { get; private set; }

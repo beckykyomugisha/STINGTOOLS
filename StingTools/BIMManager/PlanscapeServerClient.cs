@@ -31,6 +31,7 @@ public sealed partial class PlanscapeServerClient : IDisposable
         {
             if (_instance == null)
                 lock (_instanceLock) { _instance ??= new PlanscapeServerClient(); }
+            return _instance;
         }
     }
 
@@ -457,6 +458,7 @@ public sealed partial class PlanscapeServerClient : IDisposable
         {
             StingLog.Error("Planscape: Sync failed", ex);
             UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Error, ex.Message);
+            return new SyncResult { Success = false, Error = ex.Message };
         }
     }
 
