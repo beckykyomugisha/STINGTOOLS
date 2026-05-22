@@ -50,6 +50,15 @@ namespace StingTools.UI
         [JsonProperty("name")]        public string Name { get; set; }
         [JsonProperty("description")] public string Description { get; set; }
         [JsonProperty("materials")]   public List<string> Materials { get; set; } = new List<string>();
+
+        /// <summary>
+        /// B3 — Optional MEP systems to suggest seeding when this pack
+        /// loads. Each entry maps to STING's SystemParamPush conventions
+        /// (e.g. "HVAC-SUP", "DCW", "EES-A"). Empty / missing → no
+        /// system suggestion.
+        /// </summary>
+        [JsonProperty("systems", NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> Systems { get; set; }
     }
 
     public static class MaterialPackRegistry
@@ -154,6 +163,19 @@ namespace StingTools.UI
                     catch (Exception ex) { StingLog.Warn($"LoadPack create '{name}': {ex.Message}"); }
                 }
                 t.Commit();
+            }
+            // B3 — Surface the system suggestion AFTER materials commit.
+            // Non-blocking — we only audit-log + emit info, the actual
+            // MEP system seeding is the user's call via SystemParamPush.
+            if (pack.Systems != null && pack.Systems.Count > 0)
+            {
+                MaterialAuditLogger.Log(doc, "MAT_PackSystemHint", pack.Name,
+                    new Dictionary<string, object>
+                    {
+                        ["systems"] = string.Join(",", pack.Systems),
+                        ["hint"] = "Run TAGS > Tools > System Param Push to seed these.",
+                    });
+                StingLog.Info($"MaterialPackRegistry: pack '{pack.Name}' suggests MEP systems: {string.Join(", ", pack.Systems)}.");
             }
             return created;
         }

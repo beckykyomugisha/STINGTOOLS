@@ -35,6 +35,12 @@ namespace StingTools.Core
                 string elName = doc.GetElement(elementId)?.Name ?? "(unknown)";
                 StingLog.Info($"MaterialChange: element {elementId.Value} '{elName}' material changed → tag + BOQ marked stale.");
 
+                // D7 — Also enqueue a re-tag job so PROD codes that were
+                // material-aware (N+2) refresh after the material swap.
+                // The job runs OUTSIDE the IUpdater's transaction (Idling
+                // tick) using the existing StingAutoTagger retag path.
+                EnqueueForRetag(elementId.Value);
+
                 // D4 — Enqueue the element on the revision-cloud Idling job.
                 // The job runs OUTSIDE the IUpdater's transaction (Revit
                 // doesn't allow nested transactions; clouds need their own).
@@ -43,6 +49,26 @@ namespace StingTools.Core
                 EnqueueForRevisionCloud(elementId.Value);
             }
             catch (Exception ex) { StingLog.Warn($"OnMaterialChanged: {ex.Message}"); }
+        }
+
+        private static MaterialRetagJob _retagJob;
+        private static readonly object _retagLock = new object();
+
+        private static void EnqueueForRetag(long elementId)
+        {
+            try
+            {
+                lock (_retagLock)
+                {
+                    if (_retagJob == null)
+                    {
+                        _retagJob = new MaterialRetagJob();
+                        StingIdlingScheduler.Enqueue(_retagJob);
+                    }
+                    _retagJob.Enqueue(elementId);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"EnqueueForRetag: {ex.Message}"); }
         }
 
         private static void EnqueueForRevisionCloud(long elementId)

@@ -120,6 +120,96 @@ namespace StingTools.UI
         }
 
         /// <summary>
+        /// D5 — Batch-fix: walk every .rfa in the folder, rename any
+        /// material whose name matches a key in <paramref name="renameMap"/>
+        /// to the mapped value. Family files are opened editable, saved,
+        /// and closed. Skips files whose material set has no matches.
+        ///
+        /// Renames are case-insensitive. Returns a per-family report.
+        /// Caller decides which materials to remap (build the map from
+        /// the audit result + a corporate target list).
+        /// </summary>
+        public static FamilyMaterialAuditResult BatchRename(Application app, string folder,
+            bool recursive, IDictionary<string, string> renameMap)
+        {
+            var report = new FamilyMaterialAuditResult();
+            if (app == null || string.IsNullOrEmpty(folder) || !Directory.Exists(folder) ||
+                renameMap == null || renameMap.Count == 0) return report;
+            var started = DateTime.UtcNow;
+            var ciMap = new Dictionary<string, string>(renameMap, StringComparer.OrdinalIgnoreCase);
+
+            var rfaPaths = Directory.EnumerateFiles(folder, "*.rfa",
+                recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+                .Where(p => !p.Contains("_backup") && !Path.GetFileName(p).StartsWith("~"))
+                .Take(500) // batch-fix cap is lower than read-only audit
+                .ToList();
+
+            foreach (var rfa in rfaPaths)
+            {
+                Document famDoc = null;
+                try
+                {
+                    famDoc = app.OpenDocumentFile(rfa);
+                    if (famDoc == null || !famDoc.IsFamilyDocument) continue;
+                    var materials = new FilteredElementCollector(famDoc).OfClass(typeof(Material))
+                        .Cast<Material>().ToList();
+                    int renamed = 0;
+                    using (var t = new Transaction(famDoc, "STING Material Batch Rename"))
+                    {
+                        t.Start();
+                        foreach (var m in materials)
+                        {
+                            try
+                            {
+                                if (ciMap.TryGetValue(m.Name ?? "", out var newName) &&
+                                    !string.Equals(m.Name, newName, StringComparison.Ordinal))
+                                {
+                                    m.Name = newName;
+                                    renamed++;
+                                }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"BatchRename mat '{m?.Name}' in '{rfa}': {ex.Message}"); }
+                        }
+                        if (renamed > 0) t.Commit(); else t.RollBack();
+                    }
+                    if (renamed > 0)
+                    {
+                        try
+                        {
+                            famDoc.Save();
+                            report.Rows.Add(new FamilyMaterialAuditRow
+                            {
+                                FamilyPath = rfa,
+                                FamilyName = Path.GetFileNameWithoutExtension(rfa),
+                                MaterialName = $"renamed {renamed} material(s)",
+                                Origin = "BATCH-FIX",
+                                MaterialClass = "",
+                                ColorRgb = "",
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            report.Failures.Add($"{rfa} save: {ex.Message}");
+                        }
+                    }
+                    report.FamiliesScanned++;
+                }
+                catch (Exception ex)
+                {
+                    report.Failures.Add($"{rfa}: {ex.Message}");
+                    StingLog.Warn($"BatchRename open '{rfa}': {ex.Message}");
+                }
+                finally
+                {
+                    try { famDoc?.Close(false); }
+                    catch (Exception ex) { StingLog.Warn($"BatchRename close: {ex.Message}"); }
+                }
+            }
+            report.Elapsed = DateTime.UtcNow - started;
+            return report;
+        }
+
+        /// <summary>
         /// Write a CSV report next to the source folder. Returns the path.
         /// </summary>
         public static string WriteReport(string folder, FamilyMaterialAuditResult result)

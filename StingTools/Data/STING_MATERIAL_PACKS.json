@@ -32,7 +32,7 @@
     },
     "mep-coord-baseline": {
       "name": "MEP coordination baseline",
-      "description": "Duct + pipe + tray + conduit materials for coordination sheets.",
+      "description": "Duct + pipe + tray + conduit materials + matching MEP systems for coordination sheets.",
       "materials": [
         "MEP_Duct_Galvanised_Steel",
         "MEP_Duct_Stainless_Steel",
@@ -44,7 +44,8 @@
         "MEP_Conduit_EMT",
         "MEP_CableTray_Galv_Steel",
         "MEP_Insulation_Mineral_Wool"
-      ]
+      ],
+      "systems": ["HVAC-SUP","HVAC-RET","HVAC-EXH","DCW","DHW","HWS","SAN","RWD","GAS","FP","LV","ICT"]
     },
     "healthcare-baseline": {
       "name": "Healthcare baseline",
