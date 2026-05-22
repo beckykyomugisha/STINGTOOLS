@@ -8578,9 +8578,166 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       }
+    },
+    {
+      "id": "mep-plan-presentation",
+      "name": "MEP Plan — Presentation (Phase 135)",
+      "description": "Client-facing MEP plan. Shallow paragraph depth, only TAG7 sections A+B visible, soft Discipline colour scheme, segment mask hides LVL/ZONE for visual cleanliness.",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "M",
+      "phase": "PRESENTATION",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - MEP Plan",
+      "viewStylePackId": "corp-presentation-rich",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNamePattern": "MEP PRESENTATION — {lvl}",
+      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 200 },
+      "slots": [
+        { "label": "Main Plan", "viewType": "Plan", "normX": 0.03, "normY": 0.05, "normW": 0.75, "normH": 0.9, "required": true },
+        { "label": "Legend",    "viewType": "Legend", "normX": 0.8, "normY": 0.05, "normW": 0.18, "normH": 0.9 }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Linear",
+        "tagFamilies": { "Mechanical Equipment": "STING_TAG_MECH" },
+        "denseUntilScale": 100,
+        "rules": [
+          { "category": "Mechanical Equipment", "ruleType": "AutoTag", "enabled": true },
+          { "category": "Air Terminals",        "ruleType": "AutoTag", "enabled": true }
+        ]
+      },
+      "tokenProfile": {
+        "presentationMode": "Presentation",
+        "paraDepth": 2,
+        "sectionVisibility": { "A": true, "B": true, "C": false, "D": false, "E": false, "F": false },
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "segmentMask": "10010101",
+        "displayMode": 4
+      },
+      "print": { "colourScheme": "PresentationRich", "halftoneLinks": true, "lineWeightScale": 0.8 }
+    },
+    {
+      "id": "mep-plan-technical",
+      "name": "MEP Plan — Technical (Phase 135)",
+      "description": "Engineering-issue MEP plan. Full paragraph tier 5, all TAG7 sections visible, System variable colour scheme, BOLD tags, full 8-segment tag mask.",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "M",
+      "phase": "TECHNICAL",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - MEP Plan",
+      "viewStylePackId": "corp-coordination",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNamePattern": "MEP TECHNICAL — {lvl}",
+      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 100 },
+      "slots": [
+        { "label": "Main Plan", "viewType": "Plan", "normX": 0.03, "normY": 0.05, "normW": 0.75, "normH": 0.9, "required": true },
+        { "label": "Legend",    "viewType": "Legend", "normX": 0.8, "normY": 0.05, "normW": 0.18, "normH": 0.9 }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "Mechanical Equipment": "STING_TAG_MECH",
+          "Air Terminals":        "STING_TAG_AIR_TERMINAL",
+          "Pipe Fittings":        "STING_TAG_PIPE",
+          "Duct Fittings":        "STING_TAG_DUCT"
+        },
+        "denseUntilScale": 100,
+        "rules": [
+          { "category": "Grids",                "ruleType": "AutoDim", "enabled": true },
+          { "category": "Mechanical Equipment", "ruleType": "AutoTag", "enabled": true },
+          { "category": "Air Terminals",        "ruleType": "AutoTag", "enabled": true },
+          { "category": "Pipe Fittings",        "ruleType": "AutoTag", "enabled": true },
+          { "category": "Duct Fittings",        "ruleType": "AutoTag", "enabled": true }
+        ]
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 5,
+        "categoryDepths": {
+          "Mechanical Equipment": 7,
+          "Air Terminals":        4,
+          "Pipe Fittings":        6,
+          "Duct Fittings":        6
+        },
+        "sectionVisibility": { "A": true, "B": true, "C": true, "D": true, "E": true, "F": true },
+        "tagSize": "2",
+        "tagStyle": "BOLD",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5
+      },
+      "print": { "colourScheme": "Monochrome", "halftoneLinks": false, "lineWeightScale": 1.0 }
+    },
+    {
+      "id": "mep-plan-fabrication",
+      "name": "MEP Plan — Fabrication (Phase 135)",
+      "description": "Workshop-floor MEP plan. Tier 10 audit-trail TAG7, all sections, System variable colours, BOLD-RED tags, mask shows DISC-SYS-PROD-SEQ for spool-pack readability.",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "M",
+      "phase": "FABRICATION",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Fabrication Shop",
+      "viewStylePackId": "corp-fabrication-shop",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNamePattern": "MEP FABRICATION — {lvl}",
+      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 80 },
+      "slots": [
+        { "label": "Main Plan",   "viewType": "Plan",     "normX": 0.03, "normY": 0.30, "normW": 0.75, "normH": 0.65, "required": true },
+        { "label": "Cut List",    "viewType": "Schedule", "normX": 0.03, "normY": 0.05, "normW": 0.75, "normH": 0.22 },
+        { "label": "Spool Refs",  "viewType": "Legend",   "normX": 0.80, "normY": 0.05, "normW": 0.18, "normH": 0.9 }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Ordinate",
+        "dimensionStyle": "STING - Ordinate",
+        "tagFamilies": {
+          "Pipe Fittings": "STING_TAG_PIPE_SHOP",
+          "Duct Fittings": "STING_TAG_DUCT_SHOP"
+        },
+        "denseUntilScale": 50,
+        "rules": [
+          { "category": "Pipe Fittings",        "ruleType": "AutoTag", "enabled": true },
+          { "category": "Duct Fittings",        "ruleType": "AutoTag", "enabled": true },
+          { "category": "Mechanical Equipment", "ruleType": "AutoTag", "enabled": true }
+        ]
+      },
+      "tokenProfile": {
+        "presentationMode": "FullSpec",
+        "paraDepth": 10,
+        "categoryDepths": {
+          "Pipe Fittings":        10,
+          "Duct Fittings":        10,
+          "Mechanical Equipment": 8
+        },
+        "sectionVisibility": { "A": true, "B": true, "C": true, "D": true, "E": true, "F": true },
+        "tagSize": "2",
+        "tagStyle": "BOLD",
+        "tagColor": "RED",
+        "colorScheme": "System",
+        "segmentMask": "10001011",
+        "displayMode": 5
+      },
+      "print": { "colourScheme": "Monochrome", "halftoneLinks": false, "lineWeightScale": 1.1 }
     }
   ],
   "routing": [
+    { "discipline": "M", "phase": "PRESENTATION", "docType": "PLAN", "drawingTypeId": "mep-plan-presentation" },
+    { "discipline": "M", "phase": "TECHNICAL",   "docType": "PLAN", "drawingTypeId": "mep-plan-technical" },
+    { "discipline": "M", "phase": "FABRICATION", "docType": "PLAN", "drawingTypeId": "mep-plan-fabrication" },
     {
       "discipline": "P",
       "phase": "*",

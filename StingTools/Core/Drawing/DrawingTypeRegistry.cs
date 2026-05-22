@@ -92,6 +92,7 @@ namespace StingTools.Core.Drawing
                 if (p.SectionMarker != null) m.SectionMarker = p.SectionMarker;
                 if (p.Slots != null && p.Slots.Count > 0) m.Slots = p.Slots;
                 if (p.Annotation != null)    m.Annotation = p.Annotation;
+                if (p.TokenProfile != null)  m.TokenProfile = p.TokenProfile;
                 if (p.Print != null)         m.Print = p.Print;
             }
             return m;

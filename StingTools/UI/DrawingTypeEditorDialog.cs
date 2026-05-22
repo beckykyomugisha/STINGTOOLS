@@ -435,6 +435,9 @@ namespace StingTools.UI
             }));
             _packFormHost.Children.Add(Card("VG overrides (per category)", vgBody));
 
+            // Phase 135 — Tag Appearance card
+            _packFormHost.Children.Add(BuildPackTagAppearanceCard());
+
             // Validation strip
             _packFormHost.Children.Add(new TextBlock
             {
@@ -443,6 +446,128 @@ namespace StingTools.UI
                 FontSize = 11, Margin = new Thickness(4, 10, 4, 4),
                 TextWrapping = TextWrapping.Wrap,
             });
+        }
+
+        // Phase 135 — pack-level tag appearance defaults. Per-DrawingType
+        // AnnotationTokenProfile fields override these; the pack supplies
+        // a sensible default for every profile that bound to it but didn't
+        // set every tag knob explicitly.
+        private UIElement BuildPackTagAppearanceCard()
+        {
+            var p = _currentPack;
+            var body = new StackPanel();
+
+            string[] schemes = new[] { "", "Discipline", "System", "Status", "Zone", "Level", "Location", "Function",
+                                        "Warm", "Cool", "Red", "Yellow", "Blue", "Mono", "Dark" };
+            body.Children.Add(LabeledCombo("Default colour scheme",
+                schemes, p.TagColorScheme ?? "",
+                v => p.TagColorScheme = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
+                tooltip: "Variable-driven scheme written to STING_VIEW_TAG_STYLE on every view this pack applies to. Profile-level scheme wins."));
+
+            string[] commonStyles = new[] { "",
+                "2NOM_BLACK", "2BOLD_BLACK", "2.5NOM_BLACK", "2.5BOLD_BLACK",
+                "2NOM_BLUE", "2BOLD_BLUE", "2.5NOM_BLUE",
+                "2NOM_GREEN", "2BOLD_GREEN",
+                "2NOM_RED", "2BOLD_RED", "2.5BOLD_RED",
+                "2NOM_ORANGE", "2BOLD_ORANGE",
+                "2.5BOLDITALIC_PURPLE",
+                "3NOM_BLACK", "3BOLD_BLACK", "3.5BOLD_BLACK",
+            };
+            body.Children.Add(LabeledCombo("Default tag style preset",
+                commonStyles, p.DefaultTagStyle ?? "",
+                v => p.DefaultTagStyle = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
+                tooltip: "Canonical name '{size}{style}_{color}' (e.g. '2.5BOLD_RED'). Profile-level Size/Style/Color triple wins."));
+
+            body.Children.Add(BuildPackCategoryTagStylesGrid(p));
+            return Card("Tag appearance (Phase 135)", body);
+        }
+
+        private static readonly GridLength[] _packCatStyleCols =
+        {
+            new GridLength(180),
+            new GridLength(1, GridUnitType.Star),
+            new GridLength(24),
+        };
+
+        private UIElement BuildPackCategoryTagStylesGrid(ViewStylePack p)
+        {
+            p.CategoryTagStyles = p.CategoryTagStyles ?? new Dictionary<string, string>();
+
+            var host = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
+            host.Children.Add(new TextBlock {
+                Text = "Per-category tag style — overrides Default tag style above for that category.",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, Margin = new Thickness(0, 0, 0, 2) });
+
+            // Header
+            var header = new Grid { Margin = new Thickness(0, 4, 0, 2) };
+            for (int i = 0; i < _packCatStyleCols.Length; i++)
+                header.ColumnDefinitions.Add(new ColumnDefinition { Width = _packCatStyleCols[i] });
+            string[] hd = { "Category", "Style preset", "" };
+            for (int i = 0; i < hd.Length; i++)
+            {
+                var t = new TextBlock { Text = hd[i], FontSize = 10,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0) };
+                Grid.SetColumn(t, i); header.Children.Add(t);
+            }
+            host.Children.Add(header);
+
+            var cats = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
+                             KnownTaggableCategories).ToArray();
+            string[] commonStyles = new[] {
+                "2NOM_BLACK", "2BOLD_BLACK", "2.5NOM_BLACK", "2.5BOLD_BLACK",
+                "2NOM_BLUE", "2BOLD_BLUE",
+                "2NOM_GREEN", "2BOLD_GREEN",
+                "2NOM_RED", "2BOLD_RED", "2.5BOLD_RED",
+                "2NOM_ORANGE", "2BOLD_ORANGE",
+                "3NOM_BLACK", "3BOLD_BLACK",
+            };
+
+            foreach (var kv in p.CategoryTagStyles.ToList())
+            {
+                var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+                for (int i = 0; i < _packCatStyleCols.Length; i++)
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = _packCatStyleCols[i] });
+
+                string catKey = kv.Key;
+                var keyBox = SmallCombo(catKey, newKey =>
+                {
+                    newKey = (newKey ?? "").Trim();
+                    if (string.IsNullOrEmpty(newKey) || newKey == catKey) return;
+                    if (!p.CategoryTagStyles.ContainsKey(catKey)) return;
+                    var existing = p.CategoryTagStyles[catKey];
+                    p.CategoryTagStyles.Remove(catKey);
+                    p.CategoryTagStyles[newKey] = existing;
+                }, cats);
+
+                var styleBox = SmallCombo(kv.Value ?? "", v =>
+                {
+                    if (p.CategoryTagStyles.ContainsKey(catKey))
+                        p.CategoryTagStyles[catKey] = (v ?? "").Trim();
+                }, commonStyles);
+
+                var rm = MakeSmallBtn("×", () => { p.CategoryTagStyles.Remove(catKey); RenderPackForm(); });
+                rm.Width = 22;
+
+                var ctrls = new UIElement[] { keyBox, styleBox, rm };
+                for (int i = 0; i < ctrls.Length; i++)
+                {
+                    Grid.SetColumn(ctrls[i], i);
+                    if (ctrls[i] is FrameworkElement fe)
+                        fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
+                    g.Children.Add(ctrls[i]);
+                }
+                host.Children.Add(g);
+            }
+
+            host.Children.Add(MakeSmallBtn("＋ Add category style", () =>
+            {
+                var key = "NewCategory" + p.CategoryTagStyles.Count;
+                p.CategoryTagStyles[key] = "2NOM_BLACK";
+                RenderPackForm();
+            }));
+            return host;
         }
 
         // ── Filter rule row ──
@@ -656,6 +781,15 @@ namespace StingTools.UI
             [JsonProperty("appearance")]  public PackAppearance Appearance { get; set; }
             [JsonProperty("filterRules")] public List<PackFilterRule> FilterRules { get; set; }
             [JsonProperty("vgOverrides")] public Dictionary<string, PackCategoryOverride> VgOverrides { get; set; }
+
+            // Phase 135 — Tag Appearance pack-level defaults
+            [JsonProperty("tagColorScheme",   NullValueHandling = NullValueHandling.Ignore)]
+            public string TagColorScheme { get; set; }
+            [JsonProperty("defaultTagStyle",  NullValueHandling = NullValueHandling.Ignore)]
+            public string DefaultTagStyle { get; set; }
+            [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
+            public Dictionary<string, string> CategoryTagStyles { get; set; }
+
             public override string ToString()
             {
                 var ext = string.IsNullOrEmpty(Extends) ? "" : $"  ←  {Extends}";
@@ -1145,6 +1279,7 @@ namespace StingTools.UI
             _formHost.Children.Add(BuildCropCard());
             _formHost.Children.Add(BuildSectionMarkerCard());
             _formHost.Children.Add(BuildAnnotationCard());
+            _formHost.Children.Add(BuildTokenProfileCard());   // Phase 135
             _formHost.Children.Add(BuildSlotsCard());
 
             // Validation strip
@@ -1301,6 +1436,202 @@ namespace StingTools.UI
             body.Children.Add(BuildTagFamiliesGrid(pack));
 
             return Card("Annotation rule pack", body);
+        }
+
+        // Phase 135 — Token Depth & Style card.
+        // Drives the AnnotationTokenProfile fields: presentation mode,
+        // global + per-category paragraph depth, TAG7 section visibility,
+        // tag size/style/colour preset, view-level colour scheme, segment
+        // mask, display mode. Empty ⇒ inherit from ViewStylePack pack-level
+        // defaults (defaultTagStyle / categoryTagStyles / tagColorScheme).
+        private UIElement BuildTokenProfileCard()
+        {
+            var tp = _current.TokenProfile = _current.TokenProfile ?? new AnnotationTokenProfile();
+            var body = new StackPanel();
+
+            string[] presetModes = new[] { "", "Compact", "Technical", "FullSpec", "Presentation", "BOQ" };
+            body.Children.Add(LabeledCombo("Presentation mode preset",
+                presetModes, tp.PresentationMode ?? "",
+                v => tp.PresentationMode = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
+                tooltip: "Sets PARA_STATE_1/2/3 + WARN_VISIBLE in one shot. Empty = use Para-depth slider below."));
+
+            body.Children.Add(LabeledNullableNumber("Global paragraph depth (1-10)",
+                tp.ParaDepth, v => tp.ParaDepth = v,
+                tooltip: "Tier 1 = compact, 10 = full audit. Empty = inherit from preset / leave alone."));
+
+            string[] sizes  = new[] { "", "2", "2.5", "3", "3.5" };
+            string[] styles = new[] { "", "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
+            string[] colors = new[] { "", "BLACK", "BLUE", "GREEN", "RED", "ORANGE", "GREY", "PURPLE", "YELLOW" };
+
+            body.Children.Add(LabeledCombo("Tag size",
+                sizes, tp.TagSize ?? "",
+                v => tp.TagSize = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
+                tooltip: "Empty = inherit from pack DefaultTagStyle. mm text height."));
+            body.Children.Add(LabeledCombo("Tag style",
+                styles, tp.TagStyle ?? "",
+                v => tp.TagStyle = string.IsNullOrWhiteSpace(v) ? null : v.Trim().ToUpperInvariant()));
+            body.Children.Add(LabeledCombo("Tag colour",
+                colors, tp.TagColor ?? "",
+                v => tp.TagColor = string.IsNullOrWhiteSpace(v) ? null : v.Trim().ToUpperInvariant()));
+
+            string[] schemes = new[] { "", "Discipline", "System", "Status", "Zone", "Level", "Location", "Function",
+                                        "Warm", "Cool", "Red", "Yellow", "Blue", "Mono", "Dark" };
+            body.Children.Add(LabeledCombo("View colour scheme (STING_VIEW_TAG_STYLE)",
+                schemes, tp.ColorScheme ?? "",
+                v => tp.ColorScheme = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
+                tooltip: "Variable-driven colour map written to STING_VIEW_TAG_STYLE on the view."));
+
+            body.Children.Add(LabeledTextBox("Segment mask (8 chars 0/1)",
+                tp.SegmentMask, v => tp.SegmentMask = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
+                tooltip: "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ. Example '10000001' = DISC + SEQ only."));
+
+            body.Children.Add(LabeledNullableNumber("Display mode (1-5)",
+                tp.DisplayMode, v => tp.DisplayMode = v,
+                tooltip: "1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment."));
+
+            body.Children.Add(BuildSectionVisibilityGrid(tp));
+            body.Children.Add(BuildCategoryDepthsGrid(tp));
+
+            // Summary / collapse line
+            var summary = new TextBlock {
+                Text = SummariseTokenProfile(tp),
+                FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(SubtleColor),
+                Margin = new Thickness(0, 6, 0, 0),
+            };
+            body.Children.Add(summary);
+
+            return Card("Token Depth & Style (Phase 135)", body);
+        }
+
+        private UIElement BuildSectionVisibilityGrid(AnnotationTokenProfile tp)
+        {
+            tp.SectionVisibility = tp.SectionVisibility ?? new Dictionary<string, bool>();
+            var host = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+            host.Children.Add(new TextBlock {
+                Text = "TAG7 section visibility — A: Identity · B: System · C: Spatial · D: Lifecycle · E: Technical · F: Classification",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 4) });
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            string[] keys = { "A", "B", "C", "D", "E", "F" };
+            foreach (var k in keys)
+            {
+                bool cur = tp.SectionVisibility.TryGetValue(k, out var b) && b;
+                var cb = new CheckBox {
+                    Content = k, IsChecked = cur, Margin = new Thickness(0, 0, 12, 0),
+                    Foreground = new SolidColorBrush(FgColor),
+                };
+                cb.Checked   += (s, e) => tp.SectionVisibility[k] = true;
+                cb.Unchecked += (s, e) => tp.SectionVisibility[k] = false;
+                row.Children.Add(cb);
+            }
+            host.Children.Add(row);
+            return host;
+        }
+
+        private static readonly GridLength[] _catDepthCols =
+        {
+            new GridLength(220),
+            new GridLength(60),
+            new GridLength(24),
+        };
+
+        private UIElement BuildCategoryDepthsGrid(AnnotationTokenProfile tp)
+        {
+            tp.CategoryDepths = tp.CategoryDepths ?? new Dictionary<string, int>();
+            var host = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+            host.Children.Add(new TextBlock {
+                Text = "Per-category paragraph depth (overrides global ParaDepth above for that category only).",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 4) });
+
+            // Header
+            var header = new Grid { Margin = new Thickness(0, 4, 0, 2) };
+            for (int i = 0; i < _catDepthCols.Length; i++)
+                header.ColumnDefinitions.Add(new ColumnDefinition { Width = _catDepthCols[i] });
+            string[] hd = { "Category", "Depth", "" };
+            for (int i = 0; i < hd.Length; i++)
+            {
+                var t = new TextBlock { Text = hd[i], FontSize = 10,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0) };
+                Grid.SetColumn(t, i); header.Children.Add(t);
+            }
+            host.Children.Add(header);
+
+            var cats = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
+                             KnownTaggableCategories).ToArray();
+
+            foreach (var kv in tp.CategoryDepths.ToList())
+            {
+                var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+                for (int i = 0; i < _catDepthCols.Length; i++)
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = _catDepthCols[i] });
+
+                string catKey = kv.Key;
+                var keyBox = SmallCombo(catKey, newKey =>
+                {
+                    newKey = (newKey ?? "").Trim();
+                    if (string.IsNullOrEmpty(newKey) || newKey == catKey) return;
+                    if (!tp.CategoryDepths.ContainsKey(catKey)) return;
+                    var existing = tp.CategoryDepths[catKey];
+                    tp.CategoryDepths.Remove(catKey);
+                    tp.CategoryDepths[newKey] = existing;
+                }, cats);
+
+                int curDepth = kv.Value;
+                var depth = SmallCombo(curDepth.ToString(), v =>
+                {
+                    if (int.TryParse(v, out var n) && tp.CategoryDepths.ContainsKey(catKey))
+                        tp.CategoryDepths[catKey] = n;
+                }, new[] { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" });
+                depth.IsEditable = false;
+
+                var rm = MakeSmallBtn("×", () => { tp.CategoryDepths.Remove(catKey); RenderForm(); });
+                rm.Width = 22;
+
+                var ctrls = new UIElement[] { keyBox, depth, rm };
+                for (int i = 0; i < ctrls.Length; i++)
+                {
+                    Grid.SetColumn(ctrls[i], i);
+                    if (ctrls[i] is FrameworkElement fe)
+                        fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
+                    g.Children.Add(ctrls[i]);
+                }
+                host.Children.Add(g);
+            }
+
+            host.Children.Add(MakeSmallBtn("＋ Add category depth", () =>
+            {
+                var key = "NewCategory" + tp.CategoryDepths.Count;
+                tp.CategoryDepths[key] = 5;
+                RenderForm();
+            }));
+            return host;
+        }
+
+        private static string SummariseTokenProfile(AnnotationTokenProfile tp)
+        {
+            var bits = new List<string>();
+            if (!string.IsNullOrWhiteSpace(tp.PresentationMode)) bits.Add($"mode:{tp.PresentationMode}");
+            if (tp.ParaDepth.HasValue) bits.Add($"depth:{tp.ParaDepth.Value}");
+            if (!string.IsNullOrWhiteSpace(tp.TagSize) || !string.IsNullOrWhiteSpace(tp.TagStyle) || !string.IsNullOrWhiteSpace(tp.TagColor))
+                bits.Add($"tag:{tp.TagSize ?? "·"}{tp.TagStyle ?? "·"}_{tp.TagColor ?? "·"}");
+            if (!string.IsNullOrWhiteSpace(tp.ColorScheme)) bits.Add($"scheme:{tp.ColorScheme}");
+            if (!string.IsNullOrWhiteSpace(tp.SegmentMask)) bits.Add($"mask:{tp.SegmentMask}");
+            if (tp.DisplayMode.HasValue) bits.Add($"disp:{tp.DisplayMode.Value}");
+            if (tp.SectionVisibility != null && tp.SectionVisibility.Count > 0)
+                bits.Add("sect:" + string.Join("",
+                    tp.SectionVisibility.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
+                        .Select(k => k.Value ? k.Key : k.Key.ToLower())));
+            if (tp.CategoryDepths != null && tp.CategoryDepths.Count > 0)
+                bits.Add($"cats:{tp.CategoryDepths.Count}");
+            return bits.Count == 0
+                ? "Inherits all values from ViewStylePack pack-level defaults."
+                : "Active: " + string.Join(" · ", bits);
         }
 
         // Compact grid editor for AnnotationRulePack.Rules (Change 6c).
