@@ -1,0 +1,20 @@
+{
+  "id": "ElectricalPostFitOut",
+  "name": "Electrical Post Fit-Out Verification",
+  "description": "After commissioning: re-import as-built photometric measurements, refresh circuit descriptions and panel breaker callouts, then mint demand-factor + fault + arc-flash schedules to feed the operations / handover pack.",
+  "version": "1.0",
+  "phase": 182,
+  "steps": [
+    { "order": 1, "tag": "Photo_IfcImport",       "label": "Import as-built photometric IFC",         "continueOnFail": true },
+    { "order": 2, "tag": "Photo_DesignReview",    "label": "Score as-built lux vs design targets",    "continueOnFail": true },
+    { "order": 3, "tag": "Lite_EmergAudit",       "label": "Re-audit emergency lighting compliance",  "continueOnFail": true },
+    { "order": 4, "tag": "Circuit_AutoDesc",      "label": "Refresh circuit descriptions",            "continueOnFail": true },
+    { "order": 5, "tag": "Panel_SyncParams",      "label": "Sync panel parameters from as-built",     "continueOnFail": true },
+    { "order": 6, "tag": "Calc_FaultCurrent",     "label": "Recompute fault levels",                  "continueOnFail": true },
+    { "order": 7, "tag": "Elec_ArcFlash",         "label": "Recompute arc-flash incident energy",     "continueOnFail": true },
+    { "order": 8, "tag": "Elec_ArcFlashLabels",   "label": "Issue final arc-flash labels",            "continueOnFail": true },
+    { "order": 9, "tag": "Rprt_DemandFactors",    "label": "As-built demand-factors report",          "continueOnFail": true },
+    { "order": 10,"tag": "Rprt_Audit",            "label": "Final compliance audit",                  "continueOnFail": true },
+    { "order": 11,"tag": "Rprt_PDF",              "label": "Export panel schedules to PDF",           "continueOnFail": true }
+  ]
+}

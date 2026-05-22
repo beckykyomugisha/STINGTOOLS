@@ -383,9 +383,9 @@ namespace StingTools.Commands.Electrical
 
             try
             {
-                var p = conduit.LookupParameter("ELC_WIRE_VD_PCT_NUM");
+                var p = conduit.LookupParameter(ParamRegistry.ELC_CKT_VD_PCT);
                 if (p == null) {
-                    double.TryParse(ParameterHelpers.GetString(conduit, "ELC_WIRE_VD_PCT_NUM"),
+                    double.TryParse(ParameterHelpers.GetString(conduit, ParamRegistry.ELC_CKT_VD_PCT),
                         System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out vd);
                 } else if (p.StorageType == StorageType.Double) {

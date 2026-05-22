@@ -227,6 +227,16 @@ namespace StingTools.UI
                 ((cmbSheetPlacementMode?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "GuidedManual";
         }
 
+        private void EarthingSystem_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                string sysName = (cmbEarthingSystem?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "TN-C-S";
+                StingElectricalCommandHandler.CurrentEarthingSystem = sysName;
+            }
+            catch { }
+        }
+
         private void LpdStandard_Changed(object sender, SelectionChangedEventArgs e)
         {
             try
