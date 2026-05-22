@@ -105,14 +105,20 @@ namespace StingTools.Core.Lightning
         {
             try
             {
+                // Tier 1 — project-level explicit override
                 if (doc?.ProjectInformation != null)
                 {
                     double ov = GetDoubleParam(doc.ProjectInformation,
                         Fabrication.LpsParams.PROJECT_NG_OVERRIDE_NR);
                     if (ov > 0) return ov;
                 }
+                // Tier 2 — Wave E #17 climate-site latitude estimate
+                // (when HVAC's ClimateRegistry has a site for the project).
+                double climate = LpsRegionalNg.EstimateFromClimate(doc);
+                if (climate > 0) return climate;
             }
             catch (Exception ex) { StingLog.Warn($"GetEffectiveFlashDensity: {ex.Message}"); }
+            // Tier 3 — regional default from STING_LPS_FLASH_DENSITY.json
             return GetFlashDensity(regionId);
         }
 

@@ -229,6 +229,26 @@ namespace StingTools.Commands.Lightning
             }
             catch (Exception ex) { StingLog.Warn($"AutoIssueRaiser: {ex.Message}"); }
 
+            // Wave E #18 — append to SHA-256-chained audit log so
+            // regulator submissions + compliance audits have the run
+            // history. Skipped silently when audit-log infrastructure
+            // isn't initialised (legacy projects pre-Phase 112).
+            try
+            {
+                StingTools.Docs.Workflow.AuditLog.Append(doc, "LPS_COMPLIANCE_CHECK",
+                    docId: "lps-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss"),
+                    payload: new Newtonsoft.Json.Linq.JObject
+                    {
+                        ["class"]   = classId,
+                        ["verdict"] = verdict,
+                        ["pass"]    = pass,
+                        ["warn"]    = warn,
+                        ["fail"]    = fail,
+                        ["kc"]      = kcShown
+                    });
+            }
+            catch (Exception ex) { StingLog.Warn($"AuditLog.Append: {ex.Message}"); }
+
             // Surface kc factor in the panel header. ProjectInformation may have
             // a stamped value (set by Class Setup / Recalculate); else compute
             // live from the down-conductor count.
