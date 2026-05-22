@@ -21,7 +21,15 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
 
+using Microsoft.AspNetCore.Http.Features;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Raise the multipart body limit globally to 200 MB so model uploads aren't
+// rejected by the default 128 MB ceiling before the action-filter pipeline runs.
+const long MaxUploadBytes = 200L * 1024 * 1024;
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = MaxUploadBytes);
+builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = MaxUploadBytes);
 
 // ── Serilog (MON-01: Seq / Elastic observability) ──
 // Console + rolling file is always-on. Optional structured-log sinks are
