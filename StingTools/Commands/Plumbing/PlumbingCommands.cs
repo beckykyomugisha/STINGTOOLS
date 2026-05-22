@@ -14,6 +14,7 @@
 //   Plumbing_MaterialAudit      — material × jointing × service compat
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using Autodesk.Revit.Attributes;
@@ -37,18 +38,31 @@ namespace StingTools.Commands.Plumbing
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            var td = new TaskDialog("STING Plumbing — Auto-Size Drainage")
+            // Dry-run choice: when the dock panel is open, read the DRAINAGE-tab
+            // 'Apply changes' CheckBox so the inline path skips the TaskDialog
+            // entirely. Closed-panel callers (ribbon / NLP) keep the dialog so
+            // they still get to choose without a panel surface.
+            bool dryRun;
+            var instAuto = StingPlumbingPanel.Instance;
+            if (instAuto != null)
             {
-                MainInstruction = "Run drainage auto-sizing pipeline?",
-                MainContent = "Builds DFU map, sizes pipes (BS EN 12056-2 / IPC 2021), evaluates self-cleansing velocity, designs vents, and previews slope corrections.",
-                CommonButtons = TaskDialogCommonButtons.Cancel,
-                DefaultButton = TaskDialogResult.Cancel
-            };
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Dry run (preview only)");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply (writeback)");
-            var pick = td.Show();
-            bool dryRun = pick == TaskDialogResult.CommandLink1;
-            if (pick != TaskDialogResult.CommandLink1 && pick != TaskDialogResult.CommandLink2) return Result.Cancelled;
+                dryRun = !instAuto.ReadDrainageAutoSizeApply();
+            }
+            else
+            {
+                var td = new TaskDialog("STING Plumbing — Auto-Size Drainage")
+                {
+                    MainInstruction = "Run drainage auto-sizing pipeline?",
+                    MainContent = "Builds DFU map, sizes pipes (BS EN 12056-2 / IPC 2021), evaluates self-cleansing velocity, designs vents, and previews slope corrections.",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                    DefaultButton = TaskDialogResult.Cancel
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Dry run (preview only)");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply (writeback)");
+                var pick = td.Show();
+                dryRun = pick == TaskDialogResult.CommandLink1;
+                if (pick != TaskDialogResult.CommandLink1 && pick != TaskDialogResult.CommandLink2) return Result.Cancelled;
+            }
 
             DfuMapResult dfuMap;
             DrainageSizingReport sizing;
@@ -66,6 +80,64 @@ namespace StingTools.Commands.Plumbing
             var vents = VentDesigner.DesignVents(doc, dfuMap.PipeDfu);
             var stackReport = StackCapacityValidator.Validate(doc, dfuMap);
 
+            // Inline panel path: populate DU-scan, sizing, vent and slope grids
+            // in one shot so the user sees every engine's output without a
+            // popup. Slope fixes are previewed and (in apply mode) committed
+            // through SlopeAutoCorrector.RunFix — its TransactionGroup rolls
+            // back on per-pipe failures, so unsafe topology never lands.
+            // Fall through to StingResultPanel only when the dock panel is
+            // closed (ribbon / NLP entry); the wide SlopeFixPreviewDialog is
+            // still available there for connector-impact detail.
+            SlopeAutoCorrectionResult slopeResult = null;
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                if (!dryRun)
+                    slopeResult = SlopeAutoCorrector.RunFix(doc, dryRun: false);
+                else
+                    slopeResult = SlopeAutoCorrector.Preview(doc);
+
+                var sizingRows = sizing.Results.Select(res => new DrainageSizingRow
+                {
+                    Pipe        = res.PipeId.Value.ToString(),
+                    SigmaDu     = res.Dfu,
+                    Dn          = res.RecommendedDnMm,
+                    VelocityMps = res.SelfCleansingVelocityMps,
+                    HdRatio     = 0.0,
+                    Status      = (res.SelfCleansingOk ? "OK" : "WARN")
+                                  + $" · DN{res.CurrentDnMm}→{res.RecommendedDnMm}"
+                                  + $" · slope {res.SlopePct:F2}%"
+                }).ToList();
+                var ventRows = vents.Select(v => new DrainageVentRow
+                {
+                    Drain   = $"{v.DrainPipeId.Value} DN{v.DrainDnMm}",
+                    Du      = v.Dfu,
+                    VentDn  = v.RecommendedVentDnMm,
+                    MaxLenM = v.MaxVentLengthM,
+                    Flag    = (v.RequiresAav ? "AAV" : "")
+                              + (v.RequiresReliefVent ? (v.RequiresAav ? " · RELIEF" : "RELIEF") : "")
+                }).ToList();
+                var slopeRows = slopeResult.Fixes
+                    .Where(f => f.Action == "FLIP" || f.Action == "DEPRESS")
+                    .Select(f => new DrainageSlopeRow
+                    {
+                        Apply   = f.Success && f.ConnectorImpact != ConnectorImpact.SkippedConnected,
+                        Pipe    = f.PipeId?.Value.ToString() ?? "",
+                        DElevMm = f.DeltaZFt * 304.8
+                    }).ToList();
+                inst.SetDrainageSizingResult(sizingRows,
+                    $"AutoSize · {sizing.PipesAnalysed} pipes · {sizing.PipesUpsized} upsize · "
+                    + $"{stackReport.StacksFlagged} stacks flagged"
+                    + (dryRun ? " (dry run)" : ""));
+                inst.SetDrainageVentResult(ventRows, null);
+                inst.SetDrainageSlopeResult(slopeRows,
+                    $"Slope · flipped {slopeResult.PipesFlipped} · depressed {slopeResult.PipesDepressed} · "
+                    + $"unchanged {slopeResult.PipesUnchanged} · skipped {slopeResult.PipesSkippedConnectedBothEnds} · "
+                    + $"failed {slopeResult.PipesFailed}");
+                return Result.Succeeded;
+            }
+
+            // Closed-panel path: keep the legacy dialog flow.
             if (!dryRun)
             {
                 var preview = SlopeAutoCorrector.Preview(doc);
@@ -206,19 +278,25 @@ namespace StingTools.Commands.Plumbing
                 .WhereElementIsNotElementType().ToElements();
 
             int matches = 0, mismatches = 0, missing = 0;
-            var panel = StingResultPanel.Create("Trap & Vent Audit");
-            panel.AddSection("FIXTURES (first 50)");
+            var lines = new List<string>();
             foreach (var el in fixtures.Take(50))
             {
                 var sel = TrapDesigner.SelectTrap(el);
                 string current = "";
                 try { current = el.LookupParameter(ParamRegistry.PLM_TRAP_TYPE)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 bool match = string.Equals(current, sel.TrapType, StringComparison.OrdinalIgnoreCase);
-                if (string.IsNullOrEmpty(current)) { missing++; }
-                else if (match)                    { matches++; }
-                else                                { mismatches++; }
-                panel.Text($"{el.Id.Value} {el.Name} → trap {sel.TrapType} seal {sel.SealDepthMm} mm · current '{current}' {(string.IsNullOrEmpty(current) ? "✗" : match ? "✓" : "⚠")}");
+                if (string.IsNullOrEmpty(current)) missing++;
+                else if (match) matches++; else mismatches++;
+                lines.Add($"{el.Id.Value} {el.Name} → trap {sel.TrapType} seal {sel.SealDepthMm} mm · current '{current}' {(string.IsNullOrEmpty(current) ? "✗" : match ? "✓" : "⚠")}");
             }
+            string status = $"Trap & Vent · {fixtures.Count} fixtures · "
+                          + $"{matches} ✓ · {mismatches} ⚠ · {missing} ✗";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
+            var panel = StingResultPanel.Create("Trap & Vent Audit");
+            panel.AddSection("FIXTURES (first 50)");
+            foreach (var line in lines) panel.Text(line);
             panel.AddSection("SUMMARY")
                  .Metric("Fixtures scanned", fixtures.Count.ToString())
                  .Metric("Matches",          matches.ToString())
@@ -245,10 +323,8 @@ namespace StingTools.Commands.Plumbing
             const double rho = 1000, g = 9.81;
             double inletElevFt = levels.FirstOrDefault()?.Elevation ?? 0;
 
-            var panel = StingResultPanel.Create("Pressure Zone / PRV Schedule");
-            panel.SetSubtitle("Static pressure per level · 500 kPa Approved Doc G ceiling");
-            panel.AddSection("PER LEVEL");
             int prvCount = 0;
+            var lines = new List<string>();
             foreach (var lvl in levels)
             {
                 double dHm = (lvl.Elevation - inletElevFt) * 0.3048;
@@ -258,8 +334,16 @@ namespace StingTools.Commands.Plumbing
                 string zone = pStaticKpa > 500 ? "BOOSTED" :
                               pStaticKpa > 350 ? "HIGH"    :
                               pStaticKpa > 200 ? "MID"     : "LOW";
-                panel.Text($"{lvl.Name} (Δh {dHm:F1} m) · static {pStaticKpa:F0} kPa · zone {zone} {(prv ? "· PRV required" : "")}");
+                lines.Add($"{lvl.Name} (Δh {dHm:F1} m) · static {pStaticKpa:F0} kPa · zone {zone} {(prv ? "· PRV required" : "")}");
             }
+            string status = $"PRV · {levels.Count} levels · {prvCount} PRV recommendations";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
+            var panel = StingResultPanel.Create("Pressure Zone / PRV Schedule");
+            panel.SetSubtitle("Static pressure per level · 500 kPa Approved Doc G ceiling");
+            panel.AddSection("PER LEVEL");
+            foreach (var line in lines) panel.Text(line);
             panel.AddSection("SUMMARY")
                  .Metric("Levels analysed", levels.Count.ToString())
                  .Metric("PRV recommendations", prvCount.ToString());
@@ -283,6 +367,10 @@ namespace StingTools.Commands.Plumbing
                 r = DeadLegDetector.Scan(ctx.Doc, writeBack: true);
                 tx.Commit();
             }
+            string status = $"Dead-Leg · {r.PipesScanned} pipes · {r.LegsFlagged} flagged · {r.PipesWritten} written";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
             var panel = StingResultPanel.Create("Dead-Leg Scan (HSG 274)");
             panel.AddSection("SUMMARY")
                  .Metric("Pipes scanned", r.PipesScanned.ToString())
@@ -308,11 +396,30 @@ namespace StingTools.Commands.Plumbing
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var findings = CrossConnectionChecker.Scan(ctx.Doc);
+
+            var rows = findings.OrderByDescending(x => x.NonPotableCategory).Select(f => new SpecialtyCrossConnRow
+            {
+                SystemA    = $"Potable {f.PotableElementId.Value}",
+                SystemB    = $"Cat-{(int)f.NonPotableCategory} {f.NonPotableElementId.Value}",
+                Separation = "",
+                Risk       = $"[{f.Severity}] {f.Notes}"
+            }).ToList();
+            int critical = findings.Count(f => f.Severity == "CRITICAL");
+            int error    = findings.Count(f => f.Severity == "ERROR");
+            string status = $"Cross-conn · {findings.Count} findings · CRITICAL {critical} · ERROR {error}";
+
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetSpecialtyCrossConnResult(rows, status);
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Cross-Connection Scan (BS EN 1717)");
             panel.AddSection("SUMMARY")
                  .Metric("Findings",   findings.Count.ToString())
-                 .Metric("CRITICAL",   findings.Count(f => f.Severity == "CRITICAL").ToString())
-                 .Metric("ERROR",      findings.Count(f => f.Severity == "ERROR").ToString());
+                 .Metric("CRITICAL",   critical.ToString())
+                 .Metric("ERROR",      error.ToString());
             if (findings.Any())
             {
                 panel.AddSection("FINDINGS");
@@ -405,19 +512,47 @@ namespace StingTools.Commands.Plumbing
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
-            var rep = PlumbingMaterialValidator.Validate(ctx.Doc);
+
+            var inst = StingPlumbingPanel.Instance;
+            var opts = inst?.ReadSpecialtyOptions();
+            var rep  = PlumbingMaterialValidator.Validate(ctx.Doc);
+
+            // Apply scope flags from the SPECIALTY tab — when MatAll is on we
+            // surface every finding; otherwise drop kinds the user unticked.
+            IEnumerable<PlumbingValidationFinding> findings = rep.Findings;
+            if (opts != null && !opts.MatAll)
+            {
+                findings = rep.Findings.Where(f =>
+                {
+                    // PlumbingFinding is an enum; map the panel CheckBoxes to
+                    // its members so the user's scope flags filter correctly.
+                    var k = f.Kind.ToString().ToUpperInvariant();
+                    if (opts.MatGalvanic && k.Contains("GALVANIC")) return true;
+                    if (opts.MatJointing && k.Contains("JOINT"))    return true;
+                    if (opts.MatWras     && k.Contains("WRAS"))     return true;
+                    return !(opts.MatGalvanic || opts.MatJointing || opts.MatWras);
+                });
+            }
+            var list = findings.OrderByDescending(x => x.Severity).ToList();
+            int critical = list.Count(f => f.Severity == "CRITICAL");
+            int error    = list.Count(f => f.Severity == "ERROR");
+            int warn     = list.Count(f => f.Severity == "WARN");
+            string status = $"Material · {rep.ElementsScanned} elements · {list.Count} findings · "
+                          + $"CRITICAL {critical} · ERROR {error} · WARN {warn}";
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
             var panel = StingResultPanel.Create("Plumbing Material & Jointing Audit");
             panel.SetSubtitle($"Rules: {rep.RulesSource}");
             panel.AddSection("SUMMARY")
                  .Metric("Elements scanned", rep.ElementsScanned.ToString())
-                 .Metric("Findings",         rep.Findings.Count.ToString())
-                 .Metric("CRITICAL",         rep.Findings.Count(f => f.Severity == "CRITICAL").ToString())
-                 .Metric("ERROR",            rep.Findings.Count(f => f.Severity == "ERROR").ToString())
-                 .Metric("WARN",             rep.Findings.Count(f => f.Severity == "WARN").ToString());
-            if (rep.Findings.Any())
+                 .Metric("Findings",         list.Count.ToString())
+                 .Metric("CRITICAL",         critical.ToString())
+                 .Metric("ERROR",            error.ToString())
+                 .Metric("WARN",             warn.ToString());
+            if (list.Any())
             {
                 panel.AddSection("FINDINGS (first 80)");
-                foreach (var f in rep.Findings.OrderByDescending(x => x.Severity).Take(80))
+                foreach (var f in list.Take(80))
                     panel.Text($"[{f.Severity}] {f.ElementId.Value} · {f.Kind} · mat={f.Material} joint={f.Joint} svc={f.Service} — {f.Notes}");
             }
             panel.Show();

@@ -18,6 +18,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Plumbing;
 using StingTools.UI;
+using StingTools.UI.Plumbing;
 
 namespace StingTools.Commands.Plumbing
 {
@@ -39,6 +40,28 @@ namespace StingTools.Commands.Plumbing
                 tx.Commit();
             }
 
+            var supplyRows = r.Rows.Select(row => new SupplyFixtureScanRow
+            {
+                Fixture = row.DisplayName, Count = row.Count,
+                LuCw = row.TotalLuCw, LuHw = row.TotalLuHw
+            }).ToList();
+            var drainageRows = r.Rows.Select(row => new DrainageDuScanRow
+            {
+                Fixture = row.DisplayName, Count = row.Count,
+                DuEach  = row.Count > 0 ? row.TotalDu / row.Count : 0,
+                SigmaDu = row.TotalDu
+            }).ToList();
+            string status = $"Plumbing · {r.FixturesScanned} fixtures · ΣDU {r.SumDu:F1} · ΣWSFU {r.SumWsfu:F1}" +
+                            (r.FixturesUnmatched > 0 ? $" · {r.FixturesUnmatched} unmatched" : "");
+
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetSupplyFixtureScanResult(supplyRows, status);
+                inst.SetDrainageDuScanResult(drainageRows, null);
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Fixture Unit Scan");
             panel.SetSubtitle($"Building: {cfg.BuildingType} · K = {cfg.KFactor:F2} · {cfg.SupplyStandard}");
             panel.AddSection("SUMMARY")
@@ -52,14 +75,11 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Qd CW (BS EN 806)",  r.QdCwBsEnLps.ToString("F2") + " l/s")
                  .Metric("Qd HW (BS EN 806)",  r.QdHwBsEnLps.ToString("F2") + " l/s")
                  .Metric("Qd Hunter",          r.QdHunterGpm.ToString("F1") + " gpm");
-
             panel.AddSection($"BREAKDOWN ({r.Rows.Count} types)");
             foreach (var row in r.Rows.Take(40))
                 panel.Text($"{row.DisplayName,-32} × {row.Count,4} · DU {row.TotalDu:F1} · LU CW {row.TotalLuCw:F1} · LU HW {row.TotalLuHw:F1} · WSFU {row.TotalWsfu:F1}");
-
             if (r.FixturesUnmatched > 0)
                 panel.AddSection("WARNING").Text($"{r.FixturesUnmatched} fixture(s) had no name match. Use 'Manual Add Row' from the SUPPLY tab to assign.");
-
             panel.Show();
             return Result.Succeeded;
         }
@@ -94,6 +114,26 @@ namespace StingTools.Commands.Plumbing
                 tx.Start();
                 r = WaterSupplySizer.Analyse(ctx.Doc, writeBack: !dryRun, cfg);
                 if (dryRun) tx.RollBack(); else tx.Commit();
+            }
+
+            var rows = r.Results.Select(p => new SupplySizingRow
+            {
+                Section     = $"{p.SystemName} · {p.ServiceClass}",
+                SigmaLu     = p.QdLps,
+                Dn          = p.RecommendedDnMm,
+                VelocityMps = p.VelMps,
+                Status      = (p.VelocityOk && p.PressureDropOk ? "OK" : "WARN")
+                              + $" · DN{p.CurrentDnMm}→{p.RecommendedDnMm}"
+            }).ToList();
+            string status = $"Supply · {r.PipesScanned} pipes · {r.PipesUpsized} upsize · "
+                          + $"{r.PipesVelocityFailed} v-fail · {r.PipesDpFailed} ΔP-fail"
+                          + (dryRun ? " (dry run)" : "");
+
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetSupplySizingResult(rows, status);
+                return Result.Succeeded;
             }
 
             var panel = StingResultPanel.Create("Water Supply Sizing");
@@ -142,6 +182,28 @@ namespace StingTools.Commands.Plumbing
                 sizing = DrainageSizer.AnalyseAndSize(ctx.Doc, dfuMap.PipeDfu, writeBack: true, dryRun: false);
                 tx.Commit();
             }
+
+            var rows = sizing.Results.Select(res => new DrainageSizingRow
+            {
+                Pipe        = res.PipeId.Value.ToString(),
+                SigmaDu     = res.Dfu,
+                Dn          = res.RecommendedDnMm,
+                VelocityMps = res.SelfCleansingVelocityMps,
+                HdRatio     = 0.0, // not exposed by DrainageSizer; populated when engine surfaces it
+                Status      = (res.SelfCleansingOk ? "OK" : "WARN")
+                              + $" · DN{res.CurrentDnMm}→{res.RecommendedDnMm}"
+                              + $" · slope {res.SlopePct:F2}%"
+            }).ToList();
+            string status = $"Drainage · {sizing.PipesAnalysed} pipes · {sizing.PipesUpsized} upsize · "
+                          + $"{sizing.PipesSlopeInsufficient} slope-fail · {sizing.PipesSelfCleansingFailed} v-fail";
+
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetDrainageSizingResult(rows, status);
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Size Drainage");
             panel.SetSubtitle($"Code: {sizing.CodeUsed} · {dfuMap.PipesTagged}/{dfuMap.PipesTagged + sizing.PipesAnalysed - dfuMap.PipesTagged} pipes tagged");
             panel.AddSection("SUMMARY")
@@ -179,10 +241,8 @@ namespace StingTools.Commands.Plumbing
             double inletBar = cfg.SupplyPressureBarAtEntry;
             double inletElevFt = levels.FirstOrDefault()?.Elevation ?? 0;
 
-            var panel = StingResultPanel.Create("Pressure Check");
-            panel.SetSubtitle($"Entry {inletBar:F2} bar · ρg = 9.81 kPa/m · BS 8558 minimums");
-            panel.AddSection("STATIC PRESSURE PER LEVEL");
             int prvCount = 0, fail = 0;
+            var lines = new List<string>();
             foreach (var lvl in levels)
             {
                 double dHm = (lvl.Elevation - inletElevFt) * 0.3048;
@@ -196,8 +256,17 @@ namespace StingTools.Commands.Plumbing
                 if (prv) flags += " · PRV recommended";
                 if (worstThermo) flags += " · ⚠ thermostatic shower";
                 if (worstUnvented) flags += " · ⚠ unvented cylinder";
-                panel.Text($"{lvl.Name}  Δh {dHm:F1} m  p {pBar:F2} bar{flags}");
+                lines.Add($"{lvl.Name}  Δh {dHm:F1} m  p {pBar:F2} bar{flags}");
             }
+            string status = $"Pressure · {levels.Count} levels · entry {inletBar:F2} bar · "
+                          + $"{prvCount} PRV · {fail} fail";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
+            var panel = StingResultPanel.Create("Pressure Check");
+            panel.SetSubtitle($"Entry {inletBar:F2} bar · ρg = 9.81 kPa/m · BS 8558 minimums");
+            panel.AddSection("STATIC PRESSURE PER LEVEL");
+            foreach (var line in lines) panel.Text(line);
             panel.AddSection("SUMMARY")
                  .Metric("Levels analysed", levels.Count.ToString())
                  .Metric("PRV recommended", prvCount.ToString())
@@ -254,6 +323,11 @@ namespace StingTools.Commands.Plumbing
             if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
 
             var r = ExpansionVesselSizer.Size(vsysL, tCold, tHot);
+
+            string status = $"Exp vessel · V_sys {vsysL:F0} L · ΔT {r.DeltaTC:F0}°C · "
+                          + $"V_tank {r.VTankL:F0} L · {r.RecommendedFamily}";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
 
             var panel = StingResultPanel.Create("Expansion Vessel (BS 7074-1)");
             panel.SetSubtitle($"System volume {vsysL:F0} L · ΔT {r.DeltaTC:F0} °C");
@@ -400,8 +474,8 @@ namespace StingTools.Commands.Plumbing
                     .Cast<Element>())
                 .ToList();
 
-            int total = 0;
-            var rows = new List<string>();
+            var rows = new List<SupplyTmvRow>();
+            var lines = new List<string>();
             foreach (var el in elems)
             {
                 string cls = "";
@@ -415,11 +489,11 @@ namespace StingTools.Commands.Plumbing
 
             var panel = StingResultPanel.Create("TMV Register");
             panel.AddSection("SUMMARY")
-                 .Metric("TMVs found", total.ToString());
-            if (rows.Count > 0)
+                 .Metric("TMVs found", rows.Count.ToString());
+            if (lines.Count > 0)
             {
                 panel.AddSection("REGISTER (first 80)");
-                foreach (var line in rows.Take(80)) panel.Text(line);
+                foreach (var line in lines.Take(80)) panel.Text(line);
             }
             else
             {

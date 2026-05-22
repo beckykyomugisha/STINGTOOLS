@@ -81,14 +81,32 @@ namespace StingTools.Core.Calc
         /// would be applied without modifying the model.
         /// </summary>
         public static SlopeAutoCorrectionResult Preview(Document doc)
-            => RunFix(doc, dryRun: true);
+            => RunFix(doc, scope: null, dryRun: true);
+
+        public static SlopeAutoCorrectionResult Preview(Document doc, IEnumerable<Pipe> scope)
+            => RunFix(doc, scope, dryRun: true);
 
         public static SlopeAutoCorrectionResult RunFix(Document doc, bool dryRun)
+            => RunFix(doc, scope: null, dryRun);
+
+        public static SlopeAutoCorrectionResult RunFix(Document doc, IEnumerable<Pipe> scope, bool dryRun)
         {
             var result = new SlopeAutoCorrectionResult();
             if (doc == null) return result;
 
-            var drainage = CollectDrainagePipes(doc, result);
+            // scope: null → full document drainage scan; non-null → filter the
+            // supplied pipes to drainage ones (lets the panel pass selection /
+            // view-scoped subsets without the engine doing the collection).
+            List<Pipe> drainage;
+            if (scope == null)
+            {
+                drainage = CollectDrainagePipes(doc, result);
+            }
+            else
+            {
+                drainage = new List<Pipe>();
+                foreach (var p in scope) if (p != null && IsDrainage(p)) drainage.Add(p);
+            }
             result.PipesScanned = drainage.Count;
 
             TransactionGroup tg = null;

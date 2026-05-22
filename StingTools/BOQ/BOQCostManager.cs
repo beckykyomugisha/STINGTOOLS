@@ -1563,7 +1563,9 @@ namespace StingTools.BOQ
         //  Utility helpers — private
         // ══════════════════════════════════════════════════════════════════
 
-        private static Dictionary<string, (double rate, string unit)> LoadCsvRates()
+        // Internal so PlumbingBOQEnricher (and future supplemental builders)
+        // can reuse the canonical CSV reader instead of duplicating it.
+        internal static Dictionary<string, (double rate, string unit)> LoadCsvRates()
         {
             var rates = new Dictionary<string, (double rate, string unit)>(StringComparer.OrdinalIgnoreCase);
             string costFile = TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
