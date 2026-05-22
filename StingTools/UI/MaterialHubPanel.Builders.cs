@@ -443,7 +443,15 @@ namespace StingTools.UI
         // ── Dispatch (all action tags route here) ──────────────────────────
         private void HubDispatch(string tag)
         {
-            try { StingDockPanel.DispatchCommand(tag, GetSelectedIdString()); }
+            try
+            {
+                if (tag != null && tag.StartsWith("HUB_", StringComparison.Ordinal))
+                {
+                    HandleHubLocal(tag);
+                    return;
+                }
+                StingDockPanel.DispatchCommand(tag, GetSelectedIdString());
+            }
             catch (Exception ex) { Toast($"Dispatch '{tag}' failed: {ex.Message}", "error"); }
         }
 
@@ -452,6 +460,89 @@ namespace StingTools.UI
             if (dgHubMaterials?.SelectedItem is MaterialRow row && row.Id != null && row.Id.Value > 0)
                 return row.Id.Value.ToString();
             return "";
+        }
+
+        /// <summary>HUB_* tags handled in-process (no external event).
+        /// Appearance / hatch / colour pickers + bookmark / refresh / etc.</summary>
+        private void HandleHubLocal(string tag)
+        {
+            var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+            var row = dgHubMaterials?.SelectedItem as MaterialRow;
+            var mat = (row != null && doc != null) ? doc.GetElement(row.Id) as Autodesk.Revit.DB.Material : null;
+
+            switch (tag)
+            {
+                case "HUB_Refresh":      Refresh(); return;
+                case "HUB_Settings":     Toast("Settings — coming next commit.", "info"); return;
+                case "HUB_Help":         Toast("F5 refresh · Ctrl+F search · right-click row for actions.", "info"); return;
+                case "HUB_RebuildCaches":MaterialNameCache.InvalidateAll(); MaterialUsageIndex.InvalidateAll(); Refresh(); Toast("Caches rebuilt.", "ok"); return;
+                case "HUB_Bookmark":
+                    if (row != null) { row.IsBookmarked = !row.IsBookmarked; Toast(row.IsBookmarked ? "★ Bookmarked" : "Bookmark cleared", "ok"); }
+                    return;
+                case "HUB_AddToPack":    Toast("Add-to-pack picker — coming next commit.", "info"); return;
+                case "HUB_Compare":      Toast("Compare panel — coming next commit.", "info"); return;
+                case "HUB_PickTexture":
+                    if (mat == null) { Toast("Pick a material in the grid first.", "warn"); return; }
+                    MaterialHubFlyouts.ShowTexturePicker(GetButtonAnchor("HUB_PickTexture"), doc, mat,
+                        path =>
+                        {
+                            bool ok = MaterialAppearanceActions.SetTexturePath(doc, mat, path);
+                            Toast(ok ? $"Texture set: {System.IO.Path.GetFileName(path)}" : "Texture write failed.",
+                                  ok ? "ok" : "error");
+                        });
+                    return;
+                case "HUB_PickSurfaceFg":
+                case "HUB_PickSurfaceBg":
+                case "HUB_PickCutFg":
+                case "HUB_PickCutBg":
+                {
+                    if (mat == null) { Toast("Pick a material first.", "warn"); return; }
+                    string slot = tag.Substring("HUB_Pick".Length);
+                    MaterialHubFlyouts.ShowHatchPicker(GetButtonAnchor(tag), doc, mat, slot,
+                        (id, name) =>
+                        {
+                            bool ok = MaterialAppearanceActions.SetHatchPattern(doc, mat, slot, id);
+                            Toast(ok ? $"{slot} → {name}" : "Pattern write failed.", ok ? "ok" : "error");
+                            if (ok) ReloadSingleRow(row.Id);
+                        });
+                    return;
+                }
+                case "HUB_PickColor":
+                {
+                    if (mat == null) { Toast("Pick a material first.", "warn"); return; }
+                    MaterialHubFlyouts.ShowColorPicker(GetButtonAnchor("HUB_PickColor"), mat,
+                        (r, g, b) =>
+                        {
+                            bool ok = MaterialAppearanceActions.SetSurfaceColor(doc, mat, r, g, b);
+                            Toast(ok ? $"Colour set ({r},{g},{b}).":"Colour write failed.", ok ? "ok" : "error");
+                            if (ok) ReloadSingleRow(row.Id);
+                        });
+                    return;
+                }
+                case "HUB_ResetHatch":
+                    if (mat == null) { Toast("Pick a material first.", "warn"); return; }
+                    MaterialAppearanceActions.SetHatchPattern(doc, mat, "SurfaceFg",
+                        Autodesk.Revit.DB.ElementId.InvalidElementId);
+                    Toast("Hatch cleared.", "ok");
+                    ReloadSingleRow(row.Id);
+                    return;
+            }
+        }
+
+        private UIElement GetButtonAnchor(string tag)
+        {
+            UIElement Walk(DependencyObject root)
+            {
+                if (root is Button b && (b.Tag as string) == tag) return b;
+                int count = VisualTreeHelper.GetChildrenCount(root);
+                for (int i = 0; i < count; i++)
+                {
+                    var hit = Walk(VisualTreeHelper.GetChild(root, i));
+                    if (hit != null) return hit;
+                }
+                return null;
+            }
+            return Walk(inspectorStack) ?? (UIElement)inspectorStack;
         }
     }
 }
