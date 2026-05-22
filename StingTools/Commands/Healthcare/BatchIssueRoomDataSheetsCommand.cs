@@ -30,6 +30,28 @@ namespace StingTools.Commands.Healthcare
                         "No rooms with CLN_ROOM_CLASS_TXT populated. Run Phase H-1 LoadSharedParams first.");
                     return Result.Succeeded;
                 }
+
+                // Optional row-pick filter from the Healthcare tab → Rooms / RDS
+                // grid. When the user ticks rows the dispatch sets
+                // Hc.Rds.PickedRooms = "0314,0316,…". When the set is empty
+                // (legacy "issue everything" path) we fall through unchanged.
+                var picked = HcOptions.RdsPickedRooms();
+                int totalCandidates = rooms.Count;
+                bool filtered = picked.Count > 0;
+                if (filtered)
+                {
+                    rooms = rooms
+                        .Where(r => picked.Contains(GetParam(r, "Number")))
+                        .ToList();
+                    if (rooms.Count == 0)
+                    {
+                        TaskDialog.Show("STING — Batch RDS",
+                            $"None of the {picked.Count} ticked room numbers matched a clinical room with CLN_ROOM_CLASS_TXT.\n" +
+                            "Untick the filter (or pick rooms whose Number matches the project) and re-run.");
+                        return Result.Succeeded;
+                    }
+                }
+
                 int ok = 0, fail = 0;
                 var sb = new StringBuilder();
                 foreach (var r in rooms)
@@ -38,9 +60,12 @@ namespace StingTools.Commands.Healthcare
                     if (string.IsNullOrEmpty(path)) { fail++; sb.AppendLine($"FAIL  {r.Name}"); }
                     else { ok++; sb.AppendLine($"OK    {r.Name}  -> {System.IO.Path.GetFileName(path)}"); }
                 }
-                StingLog.Info($"Batch RDS: ok={ok} fail={fail}\n{sb}");
+                string scopeNote = filtered
+                    ? $"Filtered to {rooms.Count} of {totalCandidates} clinical rooms (Hc.Rds.PickedRooms)"
+                    : $"All {rooms.Count} clinical rooms";
+                StingLog.Info($"Batch RDS: ok={ok} fail={fail}\n{scopeNote}\n{sb}");
                 TaskDialog.Show("STING — Batch RDS complete",
-                    $"Rooms processed: {rooms.Count}\nOK: {ok}\nFailed: {fail}\nDetails in StingTools.log");
+                    $"{scopeNote}\nOK: {ok}\nFailed: {fail}\nDetails in StingTools.log");
                 return Result.Succeeded;
             }
             catch (Exception ex)

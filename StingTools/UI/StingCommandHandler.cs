@@ -265,6 +265,43 @@ namespace StingTools.UI
                     case "Healthcare_Dialysis":          RunCommand<Commands.Healthcare.Specialist.DialysisAuditCommand>(app); break;
                     case "Healthcare_Hbo":               RunCommand<Commands.Healthcare.Specialist.HboAuditCommand>(app); break;
 
+                    // ── Healthcare interactive-tab dispatch tags ──
+                    // The dock-panel Healthcare tab flushes named-control state
+                    // into SetExtraParam("Hc.*", …) before raising any of the
+                    // tags below. Existing commands ignore the new params today;
+                    // they can opt in later by reading GetExtraParam("Hc.*").
+                    case "Healthcare_RunSelected":
+                        // Reads Hc.SelectedValidators (csv of validator keys).
+                        // Today: routes to RunAllValidators (legacy chain).
+                        RunCommand<Commands.Healthcare.HealthcareRunAllValidatorsCommand>(app);
+                        break;
+                    case "Healthcare_IssueSelectedRds":
+                        // Reads Hc.Rds.PickedRooms (csv of room numbers).
+                        // Today: routes to BatchIssueRoomDataSheets which renders
+                        // every clinical room. Per-room filter is a follow-up.
+                        RunCommand<Commands.Healthcare.BatchIssueRoomDataSheetsCommand>(app);
+                        break;
+                    case "Healthcare_RadCalcInline":
+                        // Reads Hc.Rad.CalcType + kVp/W/U/T/d/Area.
+                        // Today: routes to the matching pre-baked sample (CT default).
+                        switch (GetExtraParam("Hc.Rad.CalcType"))
+                        {
+                            case "Chest": RunCommand<Commands.Radiation.RadCalcChestRoomCommand>(app); break;
+                            case "LINAC": RunCommand<Commands.Radiation.RadCalcLinacVaultCommand>(app); break;
+                            default:      RunCommand<Commands.Radiation.RadCalcCtRoomCommand>(app);    break;
+                        }
+                        break;
+                    case "Healthcare_MgasVerifyStep":
+                        // Reads Hc.Mgas.Step (1–12) + Hc.Mgas.Verifier + Hc.Mgas.Gas.
+                        // Today: routes to the full 12-step verifier; per-step
+                        // gating is a follow-up on MgasVerifyCommand.
+                        RunCommand<Commands.MedGas.MgasVerifyCommand>(app);
+                        break;
+                    case "Healthcare_Cancel":
+                        // Sets the cancel flag for the next step in a chained run.
+                        SetExtraParam("Hc.CancelRequested", "1");
+                        break;
+
                     // ── Lightning Protection System (BS EN 62305) ──
                     case "LPS_ClassSetup":           RunCommand<Commands.Lightning.LpsClassSetupCommand>(app); break;
                     case "LPS_ComplianceCheck":      RunCommand<Commands.Lightning.LpsComplianceCheckCommand>(app); break;
