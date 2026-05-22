@@ -3559,8 +3559,11 @@ namespace StingTools.Core
         public const string ASS_FAB_SEQ_NR_GUID          = "5fc70bc2-9955-583c-9d96-5b54c8f34f53";
         public const string ASS_SHIP_DATE_TXT            = "ASS_SHIP_DATE_TXT";
         public const string ASS_SHIP_DATE_TXT_GUID       = "c2fc8e62-b793-517c-94c6-d2d7ae7584fe";
-        public const string ASS_INSTALL_DATE_TXT         = "ASS_INSTALL_DATE_TXT";
-        public const string ASS_INSTALL_DATE_TXT_GUID    = "953575a9-1d0c-5bb5-a4d2-c52b4b4adf96";
+        // Migrated to canonical ASS_INSTALLATION_DATE_TXT (GROUP 1, GUID cfc716aa); the
+        // 953575a9 alias remains in MR_PARAMETERS.txt for backwards compat but is marked
+        // DEPRECATED. See FabricationParamsV4.INSTALL_DATE_TXT for the v4 fabrication entry.
+        public const string ASS_INSTALL_DATE_TXT         = "ASS_INSTALLATION_DATE_TXT";
+        public const string ASS_INSTALL_DATE_TXT_GUID    = "cfc716aa-126d-5e9e-a9e8-3c2a2b52d933";
         public const string ASS_BOM_REV_TXT              = "ASS_BOM_REV_TXT";
         public const string ASS_BOM_REV_TXT_GUID         = "0293f487-2ca9-5514-9b18-ac98b1a20b27";
         public const string ASS_WELD_COUNT_NR            = "ASS_WELD_COUNT_NR";

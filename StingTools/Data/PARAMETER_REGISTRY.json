@@ -31419,9 +31419,10 @@
       },
       {
         "key": "ASS_INSTALL_DATE",
-        "param_name": "ASS_INSTALL_DATE_TXT",
-        "guid": "953575a9-1d0c-5bb5-a4d2-c52b4b4adf96",
-        "description": "ISO 8601 date when assembly was installed on site",
+        "param_name": "ASS_INSTALLATION_DATE_TXT",
+        "guid": "cfc716aa-126d-5e9e-a9e8-3c2a2b52d933",
+        "deprecated_guid": "953575a9-1d0c-5bb5-a4d2-c52b4b4adf96",
+        "description": "Planned or actual installation date [ISO 19650-3:2020]. Canonical GUID cfc716aa supersedes the v4-fabrication alias 953575a9 (which is still bound to ASS_INSTALL_DATE_TXT in MR_PARAMETERS.txt and marked DEPRECATED).",
         "categories": [
           "ALL"
         ],
