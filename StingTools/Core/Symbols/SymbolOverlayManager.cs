@@ -81,6 +81,20 @@ namespace StingTools.Core.Symbols
             int placed = 0;
             try
             {
+                // Pre-build a HashSet of host element IDs that already
+                // carry a STING symbol tag in this view. Read from the
+                // tag's STING_HOST_ELEMENT_ID stamp (the bug: previous
+                // code read the param from the host element, but the
+                // param is stamped on the tag).
+                var alreadyCovered = new HashSet<long>(
+                    new FilteredElementCollector(doc, view.Id)
+                        .OfClass(typeof(IndependentTag))
+                        .Cast<IndependentTag>()
+                        .Select(t => t.LookupParameter("STING_HOST_ELEMENT_ID")?.AsString())
+                        .Where(s => !string.IsNullOrEmpty(s))
+                        .Select(s => long.TryParse(s, out var v) ? v : 0L)
+                        .Where(v => v != 0L));
+
                 var elements = new FilteredElementCollector(doc, view.Id)
                     .WhereElementIsNotElementType()
                     .ToList();
@@ -89,11 +103,13 @@ namespace StingTools.Core.Symbols
                 {
                     try
                     {
-                        var existing = el.LookupParameter("STING_SYMBOL_ID")?.AsString();
-                        if (!string.IsNullOrEmpty(existing)) continue;
+                        if (alreadyCovered.Contains(el.Id.Value)) continue;
 
+                        // Pick a concept by family-name keyword match
+                        // first (e.g. "pendant" → LTG_PENDANT), then
+                        // fall back to first concept for the category.
                         var concepts = SymbolConceptRegistry.GetConceptsForCategory(el.Category?.Name);
-                        var concept = concepts.FirstOrDefault();
+                        var concept = ResolveConceptForElement(el, concepts);
                         if (concept == null) continue;
 
                         string std = SymbolStandardResolver.ResolveStandard(doc, view, el);
@@ -106,6 +122,114 @@ namespace StingTools.Core.Symbols
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"PlaceOverlaysForView: {ex.Message}"); }
             return placed;
+        }
+
+        /// <summary>
+        /// Pick the most specific concept for an element. Order:
+        ///   1. Element's own STING_SYMBOL_ID stamp (Universe C —
+        ///      augmented family knows its concept).
+        ///   2. Project-specific alias map
+        ///      (<c>&lt;project&gt;/_BIM_COORD/symbol_aliases.json</c>)
+        ///      — exact and glob matches on family/type/instance name.
+        ///   3. Family/type name keyword match against concept name
+        ///      tokens (e.g. element with family "Pendant - Glass" maps
+        ///      to LTG_PENDANT, not LTG_DOWNLIGHT_RND).
+        ///   4. First concept for the category (legacy behaviour).
+        /// </summary>
+        private static SymbolConcept ResolveConceptForElement(Element el,
+            IReadOnlyList<SymbolConcept> categoryConcepts)
+        {
+            if (categoryConcepts == null || categoryConcepts.Count == 0) return null;
+            if (categoryConcepts.Count == 1) return categoryConcepts[0];
+
+            // 1. Augmented-family signal.
+            try
+            {
+                string stamped = el.LookupParameter("STING_SYMBOL_ID")?.AsString();
+                if (!string.IsNullOrEmpty(stamped))
+                {
+                    var match = categoryConcepts.FirstOrDefault(c =>
+                        string.Equals(c.ConceptId, stamped, StringComparison.OrdinalIgnoreCase));
+                    if (match != null) return match;
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ResolveConcept stamp: {ex.Message}"); }
+
+            // 2. Project-specific alias map.
+            try
+            {
+                string fam = "", typ = "", inst = el.Name ?? "";
+                if (el is FamilyInstance fi)
+                {
+                    typ = fi.Symbol?.Name ?? "";
+                    fam = fi.Symbol?.FamilyName ?? "";
+                }
+                string aliasConceptId = SymbolAliasRegistry.ResolveAlias(
+                    el.Document, fam, typ, inst);
+                if (!string.IsNullOrEmpty(aliasConceptId))
+                {
+                    var match = categoryConcepts.FirstOrDefault(c =>
+                        string.Equals(c.ConceptId, aliasConceptId, StringComparison.OrdinalIgnoreCase));
+                    if (match != null) return match;
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ResolveConcept alias: {ex.Message}"); }
+
+            // 3. Family / type / instance name keyword match.
+            string haystack = BuildElementHaystack(el);
+            if (!string.IsNullOrEmpty(haystack))
+            {
+                SymbolConcept best = null;
+                int bestScore = 0;
+                foreach (var c in categoryConcepts)
+                {
+                    int score = ScoreConceptAgainstHaystack(c, haystack);
+                    if (score > bestScore) { bestScore = score; best = c; }
+                }
+                if (best != null && bestScore > 0) return best;
+            }
+
+            // 4. Fall back to first.
+            return categoryConcepts[0];
+        }
+
+        private static string BuildElementHaystack(Element el)
+        {
+            try
+            {
+                string fam = "", typ = "", inst = el.Name ?? "";
+                if (el is FamilyInstance fi)
+                {
+                    typ = fi.Symbol?.Name ?? "";
+                    fam = fi.Symbol?.FamilyName ?? "";
+                }
+                return (fam + " " + typ + " " + inst).ToLowerInvariant();
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"BuildElementHaystack: {ex.Message}"); return ""; }
+        }
+
+        /// <summary>
+        /// Token-overlap score between concept name (e.g. "Ltg Pendant")
+        /// and the element's family/type/instance haystack. Returns count
+        /// of meaningful tokens (length ≥ 3) from the concept name that
+        /// appear in the haystack.
+        /// </summary>
+        private static int ScoreConceptAgainstHaystack(SymbolConcept c, string haystack)
+        {
+            if (c == null || string.IsNullOrEmpty(haystack)) return 0;
+            // Source tokens: concept ID and Name, split on _ - and space.
+            var source = ((c.ConceptId ?? "") + " " + (c.Name ?? "")).ToLowerInvariant();
+            var tokens = source.Split(new[] { '_', '-', ' ', '/' }, StringSplitOptions.RemoveEmptyEntries);
+            int score = 0;
+            foreach (var t in tokens)
+            {
+                if (t.Length < 3) continue;
+                // Skip common prefixes that match every concept in a discipline.
+                if (t == "ltg" || t == "elec" || t == "hvac" || t == "plm" || t == "fp"
+                    || t == "sld" || t == "pipe") continue;
+                if (haystack.Contains(t)) score++;
+            }
+            return score;
         }
 
         public static int SyncViewFilterVisibility(Document doc, View view)

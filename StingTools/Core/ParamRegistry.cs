@@ -280,6 +280,8 @@ namespace StingTools.Core
         public const string SLD_ELEMENT_ID_GUID       = "0A1B2C3D-4E5F-4A6B-7C8D-9E0F1A2B3C4D";
         public const string SYMBOL_LIBRARY_VERSION    = "STING_SYMBOL_LIBRARY_VERSION";
         public const string SYMBOL_LIBRARY_VERSION_GUID = "1B2C3D4E-5F6A-4B7C-8D9E-0F1A2B3C4D5E";
+        public const string SYMBOL_COMPOUND_PARENT_ID = "STING_COMPOUND_PARENT_ID";
+        public const string SYMBOL_COMPOUND_PARENT_ID_GUID = "2C3D4E5F-6A7B-4C8D-9E0F-1A2B3C4D5E6F";
 
         // Family-embedded standard switching — model family (.rfa) parameters.
         // STING_SYMBOL_STD is an Integer type param; each value gates one

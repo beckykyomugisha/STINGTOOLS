@@ -47,6 +47,12 @@ namespace StingTools.Commands.Symbols
             }
         }
 
+        // Chunk size for the swap loop. One Transaction per chunk under
+        // a single TransactionGroup means a failure in one chunk doesn't
+        // roll back already-swapped chunks; users can stop the run with
+        // partial success preserved.
+        private const int SwapChunkSize = 100;
+
         internal static int SwapAllTags(Document doc, string newStandard)
         {
             int n = 0;
@@ -115,6 +121,59 @@ namespace StingTools.Commands.Symbols
 
                 tx.Commit();
             }
+
+            using (var tg = new TransactionGroup(doc, "STING Swap Symbol Standard"))
+            {
+                tg.Start();
+                for (int chunkStart = 0; chunkStart < tags.Count; chunkStart += SwapChunkSize)
+                {
+                    int end = Math.Min(chunkStart + SwapChunkSize, tags.Count);
+                    using (var tx = new Transaction(doc, $"STING Swap chunk {chunkStart / SwapChunkSize + 1}"))
+                    {
+                        tx.Start();
+                        try
+                        {
+                            for (int i = chunkStart; i < end; i++)
+                            {
+                                var tag = tags[i];
+                                try
+                                {
+                                    var view = doc.GetElement(tag.OwnerViewId) as View;
+                                    string conceptId = tag.LookupParameter("STING_SYMBOL_ID")?.AsString();
+                                    if (string.IsNullOrEmpty(conceptId)) continue;
+                                    string viewCtx = SymbolViewContextResolver.ToKey(SymbolViewContextResolver.Resolve(view));
+                                    string scaleTier = SymbolScaleEngine.GetScaleTier(view);
+                                    string fam = SymbolConceptRegistry.GetFamilyName(conceptId, newStandard, viewCtx, scaleTier, null);
+                                    if (string.IsNullOrEmpty(fam)) continue;
+                                    var sym = FindSymbol(fam);
+                                    if (sym == null) continue;
+                                    if (!sym.IsActive) sym.Activate();
+                                    tag.ChangeTypeId(sym.Id);
+                                    var stdParam = tag.LookupParameter("STING_SYMBOL_STANDARD");
+                                    if (stdParam != null && !stdParam.IsReadOnly) stdParam.Set(newStandard);
+                                    if (view != null)
+                                        SymbolAnnotationEngine.UpdateAnnotations(doc, view, newStandard);
+                                    n++;
+                                }
+                                catch (Exception ex) { StingLog.Warn($"SwapAllTags inner [{i}]: {ex.Message}"); }
+                            }
+                            tx.Commit();
+                        }
+                        catch (Exception chunkEx)
+                        {
+                            // A chunk-level failure rolls back this chunk
+                            // only; previously-committed chunks survive.
+                            StingLog.Error($"SwapAllTags chunk {chunkStart}-{end} failed", chunkEx);
+                            try { tx.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"SwapAllTags rollback: {rbEx.Message}"); }
+                        }
+                    }
+                }
+                tg.Assimilate();
+            }
+
+            // Standard switch invalidates cached TextNoteType resolutions
+            // (different rules, different sizes).
+            SymbolAnnotationEngine.InvalidateAnnotationCache();
             return n;
         }
 

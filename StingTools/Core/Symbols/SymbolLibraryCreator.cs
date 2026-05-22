@@ -169,9 +169,10 @@ namespace StingTools.Core.Symbols
                     string built = BuildOne(app, def, outputFolder, templateFolder, std, result);
                     if (!string.IsNullOrEmpty(built))
                     {
-                        result.Created++;
-                        result.CreatedRfaPaths.Add(built);
-                        if (loadIntoProject) TryLoadFamily(hostDoc, built, result);
+                        if (kv.Value == null) continue;
+                        string variantId = kv.Key + "_" + def.Id;
+                        BuildVariant(hostDoc, app, def, variantId, kv.Value,
+                            outputFolder, templateFolder, loadIntoProject, result);
                     }
                     else
                     {
@@ -187,6 +188,121 @@ namespace StingTools.Core.Symbols
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Build one named family — either the base symbol (override null)
+        /// or a per-standard variant. Override fields shadow the base
+        /// symbol's geometry / connectors / solid3D / size; non-overridden
+        /// fields fall back to the base.
+        /// </summary>
+        private static void BuildVariant(Document hostDoc, Application app, SymbolDefinition baseDef,
+            string emitId, StandardGeometryOverride overrideDef,
+            string outputFolder, string templateFolder, bool loadIntoProject,
+            SymbolCreationResult result)
+        {
+            var rfaPath = Path.Combine(outputFolder, emitId + ".rfa");
+            if (File.Exists(rfaPath))
+            {
+                result.Existed++;
+                result.CreatedRfaPaths.Add(rfaPath);
+                if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
+                return;
+            }
+
+            // Materialise an effective def by shallow-merging the override.
+            SymbolDefinition effective = overrideDef == null ? baseDef : new SymbolDefinition
+            {
+                Id          = emitId,
+                Name        = baseDef.Name,
+                Category    = baseDef.Category,
+                FamilyType  = baseDef.FamilyType,
+                Discipline  = baseDef.Discipline,
+                Subcategory = baseDef.Subcategory,
+                SymbolSize  = overrideDef.SymbolSize ?? baseDef.SymbolSize,
+                Parameters  = MergeParameters(baseDef.Parameters, overrideDef.Parameters,
+                                              overrideDef.ParameterMode),
+                Geometry    = overrideDef.Geometry  ?? baseDef.Geometry,
+                Connectors  = overrideDef.Connectors ?? baseDef.Connectors,
+                Solid3D     = overrideDef.Solid3D    ?? baseDef.Solid3D,
+            };
+            // For the base case we still want the emitted id pinned to emitId
+            // (which equals baseDef.Id); for override case it's the variant id.
+            if (overrideDef == null) effective = CloneWithId(baseDef, emitId);
+
+            try
+            {
+                string built = BuildOne(app, effective, outputFolder, templateFolder, result);
+                if (!string.IsNullOrEmpty(built))
+                {
+                    result.Created++;
+                    result.CreatedRfaPaths.Add(built);
+                    if (loadIntoProject) TryLoadFamily(hostDoc, built, result);
+                }
+                else
+                {
+                    result.Failed++;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Failed++;
+                result.Errors.Add($"{emitId}: {ex.Message}");
+                StingLog.Error($"SymbolLibraryCreator: {emitId} failed", ex);
+            }
+        }
+
+        /// <summary>
+        /// Resolve the parameter set for a per-standard variant.
+        /// <list type="bullet">
+        /// <item>No override params → base params unchanged.</item>
+        /// <item>Override params with <c>parameterMode = "extend"</c> → base
+        /// params + override params (deduped by name; base wins on
+        /// collision).</item>
+        /// <item>Override params with <c>parameterMode = "replace"</c> or
+        /// no mode set → override params replace base entirely.</item>
+        /// </list>
+        /// </summary>
+        private static List<ParameterDefinition> MergeParameters(
+            List<ParameterDefinition> baseParams,
+            List<ParameterDefinition> overrideParams,
+            string mode)
+        {
+            if (overrideParams == null) return baseParams;
+            if (string.Equals(mode, "extend", StringComparison.OrdinalIgnoreCase))
+            {
+                var merged = new List<ParameterDefinition>(baseParams ?? new List<ParameterDefinition>());
+                var existing = new HashSet<string>(
+                    merged.Where(p => !string.IsNullOrEmpty(p?.Name)).Select(p => p.Name),
+                    StringComparer.OrdinalIgnoreCase);
+                foreach (var p in overrideParams)
+                {
+                    if (p == null || string.IsNullOrWhiteSpace(p.Name)) continue;
+                    if (existing.Add(p.Name)) merged.Add(p);
+                }
+                return merged;
+            }
+            // replace (default)
+            return overrideParams;
+        }
+
+        /// <summary>Shallow clone preserving every field except Id.</summary>
+        private static SymbolDefinition CloneWithId(SymbolDefinition src, string newId)
+        {
+            return new SymbolDefinition
+            {
+                Id = newId,
+                Name = src.Name,
+                Category = src.Category,
+                FamilyType = src.FamilyType,
+                Discipline = src.Discipline,
+                Subcategory = src.Subcategory,
+                SymbolSize = src.SymbolSize,
+                Parameters = src.Parameters,
+                Geometry = src.Geometry,
+                Connectors = src.Connectors,
+                Solid3D = src.Solid3D,
+            };
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -918,7 +1034,6 @@ namespace StingTools.Core.Symbols
         private static void AddParameters(Application app, Document fdoc,
             SymbolDefinition def, SymbolCreationResult result)
         {
-            if (def.Parameters == null || def.Parameters.Count == 0) return;
             if (!fdoc.IsFamilyDocument) return;
             var fm = fdoc.FamilyManager;
 
