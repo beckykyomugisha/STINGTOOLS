@@ -148,6 +148,8 @@ namespace StingTools.UI
                         Run<LpsSpdSpecSheetCommand>(app); break;
                     case "Lps_Tag7Paragraph":
                         Run<LpsTag7ParagraphCommand>(app); break;
+                    case "Lps_BatchFamilyStamper":
+                        Run<LpsBatchFamilyStamperCommand>(app); break;
 
                     // ── ZONES tab ──────────────────────────────────────
                     case "Lps_ZoneTagRooms":
