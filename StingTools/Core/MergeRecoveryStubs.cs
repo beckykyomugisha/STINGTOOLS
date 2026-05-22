@@ -10,6 +10,8 @@
 //
 // Grep "MergeRecoveryStubs" to find every consumer that needs a real impl.
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -197,15 +199,15 @@ namespace StingTools.Core.Drawing
 {
     public sealed partial class ViewStylePack
     {
+        // FarClipMm / AnnotationCrop / ViewRange are already declared on the
+        // runtime class — those are bool?/double?/PackViewRange. Only the
+        // missing surface is declared here.
         public string ViewTemplate     { get; set; }
         public string DetailLevel      { get; set; }
         public string ScaleHint        { get; set; }
         public string ColorScheme      { get; set; }
         public string Appearance       { get; set; }
         public string PhaseName        { get; set; }
-        public double FarClipMm        { get; set; }
-        public bool   AnnotationCrop   { get; set; }
-        public string ViewRange        { get; set; }
         public bool   ByMaterialClass  { get; set; }
     }
 }
@@ -332,8 +334,14 @@ namespace StingTools.Core.Drawing
 {
     public static partial class ViewStylePackApplier
     {
+        // ResolveCategoryId already exists in the main partial (line 562) — this
+        // file only adds the *Cached variants the merged code expects.
         internal static ElementId ResolveCategoryIdCached(Document doc, string key)
-            => ResolveCategoryId(doc, key);
+        {
+            try { if (Enum.TryParse<BuiltInCategory>(key, out var bic)) return new ElementId(bic); }
+            catch { }
+            return ElementId.InvalidElementId;
+        }
         internal static ElementId ResolveFilterIdCached(Document doc, string name)
             => new FilteredElementCollector(doc).OfClass(typeof(ParameterFilterElement))
                 .Cast<ParameterFilterElement>()
@@ -349,13 +357,6 @@ namespace StingTools.Core.Drawing
                 .Cast<FillPatternElement>()
                 .FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))?.Id
                 ?? ElementId.InvalidElementId;
-        // Forwarder to the already-existing private ResolveCategoryId in the main partial.
-        private static ElementId ResolveCategoryId(Document doc, string key)
-        {
-            try { if (Enum.TryParse<BuiltInCategory>(key, out var bic)) return new ElementId(bic); }
-            catch { }
-            return ElementId.InvalidElementId;
-        }
     }
 }
 
