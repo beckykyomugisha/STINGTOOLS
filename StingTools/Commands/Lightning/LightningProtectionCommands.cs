@@ -217,6 +217,18 @@ namespace StingTools.Commands.Lightning
             }
             catch (Exception ex) { StingLog.Warn($"UpdateLpsVerdict: {ex.Message}"); }
 
+            // Wave D #16 — auto-raise BIM issues for every Fail item so
+            // they land in the existing issues.json + dashboard + SLA
+            // tracker. Idempotent: re-running closes resolved failures
+            // automatically.
+            try
+            {
+                var io = LpsAutoIssueRaiser.RaiseFromFailures(doc, items);
+                if (io.Raised > 0 || io.Closed > 0)
+                    StingLog.Info($"LpsCompliance auto-issues: +{io.Raised} raised · -{io.Closed} closed");
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoIssueRaiser: {ex.Message}"); }
+
             // Surface kc factor in the panel header. ProjectInformation may have
             // a stamped value (set by Class Setup / Recalculate); else compute
             // live from the down-conductor count.
