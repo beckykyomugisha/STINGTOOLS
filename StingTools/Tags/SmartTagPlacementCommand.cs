@@ -108,17 +108,6 @@ namespace StingTools.Tags
             }
         }
 
-        // ── B-1 SpatialGrid view cache ───────────────────────────────────
-        // Memoise the (existing-tag) SpatialGrid per (docKey, viewId) so two
-        // back-to-back placement runs against the same view don't both walk
-        // every IndependentTag and rebuild a 300-entry grid. TTL of 30 s is
-        // sufficient for sequential command runs and falls back to a fresh
-        // build when the user makes intervening edits.
-        private static readonly Dictionary<(string docKey, long viewId), (SpatialGrid grid, DateTime stamp, double cellSize, int tagCount)>
-
-
-
-
         // ── Grid-based spatial index ─────────────────────────────────────
 
         /// <summary>
