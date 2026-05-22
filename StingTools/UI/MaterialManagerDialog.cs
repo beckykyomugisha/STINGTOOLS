@@ -97,6 +97,25 @@ namespace StingTools.UI
         /// RFQ generator emits per-line split rates.</summary>
         public bool HasCostSplit => SupplyCost > 0 || InstallCost > 0;
 
+        // Priority 9 — Lifecycle state pill data (Draft / Reviewed / Approved / Frozen).
+        public string LifecycleText => MaterialLifecycle.Read(this);
+        public Brush LifecycleBrush
+        {
+            get
+            {
+                switch (LifecycleText)
+                {
+                    case "Reviewed": return new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE0, 0xA0, 0x10));
+                    case "Approved": return new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2C, 0xA0, 0x2C));
+                    case "Frozen":   return new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1F, 0x4A, 0x90));
+                    default:         return new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x90, 0x90, 0x90));
+                }
+            }
+        }
+
+        // Power-user "pin / star" bookmark flag — persisted via session memory.
+        public bool IsBookmarked { get; set; }
+
         // Suppress CS0067 — the event is required by the INotifyPropertyChanged
         // contract but the grid binds one-way to immutable rows so we never
         // raise it. Future bind-back work will exercise this surface.
