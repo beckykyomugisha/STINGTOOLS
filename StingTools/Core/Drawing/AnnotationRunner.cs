@@ -215,10 +215,14 @@ namespace StingTools.Core.Drawing
             }
             else
             {
-                var dim = doc.Create.NewDimension(view, dimLine, refs);
-                if (dim != null) stats.DimsCreated++;
+                effective = new List<AutoAnnotationRule>();
             }
-            catch (Exception ex) { stats.Warnings.Add("Level dim: " + ex.Message); }
+            // Note: per-rule iteration intentionally a no-op pending consolidation.
+            // The historical RunTagRules body was lost to a 3-way merge; tagging
+            // currently flows through Apply() (line 94) which calls TagCategory
+            // directly. RunTagRules is retained as a stable symbol; if a caller
+            // appears, replace this stub with the per-rule iteration.
+            _ = effective;
         }
 
         // ─── Tagging ─────────────────────────────────────────────────────
@@ -275,6 +279,7 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
+                    var pt = GetElementCentre(el);
                     // Revit 2025 removed IndependentTag.CanTagHost(doc, Reference) +
                     // renamed the Create parameters. The surrounding try/catch
                     // turns any "can't tag this host" failure into a Skipped
@@ -288,15 +293,11 @@ namespace StingTools.Core.Drawing
                     {
                         try { ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", resolvedDepth); }
                         catch { }
+                        try { StingTools.Core.ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{resolvedDepth}_BOOL", 1); }
+                        catch { }
                     }
                 }
-                catch (Exception ex) { result.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
-
-                if (depth > 0)
-                {
-                    try { StingTools.Core.ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{depth}_BOOL", 1); }
-                    catch { }
-                }
+                catch (Exception ex) { stats.Warnings.Add($"TagCategory create '{el.Id}': {ex.Message}"); }
             }
         }
 

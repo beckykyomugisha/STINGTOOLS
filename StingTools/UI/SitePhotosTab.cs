@@ -661,26 +661,36 @@ namespace StingTools.UI
                     await sem.WaitAsync();
                     try
                     {
-                        // Dispose the MemoryStream after EndInit — with CacheOption.OnLoad
-                        // the BitmapImage copies the pixel data into its own memory store,
-                        // so the stream is no longer needed. Per-photo leak otherwise.
-                        using (var ms = new MemoryStream(bytes))
+                        var bytes = await PlanscapeServerClient.Instance
+                            .DownloadSitePhotoAsync(state.ProjectId, r.Dto.Id);
+                        if (bytes == null) return;
+                        try
                         {
-                            var img = new BitmapImage();
-                            img.BeginInit();
-                            img.CacheOption = BitmapCacheOption.OnLoad;
-                            img.DecodePixelWidth = 160; // 2x for retina; rendered at 80
-                            img.StreamSource = ms;
-                            img.EndInit();
-                            img.Freeze();
-                            r.Thumbnail = img;
+                            // Dispose the MemoryStream after EndInit — with CacheOption.OnLoad
+                            // the BitmapImage copies the pixel data into its own memory store,
+                            // so the stream is no longer needed. Per-photo leak otherwise.
+                            using (var ms = new MemoryStream(bytes))
+                            {
+                                var img = new BitmapImage();
+                                img.BeginInit();
+                                img.CacheOption = BitmapCacheOption.OnLoad;
+                                img.DecodePixelWidth = 160; // 2x for retina; rendered at 80
+                                img.StreamSource = ms;
+                                img.EndInit();
+                                img.Freeze();
+                                r.Thumbnail = img;
+                            }
+                            try { SitePhotoOfflineCache.SaveThumbBytes(state.ProjectId, r.Dto.Id, bytes); }
+                            catch { /* best-effort */ }
+                        }
+                        catch (Exception ex2)
+                        {
+                            StingLog.Warn($"SitePhotosTab thumbnail decode {r.Dto.Id}: {ex2.Message}");
                         }
                     }
-                    catch (Exception ex2)
-                    {
-                        StingLog.Warn($"SitePhotosTab thumbnail decode {r.Dto.Id}: {ex2.Message}");
-                    }
-                }
+                    finally { sem.Release(); }
+                }).ToList();
+                await Task.WhenAll(tasks);
             }
             _ = LoadThumbsAsync();
         }

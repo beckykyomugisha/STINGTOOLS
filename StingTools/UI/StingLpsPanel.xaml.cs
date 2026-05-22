@@ -106,6 +106,10 @@ namespace StingTools.UI
             try { LoadRiskCatalogue(); }
             catch (Exception ex) { StingLog.Warn($"LoadRiskCatalogue: {ex.Message}"); }
 
+            // Seed default risk factor rows so the RISK tab is non-empty.
+            try { SeedDefaultRiskFactors(); }
+            catch (Exception ex) { StingLog.Warn($"SeedDefaultRiskFactors: {ex.Message}"); }
+
             // Wave B #11 — first-time setup banner. Shown by default
             // until a class lands in ProjectInformation; hidden after.
             // Visibility check runs at Loaded (Revit context ready) and
@@ -127,11 +131,6 @@ namespace StingTools.UI
                     : System.Windows.Visibility.Collapsed;
             }
             catch (Exception ex) { StingLog.Warn($"RefreshFirstTimeBanner: {ex.Message}"); }
-        }
-
-            // Seed default risk factor rows so the RISK tab is non-empty.
-            try { SeedDefaultRiskFactors(); }
-            catch (Exception ex) { StingLog.Warn($"SeedDefaultRiskFactors: {ex.Message}"); }
         }
 
         private void SeedDefaultRiskFactors()

@@ -1751,12 +1751,7 @@ namespace StingTools.Core
                 }
                 catch (Exception fbEx) { StingLog.Warn($"Add-Ins fallback: {fbEx.Message}"); }
             }
-
-            try
-            {
-                // Initialise the external event handler for panel button dispatching
-                StingDockPanel.Initialise(application);
-                StingLog.Info("RegisterDockablePanel: external event handler initialised");
+        }
 
         private void RegisterDockablePanel(UIControlledApplication application)
         {
