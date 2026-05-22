@@ -252,10 +252,20 @@
                                 <TextBox   Grid.Row="1" Grid.Column="4" x:Name="txtRiskNg" Text="0" Margin="2" FontSize="10" ToolTip="Set 0 to use region default."/>
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Rt:" Style="{StaticResource LpsLabel}"/>
                                 <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtRiskRt" Text="1E-5" Margin="2" FontSize="10"/>
-                                <CheckBox  Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="4" x:Name="chkRiskAutoApply"
-                                           Content="Auto-apply recommended class to Project Information"
-                                           IsChecked="True" Margin="4" FontSize="10"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="Ae override (m²):" Style="{StaticResource LpsLabel}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="3" Text="" Width="6"/>
+                                <TextBox   Grid.Row="2" Grid.Column="4" x:Name="txtRiskAeOverride" Text="0" Margin="2" FontSize="10"
+                                           ToolTip="L-shape / multi-volume buildings: enter Ae from a hand-calc or 3D sweep. Set 0 to use the rectangular Annex A.2 formula."/>
                             </Grid>
+                        </Expander>
+
+                        <Expander Header="EARTHING + BONDING TOPOLOGY (kc Annex C.3)" Style="{StaticResource LpsExpander}" IsExpanded="False"
+                                  ToolTip="kc factor table from BS EN 62305-3 Annex C.3: n=2→0.66 · n=3→0.44 · n=4→0.33 · n≥5→1/n. Ring + bonding halves worst-case.">
+                            <StackPanel Margin="4">
+                                <CheckBox x:Name="chkRingConductor"          Content="Ring conductor at base (Type B earthing)" IsChecked="True"  Margin="2" FontSize="10"/>
+                                <CheckBox x:Name="chkEquipotentialBonding"   Content="Equipotential bonding network present"     IsChecked="True"  Margin="2" FontSize="10"/>
+                                <CheckBox x:Name="chkRiskAutoApply"          Content="Auto-apply recommended class to Project Information" IsChecked="True" Margin="2" FontSize="10"/>
+                            </StackPanel>
                         </Expander>
 
                         <Expander Header="C-FACTORS (catalogue-driven)" Style="{StaticResource LpsExpander}" IsExpanded="True">

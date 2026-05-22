@@ -27,6 +27,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
+using StingTools.Core.Storage;
 
 namespace StingTools.Core.Lightning
 {
@@ -97,13 +98,18 @@ namespace StingTools.Core.Lightning
             }
             result.View = view;
 
-            // Clear any previous content this engine deposited
+            // Clear any previous content this engine deposited.
+            // Wave A #1 — scope deletes to engine-owned elements via the
+            // StingLpsSldStampSchema ES marker so user annotations on the
+            // same view survive a rebuild.
             try
             {
+                var allDetailLines  = new FilteredElementCollector(doc, view.Id).OfClass(typeof(DetailLine)).ToElements();
+                var allTextNotes    = new FilteredElementCollector(doc, view.Id).OfClass(typeof(TextNote)).ToElements();
+                var allFilledRegs   = new FilteredElementCollector(doc, view.Id).OfClass(typeof(FilledRegion)).ToElements();
                 var purge = new List<ElementId>();
-                purge.AddRange(new FilteredElementCollector(doc, view.Id).OfClass(typeof(DetailLine)).ToElementIds());
-                purge.AddRange(new FilteredElementCollector(doc, view.Id).OfClass(typeof(TextNote)).ToElementIds());
-                purge.AddRange(new FilteredElementCollector(doc, view.Id).OfClass(typeof(FilledRegion)).ToElementIds());
+                foreach (var el in allDetailLines.Concat(allTextNotes).Concat(allFilledRegs))
+                    if (StingLpsSldStampSchema.IsOwned(el)) purge.Add(el.Id);
                 if (purge.Count > 0) doc.Delete(purge);
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"SldEngine purge: {ex.Message}"); }
@@ -221,7 +227,10 @@ namespace StingTools.Core.Lightning
             {
                 if (a == null || b == null) return;
                 if (a.DistanceTo(b) < 1e-9) return;
-                doc.Create.NewDetailCurve(view, Line.CreateBound(a, b));
+                var dl = doc.Create.NewDetailCurve(view, Line.CreateBound(a, b));
+                // Wave A #1 — mark every line as engine-owned so the next
+                // rebuild only purges what this engine placed.
+                if (dl != null) StingLpsSldStampSchema.Stamp(dl);
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"DrawLine: {ex.Message}"); }
         }
@@ -240,7 +249,10 @@ namespace StingTools.Core.Lightning
                 DrawLine(doc, view, ur, ul);
                 DrawLine(doc, view, ul, ll);
                 if (textType != null && !string.IsNullOrEmpty(label))
-                    TextNote.Create(doc, view.Id, new XYZ(cx, cy, 0), label, textType.Id);
+                {
+                    var tn = TextNote.Create(doc, view.Id, new XYZ(cx, cy, 0), label, textType.Id);
+                    if (tn != null) StingLpsSldStampSchema.Stamp(tn);
+                }
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"DrawBox: {ex.Message}"); }
         }
@@ -250,7 +262,8 @@ namespace StingTools.Core.Lightning
             try
             {
                 if (textType == null || string.IsNullOrEmpty(text)) return;
-                TextNote.Create(doc, view.Id, p, text, textType.Id);
+                var tn = TextNote.Create(doc, view.Id, p, text, textType.Id);
+                if (tn != null) StingLpsSldStampSchema.Stamp(tn);
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"PlaceLabel: {ex.Message}"); }
         }

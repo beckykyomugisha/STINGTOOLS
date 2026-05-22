@@ -166,11 +166,40 @@ namespace StingTools.Core.Lightning
         }
 
         /// <summary>
-        /// kc factor per BS EN 62305-3 §6.3 — partitioning of lightning current
-        /// among parallel down conductors. Single conductor → 1.0. n conductors →
-        /// 1/n, floored at 0.1 to keep stamped separations meaningful even for
-        /// large parallel arrays.
+        /// kc factor per BS EN 62305-3 §6.3 — partitioning of lightning
+        /// current among parallel down conductors. Three-arg overload
+        /// uses the tabulated values from Annex C.3 instead of the
+        /// 1/n approximation:
+        ///   n=1   → kc = 1.00
+        ///   n=2   → kc = 0.66    (Annex C.3 Table C.4)
+        ///   n=3   → kc = 0.44
+        ///   n=4   → kc = 0.33
+        ///   n≥5   → kc = 1/n (floored 0.1)
+        /// With ringConductor + equipotentialBonding (Type B earthing
+        /// arrangement, ring at base + bonding network) the worst-case
+        /// is halved (Annex C.3.4 — current splits equally at the ring
+        /// node). Backwards-compatible: the int-only overload preserves
+        /// the existing 1/n behaviour for callers still using it.
         /// </summary>
+        public static double ComputeKcFactor(int n, bool ringConductor, bool equipotentialBonding)
+        {
+            if (n <= 1) return 1.0;
+            double kc;
+            switch (n)
+            {
+                case 2: kc = 0.66; break;
+                case 3: kc = 0.44; break;
+                case 4: kc = 0.33; break;
+                default: kc = Math.Max(1.0 / n, 0.1); break;
+            }
+            // BS EN 62305-3 §C.3.4 — a ring conductor with equipotential
+            // bonding lets current split through the bonding network as
+            // well as the down conductors. Halve the worst-case kc.
+            if (ringConductor && equipotentialBonding) kc *= 0.5;
+            return Math.Max(kc, 0.05);
+        }
+
+        /// <summary>Legacy 1/n form — preserved for backwards compatibility.</summary>
         public static double ComputeKcFactor(int n)
         {
             if (n <= 1) return 1.0;
@@ -219,14 +248,17 @@ namespace StingTools.Core.Lightning
                 EnsureLoaded();
                 if (input == null) { result.Notes = "No input provided"; return result; }
 
-                // Collection area Ae per BS EN 62305-2 §A.2 (rectangular building):
-                //   Ae = L*W + 2*(3H)*(L+W) + π*(3H)^2
+                // Collection area Ae per BS EN 62305-2 §A.2.
+                // Wave A #5 — when the caller supplies AeOverrideM2 > 0
+                // (e.g. from a hand-calc on L-shaped / multi-volume
+                // geometry, or from a 3D bounding-volume sweep), use it
+                // directly. Otherwise compute the rectangular Annex A.2
+                // approximation: Ae = L*W + 2*(3H)*(L+W) + π*(3H)^2.
                 double L = input.PlanLengthM;
                 double W = input.PlanWidthM;
                 double H = input.HeightM;
                 if (L <= 0 || W <= 0 || H <= 0)
                 {
-                    // Fall back to a square plan derived from area/perimeter inputs.
                     double area = input.PlanAreaM2;
                     if (area > 0 && L <= 0 && W <= 0)
                     {
@@ -234,7 +266,16 @@ namespace StingTools.Core.Lightning
                         W = L;
                     }
                 }
-                double Ae = (L * W) + (2.0 * (3.0 * H) * (L + W)) + (Math.PI * Math.Pow(3.0 * H, 2));
+                double Ae;
+                if (input.AeOverrideM2 > 0)
+                {
+                    // User-supplied (hand-calc or external geometry sweep).
+                    Ae = input.AeOverrideM2;
+                }
+                else
+                {
+                    Ae = (L * W) + (2.0 * (3.0 * H) * (L + W)) + (Math.PI * Math.Pow(3.0 * H, 2));
+                }
                 if (Ae < 1.0) Ae = 1.0;
                 result.CollectionAreaM2 = Ae;
 
@@ -860,6 +901,13 @@ namespace StingTools.Core.Lightning
         public double PlanWidthM { get; set; }
         public double PlanAreaM2 { get; set; }
         public double HeightM { get; set; }
+        /// <summary>
+        /// Wave A #5 — explicit override for Ae (m²) for non-rectangular
+        /// geometries (L-shape, courtyard, multi-volume). When > 0,
+        /// RunRiskAssessment uses this directly and skips the Annex A.2
+        /// rectangular formula. Set 0 to use the rectangular calc.
+        /// </summary>
+        public double AeOverrideM2 { get; set; }
         // Cb / Cc / Cd (occupant) / Ce / Cd (location) coefficients
         public double BuildingTypeCb { get; set; } = 1.0;
         public double InternalContentCc { get; set; } = 1.0;

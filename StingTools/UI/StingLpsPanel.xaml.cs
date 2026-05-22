@@ -60,6 +60,13 @@ namespace StingTools.UI
         public double RiskTolerableRisk     { get; private set; } = 1e-5;
         public bool   RiskAutoApplyClass    { get; private set; } = true;
 
+        // Wave A #5 — explicit Ae for non-rectangular geometry.
+        public double RiskAeOverrideM2      { get; private set; } = 0;
+
+        // Wave A #14 — kc factor inputs (Annex C.3 table).
+        public bool   RiskRingConductor        { get; private set; } = true;
+        public bool   RiskEquipotentialBonding { get; private set; } = true;
+
         private static StingLpsPanel _instance;
         public static StingLpsPanel Instance => _instance;
 
@@ -239,6 +246,9 @@ namespace StingTools.UI
                 RiskNgFlashDensity = ParseD(txtRiskNg?.Text,   RiskNgFlashDensity);
                 RiskTolerableRisk  = ParseD(txtRiskRt?.Text,   RiskTolerableRisk);
                 RiskAutoApplyClass = chkRiskAutoApply?.IsChecked == true;
+                RiskAeOverrideM2   = ParseD(txtRiskAeOverride?.Text, RiskAeOverrideM2);
+                RiskRingConductor        = chkRingConductor?.IsChecked == true;
+                RiskEquipotentialBonding = chkEquipotentialBonding?.IsChecked == true;
 
                 // Pull C-factors from the editable grid by row index.
                 if (RiskFactorRows.Count >= 5)
@@ -494,7 +504,9 @@ namespace StingTools.UI
                 DownConductorRows.Clear();
                 int count = 0;
                 var dcs = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor");
-                double kc = LpsEngine.ComputeKcFactor(dcs.Count);
+                // Wave A #14 — use the Annex C.3 table-based kc with the
+                // panel's ring + bonding flags rather than the 1/n approx.
+                double kc = LpsEngine.ComputeKcFactor(dcs.Count, RiskRingConductor, RiskEquipotentialBonding);
                 string classId = ParameterHelpers.GetString(doc.ProjectInformation, LpsParams.CLASS_TXT);
                 if (string.IsNullOrWhiteSpace(classId)) classId = "II";
 
