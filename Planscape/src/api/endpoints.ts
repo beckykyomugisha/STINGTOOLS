@@ -2104,6 +2104,67 @@ export function getRdsSnapshot(projectId: string, roomBimId: string): Promise<un
   return apiFetch(`/api/projects/${projectId}/healthcare/rds/${encodeURIComponent(roomBimId)}`);
 }
 
+// ── Phase 188 (Tier 3) — HVAC snapshots from the desktop plugin. ──
+
+export type HvacCard = {
+  latest: string | null;
+  rag: 'R' | 'A' | 'G';
+  inspected: number;
+  pass: number;
+  warn: number;
+  fail: number;
+  totalKw: number;
+  worstValue: number;
+};
+
+export type HvacDashboard = {
+  loads:   HvacCard;
+  balance: HvacCard;
+  drift:   HvacCard;
+  carbon:  HvacCard;
+  sizing:  HvacCard;
+  last30d: { kind: string; total: number; pass: number; warn: number; fail: number }[];
+};
+
+export function getHvacDashboard(projectId: string): Promise<HvacDashboard> {
+  return apiFetch(`/api/projects/${projectId}/hvac/dashboard`);
+}
+
+export type HvacSnapshotSummary = {
+  id: string;
+  kind: string;
+  capturedAt: string;
+  rag: 'R' | 'A' | 'G';
+  inspected: number;
+  pass: number;
+  warn: number;
+  fail: number;
+  totalKw: number;
+  worstValue: number;
+};
+
+export function listHvacSnapshots(
+  projectId: string,
+  kind?: string,
+  take: number = 50,
+): Promise<HvacSnapshotSummary[]> {
+  const qs = new URLSearchParams();
+  if (kind) qs.set('kind', kind);
+  qs.set('take', String(take));
+  return apiFetch(`/api/projects/${projectId}/hvac/snapshots?${qs.toString()}`);
+}
+
+export type HvacSnapshotDetail = HvacSnapshotSummary & {
+  payloadJson: string;
+};
+
+export function getHvacSnapshot(
+  projectId: string,
+  snapshotId: string,
+): Promise<HvacSnapshotDetail> {
+  return apiFetch(`/api/projects/${projectId}/hvac/snapshots/${snapshotId}`);
+}
+
 // ── Phase 178f — penetration commissioning sign-off (FRP / damper / acoustic seal). ──
 
 export interface PenetrationSignoff {

@@ -78,9 +78,13 @@
                 <TextBlock x:Name="txtHvacStatus" Text="Ready" FontSize="9" Margin="14,0,0,0"
                            Foreground="{DynamicResource HeaderFg}" Opacity="0.7"
                            VerticalAlignment="Center"/>
+                <Button Style="{StaticResource HvacActionBtn}" Content="↻ Refresh"
+                        Tag="Hvac_RefreshPanel" Click="Cmd_Click"
+                        Margin="14,0,0,0" Height="20" FontSize="9"
+                        ToolTip="Re-seed every grid (EQPT / SYS / LOADS / FAB / DRIFT) from the active document (Phase 188)"/>
                 <Button Style="{StaticResource HvacActionBtn}" Content="⚙ Settings"
                         Tag="Hvac_OpenSettings" Click="Cmd_Click"
-                        Margin="14,0,0,0" Height="20" FontSize="9"
+                        Margin="4,0,0,0" Height="20" FontSize="9"
                         ToolTip="Open the MEP sizing rules registry settings"/>
             </StackPanel>
         </Border>
@@ -296,6 +300,12 @@
                                     Tag="Hvac_ConnectionAudit" Click="Cmd_Click" ToolTip="Audit MEP connector graph"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Select"
                                     Tag="Hvac_SelectMechanical" Click="Cmd_Click" ToolTip="Select all Mechanical Equipment in active view"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Ducts"
+                                    Tag="Hvac_SelectDucts" Click="Cmd_Click" ToolTip="Select all Ducts in active view (Phase 188)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Sizing check"
+                                    Tag="Hvac_SizingCheck" Click="Cmd_Click" ToolTip="MEP sizing check (Phase 188)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Scrape params"
+                                    Tag="Hvac_ScrapeEquipmentParams" Click="Cmd_Click" ToolTip="Stamp HVC_CAPACITY_KW + HVC_REFRIGERANT_TYPE_TXT on mechanical equipment by inferring from family/connector data (Phase 188 / F2)"/>
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Audit"
                                     Tag="Hvac_EquipmentAudit" Click="Cmd_Click" ToolTip="Audit equipment for completeness + connector health"/>
                         </WrapPanel>

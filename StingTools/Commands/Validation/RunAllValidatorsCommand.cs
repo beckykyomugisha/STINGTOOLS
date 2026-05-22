@@ -42,6 +42,17 @@ namespace StingTools.Commands.Validation
                 all.AddRange(new MaintenanceClashValidator().Validate(doc));
                 // §5.5 — reads UNICLASS_* / NBS_CODE_TXT / ASSET_RFI_URL_TXT.
                 all.AddRange(new ClassificationAuditValidator().Validate(doc));
+                // Phase 188 (Fix G2) — profile-driven pressure regime
+                // (healthcare-htm03-01 / gmp-annex1 / iso-14644-cleanroom /
+                // bs-en-12128-lab). Self-gates on PRJ_ORG_PRESSURE_PROFILE_TXT
+                // — returns empty list when the param is unset so projects that
+                // don't use the profile pay zero cost.
+                try
+                {
+                    all.AddRange(new StingTools.Core.Validation.Mep
+                        .GeneralPressureRegimeValidator().Validate(doc));
+                }
+                catch (Exception exGp) { StingLog.Warn($"GeneralPressureRegimeValidator: {exGp.Message}"); }
             }
             catch (Exception ex)
             {
@@ -74,7 +85,7 @@ namespace StingTools.Commands.Validation
             int infos    = all.Count(r => r.Severity == ValidationSeverity.Info);
 
             var panel = StingResultPanel.Create("v4 Validation Suite");
-            panel.SetSubtitle("ConnectivityValidator + FillValidator + SpecValidator + TerminationValidator + SlopeValidator + ClearanceValidator + MaintenanceClashValidator + ClassificationAuditValidator");
+            panel.SetSubtitle("ConnectivityValidator + FillValidator + SpecValidator + TerminationValidator + SlopeValidator + ClearanceValidator + MaintenanceClashValidator + ClassificationAuditValidator + GeneralPressureRegimeValidator");
 
             panel.AddSection("SUMMARY")
                  .Metric("Total findings", all.Count.ToString())
