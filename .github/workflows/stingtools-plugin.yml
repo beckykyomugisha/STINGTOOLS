@@ -2,7 +2,7 @@ name: StingTools Plugin — Build, Validate & Release
 
 on:
   push:
-    branches: [main, "claude/**"]
+    branches: [main]
     paths:
       - 'StingTools/**'
       - 'tools/revit-stubs/**'
@@ -153,7 +153,7 @@ jobs:
       - name: Setup .NET ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: '8.0.x'
 
       # ── Step 1: Build Revit API stubs ───────────────────────────────────────
       # The real Revit API DLLs ship only with Autodesk Revit (not redistributable).
