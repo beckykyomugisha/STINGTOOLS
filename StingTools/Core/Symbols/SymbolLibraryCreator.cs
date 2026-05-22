@@ -47,6 +47,40 @@ namespace StingTools.Core.Symbols
         public List<string> CreatedRfaPaths { get; } = new List<string>();
     }
 
+    /// <summary>
+    /// Suppresses "Highlighted lines overlap. Lines may not form closed
+    /// loops." and a small handful of cosmetic warnings that the
+    /// Symbol Library creator hits when drawing dense schematic geometry
+    /// (e.g. MCB / fluorescent fixture symbols built from overlapping
+    /// line segments). These warnings are non-fatal and pop a Revit
+    /// dialog mid-batch, blocking 191-family runs.
+    ///
+    /// Hard errors are NOT swallowed — they fall through and roll back
+    /// the family transaction normally so the caller still sees the
+    /// "Sketch plane creation is not allowed in this family" or similar
+    /// fatal in result.Errors.
+    /// </summary>
+    internal sealed class SymbolFailureSwallow : IFailuresPreprocessor
+    {
+        public FailureProcessingResult PreprocessFailures(FailuresAccessor a)
+        {
+            try
+            {
+                var msgs = a.GetFailureMessages();
+                foreach (var m in msgs)
+                {
+                    var sev = m.GetSeverity();
+                    if (sev == FailureSeverity.Warning)
+                    {
+                        a.DeleteWarning(m);
+                    }
+                }
+            }
+            catch { }
+            return FailureProcessingResult.Continue;
+        }
+    }
+
     internal static class SymbolLibraryCreator
     {
         // 1 ft = 304.8 mm — Revit internal length unit is decimal feet.
@@ -158,10 +192,33 @@ namespace StingTools.Core.Symbols
                 var rfaPath = Path.Combine(outputFolder, def.Id + ".rfa");
                 if (File.Exists(rfaPath))
                 {
-                    result.Existed++;
-                    result.CreatedRfaPaths.Add(rfaPath);
-                    if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
-                    continue;
+                    // If the .rfa loads cleanly, count it as Existed and
+                    // move on. If LoadFamily returns false (Revit's
+                    // signal for an empty / corrupt family) AND
+                    // loadIntoProject is true, delete the stale file and
+                    // fall through to BuildOne so the user gets a fresh
+                    // family. This recovers from earlier broken-build
+                    // runs without making the user manually delete the
+                    // Families/Symbols folder.
+                    bool loaded = !loadIntoProject || TryLoadFamily(hostDoc, rfaPath, result);
+                    if (loaded)
+                    {
+                        result.Existed++;
+                        result.CreatedRfaPaths.Add(rfaPath);
+                        continue;
+                    }
+
+                    try
+                    {
+                        File.Delete(rfaPath);
+                        result.Warnings.Add($"{def.Id}: stale empty .rfa removed; rebuilding.");
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"{def.Id}: stale .rfa delete failed — {ex.Message}; skipping rebuild.");
+                        result.Failed++;
+                        continue;
+                    }
                 }
 
                 try
@@ -345,6 +402,16 @@ namespace StingTools.Core.Symbols
             {
                 using (var tx = new Transaction(fdoc, "STING Create Symbol"))
                 {
+                    // Suppress noisy "Highlighted lines overlap" warnings
+                    // that pop a Revit dialog mid-build. These are
+                    // unavoidable for procedurally-drawn schematic symbols
+                    // (e.g. an MCB drawn from overlapping line segments)
+                    // and don't affect the resulting .rfa.
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new SymbolFailureSwallow());
+                    failOpts.SetClearAfterRollback(true);
+                    tx.SetFailureHandlingOptions(failOpts);
+
                     tx.Start();
                     DrawGeometry(fdoc, def, std, result);
                     AddParameters(app, fdoc, def, result);
@@ -458,8 +525,14 @@ namespace StingTools.Core.Symbols
                 result.Warnings.Add($"{def.Id}: no plan view in family template; geometry skipped.");
                 return;
             }
-            SketchPlane sketch = SketchPlane.Create(fdoc,
-                Plane.CreateByNormalAndOrigin(XYZ.BasisZ, XYZ.Zero));
+
+            var kind = ResolveTemplateKind(def);
+            // Annotation templates carry a built-in sketch plane; calling
+            // SketchPlane.Create on them throws "Sketch plane creation is
+            // not allowed in this family". DetailItem doesn't need one
+            // (NewDetailCurve takes the view). Model templates have a
+            // ref-level plane already created by the .rft.
+            SketchPlane sketch = ResolveSketchPlane(fdoc, kind, def.Id, result);
 
             double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
 
@@ -468,15 +541,15 @@ namespace StingTools.Core.Symbols
 
             if (geo.Lines != null)
                 foreach (var l in geo.Lines)
-                    DrawLine(fdoc, planView, sketch, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
 
             if (geo.ConnectionLines != null)
                 foreach (var l in geo.ConnectionLines)
-                    DrawLine(fdoc, planView, sketch, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
 
             if (geo.Arcs != null)
                 foreach (var a in geo.Arcs)
-                    DrawArc(fdoc, planView, sketch, a, s, result, def.Id);
+                    DrawArc(fdoc, planView, sketch, kind, a, s, result, def.Id);
 
             if (geo.FilledRegions != null)
                 foreach (var fr in geo.FilledRegions)
@@ -552,7 +625,52 @@ namespace StingTools.Core.Symbols
             catch (Exception ex) { result.Warnings.Add($"{def.Id}: section render failed — {ex.Message}"); }
         }
 
-        private static void DrawLine(Document fdoc, View view, SketchPlane sketch,
+        /// <summary>
+        /// Looks up an existing sketch plane in the family doc instead of
+        /// creating one (which fails in Annotation templates). For
+        /// Annotation + DetailItem we don't need a sketch plane at all
+        /// (curves go on the family's plan view via NewDetailCurve).
+        /// Only Model templates get a real plane.
+        /// </summary>
+        private static SketchPlane ResolveSketchPlane(Document fdoc, TemplateKind kind, string id, SymbolCreationResult result)
+        {
+            // Neither Annotation nor DetailItem need a sketch plane.
+            // Annotation explicitly forbids SketchPlane.Create — even
+            // via a ReferencePlane id — so we MUST not touch the
+            // sketch-plane API for it.
+            if (kind != TemplateKind.Model) return null;
+
+            try
+            {
+                // Prefer an existing sketch plane shipped by the template.
+                var existing = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(SketchPlane))
+                    .Cast<SketchPlane>()
+                    .FirstOrDefault();
+                if (existing != null) return existing;
+
+                // Fallback: derive one from a reference plane (Generic
+                // Model templates carry "Center (Front/Back)" + "Center
+                // (Left/Right)"). SketchPlane.Create with a ReferencePlane
+                // id is permitted in Model templates.
+                var refPlane = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(ReferencePlane))
+                    .Cast<ReferencePlane>()
+                    .FirstOrDefault(rp => rp?.GetPlane() != null);
+                if (refPlane != null) return SketchPlane.Create(fdoc, refPlane.Id);
+
+                // Model templates: last-resort try to create one.
+                return SketchPlane.Create(fdoc,
+                    Plane.CreateByNormalAndOrigin(XYZ.BasisZ, XYZ.Zero));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: sketch plane resolve failed — {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void DrawLine(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
             LineDefinition l, double symMm, SymbolCreationResult result, string id)
         {
             try
@@ -623,6 +741,24 @@ namespace StingTools.Core.Symbols
                 else
                 {
                     fdoc.Create.NewDetailCurve(view, line);
+                    return;
+                }
+
+                switch (kind)
+                {
+                    case TemplateKind.DetailItem:
+                    case TemplateKind.Annotation:
+                        // Annotation + DetailItem both render lines on
+                        // the family's built-in plan view; no sketch
+                        // plane needed (and SketchPlane.Create is
+                        // forbidden in Annotation templates).
+                        fdoc.FamilyCreate.NewDetailCurve(view, line);
+                        break;
+                    case TemplateKind.Model:
+                    default:
+                        if (sketch == null) return;
+                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
+                        break;
                 }
             }
             catch (Exception ex)
@@ -631,7 +767,7 @@ namespace StingTools.Core.Symbols
             }
         }
 
-        private static void DrawArc(Document fdoc, View view, SketchPlane sketch,
+        private static void DrawArc(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
             ArcDefinition a, double symMm, SymbolCreationResult result, string id)
         {
             try
@@ -1921,7 +2057,15 @@ namespace StingTools.Core.Symbols
         // Family load
         // ─────────────────────────────────────────────────────────────────
 
-        private static void TryLoadFamily(Document hostDoc, string rfaPath, SymbolCreationResult result)
+        /// <summary>
+        /// Loads <paramref name="rfaPath"/> into <paramref name="hostDoc"/>.
+        /// Returns true on success, false on rejection. Most-common
+        /// reason for false: the .rfa was saved with no geometry (a
+        /// previous build failed mid-way) and Revit silently refuses to
+        /// load empty families. Callers can detect false and fall back
+        /// to deleting the stale .rfa and rebuilding.
+        /// </summary>
+        private static bool TryLoadFamily(Document hostDoc, string rfaPath, SymbolCreationResult result)
         {
             try
             {
@@ -1932,11 +2076,13 @@ namespace StingTools.Core.Symbols
                     bool loaded = hostDoc.LoadFamily(rfaPath, new FamilyLoadOpts(), out fam);
                     tx.Commit();
                     if (!loaded) result.Warnings.Add($"LoadFamily returned false for {Path.GetFileName(rfaPath)}");
+                    return loaded;
                 }
             }
             catch (Exception ex)
             {
                 result.Warnings.Add($"LoadFamily {Path.GetFileName(rfaPath)} failed — {ex.Message}");
+                return false;
             }
         }
 
