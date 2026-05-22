@@ -2329,6 +2329,10 @@ namespace StingTools.UI
             {
                 StingLog.Warn($"SubscribeSelectionSync: {ex.Message}");
             }
+            // I-5 — Subscribe the external-rename watcher once we have an
+            // Application reference. Idempotent.
+            try { MaterialRenameWatcher.Subscribe(uiapp.Application); }
+            catch (Exception ex) { StingLog.Warn($"RenameWatcher subscribe: {ex.Message}"); }
             // N+1 — Also listen for region/standards changes pushed by the
             // ProjectSetupWizard or other surfaces, so the MAT panel snaps
             // its Region combo and re-formats the grid live.
