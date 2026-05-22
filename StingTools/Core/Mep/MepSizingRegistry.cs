@@ -62,6 +62,24 @@ namespace StingTools.Core.Mep
         public string Label { get; set; } = "";
     }
 
+    /// <summary>
+    /// Pressure-Independent Control Valve characteristic. PICVs hold
+    /// flow constant between dpMin and dpMax of differential pressure
+    /// across the valve. Outside that band they revert to standard Kvs
+    /// behaviour. Per-vendor data sheets give specific ranges.
+    /// </summary>
+    public class PicvCurve
+    {
+        public double QMaxLs    { get; set; }
+        public double DpMinKpa  { get; set; }
+        public double DpMaxKpa  { get; set; }
+
+        /// <summary>True when the supplied (Q, ΔP) point falls inside
+        /// the PICV's authority window — Q will be held constant.</summary>
+        public bool InAuthorityWindow(double qLs, double dpKpa)
+            => qLs > 0 && qLs <= QMaxLs && dpKpa >= DpMinKpa && dpKpa <= DpMaxKpa;
+    }
+
     public class PipeService
     {
         public string Id { get; set; } = "";
@@ -123,6 +141,23 @@ namespace StingTools.Core.Mep
         /// </summary>
         public Dictionary<string, Dictionary<string, double>> ValveCv { get; set; }
             = new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// PICV (Pressure-Independent Control Valve) characteristic curves.
+        /// Outer key is the brand, inner is the product code. Each entry
+        /// holds the maximum flow (L/s), minimum and maximum authority ΔP
+        /// (kPa). Within (dpMin .. dpMax) the PICV maintains constant Q;
+        /// outside that band it reverts to standard Kvs behaviour.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, PicvCurve>> PicvCurves { get; set; }
+            = new Dictionary<string, Dictionary<string, PicvCurve>>(StringComparer.OrdinalIgnoreCase);
+
+        public PicvCurve GetPicv(string brand, string productCode)
+        {
+            if (string.IsNullOrWhiteSpace(brand) || string.IsNullOrWhiteSpace(productCode)) return null;
+            if (!PicvCurves.TryGetValue(brand, out var dict) || dict == null) return null;
+            return dict.TryGetValue(productCode, out var c) ? c : null;
+        }
 
         /// <summary>
         /// Resolve a manufacturer fitting loss coefficient C. Returns 0
@@ -453,6 +488,33 @@ namespace StingTools.Core.Mep
                             {
                                 try { inner[p.Key] = (double)p.Value; } catch { }
                             }
+                        }
+                    }
+                }
+
+                // PICV (pressure-independent control valve) curves (Phase 187h).
+                var picvs = pipe["picvCurves"] as JObject;
+                if (picvs != null)
+                {
+                    foreach (var brand in picvs)
+                    {
+                        if (brand.Key.StartsWith("_")) continue;
+                        if (!(brand.Value is JObject products)) continue;
+                        if (!rules.PicvCurves.TryGetValue(brand.Key, out var inner))
+                        {
+                            inner = new Dictionary<string, PicvCurve>(StringComparer.OrdinalIgnoreCase);
+                            rules.PicvCurves[brand.Key] = inner;
+                        }
+                        foreach (var p in products)
+                        {
+                            if (p.Key.StartsWith("_")) continue;
+                            if (!(p.Value is JObject curve)) continue;
+                            inner[p.Key] = new PicvCurve
+                            {
+                                QMaxLs   = (double?)curve["qMaxLs"]   ?? 0,
+                                DpMinKpa = (double?)curve["dpMinKpa"] ?? 0,
+                                DpMaxKpa = (double?)curve["dpMaxKpa"] ?? 0
+                            };
                         }
                     }
                 }

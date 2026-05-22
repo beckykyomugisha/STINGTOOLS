@@ -70,7 +70,7 @@ namespace StingTools.Commands.Hvac
                 }
                 catch { }
 
-                var results = BlockLoadEngine.Run(zones, site, cooling, rts);
+                var results = BlockLoadEngine.Run(zones, site, cooling, rts, doc);
                 double grand = results.Sum(r => r.BlockSensibleW);
                 double sumPeaks = results.Sum(r => r.SumOfPeaksSensibleW);
                 double diversity = sumPeaks > 0 ? grand / sumPeaks : 1.0;
@@ -134,8 +134,25 @@ namespace StingTools.Commands.Hvac
                 foreach (var z in results.SelectMany(r => r.Zones)
                                          .OrderByDescending(r => r.PeakSensibleW).Take(10))
                 {
+                    string dcvNote = z.DcvSavingsPct > 5
+                        ? $" · DCV avg {z.AverageOaLs:F0} L/s (–{z.DcvSavingsPct:F0} %)"
+                        : "";
                     panel.Text($"{z.ZoneName} · {z.PeakSensibleW / 1000:F1} kW @ {z.PeakHour:D2}:00 · " +
-                               $"{z.AreaM2:F0} m² · OA {z.OaLs:F0} L/s");
+                               $"{z.AreaM2:F0} m² · OA {z.OaLs:F0} L/s{dcvNote}");
+                }
+
+                // Aggregate DCV savings across the building.
+                double sumDesignOa = results.SelectMany(r => r.Zones).Sum(z => z.OaLs);
+                double sumAvgOa    = results.SelectMany(r => r.Zones).Sum(z => z.AverageOaLs);
+                if (sumDesignOa > 0)
+                {
+                    double bldgSavings = 100.0 * (1.0 - sumAvgOa / sumDesignOa);
+                    panel.AddSection("DCV — DESIGN-DAY VENTILATION SAVINGS")
+                         .Metric("Σ design OA",      $"{sumDesignOa:F0} L/s")
+                         .Metric("Σ DCV avg OA",     $"{sumAvgOa:F0} L/s")
+                         .Metric("DCV savings",      $"{bldgSavings:F0} % vs design-day max")
+                         .Text("DCV (ASHRAE 62.1 §6.2.7) modulates the per-person OA component " +
+                               "against the occupancy schedule; per-area component stays constant.");
                 }
 
                 panel.Text("Block load = max over 24 hourly system totals. " +

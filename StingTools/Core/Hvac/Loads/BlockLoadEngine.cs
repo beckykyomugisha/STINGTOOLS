@@ -79,7 +79,8 @@ namespace StingTools.Core.Hvac.Loads
             IEnumerable<LoadZone> zones,
             ClimateSite climate,
             bool cooling = true,
-            RtsConstructionClass rts = RtsConstructionClass.Reactive)
+            RtsConstructionClass rts = RtsConstructionClass.Reactive,
+            Autodesk.Revit.DB.Document docHint = null)
         {
             if (zones == null) return new List<BlockLoadResult>();
             if (climate == null) climate = new ClimateSite { Cooling996DbC = 28, Cooling996McwbC = 20, Heating996DbC = -3 };
@@ -91,7 +92,7 @@ namespace StingTools.Core.Hvac.Loads
             var zoneResults = new List<ZoneLoadResult>();
             foreach (var z in zones)
             {
-                var r = ComputeZoneHourly(z, climate, rho, cooling, rts);
+                var r = ComputeZoneHourly(z, climate, rho, cooling, rts, docHint);
                 zoneResults.Add(r);
             }
 
@@ -138,7 +139,8 @@ namespace StingTools.Core.Hvac.Loads
         }
 
         private static ZoneLoadResult ComputeZoneHourly(LoadZone z, ClimateSite c, double rho, bool cooling,
-            RtsConstructionClass rts = RtsConstructionClass.Reactive)
+            RtsConstructionClass rts = RtsConstructionClass.Reactive,
+            Autodesk.Revit.DB.Document docHint = null)
         {
             double tSet  = cooling ? z.CoolingSetpointC : z.HeatingSetpointC;
             double tPeak = cooling ? c.Cooling996DbC    : c.Heating996DbC;
@@ -170,8 +172,38 @@ namespace StingTools.Core.Hvac.Loads
             var lat     = new double[24];
 
             // Outdoor air mass flow (vent + infiltration), kg/s.
+            // Phase 187h — infiltration model:
+            //   * If Q4PaM3PerHperM2 is set, layer CIBSE Guide A §4.6 stack
+            //     + wind pressure onto the Q4 reference value:
+            //       ΔP_stack = ρ·g·h·(T_in - T_out)/T_in
+            //       ΔP_wind  = 0.5·Cp·ρ·v²            (Cp ≈ 0.6 windward)
+            //       ΔP_total = √(ΔP_stack² + ΔP_wind²)
+            //       Q_inf    = Q4Pa · A · (ΔP_total/4)^0.65
+            //     → infiltration rises on cold/windy days, drops on still-mild
+            //       days. Replaces the flat InfiltrationAch.
+            //   * Else fall back to InfiltrationAch.
             double oaLs   = z.OaLs;                                              // L/s
-            double infLs  = z.InfiltrationAch * z.VolumeM3 * 1000.0 / 3600.0;    // ACH·V → m³/h → L/s
+            double infLs;
+            if (z.Q4PaM3PerHperM2 > 0)
+            {
+                double envM2 = z.InfiltrationEnvelopeAreaM2 > 0
+                    ? z.InfiltrationEnvelopeAreaM2
+                    : (z.Envelope != null
+                        ? z.Envelope
+                            .Where(seg => seg.Kind == SegmentKind.ExteriorWall
+                                       || seg.Kind == SegmentKind.Window
+                                       || seg.Kind == SegmentKind.Roof)
+                            .Sum(seg => seg.AreaM2)
+                        : 0);
+                infLs = (envM2 > 0)
+                    ? CibseInfiltrationLs(z.Q4PaM3PerHperM2, envM2, z.HeightM,
+                                          tSet, tPeak, c.DesignWindMs)
+                    : z.InfiltrationAch * z.VolumeM3 * 1000.0 / 3600.0;
+            }
+            else
+            {
+                infLs = z.InfiltrationAch * z.VolumeM3 * 1000.0 / 3600.0;
+            }
             double mdotOa = (oaLs + infLs) * 1e-3 * rho;                          // kg/s
 
             // ASHRAE design days: cooling = July 21 (DOY 202), heating = January 21 (DOY 21).
@@ -253,17 +285,38 @@ namespace StingTools.Core.Hvac.Loads
             double[] zoneRtf = null;
             if (rts != RtsConstructionClass.Reactive && z.Envelope != null && z.Envelope.Count > 0)
             {
-                double sumAreaMass = 0, sumArea = 0;
-                foreach (var seg in z.Envelope)
+                // Tier-3 first — derive RTF from area-weighted CTF Y-series
+                // when any envelope segment carries a ConstructionTypeId
+                // present in STING_CTF_COEFFICIENTS.json. This is the most
+                // rigorous RTS shipped (no Laplace inversion at runtime —
+                // coefficients are pre-tabulated per construction).
+                if (z.Envelope.Any(s => !string.IsNullOrEmpty(s?.ConstructionTypeId)))
                 {
-                    if (seg.ThermalMassKJperM2K <= 0 || seg.AreaM2 <= 0) continue;
-                    sumAreaMass += seg.AreaM2 * seg.ThermalMassKJperM2K;
-                    sumArea     += seg.AreaM2;
+                    try
+                    {
+                        var ctfLib = CtfRtsRegistry.Get(docHint);
+                        zoneRtf = CtfRtsRegistry.DeriveZoneRtf(z.Envelope, ctfLib);
+                    }
+                    catch (Exception ex)
+                    { StingTools.Core.StingLog.Warn($"CTF RTF derive: {ex.Message}"); }
                 }
-                if (sumArea > 0 && sumAreaMass > 0)
+                // Tier-2 fallback — thermal-mass interpolation when no CTF
+                // hit but at least one envelope segment carries
+                // ThermalMassKJperM2K data.
+                if (zoneRtf == null)
                 {
-                    double avgMass = sumAreaMass / sumArea;
-                    zoneRtf = RadiantTimeSeries.FactorsForThermalMass(avgMass);
+                    double sumAreaMass = 0, sumArea = 0;
+                    foreach (var seg in z.Envelope)
+                    {
+                        if (seg.ThermalMassKJperM2K <= 0 || seg.AreaM2 <= 0) continue;
+                        sumAreaMass += seg.AreaM2 * seg.ThermalMassKJperM2K;
+                        sumArea     += seg.AreaM2;
+                    }
+                    if (sumArea > 0 && sumAreaMass > 0)
+                    {
+                        double avgMass = sumAreaMass / sumArea;
+                        zoneRtf = RadiantTimeSeries.FactorsForThermalMass(avgMass);
+                    }
                 }
             }
 
@@ -315,6 +368,12 @@ namespace StingTools.Core.Hvac.Loads
                 { peak = sens[h]; peakHour = h; }
             }
 
+            // Phase 187h — DCV hourly OA profile per ASHRAE 62.1.
+            var dcv = DcvVentilationCalc.HourlyOa(z);
+            double avgOa = oaLs, savings = 0;
+            if (dcv != null)
+                (_, avgOa, savings) = DcvVentilationCalc.Stats(dcv);
+
             return new ZoneLoadResult
             {
                 ZoneId        = z.Id,
@@ -326,7 +385,10 @@ namespace StingTools.Core.Hvac.Loads
                 PeakLatentW   = lat[peakHour],
                 PeakHour      = peakHour,
                 AreaM2        = z.FloorAreaM2,
-                OaLs          = oaLs
+                OaLs          = oaLs,
+                HourlyOaLs    = dcv,
+                AverageOaLs   = avgOa,
+                DcvSavingsPct = savings
             };
         }
 
@@ -493,6 +555,32 @@ namespace StingTools.Core.Hvac.Loads
             if (hour < 0 || hour >= sched.Length) return 0;
             double v = sched[hour];
             return v < 0 ? 0 : (v > 1 ? 1 : v);
+        }
+
+        /// <summary>
+        /// CIBSE Guide A §4.6 infiltration rate from Q4Pa air-permeability,
+        /// envelope area, building height + design Tin/Tout/wind. Returns L/s.
+        ///
+        /// Stack pressure:  ΔP_stack = ρ_a·g·h·(T_in - T_out) / T_in_abs
+        /// Wind pressure :  ΔP_wind  = 0.5·Cp·ρ·v²       (Cp ≈ 0.6 windward)
+        /// Combined      :  ΔP       = √(ΔP_stack² + ΔP_wind²)
+        /// Leakage law   :  Q = Q4Pa · A · (ΔP / 4)^n    (n = 0.65 typical)
+        /// </summary>
+        public static double CibseInfiltrationLs(
+            double q4PaM3PerHperM2, double envAreaM2, double heightM,
+            double tIn, double tOut, double windMs)
+        {
+            const double rho = 1.20;
+            const double g   = 9.81;
+            const double cp  = 0.6;             // windward wall pressure coefficient
+            const double n   = 0.65;            // leakage exponent
+            double tInK  = tIn + 273.15;
+            double dpStack = Math.Abs(rho * g * heightM * (tIn - tOut) / Math.Max(tInK, 1e-3));
+            double dpWind  = 0.5 * cp * rho * windMs * windMs;
+            double dp      = Math.Sqrt(dpStack * dpStack + dpWind * dpWind);
+            if (dp < 0.1) dp = 0.1;
+            double qM3H = q4PaM3PerHperM2 * envAreaM2 * Math.Pow(dp / 4.0, n);
+            return qM3H * 1000.0 / 3600.0;     // m³/h → L/s
         }
 
         /// <summary>

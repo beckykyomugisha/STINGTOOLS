@@ -3299,6 +3299,118 @@ are now in place.
 - `Commands/Hvac/HvacCompareLoadsCommand.cs`
 - `Data/STING_REFRIG_CHARGE_TABLES.json`
 
+### Phase 187h — closing the long-tail engineering items
+
+Eight items the Phase 187g caveats listed as "real follow-on
+engineering" now have first-shipped implementations:
+
+1. **Per-vendor IDU catalogue + selector.**
+   `STING_IDU_CATALOGUE.json` ships 11 sample IDU records (Daikin
+   VRV-5 FXSQ / FXFQ / FXAQ, Mitsubishi CityMulti Y PEFY / PLFY,
+   Toshiba SHRMe MMD / MMU). `IduCatalogueRegistry` loads with
+   project overlay; `IduSelector.Pick(cat, duty)` returns the
+   smallest-capacity record satisfying duty + min flow + max NC.
+   New `HvacSelectIdusCommand` (`Hvac_SelectIdus`) walks Spaces
+   with peak loads, picks per-space IDU, stamps
+   `HVC_SELECTED_IDU_ID_TXT` + `_LABEL_TXT`. Per-space mounting
+   override via `HVC_IDU_MOUNTING_TXT` (Ducted / CeilingCassette /
+   WallMounted), project default via `PRJ_REFRIG_IDU_MOUNTING_TXT`.
+
+2. **VRF REFNET branch sizing.**
+   `STING_REFNET_JOINTS.json` ships 15 joint records across Daikin
+   KHRP / Mitsubishi CMY / Toshiba RBM-BY series.
+   `RefnetTreeSizer.SizeTree(tree, vendor, cat)` walks a logical
+   refrigerant tree depth-first post-order, computing downstream
+   connected capacity at every node and picking the smallest joint
+   whose `maxKw ≥ downstream`. New `HvacRefnetSizeCommand`
+   (`Hvac_RefnetSize`) builds a synthetic single-trunk-many-branches
+   tree from project IDUs + runs the sizer. Full multi-level
+   connector-graph extraction is the natural next step.
+
+3. **PICV characteristic curves.**
+   `STING_MEP_SIZING_RULES.json` `pipe.picvCurves` section ships
+   curves for Belimo / Danfoss / IFC PICVs with authority band
+   (qMaxLs, dpMinKpa, dpMaxKpa). `MepSizingRules.GetPicv(brand, code)`
+   + new `PicvCurve.InAuthorityWindow(q, dp)` helper enable
+   hydronic balance checks to confirm the system pressure budget
+   stays within the PICV's authority window where constant-Q
+   behaviour holds.
+
+4. **Pump head-curve integration in Hardy Cross.**
+   `HardyCrossSolver.OperatingPoint(seriesPath, pump, …)` bisects
+   the system curve (Σ pipe head-loss as a function of Q) against
+   a polynomial `PumpCurve` (`H(Q) = a₀ + a₁·Q + a₂·Q²…`) to find
+   the system operating point. `PumpCurve.FromQuadraticThreePoints`
+   builds a curve from catalogue (shut-off, BEP, run-out) data
+   points. Tree (radial) networks now converge to the actual
+   pump-on-system intersection rather than a user-supplied
+   constant-pressure assumption.
+
+5. **Stack-effect + wind infiltration.**
+   `LoadZone.Q4PaM3PerHperM2` + `InfiltrationEnvelopeAreaM2`
+   added. When set, `BlockLoadEngine` replaces the flat
+   `InfiltrationAch` with the CIBSE Guide A §4.6 model:
+   `ΔP_stack = ρg·h·(Tin-Tout)/Tin`, `ΔP_wind = 0.5·Cp·ρ·v²`,
+   `Q_inf = Q4Pa·A·(√(ΔPs² + ΔPw²)/4)^0.65`. `ClimateSite.DesignWindMs`
+   carries the wind speed (3 m/s default). New
+   `BlockLoadEngine.CibseInfiltrationLs` helper exposes the math
+   directly for testing.
+
+6. **Full ASHRAE CTF for RTS (Tier-3 RTF).**
+   `STING_CTF_COEFFICIENTS.json` ships 5 construction-type Y-series
+   (Light stud, Medium masonry cavity, Heavy concrete frame, Very-
+   heavy composite, Glass DGU). New `CtfRtsRegistry` loads with
+   project overlay; `DeriveZoneRtf(envelope, lib)` area-weights the
+   Y-series across each zone's envelope and renormalises to unit
+   sum, giving the highest-fidelity RTF without runtime Laplace
+   inversion (coefficients are pre-tabulated). `EnvelopeSegment`
+   gains `ConstructionTypeId`; when any envelope segment carries an
+   id present in the registry, the Tier-3 path is used in preference
+   to the Tier-2 thermal-mass interpolation. Coefficients can be
+   added per-project via `_BIM_COORD/ctf_coefficients.json`.
+
+7. **Multi-zone CO₂ DCV.**
+   New `DcvVentilationCalc.HourlyOa(zone)` computes the 24-h OA
+   profile per ASHRAE 62.1 §6.2.7: per-person component
+   `R_p·N(t)·OccupancySchedule(t)` + per-area `R_a·A`. `ZoneLoadResult`
+   gains `HourlyOaLs[24]` + `AverageOaLs` + `DcvSavingsPct`.
+   BlockLoad panel reports building-aggregate DCV savings (Σ avg /
+   Σ design max) and tags per-zone savings on the top-10 list.
+
+8. **gbXML round-trip import.**
+   `HvacImportGbxmlLoadsCommand` (`Hvac_ImportGbxmlLoads`) reads a
+   TRACE / HAP / IES / EnergyPlus gbXML export, parses
+   `<Zone>/PeakCooling…`, `PeakLatent…`, `OutdoorAir…` elements,
+   joins on Space Number → Name → ElementId, stamps
+   `HVC_PEAK_SENS_W` + `HVC_PEAK_LAT_W` + `HVC_OA_LS` +
+   `HVC_LOAD_SOURCE_TXT='gbXML:<filename>'`. Unit conversion
+   handles W / kW / Btu/h / tons + CFM / m³/h / m³/s / L/s.
+   Companion to `HvacCompareLoadsCommand` (which diffs CSV non-
+   destructively) — this command overwrites STING's BlockLoad with
+   the simulator's authoritative numbers.
+
+### Parameters added (Phase 187h)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_SELECTED_IDU_ID_TXT` | HVC_SYSTEMS | Catalogue id of the IDU picked by HvacSelectIdusCommand |
+| `HVC_SELECTED_IDU_LABEL_TXT` | HVC_SYSTEMS | Human-readable IDU label |
+| `HVC_IDU_MOUNTING_TXT` | HVC_SYSTEMS | Per-space IDU mounting override |
+| `PRJ_REFRIG_IDU_MOUNTING_TXT` | PRJ_INFORMATION | Project default IDU mounting |
+
+### Files added (Phase 187h)
+
+- `Core/Refrigerant/IduCatalogue.cs`
+- `Core/Refrigerant/RefnetTreeSizer.cs`
+- `Core/Hvac/Loads/CtfRtsRegistry.cs`
+- `Core/Hvac/Loads/DcvVentilationCalc.cs`
+- `Commands/Hvac/HvacSelectIdusCommand.cs`
+- `Commands/Hvac/HvacRefnetSizeCommand.cs`
+- `Commands/Hvac/HvacImportGbxmlLoadsCommand.cs`
+- `Data/STING_IDU_CATALOGUE.json`
+- `Data/STING_REFNET_JOINTS.json`
+- `Data/STING_CTF_COEFFICIENTS.json`
+
 ### Caveats (Phase 187 — what's still open)
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.

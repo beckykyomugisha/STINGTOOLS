@@ -249,6 +249,15 @@ namespace StingTools.UI
                     case "Hvac_CompareLoads":
                         // Phase 187g — import TRACE / HAP CSV + diff per zone.
                         Run<StingTools.Commands.Hvac.HvacCompareLoadsCommand>(app); break;
+                    case "Hvac_SelectIdus":
+                        // Phase 187h — pick IDU per space from the catalogue.
+                        Run<StingTools.Commands.Hvac.HvacSelectIdusCommand>(app); break;
+                    case "Hvac_RefnetSize":
+                        // Phase 187h — REFNET branch joint sizing.
+                        Run<StingTools.Commands.Hvac.HvacRefnetSizeCommand>(app); break;
+                    case "Hvac_ImportGbxmlLoads":
+                        // Phase 187h — gbXML import round-trip.
+                        Run<StingTools.Commands.Hvac.HvacImportGbxmlLoadsCommand>(app); break;
                     case "Hvac_NcPredict":
                         // STING-design-engines: VDI 2081 / ASHRAE A48 NC prediction
                         // from duct selection + regenerated noise + room model.

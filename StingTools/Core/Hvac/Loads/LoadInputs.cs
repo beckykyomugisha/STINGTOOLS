@@ -55,8 +55,30 @@ namespace StingTools.Core.Hvac.Loads
         public double OaLpsPerM2     { get; set; } = 0.3;
         public double OaLs => OccupantCount * OaLpsPerPerson + FloorAreaM2 * OaLpsPerM2;
 
-        // Infiltration — air changes per hour at design conditions.
+        // Infiltration — air changes per hour at design conditions. May be
+        // overridden hour-by-hour by the CIBSE Guide A §4.6 stack + wind
+        // model below when Q4Pa and the climate site supply wind data.
         public double InfiltrationAch { get; set; } = 0.3;
+
+        /// <summary>
+        /// Q4Pa air permeability — leakage volume rate at 4 Pa reference
+        /// pressure difference, m³/(h·m² of envelope area). UK Building
+        /// Regs Part L 2021 sets typical caps:
+        ///   Dwellings:           ≤ 5 m³/(h·m²) at 50 Pa → ~0.5 at 4 Pa
+        ///   Commercial new-build:≤ 10 at 50 Pa  → ~1.0 at 4 Pa
+        ///   Passivhaus:          ≤ 0.6 at 50 Pa → ~0.06 at 4 Pa
+        /// When 0 (default), <see cref="InfiltrationAch"/> is used directly;
+        /// when &gt; 0, BlockLoadEngine layers stack effect + wind pressure
+        /// onto the reference Q4Pa via the CIBSE §4.6 model.
+        /// </summary>
+        public double Q4PaM3PerHperM2 { get; set; } = 0;
+
+        /// <summary>
+        /// Envelope area for the infiltration calc, m². When 0, the engine
+        /// derives it from the Envelope segments (Σ AreaM2 for non-Window
+        /// segments) — best-effort.
+        /// </summary>
+        public double InfiltrationEnvelopeAreaM2 { get; set; } = 0;
 
         public static double[] DefaultOfficeOccupancy() => new[]
         {
@@ -92,20 +114,26 @@ namespace StingTools.Core.Hvac.Loads
 
         /// <summary>
         /// Specific heat capacity per unit area, kJ/(m²·K) — Σ over layers of
-        /// (ρ·c·thickness). Used by the per-zone RTS interpolator (Phase 187g)
-        /// to derive Radiant Time Factors from actual layer detail rather than
-        /// using a project-wide Light/Medium/Heavy class.
+        /// (ρ·c·thickness). Used by the Tier-2 per-zone RTS interpolator
+        /// (Phase 187g) to derive Radiant Time Factors from actual layer
+        /// detail rather than using a project-wide Light/Medium/Heavy class.
         ///
         /// Typical values:
         ///   Lightweight stud + gypsum wall:   ~40-80 kJ/m²K
         ///   Cavity brick / block wall:       ~150-250 kJ/m²K
         ///   Solid concrete wall (200 mm):    ~400-500 kJ/m²K
         ///   Concrete + masonry composite:    600+ kJ/m²K
-        ///
-        /// When 0 (the default), the zone-wide RtsConstructionClass on
-        /// BlockLoadEngine.Run is used instead.
         /// </summary>
         public double ThermalMassKJperM2K { get; set; } = 0;
+
+        /// <summary>
+        /// Tier-3 RTS construction-type id — when set + present in
+        /// STING_CTF_COEFFICIENTS.json, the per-zone RTF is derived from
+        /// the published Conduction Transfer Function Y-series rather than
+        /// interpolated from thermal mass alone. Highest-fidelity RTS path
+        /// shipped.
+        /// </summary>
+        public string ConstructionTypeId { get; set; }
     }
 
     /// <summary>Per-zone hourly load profile + peaks.</summary>
@@ -121,6 +149,21 @@ namespace StingTools.Core.Hvac.Loads
         public int     PeakHour        { get; set; }
         public double  AreaM2          { get; set; }
         public double  OaLs            { get; set; }
+
+        /// <summary>
+        /// Hourly OA L/s per ASHRAE 62.1 DCV — modulates per-person component
+        /// against the occupancy schedule (per-area stays constant). The
+        /// design-day max equals <see cref="OaLs"/>; the 24-hour AVERAGE is
+        /// what DCV-equipped systems actually deliver. Null when DCV inputs
+        /// aren't available (no occupants / no per-person OA / no schedule).
+        /// </summary>
+        public double[] HourlyOaLs     { get; set; }
+        /// <summary>Average hourly OA over the design day, L/s. 0 when
+        /// <see cref="HourlyOaLs"/> is null.</summary>
+        public double  AverageOaLs     { get; set; }
+        /// <summary>DCV savings vs. design-day max OA, % (0 = no savings,
+        /// 50 % = OA averaged half the design-day max).</summary>
+        public double  DcvSavingsPct   { get; set; }
     }
 
     /// <summary>Aggregated system / building load — block load picks

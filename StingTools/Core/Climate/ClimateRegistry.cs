@@ -90,6 +90,12 @@ namespace StingTools.Core.Climate
         /// local→solar conversion.</summary>
         public bool ObservesDstInSummer { get; set; } = false;
 
+        /// <summary>Annual-mean wind speed at 10 m, m/s. ASHRAE 2021 column
+        /// "Wsf" (wind speed at the cooling design hour). Used by the
+        /// CIBSE Guide A §4.6 stack + wind infiltration model. Defaults to
+        /// 3.0 m/s when not in the site record (representative UK mean).</summary>
+        public double DesignWindMs { get; set; } = 3.0;
+
         /// <summary>
         /// Air density at the cooling design dry-bulb, corrected for
         /// elevation per the NASA ISA model. Returns kg/m³.
@@ -271,7 +277,8 @@ namespace StingTools.Core.Climate
                     Cdd10           = (double?)s["cdd10"] ?? 0,
                     Source          = (string)s["source"] ?? "",
                     UtcOffsetHours      = (double?)s["utcOffsetHours"] ?? 0,
-                    ObservesDstInSummer = (bool?)s["observesDstInSummer"] ?? false
+                    ObservesDstInSummer = (bool?)s["observesDstInSummer"] ?? false,
+                    DesignWindMs        = (double?)s["designWindMs"] ?? 3.0
                 };
                 // Project override replaces an existing entry with the same id
                 int existing = data.Sites.FindIndex(x => string.Equals(x.Id, site.Id, StringComparison.OrdinalIgnoreCase));

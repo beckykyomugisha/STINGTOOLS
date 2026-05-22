@@ -305,6 +305,12 @@ namespace StingTools.Core
                 catch (Exception cEx) { StingLog.Warn($"Refrig vendor cache invalidate: {cEx.Message}"); }
                 try { Core.Refrigerant.RefrigerantChargeRegistry.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"Refrig charge cache invalidate: {cEx.Message}"); }
+                try { Core.Refrigerant.IduCatalogueRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"IDU catalogue invalidate: {cEx.Message}"); }
+                try { Core.Refrigerant.RefnetRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"REFNET catalogue invalidate: {cEx.Message}"); }
+                try { Core.Hvac.Loads.CtfRtsRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"CTF RTS cache invalidate: {cEx.Message}"); }
                 // Phase 78: Save dropped element IDs to sidecar before clearing queue
                 StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
                 // R-02: Clear deferred elements on document close

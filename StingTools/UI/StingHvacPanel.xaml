@@ -531,6 +531,15 @@
                             <Button Style="{StaticResource HvacActionBtn}" Content="Compare loads (TRACE/HAP)"
                                     Tag="Hvac_CompareLoads" Click="Cmd_Click"
                                     ToolTip="Import a TRACE / HAP CSV export + diff per zone against STING BlockLoad (Phase 187g)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="IDU select"
+                                    Tag="Hvac_SelectIdus" Click="Cmd_Click"
+                                    ToolTip="Pick the matching IDU per space from STING_IDU_CATALOGUE.json (Phase 187h)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="REFNET size"
+                                    Tag="Hvac_RefnetSize" Click="Cmd_Click"
+                                    ToolTip="Size REFNET branch joints from per-IDU capacity + vendor catalogue (Phase 187h)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="gbXML import"
+                                    Tag="Hvac_ImportGbxmlLoads" Click="Cmd_Click"
+                                    ToolTip="Import per-zone loads from a TRACE / HAP / IES gbXML export + stamp on Spaces (Phase 187h)"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Fitting loss"
                                     Tag="Mep_FittingLoss" Click="Cmd_Click" ToolTip="Per-fitting Kv loss report"/>
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Run all validators"
