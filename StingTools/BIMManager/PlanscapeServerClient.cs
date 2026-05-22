@@ -1422,6 +1422,239 @@ public sealed class PlanscapeServerClient : IDisposable
     }
 
     // ────────────────────────────────────────────────────────────────────────────
+    //  C4 — Full domain coverage for Documents / Meetings / Transmittals /
+    //  Workflows / Warnings / MIM. Each method follows the same pattern:
+    //    1. EnsureAuthenticatedAsync (refreshes the token if within 10 minutes of expiry)
+    //    2. GET / POST / PATCH through the existing helper
+    //    3. Return JArray / JObject / bool / string as appropriate
+    //  Callers in the BCC + Platform Sync UI can walk these without knowing the
+    //  wire protocol.
+    // ────────────────────────────────────────────────────────────────────────────
+
+    // ── Documents ──────────────────────────────────────────────────────────────
+
+    /// <summary>List documents for a project, optionally filtering by CDE status.</summary>
+    public async Task<JArray?> GetDocumentsAsync(Guid projectId, string? cdeStatus = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var path = $"/api/projects/{projectId}/documents";
+            if (!string.IsNullOrEmpty(cdeStatus)) path += $"?cdeStatus={Uri.EscapeDataString(cdeStatus)}";
+            var resp = await GetAsync(path);
+            return resp.ok ? (JObject.Parse(resp.body)["items"] as JArray) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    /// <summary>Transition a document through the ISO 19650 CDE state machine.</summary>
+    public async Task<bool> TransitionDocumentAsync(Guid projectId, Guid documentId, string newStatus, string? revision = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/documents/{documentId}/transition",
+                new { newStatus, revision });
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ── Meetings ───────────────────────────────────────────────────────────────
+
+    public async Task<JArray?> GetMeetingsAsync(Guid projectId, bool upcomingOnly = true)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var path = $"/api/projects/{projectId}/meetings{(upcomingOnly ? "?upcoming=true" : "")}";
+            var resp = await GetAsync(path);
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<string?> CreateMeetingAsync(Guid projectId, string title, string type,
+        DateTime scheduledAt, int durationMinutes = 60, string? agenda = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/meetings",
+                new { title, type, scheduledAt, durationMinutes, agenda });
+            if (!resp.ok) { LastError = resp.body; return null; }
+            return JObject.Parse(resp.body)["id"]?.Value<string>();
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    // ── Transmittals ───────────────────────────────────────────────────────────
+
+    public async Task<JArray?> GetTransmittalsAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/transmittals");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<string?> CreateTransmittalAsync(Guid projectId, string title,
+        IEnumerable<Guid> documentIds, string recipients, string? purpose = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/transmittals",
+                new { title, documentIds, recipients, purpose });
+            if (!resp.ok) { LastError = resp.body; return null; }
+            return JObject.Parse(resp.body)["id"]?.Value<string>();
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<bool> SendTransmittalAsync(Guid projectId, Guid transmittalId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/transmittals/{transmittalId}/send", new { });
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ── Workflows ──────────────────────────────────────────────────────────────
+
+    public async Task<JArray?> GetWorkflowRunsAsync(Guid projectId, int limit = 50)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/workflows?limit={limit}");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<bool> LogWorkflowRunAsync(Guid projectId, string preset,
+        int steps, int passed, int failed, int skipped, double durationSec,
+        double? complianceBefore = null, double? complianceAfter = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/workflows",
+                new { preset, steps, passed, failed, skipped, durationSec, complianceBefore, complianceAfter });
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ── Warnings ───────────────────────────────────────────────────────────────
+
+    public async Task<JArray?> GetWarningsAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/warnings");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<bool> PushWarningsAsync(Guid projectId, object payload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings", payload);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ── MIM (Model Information Management) ────────────────────────────────────
+
+    public async Task<JArray?> GetMimAssetsAsync(Guid projectId, int page = 1, int pageSize = 100)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/mim/assets?page={page}&pageSize={pageSize}");
+            return resp.ok ? (JObject.Parse(resp.body)["items"] as JArray) ?? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<JObject?> GetMimDashboardAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/mim/dashboard");
+            return resp.ok ? JObject.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    // ── Platform connections ──────────────────────────────────────────────────
+
+    public async Task<JArray?> GetPlatformConnectionsAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/platform");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    // ── Models (listing — UploadModelAsync already exists below) ──────────────
+
+    public async Task<JArray?> GetModelsAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/models");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    // ── Issue comments (P2) ───────────────────────────────────────────────────
+
+    public async Task<JArray?> GetIssueCommentsAsync(Guid projectId, Guid issueId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/issues/{issueId}/comments");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<bool> AddIssueCommentAsync(Guid projectId, Guid issueId, string body)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/issues/{issueId}/comments", new { body });
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
     //  Private helpers
     // ────────────────────────────────────────────────────────────────────────────
 
