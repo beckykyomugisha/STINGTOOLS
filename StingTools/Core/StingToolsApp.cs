@@ -87,6 +87,18 @@ namespace StingTools.Core
                 // the cost when fully idle is the same as one disabled updater.
                 StingTools.UI.StingMaterialUpdater.Register(application);
 
+                // STING Material Hub — modeless dockable pane (separate
+                // from the main STING dock panel). Three-pane material
+                // dashboard, floats independently.
+                try
+                {
+                    var hubProvider = new StingTools.UI.MaterialHubProvider();
+                    application.RegisterDockablePane(StingTools.UI.MaterialHubProvider.PaneId,
+                        "STING Material Hub", hubProvider);
+                    StingLog.Info("Material Hub: dockable pane registered.");
+                }
+                catch (Exception hubEx) { StingLog.Warn($"Material Hub register: {hubEx.Message}"); }
+
                 // Register the cost stale marker (IUpdater) — starts disabled.
                 // Toggled via Cost_ToggleStaleMarker. Marks ASS_CST_STALE_BOOL
                 // when geometry / material / type changes invalidate a costed
@@ -1926,11 +1938,12 @@ namespace StingTools.Core
                 ("DocWizard",            "Doc Auto",      "DA", DrawingColor.DarkOrchid,   typeof(HubDocAutomationCommand).FullName),
                 ("CreateFolders",        "Folders",       "FD", DrawingColor.SaddleBrown,  typeof(HubFolderManagerCommand).FullName),
                 ("MaterialManager",      "Materials",     "MM", DrawingColor.DarkOliveGreen,typeof(HubMaterialManagerCommand).FullName),
+                ("MaterialHub",          "Mat Hub",       "MH", DrawingColor.DarkSlateBlue, typeof(HubMaterialHubCommand).FullName),
                 ("ClashManager",         "Clash Mgr",     "CM", DrawingColor.IndianRed,    typeof(HubClashManagerCommand).FullName),
                 ("TemplateDashboard",    "Template Mgr",  "TM", DrawingColor.DarkTurquoise,typeof(HubTemplateManagerCommand).FullName),
             };
 
-            var buttons = new List<PushButtonData>(18);
+            var buttons = new List<PushButtonData>(19);
             foreach (var s in specs)
             {
                 var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
@@ -1957,6 +1970,8 @@ namespace StingTools.Core
                 panel.AddStackedItems(buttons[9],  buttons[10], buttons[11]);
                 panel.AddStackedItems(buttons[12], buttons[13], buttons[14]);
                 panel.AddStackedItems(buttons[15], buttons[16], buttons[17]);
+                // 19th button (Mat Hub) sits as its own single item.
+                if (buttons.Count > 18) panel.AddItem(buttons[18]);
             }
             catch (Exception ex)
             {
@@ -2257,6 +2272,27 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run("AutoTag", ref message);
+    }
+
+    /// <summary>Surfaces the STING Material Hub dockable pane.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubMaterialHubCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var app = data?.Application;
+                if (app == null) return Result.Failed;
+                var pane = app.GetDockablePane(StingTools.UI.MaterialHubProvider.PaneId);
+                if (pane == null) { message = "Material Hub not registered."; return Result.Failed; }
+                if (!pane.IsShown()) pane.Show(); else pane.Hide();
+                StingTools.UI.MaterialHubPanel.LastInstance?.Surface();
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("HubMaterialHubCommand", ex); message = ex.Message; return Result.Failed; }
+        }
     }
 
     [Transaction(TransactionMode.ReadOnly)]
