@@ -841,6 +841,49 @@ namespace StingTools.Core
                             catch (Exception ex2) { StingLog.Warn($"has_untagged condition check: {ex2.Message}"); }
                             if (!hasUntagged) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no untagged elements)"); continue; }
                         }
+
+                        // Phase 66c: Additional workflow condition operators
+                        if (step.Condition == "has_placeholders")
+                        {
+                            bool hasPlaceholders = false;
+                            try
+                            {
+                                var catEnums = SharedParamGuids.AllCategoryEnums;
+                                var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                                if (catEnums != null && catEnums.Length > 0)
+                                    coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                                hasPlaceholders = coll.Any(e =>
+                                {
+                                    string t = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
+                                    return !string.IsNullOrEmpty(t) && TagConfig.TagHasPlaceholders(t);
+                                });
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_placeholders check: {ex.Message}"); }
+                            if (!hasPlaceholders) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no placeholder tokens)"); continue; }
+                        }
+                        if (step.Condition == "has_container_gaps")
+                        {
+                            try
+                            {
+                                var scan = ComplianceScan.Scan(doc);
+                                double containerPct = scan?.ContainerCompletePct ?? 100;
+                                if (containerPct >= 95)
+                                { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (containers {containerPct:F0}% complete)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_container_gaps check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "compliance_above_90")
+                        {
+                            double pct = cachedCompliancePct();
+                            if (pct >= 90)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% ≥ 90%)"); continue; }
+                        }
+                        if (step.Condition == "compliance_below_50")
+                        {
+                            double pct = cachedCompliancePct();
+                            if (pct >= 50)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% ≥ 50%)"); continue; }
+                        }
                     }
 
                     // Phase 69: Data drop level gate
