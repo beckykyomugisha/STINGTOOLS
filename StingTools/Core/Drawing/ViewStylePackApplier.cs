@@ -103,14 +103,14 @@ namespace StingTools.Core.Drawing
                     if (src.Transparency.HasValue)         ogs.SetSurfaceTransparency(src.Transparency.Value);
                     if (src.ProjectionLineWeight.HasValue) ogs.SetProjectionLineWeight(src.ProjectionLineWeight.Value);
                     if (src.CutLineWeight.HasValue)        ogs.SetCutLineWeight(src.CutLineWeight.Value);
-                    if (!string.IsNullOrEmpty(src.ProjectionColor))
+                    if (!string.IsNullOrEmpty(src.ProjectionLineColor))
                     {
-                        var c = ParseHexColor(src.ProjectionColor);
+                        var c = ParseHexColor(src.ProjectionLineColor);
                         if (c != null) ogs.SetProjectionLineColor(c);
                     }
-                    if (!string.IsNullOrEmpty(src.CutColor))
+                    if (!string.IsNullOrEmpty(src.CutLineColor))
                     {
-                        var c = ParseHexColor(src.CutColor);
+                        var c = ParseHexColor(src.CutLineColor);
                         if (c != null) ogs.SetCutLineColor(c);
                     }
                     view.SetFilterOverrides(filter.Id, ogs);

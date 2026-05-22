@@ -17,6 +17,10 @@ using StingTools.Core;
 using TextBox = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+// Autodesk.Revit.DB also ships Grid (datum line) + Binding (param binding)
+// that collide with System.Windows.Controls.Grid + System.Windows.Data.Binding.
+using Grid = System.Windows.Controls.Grid;
+using Binding = System.Windows.Data.Binding;
 
 namespace StingTools.UI
 {
@@ -92,6 +96,11 @@ namespace StingTools.UI
         /// least one of the split fields is populated. Drives whether the
         /// RFQ generator emits per-line split rates.</summary>
         public bool HasCostSplit => SupplyCost > 0 || InstallCost > 0;
+
+        // Suppress CS0067 — the event is required by the INotifyPropertyChanged
+        // contract but the grid binds one-way to immutable rows so we never
+        // raise it. Future bind-back work will exercise this surface.
+#pragma warning disable CS0067
         public string EpdFreshnessText => EpdFreshness switch
         {
             EpdFreshness.Fresh   => "✓ Fresh",
@@ -109,6 +118,7 @@ namespace StingTools.UI
         };
 
         public event PropertyChangedEventHandler PropertyChanged;
+#pragma warning restore CS0067
     }
 
     public enum EpdFreshness { Unknown, Missing, Fresh, Stale, Expired }

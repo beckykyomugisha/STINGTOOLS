@@ -79,7 +79,8 @@ namespace StingTools.UI
 
                     bool wraps = false, variable = false, membrane = false;
                     try { wraps = layer.LayerCapFlag; } catch { }
-                    try { variable = cs.IsVariableLayer(i - 1); } catch { }
+                    // Revit API exposes the variable-layer index, not a per-layer check.
+                    try { variable = cs.VariableLayerIndex == (i - 1); } catch { }
                     membrane = (layer.Function == MaterialFunctionAssignment.Membrane);
 
                     rows.Add(new MaterialLayer
@@ -108,7 +109,7 @@ namespace StingTools.UI
         ///   05 · Finish2     · BLE_Plasterboard    · 12.5mm
         /// suitable for a Wall/Floor/Roof type-parameter tag.
         /// </summary>
-        public static string BuildLayerTag(List<MaterialLayer> layers)
+        public static string BuildLayerTag(IList<MaterialLayer> layers)
         {
             if (layers == null || layers.Count == 0) return "";
             int maxFn = layers.Max(l => (l.Function ?? "").Length);
