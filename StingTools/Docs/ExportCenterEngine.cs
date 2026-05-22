@@ -1108,6 +1108,9 @@ namespace StingTools.Docs
                         ResolveNaming(doc, v, profile.Output.NamingTemplate, profile.Output),
                         profile.Output.IllegalCharReplacement);
 
+                    // DWF/DWFX overloads take a ViewSet, not a List<ElementId>.
+                    var viewSet = new ViewSet();
+                    viewSet.Insert(v);
                     bool ok;
                     // Use a ViewSet to disambiguate the Document.Export
                     // overload — passing a List<ElementId> binds to the

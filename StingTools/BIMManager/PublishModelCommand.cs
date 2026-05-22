@@ -378,9 +378,15 @@ namespace StingTools.BIMManager
                     "The active view is not a non-template 3D view. Open a 3D view first.");
                 return null;
             }
+            // Sanitise: Revit's auto-generated default 3D view is named "{3D}" (literal
+            // curly braces), and other views can contain ':' / '\\' / etc. Strip any
+            // characters that would survive into the GLB filename ugly or illegal.
+            string safeViewName = SanitiseFilenameSegment(v3d.Name);
+            string safeDocName  = SanitiseFilenameSegment(
+                Path.GetFileNameWithoutExtension(doc.PathName ?? doc.Title));
             var outPath = Path.Combine(
                 OutputLocationHelper.GetOutputDirectory(doc),
-                $"{Path.GetFileNameWithoutExtension(doc.PathName ?? doc.Title)}-{v3d.Name}.glb");
+                $"{safeDocName}-{safeViewName}.glb");
             try
             {
                 var result = RevitGltfExporter.Export(doc, v3d, outPath);
@@ -508,6 +514,25 @@ namespace StingTools.BIMManager
             elementCount = count;
 
             File.WriteAllText(outputPath, map.ToString(Newtonsoft.Json.Formatting.Indented), Encoding.UTF8);
+        }
+
+        /// <summary>
+        /// Strip OS-illegal filename chars plus the curly braces Revit uses for its
+        /// auto-generated "{3D}" default-view name. Collapses runs of whitespace and
+        /// trims leading/trailing junk so the result is filesystem-clean.
+        /// </summary>
+        private static string SanitiseFilenameSegment(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "model";
+            var sb = new StringBuilder(raw.Length);
+            foreach (char c in raw)
+            {
+                if (c == '{' || c == '}') continue;
+                if (Path.GetInvalidFileNameChars().Contains(c)) { sb.Append('_'); continue; }
+                sb.Append(c);
+            }
+            string cleaned = System.Text.RegularExpressions.Regex.Replace(sb.ToString(), @"\s+", " ").Trim();
+            return string.IsNullOrEmpty(cleaned) ? "model" : cleaned;
         }
 
         private static string DetectDocDiscipline(Document doc)
