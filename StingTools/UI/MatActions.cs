@@ -1158,6 +1158,80 @@ namespace StingTools.UI
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Sync COBie failed: {ex.Message}"); }
         }
 
+        // ── F1 — Linked-model materials ─────────────────────────────────────
+
+        public static void ScanLinkedMaterials(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var r = LinkedMaterialIndex.Run(doc);
+                if (r.LinksScanned == 0)
+                {
+                    TaskDialog.Show("Linked Materials",
+                        "No Revit links found in this project. Nothing to scan.");
+                    return;
+                }
+                if (r.Rows.Count == 0)
+                {
+                    TaskDialog.Show("Linked Materials",
+                        $"{r.LinksScanned} link(s) scanned, {r.LinksUnloaded} unloaded — no materials surfaced.");
+                    return;
+                }
+
+                MaterialAuditLogger.Log(doc, "MAT_LinkedScan", "(project)",
+                    new Dictionary<string, object>
+                    {
+                        ["linksScanned"]    = r.LinksScanned,
+                        ["linksUnloaded"]   = r.LinksUnloaded,
+                        ["materialsRows"]   = r.Rows.Count,
+                        ["distinctMats"]    = r.DistinctMaterials,
+                        ["mismatches"]      = r.Mismatches.Count,
+                    });
+
+                // Write CSV with rows + mismatches.
+                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string csv = System.IO.Path.Combine(outDir,
+                    $"STING_linked_materials_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                var lines = new List<string>
+                {
+                    "# Linked materials — rows + mismatches",
+                    "# Section 1: Materials carried by linked docs",
+                    "LinkInstance,LinkedDoc,MaterialName,MaterialClass,RGB,LinkUsageCount",
+                };
+                foreach (var row in r.Rows)
+                    lines.Add($"\"{row.LinkInstanceName}\",\"{row.LinkedDocTitle}\",\"{row.MaterialName}\",\"{row.MaterialClass}\",\"{row.ColorText}\",{row.LinkUsageCount}");
+                lines.Add("");
+                lines.Add("# Section 2: Reconciliation mismatches (same-name materials with different host vs link values)");
+                lines.Add("MaterialName,LinkedDoc,Field,HostValue,LinkValue");
+                foreach (var m in r.Mismatches)
+                    lines.Add($"\"{m.MaterialName}\",\"{m.LinkedDocTitle}\",{m.Field},\"{m.HostValue}\",\"{m.LinkValue}\"");
+                System.IO.File.WriteAllLines(csv, lines);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Scanned {r.LinksScanned} link(s) ({r.LinksUnloaded} unloaded).");
+                sb.AppendLine($"  Distinct linked materials: {r.DistinctMaterials}");
+                sb.AppendLine($"  Total link material rows : {r.Rows.Count}");
+                sb.AppendLine($"  Reconciliation mismatches: {r.Mismatches.Count}");
+                if (r.Mismatches.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("Top 10 mismatches:");
+                    foreach (var m in r.Mismatches.Take(10))
+                        sb.AppendLine($"  {m.MaterialName} [{m.Field}] host='{m.HostValue}' link='{m.LinkValue}' ({m.LinkedDocTitle})");
+                    if (r.Mismatches.Count > 10) sb.AppendLine($"  … and {r.Mismatches.Count - 10} more.");
+                }
+                sb.AppendLine();
+                sb.AppendLine($"Full CSV: {csv}");
+
+                TaskDialog.Show("Linked Materials", sb.ToString());
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csv) { UseShellExecute = true })?.Dispose(); }
+                catch (Exception ex) { StingLog.Warn($"Open linked-materials csv: {ex.Message}"); }
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Linked-materials scan failed: {ex.Message}"); }
+        }
+
         // ── N+12 — Enrich material schedules ────────────────────────────────
 
         public static void EnrichMaterialSchedules(UIApplication app)

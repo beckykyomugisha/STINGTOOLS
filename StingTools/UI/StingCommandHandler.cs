@@ -1279,6 +1279,7 @@ namespace StingTools.UI
                     case "MAT_BoqByMaterial":  MatActions.BoqByMaterial(app); break;
                     case "MAT_WhatIfSwap":     MatActions.WhatIfSwap(app); break;
                     case "MAT_EnrichSchedules":MatActions.EnrichMaterialSchedules(app); break;
+                    case "MAT_LinkedScan":     MatActions.ScanLinkedMaterials(app); break;
                     case "MAT_ToggleAutoApply":MatActions.ToggleAutoApply(app); break;
                     case "MAT_ToggleAutoFill": MatActions.ToggleAutoFill(app); break;
 

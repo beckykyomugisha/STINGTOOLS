@@ -2061,6 +2061,8 @@
                                             ToolTip="Preview the cost + carbon delta of swapping one material for another across the whole project. Commit under one transaction (Ctrl+Z reverts)."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Enrich Schedules" Tag="MAT_EnrichSchedules" Click="MatBtn_Click"
                                             ToolTip="Add STING_EMB_CARBON_NR / STING_MAT_EPD_SRC_TXT / STING_MAT_EPD_DATE_TXT columns to every Material Takeoff schedule in the project."/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Linked Materials" Tag="MAT_LinkedScan" Click="MatBtn_Click"
+                                            ToolTip="Scan every Revit link's materials + reconcile host vs link (RGB / class / cost / carbon) — flags drifted same-name materials before IFC export."/>
                                 </WrapPanel>
                             </StackPanel>
                         </TabItem>
