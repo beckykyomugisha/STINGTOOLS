@@ -9321,6 +9321,30 @@
       "phase": "*",
       "docType": "PENETRATION_REGISTER",
       "drawingTypeId": "penetration-register-A1"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "LPS_PLAN",
+      "drawingTypeId": "elec-lps-plan-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "LPS_ROOF",
+      "drawingTypeId": "elec-lps-roof-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "LPS_COVERAGE",
+      "drawingTypeId": "elec-lps-coverage-A3"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "LIGHTNING",
+      "drawingTypeId": "elec-lps-plan-A1-1to100"
     }
   ]
 }

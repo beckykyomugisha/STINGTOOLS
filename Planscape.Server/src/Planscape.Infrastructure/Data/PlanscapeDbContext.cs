@@ -104,6 +104,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<LicenseKey> LicenseKeys => Set<LicenseKey>();
     public DbSet<WorkflowRun> WorkflowRuns => Set<WorkflowRun>();
     public DbSet<ComplianceSnapshot> ComplianceSnapshots => Set<ComplianceSnapshot>();
+    public DbSet<LpsRecord> LpsRecords => Set<LpsRecord>();
     public DbSet<SeqCounter> SeqCounters => Set<SeqCounter>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();
@@ -735,6 +736,15 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(s => s.Id);
             e.HasOne(s => s.Project).WithMany().HasForeignKey(s => s.ProjectId);
             e.HasIndex(s => new { s.ProjectId, s.CapturedAt });
+        });
+
+        // ── LpsRecord (Phase 192 — LPS server entity) ──
+        modelBuilder.Entity<LpsRecord>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasOne(s => s.Project).WithMany().HasForeignKey(s => s.ProjectId);
+            e.HasIndex(s => new { s.ProjectId, s.CapturedAt });
+            e.HasIndex(s => new { s.TenantId,  s.CapturedAt });
         });
 
         // ── SeqCounter ──

@@ -897,6 +897,34 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return false; }
     }
 
+    // ── LPS record (Wave 4 — full server entity) ──────────────────────────────
+
+    /// <summary>
+    /// Pushes a Lightning Protection record to
+    /// POST /api/projects/{projectId}/lps. Payload must match the
+    /// PushLpsRecordRequest contract on the LpsController:
+    ///   lpsClass, rollingSphereRadiusM, meshSizeM, inspectionIntervalMonths,
+    ///   earthResistanceTargetOhm, groundFlashDensity,
+    ///   airTerminalCount, downConductorCount, earthElectrodeCount,
+    ///   bondingCount, spdCount,
+    ///   kcFactor, sepDistanceViolations,
+    ///   annualStrikeFrequencyNd, collectionAreaM2,
+    ///   riskR1..riskR4, tolerableR1..tolerableR4, recommendedClass,
+    ///   complianceVerdict, complianceChecksPass/Warn/Fail,
+    ///   lastTestDate, certReference,
+    ///   spdCoordinationPass/Warn/Fail.
+    /// </summary>
+    public async Task<bool> PushLpsRecordAsync(Guid projectId, object payload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/lps", payload);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
     // ── BOQ Snapshot (feature gap 3) ──────────────────────────────────────────
 
     /// <summary>

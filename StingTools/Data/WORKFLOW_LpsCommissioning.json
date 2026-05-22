@@ -1,0 +1,30 @@
+{
+  "id": "LpsCommissioning",
+  "name": "LPS Commissioning Workflow (BS EN 62305)",
+  "description": "End-to-end lightning protection design + commissioning chain. Starts with risk-driven class selection, validates the design against BS EN 62305-3, runs site-test surrogate validators (earth resistance, separation distance, SPD coordination), generates the inspection schedule per Annex E, mints the compliance certificate, and syncs to Planscape. Each step gates on data so the run is fast on partial models — Sep Distance only fires when down conductors exist, SPD coordinate only fires when the SPD grid has entries, sync only fires when the project is logged in.",
+  "version": "1.0",
+  "phase": 192,
+  "rollback_on_failure": false,
+  "steps": [
+    { "commandTag": "Lps_LoadModel",            "label": "Walk model → populate panel grids",        "optional": false },
+    { "commandTag": "Lps_RunRiskInline",        "label": "Risk assessment (R1–R4) + recommended class","optional": false },
+    { "commandTag": "Lps_ClassSetup",           "label": "Apply LPS class to ProjectInformation",     "optional": true,  "condition": "lps_class_undecided" },
+    { "commandTag": "Lps_MarkTypes",            "label": "Stamp ELC_LPS_ELEMENT_TYPE_TXT on placed families", "optional": true },
+    { "commandTag": "Lps_DownConductor",        "label": "Check down conductor spacing per class",     "optional": false },
+    { "commandTag": "Lps_RecalcKc",             "label": "Recompute kc factor from conductor count",   "optional": true },
+    { "commandTag": "Lps_SepDistance",          "label": "Compute s = (ki/km)·kc·l + MEP conflict scan","optional": false, "condition": "has_down_conductors" },
+    { "commandTag": "Lps_EarthCheck",           "label": "Earth resistance against class target",      "optional": false, "condition": "has_earth_electrodes" },
+    { "commandTag": "Lps_Bonding",              "label": "Equipotential bonding inventory (LPZ-crossing)","optional": false },
+    { "commandTag": "Lps_ZoneTagRooms",         "label": "Pick + tag rooms by LPZ",                    "optional": true },
+    { "commandTag": "Lps_ColourZones",          "label": "Apply LPZ colour overrides to rooms",        "optional": true },
+    { "commandTag": "Lps_SpdRecommend",         "label": "Auto-fill empty SPD locations from catalogue","optional": true,  "condition": "spd_grid_empty" },
+    { "commandTag": "Lps_SpdCoordinate",        "label": "IEC 62305-4 / 61643 SPD coordination",       "optional": false, "condition": "has_spd_rows" },
+    { "commandTag": "Lps_PlanVisualise",        "label": "Rolling-sphere coverage drafting view",      "optional": true },
+    { "commandTag": "Lps_3DCoverage",           "label": "3D coverage sample (gap identification)",    "optional": true },
+    { "commandTag": "Lps_Compliance",           "label": "Stamp BS EN 62305 compliance verdict",       "optional": false },
+    { "commandTag": "Lps_InspectionSchedule",   "label": "Inspection schedule per Annex E",            "optional": false },
+    { "commandTag": "Lps_CreateSchedules",      "label": "Mint Revit LPS register schedule",           "optional": true,  "skipIfDataUnchanged": true },
+    { "commandTag": "Lps_FullReport",           "label": "Generate the LPS compliance report",         "optional": false },
+    { "commandTag": "Lps_SyncToServer",         "label": "Push LPS state to Planscape",                "optional": true,  "condition": "planscape_authenticated" }
+  ]
+}

@@ -48,6 +48,12 @@ namespace Planscape.Docs.Templates
             ("D14", "meeting_minutes.docx",         "D", "meeting_minutes",    null, "Meeting Minutes"),
             ("D15", "progress_report.docx",         "D", "progress_report",    null, "Progress Report"),
             ("D16", "handover_certificate.docx",    "D", "handover",           null, "Handover Certificate"),
+
+            // Phase 192 — Lightning Protection spec sheet (Wave 4 follow-up).
+            // Token surface: spd.tag / spd.location_label / spd.iimp_ka /
+            // spd.up_kv / spd.uc_v / spd.poles / spd.verdict / project.lps_class.
+            // Rendered by LpsSpdSpecSheetCommand from the LPS panel SPD tab.
+            ("E17", "lps_spd_spec.docx",            "E", "lps_spd_spec",       null, "LPS — SPD Product Specification"),
         };
 
         /// <summary>Streams embedded files + writes defaults on first run (idempotent).</summary>

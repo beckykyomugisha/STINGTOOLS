@@ -1693,6 +1693,119 @@
           "visible": false
         }
       }
+    },
+    {
+      "id": "corp-elec-lps",
+      "name": "STING Electrical — Lightning Protection",
+      "description": "Lightning protection plan styling per BS EN 62305-3. Air terminals bright orange, down conductors red, earth electrodes green, bonding bars yellow, SPDs purple. Filter rule references the existing STING - Elec: Lightning Protection filter.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter",
+        "vgOverrides",
+        "filters"
+      ],
+      "viewTemplate": "STING - LPS Plan",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "Discipline",
+      "discipline": "Electrical",
+      "vgOverrides": {
+        "Electrical Equipment": {
+          "projColor": "#E65100",
+          "projWeight": 4,
+          "cutColor": "#E65100",
+          "cutWeight": 4
+        },
+        "Generic Models": {
+          "projColor": "#E65100",
+          "projWeight": 3
+        },
+        "Conduits": {
+          "projColor": "#D32F2F",
+          "projWeight": 4
+        },
+        "Cable Trays": {
+          "projColor": "#D32F2F",
+          "projWeight": 3
+        },
+        "Rooms": {
+          "projColor": "#FFC107",
+          "projWeight": 1,
+          "transparency": 70
+        },
+        "Walls": {
+          "projColor": "#9E9E9E",
+          "projWeight": 1,
+          "transparency": 60,
+          "halftone": true
+        },
+        "Floors": {
+          "projColor": "#9E9E9E",
+          "projWeight": 1,
+          "transparency": 60,
+          "halftone": true
+        },
+        "Roofs": {
+          "projColor": "#757575",
+          "projWeight": 1,
+          "transparency": 50,
+          "halftone": true
+        }
+      },
+      "filterRules": [
+        {
+          "name": "STING - LPS: Air Terminal",
+          "inheritDefaults": true,
+          "visible": true,
+          "projColor": "#E65100",
+          "projWeight": 5
+        },
+        {
+          "name": "STING - LPS: Down Conductor",
+          "inheritDefaults": true,
+          "visible": true,
+          "projColor": "#D32F2F",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - LPS: Earth Electrode",
+          "inheritDefaults": true,
+          "visible": true,
+          "projColor": "#2E7D32",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - LPS: Bonding",
+          "inheritDefaults": true,
+          "visible": true,
+          "projColor": "#FFC107",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - LPS: Surge Protective Device",
+          "inheritDefaults": true,
+          "visible": true,
+          "projColor": "#6A1B9A",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - Elec: Lightning Protection",
+          "inheritDefaults": true,
+          "visible": true,
+          "projColor": "#E65100",
+          "projWeight": 5
+        }
+      ],
+      "tagFamilies": {
+        "Electrical Equipment": "STING_TAG_LPS",
+        "Generic Models": "STING_TAG_LPS"
+      }
     }
   ],
   "routing": [
@@ -1755,6 +1868,12 @@
       "purpose": "*",
       "discipline": "*",
       "stylePackId": "corp-base"
+    },
+    {
+      "viewStylePackId": "corp-elec-lps",
+      "disciplineMatches": "^E$",
+      "purposeMatches": "^(Plan|Coordination)$",
+      "drawingTypeMatches": "^elec-lps-.*$"
     }
   ]
 }
