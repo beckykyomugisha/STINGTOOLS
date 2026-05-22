@@ -793,8 +793,10 @@ namespace StingTools.Standards.IPC2021
         /// <param name="isHotWater">True for hot-water branch sizing.</param>
         public static int GetMinimumSupplyPipeSizeMm(double wsfu, bool isHotWater = false)
         {
-            double gpm       = IPCStandards.ConvertFixtureUnitsToGPM(wsfu);
-            string imperial  = IPCStandards.GetMinimumPipeSize(gpm);
+            // IPCStandards.GetMinimumWaterSupplySize takes WSFU directly and
+            // returns the imperial inch-string label (e.g. "1-1/4\"").
+            // `isHotWater` is reserved for a future branch-by-temperature lookup.
+            string imperial = IPCStandards.GetMinimumWaterSupplySize(wsfu);
             if (_imperialToNominalMm.TryGetValue(imperial, out int mm)) return mm;
             return -1;
         }
