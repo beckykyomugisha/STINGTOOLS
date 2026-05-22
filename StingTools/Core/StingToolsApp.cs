@@ -76,7 +76,17 @@ namespace StingTools.Core
                 // via StingIdlingScheduler.Enqueue(job).
                 StingIdlingScheduler.Register(application);
 
-                // Register the dockable panel — the single unified UI
+                // Register the dockable panel — the single unified UI.
+                // Create the shared "STING Tools" ribbon tab FIRST and in its
+                // own try/catch so a failure inside any single panel
+                // registration can never deprive the others of a tab to attach
+                // to. Without this, a throw in StingDockPanel.Initialise or
+                // RegisterDockablePane would skip CreateRibbonTab and then
+                // silently take down both follow-up panels too — the Plumbing
+                // pane would still appear (cached UIState) but its ribbon
+                // button, the Electrical button and the main STING Panel
+                // button would all be missing.
+                EnsureStingRibbonTab(application);
                 RegisterDockablePanel(application);
                 RegisterElectricalPanel(application);
                 RegisterPlumbingPanel(application);
@@ -1651,7 +1661,19 @@ namespace StingTools.Core
                 StingDockPanel.Initialise(application);
                 StingLog.Info("RegisterDockablePanel: external event handler initialised");
 
-                // Register the dockable pane with Revit
+        private void RegisterDockablePanel(UIControlledApplication application)
+        {
+            string asmPath = AssemblyPath;
+
+            // Step 1 — external event handler. Independent try/catch so a
+            // throw here doesn't stop the dockable-pane register or the
+            // toggle button being added.
+            try { StingDockPanel.Initialise(application); }
+            catch (Exception ex) { StingLog.Error("StingDockPanel.Initialise", ex); }
+
+            // Step 2 — dockable pane register.
+            try
+            {
                 var provider = new StingDockPanelProvider();
                 application.RegisterDockablePane(
                     StingDockPanelProvider.PaneId,
@@ -1758,6 +1780,7 @@ namespace StingTools.Core
             {
                 StingLog.Error("Add STING Panel toggle button failed", ex);
             }
+            catch (Exception ex) { StingLog.Error("STING Panel toggle button", ex); }
         }
 
         // ── Phase 177 — STING Electrical Center registration ────────────
