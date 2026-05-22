@@ -930,7 +930,14 @@ else
 // PR2 — Always-on HTTPS redirect. In development this is a no-op when the
 // app binds to an HTTPS port; in production it kicks in for any cleartext
 // listener that slips through.
-app.UseHttpsRedirection();
+// Skip in Development — local dev runs HTTP-only on :5000 and the
+// middleware logs a warning ("Failed to determine the https port for
+// redirect") on every restart since there's no HTTPS listener to
+// point at.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // C1 — serve the wwwroot office dashboard (index.html + viewer.html + js/css).
 // Placed before auth so assets load without a token; the JS handles login

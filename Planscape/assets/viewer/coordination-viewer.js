@@ -213,6 +213,7 @@
     setupBottomPanel();
     setupViewportOverlays();
     setupKeyboardShortcuts();
+    setupKeyNav();
     setupModalHandlers();
     setupNavControls();
     setupSectionCard();
@@ -3887,7 +3888,53 @@
           if (pinHits.length) return;
         }
         const hits = ray.intersectObject(V.modelRoot, true);
-        if (hits.length) lastClickPoint = hits[0].point.clone();
+        if (hits.length) {
+          lastClickPoint = hits[0].point.clone();
+          // Focus / Pivot mode — clicking the model sets the orbit pivot
+          // (ACC-style). Subsequent wheel-zoom + drag-rotate happen
+          // around that point. Plain pick-mode handlers keep their job
+          // (element selection, properties tab, etc.).
+          if (state.activeNav === 'focus') {
+            V.controls.target.copy(lastClickPoint);
+            V.controls.update();
+            toast('Orbit pivot set', 'success');
+          }
+        }
+      });
+
+      // Double-click anywhere on the model — set orbit pivot regardless
+      // of the active nav mode. Mirrors the Navisworks "F" / ACC dbl-tap
+      // pattern. Frame-fit on dblclick of an element bounding box is
+      // routed through the engine's existing fit() command for
+      // consistency with the keyboard 'F' shortcut.
+      dom.addEventListener('dblclick', (e) => {
+        if (!V.modelRoot) return;
+        const r = dom.getBoundingClientRect();
+        ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+        ray.setFromCamera(ptr, V.camera);
+        const hits = ray.intersectObject(V.modelRoot, true);
+        if (!hits.length) return;
+        // Shift+dblclick → fit camera to the clicked element's bounding
+        // box (instead of just setting pivot). Useful for jumping to
+        // small components inside a huge model.
+        if (e.shiftKey) {
+          const m = hits[0].object;
+          if (m && m.isMesh) {
+            const bb = new THREE_.Box3().setFromObject(m);
+            // Re-use the engine's fitCamera by calling it through the
+            // bridge with a synthetic 'fit' command — the engine reads
+            // modelBounds, so we temporarily widen it. Cleaner: call
+            // fitCamera(bb) directly via the exposed STING_VIEWER if
+            // available.
+            try { (window.STING_VIEWER && window.STING_VIEWER.fitCamera ? window.STING_VIEWER.fitCamera : null)?.(bb); }
+            catch (_) {}
+            return;
+          }
+        }
+        V.controls.target.copy(hits[0].point);
+        V.controls.update();
+        toast('Orbit pivot set', 'success');
       });
       // R13 — drop the standalone pin-click raycaster. The engine already
       // raycasts pinGroup on every click and emits 'pinTap' via the
@@ -4370,6 +4417,87 @@
     }
 
     // ── Keyboard shortcuts ─────────────────────────────────────────────
+    // Arrow-key + PageUp/Down navigation (ACC parity).
+    //   Arrows           → pan in screen-space (continuous while held)
+    //   Shift + arrows   → orbit around the current pivot
+    //   PageUp / PageDn  → dolly toward / away from the pivot
+    //   Home             → zoom to fit (alias of Space)
+    // Speed scales with the camera-to-pivot distance, so the same hold
+    // feels right on a 1 m room and a 1 km master-plan.
+    function setupKeyNav() {
+      const held = new Set();
+      let shiftDown = false;
+      const NAV_KEYS = new Set([
+        'ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown'
+      ]);
+      window.addEventListener('keydown', (e) => {
+        if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+        if ($('#issueModal')?.classList.contains('open')) return;
+        if (e.key === 'Shift') { shiftDown = true; return; }
+        if (e.key === 'Home')  { handleHostCommand({ type: 'fit' }); e.preventDefault(); return; }
+        if (NAV_KEYS.has(e.key)) {
+          held.add(e.key);
+          e.preventDefault();          // stop the page scrolling under us
+        }
+      });
+      window.addEventListener('keyup', (e) => {
+        if (e.key === 'Shift') { shiftDown = false; return; }
+        held.delete(e.key);
+      });
+      // Clear held keys if the user alt-tabs away — otherwise the camera
+      // drifts forever in the direction last pressed.
+      window.addEventListener('blur', () => { held.clear(); shiftDown = false; });
+
+      function tick() {
+        if (held.size) {
+          const cam = V.camera, target = V.controls.target;
+          const dist = cam.position.distanceTo(target) || 1;
+          const panStep   = dist * 0.018;     // pan amount per frame
+          const orbitStep = 0.025;             // radians per frame
+          const dollyStep = dist * 0.025;     // dolly amount per frame
+
+          // Screen-space basis. forward/right/up are recomputed every
+          // frame because the camera may have rotated since last call.
+          const forward = new THREE_.Vector3();
+          cam.getWorldDirection(forward);
+          const right = new THREE_.Vector3().crossVectors(forward, cam.up).normalize();
+          const up    = new THREE_.Vector3().crossVectors(right, forward).normalize();
+
+          let panX = 0, panY = 0, dolly = 0, orbX = 0, orbY = 0;
+          if (held.has('ArrowLeft'))  { if (shiftDown) orbX -= orbitStep; else panX -= panStep; }
+          if (held.has('ArrowRight')) { if (shiftDown) orbX += orbitStep; else panX += panStep; }
+          if (held.has('ArrowUp'))    { if (shiftDown) orbY -= orbitStep; else panY += panStep; }
+          if (held.has('ArrowDown'))  { if (shiftDown) orbY += orbitStep; else panY -= panStep; }
+          if (held.has('PageUp'))     dolly -= dollyStep;
+          if (held.has('PageDown'))   dolly += dollyStep;
+
+          if (panX || panY || dolly) {
+            const offset = new THREE_.Vector3()
+              .addScaledVector(right, panX)
+              .addScaledVector(up,    panY)
+              .addScaledVector(forward, -dolly);
+            cam.position.add(offset);
+            target.add(offset);
+          }
+          if (orbX || orbY) {
+            // Orbit camera position around the pivot, leaving target fixed.
+            const o = cam.position.clone().sub(target);
+            const sph = new THREE_.Spherical().setFromVector3(o);
+            sph.theta -= orbX;
+            sph.phi   -= orbY;
+            // Match controls.maxPolarAngle (π·0.95) so the camera never
+            // rolls under the model when held-arrow orbiting.
+            sph.phi = Math.max(0.05, Math.min(Math.PI * 0.95, sph.phi));
+            o.setFromSpherical(sph);
+            cam.position.copy(target).add(o);
+          }
+          V.controls.update();
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
     function setupKeyboardShortcuts() {
       document.addEventListener('keydown', (e) => {
         if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
@@ -4640,6 +4768,11 @@
         placePhotoPins();             // Slice 4b — photo pins after model bounds known
         const fab = $('#photoFab'); if (fab) fab.style.display = '';
         buildLevelStrip();           // re-run with real bounds for Y bands
+        // Auto-fit on first model load — Revit survey-coord models can
+        // have huge XY offsets (135 km in test data) which leave the
+        // default camera (10,10,10) outside the model entirely. fit
+        // recomputes camera near/far from bounds in the same call.
+        handleHostCommand({ type: 'fit' });
         clearInterval(bootObserver);
         // B1 — GLTFLoader has consumed the blob URL, free it now to avoid
         // pinning the original GLB bytes in memory for the rest of the

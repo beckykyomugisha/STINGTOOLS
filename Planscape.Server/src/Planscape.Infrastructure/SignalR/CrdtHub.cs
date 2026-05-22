@@ -103,6 +103,9 @@ public class CrdtHub : Hub
     {
         if (string.IsNullOrWhiteSpace(docKey)) return null;
 
+        // Plain string ops here so we don't need C# 13's "ref-struct in
+        // async" feature. The docKeys are short (≤ 50 chars) so the two
+        // small string allocations are irrelevant.
         if (docKey.StartsWith("project:", StringComparison.Ordinal))
         {
             var afterPrefix = docKey.Substring(8);
