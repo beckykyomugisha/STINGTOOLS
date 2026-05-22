@@ -46,8 +46,30 @@ namespace StingTools.Core.Climate
         public double Cooling996DbC { get; set; }
         /// <summary>Mean coincident wet-bulb at the cooling design hour, °C.</summary>
         public double Cooling996McwbC { get; set; }
+        /// <summary>Cooling design dry-bulb at 1% annual exceedance, °C (may be
+        /// 0 when the data file only lists 0.4%; fall back to <see cref="Cooling996DbC"/>).</summary>
+        public double Cooling99DbC  { get; set; }
+        /// <summary>Cooling design dry-bulb at 2% annual exceedance, °C (may be 0).</summary>
+        public double Cooling98DbC  { get; set; }
         /// <summary>Heating design dry-bulb at 99.6% annual exceedance, °C.</summary>
         public double Heating996DbC { get; set; }
+        /// <summary>Heating design dry-bulb at 99% annual exceedance, °C (may be 0).</summary>
+        public double Heating99DbC  { get; set; }
+
+        /// <summary>Cooling design DB for the chosen exceedance band (0.4 / 1 / 2).</summary>
+        public double CoolingDbCFor(double percentile)
+        {
+            if (Math.Abs(percentile - 0.4) < 0.05) return Cooling996DbC;
+            if (Math.Abs(percentile - 1.0) < 0.1  && Cooling99DbC > 0) return Cooling99DbC;
+            if (Math.Abs(percentile - 2.0) < 0.1  && Cooling98DbC > 0) return Cooling98DbC;
+            return Cooling996DbC;
+        }
+        /// <summary>Heating design DB for the chosen exceedance band (99.6 / 99).</summary>
+        public double HeatingDbCFor(double percentile)
+        {
+            if (Math.Abs(percentile - 99.0) < 0.1 && Heating99DbC != 0) return Heating99DbC;
+            return Heating996DbC;
+        }
         /// <summary>Annual heating degree-days, 18 °C base.</summary>
         public double Hdd18         { get; set; }
         /// <summary>Annual cooling degree-days, 10 °C base.</summary>
@@ -227,7 +249,10 @@ namespace StingTools.Core.Climate
                     ElevationM      = (double?)s["elevationM"] ?? 0,
                     Cooling996DbC   = (double?)s["cooling996DbC"] ?? 28,
                     Cooling996McwbC = (double?)s["cooling996McwbC"] ?? 20,
+                    Cooling99DbC    = (double?)s["cooling99DbC"]  ?? 0,
+                    Cooling98DbC    = (double?)s["cooling98DbC"]  ?? 0,
                     Heating996DbC   = (double?)s["heating996DbC"] ?? -3,
+                    Heating99DbC    = (double?)s["heating99DbC"]  ?? 0,
                     Hdd18           = (double?)s["hdd18"] ?? 0,
                     Cdd10           = (double?)s["cdd10"] ?? 0,
                     Source          = (string)s["source"] ?? ""

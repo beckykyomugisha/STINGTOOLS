@@ -40,6 +40,14 @@ namespace StingTools.Core.Refrigerant
         public bool HasVerticalRiser  { get; set; }
         /// <summary>ΔP budget per leg, kPa. Default 30 kPa gas / 50 kPa liquid.</summary>
         public double MaxPressureDropKpa { get; set; } = 30;
+        /// <summary>
+        /// Subcooling reserve at the condenser outlet (K). Used by the
+        /// LIQUID-leg flash-gas check: line ΔP drops saturation pressure,
+        /// which is allowable only while sub-cooling exceeds the equivalent
+        /// temperature drop. Default 5 K — typical TXV-fed system. Set 8 K
+        /// for EEV systems with deliberate sub-cooling control.
+        /// </summary>
+        public double SubcoolingReserveK { get; set; } = 5.0;
     }
 
     public class RefrigerantSizingResult
@@ -52,6 +60,9 @@ namespace StingTools.Core.Refrigerant
         public double FrictionFactor      { get; set; }
         public double PressureDropKpa     { get; set; }
         public double LiftPenaltyKpa      { get; set; }
+        /// <summary>Equivalent saturation-temperature drop from line ΔP (K).
+        /// LIQUID legs only; compared against <see cref="RefrigerantSizingInput.SubcoolingReserveK"/>.</summary>
+        public double SatTempDropK        { get; set; }
         public string Refrigerant         { get; set; }
         public string Leg                 { get; set; }
         public List<string> Warnings { get; } = new List<string>();
@@ -100,9 +111,21 @@ namespace StingTools.Core.Refrigerant
             if (input.Leg == RefrigerantLeg.Liquid) minVel = 0.5;
             double maxVel = fluid.MaxVelocityMs;
 
-            // Lift penalty applies only to LIQUID columns (static head).
-            // For gas it's negligible — included as 0.
-            double liftKpa = input.Leg == RefrigerantLeg.Liquid && input.LiftM > 0
+            // Liquid-column static head — applies to LIQUID legs only.
+            // For gas (suction / discharge) the density is too low for the
+            // static term to matter (<0.1 kPa per metre at typical conditions).
+            //
+            // Sign: positive LiftM means outdoor unit is ABOVE indoor.
+            //   * For a liquid line flowing UP that path, gravity opposes
+            //     flow → static head DEBITS the available ΔP budget.
+            //   * For a liquid line flowing DOWN that path (negative lift),
+            //     gravity ASSISTS → static head CREDITS the budget. The
+            //     recovered head can be substantial; ignoring it makes
+            //     sizing of evap-above-condenser systems unnecessarily
+            //     conservative.
+            //
+            // We sign-track the lift and let the budget go either way.
+            double liftKpa = input.Leg == RefrigerantLeg.Liquid
                 ? rho * GravityMs2 * input.LiftM / 1000.0
                 : 0;
             r.LiftPenaltyKpa = liftKpa;
@@ -152,6 +175,24 @@ namespace StingTools.Core.Refrigerant
                 r.FrictionFactor = f;
                 r.PressureDropKpa = dpKpa;
                 r.Trace.Add((odMm, v, dpKpa, "OK"));
+
+                // Liquid-leg flash-gas check. Line ΔP drops the saturation
+                // pressure; the corresponding T_sat drop is dpKpa × (dT/dP)_sat.
+                // If that exceeds the subcooling reserve, vapour forms before
+                // the TXV → erratic capacity. Issue as a warning so the user
+                // either oversizes the liquid line or specifies more subcooling.
+                if (input.Leg == RefrigerantLeg.Liquid && fluid.DtDpKperKpa > 0)
+                {
+                    r.SatTempDropK = dpKpa * fluid.DtDpKperKpa;
+                    if (r.SatTempDropK > input.SubcoolingReserveK)
+                    {
+                        r.Warnings.Add(
+                            $"Flash-gas risk: line ΔP {dpKpa:F1} kPa drops T_sat by " +
+                            $"{r.SatTempDropK:F1} K, exceeding the {input.SubcoolingReserveK:F1} K " +
+                            $"subcooling reserve. Oversize the liquid line or specify more " +
+                            $"sub-cooling at the condenser outlet.");
+                    }
+                }
 
                 // Length / lift compliance against vendor envelope.
                 if (input.EquivLengthM > fluid.MaxEquivLengthM)

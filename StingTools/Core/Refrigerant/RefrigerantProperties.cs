@@ -55,6 +55,35 @@ namespace StingTools.Core.Refrigerant
         /// <summary>Max vertical drop outdoor unit below indoor unit, m.</summary>
         public double MaxLiftBelowIndoorM { get; set; }
 
+        /// <summary>
+        /// (dT/dP)_sat slope at the condensing design temperature (K/kPa).
+        /// Used by the LIQUID-leg flash-gas check: line ΔP × slope = the
+        /// saturation-temperature drop the liquid sees over the run. If
+        /// this exceeds the subcooling reserve the TXV will see two-phase.
+        /// Values from REFPROP / ASHRAE Handbook Fundamentals 2021 Ch.30,
+        /// evaluated near the typical 45 °C condensing point.
+        /// </summary>
+        public double DtDpKperKpa     { get; set; }
+
+        /// <summary>Vendor-typical line ΔP budget for the SUCTION leg (kPa).
+        /// Driven by the equivalent-saturation-temperature loss the vendor
+        /// allows for capacity guarantees (~1 K T_sat at typical conditions).</summary>
+        public double SuctionBudgetKpa   { get; set; } = 30;
+        /// <summary>Vendor-typical line ΔP budget for the DISCHARGE leg (kPa).</summary>
+        public double DischargeBudgetKpa { get; set; } = 50;
+        /// <summary>Vendor-typical line ΔP budget for the LIQUID leg (kPa).</summary>
+        public double LiquidBudgetKpa    { get; set; } = 50;
+
+        /// <summary>Return the vendor-recommended ΔP budget for a leg.</summary>
+        public double DefaultBudgetForLeg(RefrigerantLeg leg) => leg switch
+        {
+            RefrigerantLeg.Suction       => SuctionBudgetKpa,
+            RefrigerantLeg.Discharge     => DischargeBudgetKpa,
+            RefrigerantLeg.HotGasReturn  => DischargeBudgetKpa,
+            RefrigerantLeg.Liquid        => LiquidBudgetKpa,
+            _                            => 30
+        };
+
         public string Source { get; set; } = "";
     }
 
@@ -73,6 +102,8 @@ namespace StingTools.Core.Refrigerant
                 HfgKJperKg = 195,
                 MinVerticalVelMs = 6.0, MinHorizontalVelMs = 3.5, MaxVelocityMs = 18.0,
                 MaxEquivLengthM = 165, MaxLiftAboveIndoorM = 50, MaxLiftBelowIndoorM = 40,
+                DtDpKperKpa = 0.0185,                                       // R410A @ 45 °C cond.
+                SuctionBudgetKpa = 30, DischargeBudgetKpa = 50, LiquidBudgetKpa = 50,
                 Source = "Daikin VRV IV-S 2021 Engineering Data Book"
             },
             ["R32"] = new RefrigerantState
@@ -85,6 +116,8 @@ namespace StingTools.Core.Refrigerant
                 HfgKJperKg = 248,
                 MinVerticalVelMs = 5.0, MinHorizontalVelMs = 3.0, MaxVelocityMs = 20.0,
                 MaxEquivLengthM = 180, MaxLiftAboveIndoorM = 50, MaxLiftBelowIndoorM = 40,
+                DtDpKperKpa = 0.0170,                                       // R32 @ 45 °C cond.
+                SuctionBudgetKpa = 25, DischargeBudgetKpa = 50, LiquidBudgetKpa = 50,
                 Source = "Daikin VRV 5 2024 Engineering Data Book"
             },
             ["R134a"] = new RefrigerantState
@@ -97,6 +130,8 @@ namespace StingTools.Core.Refrigerant
                 HfgKJperKg = 195,
                 MinVerticalVelMs = 5.0, MinHorizontalVelMs = 3.0, MaxVelocityMs = 18.0,
                 MaxEquivLengthM = 150, MaxLiftAboveIndoorM = 30, MaxLiftBelowIndoorM = 20,
+                DtDpKperKpa = 0.034,                                        // R134a @ 40 °C cond.
+                SuctionBudgetKpa = 20, DischargeBudgetKpa = 40, LiquidBudgetKpa = 30,
                 Source = "Carrier 30XW chiller IOM 2023"
             },
             ["CO2"] = new RefrigerantState
@@ -109,6 +144,8 @@ namespace StingTools.Core.Refrigerant
                 HfgKJperKg = 245,
                 MinVerticalVelMs = 4.0, MinHorizontalVelMs = 2.5, MaxVelocityMs = 12.0,
                 MaxEquivLengthM = 80, MaxLiftAboveIndoorM = 20, MaxLiftBelowIndoorM = 15,
+                DtDpKperKpa = 0.0046,                                       // CO₂ — much flatter slope; trans-critical
+                SuctionBudgetKpa = 50, DischargeBudgetKpa = 100, LiquidBudgetKpa = 80,
                 Source = "Bitzer CO₂ Manual 2022"
             }
         };

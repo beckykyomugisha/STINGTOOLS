@@ -31,8 +31,14 @@ namespace StingTools.Commands.Hvac
                 if (ok != true || dlg.Result == null) return Result.Cancelled;
 
                 var input = dlg.Result;
-                var result = RefrigerantPipeSolver.Size(input);
                 var fluid = RefrigerantProperties.Get(input.RefrigerantId);
+                // If the user left the dialog's ΔP budget at its default 30 kPa,
+                // substitute the vendor-recommended per-leg + per-fluid value
+                // (e.g. R134a liquid = 30, CO₂ discharge = 100). The dialog
+                // surface stays simple; the registry carries the right number.
+                if (Math.Abs(input.MaxPressureDropKpa - 30.0) < 0.01)
+                    input.MaxPressureDropKpa = fluid.DefaultBudgetForLeg(input.Leg);
+                var result = RefrigerantPipeSolver.Size(input);
 
                 var panel = StingResultPanel.Create($"HVAC — {input.RefrigerantId} {input.Leg}");
                 panel.SetSubtitle(
@@ -41,14 +47,17 @@ namespace StingTools.Commands.Hvac
 
                 if (result.Ok)
                 {
-                    panel.AddSection("SELECTED SIZE")
+                    var section = panel.AddSection("SELECTED SIZE")
                          .Metric("OD (ACR copper)",   $"{result.SelectedBoreMm:F2} mm")
                          .Metric("Velocity",          $"{result.VelocityMs:F1} m/s")
                          .Metric("Mass flow",         $"{result.MassFlowKgS * 1000:F2} g/s")
                          .Metric("ΔP",                $"{result.PressureDropKpa:F1} kPa")
-                         .Metric("Lift static head",  $"{result.LiftPenaltyKpa:F1} kPa")
+                         .Metric("Lift static head",  $"{result.LiftPenaltyKpa:+0.0;-0.0;0.0} kPa " +
+                                                       (result.LiftPenaltyKpa < 0 ? "(gravity assist)" : ""))
                          .Metric("Re",                $"{result.ReynoldsNumber:E2}")
                          .Metric("Friction f",        $"{result.FrictionFactor:F4}");
+                    if (input.Leg == RefrigerantLeg.Liquid && result.SatTempDropK > 0)
+                        section.Metric("Sat-temp drop", $"{result.SatTempDropK:F1} K (reserve {input.SubcoolingReserveK:F1} K)");
                 }
                 else
                 {

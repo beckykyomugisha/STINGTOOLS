@@ -2926,6 +2926,96 @@ Five integration / flexibility / accuracy / automation gaps closed:
 | `HVC_LOAD_SOURCE_TXT` | HVC_SYSTEMS | Provenance string written by PropagateLoads (space + peak + OA → derived HVC_FLOW_LS) |
 | `PRJ_CLIMATE_SITE_LABEL_TXT` | PRJ_INFORMATION | Human-readable site label stamped by DocumentOpened auto-stamp |
 
+### Phase 187c — accuracy, flexibility, alignment sweep
+
+Twelve gaps from the deep review now closed. All on PR #265.
+
+**Accuracy**
+
+1. **Refrigerant negative-lift credit.** `RefrigerantPipeSolver.cs:105`
+   now applies signed static head — liquid going DOWN expands the
+   ΔP budget instead of being ignored. Evap-above-condenser
+   systems no longer over-size unnecessarily.
+2. **Refrigerant subcooling-reserve / flash-gas check.** New
+   `RefrigerantState.DtDpKperKpa` (saturation-temperature slope
+   evaluated at the design condensing point) drives a new
+   `SatTempDropK` output on liquid legs. If line ΔP × slope
+   exceeds the user's subcooling reserve (default 5 K, set 8 K
+   for EEV systems), the result panel surfaces a flash-gas warning.
+3. **Real solar incidence geometry.**
+   `BlockLoadEngine.IncidenceFactor(orientationDeg, hour, lat, doy)`
+   uses ASHRAE 2021 Ch.14 solar-angle formulae (declination,
+   latitude, hour angle → altitude + azimuth from south, then
+   cosine projection onto the surface normal). Replaces the
+   linearised `azimuth = 90 + 15·(hour - 6)` which under-predicted
+   east/west glass loads by ~10° at mid-latitudes.
+4. **Seasonal Clear-Sky coefficients.**
+   `ClearSkyDirectNormalWm2` now takes a `dayOfYear` and
+   interpolates monthly ASHRAE A/B values (Handbook Fundamentals
+   Ch.14 Table 7). Cooling design uses DOY 202 (July 21); heating
+   uses DOY 21 (January 21).
+5. **Diffuser regen double-count removed.**
+   `NcPredictionEngine.Compute` no longer adds `RegenDiffuser` on
+   top of `TerminalEndReflectionDb`. Bullock's diffuser correlation
+   already represents post-reflection terminal noise — adding both
+   biased predicted NC up by ~3–5 dB.
+
+**Flexibility**
+
+6. **Per-system + per-leg refrigerant ΔP budgets** added to each
+   `RefrigerantState` (R410A 30/50/50 kPa, R32 25/50/50, R134a
+   20/40/30, CO₂ 50/100/80). Dialog defaults to vendor budget per
+   leg when the user leaves the field at its initial 30 kPa.
+7. **Construction profile library.** New
+   `STING_CONSTRUCTION_PROFILES.json` ships 7 profiles (PartL2021,
+   PartL2013, PreRegs1990, Passivhaus, IECC2021_CZ4,
+   ASHRAE901_2019_CZ5, EnEV2014_DE). `ConstructionProfileRegistry`
+   loads + caches with project override. `AddPerimeterEnvelope`
+   replaces hardcoded U-values + SHGC with the active profile's
+   values, resolved via `PRJ_CONSTRUCTION_PROFILE_TXT` on
+   ProjectInformation.
+8. **Climate multi-percentile.** `ClimateSite` gains
+   `Cooling99DbC` / `Cooling98DbC` / `Heating99DbC` fields +
+   `CoolingDbCFor(percentile)` / `HeatingDbCFor(percentile)`
+   accessors. JSON entries that omit the extra columns fall back
+   to the 0.4 %/99.6 % values shipped today.
+9. **Fan Lw + silencer IL sidecars.** New
+   `STING_FAN_SPECTRA.json` + `STING_SILENCER_DATA.json` shipped
+   as the corporate baseline; `Core/Acoustic/AcousticDataRegistry.cs`
+   loads + per-project overlay. `HvacNcPredictionCommand` looks
+   up the fan family name and the silencer name in the registry;
+   falls back to the synthetic Lw / default IL when no match.
+
+**Performance**
+
+10. **Zero-space transaction guard** in `HvacBlockLoadCommand` —
+    don't open a Revit transaction when there are no spaces to
+    stamp.
+11. **HVAC cache invalidation on document close.**
+    `StingToolsApp.OnDocumentClosing` now drops the block-load
+    top-level cache, the climate registry, the MEP sizing registry,
+    and the load profile registry for the closing document.
+
+**Automation**
+
+12. **`Hvac_FullDesignPass` composite command.** Runs block-load →
+    propagate → auto-size → balance → NC → pressure-class →
+    stale-size in one invocation, with per-step status rows in a
+    single result panel. Cancellable via Escape between steps.
+    Wired to the LOADS tab as a primary button.
+
+**Alignment**
+
+13. **`Snapshot()` adoption** in `HvacPressureClassAuditCommand`
+    + `HvacBlockLoadCommand` — replaced the per-field `Current*`
+    reads with a single atomic snapshot of the header context.
+
+### Parameters added (Phase 187c)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `PRJ_CONSTRUCTION_PROFILE_TXT` | PRJ_INFORMATION | Active construction profile id (PartL2021 / Passivhaus / IECC / ASHRAE 90.1 / EnEV) — drives U-values + SHGC |
+
 ### Caveats (Phase 187 — what's still open)
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.

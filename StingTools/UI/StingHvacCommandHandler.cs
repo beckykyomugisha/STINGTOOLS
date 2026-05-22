@@ -217,6 +217,10 @@ namespace StingTools.UI
                         // Phase 187b — bridges BlockLoad → AutoSize by stamping
                         // HVC_FLOW_LS from served-space peak + OA.
                         Run<StingTools.Commands.Hvac.HvacPropagateLoadsCommand>(app); break;
+                    case "Hvac_FullDesignPass":
+                        // Phase 187c — composite block-load → propagate → auto-size
+                        // → balance → NC → pressure-class → stale-size in one click.
+                        Run<StingTools.Commands.Hvac.HvacFullDesignPassCommand>(app); break;
                     case "Hvac_NcPredict":
                         // STING-design-engines: VDI 2081 / ASHRAE A48 NC prediction
                         // from duct selection + regenerated noise + room model.
@@ -233,6 +237,17 @@ namespace StingTools.UI
                         // Phase 187b — populate equipment/systems/duct-types grids
                         // from the live model (previously empty since Phase 180).
                         Run<StingTools.Commands.Hvac.HvacRefreshGridsCommand>(app); break;
+                    case "Hvac_ReloadProfiles":
+                        // Phase 187c — flush load profile + construction profile +
+                        // acoustic data + climate registries together.
+                        StingTools.Core.Hvac.Loads.LoadProfileRegistry.Reload();
+                        StingTools.Core.Hvac.Loads.ConstructionProfileRegistry.Reload();
+                        StingTools.Core.Acoustic.AcousticDataRegistry.Reload();
+                        StingTools.Core.Climate.ClimateRegistry.Reload();
+                        StingTools.Core.Mep.MepSizingRegistry.Reload();
+                        TaskDialog.Show("STING HVAC",
+                            "Reloaded: load profiles, construction profiles, acoustic data, climate, MEP sizing.");
+                        break;
 
                     // ── DUCT tab ───────────────────────────────────────────
                     case "Hvac_CreateDuctTypes":

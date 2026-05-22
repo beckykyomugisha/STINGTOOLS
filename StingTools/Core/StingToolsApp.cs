@@ -285,6 +285,16 @@ namespace StingTools.Core
                 // Phase 167: Drop the per-doc ProjectSetup cache so reopens re-detect.
                 try { ProjectFolderEngine.InvalidateSetupCache(e.Document?.PathName); }
                 catch (Exception cEx) { StingLog.Warn($"Setup cache invalidate: {cEx.Message}"); }
+                // Phase 187c: drop HVAC per-document caches so they don't outlive
+                // the source document (block-load top-level, climate, MEP sizing).
+                try { Commands.Hvac.HvacBlockLoadCommand.InvalidateTopLevelCache(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"HVAC top-level cache invalidate: {cEx.Message}"); }
+                try { Core.Climate.ClimateRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Climate cache invalidate: {cEx.Message}"); }
+                try { Core.Mep.MepSizingRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"MEP sizing cache invalidate: {cEx.Message}"); }
+                try { Core.Hvac.Loads.LoadProfileRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Load profile cache invalidate: {cEx.Message}"); }
                 // Phase 78: Save dropped element IDs to sidecar before clearing queue
                 StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
                 // R-02: Clear deferred elements on document close

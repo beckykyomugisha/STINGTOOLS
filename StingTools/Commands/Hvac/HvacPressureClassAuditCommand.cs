@@ -44,8 +44,11 @@ namespace StingTools.Commands.Hvac
                 var doc = ctx.Doc;
 
                 MepSizingRules rules = MepSizingRegistry.Get(doc);
-                string classId = "low";
-                try { classId = StingHvacCommandHandler.CurrentPressureClassId ?? "low"; } catch { }
+                // Phase 187c — atomic snapshot of the header context so the
+                // command never reads a torn (class, density, scope) tuple
+                // if the user rapidly switches the header radios.
+                var snap = StingHvacCommandHandler.Snapshot();
+                string classId = snap.PressureClassId ?? "low";
 
                 var pclass = rules.DuctPressureClasses
                     .FirstOrDefault(c => string.Equals(c.Id, classId, StringComparison.OrdinalIgnoreCase))
@@ -67,15 +70,10 @@ namespace StingTools.Commands.Hvac
                     if (site != null) airDensity = site.AirDensityCoolingKgM3();
                 }
                 catch { }
-                if (airDensity <= 0)
-                {
-                    try { airDensity = StingHvacCommandHandler.CurrentAirDensityKgM3; } catch { }
-                }
+                if (airDensity <= 0) airDensity = snap.AirDensityKgM3;
                 if (airDensity <= 0) airDensity = 1.20;
 
-                // Honour the same scope radio as the sizing commands.
-                string scope = "Project";
-                try { scope = StingHvacCommandHandler.CurrentScope ?? "Project"; } catch { }
+                string scope = snap.Scope ?? "Project";
 
                 List<Element> ducts = CollectDucts(ctx, scope);
                 if (ducts.Count == 0)
