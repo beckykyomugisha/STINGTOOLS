@@ -134,6 +134,10 @@ namespace Planscape.Docs.Templates
             if (!File.Exists(path)) return new Dictionary<string, int>(StringComparer.Ordinal);
             try
             {
+                // S3.6.1 — version gate before deserialise.
+                StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
+                    path, "planscape.doc-sequences",
+                    StingTools.Core.PluginSchemaVersion.CurrentDocSequences);
                 var dict = JsonConvert.DeserializeObject<Dictionary<string, int>>(File.ReadAllText(path));
                 return dict ?? new Dictionary<string, int>(StringComparer.Ordinal);
             }
