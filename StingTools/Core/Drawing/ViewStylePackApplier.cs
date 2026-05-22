@@ -31,6 +31,8 @@ namespace StingTools.Core.Drawing
     {
         public int OverridesSet { get; set; }
         public int FiltersApplied { get; set; }
+        /// <summary>C4 — Number of material-class overrides applied on this view.</summary>
+        public int AppliedByMaterialClass { get; set; }
         public List<string> Warnings { get; } = new List<string>();
     }
 
@@ -55,7 +57,187 @@ namespace StingTools.Core.Drawing
 
             ApplyCategoryOverrides(doc, view, pack, r);
             ApplyFilterRules(doc, view, pack, r);
+            ApplyMaterialClassOverrides(doc, view, pack, r);  // C4
             return r;
+        }
+
+        /// <summary>
+        /// C4 — Project a pack's byMaterialClass entries onto the view
+        /// as ParameterFilterElement overrides. Each class spawns one
+        /// filter "STING_MAT_CLASS_&lt;class&gt;" rule-matching the
+        /// element's primary Material element by name → MaterialClass.
+        ///
+        /// The filter is created once per project (idempotent) and the
+        /// view receives it with the StyleVgOverride applied. Walls
+        /// with a Concrete material render concrete-grey; the same
+        /// pack's Walls VG override (if any) still applies first.
+        ///
+        /// Best-effort: when ParameterFilterElement creation fails
+        /// (e.g. shared param not bound on Material category) the
+        /// pack still applies the rest of its overrides without
+        /// aborting.
+        /// </summary>
+        private static void ApplyMaterialClassOverrides(Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        {
+            if (pack?.ByMaterialClass == null || pack.ByMaterialClass.Count == 0) return;
+
+            foreach (var kv in pack.ByMaterialClass)
+            {
+                string className = kv.Key;
+                var src = kv.Value;
+                if (string.IsNullOrWhiteSpace(className) || src == null) continue;
+
+                try
+                {
+                    var filter = EnsureMaterialClassFilter(doc, className);
+                    if (filter == null)
+                    {
+                        r.Warnings.Add($"byMaterialClass '{className}': filter could not be created (no eligible Material category bindings).");
+                        continue;
+                    }
+                    if (!view.IsFilterApplied(filter.Id))
+                        view.AddFilter(filter.Id);
+
+                    var ogs = view.GetFilterOverrides(filter.Id) ?? new OverrideGraphicSettings();
+                    if (src.Halftone.HasValue)             ogs.SetHalftone(src.Halftone.Value);
+                    if (src.Transparency.HasValue)         ogs.SetSurfaceTransparency(src.Transparency.Value);
+                    if (src.ProjectionLineWeight.HasValue) ogs.SetProjectionLineWeight(src.ProjectionLineWeight.Value);
+                    if (src.CutLineWeight.HasValue)        ogs.SetCutLineWeight(src.CutLineWeight.Value);
+                    if (!string.IsNullOrEmpty(src.ProjectionLineColor))
+                    {
+                        var c = ParseHexColor(src.ProjectionLineColor);
+                        if (c != null) ogs.SetProjectionLineColor(c);
+                    }
+                    if (!string.IsNullOrEmpty(src.CutLineColor))
+                    {
+                        var c = ParseHexColor(src.CutLineColor);
+                        if (c != null) ogs.SetCutLineColor(c);
+                    }
+                    view.SetFilterOverrides(filter.Id, ogs);
+                    r.AppliedByMaterialClass++;
+                }
+                catch (Exception ex)
+                {
+                    r.Warnings.Add($"byMaterialClass '{className}': {ex.Message}");
+                    StingTools.Core.StingLog.Warn($"ApplyMaterialClassOverrides '{className}': {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Find-or-create the project-scoped ParameterFilterElement
+        /// "STING_MAT_CLASS_&lt;class&gt;" that selects every element
+        /// whose primary Material's MaterialClass matches.
+        ///
+        /// Implementation notes: Revit has no built-in "material's class"
+        /// filter; we use a filter rule on the Material parameter
+        /// (MATERIAL_ID_PARAM) keyed by the resolved Material element ids
+        /// whose MaterialClass matches the requested class. The id list
+        /// is regenerated lazily on each apply so a newly-added material
+        /// is picked up next time the pack runs.
+        /// </summary>
+        // P-6 — Cache the (doc-path, className) → ParameterFilterElement id
+        // so successive packs targeting the same class skip the rebuild.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ElementId> _matClassFilterCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+
+        public static void InvalidateMaterialClassFilterCache() => _matClassFilterCache.Clear();
+
+        private static ParameterFilterElement EnsureMaterialClassFilter(Document doc, string className)
+        {
+            try
+            {
+                string filterName = $"STING_MAT_CLASS_{className}";
+                string cacheKey = (doc?.PathName ?? doc?.Title ?? "_") + "|" + className;
+                if (_matClassFilterCache.TryGetValue(cacheKey, out var cachedId) &&
+                    cachedId != null && cachedId.Value > 0 &&
+                    doc.GetElement(cachedId) is ParameterFilterElement cachedPfe &&
+                    string.Equals(cachedPfe.Name, filterName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return cachedPfe;
+                }
+
+                // Find existing
+                var existing = new FilteredElementCollector(doc).OfClass(typeof(ParameterFilterElement))
+                    .Cast<ParameterFilterElement>()
+                    .FirstOrDefault(f => string.Equals(f.Name, filterName, StringComparison.OrdinalIgnoreCase));
+
+                // Resolve every Material id whose class matches.
+                var matIds = new FilteredElementCollector(doc).OfClass(typeof(Material))
+                    .Cast<Material>()
+                    .Where(m => string.Equals(m.MaterialClass ?? "", className, StringComparison.OrdinalIgnoreCase))
+                    .Select(m => m.Id)
+                    .ToList();
+                if (matIds.Count == 0) { if (existing != null) _matClassFilterCache[cacheKey] = existing.Id; return existing; }
+
+                // Build the categories the filter applies to — every
+                // category that can carry a Material parameter. Use a
+                // conservative set that always works in Revit 2025+.
+                var cats = new List<ElementId>
+                {
+                    new ElementId(BuiltInCategory.OST_Walls),
+                    new ElementId(BuiltInCategory.OST_Floors),
+                    new ElementId(BuiltInCategory.OST_Ceilings),
+                    new ElementId(BuiltInCategory.OST_Roofs),
+                    new ElementId(BuiltInCategory.OST_Columns),
+                    new ElementId(BuiltInCategory.OST_StructuralColumns),
+                    new ElementId(BuiltInCategory.OST_StructuralFraming),
+                    new ElementId(BuiltInCategory.OST_StructuralFoundation),
+                    new ElementId(BuiltInCategory.OST_Doors),
+                    new ElementId(BuiltInCategory.OST_Windows),
+                    new ElementId(BuiltInCategory.OST_PlumbingFixtures),
+                    new ElementId(BuiltInCategory.OST_MechanicalEquipment),
+                    new ElementId(BuiltInCategory.OST_ElectricalFixtures),
+                    new ElementId(BuiltInCategory.OST_LightingFixtures),
+                    new ElementId(BuiltInCategory.OST_Furniture),
+                };
+
+                // Build the OR-of-equals rule across all the class's
+                // material ids.
+                var rules = new List<FilterRule>();
+                ElementId matParam = new ElementId(BuiltInParameter.MATERIAL_ID_PARAM);
+                foreach (var mid in matIds)
+                {
+                    try { rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(matParam, mid)); }
+                    catch (Exception ex) { StingTools.Core.StingLog.WarnRateLimited("MatClassFilter.Rule", $"Rule build: {ex.Message}"); }
+                }
+                if (rules.Count == 0) return existing;
+                ElementParameterFilter elemFilter = new ElementParameterFilter(rules, false /* OR semantics across the rules */);
+
+                ParameterFilterElement built;
+                if (existing == null)
+                {
+                    built = ParameterFilterElement.Create(doc, filterName, cats, elemFilter);
+                }
+                else
+                {
+                    try { existing.SetCategories(cats); } catch { }
+                    try { existing.SetElementFilter(elemFilter); } catch { }
+                    built = existing;
+                }
+                if (built != null) _matClassFilterCache[cacheKey] = built.Id;
+                return built;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"EnsureMaterialClassFilter '{className}': {ex.Message}");
+                return null;
+            }
+        }
+
+        private static Color ParseHexColor(string hex)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(hex)) return null;
+                hex = hex.TrimStart('#');
+                if (hex.Length != 6) return null;
+                byte r = Convert.ToByte(hex.Substring(0, 2), 16);
+                byte g = Convert.ToByte(hex.Substring(2, 2), 16);
+                byte b = Convert.ToByte(hex.Substring(4, 2), 16);
+                return new Color(r, g, b);
+            }
+            catch { return null; }
         }
 
         private static void ApplyCategoryOverrides(Document doc, View view, ViewStylePack pack, PackApplyResult r)

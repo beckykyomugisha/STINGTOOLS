@@ -528,6 +528,24 @@ namespace StingTools.Core
             ORG_AI_EXTRACT_ENABLED
         };
 
+        // I-4 — Material Manager cost-split + EPD params (registered so the
+        // parameter audit / drift detection picks them up).
+        public const string MAT_COST_SUPPLY  = "MAT_COST_SUPPLY_NR";
+        public const string MAT_COST_INSTALL = "MAT_COST_INSTALL_NR";
+        public const string MAT_VAT_PCT      = "MAT_VAT_PCT_NR";
+        public const string MAT_EMB_CARBON   = "STING_EMB_CARBON_NR";
+        public const string MAT_EPD_SRC      = "STING_MAT_EPD_SRC_TXT";
+        public const string MAT_EPD_DATE     = "STING_MAT_EPD_DATE_TXT";
+
+        /// <summary>All Material-scoped STING parameters surfaced by the
+        /// Material Manager. Drift detection + ParameterHelpers refresh
+        /// passes consult this list.</summary>
+        public static readonly string[] AllMaterialParams = new[]
+        {
+            MAT_COST_SUPPLY, MAT_COST_INSTALL, MAT_VAT_PCT,
+            MAT_EMB_CARBON, MAT_EPD_SRC, MAT_EPD_DATE,
+        };
+
         /// <summary>Default values for PRJ_ORG_* parameters (used by TemplateManifest.CreateDefault).</summary>
         public static readonly Dictionary<string, string> OrganisationDefaults = new Dictionary<string, string>(StringComparer.Ordinal)
         {

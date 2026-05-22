@@ -96,6 +96,23 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // Register the Material Updater (IUpdater) — auto-apply OFF,
+                // auto-fill ON. Both behaviours share one trigger budget so
+                // the cost when fully idle is the same as one disabled updater.
+                StingTools.UI.StingMaterialUpdater.Register(application);
+
+                // STING Material Hub — modeless dockable pane (separate
+                // from the main STING dock panel). Three-pane material
+                // dashboard, floats independently.
+                try
+                {
+                    var hubProvider = new StingTools.UI.MaterialHubProvider();
+                    application.RegisterDockablePane(StingTools.UI.MaterialHubProvider.PaneId,
+                        "STING Material Hub", hubProvider);
+                    StingLog.Info("Material Hub: dockable pane registered.");
+                }
+                catch (Exception hubEx) { StingLog.Warn($"Material Hub register: {hubEx.Message}"); }
+
                 // Register the cost stale marker (IUpdater) — starts disabled.
                 // Toggled via Cost_ToggleStaleMarker. Marks ASS_CST_STALE_BOOL
                 // when geometry / material / type changes invalidate a costed
@@ -1158,6 +1175,16 @@ namespace StingTools.Core
                 if (!_savingAsPaths.TryRemove(doc.GetHashCode(), out var paths)) return;
                 if (string.IsNullOrEmpty(paths.OldPath) || string.IsNullOrEmpty(paths.NewPath)) return;
                 MigrateLiveProfileSyncSnapshot(paths.OldPath, paths.NewPath);
+
+                // A-3 — Invalidate material caches keyed by old path so a
+                // Save As doesn't leave stale name + usage indexes behind.
+                try
+                {
+                    StingTools.UI.MaterialNameCache.InvalidateAll();
+                    StingTools.UI.MaterialUsageIndex.InvalidateAll();
+                    StingTools.UI.MaterialOverrideRegistry.Reload(doc);
+                }
+                catch (Exception cacheEx) { StingLog.Warn($"OnDocumentSavedAs cache invalidate: {cacheEx.Message}"); }
             }
             catch (Exception ex) { StingLog.Warn($"OnDocumentSavedAs: {ex.Message}"); }
         }
@@ -2197,7 +2224,7 @@ namespace StingTools.Core
                 ("ToggleHvacPanel",      "HVAC Panel",    "HV", DrawingColor.LightSeaGreen,typeof(HubHvacPanelCommand).FullName),
             };
 
-            var buttons = new List<PushButtonData>(18);
+            var buttons = new List<PushButtonData>(19);
             foreach (var s in specs)
             {
                 var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
@@ -2224,6 +2251,8 @@ namespace StingTools.Core
                 panel.AddStackedItems(buttons[9],  buttons[10], buttons[11]);
                 panel.AddStackedItems(buttons[12], buttons[13], buttons[14]);
                 panel.AddStackedItems(buttons[15], buttons[16], buttons[17]);
+                // 19th button (Mat Hub) sits as its own single item.
+                if (buttons.Count > 18) panel.AddItem(buttons[18]);
             }
             catch (Exception ex)
             {

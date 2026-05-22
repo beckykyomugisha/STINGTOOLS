@@ -349,7 +349,56 @@ namespace StingTools.Docs
                 t["RevDate"]       = "";
             }
 
+            // C2 — Material-class token for filename / bookmark templates.
+            // Resolves to the dominant material class across elements placed
+            // on the view (cheap — uses the cached title-block tokens path).
+            try
+            {
+                t["MaterialClass"] = ResolveDominantMaterialClass(doc, view) ?? "";
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("ExportTokens.MatClass", $"MaterialClass token: {ex.Message}"); t["MaterialClass"] = ""; }
+
             return t;
+        }
+
+        /// <summary>
+        /// C2 — Find the dominant Material Class across elements visible
+        /// on the view. Used as a filename / bookmark token so a concrete-
+        /// heavy issue can carry the class in its export name.
+        /// </summary>
+        private static string ResolveDominantMaterialClass(Document doc, View view)
+        {
+            if (doc == null || view == null) return null;
+            try
+            {
+                var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                foreach (var el in new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType().Take(500))
+                {
+                    try
+                    {
+                        var p = el.LookupParameter("Material") ?? el.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
+                        ElementId mid = null;
+                        if (p != null && p.StorageType == StorageType.ElementId) mid = p.AsElementId();
+                        if (mid == null || mid.Value <= 0)
+                        {
+                            var mats = el.GetMaterialIds(false);
+                            if (mats != null) foreach (var mm in mats) if (mm != null && mm.Value > 0) { mid = mm; break; }
+                        }
+                        if (mid == null || mid.Value <= 0) continue;
+                        var mat = doc.GetElement(mid) as Material;
+                        string cls = mat?.MaterialClass ?? "";
+                        if (string.IsNullOrEmpty(cls)) continue;
+                        counts[cls] = counts.TryGetValue(cls, out var v) ? v + 1 : 1;
+                    }
+                    catch (Exception ex) { StingLog.WarnRateLimited("ExportTokens.MatClassEl", $"MaterialClass el: {ex.Message}"); }
+                }
+                if (counts.Count == 0) return null;
+                string winner = "";
+                int best = 0;
+                foreach (var kv in counts) if (kv.Value > best) { best = kv.Value; winner = kv.Key; }
+                return winner;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveDominantMaterialClass: {ex.Message}"); return null; }
         }
 
         private static string ReadProjectInfo(ProjectInfo pi, string paramName)

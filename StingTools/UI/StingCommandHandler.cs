@@ -79,6 +79,12 @@ namespace StingTools.UI
             // StingCommandHandler.CurrentApp when ExternalCommandData is null
             CurrentApp = app;
 
+            // N1 — Wire the Material Manager's live selection-sync once we
+            // have a real UIApplication. The hook is idempotent so calling
+            // every Execute is safe; the field-level guard means it's free
+            // after the first hit.
+            UI.StingDockPanel.SubscribeSelectionSync(app);
+
             // Snapshot command state under lock to prevent race with WPF UI thread
             string tag, p1, p2;
             lock (_lock)
@@ -1225,8 +1231,62 @@ namespace StingTools.UI
                     // ── Materials ──
                     case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;
                     case "CreateMEPMaterials": RunCommand<Temp.CreateMEPMaterialsCommand>(app); break;
-                    case "MaterialManager":     RunCommand<Temp.StingMaterialManagerCommand>(app); break;
+                    case "MaterialManager":
+                        // Surface the dock panel and activate the MAT tab —
+                        // the inline workspace replaces the legacy TaskDialog.
+                        try
+                        {
+                            var pane = app.GetDockablePane(UI.StingDockPanelProvider.PaneId);
+                            if (pane != null && !pane.IsShown()) pane.Show();
+                            UI.StingDockPanel.LastInstance?.ShowMaterialsTab();
+                        }
+                        catch (Exception exMat)
+                        {
+                            Core.StingLog.Warn($"MaterialManager focus: {exMat.Message}");
+                            RunCommand<Temp.StingMaterialManagerCommand>(app); // safety net
+                        }
+                        break;
                     case "MaterialManagerFull": RunCommand<Temp.MaterialManagerCommand>(app); break;
+
+                    // ── MAT tab — inline command surface (dock-panel buttons) ──
+                    case "MAT_WhereUsed":      MatActions.WhereUsed(app, p1); break;
+                    case "MAT_Apply":          MatActions.ApplyToSelection(app, p1); break;
+                    case "MAT_Eyedropper":     MatActions.Eyedropper(app); break;
+                    case "MAT_EditIdentity":   MatActions.EditIdentity(app, p1); break;
+                    case "MAT_ReadLayers":     MatActions.ReadLayers(app); break;
+                    case "MAT_LayerTag":       MatActions.GenerateLayerTag(app); break;
+                    case "MAT_FindDups":       MatActions.FindDuplicates(app); break;
+                    case "MAT_MergeDups":      MatActions.MergeDuplicates(app); break;
+                    case "MAT_EditOverrides":  MatActions.EditProjectOverrides(app); break;
+                    case "MAT_ReloadLib":      MatActions.ReloadLibrary(app); break;
+                    case "MAT_PushCorp":       MatActions.PushToCorporate(app, p1); break;
+                    case "MAT_ExportCsv":      MatActions.ExportCsv(app); break;
+                    case "MAT_ImportCsv":      MatActions.ImportCsv(app); break;
+                    case "MAT_TemplateCsv":    MatActions.OpenTemplate(app); break;
+                    case "MAT_EditRules":      MatActions.EditRules(app); break;
+                    case "MAT_LoadPack":       MatActions.LoadMaterialPack(app); break;
+                    case "MAT_FamilyAudit":    MatActions.FamilyFolderAudit(app); break;
+                    case "MAT_DetachAsset":    MatActions.DetachAsset(app, p1); break;
+                    case "MAT_RepointAsset":   MatActions.RepointAsset(app, p1); break;
+                    case "MAT_FamilyMaterials":MatActions.ShowFamilyMaterials(app); break;
+                    case "MAT_SustainabilityGate": MatActions.RunSustainabilityGate(app); break;
+                    case "MAT_SustainabilityEdit": MatActions.EditSustainabilityGate(app); break;
+                    case "MAT_ClearFilters":   UI.StingDockPanel.LastInstance?.ClearMatFilters(); break;
+                    case "MAT_GenerateRfq":    MatActions.GenerateRfq(app); break;
+                    case "MAT_CoverageCheck":  MatActions.RunCoverageCheck(app); break;
+                    case "MAT_SyncCobie":      MatActions.SyncCobie(app); break;
+                    case "MAT_HealthcareGate": MatActions.RunHealthcareGate(app); break;
+                    case "MAT_HealthcareEdit": MatActions.EditHealthcareGate(app); break;
+                    case "MAT_BoqByMaterial":  MatActions.BoqByMaterial(app); break;
+                    case "MAT_WhatIfSwap":     MatActions.WhatIfSwap(app); break;
+                    case "MAT_EnrichSchedules":MatActions.EnrichMaterialSchedules(app); break;
+                    case "MAT_LinkedScan":     MatActions.ScanLinkedMaterials(app); break;
+                    case "MAT_CarbonPivot":    MatActions.CarbonByPhaseLevel(app); break;
+                    case "MAT_EpdFormatCheck": MatActions.RunEpdFormatCheck(app); break;
+                    case "MAT_FireWallGate":   MatActions.RunFireWallGate(app); break;
+                    case "MAT_NormaliseClasses": MatActions.NormaliseMaterialClasses(app); break;
+                    case "MAT_ToggleAutoApply":MatActions.ToggleAutoApply(app); break;
+                    case "MAT_ToggleAutoFill": MatActions.ToggleAutoFill(app); break;
 
                     // ── Family types ──
                     case "CreateWalls": RunCommand<Temp.CreateWallsCommand>(app); break;
