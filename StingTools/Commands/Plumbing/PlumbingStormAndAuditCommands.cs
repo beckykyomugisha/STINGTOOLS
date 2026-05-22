@@ -143,8 +143,10 @@ namespace StingTools.Commands.Plumbing
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(data);
+            var inst = StingPlumbingPanel.Instance;
             double area = 250, cr = 0.90, intensity = 0.021;
             string source = "default UK 2-min storm";
+            string roofType = "flat";
 
             // Phase 189 — pull the project rainfall intensity if set. Falls
             // back to the Uganda regional profile when PRJ_ORG_REGION_TXT is

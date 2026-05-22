@@ -787,10 +787,11 @@ namespace StingTools.BIMManager
                     using (var revTx = new Transaction(doc, "STING Propagate REV"))
                     {
                         revTx.Start();
+                        var catEnums = SharedParamGuids.AllCategoryEnums;
                         var allTagged = new FilteredElementCollector(doc)
                             .WhereElementIsNotElementType();
                         if (catEnums != null && catEnums.Length > 0)
-                            allTagged.WherePasses(new ElementMulticategoryFilter(catEnums));
+                            allTagged.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
                         foreach (var el in allTagged)
                         {
                             string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);

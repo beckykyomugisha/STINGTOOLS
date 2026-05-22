@@ -58,24 +58,32 @@ namespace StingTools.Commands.Plumbing
         public string Scope         { get; set; } = "Project";
     }
 
-    public sealed class RouteHangerOptions { public string Scope { get; set; } = "Project"; }
-    public sealed class RouteSleeveOptions { public string Scope { get; set; } = "Project"; }
-    public sealed class SpecialtyOptions   { public string Scope { get; set; } = "Project"; }
+    public sealed class RouteHangerOptions { public string Scope { get; set; } = "Project"; public string RodSize { get; set; } = "M8"; }
+    public sealed class RouteSleeveOptions { public string Scope { get; set; } = "Project"; public double MinOdMm { get; set; } }
+    public sealed class SpecialtyOptions
+    {
+        public string Scope       { get; set; } = "Project";
+        public bool   MatAll      { get; set; } = true;
+        public bool   MatGalvanic { get; set; }
+        public bool   MatJointing { get; set; }
+        public bool   MatWras     { get; set; }
+    }
 
-    // Row DTOs surfaced by the Plumbing panel.
-    public sealed class DrainageSlopeRow      { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class DrainageSizingRow     { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class DrainageVentRow       { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class DrainageInvertRow     { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class DrainageDuScanRow     { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class SupplyTmvRow          { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class SupplySizingRow       { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class SupplyFixtureScanRow  { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class SpecialtyCrossConnRow { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class DocsManholeRow        { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class DocsBoqRow            { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class DocsPipeScheduleRow   { public string Name { get; set; } public string Status { get; set; } }
-    public sealed class AuditIssueRow         { public string Code { get; set; } public string Detail { get; set; } public string Severity { get; set; } = "Info"; }
+    // Row DTOs surfaced by the Plumbing panel — superset of every property
+    // the merged code touches. Defaults are sentinel-safe (string="", num=0).
+    public sealed class DrainageSlopeRow      { public string Name { get; set; } public string Status { get; set; } public bool Apply { get; set; } public string Pipe { get; set; } public double DElevMm { get; set; } }
+    public sealed class DrainageSizingRow     { public string Name { get; set; } public string Status { get; set; } public string Pipe { get; set; } public double SigmaDu { get; set; } public int Dn { get; set; } public double VelocityMps { get; set; } public double HdRatio { get; set; } }
+    public sealed class DrainageVentRow       { public string Name { get; set; } public string Status { get; set; } public string Drain { get; set; } public double Du { get; set; } public int VentDn { get; set; } public double MaxLenM { get; set; } public string Flag { get; set; } }
+    public sealed class DrainageInvertRow     { public string Name { get; set; } public string Status { get; set; } public string Pipe { get; set; } public double UsInvM { get; set; } public double DsInvM { get; set; } public double CoverM { get; set; } }
+    public sealed class DrainageDuScanRow     { public string Name { get; set; } public string Status { get; set; } public string Fixture { get; set; } public int Count { get; set; } public double DuEach { get; set; } public double SigmaDu { get; set; } }
+    public sealed class SupplyTmvRow          { public string Name { get; set; } public string Status { get; set; } public string Fixture { get; set; } public string Type { get; set; } public bool Pass { get; set; } }
+    public sealed class SupplySizingRow       { public string Name { get; set; } public string Status { get; set; } public string Section { get; set; } public double SigmaLu { get; set; } public int Dn { get; set; } public double VelocityMps { get; set; } }
+    public sealed class SupplyFixtureScanRow  { public string Name { get; set; } public string Status { get; set; } public string Fixture { get; set; } public int Count { get; set; } public double LuCw { get; set; } public double LuHw { get; set; } }
+    public sealed class SpecialtyCrossConnRow { public string Name { get; set; } public string Status { get; set; } public string SystemA { get; set; } public string SystemB { get; set; } public string Separation { get; set; } public string Risk { get; set; } }
+    public sealed class DocsManholeRow        { public string Name { get; set; } public string Status { get; set; } public string Ref { get; set; } public double InvInM { get; set; } public double InvOutM { get; set; } public double CoverM { get; set; } public double DepthM { get; set; } }
+    public sealed class DocsBoqRow            { public string Name { get; set; } public string Status { get; set; } public string Item { get; set; } public string Description { get; set; } public double Qty { get; set; } public string Unit { get; set; } }
+    public sealed class DocsPipeScheduleRow   { public string Name { get; set; } public string Status { get; set; } public string System { get; set; } public int Dn { get; set; } public string Material { get; set; } public double LengthM { get; set; } }
+    public sealed class AuditIssueRow         { public string Code { get; set; } public string Detail { get; set; } public string Severity { get; set; } = "Info"; public string Element { get; set; } public string Issue { get; set; } }
 
     /// <summary>Storm-drainage input bag read from the SI panel.</summary>
     public sealed class PlumbStormInputs
@@ -119,8 +127,16 @@ namespace StingTools.Commands.Plumbing
         public static void SetStormSoakResult       (this StingTools.UI.Plumbing.StingPlumbingPanel _, string a = "", string b = "", string c = "") { }
         public static void SetStormSudsResult       (this StingTools.UI.Plumbing.StingPlumbingPanel _, string a = "", string b = "", string c = "") { }
         public static void SetStormRwhResult        (this StingTools.UI.Plumbing.StingPlumbingPanel _, string a = "", string b = "", string c = "") { }
+        // SetAuditRag — variable arity (1-3 args). C# can't have a single method with
+        // 3 default-string params and also be callable with just 1, so we ship 3 overloads.
         public static void SetAuditRag              (this StingTools.UI.Plumbing.StingPlumbingPanel _, string rag) { }
+        public static void SetAuditRag              (this StingTools.UI.Plumbing.StingPlumbingPanel _, string rag, string a, string b) { }
         public static void SetAuditFindings         (this StingTools.UI.Plumbing.StingPlumbingPanel _, List<AuditIssueRow> rows) { }
+        public static void SetDocsManholeResult     (this StingTools.UI.Plumbing.StingPlumbingPanel _, List<DocsManholeRow> rows, string status = "") { }
+        public static void SetDocsPipeScheduleResult(this StingTools.UI.Plumbing.StingPlumbingPanel _, List<DocsPipeScheduleRow> rows, string status = "") { }
+        public static void SetDocsBoqResult         (this StingTools.UI.Plumbing.StingPlumbingPanel _, List<DocsBoqRow> rows, string status = "") { }
+        public static void SetDrainageInvertResult  (this StingTools.UI.Plumbing.StingPlumbingPanel _, List<DrainageInvertRow> rows, string status = "") { }
+        public static object ReadRouteAutoOptions   (this StingTools.UI.Plumbing.StingPlumbingPanel _) => null;
     }
 }
 
@@ -144,6 +160,8 @@ namespace StingTools.UI.PlacementCenter
     /// <summary>Stub handler — wires up the modeless async-run pattern but does no work.</summary>
     public sealed class PlacementRunHandler : Autodesk.Revit.UI.IExternalEventHandler
     {
+        public PlacementRunHandler() { }
+        public PlacementRunHandler(StingPlacementCenter owner) { }
         public void Execute(Autodesk.Revit.UI.UIApplication app) { }
         public string GetName() => "PlacementRunHandler";
     }
@@ -163,6 +181,15 @@ namespace StingTools.UI
         public string Kind        { get; set; }
         public int    PhotoCount  { get; set; }
         public bool   IsLocked    { get; set; }
+        public List<Guid> Photos  { get; set; } = new();
+    }
+
+    /// <summary>Stub — Site Photos NDA policy payload.</summary>
+    public sealed class PhotoPolicyDto
+    {
+        public string NdaText  { get; set; }
+        public string NdaSha   { get; set; }
+        public bool   Required { get; set; }
     }
 
     public sealed class PhotoChecklistDto
@@ -206,9 +233,26 @@ namespace StingTools.Core.Drawing
         public string DetailLevel      { get; set; }
         public string ScaleHint        { get; set; }
         public string ColorScheme      { get; set; }
-        public string Appearance       { get; set; }
+        public PackAppearanceInfo Appearance { get; set; }
         public string PhaseName        { get; set; }
-        public bool   ByMaterialClass  { get; set; }
+        public List<ByMaterialClassRule> ByMaterialClass  { get; set; }
+    }
+
+    /// <summary>Stub — typography / line-weight / fill appearance for a view-style pack.</summary>
+    public sealed class PackAppearanceInfo
+    {
+        public double LineWeightScale     { get; set; } = 1.0;
+        public string TextStyleName       { get; set; }
+        public string DimensionStyleName  { get; set; }
+        public string HatchPalette        { get; set; }
+    }
+
+    /// <summary>Stub — single by-material-class filter rule for a pack.</summary>
+    public sealed class ByMaterialClassRule
+    {
+        public string MaterialClass { get; set; }
+        public string ColorHex      { get; set; }
+        public int    LineWeight    { get; set; }
     }
 }
 
@@ -219,37 +263,49 @@ namespace StingTools.BIMManager
 {
     public sealed partial class PlanscapeServerClient
     {
-        // HVAC publish / snapshot
-        public Task<bool> PushHvacSnapshotAsync(Guid projectId, object payload) => Task.FromResult(false);
-        public Task<bool> PushHvacLoadsBulkAsync(Guid projectId, object payload) => Task.FromResult(false);
-        public Task<bool> PushHvacNcAsync(Guid projectId, object payload) => Task.FromResult(false);
+        // HVAC publish — callers use `.HasValue` on the awaited result so this
+        // is Task<bool?> not Task<bool>.
+        public Task<bool?> PushHvacSnapshotAsync(Guid projectId, object payload) => Task.FromResult<bool?>(false);
+        public Task<bool?> PushHvacLoadsBulkAsync(Guid projectId, object payload) => Task.FromResult<bool?>(false);
+        public Task<bool?> PushHvacNcAsync(Guid projectId, object payload) => Task.FromResult<bool?>(false);
 
         // Model registry — ComputeSha256 must be static per call sites in PublishModelCommand.
         public static string ComputeSha256(string s) => "";
         public Task<JObject?> FindModelByHashAsync(Guid projectId, string sha256) => Task.FromResult<JObject?>(null);
-        public Task<bool>     RefreshModelMetadataAsync(Guid projectId, Guid modelId, object payload) => Task.FromResult(false);
-        public Task<bool>     DeleteModelAsync(Guid projectId, Guid modelId) => Task.FromResult(false);
+        public Task<bool> RefreshModelMetadataAsync(Guid projectId, Guid modelId, object payload, string elementMapPath = null) => Task.FromResult(false);
+        public Task<bool> DeleteModelAsync(Guid projectId, Guid modelId) => Task.FromResult(false);
 
         // Site Photos — NDA / policy
-        public Task<JObject?> GetPhotoPolicyAsync(Guid projectId) => Task.FromResult<JObject?>(null);
-        public Task<bool>     AcceptPhotoNdaAsync(Guid projectId) => Task.FromResult(false);
+        public Task<StingTools.UI.PhotoPolicyDto?> GetPhotoPolicyAsync(Guid projectId) => Task.FromResult<StingTools.UI.PhotoPolicyDto?>(null);
+        public Task<bool>     AcceptPhotoNdaAsync(Guid projectId, string ndaSha = null) => Task.FromResult(false);
         public HashSet<Guid>  LastNdaRequiredIds { get; set; } = new();
 
         // Site Photos — checklists / albums / distribution
-        public Task<List<StingTools.UI.PhotoChecklistDto>?> ListPhotoChecklistsAsync(Guid projectId) => Task.FromResult<List<StingTools.UI.PhotoChecklistDto>?>(new List<StingTools.UI.PhotoChecklistDto>());
+        public Task<List<StingTools.UI.PhotoChecklistDto>?> ListPhotoChecklistsAsync(Guid projectId, string status = null) => Task.FromResult<List<StingTools.UI.PhotoChecklistDto>?>(new List<StingTools.UI.PhotoChecklistDto>());
         public Task<List<StingTools.UI.PhotoAlbumDto>?>     ListPhotoAlbumsAsync(Guid projectId) => Task.FromResult<List<StingTools.UI.PhotoAlbumDto>?>(new List<StingTools.UI.PhotoAlbumDto>());
         public Task<StingTools.UI.PhotoAlbumDto?>           GetPhotoAlbumAsync(Guid projectId, Guid albumId) => Task.FromResult<StingTools.UI.PhotoAlbumDto?>(null);
-        public Task<StingTools.UI.PhotoAlbumDto?>           CreatePhotoAlbumAsync(Guid projectId, string name, string description = null) => Task.FromResult<StingTools.UI.PhotoAlbumDto?>(null);
+        public Task<StingTools.UI.PhotoAlbumDto?>           CreatePhotoAlbumAsync(Guid projectId, string name, string description = null, string visibility = "Project") => Task.FromResult<StingTools.UI.PhotoAlbumDto?>(null);
         public Task<bool> AddPhotosToAlbumAsync(Guid projectId, Guid albumId, IEnumerable<Guid> photoIds) => Task.FromResult(false);
         public Task<bool> LockPhotoAlbumAsync(Guid projectId, Guid albumId, bool locked) => Task.FromResult(false);
-        public Task<string?> CreatePhotoShareLinkAsync(Guid projectId, Guid albumId, TimeSpan? expiry = null) => Task.FromResult<string?>(null);
-        public Task<bool> ExportPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, string format) => Task.FromResult(false);
+        public Task<string?> CreatePhotoShareLinkAsync(Guid projectId, Guid albumId, TimeSpan? expiry = null, string label = null) => Task.FromResult<string?>(null);
+        public Task<bool> ExportPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds = null, string format = "zip", Guid? albumId = null) => Task.FromResult(false);
 
         // Site Photos — admin bulk
         public Task<bool> BulkReclassifyPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, string newClass) => Task.FromResult(false);
-        public Task<bool> BulkReanchorPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, object payload) => Task.FromResult(false);
-        public Task<JArray?> ListDistributionGroupsAsync(Guid projectId) => Task.FromResult<JArray?>(null);
-        public Task<bool> CreateDistributionGroupAsync(Guid projectId, string name, IEnumerable<string> recipients) => Task.FromResult(false);
+        public Task<bool> BulkReanchorPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, object payload = null, string levelCode = null, string zoneCode = null) => Task.FromResult(false);
+        public Task<List<DistributionGroupDto>?> ListDistributionGroupsAsync(Guid projectId) => Task.FromResult<List<DistributionGroupDto>?>(new List<DistributionGroupDto>());
+        public Task<bool> CreateDistributionGroupAsync(Guid projectId, string name, IEnumerable<string> recipients = null, string kind = null) => Task.FromResult(false);
+    }
+
+    /// <summary>Stub — distribution group DTO mirroring the server contract.</summary>
+    public sealed class DistributionGroupDto
+    {
+        public Guid   Id   { get; set; }
+        public string Name { get; set; } = "";
+        public string Kind { get; set; }
+        public int    MemberCount { get; set; }
+        public bool   IncludeInDailyDigest { get; set; }
+        public bool   ForceRedacted { get; set; }
     }
 }
 
@@ -412,8 +468,19 @@ namespace StingTools.Core.Routing
 {
     public abstract partial class DropEngineBase
     {
-        protected bool _soffitAwareness;
-        protected bool CheckSoffitClash(Document doc, XYZ pt) => false;
+        // The merged callers do:  if (CheckSoffitClash) { if (_soffitAwareness?.SegmentIsRoutable(...)) {...} }
+        // so CheckSoffitClash is treated as a property (not a method) and _soffitAwareness is a structural-awareness object with SegmentIsRoutable(...).
+        protected bool CheckSoffitClash { get; set; }
+        protected StingTools.Core.Placement.StructuralAwareness _soffitAwareness;
+    }
+}
+
+namespace StingTools.Core.Placement
+{
+    /// <summary>Stub — structural-awareness query helper consumed by DropEngineBase.</summary>
+    public sealed class StructuralAwareness
+    {
+        public bool SegmentIsRoutable(XYZ start, XYZ end) => true;
     }
 }
 
@@ -424,7 +491,7 @@ namespace StingTools.Core.Calc
 {
     internal static class PipeSetSlopeExt
     {
-        public static void SetSlope(this Autodesk.Revit.DB.Plumbing.Pipe _, double slopePct) { /* stub */ }
+        public static void SetSlope(this Autodesk.Revit.DB.Plumbing.Pipe _, double slopePct, double minDropMm = 0) { /* stub */ }
     }
 }
 

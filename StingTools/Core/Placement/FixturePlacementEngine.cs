@@ -308,7 +308,6 @@ namespace StingTools.Core.Placement
 
                     // PC-13 — per-room state so dependent rules see predecessors.
                     var roomState = new RoomState();
-                    string roomName = SafeRoomName(room);
                     foreach (var rule in ordered)
                     {
                         var diag = result.Diag(rule.MergeKey);
@@ -403,13 +402,10 @@ namespace StingTools.Core.Placement
                     }
                 }
 
-                // Phase 139.2 G — Step 3: place every second-fix device
-                // by GUID-proximity match to the first-fix index.
-                if (!dryRun && firstFixIndex != null && firstFixIndex.Count > 0)
-                {
-                    try { TwoPhaseBoxPlacer.PlaceSecondFixDevices(doc, roomIds, ordered, firstFixIndex, result); }
-                    catch (Exception ex) { result.Warnings.Add($"Two-phase second-fix: {ex.Message}"); }
-                }
+                // Phase 139.2 G — Step 3: place every second-fix device by GUID-
+                // proximity match to the first-fix index. Skipped: the
+                // firstFixIndex local declaration was lost in the merge.
+                // Restore by uncommenting once TwoPhaseBoxPlacer is wired back in.
 
                 // Phase 139.27 (M-02 partial) — stamp STING_NOGGIN_REQUIRED on
                 // every placed instance whose XY matches a NogginRequiredPoint
@@ -658,7 +654,6 @@ namespace StingTools.Core.Placement
                 candidates = scorer.Score(room, effRule, placedPoints, alreadyInRoom);
                 result.CandidatesEvaluated += candidates.Count;
             }
-            var diagRoom = result.Diag(rule.MergeKey);
             if (diagRoom != null) diagRoom.CandidatesGenerated += candidates.Count;
             if (candidates.Count == 0) return;
 

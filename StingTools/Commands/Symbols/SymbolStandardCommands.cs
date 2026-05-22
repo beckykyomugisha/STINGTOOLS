@@ -145,7 +145,11 @@ namespace StingTools.Commands.Symbols
                                     string scaleTier = SymbolScaleEngine.GetScaleTier(view);
                                     string fam = SymbolConceptRegistry.GetFamilyName(conceptId, newStandard, viewCtx, scaleTier, null);
                                     if (string.IsNullOrEmpty(fam)) continue;
-                                    var sym = FindSymbol(fam);
+                                    // Inline FindSymbol — original helper was lost to the merge.
+                                    var sym = new FilteredElementCollector(doc)
+                                        .OfClass(typeof(FamilySymbol))
+                                        .Cast<FamilySymbol>()
+                                        .FirstOrDefault(fs => string.Equals(fs.FamilyName, fam, StringComparison.OrdinalIgnoreCase));
                                     if (sym == null) continue;
                                     if (!sym.IsActive) sym.Activate();
                                     tag.ChangeTypeId(sym.Id);

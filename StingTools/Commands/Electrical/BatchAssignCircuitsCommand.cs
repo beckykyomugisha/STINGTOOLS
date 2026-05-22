@@ -249,8 +249,8 @@ namespace StingTools.Commands.Electrical
                             // collector by name now that PanelId is on Assignment.
                             try
                             {
-                                if (panelFi != null)
-                                    ParameterHelpers.SetString(panelFi, "ELC_PNL_CIRCUIT_GROUP_TXT", a.Group, overwrite: false);
+                                if (panelInst != null)
+                                    ParameterHelpers.SetString(panelInst, "ELC_PNL_CIRCUIT_GROUP_TXT", a.Group, overwrite: false);
                             }
                             catch (Exception ex2) { StingLog.Warn($"Stamp panel group: {ex2.Message}"); }
                         }

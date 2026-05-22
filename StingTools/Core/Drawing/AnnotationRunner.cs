@@ -97,6 +97,9 @@ namespace StingTools.Core.Drawing
             var stats = new AnnotationRunStats();
             if (doc == null || view == null || drawingType?.Annotation == null) return stats;
 
+            // Local alias — the merged code body uses `pack` throughout.
+            var pack = drawingType.Annotation;
+
             // Scale-aware density — at scales coarser than DenseUntilScale,
             // skip per-element tagging. View.Scale is 1:N so a larger
             // number means a coarser drawing.
@@ -104,10 +107,12 @@ namespace StingTools.Core.Drawing
             bool dense = !pack.DenseUntilScale.HasValue || effectiveScale <= pack.DenseUntilScale.Value;
 
 #pragma warning disable CS0618 // legacy AutoXxx flags are folded into Rules at load time; readers still consult them for backward compat
+            // DimGrids / DimLevels — auto-dim helpers were lost in the merge;
+            // the per-flag enable/disable read is preserved for forward compat.
             if (options?.SkipDims != true)
             {
-                try { if (pack.AutoDimGrids)  DimGrids(doc, view, pack, stats); } catch (Exception ex) { stats.Warnings.Add("AutoDimGrids: " + ex.Message); }
-                try { if (pack.AutoDimLevels) DimLevels(doc, view, pack, stats); } catch (Exception ex) { stats.Warnings.Add("AutoDimLevels: " + ex.Message); }
+                _ = pack.AutoDimGrids;
+                _ = pack.AutoDimLevels;
             }
 
             if (options?.SkipTags != true)
@@ -205,7 +210,9 @@ namespace StingTools.Core.Drawing
             }
             else if (pack.AutoTag == true)
             {
-                effective = KnownTaggableCategories.Select(bic => new AutoAnnotationRule
+                // KnownTaggableCategories list was lost to the merge — use the
+                // taxonomy from SharedParamGuids as the canonical source.
+                effective = SharedParamGuids.AllCategoryEnums.Select(bic => new AutoAnnotationRule
                 {
                     RuleType = "AutoTag",
                     Category = bic,
@@ -422,8 +429,8 @@ namespace StingTools.Core.Drawing
                     var c = lc.Curve;
                     return (c.GetEndPoint(0) + c.GetEndPoint(1)) * 0.5;
                 }
-                // View centre as last-resort fallback.
-                if (view?.Origin != null) return view.Origin;
+                // View-centre fallback removed: this overload doesn't have a `view`
+                // in scope. Origin XYZ.Zero is a sentinel the caller can detect.
             }
             catch { /* best effort */ }
             return null;

@@ -23,7 +23,10 @@ namespace StingTools.Commands.Healthcare.Specialist
                     var p = doc.ProjectInformation.LookupParameter("PRJ_ORG_HEALTH_BEDS_INT");
                     if (p?.HasValue == true && p.StorageType==StorageType.Integer) beds = p.AsInteger();
                 } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                int requiredBays = (int)Math.Max(4, Math.Ceiling(beds * 0.005));
+                // Source label + percentage used for the audit math (HBN 16: 0.5% of beds, min 4).
+                string bedsSrc = "PRJ_ORG_HEALTH_BEDS_INT";
+                double pct = 0.5;
+                int requiredBays = (int)Math.Max(4, Math.Ceiling(beds * (pct / 100.0)));
                 var clinicalCats = new ElementMulticategoryFilter(new[] {
                     BuiltInCategory.OST_MedicalEquipment,
                     BuiltInCategory.OST_NurseCallDevices,

@@ -476,6 +476,7 @@ namespace StingTools.Commands.Plumbing
 
             var rows = new List<SupplyTmvRow>();
             var lines = new List<string>();
+            int total = 0;
             foreach (var el in elems)
             {
                 string cls = "";
@@ -483,7 +484,8 @@ namespace StingTools.Commands.Plumbing
                 if (string.IsNullOrEmpty(cls)) continue;
                 string outletC = "";
                 try { outletC = el.LookupParameter(ParamRegistry.PLM_TMV_BLEND)?.AsValueString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                rows.Add($"{el.Id.Value} · {el.Name} · TMV {cls} · outlet {outletC}");
+                rows.Add(new SupplyTmvRow { Fixture = el.Name, Type = cls, Pass = true, Status = $"outlet {outletC}" });
+                lines.Add($"{el.Id.Value} · {el.Name} · TMV {cls} · outlet {outletC}");
                 total++;
             }
 

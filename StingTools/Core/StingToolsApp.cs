@@ -1747,6 +1747,7 @@ namespace StingTools.Core
         private void RegisterDockablePanel(UIControlledApplication application)
         {
             string asmPath = AssemblyPath;
+            const string tabName = "STING Tools";
 
             // Step 1 — external event handler. Independent try/catch so a
             // throw here doesn't stop the dockable-pane register or the
@@ -1763,8 +1764,6 @@ namespace StingTools.Core
                     "STING Tools",
                     provider);
                 StingLog.Info("RegisterDockablePanel: dockable pane registered");
-
-                string asmPath = AssemblyPath;
 
                 // STING Hub — quick-launch panel (added FIRST so it sits at the
                 // left end of the tab). 9 small stacked buttons with runtime-

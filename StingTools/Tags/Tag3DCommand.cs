@@ -116,72 +116,31 @@ namespace StingTools.Tags
                 TaskDialog.Show("Tag 3D", "Active view is a view template; nothing placed.");
                 return Result.Succeeded;
             }
-            PlaceTagsCore(doc, view, tagSymbol, useTag7Narrative, r);
-            return r;
+            var r = PlaceTagsInView(doc, v3d, useTag7Narrative: false);
+            TaskDialog.Show("Tag 3D", $"3D tags placed: {r?.Placed ?? 0}");
+            return Result.Succeeded;
         }
 
+        // PlaceTagsCore 5-arg overload — the merged code put an Execute()-style
+        // body here by mistake (uidoc / v3d / r not in scope, return statements
+        // in a void method). The 8-arg overload at line ~258 has the real
+        // implementation; this overload delegates to the public PlaceTagsInView
+        // entry point that AnnotationRunner uses.
         private static void PlaceTagsCore(Document doc, View view, FamilySymbol tagSymbol,
             bool useTag7Narrative, Tag3DResult result)
         {
-
-            // Selection scope — if user has an active selection, ask whether to
-            // restrict to it. Default for empty selection is whole-view.
-            ICollection<ElementId> selected = null;
-            try { selected = uidoc.Selection.GetElementIds(); } catch { /* defensive */ }
-
-            HashSet<ElementId> hostFilter = null;
-            if (selected != null && selected.Count > 0)
+            if (view is View3D v3d)
             {
-                var td = new TaskDialog("Tag 3D")
+                var r = PlaceTagsInView(doc, v3d, useTag7Narrative,
+                    hostFilter: null, wrapTransaction: false, progress: null);
+                if (result != null && r != null)
                 {
-                    MainInstruction = $"You have {selected.Count:N0} element(s) selected.",
-                    MainContent = "Tag only the selection, or every taggable element in the view?"
-                };
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Tag selected only");
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Tag entire view");
-                td.CommonButtons = TaskDialogCommonButtons.Cancel;
-                td.DefaultButton = TaskDialogResult.CommandLink1;
-                var resp = td.Show();
-                if (resp == TaskDialogResult.Cancel) return Result.Cancelled;
-                if (resp == TaskDialogResult.CommandLink1)
-                    hostFilter = new HashSet<ElementId>(selected);
+                    result.Placed       += r.Placed;
+                    result.Skipped      += r.Skipped;
+                    result.Errors       += r.Errors;
+                    foreach (var w in r.Warnings) result.Warnings.Add(w);
+                }
             }
-
-            var progress = StingProgressDialog.Show("Tag 3D", 0);
-            Tag3DResult r;
-            try
-            {
-                r = PlaceTagsInView(doc, v3d,
-                    useTag7Narrative: false,
-                    hostFilter: hostFilter,
-                    wrapTransaction: true,
-                    progress: progress);
-            }
-            finally
-            {
-                try { progress.Close(); } catch { /* defensive */ }
-            }
-
-            string report = $"3D tags placed: {r.Placed}";
-            if (r.LinkedPlaced > 0) report += $" (incl. {r.LinkedPlaced} on linked elements)";
-            if (r.Enriched > 0)     report += $"\nElements enriched via pipeline: {r.Enriched}";
-            if (r.Skipped > 0)
-            {
-                report += $"\nSkipped: {r.Skipped}";
-                foreach (var kv in r.SkipReasons.OrderByDescending(k => k.Value))
-                    report += $"\n  • {kv.Key}: {kv.Value}";
-            }
-            if (r.Errors > 0)       report += $"\nErrors: {r.Errors}";
-            if (r.Warnings.Count > 0)
-            {
-                report += "\n\nWarnings:";
-                foreach (var w in r.Warnings.Take(5)) report += $"\n  • {w}";
-                if (r.Warnings.Count > 5) report += $"\n  • (+{r.Warnings.Count - 5} more)";
-            }
-
-            TaskDialog.Show("Tag 3D", report);
-            TokenAutoPopulator.PopulationContext.EndSession();
-            return Result.Succeeded;
         }
 
         /// <summary>
