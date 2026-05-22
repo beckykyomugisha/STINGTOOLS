@@ -2863,11 +2863,12 @@ namespace StingTools.Core
         // Cross-system automation: warning → issue pipeline
         // ══════════════════════════════════════════════════════════════
 
+    /// <summary>Extended warnings engine: auto-issue creation from critical warnings.</summary>
+    internal static class WarningsEngineExt
+    {
         /// <summary>
-        /// Phase 55: Auto-create issues from CRITICAL/HIGH severity warnings.
+        /// Auto-create issues from CRITICAL/HIGH severity warnings.
         /// Bridges the gap between Revit warnings (alerts) and STING issues (work orders).
-        /// Checks for existing linked issues to avoid duplicates.
-        /// Returns count of newly created issues.
         /// </summary>
         internal static int AutoCreateIssuesFromWarnings(Document doc, WarningReport report,
             WarningSeverity minSeverity = WarningSeverity.Critical)
@@ -2954,7 +2955,7 @@ namespace StingTools.Core
                     if (File.Exists(issuesPath))
                     {
                         try { arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath)); }
-                        catch { arr = new Newtonsoft.Json.Linq.JArray(); }
+                        catch (Exception ex) { StingLog.Warn($"ParseJArray: {ex.Message}"); arr = new Newtonsoft.Json.Linq.JArray(); }
                     }
                     else arr = new Newtonsoft.Json.Linq.JArray();
 
@@ -2968,7 +2969,10 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"AutoCreateIssuesFromWarnings: {ex.Message}"); }
             return created;
         }
+    } // end WarningsEngineExt
 
+    // ══════════════════════════════════════════════════════════════════
+    //  COMMANDS (8 IExternalCommand classes)
     // ══════════════════════════════════════════════════════════════════
 
     /// <summary>

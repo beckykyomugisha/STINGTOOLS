@@ -2456,6 +2456,7 @@ namespace StingTools.Model
                     }
                 }
 
+                frameProgress?.Close(); // AUTO-R3: Close progress dialog
                 sw.Stop();
                 totalResult.Duration = sw.Elapsed;
                 totalResult.Summary = $"Created {baysX}×{baysY} structural grid frame ({storeyCount} storeys): " +

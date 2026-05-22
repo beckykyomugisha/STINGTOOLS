@@ -727,10 +727,9 @@ namespace StingTools.Core
 
         /// <summary>Phase 66b: Validate FUNC→PROD pair consistency.
         /// Detects contradictory function/product combinations like FUNC=SUP with PROD=WC.</summary>
-        private static string ValidateFuncProdPair(string func, string prod, string disc)
-        {
-            // Define incompatible FUNC→PROD pairs (function cannot produce these product types)
-            var incompatiblePairs = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+        // PERF: Static readonly to avoid per-call Dictionary+HashSet allocation
+        private static readonly Dictionary<string, HashSet<string>> _incompatibleFuncProdPairs =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 // Supply function should not have sanitary/plumbing products
                 { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "URN", "SNK", "SHW", "BTH", "BID", "MOP" } },
@@ -746,7 +745,9 @@ namespace StingTools.Core
                 { "FLS", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DR", "WIN", "WL", "FL", "CLG", "RF", "FUR" } },
             };
 
-            if (incompatiblePairs.TryGetValue(func, out var badProds) && badProds.Contains(prod))
+        private static string ValidateFuncProdPair(string func, string prod, string disc)
+        {
+            if (_incompatibleFuncProdPairs.TryGetValue(func, out var badProds) && badProds.Contains(prod))
                 return $"FUNC '{func}' is incompatible with PROD '{prod}' — check discipline assignment";
 
             return null;

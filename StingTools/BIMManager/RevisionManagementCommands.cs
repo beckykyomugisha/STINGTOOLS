@@ -788,9 +788,9 @@ namespace StingTools.BIMManager
                     {
                         revTx.Start();
                         var allTagged = new FilteredElementCollector(doc)
-                            .WhereElementIsNotElementType()
-                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
-                            .ToList();
+                            .WhereElementIsNotElementType();
+                        if (catEnums != null && catEnums.Length > 0)
+                            allTagged.WherePasses(new ElementMulticategoryFilter(catEnums));
                         foreach (var el in allTagged)
                         {
                             string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -803,6 +803,10 @@ namespace StingTools.BIMManager
                     StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
                 }
                 catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
+
+                // Invalidate compliance cache ONCE after all rev-related transactions
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
 
                 // NTF-03: Notify team that revision is open
                 try
