@@ -228,6 +228,32 @@ namespace StingTools.Commands.Placement
                 StingLog.Warn($"PlaceFixturesCommand: rule load failed: {ex.Message}");
             }
 
+            // Phase 139.27 (I-04) — pre-flight gate on the project building
+            // profile. Pre-139.27 the loader's FilterByProfile method
+            // existed but wasn't called by this entry point — a project
+            // that disabled BS 7671 would still see every electrical rule
+            // fire because the dock-panel's category checkboxes don't
+            // intersect with profile.ActiveStandards. Apply the filter
+            // and surface a one-shot summary so the user sees what got
+            // dropped and why.
+            ProjectBuildingProfile profile = null;
+            try { profile = ProjectBuildingProfileIO.Load(doc.PathName); } catch { }
+            if (profile != null && rules != null && rules.Count > 0)
+            {
+                int beforeCount = rules.Count;
+                var profileFiltered = PlacementRuleLoader.FilterByProfile(rules, profile);
+                int dropped = beforeCount - (profileFiltered?.Count ?? 0);
+                if (dropped > 0)
+                {
+                    string actLabel = (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0)
+                        ? string.Join(", ", profile.ActiveStandards)
+                        : "(none — all rules pass)";
+                    string btLabel = string.IsNullOrEmpty(profile.BuildingType) ? "(any)" : profile.BuildingType;
+                    StingLog.Info($"PlaceFixturesCommand: ProjectBuildingProfile dropped {dropped} rule(s) — BuildingType={btLabel}, ActiveStandards={actLabel}.");
+                }
+                rules = profileFiltered;
+            }
+
             List<PlacementRule> filtered = null;
             if (rules != null && rules.Count > 0)
             {

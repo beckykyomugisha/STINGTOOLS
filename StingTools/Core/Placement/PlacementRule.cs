@@ -637,6 +637,80 @@ namespace StingTools.Core.Placement
 
         public string HeightStandardRef { get; set; } = "";
 
+        // ── Phase 139.27 (X-02) — Per-rule lighting uniformity gate ─
+
+        /// <summary>
+        /// Minimum acceptable BS EN 12464-1 / CIBSE LG7 uniformity ratio
+        /// (Uo = Emin / Eavg). 0 = use calculator default (0.40 — general).
+        /// 0.60 typical for offices; 0.70 for healthcare / classrooms.
+        /// </summary>
+        public double MinUniformityRatio { get; set; } = 0.0;
+
+        // ── Phase 139.27 (X-04) — Cable-derating advisory ───────────
+
+        /// <summary>
+        /// When > 0, the placement engine emits an advisory warning if
+        /// more than this many same-system cables / conduits land within
+        /// the rule's bundle clearance — BS 7671 Table 4 derating
+        /// (e.g. 0.80× at 4 cables, 0.50× at ≥ 9). 0 = no advisory.
+        /// </summary>
+        public int CableBundleAdvisoryCount { get; set; } = 0;
+
+        // ── Phase 139.28 — Routing strategy (chased / surface / suspended)
+
+        /// <summary>
+        /// Which mounting context applies to this rule's route. Drives
+        /// concrete-cover offsets (CHASED), clip emission (SURFACE), and
+        /// hanger emission (SUSPENDED). Empty = legacy NONE-equivalent;
+        /// the engine falls back to RouteOffsetMm without standards lookup.
+        /// </summary>
+        public string MountingContext { get; set; } = ""; // CHASED | SURFACE | SUSPENDED
+
+        /// <summary>
+        /// Nominal pipe / conduit / duct diameter (DN) in mm. Drives both
+        /// the concrete-cover offset (CHASED) and the support-spacing
+        /// table lookup (SURFACE / SUSPENDED). 0 = read from the created
+        /// MEP curve at runtime.
+        /// </summary>
+        public double NominalDiameterMm { get; set; } = 0.0;
+
+        /// <summary>
+        /// Insulation thickness (mm) added to the routing envelope.
+        /// Penalises support span by ×0.90 in HangerSpacingTable.Query.
+        /// </summary>
+        public double InsulationThicknessMm { get; set; } = 0.0;
+
+        /// <summary>
+        /// Eurocode 2 / UK NA exposure class — XC1 / XC2 / XC3 / XC4 /
+        /// XD1 / XD2 / XS1 / XF1. Empty defaults to XC2 (typical
+        /// interior-wall chase) at <see cref="ConcreteCoverTable.Default"/>.
+        /// Drives the cast-in / cast-against cover for CHASED routing.
+        /// </summary>
+        public string ExposureClass { get; set; } = "";
+
+        /// <summary>
+        /// Minimum allowable slope as a percentage (1.25 = 1:80, 2.5 = 1:40).
+        /// 0 = no slope check (pressurised systems). Triggered by
+        /// SlopeValidator after segment creation.
+        /// </summary>
+        public double MinSlopePercent { get; set; } = 0.0;
+
+        /// <summary>
+        /// Pipe / duct material override — STEEL / COPPER / PLASTIC /
+        /// CAST_IRON / GI_SHEET. Empty = read PLM_PPE_MAT_TXT or
+        /// HVC_DCT_MAT_TXT off the created MEP curve. Drives material-
+        /// specific spacing tables (BS 5572 copper vs steel vs CI).
+        /// </summary>
+        public string Material { get; set; } = "";
+
+        /// <summary>
+        /// When true, the engine auto-emits clip / hanger family
+        /// instances after the route is created (SURFACE / SUSPENDED
+        /// only). Defaults to true so a routing rule without explicit
+        /// configuration still gets standards-compliant supports.
+        /// </summary>
+        public bool EmitSupports { get; set; } = true;
+
         // ── Methods ─────────────────────────────────────────────────
 
         /// <summary>Deep-copy the rule.</summary>

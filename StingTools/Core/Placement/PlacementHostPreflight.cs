@@ -50,20 +50,36 @@ namespace StingTools.Core.Placement
         // Phase 139.2 — cache the 3-D view used for soffit raycasts so we
         // don't run a FilteredElementCollector for every PlaceOnCeilingSoffit
         // call. Cleared whenever the active document changes.
+        // Phase 139.27 (N-03) — key by PathName + Title rather than
+        // Document.GetHashCode(). Two .rvts opened in sequence with the
+        // same Document hash code (rare but observed when Revit reopens
+        // a file at the same managed-heap address) would otherwise hand
+        // back a stale View3D from the closed document — calls to a
+        // disposed view crash the raycast path.
         private static View3D _cachedView3D;
-        private static int _cachedView3DDocHash;
+        private static string _cachedView3DKey;
+
+        private static string DocCacheKey(Document doc)
+        {
+            if (doc == null) return "";
+            string path = "";
+            string title = "";
+            try { path = doc.PathName ?? ""; } catch { }
+            try { title = doc.Title  ?? ""; } catch { }
+            return path + "|" + title;
+        }
 
         private static View3D ResolveView3D(Document doc)
         {
             if (doc == null) return null;
-            int docHash = doc.GetHashCode();
-            if (_cachedView3D != null && _cachedView3DDocHash == docHash && _cachedView3D.IsValidObject)
+            string docKey = DocCacheKey(doc);
+            if (_cachedView3D != null && _cachedView3DKey == docKey && _cachedView3D.IsValidObject)
                 return _cachedView3D;
             try
             {
                 _cachedView3D = new FilteredElementCollector(doc).OfClass(typeof(View3D))
                     .Cast<View3D>().FirstOrDefault(v => v != null && !v.IsTemplate);
-                _cachedView3DDocHash = docHash;
+                _cachedView3DKey = docKey;
             }
             catch { _cachedView3D = null; }
             return _cachedView3D;

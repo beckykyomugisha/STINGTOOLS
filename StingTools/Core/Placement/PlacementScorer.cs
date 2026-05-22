@@ -308,6 +308,17 @@ namespace StingTools.Core.Placement
         private readonly Dictionary<(ElementId, string), LightingGridResult> _gridCache
             = new Dictionary<(ElementId, string), LightingGridResult>();
 
+        /// <summary>
+        /// Phase 139.27 (M-02 partial) — snapshot of every LightingGridResult
+        /// the scorer cached during this run, keyed by (room, rule). The
+        /// engine walks this dictionary after placement to stamp
+        /// STING_NOGGIN_REQUIRED on placed instances whose XY matches a
+        /// NogginRequiredPoint, so NogginRequirementExportCommand can pick
+        /// them up. Without this surface, every noggin point computed by
+        /// LightingGridCalculator.CheckStructuralFixing was discarded.
+        /// </summary>
+        public IReadOnlyDictionary<(ElementId, string), LightingGridResult> GridResults => _gridCache;
+
         private void EmitLightingGridPoints(Room room, PlacementRule rule, XYZ roomPt,
             double offsetXFt, double offsetYFt, double anchorZ, List<XYZ> points)
         {

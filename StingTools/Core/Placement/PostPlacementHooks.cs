@@ -36,6 +36,31 @@ namespace StingTools.Core.Placement
         /// <summary>Probe MEP connectors and warn when any are unconnected.</summary>
         public static bool AssignMepSystem { get; set; } = false;
 
+        // Phase 139.27 (C-03) — reflection target resolution result, cached
+        // and surfaced once per session. Without this, a renamed / moved
+        // TagPipelineHelper silently skipped tagging on every placed
+        // instance — provenance + ISO-19650 tags were promised by the
+        // Centre's checkbox but never delivered. The first call probes
+        // and remembers; later calls skip the probe and either tag or
+        // skip cheaply.
+        private static System.Reflection.MethodInfo _tagPipelineMethod;
+        private static bool _tagPipelineProbed;
+        private static bool _tagPipelineMissingWarned;
+
+        /// <summary>True once <see cref="RunDataTagPipeline"/> has been
+        /// requested at least once and the reflection target was missing.
+        /// PlaceFixturesCommand surfaces this in the result panel so the
+        /// user knows tagging was silently degraded.</summary>
+        public static bool TagPipelineMissing => _tagPipelineProbed && _tagPipelineMethod == null;
+
+        /// <summary>Reset the cached probe — used by tests / a future hot-reload path.</summary>
+        public static void ResetReflectionCache()
+        {
+            _tagPipelineMethod = null;
+            _tagPipelineProbed = false;
+            _tagPipelineMissingWarned = false;
+        }
+
         /// <summary>
         /// Entry point invoked by the engine. Each toggle is independent.
         /// Failures are swallowed at the call site so a hook can never

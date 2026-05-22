@@ -466,6 +466,29 @@ namespace StingTools.Core.Routing
                 { result.Warnings.Add($"SeparationChecker failed: {ex.Message}"); }
             }
 
+            // Phase 139.29 — soffit beam / joist clash check.
+            // Suspended drops sit under structural soffits; if a beam
+            // sits between origin and to, the drop must dodge it.
+            // StructuralAwareness was wired for chase routing; here we
+            // hand it the drop segment and warn when it passes within
+            // 100 mm of a beam-junction or column.
+            if (CheckSoffitClash)
+            {
+                try
+                {
+                    if (_soffitAwareness == null) _soffitAwareness = new StingTools.Core.Placement.StructuralAwareness(Doc);
+                    const double clearFt = 100.0 / 304.8;
+                    if (!_soffitAwareness.SegmentIsRoutable(null, origin, to, clearFt))
+                    {
+                        result.Warnings.Add(
+                            $"Drop {fixtureEl.Id} → host {host?.Id?.Value}: passes within 100 mm of " +
+                            "structural beam/junction. Dropped anyway — verify offset or tighten the " +
+                            "drop path before issue (BIM coordinator review).");
+                    }
+                }
+                catch (Exception sex) { result.Warnings.Add($"Soffit clash check: {sex.Message}"); }
+            }
+
             // Stage 3: subclass creates the run geometry.
             var id = CreateRunBetween(origin, to, host, result);
             if (id == null || id == ElementId.InvalidElementId)
