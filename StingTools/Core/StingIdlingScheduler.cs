@@ -233,4 +233,50 @@ namespace StingTools.Core
             return true;
         }
     }
+
+    /// <summary>
+    /// TAG-STALE-WARN-01: Idling consumer that promotes stale-element flags into
+    /// the BIM issues register when the stale count crosses a threshold.
+    /// Runs ONCE per enqueue (returns true on completion). Dedupes against any
+    /// existing OPEN "stale" issue inside <see cref="WarningsEngineExt.AutoRaiseStaleIssues"/>.
+    /// </summary>
+    public class StaleWarningPromotionJob : IIdlingJob
+    {
+        public string Name => "StaleWarningPromotion";
+        public int Priority => 4;
+        public int BudgetMs => 30;
+
+        // Don't fire an issue for the first stale element — wait until a meaningful
+        // batch has accumulated to avoid issue noise from a single tweak. Configurable
+        // via TagConfig.StaleWarningThreshold (default 5).
+        private const int DefaultThreshold = 5;
+
+        public bool Execute(UIApplication uiApp)
+        {
+            try
+            {
+                var doc = uiApp?.ActiveUIDocument?.Document;
+                if (doc == null || doc.IsFamilyDocument) return true;
+
+                int threshold = TagConfig.StaleWarningThreshold > 0
+                    ? TagConfig.StaleWarningThreshold
+                    : DefaultThreshold;
+
+                var cached = ComplianceScan.GetCached() ?? ComplianceScan.Scan(doc);
+                if (cached == null || cached.StaleCount < threshold) return true;
+
+                int created = WarningsEngineExt.AutoRaiseStaleIssues(doc);
+                if (created > 0)
+                {
+                    StingLog.Info($"StaleWarningPromotionJob: created {created} stale-element issue(s) " +
+                        $"({cached.StaleCount} stale elements, threshold={threshold}).");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"StaleWarningPromotionJob: {ex.Message}");
+            }
+            return true; // single-shot
+        }
+    }
 }

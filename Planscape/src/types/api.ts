@@ -511,6 +511,13 @@ export interface ProjectSettings {
   limits: { maxAttachmentMB: number; maxDocumentMB: number; maxPhotosPerIssue: number };
   slaHours: { critical: number; high: number; medium: number; low: number };
   geofence: { hasBoundary: boolean; requireBoundary: boolean };
+  // Phase 144 — first-class admin booleans (stored on Project row, not ConfigJson)
+  // Phase 145 — adds the custom deliverable state machine carrier.
+  admin: {
+    enforceIso19650Naming: boolean;
+    hasCustomDeliverableStateMachine: boolean;
+    customDeliverableStateMachineJson: string | null;
+  };
 }
 
 export interface NotificationPreferences {

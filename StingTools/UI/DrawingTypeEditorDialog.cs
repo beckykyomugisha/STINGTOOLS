@@ -486,6 +486,41 @@ namespace StingTools.UI
             _packFormHost.Children.Clear();
             if (_currentPack == null) return;
 
+            // Phase 137 — Template Mode card (managed vs external + regenerate hook)
+            var tmBody = new StackPanel();
+            var modeRow = new StackPanel { Orientation = Orientation.Horizontal };
+            var rbExt = new RadioButton { Content = "External", GroupName = "tm" + _currentPack.Id, IsChecked = !_currentPack.IsManaged, Margin = new Thickness(0,0,12,0) };
+            var rbMan = new RadioButton { Content = "Managed",  GroupName = "tm" + _currentPack.Id, IsChecked =  _currentPack.IsManaged };
+            rbExt.Checked += (s,e) => { _currentPack.TemplateMode = "external"; RenderPackForm(); };
+            rbMan.Checked += (s,e) => { _currentPack.TemplateMode = "managed";  RenderPackForm(); };
+            modeRow.Children.Add(rbExt);
+            modeRow.Children.Add(rbMan);
+            tmBody.Children.Add(modeRow);
+
+            if (_currentPack.IsManaged)
+            {
+                var info = new TextBlock {
+                    Text = "STING will mint templates named 'STING:{pack-id}:{ViewType}'. Save triggers drift; use Regenerate to re-sync.",
+                    TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Colors.Goldenrod), Margin = new Thickness(0,4,0,4)
+                };
+                tmBody.Children.Add(info);
+                if (_currentPack.ManagedFields == null || _currentPack.ManagedFields.Count == 0)
+                    _currentPack.ManagedFields = new List<string> { "scale", "detailLevel", "discipline", "visualStyle", "phaseFilter" };
+                var grid = new WrapPanel { Margin = new Thickness(0,2,0,2) };
+                foreach (var f in new[] { "scale","detailLevel","discipline","visualStyle","phaseFilter","phase","annotationCrop","farClip","viewRange","underlay","vgOverrides","filters","worksetVisibility" })
+                {
+                    var cb = new CheckBox { Content = f, Margin = new Thickness(0,0,8,0), IsChecked = _currentPack.ManagedFields.Contains(f) };
+                    cb.Checked   += (s,e) => { if (!_currentPack.ManagedFields.Contains(f)) _currentPack.ManagedFields.Add(f); };
+                    cb.Unchecked += (s,e) => _currentPack.ManagedFields.Remove(f);
+                    grid.Children.Add(cb);
+                }
+                tmBody.Children.Add(grid);
+                tmBody.Children.Add(LabeledTextBox("Discipline (e.g. Architectural)", _currentPack.Discipline, v => _currentPack.Discipline = v));
+                tmBody.Children.Add(LabeledTextBox("Visual style (e.g. HiddenLine)",  _currentPack.VisualStyle, v => _currentPack.VisualStyle = v));
+                tmBody.Children.Add(LabeledTextBox("Phase filter name",               _currentPack.PhaseFilter, v => _currentPack.PhaseFilter = v));
+            }
+            _packFormHost.Children.Add(Card("Template Mode (Phase 137)", tmBody));
+
             // Identity
             var idBody = new StackPanel();
             idBody.Children.Add(LabeledTextBox("Id",          _currentPack.Id,          v => _currentPack.Id = v));
@@ -1050,6 +1085,56 @@ namespace StingTools.UI
 
         private static int TryInt(string s) => int.TryParse(s, out var n) ? n : 0;
 
+        /// <summary>
+        /// Phase 137 — clickable colour swatch button used for filter-rules
+        /// Proj-Col / Cut-Col cells. Opens VgColorPicker (Windows native
+        /// picker) and writes back the picked hex. Tooltip shows hex +
+        /// R/G/B in three formats so users can copy whichever they need.
+        /// </summary>
+        private System.Windows.Controls.Button MakeColourSwatch(string hex, Action<string> setter)
+        {
+            var btn = new System.Windows.Controls.Button { Padding = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Stretch };
+            UpdateColourSwatch(btn, hex);
+            btn.Click += (s, e) =>
+            {
+                var picked = StingTools.UI.VgColorPicker.Pick(hex);
+                if (picked == null) return; // cancelled
+                hex = picked;
+                UpdateColourSwatch(btn, hex);
+                setter?.Invoke(hex);
+            };
+            return btn;
+        }
+
+        private static void UpdateColourSwatch(System.Windows.Controls.Button btn, string hex)
+        {
+            var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            sp.Children.Add(new System.Windows.Controls.Border
+            {
+                Width = 16, Height = 14, Margin = new Thickness(0, 0, 4, 0),
+                Background = StingTools.UI.VgColorPicker.HexToBrush(hex),
+                BorderBrush = System.Windows.Media.Brushes.Gray,
+                BorderThickness = new Thickness(1)
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = string.IsNullOrEmpty(hex) ? "—" : hex,
+                FontSize = 10, VerticalAlignment = VerticalAlignment.Center
+            });
+            btn.Content = sp;
+            // Multi-format tooltip — hex / R G B decimal / 0.x normalised /
+            // RGB() CSS string. One swatch click → user copies whichever
+            // format they need without leaving the dialog.
+            if (StingTools.UI.VgColorPicker.TryParseHex(hex, out byte r, out byte g, out byte b))
+            {
+                btn.ToolTip = $"Hex: {hex}\nR G B: {r} {g} {b}\nRGB(): rgb({r},{g},{b})\nNormalised: {(r/255.0):F3} {(g/255.0):F3} {(b/255.0):F3}";
+            }
+            else
+            {
+                btn.ToolTip = "Click to pick a colour. Currently no override.";
+            }
+        }
+
         private string ValidatePack(ViewStylePack p)
         {
             var issues = new List<string>();
@@ -1208,6 +1293,24 @@ namespace StingTools.UI
             public string DefaultTagStyle { get; set; }
             [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
             public Dictionary<string, string> CategoryTagStyles { get; set; }
+
+            // Phase 137 — Managed view-template mode (nested-class mirror of
+            // StingTools.Core.Drawing.ViewStylePack so the editor's pack
+            // form can author the same fields the runtime reads).
+            [JsonProperty("templateMode",  NullValueHandling = NullValueHandling.Ignore)]
+            public string TemplateMode { get; set; }
+            [JsonProperty("managedFields", NullValueHandling = NullValueHandling.Ignore)]
+            public List<string> ManagedFields { get; set; }
+            [JsonProperty("discipline",    NullValueHandling = NullValueHandling.Ignore)]
+            public string Discipline { get; set; }
+            [JsonProperty("visualStyle",   NullValueHandling = NullValueHandling.Ignore)]
+            public string VisualStyle { get; set; }
+            [JsonProperty("phaseFilter",   NullValueHandling = NullValueHandling.Ignore)]
+            public string PhaseFilter { get; set; }
+
+            [JsonIgnore]
+            public bool IsManaged =>
+                string.Equals(TemplateMode, "managed", StringComparison.OrdinalIgnoreCase);
 
             public override string ToString()
             {
@@ -1669,7 +1772,26 @@ namespace StingTools.UI
             };
             b.Click += (s, e) =>
             {
-                try { StingDockPanel.DispatchCommand(tag); }
+                try
+                {
+                    // Phase 137 — surface dispatch failures so users aren't left
+                    // wondering why a button does nothing. The most common cause
+                    // (the editor was opened modally, blocking ExternalEvent) is
+                    // fixed by launching modeless in DrawingTypeEditorCommand,
+                    // but if the dock panel isn't initialised yet we still
+                    // explain it.
+                    bool ok = StingDockPanel.DispatchCommand(tag);
+                    if (!ok)
+                    {
+                        Autodesk.Revit.UI.TaskDialog.Show("STING — Drawing Type Editor",
+                            $"Could not dispatch command '{tag}'.\n\n" +
+                            "Open the STING dock panel once before launching the editor — " +
+                            "the dock panel registers the external event handler that runs " +
+                            "tagged commands. If the panel is already open, your Revit session " +
+                            "may have a pending modal dialog blocking the event queue; close " +
+                            "it and try again.");
+                    }
+                }
                 catch (Exception ex) { StingLog.Error("Dispatch:" + tag, ex); }
             };
             return b;
@@ -2138,8 +2260,12 @@ namespace StingTools.UI
                 v => tp.PresentationMode = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
                 tooltip: "Sets PARA_STATE_1/2/3 + WARN_VISIBLE in one shot. Empty = use Para-depth slider below."));
 
-            body.Children.Add(LabeledNullableNumber("Global paragraph depth (1-10)",
-                tp.ParaDepth, v => tp.ParaDepth = v,
+            // Phase 137 — typo-prevention: Global paragraph depth is now a
+            // closed dropdown 1..10 (was a free-form NullableNumber).
+            string[] depths = new[] { "", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" };
+            body.Children.Add(LabeledCombo("Global paragraph depth (1-10)",
+                depths, tp.ParaDepth?.ToString() ?? "",
+                v => tp.ParaDepth = int.TryParse(v, out var n) ? (int?)n : null,
                 tooltip: "Tier 1 = compact, 10 = full audit. Empty = inherit from preset / leave alone."));
 
             string[] sizes  = new[] { "", "2", "2.5", "3", "3.5" };
@@ -2164,15 +2290,49 @@ namespace StingTools.UI
                 v => tp.ColorScheme = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
                 tooltip: "Variable-driven colour map written to STING_VIEW_TAG_STYLE on the view."));
 
-            body.Children.Add(LabeledTextBox("Segment mask (8 chars 0/1)",
-                tp.SegmentMask, v => tp.SegmentMask = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ. Example '10000001' = DISC + SEQ only."));
+            // Phase 137 — Segment mask: 8 individual checkboxes (one per
+            // DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ token). Replaces the
+            // previous free-form TextBox so users can't type "0010000A"
+            // or transpose digits.
+            body.Children.Add(BuildSegmentMaskRow(tp));
 
-            body.Children.Add(LabeledNullableNumber("Display mode (1-5)",
-                tp.DisplayMode, v => tp.DisplayMode = v,
-                tooltip: "1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment."));
+            // Phase 137 — Display mode: closed dropdown of the five named
+            // modes so users can't type "6" or non-numeric text.
+            string[] displayModes = new[]
+            {
+                "",                              // empty = no override
+                "1 — SEQ",
+                "2 — PROD-SEQ",
+                "3 — DISC-SYS-SEQ",
+                "4 — DISC-PROD-SEQ",
+                "5 — Full 8-segment",
+                "6 — TAG7 narrative (client prose)",
+            };
+            body.Children.Add(LabeledCombo("Display mode",
+                displayModes,
+                tp.DisplayMode.HasValue ? displayModes.FirstOrDefault(s => s.StartsWith(tp.DisplayMode.Value + " ")) ?? "" : "",
+                v => tp.DisplayMode = (!string.IsNullOrEmpty(v) && int.TryParse(v.Split(' ')[0], out var n)) ? (int?)n : null,
+                tooltip: "1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ,\n" +
+                         "5=Full 8-segment, 6=TAG7 plain-language narrative.\n\n" +
+                         "Mode 6 reads the rich TAG7 narrative composed by WriteTag7All —\n" +
+                         "ideal for client-facing presentation drawings where prose reads\n" +
+                         "better than the technical 8-segment tag."));
+
+            // Phase 165 — pattern mode (HANDOVER / DC / CUSTOM) for T4-T10 payload.
+            // Empty = inherit project / type defaults (which are DC unless overridden).
+            string[] patternModes = new[] { "", "DC", "HANDOVER", "CUSTOM" };
+            body.Children.Add(LabeledCombo("T4-T10 pattern mode",
+                patternModes,
+                tp.PatternMode ?? "",
+                v => tp.PatternMode = string.IsNullOrWhiteSpace(v) ? null : v.Trim().ToUpperInvariant(),
+                tooltip: "Selects which T4-T10 payload pack renders.\n" +
+                         "  DC       — design & construction payload (default project mode)\n" +
+                         "  HANDOVER — post-construction handover payload\n" +
+                         "  CUSTOM   — project-specific payload\n" +
+                         "Empty = leave whatever the type already has set."));
 
             body.Children.Add(BuildSectionVisibilityGrid(tp));
+            body.Children.Add(BuildTierVisibilityGrid(tp));
             body.Children.Add(BuildCategoryDepthsGrid(tp));
 
             // Summary / collapse line
@@ -2185,6 +2345,50 @@ namespace StingTools.UI
             body.Children.Add(summary);
 
             return Card("Token Depth & Style (Phase 135)", body);
+        }
+
+        /// <summary>
+        /// Phase 137 — segment-mask author UX: eight checkboxes labelled
+        /// DISC / LOC / ZONE / LVL / SYS / FUNC / PROD / SEQ instead of a
+        /// free-form 8-char TextBox. Mask string is materialised on every
+        /// change so the on-disk JSON stays the same shape; no chance of
+        /// typos like "11I00001" or transposed digits.
+        /// </summary>
+        private UIElement BuildSegmentMaskRow(AnnotationTokenProfile tp)
+        {
+            var sp = new StackPanel();
+            sp.Children.Add(new TextBlock {
+                Text = "Segment mask (DISC LOC ZONE LVL SYS FUNC PROD SEQ)",
+                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11,
+                Margin = new Thickness(0, 6, 0, 2) });
+            string mask = (tp.SegmentMask ?? "").PadRight(8, '1').Substring(0, 8);
+            string[] tokens = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            var cbs = new System.Windows.Controls.CheckBox[8];
+            for (int i = 0; i < 8; i++)
+            {
+                int idx = i;
+                cbs[i] = new System.Windows.Controls.CheckBox
+                {
+                    Content = tokens[i],
+                    IsChecked = mask[i] == '1',
+                    Margin = new Thickness(0, 0, 8, 0),
+                    ToolTip = $"Token {idx + 1} ({tokens[idx]}) on/off in the displayed tag.",
+                };
+                cbs[idx].Checked   += (s, e) => UpdateMask(cbs, tp);
+                cbs[idx].Unchecked += (s, e) => UpdateMask(cbs, tp);
+                row.Children.Add(cbs[i]);
+            }
+            sp.Children.Add(row);
+            return sp;
+        }
+
+        private static void UpdateMask(System.Windows.Controls.CheckBox[] cbs, AnnotationTokenProfile tp)
+        {
+            var sb = new System.Text.StringBuilder(8);
+            foreach (var cb in cbs) sb.Append(cb.IsChecked == true ? '1' : '0');
+            var s = sb.ToString();
+            tp.SegmentMask = s == "11111111" ? null : s;   // null = no override
         }
 
         private UIElement BuildSectionVisibilityGrid(AnnotationTokenProfile tp)
@@ -2205,6 +2409,42 @@ namespace StingTools.UI
                 var cb = new CheckBox {
                     Content = k, IsChecked = cur, Margin = new Thickness(0, 0, 12, 0),
                     Foreground = new SolidColorBrush(FgColor),
+                };
+                cb.Checked   += (s, e) => tp.SectionVisibility[k] = true;
+                cb.Unchecked += (s, e) => tp.SectionVisibility[k] = false;
+                row.Children.Add(cb);
+            }
+            host.Children.Add(row);
+            return host;
+        }
+
+        // Phase 165 — T4-T10 tier visibility checkboxes. Reuses the same
+        // SectionVisibility dictionary as A-F but with keys "T4".."T10".
+        // TokenProfileApplier writes these to TAG_PARA_STATE_4..10_BOOL on
+        // the element types referenced by the view, which gates the T4-T10
+        // payload appends in WriteTag7All. Pair this card with the
+        // "T4-T10 pattern mode" dropdown above to choose which payload set
+        // (HANDOVER / DC / CUSTOM) is active for the enabled tiers.
+        private UIElement BuildTierVisibilityGrid(AnnotationTokenProfile tp)
+        {
+            tp.SectionVisibility = tp.SectionVisibility ?? new Dictionary<string, bool>();
+            var host = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+            host.Children.Add(new TextBlock {
+                Text = "TAG7 tier 4-10 visibility — T4: Commissioning · T5: Cost · T6: Carbon · " +
+                       "T7: Fabrication · T8: Clash · T9: As-built · T10: Compliance",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 4) });
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            string[] tierKeys = { "T4", "T5", "T6", "T7", "T8", "T9", "T10" };
+            foreach (var k in tierKeys)
+            {
+                bool cur = tp.SectionVisibility.TryGetValue(k, out var b) && b;
+                var cb = new CheckBox {
+                    Content = k, IsChecked = cur, Margin = new Thickness(0, 0, 10, 0),
+                    Foreground = new SolidColorBrush(FgColor),
+                    ToolTip = $"Enable {k} payload row. Requires PatternMode (above) to choose which T4-T10 pack populates the value."
                 };
                 cb.Checked   += (s, e) => tp.SectionVisibility[k] = true;
                 cb.Unchecked += (s, e) => tp.SectionVisibility[k] = false;
@@ -2306,10 +2546,24 @@ namespace StingTools.UI
             if (!string.IsNullOrWhiteSpace(tp.ColorScheme)) bits.Add($"scheme:{tp.ColorScheme}");
             if (!string.IsNullOrWhiteSpace(tp.SegmentMask)) bits.Add($"mask:{tp.SegmentMask}");
             if (tp.DisplayMode.HasValue) bits.Add($"disp:{tp.DisplayMode.Value}");
+            if (!string.IsNullOrWhiteSpace(tp.PatternMode)) bits.Add($"pattern:{tp.PatternMode}");
             if (tp.SectionVisibility != null && tp.SectionVisibility.Count > 0)
-                bits.Add("sect:" + string.Join("",
-                    tp.SectionVisibility.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
-                        .Select(k => k.Value ? k.Key : k.Key.ToLower())));
+            {
+                // A-F (single-letter) and T4..T10 (two-three char) summarised separately.
+                var letters = tp.SectionVisibility.Where(k => k.Key.Length == 1).ToList();
+                var tiers   = tp.SectionVisibility
+                    .Where(k => k.Key.StartsWith("T", StringComparison.OrdinalIgnoreCase) && k.Key.Length > 1)
+                    .ToList();
+                if (letters.Count > 0)
+                    bits.Add("sect:" + string.Join("",
+                        letters.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
+                               .Select(k => k.Value ? k.Key.ToUpperInvariant() : k.Key.ToLowerInvariant())));
+                if (tiers.Count > 0)
+                    bits.Add("tiers:" + string.Join(",",
+                        tiers.Where(k => k.Value)
+                             .OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
+                             .Select(k => k.Key.ToUpperInvariant())));
+            }
             if (tp.CategoryDepths != null && tp.CategoryDepths.Count > 0)
                 bits.Add($"cats:{tp.CategoryDepths.Count}");
             return bits.Count == 0
@@ -2578,7 +2832,28 @@ namespace StingTools.UI
             for (int c = 0; c < _slotColWidths.Length; c++)
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_slotColWidths[c]) });
 
-            var tbLbl = SmallTb(slot.Label, v => slot.Label = v);
+            // Phase 137 — slot label as a ComboBox sourced from any STING-aware
+            // title-block's TB_VIEWPORT_SLOTS_JSON_TXT parameter (so the user
+            // picks a real slot name authored on the title-block family),
+            // with the canonical default catalogue appended as a fallback.
+            // Selecting a label that maps to a known slot also auto-fills
+            // normX / normY / normW / normH from that slot's geometry.
+            var slotLabels = TitleBlockSlotLoader.GetLabels(_doc, _current.TitleBlockFamily);
+            var tbLbl = SmallCombo(slot.Label, v =>
+            {
+                slot.Label = v;
+                var match = TitleBlockSlotLoader.FindByLabel(_doc, v, _current.TitleBlockFamily);
+                if (match != null)
+                {
+                    slot.NormX = match.NormX;
+                    slot.NormY = match.NormY;
+                    slot.NormW = match.NormW;
+                    slot.NormH = match.NormH;
+                    if (!string.IsNullOrEmpty(match.ViewType)) slot.ViewType = match.ViewType;
+                    if (match.Scale.HasValue) slot.Scale = match.Scale;
+                    onChange?.Invoke();
+                }
+            }, slotLabels.ToArray());
             // Closed list of Revit ViewType enum values — eliminates typos.
             var tbVt  = SmallCombo(slot.ViewType, v => slot.ViewType = v,
                 new[] { "FloorPlan", "CeilingPlan", "Elevation", "Section", "ThreeD",

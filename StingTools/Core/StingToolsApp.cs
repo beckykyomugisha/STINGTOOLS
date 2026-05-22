@@ -893,10 +893,68 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentOpened offline-config reload: {ocEx.Message}");
                 }
 
+                // Phase 165 (NEW-02 / Clash wiring) — lazy-start the ClashScheduler
+                // when a project is opened. Pulls the cadence from the project's
+                // default_clash_matrix.json (SchedulerIntervalMinutes) and falls
+                // back to 60 minutes. Idempotent: re-opens hit Instance.Stop()
+                // first so we don't stack timers across documents.
+                try
+                {
+                    if (TagConfig.AutoStartClashScheduler && e.Document != null && !e.Document.IsFamilyDocument)
+                    {
+                        UIApplication uiAppForClash = UI.StingCommandHandler.CurrentApp;
+                        if (uiAppForClash == null)
+                        {
+                            var revitApp = e.Document.Application;
+                            if (revitApp != null) uiAppForClash = new UIApplication(revitApp);
+                        }
+                        if (uiAppForClash != null)
+                        {
+                            try { Clash.ClashScheduler.Instance.Stop(); } catch { /* first-run no-op */ }
+                            Clash.ClashScheduler.Instance.Start(uiAppForClash, intervalMinutes: 0);
+                            StingLog.Info("ClashScheduler started for active document");
+                        }
+                    }
+                }
+                catch (Exception csEx) { StingLog.Warn($"DocumentOpened ClashScheduler start: {csEx.Message}"); }
+
+                // Phase 167: detect persisted ProjectSetup. Do NOT auto-create folders
+                // — that's an explicit user action via the Folder Setup dialog.
+                try
+                {
+                    if (e.Document != null && !e.Document.IsFamilyDocument)
+                    {
+                        var setup = ProjectFolderEngine.LoadOrDetectSetup(e.Document);
+                        if (setup != null)
+                        {
+                            string root = setup.ResolveRootPath(e.Document.PathName);
+                            StingLog.Info($"DocumentOpened: project setup loaded — root={root}, mode={setup.Mode}");
+                        }
+                        else if (TagConfig.AutoCreateCdeFolders && !string.IsNullOrEmpty(e.Document.PathName))
+                        {
+                            // Soft notification: log only. User runs Folder Setup explicitly.
+                            StingLog.Info("DocumentOpened: no ProjectSetup found. User can run Folder Setup from BIM tab.");
+                        }
+                    }
+                }
+                catch (Exception cfEx) { StingLog.Warn($"DocumentOpened CDE folder bootstrap: {cfEx.Message}"); }
+
                 // Pack 8 — drip-feed a compliance refresh through the Idling
                 // scheduler so the dashboard is live within a second of open.
                 try { StingIdlingScheduler.Enqueue(new ComplianceRefreshJob()); }
                 catch (Exception schEx) { StingLog.Warn($"DocumentOpened Idling enqueue: {schEx.Message}"); }
+
+                // TAG-STALE-WARN-01: After the compliance refresh populates the cache,
+                // promote any pre-existing stale elements that exceed the threshold into
+                // a BIM issue so coordinators see the work outstanding from a previous
+                // session immediately on open. The job is single-shot and dedupes against
+                // any existing OPEN stale issue, so re-opening a model is a no-op.
+                try
+                {
+                    if (TagConfig.StaleWarningThreshold > 0)
+                        StingIdlingScheduler.Enqueue(new StaleWarningPromotionJob());
+                }
+                catch (Exception swEx) { StingLog.Warn($"DocumentOpened stale-warning enqueue: {swEx.Message}"); }
             }
             catch (Exception ex)
             {

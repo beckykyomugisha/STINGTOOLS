@@ -80,7 +80,22 @@ async function openViewer(projectCode: string, modelId?: string | null): Promise
 async function openViewer(projectCode: string): Promise<void> {
   try {
     const base = await _getBaseUrl();
-    const url = `${base}/viewer/index.html?model=${encodeURIComponent(projectCode)}.xkt`;
+    // Phase 164 caveat 4 — probe the cached XKT availability list before
+    // committing to a per-model URL. When a `<modelId>.xkt` file is
+    // published we use it; when only the project default exists, fall back
+    // to `<projectCode>.xkt` so the user lands in a working viewer rather
+    // than a 404. Empty cache (network failure on the list endpoint) →
+    // optimistically use modelId so configured projects don't get punished
+    // by transient list-endpoint failures.
+    let xktBase = projectCode;
+    if (modelId) {
+      const available = await listAvailableXkts();
+      const modelXkt = `${modelId}.xkt`;
+      if (available.size === 0 || available.has(modelXkt)) {
+        xktBase = modelId;
+      }
+    }
+    const url = `${base}/viewer/index.html?model=${encodeURIComponent(xktBase)}.xkt`;
     await WebBrowser.openBrowserAsync(url, {
       // Corporate-themed in-app browser tab — falls back to Safari View
       // Controller on iOS and Custom Tabs on Android automatically.

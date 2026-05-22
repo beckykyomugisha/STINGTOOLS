@@ -1,14 +1,14 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "name": "STING Corporate View Style Packs",
-  "description": "Single-source-of-truth visual presentation packs. Every pack except the root extends corp-base; only fields that override the parent need to be set. Drawing-type recipes reference packs by id (extendsChain resolved at runtime).",
+  "description": "Single-source-of-truth visual presentation packs. Every pack except the root extends corp-base; only fields that override the parent need to be set. VG standards aligned to BS 1192:2007+A2:2016 + ISO 13567 + CIBSE discipline colours.",
   "namespace": "Planscape Limited",
-  "lastUpdated": "2026-04-25",
+  "lastUpdated": "2026-04-27",
   "stylePacks": [
     {
       "id": "corp-base",
       "name": "Corporate Base (root of extends chain)",
-      "description": "All other packs extend this. Only set fields here that are invariant across every corporate output — house line weights, text/dim styles, hatch palette, and the universal filter rules.",
+      "description": "All other packs extend this. Comprehensive 60+ category VG baseline aligned to BS 1192 + ISO 13567 + CIBSE. Discipline-neutral defaults plus the 5 universal phase / construction filter rules.",
       "extends": null,
       "origin": "corporate",
       "appearance": {
@@ -120,9 +120,20 @@
     {
       "id": "corp-standard-plan",
       "name": "Corporate Plan",
-      "description": "1:100 architectural plan. Walls bold, floors halftoned, ceilings hidden, grids un-halftoned.",
+      "description": "1:100 architectural plan. Walls cut bold, MEP halftoned as background, ceilings halftoned, grids un-halftoned.",
       "extends": "corp-base",
       "origin": "corporate",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
+      "discipline": "Architectural",
+      "visualStyle": "HiddenLine",
+      "tagColorScheme": "STING Discipline",
       "viewTemplate": "STING - Architectural Plan",
       "detailLevel": "Medium",
       "scaleHint": "1:100",
@@ -238,7 +249,7 @@
     {
       "id": "corp-standard-rcp",
       "name": "Corporate RCP",
-      "description": "Reflected ceiling plan, extends Corporate Plan. Walls halftoned, ceilings shown, lights un-halftoned.",
+      "description": "Reflected ceiling plan, extends Corporate Plan. Walls halftoned, ceilings shown bold, lights / air terminals / sprinklers un-halftoned.",
       "extends": "corp-standard-plan",
       "origin": "corporate",
       "viewTemplate": "STING - Ceiling RCP",
@@ -284,7 +295,7 @@
     {
       "id": "corp-standard-section",
       "name": "Corporate Section",
-      "description": "1:50 building section. Cut elements bold, beyond elements halftoned.",
+      "description": "1:50 building section. Cut elements bold, beyond elements halftoned to LW 4.",
       "extends": "corp-base",
       "origin": "corporate",
       "viewTemplate": "STING - Working Section",
@@ -331,7 +342,7 @@
     {
       "id": "corp-standard-elevation",
       "name": "Corporate Elevation",
-      "description": "1:100 elevation. Outline bold, internal lines fine, topo halftoned.",
+      "description": "1:100 elevation. Wall outline bold, mullions LW 5; MEP / structural / rooms halftoned.",
       "extends": "corp-base",
       "origin": "corporate",
       "viewTemplate": "STING - Working Elevation",
@@ -375,10 +386,6 @@
       "detailLevel": "Fine",
       "scaleHint": "1:20",
       "colorScheme": "Monochrome",
-      "appearance": {
-        "lineWeightScale": 1.0,
-        "textStyleName": "STING - 2.0mm"
-      },
       "vgOverrides": {
         "Walls": {
           "projWeight": 6,
@@ -446,9 +453,19 @@
     {
       "id": "corp-coordination",
       "name": "MEP Coordination",
-      "description": "Multi-discipline clash plan. Mechanical blue / Plumbing green / Electrical amber / Fire red / Structural purple.",
+      "description": "Multi-discipline clash plan. Mechanical / Electrical / Plumbing un-halftoned in their CIBSE colours; architectural and structural backgrounds halftoned at 50% transparency.",
       "extends": "corp-base",
       "origin": "corporate",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
+      "discipline": "Coordination",
+      "visualStyle": "Wireframe",
       "viewTemplate": "STING - MEP Coordination",
       "detailLevel": "Fine",
       "scaleHint": "1:50",
@@ -542,18 +559,23 @@
     {
       "id": "corp-fabrication-shop",
       "name": "Fabrication Shop Drawing",
-      "description": "Workshop-floor look. Bold MEP, walls/structural hidden, ordinate dimensions.",
-      "extends": "corp-coordination",
+      "description": "Workshop-floor look. Bold mono pipework / ductwork; structural and walls halftoned; ordinate dimensions.",
+      "extends": "corp-base",
       "origin": "corporate",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
+      "discipline": "Coordination",
+      "visualStyle": "Wireframe",
       "viewTemplate": "STING - Fabrication Shop",
       "detailLevel": "Fine",
       "scaleHint": "1:50",
       "colorScheme": "Monochrome",
-      "appearance": {
-        "lineWeightScale": 1.0,
-        "textStyleName": "STING - 2.0mm Shop",
-        "dimensionStyleName": "STING - Ordinate"
-      },
       "vgOverrides": {
         "Pipes": {
           "projWeight": 5
@@ -582,16 +604,14 @@
     {
       "id": "corp-presentation-rich",
       "name": "Technical Presentation",
-      "description": "Internal IDR / TDR. Rich colours, bold outlines, suppressed annotations.",
-      "extends": "corp-standard-plan",
+      "description": "Internal IDR / TDR. Rich material colours, bold outlines, suppressed annotations, MEP / structural / grids halftoned.",
+      "extends": "corp-base",
       "origin": "corporate",
+      "tagColorScheme": "Discipline",
       "viewTemplate": "STING - Presentation Section",
       "detailLevel": "Medium",
       "scaleHint": "1:50",
       "colorScheme": "PresentationRich",
-      "appearance": {
-        "textStyleName": "STING - 3.0mm Presentation"
-      },
       "vgOverrides": {
         "Walls": {
           "projColor": "#263238",
@@ -641,13 +661,14 @@
     {
       "id": "corp-presentation-mono",
       "name": "Client Presentation",
-      "description": "Greyscale client presentation derived from Technical Presentation.",
+      "description": "Greyscale client presentation derived from Technical Presentation. All colours mapped to greyscale (#000000, #404040, #808080, #C0C0C0); transparency cleared; halftone disabled.",
       "extends": "corp-presentation-rich",
       "origin": "corporate",
+      "tagColorScheme": "Mono",
       "viewTemplate": "STING - Presentation Elevation",
       "detailLevel": "Medium",
       "scaleHint": "1:50",
-      "colorScheme": "Monochrome",
+      "colorScheme": "PresentationMono",
       "vgOverrides": {
         "Walls": {
           "projColor": "#000000",
