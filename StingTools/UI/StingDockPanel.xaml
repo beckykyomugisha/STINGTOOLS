@@ -4859,6 +4859,25 @@
                                  TabItem named "Categories" — the "ORPHAN-FIX: re-instated"
                                  loop only stopped after this consolidation. -->
                             <TabItem Header="Categories">
+                                <TabItem.Resources>
+                                    <Style x:Key="CategoryCheckListItemStyle" TargetType="ListBoxItem">
+                                        <Setter Property="Padding" Value="2,1"/>
+                                        <Setter Property="Margin" Value="0"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Border Background="Transparent">
+                                                        <CheckBox FontSize="9"
+                                                                  Margin="2,1"
+                                                                  Focusable="False"
+                                                                  Content="{TemplateBinding Content}"
+                                                                  IsChecked="{Binding IsSelected, RelativeSource={RelativeSource Mode=TemplatedParent}}"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </TabItem.Resources>
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="4">
 
