@@ -30,7 +30,6 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{StaticResource HubMuted}"/>
             <Setter Property="Margin" Value="4,2,4,1"/>
-            <Setter Property="TextTransform" Value=""/>
         </Style>
         <Style x:Key="KpiCard" TargetType="Border">
             <Setter Property="Background" Value="#FFFFFF"/>
