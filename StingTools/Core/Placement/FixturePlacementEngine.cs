@@ -2447,15 +2447,6 @@ namespace StingTools.Core.Placement
             }
         }
 
-        // Phase 139.4 — resolve a Document.Settings.Categories entry to its
-        // BuiltInCategory enum so FilteredElementCollector.OfCategory can
-        // pre-filter family symbols. Cached per document on first hit.
-        // Phase 139.27 (N-03) — key by PathName|Title not GetHashCode(),
-        // same hash-collision concern as PlacementHostPreflight.ResolveView3D.
-        private static readonly Dictionary<string, Dictionary<string, BuiltInCategory>> _bicByName
-            = new Dictionary<string, Dictionary<string, BuiltInCategory>>(StringComparer.Ordinal);
-
-
         /// <summary>
         /// Phase 139.27 (M-02 partial) — flow noggin-required points from
         /// the lighting-grid cache onto placed instances, so structural
@@ -2499,16 +2490,6 @@ namespace StingTools.Core.Placement
         /// (DOOR_LATCH_SIDE / DOOR_STRIKE_SIDE).
         /// </summary>
 
-        private class DoorEnvelope
-        {
-            public ElementId Id;
-            public XYZ       Loc;
-            public XYZ       Facing;
-            public XYZ       Hand;
-            public double    WidthFt;
-            public bool      HandFlipped;
-            public bool      FacingFlipped;
-        }
 
 
         /// <summary>

@@ -1522,54 +1522,15 @@ public sealed class PlanscapeServerClient : IDisposable
     // ── Meetings ───────────────────────────────────────────────────────────────
 
 
-    public async Task<string?> CreateMeetingAsync(Guid projectId, string title, string type,
-        DateTime scheduledAt, int durationMinutes = 60, string? agenda = null)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var resp = await PostJsonAsync($"/api/projects/{projectId}/meetings",
-                new { title, type, scheduledAt, durationMinutes, agenda });
-            if (!resp.ok) { LastError = resp.body; return null; }
-            return JObject.Parse(resp.body)["id"]?.Value<string>();
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
     // ── Transmittals ───────────────────────────────────────────────────────────
 
 
-    public async Task<string?> CreateTransmittalAsync(Guid projectId, string title,
-        IEnumerable<Guid> documentIds, string recipients, string? purpose = null)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var resp = await PostJsonAsync($"/api/projects/{projectId}/transmittals",
-                new { title, documentIds, recipients, purpose });
-            if (!resp.ok) { LastError = resp.body; return null; }
-            return JObject.Parse(resp.body)["id"]?.Value<string>();
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
 
     // ── Workflows ──────────────────────────────────────────────────────────────
 
 
-    public async Task<bool> LogWorkflowRunAsync(Guid projectId, string preset,
-        int steps, int passed, int failed, int skipped, double durationSec,
-        double? complianceBefore = null, double? complianceAfter = null)
-    {
-        if (!await EnsureAuthenticatedAsync()) return false;
-        try
-        {
-            var resp = await PostJsonAsync($"/api/projects/{projectId}/workflows",
-                new { preset, steps, passed, failed, skipped, durationSec, complianceBefore, complianceAfter });
-            return resp.ok;
-        }
-        catch (Exception ex) { LastError = ex.Message; return false; }
-    }
 
     // ── Warnings ───────────────────────────────────────────────────────────────
 

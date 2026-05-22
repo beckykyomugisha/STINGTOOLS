@@ -1,4 +1,3 @@
-using System;
 // StingTools — Drawing Template Manager · Week 2
 //
 // ViewStylePack factors the graphic-override payload out of

@@ -30,9 +30,7 @@ using StingTools.Select;
 using StingTools.Core.Lightning;
 using StingTools.Core.Fabrication;
 using StingTools.Core.Drawing;
-using StingTools.Select;
 using StingTools.UI;
-using StingTools.Select;
 // Disambiguate WPF controls from Autodesk.Revit.UI.TextBox/ComboBox and
 // from Autodesk.Revit.DB.Color.
 using TextBox = System.Windows.Controls.TextBox;
