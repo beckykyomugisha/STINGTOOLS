@@ -379,7 +379,7 @@
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567803",
       "description": "Pattern selector \u2014 Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {

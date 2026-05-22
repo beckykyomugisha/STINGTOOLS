@@ -116,7 +116,7 @@
       "guid": "e26e01ef-33d8-5a57-9ab7-fa30faa4ceff",
       "description": "Paragraph depth: compact (State 1 only)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -124,7 +124,7 @@
       "guid": "b1080057-9890-5a0c-959a-46fb8847c766",
       "description": "Paragraph depth: standard (States 1+2)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -132,7 +132,7 @@
       "guid": "825a73c0-4b3b-5474-8db5-f54072ff40b8",
       "description": "Paragraph depth: comprehensive (States 1+2+3)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -140,7 +140,7 @@
       "guid": "11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f",
       "description": "Enable/disable warning text in tags",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -152,106 +152,106 @@
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_A_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000001",
+      "guid": "a8194ccf-05ae-5eb4-87b5-38bacb4324fe",
       "description": "Show/hide TAG7 Section A (Identity Header)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_B_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000002",
+      "guid": "b561a313-f873-5648-a127-3e917b5f5dd0",
       "description": "Show/hide TAG7 Section B (System & Function)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_C_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000003",
+      "guid": "0e535d1a-d2eb-5b15-b954-360ad46e1a57",
       "description": "Show/hide TAG7 Section C (Spatial Context)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_D_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000004",
+      "guid": "74f5360e-4107-539f-af72-38389e7b64bd",
       "description": "Show/hide TAG7 Section D (Lifecycle & Status)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_E_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000005",
+      "guid": "fdb2ccfa-6128-545c-8b6c-6a656d418948",
       "description": "Show/hide TAG7 Section E (Technical Specs)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_F_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000006",
+      "guid": "329929ad-5f26-5d15-98b2-54604ecda858",
       "description": "Show/hide TAG7 Section F (Classification)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_4_BOOL",
-      "guid": "9e147e43-a5f9-477f-90c1-000000000004",
+      "guid": "3ac69694-7584-5ba2-9bce-4d045ca21088",
       "description": "State visibility control tier 4",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_5_BOOL",
-      "guid": "024d0b10-01cb-49a0-8c01-000000000005",
+      "guid": "c9045501-eee6-54ce-b725-3ea589ee8025",
       "description": "State visibility control tier 5",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_6_BOOL",
-      "guid": "b9539988-c956-4ece-b301-000000000006",
+      "guid": "9b913556-ac00-5a04-b53c-1e262498ad1d",
       "description": "State visibility control tier 6",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_7_BOOL",
-      "guid": "9d2e4ebb-ce16-4ab4-8801-000000000007",
+      "guid": "8eb03b28-aaf9-5803-8e87-f0655afbf08d",
       "description": "State visibility control tier 7",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_8_BOOL",
-      "guid": "8ce0a11b-db32-4430-b101-000000000008",
+      "guid": "dd2f491c-8806-5cd2-bb21-d3b915646070",
       "description": "State visibility control tier 8",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_9_BOOL",
-      "guid": "386fc88f-fda4-411e-b9e1-000000000009",
+      "guid": "482475c4-be76-5db3-87a6-8aac4a53dc74",
       "description": "State visibility control tier 9",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_10_BOOL",
-      "guid": "bf5b929f-f74a-45d9-a2c1-000000000010",
+      "guid": "8be3ef27-42ab-5668-8cd0-a376578c805a",
       "description": "State visibility control tier 10",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -259,7 +259,7 @@
       "guid": "867fb0db-88ea-4a3d-9c01-000000000001",
       "description": "Tag text colour (Integer code)",
       "binding": "universal",
-      "param_type": "INTEGER",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -1312,10 +1312,10 @@
     },
     {
       "param_name": "TAG_BOX_VISIBLE_BOOL",
-      "guid": "d5a1b2c3-5004-4e05-a1c1-500000000004",
+      "guid": "4ceac996-f3f3-5ba5-8049-06bbbd354ede",
       "description": "Tag bounding box visibility control",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -1351,7 +1351,7 @@
     },
     {
       "param_name": "VGPS_VISIBLE_BOOL",
-      "guid": "4942d19f-ff13-19c6-8c31-000000000001",
+      "guid": "4942d19f-ff13-19c6-8c38-70fada9adbaa",
       "description": "VG Projection/Surface visibility control",
       "binding": "universal",
       "param_type": "YESNO",
@@ -1481,7 +1481,7 @@
       "guid": "aa37f8cd-757f-655b-6557-33ac70e4d01c",
       "description": "Number of active connectors on element",
       "binding": "universal",
-      "param_type": "INTEGER",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -1669,11 +1669,11 @@
     },
     {
       "param_name": "ASS_TIEIN_CONNECTED_BOOL",
-      "guid": "ti000001-tie0-0001-t001-000000000009",
+      "guid": "675b0c39-6577-4dd2-b7d0-ecb5501987ce",
       "description": "Tie-in resolved flag: No/0 = open live termination, Yes/1 = tie-in completed and connected.",
       "binding": "universal",
       "required": false,
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "group": "TieInPoint"
     },
     {
@@ -2197,7 +2197,7 @@
       ],
       "params": [
         {
-          "param_name": "ELE_FIX_TAG_1_TXT",
+          "param_name": "ELC_FIX_TAG_1_TXT",
           "guid": "5b5c4c6c-c420-4f30-a67e-bdeca6944577",
           "tokens": "all",
           "separator": "-",
@@ -2206,7 +2206,7 @@
           "description": "Full tag"
         },
         {
-          "param_name": "ELE_FIX_TAG_2_TXT",
+          "param_name": "ELC_FIX_TAG_2_TXT",
           "guid": "6b727a38-f448-4b8e-81fb-a2570637ee57",
           "tokens": "short_id",
           "separator": "-",
@@ -2876,7 +2876,7 @@
       {
         "key": "REV",
         "param_name": "ASS_REV_TXT",
-        "description": "Revision code"
+        "description": "Revision code (display label, GROUP 1). See also ASS_REV_COD_TXT (GROUP 17) for the ISO 19650 tag container token."
       },
       {
         "key": "VOLUME",
@@ -2905,15 +2905,15 @@
       },
       {
         "key": "STATUS_COD",
-        "param_name": "ASS_STATUS_TXT",
-        "guid": "a57dfe0c-6db9-4fb6-80e0-d2c453fe653b",
-        "description": "ISO 19650 status/suitability code (GROUP 17)"
+        "param_name": "ASS_CDE_SUITABILITY_TXT",
+        "guid": "37de21ec-8bb3-530d-92e3-b55b312ce611",
+        "description": "ISO 19650 suitability/status code for CDE delivery (S0 WIP / S1 Suitable for coordination / S2 Suitable for info / S3 Shared / S4 Published / S5 Archive). Canonical GUID matches MR_PARAMETERS.txt; supersedes the orphan a57dfe0c-6db9-4fb6-80e0-d2c453fe653b entry that previously sat under the ASS_STATUS_TXT name in this registry."
       },
       {
         "key": "REV_COD",
         "param_name": "ASS_REV_COD_TXT",
         "guid": "83b2139d-67bb-48db-a50f-32140c0dc753",
-        "description": "ISO 19650 revision code (GROUP 17)"
+        "description": "ISO 19650 revision code token in the tag container system (GROUP 17). Written by the tag pipeline. See also ASS_REV_TXT (GROUP 1) for the display revision label."
       }
     ],
     "ble_dimensional": [
@@ -5310,7 +5310,7 @@
       {
         "key": "TIEIN_CONNECTED",
         "param_name": "ASS_TIEIN_CONNECTED_BOOL",
-        "guid": "8c0b8ac9-0d50-4c9e-937a-fe2bf47a9ab2",
+        "guid": "675b0c39-6577-4dd2-b7d0-ecb5501987ce",
         "description": "Tie-in connection status",
         "categories": [
           "Mechanical Equipment",
@@ -5318,7 +5318,8 @@
           "Plumbing Equipment",
           "Pipes",
           "Ducts"
-        ]
+        ],
+        "param_type": "TEXT"
       },
       {
         "key": "TIEIN_ELEV",
@@ -5403,11 +5404,12 @@
       {
         "key": "CASEWORK_ACCESSIBLE",
         "param_name": "BLE_CASEWORK_ACCESSIBLE_BOOL",
-        "guid": "3e573cb7-e85f-432b-b457-12f68a7f96ab",
+        "guid": "8c2b44a9-cc06-408d-af91-0f14499042c4",
         "description": "Accessible casework compliance",
         "categories": [
           "Casework"
-        ]
+        ],
+        "param_type": "YESNO"
       },
       {
         "key": "CASEWORK_COUNTERTOP",
@@ -5502,20 +5504,22 @@
       {
         "key": "PARK_ACCESSIBLE",
         "param_name": "BLE_PARK_ACCESSIBLE_BOOL",
-        "guid": "f7f616d9-0075-4170-9589-4183ae8e20ac",
+        "guid": "b5ac9b94-b39d-468d-847e-b49d346b3633",
         "description": "Parking bay accessibility",
         "categories": [
           "Parking"
-        ]
+        ],
+        "param_type": "YESNO"
       },
       {
         "key": "PARK_EV_CHARGING",
         "param_name": "BLE_PARK_EV_CHARGING_BOOL",
-        "guid": "9a6f6cef-8bc1-430e-888f-381098de0ce8",
+        "guid": "b09617b0-e85e-4079-9c0f-6b490e32daf4",
         "description": "EV charging provided",
         "categories": [
           "Parking"
-        ]
+        ],
+        "param_type": "YESNO"
       },
       {
         "key": "PARK_TYPE",
@@ -5583,11 +5587,12 @@
       {
         "key": "SIGN_ILLUMINATED",
         "param_name": "BLE_SIGN_ILLUMINATED_BOOL",
-        "guid": "e18cf276-3089-4ac3-900e-8b7403ead6df",
+        "guid": "908be268-188c-405a-9d0b-d8717999da94",
         "description": "Signage illumination",
         "categories": [
           "Signage"
-        ]
+        ],
+        "param_type": "YESNO"
       },
       {
         "key": "SIGN_TYPE",
