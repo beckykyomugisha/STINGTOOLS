@@ -93,7 +93,16 @@ namespace StingTools.UI.Plumbing
             try { StingTools.Commands.Symbols.EquipmentSymbolEngine.StatusUpdated += OnSymbolEngineStatus; }
             catch (Exception ex) { StingLog.Warn($"Symbol status subscribe: {ex.Message}"); }
 
-            UpdateStatus("Ready");
+            // Build-version banner — surfaces materials count + Phase 187
+            // tag in the status bar so you can verify at a glance that the
+            // panel is running the new inline-form build (and not an older
+            // cached DLL with the retired modal dialog).
+            try
+            {
+                int matCount = StingTools.Core.Plumbing.PlumbingTables.Materials?.Count ?? 0;
+                UpdateStatus($"Ready · Phase 187 inline SYSTEM tab · {matCount} pipe materials loaded");
+            }
+            catch { UpdateStatus("Ready · Phase 187 inline SYSTEM tab"); }
         }
 
         private void OnSymbolEngineStatus(string message)
