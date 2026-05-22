@@ -170,6 +170,17 @@ namespace StingTools.Core.Drawing
         public string MaterialPack { get; set; }
 
         /// <summary>
+        /// C3 — Allowed material origins ("STING" / "BLE" / "MEP" /
+        /// "Other"). When set, the DrawingType pre-flight validator
+        /// warns if a sheet stamped with this profile contains views
+        /// where any placed element uses a material outside the
+        /// allowed-origin set. Empty / missing → all origins allowed
+        /// (existing behaviour preserved).
+        /// </summary>
+        [JsonProperty("materialOriginAllowed", NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> MaterialOriginAllowed { get; set; }
+
+        /// <summary>
         /// ISO 19650 naming — optional per-profile convention payload.
         /// When set, the editor's Numbering card's "Generate ISO
         /// pattern" button assembles SheetNumberPattern from these

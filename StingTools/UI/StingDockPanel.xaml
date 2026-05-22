@@ -1848,6 +1848,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Eyedropper" Tag="MAT_Eyedropper" Click="MatBtn_Click" ToolTip="Pick a face in Revit → highlight its material in the list"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Edit Identity" Tag="MAT_EditIdentity" Click="MatBtn_Click" ToolTip="Open Revit material editor for the selected row"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Family Materials" Tag="MAT_FamilyMaterials" Click="MatBtn_Click" ToolTip="List Material parameters defined in every loaded Family Type — catches materials referenced but not yet instantiated."/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Make Legend" Tag="MaterialLegend" Click="Cmd_Click" ToolTip="B4 — Cross-link to LegendBuilder.MaterialLegendCommand. Creates a drafting view legend with FilledRegion swatches grouped by class."/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="Create BLE (815)" Tag="CreateBLEMaterials" Click="Cmd_Click" ToolTip="Create 815 building materials from BLE_MATERIALS.csv"/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="Create MEP (464)" Tag="CreateMEPMaterials" Click="Cmd_Click" ToolTip="Create 464 MEP materials from MEP_MATERIALS.csv"/>
                                 </WrapPanel>
