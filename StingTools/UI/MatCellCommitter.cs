@@ -47,7 +47,14 @@ namespace StingTools.UI
         private static void CommitDoubleParam(Document doc, Material mat, MaterialRow row,
             string raw, BuiltInParameter bip, double oldValue, string auditAction, string fieldKey)
         {
-            if (!double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out double nv)) return;
+            // D6 — Locale-aware parsing. The user is typing in their
+            // project locale (en-GB / de-DE / en-US ...); we accept both
+            // the locale's culture AND InvariantCulture so "1,234.56"
+            // works in en-US, "1.234,56" works in de-DE, and "1234.56"
+            // works everywhere.
+            var loc = MaterialRow.ActiveLocale;
+            double nv;
+            if (!TryParseLocale(raw, loc, out nv)) return;
             if (Math.Abs(nv - oldValue) < 0.0001) return;
             using (var t = new Transaction(doc, $"STING MAT edit {fieldKey} '{mat.Name}'"))
             {
@@ -62,13 +69,20 @@ namespace StingTools.UI
                 catch (Exception ex) { StingLog.Warn($"Commit {fieldKey}: {ex.Message}"); try { t.RollBack(); } catch { } return; }
             }
             MaterialAuditLogger.Log(doc, auditAction, mat.Name,
-                new Dictionary<string, object> { ["old"] = oldValue, ["new"] = nv });
+                new Dictionary<string, object>
+                {
+                    ["old"] = oldValue,
+                    ["new"] = nv,
+                    ["locale"] = loc?.Region.ToString() ?? "default",
+                });
         }
 
         private static void CommitSharedParam(Document doc, Material mat, MaterialRow row,
             string raw, string paramName, double oldValue, string auditAction, string fieldKey)
         {
-            if (!double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out double nv)) return;
+            var loc = MaterialRow.ActiveLocale;
+            double nv;
+            if (!TryParseLocale(raw, loc, out nv)) return;
             if (Math.Abs(nv - oldValue) < 0.0001) return;
             using (var t = new Transaction(doc, $"STING MAT edit {fieldKey} '{mat.Name}'"))
             {
@@ -91,6 +105,26 @@ namespace StingTools.UI
             }
             MaterialAuditLogger.Log(doc, auditAction, mat.Name,
                 new Dictionary<string, object> { ["old"] = oldValue, ["new"] = nv });
+        }
+
+        /// <summary>
+        /// D6 — Locale-aware double parser. Tries the locale's culture
+        /// first (so de-DE "1.234,56" parses correctly), then falls back
+        /// to InvariantCulture so a user typing "1234.56" anywhere
+        /// always works. Empty / un-parseable input → false (no commit).
+        /// </summary>
+        private static bool TryParseLocale(string raw, MaterialLocale loc, out double value)
+        {
+            value = 0;
+            if (string.IsNullOrWhiteSpace(raw)) return false;
+            string s = raw.Trim();
+            // Strip currency / unit suffixes the formatter may have left.
+            foreach (var symbol in new[] { "£", "$", "€", "A$", "kgCO₂e", "kg/m³", "lb/ft³" })
+                if (s.Contains(symbol)) s = s.Replace(symbol, "");
+            s = s.Trim();
+            if (loc?.Culture != null && double.TryParse(s, NumberStyles.Any, loc.Culture, out value))
+                return true;
+            return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out value);
         }
 
         private static void CommitClass(Document doc, Material mat, MaterialRow row, string raw)
