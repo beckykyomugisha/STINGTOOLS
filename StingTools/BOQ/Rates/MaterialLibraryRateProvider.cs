@@ -37,9 +37,9 @@ namespace StingTools.BOQ.Rates
                 if (string.IsNullOrWhiteSpace(matName)) return null;
 
                 // Tier 1 — Live Material element's ALL_MODEL_COST.
-                var mat = new FilteredElementCollector(doc).OfClass(typeof(Material))
-                    .Cast<Material>()
-                    .FirstOrDefault(m => string.Equals(m.Name, matName, StringComparison.OrdinalIgnoreCase));
+                // P-1 — Routed through MaterialNameCache (O(1) lookup) to
+                // avoid the per-element FilteredElementCollector scan.
+                var mat = StingTools.UI.MaterialNameCache.ResolveMaterial(doc, matName);
                 if (mat != null)
                 {
                     try

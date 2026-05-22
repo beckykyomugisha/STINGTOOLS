@@ -91,15 +91,14 @@ namespace StingTools.BIMManager
         {
             if (string.IsNullOrWhiteSpace(materialName)) return 0;
 
-            // Tier 1 — Material element's parameter (live edits win)
+            // Tier 1 — Material element's parameter (live edits win).
+            // P-2 — Cache lookup; was a per-call collector.
             try
             {
                 var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
                 if (doc != null)
                 {
-                    var mat = new FilteredElementCollector(doc).OfClass(typeof(Material))
-                        .Cast<Material>()
-                        .FirstOrDefault(m => string.Equals(m.Name, materialName, StringComparison.OrdinalIgnoreCase));
+                    var mat = StingTools.UI.MaterialNameCache.ResolveMaterial(doc, materialName);
                     if (mat != null)
                     {
                         var p = mat.LookupParameter("STING_EMB_CARBON_NR");

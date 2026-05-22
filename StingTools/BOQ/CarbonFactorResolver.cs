@@ -35,13 +35,13 @@ namespace StingTools.BOQ
                 return new CarbonFactorResult { Factor = 0, PerUnit = CarbonFactorUnit.Unknown, Source = "" };
 
             // Tier 1 — Material parameter (per m³).
+            // P-2 — MaterialNameCache lookup is O(1); previously we ran a
+            // fresh FilteredElementCollector per BOQ row.
             try
             {
                 if (doc != null)
                 {
-                    var mat = new FilteredElementCollector(doc).OfClass(typeof(Material))
-                        .Cast<Material>()
-                        .FirstOrDefault(m => string.Equals(m.Name, materialName, StringComparison.OrdinalIgnoreCase));
+                    var mat = StingTools.UI.MaterialNameCache.ResolveMaterial(doc, materialName);
                     if (mat != null)
                     {
                         var p = mat.LookupParameter("STING_EMB_CARBON_NR");

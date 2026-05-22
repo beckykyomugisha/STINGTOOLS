@@ -35,6 +35,11 @@ namespace StingTools.Core
                 string elName = doc.GetElement(elementId)?.Name ?? "(unknown)";
                 StingLog.Info($"MaterialChange: element {elementId.Value} '{elName}' material changed → tag + BOQ marked stale.");
 
+                // Invalidate the material caches so the next BOQ build /
+                // rate lookup picks up the change. Cheap to rebuild.
+                try { StingTools.UI.MaterialNameCache.Invalidate(doc); StingTools.UI.MaterialUsageIndex.Invalidate(doc); }
+                catch (Exception cEx) { StingLog.Warn($"OnMaterialChanged cache invalidate: {cEx.Message}"); }
+
                 // D7 — Also enqueue a re-tag job so PROD codes that were
                 // material-aware (N+2) refresh after the material swap.
                 // The job runs OUTSIDE the IUpdater's transaction (Idling

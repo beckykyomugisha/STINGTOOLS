@@ -161,26 +161,29 @@ namespace StingTools.UI
                 int touched = 0;
                 try
                 {
-                    foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                    // P-3 — Reverse index lookup. Previously walked every
+                    // non-type element in the project (multi-second freeze
+                    // on busy projects). Now scoped to the elements that
+                    // actually use this material.
+                    var users = MaterialUsageIndex.ElementsUsing(doc, mat.Id);
+                    foreach (var elId in users)
                     {
                         try
                         {
-                            var p = el.LookupParameter("Material") ?? el.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
-                            if (p == null || p.StorageType != StorageType.ElementId) continue;
-                            if (p.AsElementId() != mat.Id) continue;
+                            var el = doc.GetElement(elId);
+                            if (el == null) continue;
                             var src = el.LookupParameter("CST_RATE_SOURCE");
                             if (src != null && !src.IsReadOnly && src.StorageType == StorageType.String)
                                 src.Set("material-library");
                             var conf = el.LookupParameter("CST_RATE_CONFIDENCE");
                             if (conf != null && !conf.IsReadOnly && conf.StorageType == StorageType.Integer)
                                 conf.Set(95);
-                            // Also flip stale so the next BOQ build picks it up (defence in depth).
                             var stale = el.LookupParameter("ASS_CST_STALE_BOOL");
                             if (stale != null && !stale.IsReadOnly && stale.StorageType == StorageType.String)
                                 stale.Set("1");
                             touched++;
                         }
-                        catch (Exception ex) { StingLog.WarnRateLimited("BumpRate.El", $"BumpRate {el?.Id}: {ex.Message}"); }
+                        catch (Exception ex) { StingLog.WarnRateLimited("BumpRate.El", $"BumpRate {elId}: {ex.Message}"); }
                     }
                     t.Commit();
                 }
