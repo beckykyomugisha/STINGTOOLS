@@ -38,11 +38,6 @@ Thumbs.db
 *.log
 build_output.txt
 
-# Build output: extract_plugin.sh regenerates CompiledPlugin/ on every run, so
-# tracking it makes git status unusable. Source data lives in StingTools/Data/
-# and gets COPIED here during build — the source is what we ship.
-CompiledPlugin/
-
 # Claude Code session worktrees + local settings.
 .claude/worktrees/
 .claude/settings.local.json
