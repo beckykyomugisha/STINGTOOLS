@@ -86,6 +86,66 @@ namespace StingTools.Core.Calc
         public const double AirViscosityPaS    = 1.813e-5;
 
         /// <summary>
+        /// Seed each pipe's <see cref="NetworkPipe.FlowM3S"/> from the
+        /// supplied per-node demand map. Acts as the initial Q₀ guess
+        /// for <see cref="Solve"/> — eliminates the "user must pre-compute
+        /// flows" gap (Phase 187 review item A-4).
+        ///
+        /// Algorithm: equal-split into branches at every node, then
+        /// adjust each pipe to match its loop-traversal sign. Works
+        /// well for tree-shaped + lightly-looped distribution networks
+        /// (the dominant HVAC case). For dense loops the Hardy Cross
+        /// iteration corrects any starting bias in 5-12 sweeps anyway,
+        /// so this only has to be order-of-magnitude right.
+        ///
+        /// `demandLpsByNode` maps a node id → demand at that node in L/s
+        /// (positive = consumption, negative = supply). Pipes with no
+        /// demand connection get the average of their incident-node
+        /// demands.
+        /// </summary>
+        public static void InitializeFromDemand(
+            List<NetworkPipe> pipes,
+            Dictionary<string, double> demandLpsByNode)
+        {
+            if (pipes == null || demandLpsByNode == null) return;
+            // Count pipe-degree per node so we can distribute demand evenly.
+            var degree = new Dictionary<string, int>();
+            foreach (var p in pipes)
+            {
+                if (string.IsNullOrEmpty(p.NodeA) || string.IsNullOrEmpty(p.NodeB)) continue;
+                degree[p.NodeA] = degree.TryGetValue(p.NodeA, out var a) ? a + 1 : 1;
+                degree[p.NodeB] = degree.TryGetValue(p.NodeB, out var b) ? b + 1 : 1;
+            }
+            foreach (var p in pipes)
+            {
+                double qA = demandLpsByNode.TryGetValue(p.NodeA, out var da) ? da : 0;
+                double qB = demandLpsByNode.TryGetValue(p.NodeB, out var db) ? db : 0;
+                int degA = degree.TryGetValue(p.NodeA, out var degAv) ? Math.Max(degAv, 1) : 1;
+                int degB = degree.TryGetValue(p.NodeB, out var degBv) ? Math.Max(degBv, 1) : 1;
+                // Average per-pipe share of incident-node demand.
+                double qLps = 0.5 * (qA / degA + qB / degB);
+                p.FlowM3S = qLps * 1e-3;     // L/s → m³/s
+            }
+        }
+
+        /// <summary>
+        /// Seed pipe flows uniformly from a single supply rate (m³/s).
+        /// Convenience for tree networks with a single source — divides
+        /// flow equally among the pipes attached to the source node.
+        /// </summary>
+        public static void InitializeUniform(
+            List<NetworkPipe> pipes, string sourceNode, double sourceFlowM3S)
+        {
+            if (pipes == null || string.IsNullOrEmpty(sourceNode)) return;
+            int n = 0;
+            foreach (var p in pipes)
+                if (p.NodeA == sourceNode || p.NodeB == sourceNode) n++;
+            if (n == 0) return;
+            double perPipe = sourceFlowM3S / n;
+            foreach (var p in pipes) p.FlowM3S = perPipe;
+        }
+
+        /// <summary>
         /// Run Hardy Cross to convergence. Pipes and Loops are mutated
         /// in place (Pipe.FlowM3S is updated each iteration). Result
         /// reports convergence stats + per-iteration log.

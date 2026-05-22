@@ -57,7 +57,20 @@ namespace StingTools.Commands.Hvac
                     return Result.Cancelled;
                 }
 
-                var results = BlockLoadEngine.Run(zones, site, cooling);
+                // RTS class — resolved from PRJ_RTS_CLASS_TXT on Project Info
+                // (Reactive / Light / Medium / Heavy). Defaults to Reactive
+                // when unset so legacy projects see the same number.
+                var rts = StingTools.Core.Hvac.Loads.RtsConstructionClass.Reactive;
+                try
+                {
+                    string rtsTxt = doc.ProjectInformation?.LookupParameter("PRJ_RTS_CLASS_TXT")?.AsString();
+                    if (!string.IsNullOrWhiteSpace(rtsTxt) &&
+                        Enum.TryParse(rtsTxt, true, out StingTools.Core.Hvac.Loads.RtsConstructionClass r))
+                        rts = r;
+                }
+                catch { }
+
+                var results = BlockLoadEngine.Run(zones, site, cooling, rts);
                 double grand = results.Sum(r => r.BlockSensibleW);
                 double sumPeaks = results.Sum(r => r.SumOfPeaksSensibleW);
                 double diversity = sumPeaks > 0 ? grand / sumPeaks : 1.0;
@@ -96,7 +109,7 @@ namespace StingTools.Commands.Hvac
                 var panel = StingResultPanel.Create("HVAC — Block Load");
                 panel.SetSubtitle($"site={site.Label} ({site.Cooling996DbC:F1}/{site.Cooling996McwbC:F1} °C) · " +
                                   $"ρ={site.AirDensityCoolingKgM3():F3} kg/m³ · " +
-                                  $"{(cooling ? "Cooling" : "Heating")} · scope={scope}");
+                                  $"{(cooling ? "Cooling" : "Heating")} · RTS={rts} · scope={scope}");
                 panel.AddSection("BUILDING TOTAL")
                      .Metric("Block (peak) sensible", $"{grand / 1000:F1} kW")
                      .Metric("Σ per-zone peaks",     $"{sumPeaks / 1000:F1} kW")

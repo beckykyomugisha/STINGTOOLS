@@ -83,6 +83,26 @@ namespace StingTools.Commands.Hvac
                      .Metric("Max drop (below)",  $"{fluid.MaxLiftBelowIndoorM:F0} m")
                      .Text($"Source: {fluid.Source}");
 
+                // Phase 187d — refrigerant ↔ duct linkage. Ducted indoor units
+                // (ceiling-concealed VRF) have BOTH refrigerant pipes AND a
+                // supply duct connector. If the active document has any such
+                // IDU, surface it so the user knows to size both.
+                try
+                {
+                    var ctx = ParameterHelpers.GetContext(commandData);
+                    var ducted = FindDuctedIndoorUnits(ctx?.Doc, input.CapacityKw);
+                    if (ducted.Count > 0)
+                    {
+                        panel.AddSection("LINKED DUCTED IDUs");
+                        foreach (var idu in ducted)
+                            panel.Text($"  {idu}");
+                        panel.Text("Each ducted IDU also needs its supply / return duct sized. " +
+                                   "Run Hvac_AutoSizeDuct on the connected duct system once flow is stamped " +
+                                   "(via Hvac_PropagateLoads or manually).");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Refrig IDU link scan: {ex.Message}"); }
+
                 panel.Text("Method: Darcy-Weisbach with Blasius f (smooth ACR copper). " +
                            "Suction leg includes a 10% two-phase pressure-drop multiplier. " +
                            "Liquid leg static head subtracted from ΔP budget.");
@@ -106,6 +126,80 @@ namespace StingTools.Commands.Hvac
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        /// <summary>
+        /// Scan the project for mechanical equipment whose family/type name
+        /// suggests it's a ducted refrigerant indoor unit (FCU, ducted VRF
+        /// IDU, fan-coil with supply ductwork) and capacity within ±50 %
+        /// of the supplied design capacity. Returns label strings for the
+        /// result panel; primary purpose is to nudge the user to size the
+        /// supply ducts too.
+        /// </summary>
+        private static System.Collections.Generic.List<string> FindDuctedIndoorUnits(
+            Autodesk.Revit.DB.Document doc, double designKw)
+        {
+            var list = new System.Collections.Generic.List<string>();
+            if (doc == null) return list;
+            try
+            {
+                var equipment = new Autodesk.Revit.DB.FilteredElementCollector(doc)
+                    .OfCategory(Autodesk.Revit.DB.BuiltInCategory.OST_MechanicalEquipment)
+                    .WhereElementIsNotElementType()
+                    .OfClass(typeof(Autodesk.Revit.DB.FamilyInstance))
+                    .Cast<Autodesk.Revit.DB.FamilyInstance>()
+                    .ToList();
+                foreach (var fi in equipment)
+                {
+                    string fam = (fi.Symbol?.Family?.Name ?? "").ToLowerInvariant();
+                    string typ = (fi.Symbol?.Name ?? "").ToLowerInvariant();
+                    bool ducted =
+                        fam.Contains("ducted") || typ.Contains("ducted") ||
+                        fam.Contains("fcu")    || typ.Contains("fcu") ||
+                        fam.Contains("ceiling concealed") || typ.Contains("ceiling concealed") ||
+                        fam.Contains("ahu");
+                    if (!ducted) continue;
+                    if (!HasDuctConnector(fi)) continue;
+                    double cap = ReadDouble(fi, "HVC_CAPACITY_KW");
+                    if (cap > 0 && designKw > 0 &&
+                        (cap < designKw * 0.5 || cap > designKw * 1.5)) continue;
+                    string tag = fi.LookupParameter("ASS_TAG_1")?.AsString() ?? $"#{fi.Id.Value}";
+                    list.Add($"{tag} · {fi.Symbol?.Family?.Name} / {fi.Symbol?.Name} · capacity {cap:F1} kW");
+                    if (list.Count >= 20) break;
+                }
+            }
+            catch (System.Exception ex) { StingTools.Core.StingLog.Warn($"FindDuctedIndoorUnits: {ex.Message}"); }
+            return list;
+        }
+
+        private static bool HasDuctConnector(Autodesk.Revit.DB.FamilyInstance fi)
+        {
+            try
+            {
+                var conns = fi.MEPModel?.ConnectorManager?.Connectors;
+                if (conns == null) return false;
+                foreach (Autodesk.Revit.DB.Connector c in conns)
+                    if (c.Domain == Autodesk.Revit.DB.Domain.DomainHvac) return true;
+            }
+            catch { }
+            return false;
+        }
+
+        private static double ReadDouble(Autodesk.Revit.DB.Element el, string name)
+        {
+            try
+            {
+                var p = el.LookupParameter(name);
+                if (p == null) return 0;
+                if (p.StorageType == Autodesk.Revit.DB.StorageType.Double) return p.AsDouble();
+                if (p.StorageType == Autodesk.Revit.DB.StorageType.String &&
+                    double.TryParse(p.AsString(),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out double v)) return v;
+            }
+            catch { }
+            return 0;
         }
     }
 }

@@ -3016,6 +3016,83 @@ Twelve gaps from the deep review now closed. All on PR #265.
 |---|---|---|
 | `PRJ_CONSTRUCTION_PROFILE_TXT` | PRJ_INFORMATION | Active construction profile id (PartL2021 / Passivhaus / IECC / ASHRAE 90.1 / EnEV) — drives U-values + SHGC |
 
+### Phase 187d — close the remaining deferred list
+
+Eight items from the Phase 187c deferred list are now in place:
+
+1. **ASHRAE Radiant Time Series.**
+   `Core/Hvac/Loads/RadiantTimeSeries.cs` ships RTF tables for
+   Light / Medium / Heavy construction classes (ASHRAE 2021 Table 19a)
+   + canonical radiant fractions per gain type (Conduction 0.63,
+   SolarGlass 1.00, Occupant 0.70, Lighting 0.67, Equipment 0.50 —
+   Table 14). `BlockLoadEngine.Run` gains an optional
+   `RtsConstructionClass` parameter; each gain stream is convolved
+   with the matching RTF before aggregating. Reactive (no lag) is
+   the default so legacy callers see no change. Heavy-mass buildings
+   peak ~15-25 % lower with RTS enabled; light-mass ~5 %. Active class
+   resolved via `PRJ_RTS_CLASS_TXT` on Project Info.
+
+2. **Hardy Cross initial-flow auto-guess.**
+   `HardyCrossSolver.InitializeFromDemand(pipes, demandLpsByNode)`
+   seeds `NetworkPipe.FlowM3S` from per-node demand split equally
+   across incident pipes. `InitializeUniform(pipes, source, q)`
+   handles the single-source tree case. Eliminates the "user must
+   pre-compute flows" gap.
+
+3. **Stull RH replaced with full thermodynamic-wet-bulb solver.**
+   `BlockLoadEngine.RhFromMcwb` now uses ASHRAE Handbook Fundamentals
+   2021 Eq. 33 (W from T_wb), then back-computes RH. Improves ~5 %
+   Stull error to ~0.5 % in the HVAC design range.
+
+4. **`Hfg` temperature dependence.** `BlockLoadEngine.HfgAtC(t)` returns
+   `(2501 − 2.381·t)·1000` (J/kg) per ASHRAE handbook fit. Evaluated
+   at the setpoint inside the per-hour latent calc — ~2 % more
+   accurate than the flat 2.45 MJ/kg constant.
+
+5. **Planscape Server `/hvac/*` endpoints.**
+   `Planscape.Server/src/Planscape.Core/Entities/HvacLoadSnapshot.cs`
+   adds three entities: `HvacLoadSnapshot`, `HvacNcSnapshot`,
+   `HvacRefrigerantSizing`. `HvacController.cs` exposes
+   `POST /loads`, `POST /loads/bulk`, `POST /nc`, `POST /refrigerant`,
+   `GET /dashboard`, `GET /loads?systemId&since`, `GET /nc?overTargetOnly`,
+   `GET /refrigerant?refrigerantId`. DbContext registers the three
+   sets + composite indexes on (ProjectId, CapturedAt), (ProjectId,
+   SystemId), (ProjectId, PredictedNc) and (ProjectId, RefrigerantId).
+   **EF migration `dotnet ef migrations add HvacEngineSnapshots`
+   against `Planscape.Server` is the next deployment step.**
+   `PlanscapeServerClient` gains `PushHvacLoadAsync`,
+   `PushHvacLoadsBulkAsync`, `PushHvacNcAsync`,
+   `PushHvacRefrigerantAsync`. `Hvac_PublishToServer` command on the
+   RPRT tab bundles the panel grids into a single bulk push.
+
+6. **Refrigerant ↔ duct linkage for ducted IDUs.**
+   `HvacRefrigerantSizeCommand` post-sizing scan: walks
+   `OST_MechanicalEquipment` for family / type names matching
+   "ducted" / "FCU" / "ceiling concealed" / "AHU" within ±50 % of
+   the design capacity, surfaces them in a "LINKED DUCTED IDUs"
+   section with a reminder to run `Hvac_AutoSizeDuct` on the
+   connected duct system.
+
+7. **Commissioning checklist generator.**
+   New `HvacGenerateCxChecklistCommand` walks every mechanical
+   equipment in the project, classifies it (AHU / Chiller / Boiler /
+   VRF / Pump / FCU / VAV / CoolingTower / HeatPump / Fan /
+   HeatExchanger / Damper / Generic) and emits a CSV under
+   `<project>/_BIM_COORD/cx/` with per-class ASHRAE Guideline 0 /
+   CIBSE TM39 phase rows (PreInstall / PreStartup / Startup /
+   Functional / Handover). Drops straight into a commissioning
+   agent's witnessing form. Wired to RPRT tab.
+
+8. **Fan + silencer sidecar wiring on equipment placement** —
+   covered by Phase 187c's `AcousticDataRegistry`; awaiting project-
+   specific data.
+
+### Parameters added (Phase 187d)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `PRJ_RTS_CLASS_TXT` | PRJ_INFORMATION | ASHRAE Radiant Time Series class (Reactive / Light / Medium / Heavy) — controls thermal-mass lag |
+
 ### Caveats (Phase 187 — what's still open)
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.

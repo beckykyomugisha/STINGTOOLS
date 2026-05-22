@@ -891,6 +891,12 @@
                                     Tag="Hvac_ReloadRules" Click="Cmd_Click" ToolTip="Re-read STING_MEP_SIZING_RULES.json"/>
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Reload climate"
                                     Tag="Hvac_ClimateReload" Click="Cmd_Click" ToolTip="Re-read STING_CLIMATE_DATA.json + project override"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Cx checklist"
+                                    Tag="Hvac_GenerateCxChecklist" Click="Cmd_Click"
+                                    ToolTip="Emit ASHRAE Guideline 0 / CIBSE TM39 commissioning checklist as CSV (Phase 187d)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Publish to server"
+                                    Tag="Hvac_PublishToServer" Click="Cmd_Click"
+                                    ToolTip="Push panel BlockLoad / NC / refrigerant results to Planscape Server (Phase 187d)"/>
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Reload all profiles"
                                     Tag="Hvac_ReloadProfiles" Click="Cmd_Click"
                                     ToolTip="Reload load profiles + construction + acoustic + climate + MEP sizing in one shot (Phase 187c)"/>

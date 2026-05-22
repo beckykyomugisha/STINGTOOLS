@@ -221,6 +221,12 @@ namespace StingTools.UI
                         // Phase 187c — composite block-load → propagate → auto-size
                         // → balance → NC → pressure-class → stale-size in one click.
                         Run<StingTools.Commands.Hvac.HvacFullDesignPassCommand>(app); break;
+                    case "Hvac_GenerateCxChecklist":
+                        // Phase 187d — emit ASHRAE Guideline 0 / CIBSE TM39 checklist as CSV.
+                        Run<StingTools.Commands.Hvac.HvacGenerateCxChecklistCommand>(app); break;
+                    case "Hvac_PublishToServer":
+                        // Phase 187d — push BlockLoad/NC/Refrigerant results to Planscape.
+                        Run<StingTools.Commands.Hvac.HvacPublishToServerCommand>(app); break;
                     case "Hvac_NcPredict":
                         // STING-design-engines: VDI 2081 / ASHRAE A48 NC prediction
                         // from duct selection + regenerated noise + room model.
