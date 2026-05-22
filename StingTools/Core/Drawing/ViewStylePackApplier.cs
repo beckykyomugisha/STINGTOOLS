@@ -136,11 +136,27 @@ namespace StingTools.Core.Drawing
         /// is regenerated lazily on each apply so a newly-added material
         /// is picked up next time the pack runs.
         /// </summary>
+        // P-6 — Cache the (doc-path, className) → ParameterFilterElement id
+        // so successive packs targeting the same class skip the rebuild.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ElementId> _matClassFilterCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+
+        public static void InvalidateMaterialClassFilterCache() => _matClassFilterCache.Clear();
+
         private static ParameterFilterElement EnsureMaterialClassFilter(Document doc, string className)
         {
             try
             {
                 string filterName = $"STING_MAT_CLASS_{className}";
+                string cacheKey = (doc?.PathName ?? doc?.Title ?? "_") + "|" + className;
+                if (_matClassFilterCache.TryGetValue(cacheKey, out var cachedId) &&
+                    cachedId != null && cachedId.Value > 0 &&
+                    doc.GetElement(cachedId) is ParameterFilterElement cachedPfe &&
+                    string.Equals(cachedPfe.Name, filterName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return cachedPfe;
+                }
+
                 // Find existing
                 var existing = new FilteredElementCollector(doc).OfClass(typeof(ParameterFilterElement))
                     .Cast<ParameterFilterElement>()
@@ -152,7 +168,7 @@ namespace StingTools.Core.Drawing
                     .Where(m => string.Equals(m.MaterialClass ?? "", className, StringComparison.OrdinalIgnoreCase))
                     .Select(m => m.Id)
                     .ToList();
-                if (matIds.Count == 0) return existing; // nothing to filter on yet
+                if (matIds.Count == 0) { if (existing != null) _matClassFilterCache[cacheKey] = existing.Id; return existing; }
 
                 // Build the categories the filter applies to — every
                 // category that can carry a Material parameter. Use a
@@ -188,17 +204,19 @@ namespace StingTools.Core.Drawing
                 if (rules.Count == 0) return existing;
                 ElementParameterFilter elemFilter = new ElementParameterFilter(rules, false /* OR semantics across the rules */);
 
+                ParameterFilterElement built;
                 if (existing == null)
                 {
-                    return ParameterFilterElement.Create(doc, filterName, cats, elemFilter);
+                    built = ParameterFilterElement.Create(doc, filterName, cats, elemFilter);
                 }
                 else
                 {
-                    // Refresh — categories + element filter may have grown.
                     try { existing.SetCategories(cats); } catch { }
                     try { existing.SetElementFilter(elemFilter); } catch { }
-                    return existing;
+                    built = existing;
                 }
+                if (built != null) _matClassFilterCache[cacheKey] = built.Id;
+                return built;
             }
             catch (Exception ex)
             {

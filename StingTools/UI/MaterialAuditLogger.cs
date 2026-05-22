@@ -35,7 +35,14 @@ namespace StingTools.UI
                 if (payload != null)
                     foreach (var kv in payload)
                         jo[kv.Key] = JToken.FromObject(kv.Value ?? "");
-                Planscape.Docs.Workflow.AuditLog.Append(doc, action, materialName ?? "(unknown)", jo);
+                // P-5 — Best-effort retry on file-lock contention. Audit log
+                // writes during batch ops can collide; one short retry covers
+                // the typical 1-tick window.
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    try { Planscape.Docs.Workflow.AuditLog.Append(doc, action, materialName ?? "(unknown)", jo); break; }
+                    catch (System.IO.IOException) when (attempt < 2) { System.Threading.Thread.Sleep(10); }
+                }
 
                 // C7 — Mirror material events into the BIM Coordination
                 // Center's coord log so the project timeline shows every

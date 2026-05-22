@@ -44,10 +44,18 @@ namespace StingTools.UI
     {
         private const string SnapshotPrefix = ".mat_snapshot_";
 
-        /// <summary>Write the current user's snapshot of the material set.</summary>
+        // P-4 — Throttle snapshot writes to once per minute. Avoids the
+        // file-I/O churn when a user clicks Refresh repeatedly.
+        private static DateTime _lastWriteUtc = DateTime.MinValue;
+        private static readonly TimeSpan _minInterval = TimeSpan.FromSeconds(60);
+
+        /// <summary>Write the current user's snapshot of the material set.
+        /// Throttled to once per minute so high-frequency Refresh
+        /// doesn't thrash the disk or contend with peers' reads.</summary>
         public static void WriteMySnapshot(Document doc, IReadOnlyList<MaterialRow> rows)
         {
             if (doc == null || rows == null) return;
+            if ((DateTime.UtcNow - _lastWriteUtc) < _minInterval) return;
             try
             {
                 string dir = Core.ProjectFolderEngine.GetDataPath(doc, "");
@@ -62,6 +70,7 @@ namespace StingTools.UI
                 }).ToList();
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(path, JsonConvert.SerializeObject(data, Formatting.None));
+                _lastWriteUtc = DateTime.UtcNow;
             }
             catch (Exception ex) { StingLog.Warn($"MaterialPeerEditWatcher.WriteMySnapshot: {ex.Message}"); }
         }
