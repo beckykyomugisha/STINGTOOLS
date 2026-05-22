@@ -43,4 +43,11 @@ public enum WebhookEventType
     TransmittalSent = 5,
     MeetingCreated = 6,
     DeliverableIssued = 7,
+    // Phase 180 — site-photo workflow webhook surface.
+    PhotoCaptured = 100,
+    PhotoApproved = 101,
+    PhotoRejected = 102,
+    PhotoWithdrawn = 103,
+    PhotoChecklistClosed = 104,
+    PhotoShareLinkOpened = 105,
 }

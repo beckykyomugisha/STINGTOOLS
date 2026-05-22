@@ -981,6 +981,13 @@ namespace StingTools.UI
         private BIMCoordinationCenter(CoordData data)
         {
             _data = data;
+            // Make sure the ThemeManager has at least Corporate seeded before
+            // we start baking palette colours into the visual tree below — a
+            // freshly-launched session may open the BCC before the dock panel
+            // (which normally calls InitialiseResources) has been shown.
+            try { ThemeManager.EnsureInitialised(); }
+            catch (Exception exTheme) { StingLog.Warn($"BCC theme init: {exTheme.Message}"); }
+
             // Phase 104: Rebranded — drop "STING" prefix per user request. The window is now
             // titled just "BIM Coordination Center" so it reads as a role-based tool rather
             // than a product feature. "STINGTOOLS BCC" appears in logs/audit trail only.
@@ -7261,6 +7268,10 @@ namespace StingTools.UI
         // Phase 78 Section 10.6: Proper resource cleanup on window close
         private void OnClosed(object sender, EventArgs e)
         {
+            // Detach the ThemeChanged subscription added in the constructor —
+            // otherwise a closed BCC keeps a static reference alive and reopens
+            // would stack handlers.
+            try { ThemeManager.ThemeChanged -= OnThemeChanged; } catch { /* best effort */ }
             ActionDispatcher = null;
             CurrentInstance = null;
             _tabCache.Clear();

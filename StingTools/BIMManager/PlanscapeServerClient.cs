@@ -1351,10 +1351,33 @@ public sealed class PlanscapeServerClient : IDisposable
             var items = json["items"] as JArray;
             if (items == null) return empty;
             var list = items.ToObject<List<SitePhotoDto>>();
+            // Phase 180 — surface ndaRequiredIds so callers can render
+            // a 🔒 lock badge on photos awaiting NDA acceptance.
+            var ndaIdsJson = json["ndaRequiredIds"] as JArray;
+            if (ndaIdsJson != null)
+            {
+                LastNdaRequiredIds = ndaIdsJson
+                    .Select(t => (string?)t)
+                    .Where(s => Guid.TryParse(s, out _))
+                    .Select(s => Guid.Parse(s!))
+                    .ToHashSet();
+            }
+            else
+            {
+                LastNdaRequiredIds = new HashSet<Guid>();
+            }
             return list ?? empty;
         }
         catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListSitePhotosAsync: {ex.Message}"); return empty; }
     }
+
+    /// <summary>
+    /// Phase 180 — set after the most recent <see cref="ListSitePhotosAsync"/>
+    /// call. Holds the photo ids that the server flagged as
+    /// <c>ndaRequiredIds</c> for the calling user. Empty when the user
+    /// bypasses ACL or no listed photo carries an NDA-required rule.
+    /// </summary>
+    public HashSet<Guid> LastNdaRequiredIds { get; private set; } = new();
 
     /// <summary>Download the redacted/watermarked photo bytes for thumbnail or full-size view.
     /// Returns null on failure (caller should render a placeholder).</summary>
