@@ -98,6 +98,11 @@ namespace StingTools.Commands.Hvac
                                     $"{z.PeakHour:D2}:00", overwrite: true);
                                 ParameterHelpers.SetString(el, "HVC_OA_LS",
                                     $"{z.OaLs:F1}", overwrite: true);
+                                // Phase 187f — clear the stale flag that the
+                                // envelope IUpdater may have set since the
+                                // previous BlockLoad run.
+                                ParameterHelpers.SetInt(el, "HVC_LOAD_STALE_BOOL", 0, overwrite: true);
+                                ParameterHelpers.SetString(el, "HVC_LOAD_STALE_REASON_TXT", "", overwrite: true);
                             }
                             catch (Exception ex) { StingLog.Warn($"Block-load stamp {el.Id}: {ex.Message}"); }
                         }

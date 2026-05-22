@@ -26,6 +26,9 @@ namespace StingTools.UI
         private readonly TextBox  _txtLift;
         private readonly CheckBox _chkRiser;
         private readonly TextBox  _txtDpBudget;
+        private readonly ComboBox _cmbVendorSeries;
+        private readonly TextBox  _txtActualLen;
+        private readonly TextBox  _txtTotalLen;
 
         public RefrigerantSizingDialog(string initialRefrigerant = "R410A")
         {
@@ -37,7 +40,7 @@ namespace StingTools.UI
             Background = new SolidColorBrush(Color.FromRgb(248, 246, 252));
 
             var grid = new Grid { Margin = new Thickness(16) };
-            for (int i = 0; i < 8; i++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            for (int i = 0; i < 12; i++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
@@ -93,6 +96,27 @@ namespace StingTools.UI
             Grid.SetRow(_txtDpBudget, row); Grid.SetColumn(_txtDpBudget, 1); grid.Children.Add(_txtDpBudget);
             row++;
 
+            // Vendor envelope (Phase 187f). Optional — leave at "(none)" to
+            // rely on the generic refrigerant envelope only.
+            AddLabel(grid, "Vendor series (optional)", row);
+            _cmbVendorSeries = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
+            _cmbVendorSeries.Items.Add("(none — generic envelope)");
+            foreach (var kv in StingTools.Core.Refrigerant.RefrigerantVendorRegistry.Get(null).ById)
+                _cmbVendorSeries.Items.Add(kv.Key);
+            _cmbVendorSeries.SelectedIndex = 0;
+            Grid.SetRow(_cmbVendorSeries, row); Grid.SetColumn(_cmbVendorSeries, 1); grid.Children.Add(_cmbVendorSeries);
+            row++;
+
+            AddLabel(grid, "Actual one-way length (m)", row);
+            _txtActualLen = new TextBox { Text = "0", Margin = new Thickness(0, 2, 0, 6) };
+            Grid.SetRow(_txtActualLen, row); Grid.SetColumn(_txtActualLen, 1); grid.Children.Add(_txtActualLen);
+            row++;
+
+            AddLabel(grid, "Total system length (m)", row);
+            _txtTotalLen = new TextBox { Text = "0", Margin = new Thickness(0, 2, 0, 6) };
+            Grid.SetRow(_txtTotalLen, row); Grid.SetColumn(_txtTotalLen, 1); grid.Children.Add(_txtTotalLen);
+            row++;
+
             _chkRiser = new CheckBox
             {
                 Content = "Includes vertical riser (apply oil-return min velocity)",
@@ -137,6 +161,15 @@ namespace StingTools.UI
                 input.LiftM               = double.Parse(_txtLift.Text);
                 input.MaxPressureDropKpa  = double.Parse(_txtDpBudget.Text);
                 input.HasVerticalRiser    = _chkRiser.IsChecked == true;
+
+                // Vendor envelope (optional). Index 0 = "(none)", so anything
+                // else is a real series id from the registry.
+                if (_cmbVendorSeries?.SelectedIndex > 0)
+                    input.VendorSeriesId = _cmbVendorSeries.SelectedItem?.ToString();
+                if (double.TryParse(_txtActualLen?.Text, out var aLen) && aLen > 0)
+                    input.ActualOnewayLengthM = aLen;
+                if (double.TryParse(_txtTotalLen?.Text, out var tLen) && tLen > 0)
+                    input.TotalSystemLengthM = tLen;
                 return true;
             }
             catch (Exception ex)

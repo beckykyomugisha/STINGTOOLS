@@ -48,6 +48,27 @@ namespace StingTools.Core.Refrigerant
         /// for EEV systems with deliberate sub-cooling control.
         /// </summary>
         public double SubcoolingReserveK { get; set; } = 5.0;
+
+        /// <summary>
+        /// Optional vendor series id (e.g. "Daikin-VRV-5", "Mitsubishi-CityMulti-R2").
+        /// When set, the solver consults <see cref="RefrigerantVendorRegistry"/>
+        /// for vendor-published max-length tables. Stricter checks layered on
+        /// top of the generic Darcy ΔP-budget pass; failures surface as warnings.
+        /// </summary>
+        public string VendorSeriesId { get; set; }
+        /// <summary>Actual (physical) one-way length of the run, m. Used for
+        /// vendor-table compliance when an Equivalent-Length value is supplied
+        /// via <see cref="EquivLengthM"/>.</summary>
+        public double ActualOnewayLengthM { get; set; }
+        /// <summary>Total summed pipe length across all branches (m).
+        /// Vendor tables cap this independently of the one-way length.</summary>
+        public double TotalSystemLengthM { get; set; }
+        /// <summary>Optional document for resolving the vendor registry. May
+        /// be null — caller can also pre-pass a <see cref="VendorLimits"/>.</summary>
+        public Autodesk.Revit.DB.Document Document { get; set; }
+        /// <summary>Direct vendor limits override — bypasses registry lookup
+        /// when supplied.</summary>
+        public VendorSeriesLimits VendorLimits { get; set; }
     }
 
     public class RefrigerantSizingResult
@@ -63,6 +84,10 @@ namespace StingTools.Core.Refrigerant
         /// <summary>Equivalent saturation-temperature drop from line ΔP (K).
         /// LIQUID legs only; compared against <see cref="RefrigerantSizingInput.SubcoolingReserveK"/>.</summary>
         public double SatTempDropK        { get; set; }
+        /// <summary>Vendor series id consulted for length-table compliance, when supplied.</summary>
+        public string VendorSeriesId      { get; set; }
+        /// <summary>Vendor series human-readable label.</summary>
+        public string VendorSeriesLabel   { get; set; }
         public string Refrigerant         { get; set; }
         public string Leg                 { get; set; }
         public List<string> Warnings { get; } = new List<string>();
@@ -194,13 +219,43 @@ namespace StingTools.Core.Refrigerant
                     }
                 }
 
-                // Length / lift compliance against vendor envelope.
+                // Length / lift compliance against the generic fluid envelope.
                 if (input.EquivLengthM > fluid.MaxEquivLengthM)
-                    r.Warnings.Add($"Equivalent length {input.EquivLengthM:F0} m exceeds vendor max {fluid.MaxEquivLengthM:F0} m for {fluid.Id}.");
+                    r.Warnings.Add($"Equivalent length {input.EquivLengthM:F0} m exceeds generic max {fluid.MaxEquivLengthM:F0} m for {fluid.Id}.");
                 if (input.LiftM > fluid.MaxLiftAboveIndoorM)
-                    r.Warnings.Add($"Lift {input.LiftM:F0} m exceeds vendor max {fluid.MaxLiftAboveIndoorM:F0} m above indoor unit.");
+                    r.Warnings.Add($"Lift {input.LiftM:F0} m exceeds generic max {fluid.MaxLiftAboveIndoorM:F0} m above indoor unit.");
                 if (input.LiftM < -fluid.MaxLiftBelowIndoorM)
-                    r.Warnings.Add($"Drop {-input.LiftM:F0} m exceeds vendor max {fluid.MaxLiftBelowIndoorM:F0} m below indoor unit.");
+                    r.Warnings.Add($"Drop {-input.LiftM:F0} m exceeds generic max {fluid.MaxLiftBelowIndoorM:F0} m below indoor unit.");
+
+                // Vendor-specific length-table compliance (Daikin REYQ-T,
+                // Mitsubishi City Multi, Toshiba SHRMe, etc). Stricter than
+                // the generic envelope when present.
+                var vendor = input.VendorLimits
+                    ?? (input.VendorSeriesId != null && input.Document != null
+                        ? RefrigerantVendorRegistry.Get(input.Document).Get(input.VendorSeriesId)
+                        : null);
+                if (vendor != null)
+                {
+                    r.VendorSeriesId    = vendor.Id;
+                    r.VendorSeriesLabel = vendor.Label;
+                    if (vendor.EquivalentOnewayMaxM > 0 && input.EquivLengthM > vendor.EquivalentOnewayMaxM)
+                        r.Warnings.Add(
+                            $"Vendor {vendor.Label}: equivalent one-way length " +
+                            $"{input.EquivLengthM:F0} m exceeds max {vendor.EquivalentOnewayMaxM:F0} m.");
+                    if (vendor.ActualOnewayMaxM > 0 && input.ActualOnewayLengthM > vendor.ActualOnewayMaxM)
+                        r.Warnings.Add(
+                            $"Vendor {vendor.Label}: actual one-way length " +
+                            $"{input.ActualOnewayLengthM:F0} m exceeds max {vendor.ActualOnewayMaxM:F0} m.");
+                    if (vendor.TotalPipeLengthM > 0 && input.TotalSystemLengthM > vendor.TotalPipeLengthM)
+                        r.Warnings.Add(
+                            $"Vendor {vendor.Label}: total system pipe length " +
+                            $"{input.TotalSystemLengthM:F0} m exceeds max {vendor.TotalPipeLengthM:F0} m.");
+                    if (vendor.VerticalHighLowOduIduM > 0 &&
+                        Math.Abs(input.LiftM) > vendor.VerticalHighLowOduIduM)
+                        r.Warnings.Add(
+                            $"Vendor {vendor.Label}: |lift| {Math.Abs(input.LiftM):F0} m " +
+                            $"exceeds ODU↔IDU vertical max {vendor.VerticalHighLowOduIduM:F0} m.");
+                }
                 return r;
             }
 

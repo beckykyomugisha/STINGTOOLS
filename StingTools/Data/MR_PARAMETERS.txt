@@ -3188,6 +3188,8 @@ PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b66	HVC_LOAD_SOURCE_TXT	TEXT		5	1	Provena
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b67	PRJ_CLIMATE_SITE_LABEL_TXT	TEXT		13	1	Human-readable climate site label stamped by the DocumentOpened auto-stamp [Phase 187b]	1
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b68	PRJ_CONSTRUCTION_PROFILE_TXT	TEXT		13	1	Active construction profile id (PartL2021 / PartL2013 / PreRegs1990 / Passivhaus / IECC2021_CZ4 / ASHRAE901_2019_CZ5 / EnEV2014_DE)  -  drives U-values + SHGC in BlockLoadEngine [Phase 187c]	1
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b69	PRJ_RTS_CLASS_TXT	TEXT		13	1	ASHRAE Radiant Time Series construction class (Reactive / Light / Medium / Heavy)  -  controls thermal-mass lag in BlockLoadEngine [Phase 187d]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b6a	HVC_LOAD_STALE_BOOL	YESNO		5	1	1 when an envelope geometry change has invalidated this Space's last BlockLoad result. Cleared by Hvac_BlockLoad or Hvac_EnvelopeStaleClear [Phase 187f]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b6b	HVC_LOAD_STALE_REASON_TXT	TEXT		5	1	Short tag identifying what envelope element changed (wall geom / window geom / roof geom / etc.) [Phase 187f]	1
 PARAM	8b3bfdcf-aab3-5944-a451-e4766bfaf8ce	PRJ_ORG_PRESSURE_PROFILE_TXT	TEXT		13	1	Active pressure-regime profile id for GeneralPressureRegimeValidator (healthcare-htm03-01 / gmp-annex1 / iso-14644-cleanroom / bs-en-12128-lab) [Phase 183]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41	ASS_CST_UNIT_RATE_NR	NUMBER		2	1	Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42	ASS_CST_CURRENCY_TXT	TEXT		2	1	ISO 4217 currency code (GBP / UGX / USD / EUR) of ASS_CST_UNIT_RATE_NR [Phase 184]	1

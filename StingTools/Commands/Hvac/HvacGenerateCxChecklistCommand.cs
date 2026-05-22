@@ -247,7 +247,21 @@ namespace StingTools.Commands.Hvac
                 foreach (var kv in classes)
                 {
                     if (kv.Key.StartsWith("_")) continue;
-                    if (!(kv.Value is JArray arr)) continue;
+
+                    // Two value shapes supported:
+                    //   1. Bare array → REPLACE the corporate class wholesale.
+                    //   2. Object { "_merge": "append"|"replace", "tasks": [...] }
+                    //      → respect the per-class merge mode.
+                    JArray arr = null;
+                    string mergeMode = "replace";
+                    if (kv.Value is JArray a) arr = a;
+                    else if (kv.Value is JObject o)
+                    {
+                        mergeMode = ((string)o["_merge"] ?? "replace").ToLowerInvariant();
+                        arr = o["tasks"] as JArray;
+                    }
+                    if (arr == null) continue;
+
                     var rows = new List<CxTask>();
                     foreach (var row in arr.OfType<JObject>())
                     {
@@ -257,9 +271,21 @@ namespace StingTools.Commands.Hvac
                             (string)row["method"] ?? "",
                             (string)row["acceptance"] ?? ""));
                     }
-                    // REPLACE semantics — project override entries clobber
-                    // the corporate class wholesale rather than merging.
-                    lib[kv.Key] = rows;
+
+                    if (mergeMode == "append" && lib.TryGetValue(kv.Key, out var existing))
+                    {
+                        // APPEND: corporate rows kept, override rows added below.
+                        // Dedupe by (Phase + Task) to keep re-runs idempotent.
+                        var seen = new HashSet<string>(existing.Select(t => $"{t.Phase}|{t.Task}"),
+                                                      StringComparer.OrdinalIgnoreCase);
+                        foreach (var r in rows)
+                            if (seen.Add($"{r.Phase}|{r.Task}")) existing.Add(r);
+                    }
+                    else
+                    {
+                        // REPLACE (default) — override rows clobber the corporate set.
+                        lib[kv.Key] = rows;
+                    }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ApplyTaskJson: {ex.Message}"); }

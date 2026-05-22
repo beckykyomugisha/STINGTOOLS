@@ -146,11 +146,23 @@ namespace StingTools.Core.Hvac.Loads
             double wOa   = HumidityRatio(c.Cooling996DbC, RhFromMcwb(c.Cooling996DbC, c.Cooling996McwbC));
 
             // Track each gain stream separately so RTS can apply the
-            // construction-class radiant time factors per-stream
-            // (different radiant fractions per stream — Conduction 0.63,
-            // SolarGlass 1.00, Occupant 0.70, Lighting 0.67, Equipment 0.50).
-            var condW   = new double[24];
-            var solarW  = new double[24];
+            // construction-class radiant time factors per-stream. Conduction
+            // and solar are additionally split by 8 orientation bins so the
+            // lag re-emission is correct per cardinal direction (south-facing
+            // walls heat up at noon; west-facing in the afternoon — the
+            // re-emission lag matters per-orientation, not in aggregate).
+            //
+            // ASHRAE Handbook Fundamentals 2021 Ch.18 §RTS calls this out
+            // explicitly; aggregating before convolution under-predicts the
+            // afternoon peak on west-glass-heavy zones by ~5-8 %.
+            const int NumOrient = 8;                          // 45° bins, 0 = N
+            var condByOrient  = new double[NumOrient][];
+            var solarByOrient = new double[NumOrient][];
+            for (int b = 0; b < NumOrient; b++)
+            {
+                condByOrient[b]  = new double[24];
+                solarByOrient[b] = new double[24];
+            }
             var occW    = new double[24];
             var litW    = new double[24];
             var eqpW    = new double[24];
@@ -171,21 +183,20 @@ namespace StingTools.Core.Hvac.Loads
                 double iSol  = cooling ? ClearSkyDirectNormalWm2(c, h, designDoy) : 0;     // ignore solar for heating peak (night)
                 double iDiff = cooling ? 0.15 * iSol : 0;
 
-                // 1. Conduction through every envelope segment
-                double qCond = 0;
-                double qSolar = 0;
+                // 1. Conduction + solar by envelope segment, binned per
+                //    orientation (45° increments, 0 = North).
                 foreach (var seg in z.Envelope)
                 {
-                    qCond += seg.UvalueWm2K * seg.AreaM2 * (tOut - tSet);
+                    int bin = OrientationBin(seg.OrientationDeg, NumOrient);
+                    double qCond = seg.UvalueWm2K * seg.AreaM2 * (tOut - tSet);
+                    condByOrient[bin][h] += qCond;
                     if (seg.Kind == SegmentKind.Window && cooling)
                     {
                         double cosTheta = Math.Max(0, IncidenceFactor(seg.OrientationDeg, h, c.Lat, designDoy));
                         double solSurf = iSol * cosTheta + iDiff;
-                        qSolar += seg.AreaM2 * seg.SHGC * seg.ShadingFactor * solSurf;
+                        solarByOrient[bin][h] += seg.AreaM2 * seg.SHGC * seg.ShadingFactor * solSurf;
                     }
                 }
-                condW[h]  = qCond;
-                solarW[h] = qSolar;
 
                 // 2. Internal gains (use schedules clipped to 0..1)
                 double occ = Sched(z.OccupancySchedule, h);
@@ -208,16 +219,29 @@ namespace StingTools.Core.Hvac.Loads
             // RTS lag — applied per-stream with the canonical ASHRAE
             // radiant fraction for that gain type. Reactive class is a
             // no-op pass-through so legacy callers see no behaviour change.
+            // Phase 187f — conduction + solar are convolved per-orientation
+            // before aggregation (was: aggregated first then convolved).
             var rf = RadiantTimeSeries.RadiantFraction;
-            condW  = RadiantTimeSeries.ApplyRtsToGain(condW,  rf.Conduction, rts);
-            solarW = RadiantTimeSeries.ApplyRtsToGain(solarW, rf.SolarGlass, rts);
-            occW   = RadiantTimeSeries.ApplyRtsToGain(occW,   rf.Occupant,   rts);
-            litW   = RadiantTimeSeries.ApplyRtsToGain(litW,   rf.Lighting,   rts);
-            eqpW   = RadiantTimeSeries.ApplyRtsToGain(eqpW,   rf.Equipment,  rts);
+            for (int b = 0; b < NumOrient; b++)
+            {
+                condByOrient[b]  = RadiantTimeSeries.ApplyRtsToGain(condByOrient[b],  rf.Conduction, rts);
+                solarByOrient[b] = RadiantTimeSeries.ApplyRtsToGain(solarByOrient[b], rf.SolarGlass, rts);
+            }
+            occW = RadiantTimeSeries.ApplyRtsToGain(occW, rf.Occupant,  rts);
+            litW = RadiantTimeSeries.ApplyRtsToGain(litW, rf.Lighting,  rts);
+            eqpW = RadiantTimeSeries.ApplyRtsToGain(eqpW, rf.Equipment, rts);
 
             var sens = new double[24];
             for (int h = 0; h < 24; h++)
-                sens[h] = condW[h] + solarW[h] + occW[h] + litW[h] + eqpW[h] + ventSW[h];
+            {
+                double cond = 0, solar = 0;
+                for (int b = 0; b < NumOrient; b++)
+                {
+                    cond  += condByOrient[b][h];
+                    solar += solarByOrient[b][h];
+                }
+                sens[h] = cond + solar + occW[h] + litW[h] + eqpW[h] + ventSW[h];
+            }
 
             // For cooling, "peak" is the maximum sensible load. For
             // heating, the minimum (largest-magnitude negative).
@@ -404,6 +428,22 @@ namespace StingTools.Core.Hvac.Loads
             if (hour < 0 || hour >= sched.Length) return 0;
             double v = sched[hour];
             return v < 0 ? 0 : (v > 1 ? 1 : v);
+        }
+
+        /// <summary>
+        /// Map a degrees-from-north orientation onto a fixed bin count
+        /// (typically 8, i.e. 45° bins centred on N / NE / E / SE / S /
+        /// SW / W / NW). Defensive against negative + out-of-range inputs.
+        /// </summary>
+        private static int OrientationBin(double degFromNorth, int bins)
+        {
+            if (bins <= 0) return 0;
+            double d = degFromNorth % 360.0;
+            if (d < 0) d += 360.0;
+            double step = 360.0 / bins;
+            int bin = (int)Math.Round(d / step) % bins;
+            if (bin < 0) bin += bins;
+            return bin;
         }
     }
 }

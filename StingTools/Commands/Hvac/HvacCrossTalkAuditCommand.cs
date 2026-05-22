@@ -51,12 +51,19 @@ namespace StingTools.Commands.Hvac
     public class HvacCrossTalkAuditCommand : IExternalCommand
     {
         private const int MaxWalk = 18;
-        // Minimum cumulative attenuation between two terminals to call the
-        // path "speech-private". 30 dB at 1 kHz is the conventional floor.
+        // Minimum cumulative attenuation at 1 kHz between two terminals to
+        // call the path speech-private. 30 dB at 1 kHz is the conventional
+        // BB93 / ASHRAE A48 floor. Used as a secondary "summary" flag only;
+        // the primary classification is via NC at the receiver (Phase 187f).
         private const double SpeechPrivacyFloorDb = 30.0;
-        // Conservative talker reference: a person at 1 m, normal voice ≈ 60 dBA
-        // (ANSI S3.5 / BB93 nominal). Single value → octave-band stand-in.
-        private const double TalkerLpRefDb = 60.0;
+        // ANSI S3.5 normal-voice talker octave-band Lp at 1 m, dB re 20 μPa.
+        // Used as the receiver-side reference for both the summary attenuation
+        // metric and the per-octave Lp computation that drives NcCurves.Rate.
+        private static readonly OctaveBand TalkerLpRefOct = OctaveBand.FromArray(
+            new[] { 54.0, 57.0, 58.0, 60.0, 60.0, 56.0, 50.0, 44.0 });
+        // Receiver target NC — flag pairs whose computed NC at the receiver
+        // exceeds this. Defaults to office speech-privacy NC-35 per ASHRAE A48.
+        private const int ReceiverNcTarget = 35;
 
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
@@ -93,7 +100,7 @@ namespace StingTools.Commands.Hvac
                 //    (elementId, elementCategory, lengthM) for attenuation
                 //    accumulation when two paths converge.
                 foreach (var t in terminals)
-                    t.UpstreamPath = WalkUpstream(t.El);
+                    t.UpstreamPath = WalkUpstream(t.El, doc);
 
                 // 3. Pair check — O(n²) but n is typically <500 so OK.
                 var flagged = new List<CrossTalkPair>();
@@ -107,18 +114,29 @@ namespace StingTools.Commands.Hvac
                     if (shared == 0) { noShare++; continue; }
                     paired++;
 
-                    double attenDb = AccumulateAttenuationToShared(a, shared)
-                                   + AccumulateAttenuationToShared(b, shared)
-                                   + 6.0; // tee split
-                    // Reference 1 kHz Lp at receiver.
-                    double receiverLp = TalkerLpRefDb - attenDb;
-                    bool flag = attenDb < SpeechPrivacyFloorDb;
+                    var attenA = AccumulateAttenuationToShared(a, shared);
+                    var attenB = AccumulateAttenuationToShared(b, shared);
+                    // Total attenuation = upstream A + upstream B + 6 dB tee split.
+                    var attenTotal = new OctaveBand();
+                    for (int i = 0; i < 8; i++)
+                        attenTotal[i] = attenA[i] + attenB[i] + 6.0;
+
+                    // Receiver Lp spectrum = talker reference − attenuation,
+                    // floored at 0 dB. NC rating per ASHRAE A48.
+                    var receiverLp = new OctaveBand();
+                    for (int i = 0; i < 8; i++)
+                        receiverLp[i] = Math.Max(0, TalkerLpRefOct[i] - attenTotal[i]);
+                    int receiverNc = NcCurves.Rate(receiverLp);
+
+                    double atten1kDb = attenTotal.Hz1000;
+                    bool flag = receiverNc > ReceiverNcTarget || atten1kDb < SpeechPrivacyFloorDb;
                     if (flag)
                     {
                         flagged.Add(new CrossTalkPair
                         {
                             A = a, B = b, SharedDuctId = shared,
-                            AttenDb = attenDb, ReceiverLpDb = receiverLp
+                            AttenTotal = attenTotal, ReceiverLp = receiverLp,
+                            ReceiverNc = receiverNc, Atten1kDb = atten1kDb
                         });
                     }
                 }
@@ -129,7 +147,7 @@ namespace StingTools.Commands.Hvac
                 // 5. Result panel
                 var panel = StingResultPanel.Create("HVAC — Cross-talk Audit");
                 panel.SetSubtitle($"{terminals.Count} terminals · {paired} cross-space pairs · " +
-                                  $"{flagged.Count} flagged ({SpeechPrivacyFloorDb:F0} dB privacy floor)");
+                                  $"{flagged.Count} flagged (NC > {ReceiverNcTarget} or 1k-atten < {SpeechPrivacyFloorDb:F0} dB)");
                 panel.AddSection("SUMMARY")
                      .Metric("Terminals scanned",       terminals.Count.ToString())
                      .Metric("Cross-space pairs",       paired.ToString())
@@ -141,16 +159,18 @@ namespace StingTools.Commands.Hvac
                 if (flagged.Count > 0)
                 {
                     panel.AddSection("WORST CROSS-TALK (top 20)");
-                    foreach (var p in flagged.OrderBy(x => x.AttenDb).Take(20))
+                    foreach (var p in flagged.OrderByDescending(x => x.ReceiverNc).Take(20))
                         panel.Text($"  '{p.A.SpaceName}' ↔ '{p.B.SpaceName}' · " +
-                                   $"shared duct #{p.SharedDuctId} · atten {p.AttenDb:F0} dB · " +
-                                   $"est. receiver Lp {p.ReceiverLpDb:F0} dB");
+                                   $"shared #{p.SharedDuctId} · NC {p.ReceiverNc} · " +
+                                   $"atten@1kHz {p.Atten1kDb:F0} dB");
                 }
-                panel.Text("Method: walks each terminal's connector graph upstream, finds the " +
-                           "shared duct between every (A, B) pair, accumulates ASHRAE A48 attenuation " +
-                           "(straight + elbow + tee + end-reflection ×2) plus 6 dB tee split. " +
-                           "Privacy floor = 30 dB at 1 kHz (BB93 / ASHRAE A48 conventional). " +
-                           "Add cross-talk silencers or branch isolation where flagged.");
+                panel.Text("Method: walks each terminal's connector graph upstream tracking full " +
+                           "octave-band attenuation (63 Hz → 8 kHz) per ASHRAE A48 (straight + elbow " +
+                           "+ tee + end-reflection ×2 + silencer IL via AcousticDataRegistry) plus 6 dB " +
+                           "tee split. Receiver Lp = talker reference (ANSI S3.5 normal voice @ 1 m) " +
+                           $"minus attenuation. Rated against NC curves; flag when NC > {ReceiverNcTarget} " +
+                           $"or 1 kHz attenuation < {SpeechPrivacyFloorDb:F0} dB. Add cross-talk silencers " +
+                           "or branch isolation where flagged.");
                 panel.Show();
 
                 try
@@ -160,12 +180,12 @@ namespace StingTools.Commands.Hvac
                         flagged.Count > 0 ? "⬡" : "⬤");
                     if (pp != null)
                     {
-                        foreach (var p in flagged.OrderBy(x => x.AttenDb).Take(10))
+                        foreach (var p in flagged.OrderByDescending(x => x.ReceiverNc).Take(10))
                             pp.IssueRows.Add(new HvacIssueRow
                             {
                                 Severity = "⚠",
                                 Element = $"'{p.A.SpaceName}' ↔ '{p.B.SpaceName}'",
-                                Issue   = $"Cross-talk atten only {p.AttenDb:F0} dB (floor {SpeechPrivacyFloorDb:F0})",
+                                Issue   = $"Cross-talk NC {p.ReceiverNc} > target NC {ReceiverNcTarget} (1k atten {p.Atten1kDb:F0} dB)",
                                 Suggestion = "Add cross-talk silencer or branch isolation"
                             });
                     }
@@ -185,29 +205,30 @@ namespace StingTools.Commands.Hvac
         // ── Path walk ───────────────────────────────────────────────
 
         /// <summary>
-        /// Walk upstream from a terminal's host connector through the
-        /// duct + fitting graph. Returns a dictionary keyed on element
-        /// id mapped to attenuation contribution to that point. Skips
-        /// other terminals and equipment (stops the walk).
+        /// Walk upstream from a terminal's host connector through the duct +
+        /// fitting graph. Returns element-id → cumulative <see cref="OctaveBand"/>
+        /// attenuation at that element (8 bands, 63 Hz → 8 kHz). Skips other
+        /// terminals and equipment (stops the walk).
         /// </summary>
-        private static Dictionary<long, double> WalkUpstream(FamilyInstance terminal)
+        private static Dictionary<long, OctaveBand> WalkUpstream(
+            FamilyInstance terminal, Document doc)
         {
-            var map = new Dictionary<long, double>();
+            var map = new Dictionary<long, OctaveBand>();
             try
             {
                 var conns = terminal.MEPModel?.ConnectorManager?.Connectors;
                 if (conns == null) return map;
-                // Terminal end-reflection at 1 kHz ≈ 3 dB (ASHRAE A48 Tbl 18).
-                double atten = 3.0;
+                // Terminal end-reflection per octave (ASHRAE A48 Tbl 18).
+                var atten = NcPredictionEngine.TerminalEndReflectionDb;
                 foreach (Connector c in conns)
-                    WalkUpstreamRec(c, atten, map, 0);
+                    WalkUpstreamRec(c, atten, map, 0, doc);
             }
             catch (Exception ex) { StingLog.Warn($"WalkUpstream {terminal?.Id}: {ex.Message}"); }
             return map;
         }
 
-        private static void WalkUpstreamRec(Connector startC, double atten,
-            Dictionary<long, double> map, int depth)
+        private static void WalkUpstreamRec(Connector startC, OctaveBand atten,
+            Dictionary<long, OctaveBand> map, int depth, Document doc)
         {
             if (startC == null || depth > MaxWalk) return;
             try
@@ -227,43 +248,50 @@ namespace StingTools.Commands.Hvac
                         if (bic == BuiltInCategory.OST_DuctTerminal) continue;
                         if (bic == BuiltInCategory.OST_MechanicalEquipment) continue;
 
-                        // 1 kHz attenuation contribution at this hop.
-                        double dHop;
+                        // Per-octave attenuation contribution at this hop.
+                        OctaveBand dHop = new OctaveBand();
                         if (bic == BuiltInCategory.OST_DuctCurves && owner is Duct d)
                         {
                             double lenM = 0;
                             if (d.Location is LocationCurve lc && lc.Curve != null)
                                 lenM = UnitUtils.ConvertFromInternalUnits(lc.Curve.Length, UnitTypeId.Meters);
-                            dHop = NcPredictionEngine.RectStraightUnlinedDbPerM.Hz1000 * lenM;
+                            for (int i = 0; i < 8; i++)
+                                dHop[i] = NcPredictionEngine.RectStraightUnlinedDbPerM[i] * lenM;
                         }
                         else if (bic == BuiltInCategory.OST_DuctFitting)
                         {
                             string nm = (owner.Name ?? "").ToLowerInvariant();
-                            if (nm.Contains("elbow")) dHop = NcPredictionEngine.Elbow90UnlinedDb.Hz1000;
+                            if (nm.Contains("elbow")) dHop = NcPredictionEngine.Elbow90UnlinedDb;
                             else if (nm.Contains("tee") || nm.Contains("branch"))
-                                dHop = NcPredictionEngine.TeeBranchDb.Hz1000;
-                            else dHop = 0.5;        // generic transition
+                                dHop = NcPredictionEngine.TeeBranchDb;
+                            else for (int i = 0; i < 8; i++) dHop[i] = 0.5;   // generic transition
                         }
                         else if (bic == BuiltInCategory.OST_DuctAccessory)
                         {
-                            // Silencer in the path is the big win — credit its insertion loss.
+                            // Silencer in the path is the big win. Prefer
+                            // manufacturer IL from the registry; fall back to a
+                            // generic spectrum if no match.
                             string nm = (owner.Name ?? "").ToLowerInvariant();
                             if (nm.Contains("silencer") || nm.Contains("attenuator"))
-                                dHop = 14.0;                 // generic mid-band; replace with registry lookup later
-                            else dHop = 0.0;
+                            {
+                                var ac = StingTools.Core.Acoustic.AcousticDataRegistry.Get(doc);
+                                var match = ac?.FindSilencer(owner.Name);
+                                dHop = match?.Il ?? OctaveBand.FromArray(
+                                    new[] { 2.0, 4, 8, 12, 14, 12, 8, 5 });
+                            }
+                            // Other accessories → zero attenuation.
                         }
                         else continue;
 
-                        double cum = atten + dHop;
+                        var cum = atten + dHop;
                         map[id] = cum;
 
-                        // Recurse via the OTHER connector on this element.
                         var ownerConns = ConnectorsOf(owner);
                         if (ownerConns == null) continue;
                         foreach (Connector cm in ownerConns)
                         {
                             if (cm == null || cm.Id == other.Id) continue;
-                            WalkUpstreamRec(cm, cum, map, depth + 1);
+                            WalkUpstreamRec(cm, cum, map, depth + 1, doc);
                         }
                     }
                 }
@@ -271,24 +299,30 @@ namespace StingTools.Commands.Hvac
             catch (Exception ex) { StingLog.Warn($"WalkUpstreamRec: {ex.Message}"); }
         }
 
-        private static long FirstSharedElement(Dictionary<long, double> a, Dictionary<long, double> b)
+        /// <summary>
+        /// Find the shared element minimising 1 kHz summed attenuation —
+        /// proxy for "the loudest cross-talk path". Equivalent to the prior
+        /// behaviour but now operating on the octave-band map.
+        /// </summary>
+        private static long FirstSharedElement(
+            Dictionary<long, OctaveBand> a, Dictionary<long, OctaveBand> b)
         {
             if (a == null || b == null) return 0;
             long best = 0;
-            double bestSum = double.MaxValue;
-            // Smaller dict in outer loop for speed.
+            double bestSum1k = double.MaxValue;
             var (small, big) = a.Count < b.Count ? (a, b) : (b, a);
             foreach (var kv in small)
             {
-                if (!big.TryGetValue(kv.Key, out double bAtten)) continue;
-                double sum = kv.Value + bAtten;
-                if (sum < bestSum) { bestSum = sum; best = kv.Key; }
+                if (!big.TryGetValue(kv.Key, out var bAtten)) continue;
+                double sum1k = kv.Value.Hz1000 + bAtten.Hz1000;
+                if (sum1k < bestSum1k) { bestSum1k = sum1k; best = kv.Key; }
             }
             return best;
         }
 
-        private static double AccumulateAttenuationToShared(TerminalNode t, long sharedId)
-            => t.UpstreamPath != null && t.UpstreamPath.TryGetValue(sharedId, out double v) ? v : 0;
+        private static OctaveBand AccumulateAttenuationToShared(TerminalNode t, long sharedId)
+            => t.UpstreamPath != null && t.UpstreamPath.TryGetValue(sharedId, out var v)
+                ? v : new OctaveBand();
 
         private static IEnumerable<Connector> ConnectorsOf(Element el)
         {
@@ -320,10 +354,16 @@ namespace StingTools.Commands.Hvac
                 string ts = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
                 string csv = Path.Combine(outDir, $"crosstalk_{ts}.csv");
                 var sb = new StringBuilder();
-                sb.AppendLine("TalkerSpace,ReceiverSpace,TalkerTerminal,ReceiverTerminal,SharedDuctId,AttenDb,ReceiverLpDb");
-                foreach (var p in flagged.OrderBy(x => x.AttenDb))
+                sb.AppendLine("TalkerSpace,ReceiverSpace,TalkerTerminal,ReceiverTerminal,SharedDuctId," +
+                              "ReceiverNc,Atten63,Atten125,Atten250,Atten500,Atten1k,Atten2k,Atten4k,Atten8k," +
+                              "Lp63,Lp125,Lp250,Lp500,Lp1k,Lp2k,Lp4k,Lp8k");
+                foreach (var p in flagged.OrderByDescending(x => x.ReceiverNc))
                 {
-                    sb.AppendLine($"\"{p.A.SpaceName}\",\"{p.B.SpaceName}\",\"{p.A.Label}\",\"{p.B.Label}\",{p.SharedDuctId},{p.AttenDb:F1},{p.ReceiverLpDb:F1}");
+                    var a = p.AttenTotal; var lp = p.ReceiverLp;
+                    sb.Append($"\"{p.A.SpaceName}\",\"{p.B.SpaceName}\",\"{p.A.Label}\",\"{p.B.Label}\"," +
+                              $"{p.SharedDuctId},{p.ReceiverNc},");
+                    sb.Append($"{a.Hz63:F1},{a.Hz125:F1},{a.Hz250:F1},{a.Hz500:F1},{a.Hz1000:F1},{a.Hz2000:F1},{a.Hz4000:F1},{a.Hz8000:F1},");
+                    sb.AppendLine($"{lp.Hz63:F1},{lp.Hz125:F1},{lp.Hz250:F1},{lp.Hz500:F1},{lp.Hz1000:F1},{lp.Hz2000:F1},{lp.Hz4000:F1},{lp.Hz8000:F1}");
                 }
                 File.WriteAllText(csv, sb.ToString());
                 return csv;
@@ -346,9 +386,11 @@ namespace StingTools.Commands.Hvac
         {
             public TerminalNode A;
             public TerminalNode B;
-            public long   SharedDuctId;
-            public double AttenDb;
-            public double ReceiverLpDb;
+            public long       SharedDuctId;
+            public OctaveBand AttenTotal;
+            public OctaveBand ReceiverLp;
+            public int        ReceiverNc;
+            public double     Atten1kDb;
         }
     }
 }

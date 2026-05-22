@@ -519,6 +519,12 @@
                             <Button Style="{StaticResource HvacActionBtn}" Content="RTS benchmark"
                                     Tag="Hvac_RtsBenchmark" Click="Cmd_Click"
                                     ToolTip="Regression-grade comparison of BlockLoadEngine against ASHRAE / CIBSE worked examples (Phase 187e)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Envelope-stale on/off"
+                                    Tag="Hvac_EnvelopeStaleToggle" Click="Cmd_Click"
+                                    ToolTip="Toggle the IUpdater that flags Spaces as load-stale when envelope geometry changes (Phase 187f)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Clear stale flags"
+                                    Tag="Hvac_EnvelopeStaleClear" Click="Cmd_Click"
+                                    ToolTip="Clear HVC_LOAD_STALE_BOOL on every Space (Phase 187f)"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Fitting loss"
                                     Tag="Mep_FittingLoss" Click="Cmd_Click" ToolTip="Per-fitting Kv loss report"/>
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Run all validators"

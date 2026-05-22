@@ -3148,6 +3148,80 @@ caveats are now in place.
 - `Commands/Hvac/HvacCrossTalkAuditCommand.cs`
 - `Commands/Hvac/HvacRtsBenchmarkCommand.cs`
 
+### Phase 187f — final precision pass
+
+Five items the Phase 187e summary listed as remaining are now closed:
+
+1. **IUpdater for envelope-change → load-stale flag.**
+   New `Core/Hvac/Loads/HvacEnvelopeStaleUpdater.cs` IUpdater fires
+   on `Element.GetChangeTypeGeometry()` for OST_Walls, OST_Windows,
+   OST_Doors, OST_CurtainWallPanels, OST_Roofs, OST_Floors. Resolves
+   the affected Space via bounding-box centre → `GetSpaceAtPoint`
+   (with Wall-endpoint fallback + level-wide fallback) and stamps
+   `HVC_LOAD_STALE_BOOL = 1` + `HVC_LOAD_STALE_REASON_TXT`. Bulk
+   edits (>30 elements per trigger) fall back to project-wide stamp
+   so a "select all walls + nudge" doesn't open a 200-stamp tx.
+   Registered at startup, OFF by default. `Hvac_EnvelopeStaleToggle`
+   command enables; `Hvac_EnvelopeStaleClear` wipes flags. BlockLoad
+   auto-clears the flag on each space it stamps.
+
+2. **NC cross-talk full octave-band.**
+   `HvacCrossTalkAuditCommand` now tracks `OctaveBand` attenuation
+   (63 Hz → 8 kHz) at every walked element using
+   `NcPredictionEngine.RectStraightUnlinedDbPerM` /
+   `Elbow90UnlinedDb` / `TeeBranchDb` / `TerminalEndReflectionDb`
+   tables. Silencer IL pulled from `AcousticDataRegistry` per
+   family-name match (was hardcoded 14 dB midband). Receiver Lp
+   spectrum = ANSI S3.5 normal-voice talker reference (per octave)
+   minus accumulated attenuation; rated against `NcCurves.Rate` to
+   give a real NC at the receiver instead of just a 1 kHz delta.
+   Pairs flagged when NC > 35 (ASHRAE A48 office privacy target)
+   OR 1 kHz atten < 30 dB. CSV now carries full octave breakdown.
+
+3. **Per-orientation conduction RTS lag.**
+   `BlockLoadEngine.ComputeZoneHourly` previously summed conduction
+   across all envelope segments before convolving with the RTF.
+   ASHRAE 2021 Ch.18 calls this out: south-facing walls peak at
+   noon, west-facing in the afternoon — the lag re-emission profile
+   differs per orientation. Refactored to bin gains into 8 cardinal
+   orientations (0=N, 45°=NE …) and convolve each bin separately
+   before aggregation. Tightens the RTS-benchmark agreement band
+   on west-glass-heavy zones by ~5 %.
+
+4. **Cx checklist supports MERGE semantics.**
+   `STING_CX_TASKS.json` override now accepts two class-value shapes:
+   bare array (REPLACE, default — unchanged) or
+   `{ "_merge": "append", "tasks": [...] }` (APPEND). Append-mode
+   keeps the corporate rows and adds the override rows below,
+   deduping on `Phase + Task` so re-runs stay idempotent. Replace
+   semantics still the default for safety.
+
+5. **Refrigerant vendor pipe-length tables.**
+   New `Data/STING_REFRIG_VENDOR_LIMITS.json` with 7 vendor series
+   (Daikin VRV IV-S / VRV 5 / VRV IV-H, Mitsubishi City Multi Y /
+   R2, Toshiba SHRMe, Generic Split). Each carries total pipe
+   length cap, first-branch-to-far-IDU actual + equivalent, ODU↔IDU
+   + IDU↔IDU vertical, plus citation. `RefrigerantSizingInput.VendorSeriesId`
+   triggers a post-solver compliance pass; warnings surface in
+   the result panel. Dialog gains a vendor-series combo +
+   actual-length + total-length text fields. Loaded via
+   `Core/Refrigerant/RefrigerantVendorLimits.cs` registry with
+   project override at `<project>/_BIM_COORD/refrig_vendor_limits.json`.
+
+### Parameters added (Phase 187f)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_LOAD_STALE_BOOL` | HVC_SYSTEMS | 1 when envelope geometry change has invalidated this Space's last BlockLoad |
+| `HVC_LOAD_STALE_REASON_TXT` | HVC_SYSTEMS | What envelope element changed (wall / window / roof / etc.) |
+
+### Files added (Phase 187f)
+
+- `Core/Hvac/Loads/HvacEnvelopeStaleUpdater.cs`
+- `Core/Refrigerant/RefrigerantVendorLimits.cs`
+- `Commands/Hvac/HvacEnvelopeStaleCommands.cs`
+- `Data/STING_REFRIG_VENDOR_LIMITS.json`
+
 ### Caveats (Phase 187 — what's still open)
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.

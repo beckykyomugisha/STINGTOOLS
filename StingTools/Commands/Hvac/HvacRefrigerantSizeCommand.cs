@@ -32,12 +32,18 @@ namespace StingTools.Commands.Hvac
 
                 var input = dlg.Result;
                 var fluid = RefrigerantProperties.Get(input.RefrigerantId);
-                // If the user left the dialog's ΔP budget at its default 30 kPa,
-                // substitute the vendor-recommended per-leg + per-fluid value
-                // (e.g. R134a liquid = 30, CO₂ discharge = 100). The dialog
-                // surface stays simple; the registry carries the right number.
                 if (Math.Abs(input.MaxPressureDropKpa - 30.0) < 0.01)
                     input.MaxPressureDropKpa = fluid.DefaultBudgetForLeg(input.Leg);
+
+                // Phase 187f — pass the active document so RefrigerantPipeSolver
+                // can resolve vendor-series length tables from the registry.
+                try
+                {
+                    var ctx = ParameterHelpers.GetContext(commandData);
+                    if (ctx != null) input.Document = ctx.Doc;
+                }
+                catch { }
+
                 var result = RefrigerantPipeSolver.Size(input);
 
                 var panel = StingResultPanel.Create($"HVAC — {input.RefrigerantId} {input.Leg}");
@@ -77,11 +83,29 @@ namespace StingTools.Commands.Hvac
                 foreach (var t in result.Trace.Take(20))
                     panel.Text($"OD {t.DiaMm,5:F2} mm  v {t.VelMs,5:F1} m/s  ΔP {t.DpKpa,6:F1} kPa  {t.Reason}");
 
-                panel.AddSection("VENDOR ENVELOPE (DAIKIN VRV / EQUIV)")
+                panel.AddSection("GENERIC FLUID ENVELOPE")
                      .Metric("Max L_eq",          $"{fluid.MaxEquivLengthM:F0} m")
                      .Metric("Max lift (above)",  $"{fluid.MaxLiftAboveIndoorM:F0} m")
                      .Metric("Max drop (below)",  $"{fluid.MaxLiftBelowIndoorM:F0} m")
                      .Text($"Source: {fluid.Source}");
+
+                // Vendor envelope if a series was picked.
+                if (!string.IsNullOrEmpty(result.VendorSeriesId))
+                {
+                    var vendor = StingTools.Core.Refrigerant.RefrigerantVendorRegistry.Get(input.Document)
+                        .Get(result.VendorSeriesId);
+                    if (vendor != null)
+                    {
+                        panel.AddSection($"VENDOR ENVELOPE — {vendor.Label}")
+                             .Metric("Max actual oneway L",   $"{vendor.ActualOnewayMaxM:F0} m")
+                             .Metric("Max equiv oneway L",    $"{vendor.EquivalentOnewayMaxM:F0} m")
+                             .Metric("Max total system L",    $"{vendor.TotalPipeLengthM:F0} m")
+                             .Metric("First-branch → far IDU",$"{vendor.FirstBranchToFarIduActualM:F0} m actual / {vendor.FirstBranchToFarIduEquivM:F0} m equiv")
+                             .Metric("ODU↔IDU vertical max",  $"{vendor.VerticalHighLowOduIduM:F0} m")
+                             .Metric("IDU↔IDU vertical max",  $"{vendor.VerticalHighLowIduIduM:F0} m")
+                             .Text($"Source: {vendor.Source}");
+                    }
+                }
 
                 // Phase 187d — refrigerant ↔ duct linkage. Ducted indoor units
                 // (ceiling-concealed VRF) have BOTH refrigerant pipes AND a

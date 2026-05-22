@@ -87,6 +87,10 @@ namespace StingTools.Core
                 // element so the QS sees the stale BOQ row before exporting.
                 StingCostStaleMarker.Register(application);
 
+                // Phase 187f — register the HVAC envelope-stale IUpdater.
+                // Starts disabled; toggled via Hvac_EnvelopeStaleToggle.
+                Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Register(application);
+
                 // Register the Tag 7 narrative auto-updater (IUpdater) — starts disabled.
                 // Keeps ASS_TAG_7_TXT in sync with the active paragraph preset when
                 // source parameters change. Users enable it from Tag Studio.
@@ -297,6 +301,8 @@ namespace StingTools.Core
                 catch (Exception cEx) { StingLog.Warn($"Load profile cache invalidate: {cEx.Message}"); }
                 try { Commands.Hvac.HvacGenerateCxChecklistCommand.InvalidateTaskCache(); }
                 catch (Exception cEx) { StingLog.Warn($"Cx task cache invalidate: {cEx.Message}"); }
+                try { Core.Refrigerant.RefrigerantVendorRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Refrig vendor cache invalidate: {cEx.Message}"); }
                 // Phase 78: Save dropped element IDs to sidecar before clearing queue
                 StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
                 // R-02: Clear deferred elements on document close
@@ -1334,6 +1340,7 @@ namespace StingTools.Core
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingCostStaleMarker.Unregister();
+            try { Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Unregister(); } catch { }
             StingTag7NarrativeUpdater.Unregister();
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
             try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }

@@ -237,6 +237,12 @@ namespace StingTools.UI
                     case "Hvac_RtsBenchmark":
                         // Phase 187e — RTS regression benchmark against ASHRAE / CIBSE worked examples.
                         Run<StingTools.Commands.Hvac.HvacRtsBenchmarkCommand>(app); break;
+                    case "Hvac_EnvelopeStaleToggle":
+                        // Phase 187f — toggle envelope-change → load-stale IUpdater.
+                        Run<StingTools.Commands.Hvac.HvacEnvelopeStaleToggleCommand>(app); break;
+                    case "Hvac_EnvelopeStaleClear":
+                        // Phase 187f — clear HVC_LOAD_STALE_BOOL on every space.
+                        Run<StingTools.Commands.Hvac.HvacEnvelopeStaleClearCommand>(app); break;
                     case "Hvac_NcPredict":
                         // STING-design-engines: VDI 2081 / ASHRAE A48 NC prediction
                         // from duct selection + regenerated noise + room model.
