@@ -142,8 +142,14 @@ namespace StingTools.Core.Acoustic
                         atten = e.SilencerILdB;
                         break;
                     case ElementKind.Diffuser:
+                        // End-reflection attenuation only. The Bullock regen
+                        // correlation for diffusers already includes terminal
+                        // mixing noise post-reflection, so adding both biases
+                        // predicted NC high by ~3–5 dB. Use the manufacturer
+                        // catalogue NC at design throw as the authoritative
+                        // source when sizing; this engine just supplies the
+                        // duct-side path correction.
                         for (int i = 0; i < 8; i++) atten[i] = TerminalEndReflectionDb[i];
-                        regen = RegenDiffuser(e.VelocityMs, e.AreaM2);
                         break;
                 }
 

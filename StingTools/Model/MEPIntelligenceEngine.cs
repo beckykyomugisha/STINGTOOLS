@@ -181,6 +181,74 @@ namespace StingTools.Model
             return data.Kv * 0.5 * densityKgM3 * velocityMs * velocityMs;
         }
 
+        /// <summary>
+        /// Result of resolving a fitting's loss coefficient with manufacturer
+        /// preference. <see cref="Source"/> tells the caller which table
+        /// produced the value so reports can flag generic vs manufacturer.
+        /// </summary>
+        public class ResolvedFittingLoss
+        {
+            public double C;                   // dimensionless loss coefficient
+            public string Source = "generic";  // "generic" | "manufacturer:<brand>"
+            public string Brand;
+            public string ProductCode;
+        }
+
+        /// <summary>
+        /// Resolve the loss coefficient for a specific fitting element.
+        /// Reads `HVC_PROD_REF_TXT` (format "brand:productCode") and looks
+        /// the pair up against <see cref="StingTools.Core.Mep.MepSizingRules.GetManufacturerC"/>;
+        /// falls back to the generic <see cref="GetFittingLoss"/> table when no
+        /// match. The caller's velocity / density turn the C into a Pa loss.
+        /// </summary>
+        public static ResolvedFittingLoss ResolveFittingLoss(
+            Element fitting,
+            StingTools.Core.Mep.MepSizingRules rules = null)
+        {
+            var result = new ResolvedFittingLoss();
+            try
+            {
+                // 1. Manufacturer override — `brand:productCode` parsed from
+                //    HVC_PROD_REF_TXT. If both registry and lookup succeed,
+                //    that value wins over the generic SMACNA-derived Kv.
+                if (rules != null && fitting != null)
+                {
+                    var p = fitting.LookupParameter("HVC_PROD_REF_TXT");
+                    string s = p?.AsString();
+                    if (!string.IsNullOrWhiteSpace(s) && s.Contains(":"))
+                    {
+                        var parts = s.Split(new[] { ':' }, 2);
+                        string brand = parts[0]?.Trim();
+                        string code  = parts[1]?.Trim();
+                        double c = rules.GetManufacturerC(brand, code);
+                        if (c > 0)
+                        {
+                            result.C = c;
+                            result.Brand = brand;
+                            result.ProductCode = code;
+                            result.Source = $"manufacturer:{brand}";
+                            return result;
+                        }
+                    }
+                }
+
+                // 2. Generic fallback — type-based Kv (which is the same dim'less
+                //    coefficient used as "C" in DW/144 nomenclature).
+                if (fitting != null)
+                {
+                    var t = DetectFittingType(fitting);
+                    var data = GetFittingLoss(t);
+                    if (data != null)
+                    {
+                        result.C = data.Kv;
+                        result.Source = "generic:" + (data.Standard ?? "");
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveFittingLoss {fitting?.Id}: {ex.Message}"); }
+            return result;
+        }
+
         /// <summary>Detect fitting type from Revit MEP fitting element.</summary>
         public static FittingType DetectFittingType(Element fitting)
         {

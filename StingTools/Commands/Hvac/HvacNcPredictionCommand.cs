@@ -58,20 +58,37 @@ namespace StingTools.Commands.Hvac
                     return Result.Cancelled;
                 }
 
-                // Synthetic fan source from path total ΔP + flow.
-                double fanLwTotal = pathFlowLs > 0 && pathDpPa > 0
-                    ? 67 + 10 * Math.Log10(pathFlowLs) + 10 * Math.Log10(pathDpPa)
-                    : 80; // catch-all
-                var fanSpectrum = OctaveBand.FromArray(new[]
+                // Try the manufacturer fan-spectra registry first by looking
+                // up the first selected mechanical-equipment element's family
+                // name (e.g. "AHU CL-001 — Trox AT 600"). Falls back to a
+                // synthetic Lw derived from path Q + ΔP when no match.
+                var acoustic = StingTools.Core.Acoustic.AcousticDataRegistry.Get(doc);
+                OctaveBand fanSpectrum;
+                string fanLabel;
+                var fanFamilyName = FindFanFamilyName(doc, ids);
+                var fanMatch = acoustic.FindFan(fanFamilyName);
+                if (fanMatch != null)
                 {
-                    fanLwTotal - 7, fanLwTotal - 5, fanLwTotal - 4, fanLwTotal - 3,
-                    fanLwTotal - 4, fanLwTotal - 6, fanLwTotal - 10, fanLwTotal - 14
-                });
+                    fanSpectrum = fanMatch.Lw;
+                    fanLabel = $"{fanMatch.Label} (registry match: '{fanMatch.Match}')";
+                }
+                else
+                {
+                    double fanLwTotal = pathFlowLs > 0 && pathDpPa > 0
+                        ? 67 + 10 * Math.Log10(pathFlowLs) + 10 * Math.Log10(pathDpPa)
+                        : 80;
+                    fanSpectrum = OctaveBand.FromArray(new[]
+                    {
+                        fanLwTotal - 7, fanLwTotal - 5, fanLwTotal - 4, fanLwTotal - 3,
+                        fanLwTotal - 4, fanLwTotal - 6, fanLwTotal - 10, fanLwTotal - 14
+                    });
+                    fanLabel = $"Synthetic fan (Lw≈{fanLwTotal:F0} dB) — add manufacturer spectrum via STING_FAN_SPECTRA.json";
+                }
 
                 path.Insert(0, new PathElement
                 {
                     Kind = ElementKind.Fan,
-                    Label = $"Synthetic fan (Lw≈{fanLwTotal:F0} dB)",
+                    Label = fanLabel,
                     SourceLw = fanSpectrum
                 });
 
@@ -116,7 +133,26 @@ namespace StingTools.Commands.Hvac
 
                 try
                 {
-                    StingHvacPanel.Instance?.PushRunRow($"NC prediction → NC {result.NcRating}", "⬤");
+                    var p = StingHvacPanel.Instance;
+                    if (p != null)
+                    {
+                        p.PushRunRow($"NC prediction → NC {result.NcRating}", "⬤");
+
+                        // Phase 187b — surface as an issue when the predicted NC
+                        // exceeds the office target (35) or healthcare target (30).
+                        // Future: read the actual target from the room's HVC_NC_TARGET.
+                        int target = 35;
+                        if (result.NcRating > target)
+                        {
+                            p.IssueRows.Add(new HvacIssueRow
+                            {
+                                Severity   = "⚠",
+                                Element    = path.Count > 1 ? path[1].Label : "(path)",
+                                Issue      = $"Predicted NC {result.NcRating} exceeds target NC {target}",
+                                Suggestion = "Add silencer / lower duct velocity / oversize terminal"
+                            });
+                        }
+                    }
                 }
                 catch (Exception ex) { StingLog.Warn($"Panel push: {ex.Message}"); }
 
@@ -219,11 +255,18 @@ namespace StingTools.Commands.Hvac
                     string nm = (el.Name ?? "").ToLowerInvariant();
                     if (nm.Contains("silencer") || nm.Contains("attenuator"))
                     {
-                        // Default 12 dB insertion loss at mid frequencies; replace with manufacturer data.
-                        var il = OctaveBand.FromArray(new[] { 2.0, 4, 8, 12, 14, 12, 8, 5 });
+                        // Look up the family name in the silencer IL registry.
+                        // Falls back to a generic mid-band default when no match
+                        // — see STING_SILENCER_DATA.json for the corporate pack.
+                        var acoustic = StingTools.Core.Acoustic.AcousticDataRegistry.Get(el.Document);
+                        var match = acoustic.FindSilencer(el.Name);
+                        var il = match?.Il ?? OctaveBand.FromArray(new[] { 2.0, 4, 8, 12, 14, 12, 8, 5 });
                         return new PathElement
                         {
-                            Kind = ElementKind.Silencer, Label = el.Name,
+                            Kind = ElementKind.Silencer,
+                            Label = match != null
+                                ? $"{el.Name} → {match.Label}"
+                                : el.Name + " (default IL spectrum)",
                             SilencerILdB = il
                         };
                     }
@@ -245,6 +288,38 @@ namespace StingTools.Commands.Hvac
         private static double TryReadDouble(Element el, string p)
         {
             try { return el.LookupParameter(p)?.AsDouble() ?? 0; } catch { return 0; }
+        }
+
+        /// <summary>
+        /// Look through the user's selection for a mechanical-equipment
+        /// family. The first one found provides the family-name string
+        /// used to look up a fan Lw spectrum in the registry.
+        /// </summary>
+        private static string FindFanFamilyName(Document doc, List<ElementId> ids)
+        {
+            try
+            {
+                foreach (var id in ids)
+                {
+                    var el = doc.GetElement(id);
+                    if (el == null || el.Category == null) continue;
+                    var bic = (BuiltInCategory)el.Category.Id.Value;
+                    if (bic == BuiltInCategory.OST_MechanicalEquipment ||
+                        bic == BuiltInCategory.OST_DuctAccessory)
+                    {
+                        if (el is FamilyInstance fi)
+                        {
+                            // Build a composite "Family — Type" string so the
+                            // substring match catches both "AHU" family names
+                            // and "Trox AT" type names.
+                            return $"{fi.Symbol?.Family?.Name} {fi.Symbol?.Name} {fi.Name}".Trim();
+                        }
+                        return el.Name;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FindFanFamilyName: {ex.Message}"); }
+            return "";
         }
     }
 }

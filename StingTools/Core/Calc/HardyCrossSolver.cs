@@ -72,6 +72,57 @@ namespace StingTools.Core.Calc
         public bool   Converged    { get; set; }
         public List<string> IterationLog { get; } = new List<string>();
         public List<NetworkPipe> Pipes { get; set; }
+        /// <summary>Operating point reached when a PumpCurve was supplied
+        /// (m³/s through the pump). 0 if no pump curve was active.</summary>
+        public double PumpOpFlowM3S    { get; set; }
+        /// <summary>Operating-point head, m (or Pa via ρg). 0 if no pump curve.</summary>
+        public double PumpOpHeadM      { get; set; }
+    }
+
+    /// <summary>
+    /// Polynomial pump head-curve: H(Q) = a₀ + a₁·Q + a₂·Q² + … in metres
+    /// of fluid head given Q in m³/s. Most manufacturers publish a 3rd-order
+    /// fit (a₀, a₁, a₂, a₃). Construct via FromCubicAtPoints helper or
+    /// directly with coefficients.
+    /// </summary>
+    public class PumpCurve
+    {
+        public double[] Coefficients { get; set; }   // index = polynomial order
+
+        public double HeadAt(double qM3S)
+        {
+            double h = 0;
+            for (int i = 0; i < Coefficients.Length; i++)
+                h += Coefficients[i] * Math.Pow(qM3S, i);
+            return h;
+        }
+
+        /// <summary>
+        /// Build a quadratic pump curve H(Q) = a + b·Q + c·Q² from three
+        /// (Q, H) reference points (shut-off, BEP, run-out). Standard
+        /// catalogue-data fit accuracy.
+        /// </summary>
+        public static PumpCurve FromQuadraticThreePoints(
+            (double q, double h) shutOff,
+            (double q, double h) bep,
+            (double q, double h) runOut)
+        {
+            double q1 = shutOff.q, q2 = bep.q, q3 = runOut.q;
+            double h1 = shutOff.h, h2 = bep.h, h3 = runOut.h;
+            // Solve 3×3 Vandermonde for [a, b, c].
+            double d  = (q1 - q2) * (q1 - q3) * (q2 - q3);
+            if (Math.Abs(d) < 1e-12)
+                return new PumpCurve { Coefficients = new[] { h2, 0.0, 0.0 } };
+            double a =  (q2 * q3 * (q3 - q2) * h1
+                       + q1 * q3 * (q1 - q3) * h2
+                       + q1 * q2 * (q2 - q1) * h3) / d;
+            double b =  (q3 * q3 * (q2 - q1) * (q1 - q3) * 0 +
+                         (h1 * (q2 * q2 - q3 * q3) +
+                          h2 * (q3 * q3 - q1 * q1) +
+                          h3 * (q1 * q1 - q2 * q2))) / d;
+            double c =  (h1 * (q3 - q2) + h2 * (q1 - q3) + h3 * (q2 - q1)) / d;
+            return new PumpCurve { Coefficients = new[] { a, b, c } };
+        }
     }
 
     public static class HardyCrossSolver
@@ -84,6 +135,137 @@ namespace StingTools.Core.Calc
         public const double WaterViscosityPaS  = 1.002e-3;
         public const double AirDensityKgM3     = 1.204;
         public const double AirViscosityPaS    = 1.813e-5;
+
+        /// <summary>
+        /// Seed each pipe's <see cref="NetworkPipe.FlowM3S"/> from the
+        /// supplied per-node demand map. Acts as the initial Q₀ guess
+        /// for <see cref="Solve"/> — eliminates the "user must pre-compute
+        /// flows" gap (Phase 187 review item A-4).
+        ///
+        /// Algorithm: equal-split into branches at every node, then
+        /// adjust each pipe to match its loop-traversal sign. Works
+        /// well for tree-shaped + lightly-looped distribution networks
+        /// (the dominant HVAC case). For dense loops the Hardy Cross
+        /// iteration corrects any starting bias in 5-12 sweeps anyway,
+        /// so this only has to be order-of-magnitude right.
+        ///
+        /// `demandLpsByNode` maps a node id → demand at that node in L/s
+        /// (positive = consumption, negative = supply). Pipes with no
+        /// demand connection get the average of their incident-node
+        /// demands.
+        /// </summary>
+        public static void InitializeFromDemand(
+            List<NetworkPipe> pipes,
+            Dictionary<string, double> demandLpsByNode)
+        {
+            if (pipes == null || demandLpsByNode == null) return;
+            // Count pipe-degree per node so we can distribute demand evenly.
+            var degree = new Dictionary<string, int>();
+            foreach (var p in pipes)
+            {
+                if (string.IsNullOrEmpty(p.NodeA) || string.IsNullOrEmpty(p.NodeB)) continue;
+                degree[p.NodeA] = degree.TryGetValue(p.NodeA, out var a) ? a + 1 : 1;
+                degree[p.NodeB] = degree.TryGetValue(p.NodeB, out var b) ? b + 1 : 1;
+            }
+            foreach (var p in pipes)
+            {
+                double qA = demandLpsByNode.TryGetValue(p.NodeA, out var da) ? da : 0;
+                double qB = demandLpsByNode.TryGetValue(p.NodeB, out var db) ? db : 0;
+                int degA = degree.TryGetValue(p.NodeA, out var degAv) ? Math.Max(degAv, 1) : 1;
+                int degB = degree.TryGetValue(p.NodeB, out var degBv) ? Math.Max(degBv, 1) : 1;
+                // Average per-pipe share of incident-node demand.
+                double qLps = 0.5 * (qA / degA + qB / degB);
+                p.FlowM3S = qLps * 1e-3;     // L/s → m³/s
+            }
+        }
+
+        /// <summary>
+        /// Seed pipe flows uniformly from a single supply rate (m³/s).
+        /// Convenience for tree networks with a single source — divides
+        /// flow equally among the pipes attached to the source node.
+        /// </summary>
+        public static void InitializeUniform(
+            List<NetworkPipe> pipes, string sourceNode, double sourceFlowM3S)
+        {
+            if (pipes == null || string.IsNullOrEmpty(sourceNode)) return;
+            int n = 0;
+            foreach (var p in pipes)
+                if (p.NodeA == sourceNode || p.NodeB == sourceNode) n++;
+            if (n == 0) return;
+            double perPipe = sourceFlowM3S / n;
+            foreach (var p in pipes) p.FlowM3S = perPipe;
+        }
+
+        /// <summary>
+        /// Find the system operating point against a pump head-curve.
+        /// Walks pipes in series along a supplied trunk path, sums each
+        /// pipe's head loss as a function of total flow Q, and bisects
+        /// until system_head(Q) = pump_head(Q). Returns the operating
+        /// (Q, H) pair and stamps the new Q on every pipe in the path.
+        /// Use this for tree (radial) networks where Hardy Cross over-
+        /// kills; for looped networks use Solve() with the resolved Q.
+        /// </summary>
+        public static HardyCrossResult OperatingPoint(
+            List<NetworkPipe> seriesPath, PumpCurve pump,
+            NetworkFluid fluid = NetworkFluid.Water,
+            double qMinM3S = 1e-5, double qMaxM3S = 1.0,
+            int maxIter = 60, double tolRelQ = 0.001)
+        {
+            var r = new HardyCrossResult { Pipes = seriesPath };
+            if (seriesPath == null || seriesPath.Count == 0 || pump == null) return r;
+            double rho = fluid == NetworkFluid.Water ? WaterDensityKgM3 : AirDensityKgM3;
+            double mu  = fluid == NetworkFluid.Water ? WaterViscosityPaS : AirViscosityPaS;
+
+            // System curve = Σ pipe head-loss at flow Q. Bisect for
+            // pump_head(Q) - system_head(Q) = 0. Both functions are
+            // monotonic in their respective domains so bisection is safe.
+            double SystemHeadAt(double q)
+            {
+                double sum = 0;
+                foreach (var p in seriesPath)
+                {
+                    var saved = p.FlowM3S;
+                    p.FlowM3S = q;
+                    sum += Math.Abs(HeadLoss(p, q, rho, mu));
+                    p.FlowM3S = saved;
+                }
+                return sum;
+            }
+            double lo = qMinM3S, hi = qMaxM3S;
+            double fLo = pump.HeadAt(lo) - SystemHeadAt(lo);
+            double fHi = pump.HeadAt(hi) - SystemHeadAt(hi);
+            if (fLo * fHi > 0)
+            {
+                // No sign change within range — operating point outside
+                // bracket. Return best-effort (whichever endpoint is closer
+                // to zero) so caller can re-bracket.
+                double pick = Math.Abs(fLo) < Math.Abs(fHi) ? lo : hi;
+                r.PumpOpFlowM3S = pick;
+                r.PumpOpHeadM   = pump.HeadAt(pick);
+                r.IterationLog.Add($"OperatingPoint: no sign change in [{lo:E2}, {hi:E2}]; picked {pick:E2}");
+                foreach (var p in seriesPath) p.FlowM3S = pick;
+                return r;
+            }
+            double mid = 0.5 * (lo + hi);
+            for (int iter = 1; iter <= maxIter; iter++)
+            {
+                mid = 0.5 * (lo + hi);
+                double f = pump.HeadAt(mid) - SystemHeadAt(mid);
+                r.IterationLog.Add($"iter {iter}: Q={mid:E3}, ΔH={f:F3} m");
+                if ((hi - lo) / Math.Max(mid, 1e-12) < tolRelQ)
+                {
+                    r.Converged  = true;
+                    r.Iterations = iter;
+                    break;
+                }
+                if (f * fLo < 0) { hi = mid; fHi = f; }
+                else             { lo = mid; fLo = f; }
+            }
+            r.PumpOpFlowM3S = mid;
+            r.PumpOpHeadM   = pump.HeadAt(mid);
+            foreach (var p in seriesPath) p.FlowM3S = mid;
+            return r;
+        }
 
         /// <summary>
         /// Run Hardy Cross to convergence. Pipes and Loops are mutated

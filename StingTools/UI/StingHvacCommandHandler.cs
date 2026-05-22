@@ -251,6 +251,51 @@ namespace StingTools.UI
                         // STING-design-engines (this phase): peak-pick block load
                         // with location-aware climate site + diversity factor.
                         Run<StingTools.Commands.Hvac.HvacBlockLoadCommand>(app); break;
+                    case "Hvac_PropagateLoads":
+                        // Phase 187b — bridges BlockLoad → AutoSize by stamping
+                        // HVC_FLOW_LS from served-space peak + OA.
+                        Run<StingTools.Commands.Hvac.HvacPropagateLoadsCommand>(app); break;
+                    case "Hvac_FullDesignPass":
+                        // Phase 187c — composite block-load → propagate → auto-size
+                        // → balance → NC → pressure-class → stale-size in one click.
+                        Run<StingTools.Commands.Hvac.HvacFullDesignPassCommand>(app); break;
+                    case "Hvac_GenerateCxChecklist":
+                        // Phase 187d — emit ASHRAE Guideline 0 / CIBSE TM39 checklist as CSV.
+                        Run<StingTools.Commands.Hvac.HvacGenerateCxChecklistCommand>(app); break;
+                    case "Hvac_PublishToServer":
+                        // Phase 187d — push BlockLoad/NC/Refrigerant results to Planscape.
+                        Run<StingTools.Commands.Hvac.HvacPublishToServerCommand>(app); break;
+                    case "Hvac_PropagateRefrigToDuct":
+                        // Phase 187e — auto-stamp HVC_FLOW_LS on supply ducts of
+                        // ducted refrigerant IDUs from equipment capacity.
+                        Run<StingTools.Commands.Hvac.HvacPropagateRefrigerantToDuctCommand>(app); break;
+                    case "Hvac_CrossTalkAudit":
+                        // Phase 187e — NC cross-talk between rooms via shared duct.
+                        Run<StingTools.Commands.Hvac.HvacCrossTalkAuditCommand>(app); break;
+                    case "Hvac_RtsBenchmark":
+                        // Phase 187e — RTS regression benchmark against ASHRAE / CIBSE worked examples.
+                        Run<StingTools.Commands.Hvac.HvacRtsBenchmarkCommand>(app); break;
+                    case "Hvac_EnvelopeStaleToggle":
+                        // Phase 187f — toggle envelope-change → load-stale IUpdater.
+                        Run<StingTools.Commands.Hvac.HvacEnvelopeStaleToggleCommand>(app); break;
+                    case "Hvac_EnvelopeStaleClear":
+                        // Phase 187f — clear HVC_LOAD_STALE_BOOL on every space.
+                        Run<StingTools.Commands.Hvac.HvacEnvelopeStaleClearCommand>(app); break;
+                    case "Hvac_RefrigCharge":
+                        // Phase 187g — vendor additional-charge calculator.
+                        Run<StingTools.Commands.Hvac.HvacRefrigerantChargeCommand>(app); break;
+                    case "Hvac_CompareLoads":
+                        // Phase 187g — import TRACE / HAP CSV + diff per zone.
+                        Run<StingTools.Commands.Hvac.HvacCompareLoadsCommand>(app); break;
+                    case "Hvac_SelectIdus":
+                        // Phase 187h — pick IDU per space from the catalogue.
+                        Run<StingTools.Commands.Hvac.HvacSelectIdusCommand>(app); break;
+                    case "Hvac_RefnetSize":
+                        // Phase 187h — REFNET branch joint sizing.
+                        Run<StingTools.Commands.Hvac.HvacRefnetSizeCommand>(app); break;
+                    case "Hvac_ImportGbxmlLoads":
+                        // Phase 187h — gbXML import round-trip.
+                        Run<StingTools.Commands.Hvac.HvacImportGbxmlLoadsCommand>(app); break;
                     case "Hvac_NcPredict":
                         // STING-design-engines: VDI 2081 / ASHRAE A48 NC prediction
                         // from duct selection + regenerated noise + room model.
@@ -263,6 +308,21 @@ namespace StingTools.UI
                         Run<StingTools.Commands.Hvac.HvacClimateInspectCommand>(app); break;
                     case "Hvac_ClimateReload":
                         Run<StingTools.Commands.Hvac.HvacClimateReloadCommand>(app); break;
+                    case "Hvac_RefreshGrids":
+                        // Phase 187b — populate equipment/systems/duct-types grids
+                        // from the live model (previously empty since Phase 180).
+                        Run<StingTools.Commands.Hvac.HvacRefreshGridsCommand>(app); break;
+                    case "Hvac_ReloadProfiles":
+                        // Phase 187c — flush load profile + construction profile +
+                        // acoustic data + climate registries together.
+                        StingTools.Core.Hvac.Loads.LoadProfileRegistry.Reload();
+                        StingTools.Core.Hvac.Loads.ConstructionProfileRegistry.Reload();
+                        StingTools.Core.Acoustic.AcousticDataRegistry.Reload();
+                        StingTools.Core.Climate.ClimateRegistry.Reload();
+                        StingTools.Core.Mep.MepSizingRegistry.Reload();
+                        TaskDialog.Show("STING HVAC",
+                            "Reloaded: load profiles, construction profiles, acoustic data, climate, MEP sizing.");
+                        break;
 
                     // ── DUCT tab ───────────────────────────────────────────
                     case "Hvac_CreateDuctTypes":

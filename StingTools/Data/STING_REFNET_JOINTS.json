@@ -1,0 +1,34 @@
+{
+  "_schema": "STING_REFNET_JOINTS",
+  "_version": "1.0",
+  "_notes": [
+    "VRF / VRV REFNET branch-joint catalogues. Vendor tables (Daikin",
+    "KHRP series, Mitsubishi CMY, Toshiba RBM-BY) size the joint from",
+    "the downstream connected capacity. STING uses this to pick the",
+    "right joint when sizing a refrigerant tree.",
+    "",
+    "Each entry: id, vendorSeriesId, capacity threshold (kW) and pipe",
+    "ODs upstream/downstream. Sized by walking the tree from the IDU",
+    "outward to the ODU, summing downstream capacity at each branch.",
+    "First joint whose maxKw exceeds the downstream sum wins."
+  ],
+  "joints": [
+    { "id": "Daikin-KHRP-26-22T",  "vendorSeriesId": "Daikin-VRV-IV-S", "maxKw":  16.0, "upstreamGasOdMm": 15.88, "downstreamGasOdMm": 12.7,  "upstreamLiqOdMm":  9.52, "downstreamLiqOdMm": 6.35 },
+    { "id": "Daikin-KHRP-26-33T",  "vendorSeriesId": "Daikin-VRV-IV-S", "maxKw":  29.0, "upstreamGasOdMm": 19.05, "downstreamGasOdMm": 15.88, "upstreamLiqOdMm":  9.52, "downstreamLiqOdMm": 9.52 },
+    { "id": "Daikin-KHRP-26-71T",  "vendorSeriesId": "Daikin-VRV-IV-S", "maxKw":  56.0, "upstreamGasOdMm": 22.22, "downstreamGasOdMm": 19.05, "upstreamLiqOdMm": 12.7,  "downstreamLiqOdMm": 9.52 },
+    { "id": "Daikin-KHRP-26-22M",  "vendorSeriesId": "Daikin-VRV-5",    "maxKw":  16.0, "upstreamGasOdMm": 15.88, "downstreamGasOdMm": 12.7,  "upstreamLiqOdMm":  9.52, "downstreamLiqOdMm": 6.35 },
+    { "id": "Daikin-KHRP-26-33M",  "vendorSeriesId": "Daikin-VRV-5",    "maxKw":  29.0, "upstreamGasOdMm": 19.05, "downstreamGasOdMm": 15.88, "upstreamLiqOdMm":  9.52, "downstreamLiqOdMm": 9.52 },
+    { "id": "Daikin-KHRP-26-71M",  "vendorSeriesId": "Daikin-VRV-5",    "maxKw":  56.0, "upstreamGasOdMm": 22.22, "downstreamGasOdMm": 19.05, "upstreamLiqOdMm": 12.7,  "downstreamLiqOdMm": 9.52 },
+    { "id": "Daikin-KHRP-26-109M", "vendorSeriesId": "Daikin-VRV-5",    "maxKw":  87.0, "upstreamGasOdMm": 25.4,  "downstreamGasOdMm": 22.22, "upstreamLiqOdMm": 12.7,  "downstreamLiqOdMm": 12.7 },
+    { "id": "Daikin-KHRP-26-160M", "vendorSeriesId": "Daikin-VRV-5",    "maxKw": 130.0, "upstreamGasOdMm": 28.58, "downstreamGasOdMm": 25.4,  "upstreamLiqOdMm": 15.88, "downstreamLiqOdMm": 12.7 },
+
+    { "id": "Mitsubishi-CMY-Y100", "vendorSeriesId": "Mitsubishi-CityMulti-Y", "maxKw":  20.0, "upstreamGasOdMm": 15.88, "downstreamGasOdMm": 12.7,  "upstreamLiqOdMm":  9.52, "downstreamLiqOdMm": 6.35 },
+    { "id": "Mitsubishi-CMY-Y200", "vendorSeriesId": "Mitsubishi-CityMulti-Y", "maxKw":  40.0, "upstreamGasOdMm": 19.05, "downstreamGasOdMm": 15.88, "upstreamLiqOdMm":  9.52, "downstreamLiqOdMm": 9.52 },
+    { "id": "Mitsubishi-CMY-Y300", "vendorSeriesId": "Mitsubishi-CityMulti-Y", "maxKw":  70.0, "upstreamGasOdMm": 22.22, "downstreamGasOdMm": 19.05, "upstreamLiqOdMm": 12.7,  "downstreamLiqOdMm": 9.52 },
+    { "id": "Mitsubishi-CMY-Y500", "vendorSeriesId": "Mitsubishi-CityMulti-Y", "maxKw": 110.0, "upstreamGasOdMm": 25.4,  "downstreamGasOdMm": 22.22, "upstreamLiqOdMm": 12.7,  "downstreamLiqOdMm": 12.7 },
+
+    { "id": "Toshiba-RBM-BY55",    "vendorSeriesId": "Toshiba-SHRMe",   "maxKw":  15.0, "upstreamGasOdMm": 15.88, "downstreamGasOdMm": 12.7,  "upstreamLiqOdMm":  9.52, "downstreamLiqOdMm": 6.35 },
+    { "id": "Toshiba-RBM-BY103",   "vendorSeriesId": "Toshiba-SHRMe",   "maxKw":  28.0, "upstreamGasOdMm": 19.05, "downstreamGasOdMm": 15.88, "upstreamLiqOdMm":  9.52, "downstreamLiqOdMm": 9.52 },
+    { "id": "Toshiba-RBM-BY203",   "vendorSeriesId": "Toshiba-SHRMe",   "maxKw":  55.0, "upstreamGasOdMm": 22.22, "downstreamGasOdMm": 19.05, "upstreamLiqOdMm": 12.7,  "downstreamLiqOdMm": 9.52 }
+  ]
+}

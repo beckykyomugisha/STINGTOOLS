@@ -174,6 +174,97 @@ namespace StingTools.Commands.Symbols
             return null;
         }
 
+        // Libraries the user has already declined to auto-build this session;
+        // we never re-prompt for the same library to avoid pop-up spam.
+        private static readonly HashSet<string> _declinedAutoBuild =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Event fired after a symbol-place command finishes. Discipline panels
+        /// subscribe to write the message to their inline status bar instead of
+        /// showing a modal TaskDialog. Decouples Commands/Symbols from UI/*.
+        /// </summary>
+        public static event Action<string> StatusUpdated;
+
+        internal static void EmitStatus(string message)
+        {
+            try { StatusUpdated?.Invoke(message); }
+            catch (Exception ex) { StingLog.Warn($"EmitStatus: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Convenience: resolve + place + emit inline status — the full
+        /// per-button workflow. Returns the count placed; caller can early-out
+        /// when the family couldn't be resolved (count == -1).
+        /// </summary>
+        internal static int ResolveAndPlace(
+            Document doc, UIDocument uidoc,
+            string symbolId, string jsonFile,
+            string promptTitle, string statusLabel)
+        {
+            var fs = ResolveFamilySymbolAutoBuild(doc, symbolId, jsonFile, promptTitle);
+            if (fs == null)
+            {
+                EmitStatus($"{promptTitle}: family '{symbolId}' not available.");
+                return -1;
+            }
+            int n = PlaceAtPickPoints(doc, uidoc, fs, symbolId, promptTitle);
+            EmitStatus($"{promptTitle}: placed {n} {statusLabel}{(n == 1 ? "" : "s")}.");
+            return n;
+        }
+
+        /// <summary>
+        /// Symbol-button-friendly resolver: tries <see cref="ResolveFamilySymbol"/>,
+        /// and on miss offers to run <see cref="SymbolBatchHelper.RunBatch"/> for
+        /// the parent JSON library. Eliminates the "WC symbol family not found"
+        /// dead-end UX so the per-symbol buttons feel alive on a freshly-opened
+        /// project. Returns null if the user declines, the build fails, or the
+        /// symbol is still missing after generation.
+        /// </summary>
+        internal static FamilySymbol ResolveFamilySymbolAutoBuild(
+            Document doc, string symbolId, string jsonFile, string promptTitle)
+        {
+            var fs = ResolveFamilySymbol(doc, symbolId, jsonFile);
+            if (fs != null) return fs;
+
+            string key = (jsonFile ?? "").ToUpperInvariant();
+            if (_declinedAutoBuild.Contains(key)) return null;
+
+            string libraryLabel = ResolveSubfolder(jsonFile);
+            var td = new TaskDialog(promptTitle ?? "STING Symbols")
+            {
+                MainInstruction = $"'{symbolId}' is not yet in the project.",
+                MainContent = $"The {libraryLabel} symbol library has not been generated for " +
+                              "this project. Generate it now? This writes .rfa files into " +
+                              "<project>/_BIM_COORD/Families/Symbols/ and loads them into the project.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.Yes
+            };
+            if (td.Show() != TaskDialogResult.Yes)
+            {
+                _declinedAutoBuild.Add(key);
+                return null;
+            }
+
+            try
+            {
+                var batch = SymbolBatchHelper.RunBatch(doc, jsonFile, libraryLabel);
+                StingLog.Info($"Auto-build {libraryLabel}: " +
+                    $"created={batch.Created}, existed={batch.Existed}, failed={batch.Failed}");
+                if (batch.Errors != null && batch.Errors.Count > 0)
+                    StingLog.Warn($"Auto-build errors: {string.Join("; ", batch.Errors)}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Auto-build {libraryLabel}", ex);
+                TaskDialog.Show(promptTitle ?? "STING Symbols",
+                    $"Could not generate library: {ex.Message}");
+                return null;
+            }
+
+            return ResolveFamilySymbol(doc, symbolId, jsonFile);
+        }
+
         private static FamilySymbol FindLoaded(Document doc, string famName)
         {
             try
@@ -265,8 +356,9 @@ namespace StingTools.Commands.Symbols
                 }
             }
 
-            TaskDialog.Show(promptTitle,
-                $"Pick point(s) to place '{symbolId}'. Press Escape when done.");
+            // No modal pre-pick popup — the Revit status bar prompt in PickPoint
+            // is enough. Less interruption for batch placements.
+            EmitStatus($"{promptTitle}: pick to place '{symbolId}'. Escape when done.");
 
             while (true)
             {

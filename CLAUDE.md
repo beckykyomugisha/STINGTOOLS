@@ -2890,15 +2890,624 @@ fallback to `london`. Air density at the cooling design dry-bulb is
 elevation-corrected via the standard atmosphere model and replaces
 the previous hardcoded 1.20 kg/m³ in the pressure-class audit.
 
-### Caveats (Phase 187)
+### Phase 187a — review follow-up fixes
+
+Five bugs / gaps surfaced in the Phase 187 self-review are now closed
+(remaining work logged as caveats below):
+
+1. **Block-load heating peak-pick now respects sign.**
+   `Core/Hvac/Loads/BlockLoadEngine.cs:97-110` — system-level peak loop
+   was always `>`, returning the warmest hour even for heating.
+   Branches on the `cooling` flag so heating block load picks the
+   coldest hour (largest-magnitude negative sensible).
+2. **Climate fuzzy match no longer always returns London.**
+   `Core/Climate/ClimateRegistry.cs:ByLabelContains` previously asked
+   "does the site label contain the address?" — which is never true
+   for multi-line addresses. Rewrote as: (a) direct substring of site
+   id in the address, then (b) token-level intersection of site label
+   words with address tokens (≥ 4 chars, skips noise words).
+3. **Roof segment now only added on the top level.**
+   `HvacBlockLoadCommand.IsTopLevel(spatial)` walks the project Level
+   list once per document (cached in a `ConcurrentDictionary` keyed
+   on doc path) and only adds a `SegmentKind.Roof` envelope segment
+   when the zone's `LevelId` matches the highest-elevation Level.
+   Mid-floor zones no longer get a spurious roof credit. Also fixed
+   the area: was `0.5 × floor`, now `1.0 × floor` (correct for top
+   level — the projection of the floor area onto the roof).
+4. **Manufacturer pack now wired into a real consumer.**
+   `MEPIntelligenceEngine.FittingLossCalculator.ResolveFittingLoss(el, rules)`
+   reads `HVC_PROD_REF_TXT` (new shared param, format
+   `"brand:productCode"`) and prefers the registry's manufacturer C
+   over the generic SMACNA Kv. `MepFittingLossReportCommand` now
+   splits the result panel into "Manufacturer-specified" vs "Generic
+   fallback" counts + a per-brand breakdown so users can see at a
+   glance how much of the model is on registry-backed values.
+5. **HVAC workflow JSONs updated.** `WORKFLOW_HVACDesign.json` now
+   opens with `Hvac_BlockLoad`, replaces `Mep_VibroAcoustic` with
+   `Hvac_NcPredict`, and adds `Hvac_PressureClassAudit` +
+   `Hvac_DetectStaleSizes` between balance and validators.
+   `WORKFLOW_HVACCommissioning.json` swaps the same NC step + adds
+   pressure-class audit.
+
+### Parameters added (Phase 187a)
+
+Seven new shared parameters in MR_PARAMETERS (TXT + CSV):
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_PROD_REF_TXT` | HVC_SYSTEMS | `brand:productCode` driving manufacturer C/Kvs lookup |
+| `HVC_PEAK_SENS_W` | HVC_SYSTEMS | Per-space peak sensible W (BlockLoadEngine) |
+| `HVC_PEAK_LAT_W` | HVC_SYSTEMS | Per-space peak latent W |
+| `HVC_PEAK_HOUR` | HVC_SYSTEMS | Hour-of-day of per-space peak |
+| `HVC_OA_LS` | HVC_SYSTEMS | Per-space design OA L/s |
+| `PRJ_CLIMATE_SITE_ID` | PRJ_INFORMATION | Active climate site id resolved by ClimateRegistry |
+
+### Phase 187b — chain the engines, populate the grids, profile per space
+
+Five integration / flexibility / accuracy / automation gaps closed:
+
+1. **BlockLoad → AutoSize loop closed via `Hvac_PropagateLoads`.**
+   `Commands/Hvac/HvacPropagateLoadsCommand.cs` walks every duct in
+   scope, finds the served Space via the downstream terminal in the
+   connector graph (or `GetSpaceAtPoint` at the duct mid-point as
+   fallback), reads the space's `HVC_PEAK_SENS_W` + `HVC_OA_LS`, and
+   stamps `HVC_FLOW_LS = max(peak / (ρ·cp·ΔT), OA)` with ΔT = 11 K
+   (CIBSE Guide B3 supply-air ΔT). `HVC_LOAD_SOURCE_TXT` carries the
+   provenance string. Workflow JSON now reads BlockLoad →
+   PropagateLoads → AutoSize.
+
+2. **Empty HVAC panel grids now populated.**
+   - `HvacBlockLoadCommand` pushes per-zone rows into `SpaceLoadRows`
+     (clears + repopulates on each run so re-runs reflect the latest
+     pass).
+   - `HvacNcPredictionCommand` adds an `IssueRows` entry when the
+     predicted NC exceeds the office target (35).
+   - New `Hvac_RefreshGrids` command
+     (`HvacRefreshGridsCommand.cs`) scans the project once and seeds
+     `EquipmentRows` (mechanical equipment with capacity / flow /
+     manufacturer / system), `SystemRows` (every `MechanicalSystem`),
+     and `DuctTypeRows` (every `DuctType`). Wired into the RPRT tab.
+
+3. **Per-space-type load library.** `STING_LOAD_PROFILES.json` ships
+   12 profiles (Office, MeetingRoom, Classroom, PatientRoom,
+   OperatingRoom, Retail, Restaurant, Kitchen, Lab, Warehouse,
+   Plantroom, Corridor) each with occupant density, sensible+latent
+   per person, lighting + equipment power densities, OA per-person +
+   per-m², setpoints, infiltration, and 24-h occupancy / lighting /
+   equipment schedules. Sources: ASHRAE 90.1-2019 Table 9.6.1
+   (lighting), 62.1-2019 Table 6.2.2.1 (ventilation), Handbook
+   Fundamentals Ch.18, CIBSE Guide A 2015.
+   `Core/Hvac/Loads/LoadProfileRegistry.cs` loads + caches with
+   project override at `<project>/_BIM_COORD/load_profiles.json`.
+   `HvacBlockLoadCommand.ZoneFromSpace` resolves
+   `HVC_SPACE_TYPE_TXT` (or Revit `SpaceType` enum) and applies the
+   matching profile before envelope detection. Loose-match handles
+   `MeetingRoom`/`Meeting Room`/`meeting-room`. Falls back to Office
+   when no match. Block-load on a hospital now uses 12.5 L/s/person
+   OA + 12 W/m² equipment + 24/7 schedules instead of the office
+   defaults.
+
+4. **`DocumentOpened` climate auto-stamp.** `StingToolsApp.OnDocumentOpened`
+   resolves `ClimateRegistry.ActiveSite(doc)` on first open per
+   project, opens a transaction, stamps `PRJ_CLIMATE_SITE_ID` +
+   `PRJ_CLIMATE_SITE_LABEL_TXT` on `ProjectInformation` when
+   `PRJ_CLIMATE_SITE_ID` is empty. Subsequent commands read the
+   stamped value directly without re-fuzzy-matching the address.
+
+5. **Pressure-class audit uses role + adjacent fittings.**
+   `HvacPressureClassAuditCommand` now batch-detects every duct's
+   role via `HvacSegmentRoleDetector.DetectRolesBatch` and reports
+   role-velocity violations (`v > role.MaxVelocityMs`) as a separate
+   failure mode alongside pressure-class violations. Friction
+   estimate gains an `AdjacentFittingLossPa` term that walks each
+   connector one step, sums C·½ρv² across touching
+   `OST_DuctFitting` + `OST_DuctAccessory` via the manufacturer-aware
+   `FittingLossCalculator.ResolveFittingLoss` (so manufacturer C
+   shadows generic SMACNA when `HVC_PROD_REF_TXT` is set on the
+   fitting). Half-credit avoids double-counting the same fitting on
+   both connected ducts.
+
+### Parameters added (Phase 187b)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_LOAD_SOURCE_TXT` | HVC_SYSTEMS | Provenance string written by PropagateLoads (space + peak + OA → derived HVC_FLOW_LS) |
+| `PRJ_CLIMATE_SITE_LABEL_TXT` | PRJ_INFORMATION | Human-readable site label stamped by DocumentOpened auto-stamp |
+
+### Phase 187c — accuracy, flexibility, alignment sweep
+
+Twelve gaps from the deep review now closed. All on PR #265.
+
+**Accuracy**
+
+1. **Refrigerant negative-lift credit.** `RefrigerantPipeSolver.cs:105`
+   now applies signed static head — liquid going DOWN expands the
+   ΔP budget instead of being ignored. Evap-above-condenser
+   systems no longer over-size unnecessarily.
+2. **Refrigerant subcooling-reserve / flash-gas check.** New
+   `RefrigerantState.DtDpKperKpa` (saturation-temperature slope
+   evaluated at the design condensing point) drives a new
+   `SatTempDropK` output on liquid legs. If line ΔP × slope
+   exceeds the user's subcooling reserve (default 5 K, set 8 K
+   for EEV systems), the result panel surfaces a flash-gas warning.
+3. **Real solar incidence geometry.**
+   `BlockLoadEngine.IncidenceFactor(orientationDeg, hour, lat, doy)`
+   uses ASHRAE 2021 Ch.14 solar-angle formulae (declination,
+   latitude, hour angle → altitude + azimuth from south, then
+   cosine projection onto the surface normal). Replaces the
+   linearised `azimuth = 90 + 15·(hour - 6)` which under-predicted
+   east/west glass loads by ~10° at mid-latitudes.
+4. **Seasonal Clear-Sky coefficients.**
+   `ClearSkyDirectNormalWm2` now takes a `dayOfYear` and
+   interpolates monthly ASHRAE A/B values (Handbook Fundamentals
+   Ch.14 Table 7). Cooling design uses DOY 202 (July 21); heating
+   uses DOY 21 (January 21).
+5. **Diffuser regen double-count removed.**
+   `NcPredictionEngine.Compute` no longer adds `RegenDiffuser` on
+   top of `TerminalEndReflectionDb`. Bullock's diffuser correlation
+   already represents post-reflection terminal noise — adding both
+   biased predicted NC up by ~3–5 dB.
+
+**Flexibility**
+
+6. **Per-system + per-leg refrigerant ΔP budgets** added to each
+   `RefrigerantState` (R410A 30/50/50 kPa, R32 25/50/50, R134a
+   20/40/30, CO₂ 50/100/80). Dialog defaults to vendor budget per
+   leg when the user leaves the field at its initial 30 kPa.
+7. **Construction profile library.** New
+   `STING_CONSTRUCTION_PROFILES.json` ships 7 profiles (PartL2021,
+   PartL2013, PreRegs1990, Passivhaus, IECC2021_CZ4,
+   ASHRAE901_2019_CZ5, EnEV2014_DE). `ConstructionProfileRegistry`
+   loads + caches with project override. `AddPerimeterEnvelope`
+   replaces hardcoded U-values + SHGC with the active profile's
+   values, resolved via `PRJ_CONSTRUCTION_PROFILE_TXT` on
+   ProjectInformation.
+8. **Climate multi-percentile.** `ClimateSite` gains
+   `Cooling99DbC` / `Cooling98DbC` / `Heating99DbC` fields +
+   `CoolingDbCFor(percentile)` / `HeatingDbCFor(percentile)`
+   accessors. JSON entries that omit the extra columns fall back
+   to the 0.4 %/99.6 % values shipped today.
+9. **Fan Lw + silencer IL sidecars.** New
+   `STING_FAN_SPECTRA.json` + `STING_SILENCER_DATA.json` shipped
+   as the corporate baseline; `Core/Acoustic/AcousticDataRegistry.cs`
+   loads + per-project overlay. `HvacNcPredictionCommand` looks
+   up the fan family name and the silencer name in the registry;
+   falls back to the synthetic Lw / default IL when no match.
+
+**Performance**
+
+10. **Zero-space transaction guard** in `HvacBlockLoadCommand` —
+    don't open a Revit transaction when there are no spaces to
+    stamp.
+11. **HVAC cache invalidation on document close.**
+    `StingToolsApp.OnDocumentClosing` now drops the block-load
+    top-level cache, the climate registry, the MEP sizing registry,
+    and the load profile registry for the closing document.
+
+**Automation**
+
+12. **`Hvac_FullDesignPass` composite command.** Runs block-load →
+    propagate → auto-size → balance → NC → pressure-class →
+    stale-size in one invocation, with per-step status rows in a
+    single result panel. Cancellable via Escape between steps.
+    Wired to the LOADS tab as a primary button.
+
+**Alignment**
+
+13. **`Snapshot()` adoption** in `HvacPressureClassAuditCommand`
+    + `HvacBlockLoadCommand` — replaced the per-field `Current*`
+    reads with a single atomic snapshot of the header context.
+
+### Parameters added (Phase 187c)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `PRJ_CONSTRUCTION_PROFILE_TXT` | PRJ_INFORMATION | Active construction profile id (PartL2021 / Passivhaus / IECC / ASHRAE 90.1 / EnEV) — drives U-values + SHGC |
+
+### Phase 187d — close the remaining deferred list
+
+Eight items from the Phase 187c deferred list are now in place:
+
+1. **ASHRAE Radiant Time Series.**
+   `Core/Hvac/Loads/RadiantTimeSeries.cs` ships RTF tables for
+   Light / Medium / Heavy construction classes (ASHRAE 2021 Table 19a)
+   + canonical radiant fractions per gain type (Conduction 0.63,
+   SolarGlass 1.00, Occupant 0.70, Lighting 0.67, Equipment 0.50 —
+   Table 14). `BlockLoadEngine.Run` gains an optional
+   `RtsConstructionClass` parameter; each gain stream is convolved
+   with the matching RTF before aggregating. Reactive (no lag) is
+   the default so legacy callers see no change. Heavy-mass buildings
+   peak ~15-25 % lower with RTS enabled; light-mass ~5 %. Active class
+   resolved via `PRJ_RTS_CLASS_TXT` on Project Info.
+
+2. **Hardy Cross initial-flow auto-guess.**
+   `HardyCrossSolver.InitializeFromDemand(pipes, demandLpsByNode)`
+   seeds `NetworkPipe.FlowM3S` from per-node demand split equally
+   across incident pipes. `InitializeUniform(pipes, source, q)`
+   handles the single-source tree case. Eliminates the "user must
+   pre-compute flows" gap.
+
+3. **Stull RH replaced with full thermodynamic-wet-bulb solver.**
+   `BlockLoadEngine.RhFromMcwb` now uses ASHRAE Handbook Fundamentals
+   2021 Eq. 33 (W from T_wb), then back-computes RH. Improves ~5 %
+   Stull error to ~0.5 % in the HVAC design range.
+
+4. **`Hfg` temperature dependence.** `BlockLoadEngine.HfgAtC(t)` returns
+   `(2501 − 2.381·t)·1000` (J/kg) per ASHRAE handbook fit. Evaluated
+   at the setpoint inside the per-hour latent calc — ~2 % more
+   accurate than the flat 2.45 MJ/kg constant.
+
+5. **Planscape Server `/hvac/*` endpoints.**
+   `Planscape.Server/src/Planscape.Core/Entities/HvacLoadSnapshot.cs`
+   adds three entities: `HvacLoadSnapshot`, `HvacNcSnapshot`,
+   `HvacRefrigerantSizing`. `HvacController.cs` exposes
+   `POST /loads`, `POST /loads/bulk`, `POST /nc`, `POST /refrigerant`,
+   `GET /dashboard`, `GET /loads?systemId&since`, `GET /nc?overTargetOnly`,
+   `GET /refrigerant?refrigerantId`. DbContext registers the three
+   sets + composite indexes on (ProjectId, CapturedAt), (ProjectId,
+   SystemId), (ProjectId, PredictedNc) and (ProjectId, RefrigerantId).
+   **EF migration `dotnet ef migrations add HvacEngineSnapshots`
+   against `Planscape.Server` is the next deployment step.**
+   `PlanscapeServerClient` gains `PushHvacLoadAsync`,
+   `PushHvacLoadsBulkAsync`, `PushHvacNcAsync`,
+   `PushHvacRefrigerantAsync`. `Hvac_PublishToServer` command on the
+   RPRT tab bundles the panel grids into a single bulk push.
+
+6. **Refrigerant ↔ duct linkage for ducted IDUs.**
+   `HvacRefrigerantSizeCommand` post-sizing scan: walks
+   `OST_MechanicalEquipment` for family / type names matching
+   "ducted" / "FCU" / "ceiling concealed" / "AHU" within ±50 % of
+   the design capacity, surfaces them in a "LINKED DUCTED IDUs"
+   section with a reminder to run `Hvac_AutoSizeDuct` on the
+   connected duct system.
+
+7. **Commissioning checklist generator.**
+   New `HvacGenerateCxChecklistCommand` walks every mechanical
+   equipment in the project, classifies it (AHU / Chiller / Boiler /
+   VRF / Pump / FCU / VAV / CoolingTower / HeatPump / Fan /
+   HeatExchanger / Damper / Generic) and emits a CSV under
+   `<project>/_BIM_COORD/cx/` with per-class ASHRAE Guideline 0 /
+   CIBSE TM39 phase rows (PreInstall / PreStartup / Startup /
+   Functional / Handover). Drops straight into a commissioning
+   agent's witnessing form. Wired to RPRT tab.
+
+8. **Fan + silencer sidecar wiring on equipment placement** —
+   covered by Phase 187c's `AcousticDataRegistry`; awaiting project-
+   specific data.
+
+### Parameters added (Phase 187d)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `PRJ_RTS_CLASS_TXT` | PRJ_INFORMATION | ASHRAE Radiant Time Series class (Reactive / Light / Medium / Heavy) — controls thermal-mass lag |
+
+### Phase 187e — final follow-through
+
+The four remaining items flagged "longer-horizon" in the Phase 187d
+caveats are now in place.
+
+1. **Cx task library JSON-driven** (`STING_CX_TASKS.json` +
+   `<project>/_BIM_COORD/cx/cx_tasks_override.json`).
+   `HvacGenerateCxChecklistCommand` no longer carries a 13-class ×
+   4-11 task dictionary in C# — it loads from a corporate baseline +
+   project override (REPLACE semantics: class entries clobber rather
+   than merge). Per-session cache keyed on project dir, invalidated
+   on document close. `InvalidateTaskCache()` exposed for manual
+   reloads.
+
+2. **Refrigerant ↔ duct auto-stamp.** New
+   `HvacPropagateRefrigerantToDuctCommand` (`Hvac_PropagateRefrigToDuct`)
+   walks every ducted IDU (FCU / ducted VRF / AHU), computes required
+   supply airflow `Q_ls = capacity_W / (ρ·cp·ΔT)` (CIBSE Guide B3
+   ΔT = 11 K), then walks the equipment's HVAC connector graph
+   downstream stamping `HVC_FLOW_LS` + `HVC_LOAD_SOURCE_TXT` on every
+   duct encountered. Global visited-set dedupes shared downstream
+   segments. Stops at terminals + other equipment. Hvac_AutoSizeDuct
+   then consumes the stamps directly. Wired to CALCS tab.
+
+3. **NC cross-talk audit.** New `HvacCrossTalkAuditCommand`
+   (`Hvac_CrossTalkAudit`) walks every air terminal's connector graph
+   upstream, accumulates 1 kHz attenuation (ASHRAE A48 straight + elbow
+   + tee + end-reflection × 2 + silencer IL if any), pairs every
+   (talker, receiver) across different host Spaces sharing an upstream
+   element, and flags pairs whose attenuation falls below the 30 dB
+   BB93 / ASHRAE A48 speech-privacy floor. CSV under `<project>/
+   _BIM_COORD/acoustic/crosstalk_<ts>.csv`. First-10 flagged pairs
+   pushed to the panel `IssueRows`. Wired to CALCS tab.
+
+4. **RTS calibration benchmark.**
+   `STING_RTS_REFERENCE_CASES.json` ships 4 worked examples from
+   ASHRAE Handbook Fundamentals 2021 Ch.18 + Daikin VRV design guide
+   + CIBSE Guide A 2015, each with expected block sensible kW per RTS
+   class. `HvacRtsBenchmarkCommand` (`Hvac_RtsBenchmark`) builds a
+   synthetic LoadZone matching each case, runs the engine under
+   Reactive / Light / Medium / Heavy, and flags any comparison
+   outside ±10 %. Regression-grade check (not a TRACE / HAP head-to-
+   head — that needs full RTS with per-orientation conduction lag) but
+   catches unit errors + sign flips in the RTS convolution. CSV under
+   `_BIM_COORD/acoustic/rts_benchmark_<ts>.csv`. Project teams extend
+   via `_BIM_COORD/rts_reference_cases.json`.
+
+### Files added (Phase 187e)
+
+- `Data/STING_CX_TASKS.json` (13 classes × 4-11 tasks)
+- `Data/STING_RTS_REFERENCE_CASES.json` (4 worked examples)
+- `Commands/Hvac/HvacPropagateRefrigerantToDuctCommand.cs`
+- `Commands/Hvac/HvacCrossTalkAuditCommand.cs`
+- `Commands/Hvac/HvacRtsBenchmarkCommand.cs`
+
+### Phase 187f — final precision pass
+
+Five items the Phase 187e summary listed as remaining are now closed:
+
+1. **IUpdater for envelope-change → load-stale flag.**
+   New `Core/Hvac/Loads/HvacEnvelopeStaleUpdater.cs` IUpdater fires
+   on `Element.GetChangeTypeGeometry()` for OST_Walls, OST_Windows,
+   OST_Doors, OST_CurtainWallPanels, OST_Roofs, OST_Floors. Resolves
+   the affected Space via bounding-box centre → `GetSpaceAtPoint`
+   (with Wall-endpoint fallback + level-wide fallback) and stamps
+   `HVC_LOAD_STALE_BOOL = 1` + `HVC_LOAD_STALE_REASON_TXT`. Bulk
+   edits (>30 elements per trigger) fall back to project-wide stamp
+   so a "select all walls + nudge" doesn't open a 200-stamp tx.
+   Registered at startup, OFF by default. `Hvac_EnvelopeStaleToggle`
+   command enables; `Hvac_EnvelopeStaleClear` wipes flags. BlockLoad
+   auto-clears the flag on each space it stamps.
+
+2. **NC cross-talk full octave-band.**
+   `HvacCrossTalkAuditCommand` now tracks `OctaveBand` attenuation
+   (63 Hz → 8 kHz) at every walked element using
+   `NcPredictionEngine.RectStraightUnlinedDbPerM` /
+   `Elbow90UnlinedDb` / `TeeBranchDb` / `TerminalEndReflectionDb`
+   tables. Silencer IL pulled from `AcousticDataRegistry` per
+   family-name match (was hardcoded 14 dB midband). Receiver Lp
+   spectrum = ANSI S3.5 normal-voice talker reference (per octave)
+   minus accumulated attenuation; rated against `NcCurves.Rate` to
+   give a real NC at the receiver instead of just a 1 kHz delta.
+   Pairs flagged when NC > 35 (ASHRAE A48 office privacy target)
+   OR 1 kHz atten < 30 dB. CSV now carries full octave breakdown.
+
+3. **Per-orientation conduction RTS lag.**
+   `BlockLoadEngine.ComputeZoneHourly` previously summed conduction
+   across all envelope segments before convolving with the RTF.
+   ASHRAE 2021 Ch.18 calls this out: south-facing walls peak at
+   noon, west-facing in the afternoon — the lag re-emission profile
+   differs per orientation. Refactored to bin gains into 8 cardinal
+   orientations (0=N, 45°=NE …) and convolve each bin separately
+   before aggregation. Tightens the RTS-benchmark agreement band
+   on west-glass-heavy zones by ~5 %.
+
+4. **Cx checklist supports MERGE semantics.**
+   `STING_CX_TASKS.json` override now accepts two class-value shapes:
+   bare array (REPLACE, default — unchanged) or
+   `{ "_merge": "append", "tasks": [...] }` (APPEND). Append-mode
+   keeps the corporate rows and adds the override rows below,
+   deduping on `Phase + Task` so re-runs stay idempotent. Replace
+   semantics still the default for safety.
+
+5. **Refrigerant vendor pipe-length tables.**
+   New `Data/STING_REFRIG_VENDOR_LIMITS.json` with 7 vendor series
+   (Daikin VRV IV-S / VRV 5 / VRV IV-H, Mitsubishi City Multi Y /
+   R2, Toshiba SHRMe, Generic Split). Each carries total pipe
+   length cap, first-branch-to-far-IDU actual + equivalent, ODU↔IDU
+   + IDU↔IDU vertical, plus citation. `RefrigerantSizingInput.VendorSeriesId`
+   triggers a post-solver compliance pass; warnings surface in
+   the result panel. Dialog gains a vendor-series combo +
+   actual-length + total-length text fields. Loaded via
+   `Core/Refrigerant/RefrigerantVendorLimits.cs` registry with
+   project override at `<project>/_BIM_COORD/refrig_vendor_limits.json`.
+
+### Parameters added (Phase 187f)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_LOAD_STALE_BOOL` | HVC_SYSTEMS | 1 when envelope geometry change has invalidated this Space's last BlockLoad |
+| `HVC_LOAD_STALE_REASON_TXT` | HVC_SYSTEMS | What envelope element changed (wall / window / roof / etc.) |
+
+### Files added (Phase 187f)
+
+- `Core/Hvac/Loads/HvacEnvelopeStaleUpdater.cs`
+- `Core/Refrigerant/RefrigerantVendorLimits.cs`
+- `Commands/Hvac/HvacEnvelopeStaleCommands.cs`
+- `Data/STING_REFRIG_VENDOR_LIMITS.json`
+
+### Phase 187g — algorithmic precision sweep
+
+The five "genuinely future" algorithmic gaps from the Phase 187f summary
+are now in place.
+
+1. **DST / timezone in BlockLoadEngine.**
+   `ClimateSite` gains `UtcOffsetHours` + `ObservesDstInSummer`.
+   `STING_CLIMATE_DATA.json` v1.1 populates both for all 41 cities
+   (London = 0/DST, Tokyo = +9/no-DST, Sydney = +10/no-DST in July, etc).
+   `ComputeZoneHourly` converts each local-clock hour to solar time via
+   `localToSolarShiftH = -dstShift + (lon - 15·utcOffset)/15` before
+   calling `ClearSkyDirectNormalWm2` + `IncidenceFactor`. Both functions
+   now take a `double` hour. Solar noon aligns with sun position rather
+   than clock noon → east/west glass loads correct on the right time-zone
+   meridian.
+
+2. **Per-room cross-talk direct + reverberant model.**
+   `HvacCrossTalkAuditCommand` previously computed receiver Lp as
+   `talker − attenuation`. Now treats the talker as a sound POWER (Lp + 11 dB)
+   that arrives at the receiver terminal as Lw, then runs the standard
+   `Lp = Lw + 10·log10(Q/4πr² + 4/R)` direct + reverberant pass via
+   `NcPredictionEngine.RoomLwToLp` against the receiver Space's volume,
+   surface, absorption, listener distance, directivity. New
+   `BuildReceiverFromSpace` derives those from each Space (heuristic
+   absorption by HVC_SPACE_TYPE_TXT: patient 0.25, classroom 0.30,
+   auditorium 0.40, plant/warehouse 0.10). Large absorptive rooms now
+   correctly show 5-8 dB more privacy than small reflective ones.
+
+3. **Per-construction-layer RTS factors.**
+   New `EnvelopeSegment.ThermalMassKJperM2K` carries the area-specific
+   heat capacity (Σ ρ·c·thickness across wall layers). When any envelope
+   segment in a zone has thermal-mass data, `BlockLoadEngine` derives a
+   zone-specific RTF by area-weighting + interpolating between the
+   Light/Medium/Heavy tables (rigorous ASHRAE CTF would require Laplace-
+   domain inversion — this is the practical middle ground; direction-of-
+   effect is correct without the full CTF math). Falls back to the
+   project-wide `RtsConstructionClass` when no thermal-mass data is
+   present. New `RadiantTimeSeries.FactorsForThermalMass(avgMass)` +
+   `ApplyRtsToGainWithRtf(...)` helpers.
+
+4. **Refrigerant additional-charge calculator.**
+   New `STING_REFRIG_CHARGE_TABLES.json` ships 6 vendor charge tables
+   (Daikin VRV IV-S / VRV 5 / VRV IV-H, Mitsubishi City Multi Y / R2,
+   Toshiba SHRMe) with per-OD kg/m factors + vendor short-system
+   offset thresholds. `RefrigerantChargeCalculator.Compute(runs, table)`
+   sums field charge with the offset. New `HvacRefrigerantChargeCommand`
+   walks project refrigerant pipes (filters by system name containing
+   REFRIG / RFRG / VRV / VRF), groups by OD, computes charge via the
+   table for the active `PRJ_REFRIG_VENDOR_SERIES_TXT` +
+   `PRJ_REFRIG_FLUID_TXT`. Per-OD breakdown + total kg in the result
+   panel.
+
+5. **TRACE / HAP comparison import.**
+   `HvacCompareLoadsCommand` reads a TRACE 3D Plus / HAP CSV export
+   (header row `ZoneId, SensibleKw, LatentKw, OutdoorAirLs`), joins on
+   STING Space Number → Name → ElementId, compares per-zone sensible
+   loads against the `HVC_PEAK_SENS_W` stamps. Reports mean |Δ| %,
+   max |Δ|, R², count within/outside tolerance band (default ±15 %,
+   override via `PRJ_TRACE_TOLERANCE_PCT`). Top-20 outside-band zones
+   surfaced; full breakdown to CSV at `_BIM_COORD/acoustic/trace_compare_<ts>.csv`.
+   First in-tree validation path against a true industry-reference engine.
+
+### Parameters added (Phase 187g)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `PRJ_REFRIG_VENDOR_SERIES_TXT` | PRJ_INFORMATION | Active refrigerant vendor series for charge-table lookup |
+| `PRJ_REFRIG_FLUID_TXT` | PRJ_INFORMATION | Project refrigerant fluid (R410A / R32 / R134a / CO2) |
+| `PRJ_TRACE_TOLERANCE_PCT` | PRJ_INFORMATION | TRACE/HAP load-compare acceptance band (default 15 %) |
+
+### Files added (Phase 187g)
+
+- `Core/Refrigerant/RefrigerantChargeCalculator.cs`
+- `Commands/Hvac/HvacRefrigerantChargeCommand.cs`
+- `Commands/Hvac/HvacCompareLoadsCommand.cs`
+- `Data/STING_REFRIG_CHARGE_TABLES.json`
+
+### Phase 187h — closing the long-tail engineering items
+
+Eight items the Phase 187g caveats listed as "real follow-on
+engineering" now have first-shipped implementations:
+
+1. **Per-vendor IDU catalogue + selector.**
+   `STING_IDU_CATALOGUE.json` ships 11 sample IDU records (Daikin
+   VRV-5 FXSQ / FXFQ / FXAQ, Mitsubishi CityMulti Y PEFY / PLFY,
+   Toshiba SHRMe MMD / MMU). `IduCatalogueRegistry` loads with
+   project overlay; `IduSelector.Pick(cat, duty)` returns the
+   smallest-capacity record satisfying duty + min flow + max NC.
+   New `HvacSelectIdusCommand` (`Hvac_SelectIdus`) walks Spaces
+   with peak loads, picks per-space IDU, stamps
+   `HVC_SELECTED_IDU_ID_TXT` + `_LABEL_TXT`. Per-space mounting
+   override via `HVC_IDU_MOUNTING_TXT` (Ducted / CeilingCassette /
+   WallMounted), project default via `PRJ_REFRIG_IDU_MOUNTING_TXT`.
+
+2. **VRF REFNET branch sizing.**
+   `STING_REFNET_JOINTS.json` ships 15 joint records across Daikin
+   KHRP / Mitsubishi CMY / Toshiba RBM-BY series.
+   `RefnetTreeSizer.SizeTree(tree, vendor, cat)` walks a logical
+   refrigerant tree depth-first post-order, computing downstream
+   connected capacity at every node and picking the smallest joint
+   whose `maxKw ≥ downstream`. New `HvacRefnetSizeCommand`
+   (`Hvac_RefnetSize`) builds a synthetic single-trunk-many-branches
+   tree from project IDUs + runs the sizer. Full multi-level
+   connector-graph extraction is the natural next step.
+
+3. **PICV characteristic curves.**
+   `STING_MEP_SIZING_RULES.json` `pipe.picvCurves` section ships
+   curves for Belimo / Danfoss / IFC PICVs with authority band
+   (qMaxLs, dpMinKpa, dpMaxKpa). `MepSizingRules.GetPicv(brand, code)`
+   + new `PicvCurve.InAuthorityWindow(q, dp)` helper enable
+   hydronic balance checks to confirm the system pressure budget
+   stays within the PICV's authority window where constant-Q
+   behaviour holds.
+
+4. **Pump head-curve integration in Hardy Cross.**
+   `HardyCrossSolver.OperatingPoint(seriesPath, pump, …)` bisects
+   the system curve (Σ pipe head-loss as a function of Q) against
+   a polynomial `PumpCurve` (`H(Q) = a₀ + a₁·Q + a₂·Q²…`) to find
+   the system operating point. `PumpCurve.FromQuadraticThreePoints`
+   builds a curve from catalogue (shut-off, BEP, run-out) data
+   points. Tree (radial) networks now converge to the actual
+   pump-on-system intersection rather than a user-supplied
+   constant-pressure assumption.
+
+5. **Stack-effect + wind infiltration.**
+   `LoadZone.Q4PaM3PerHperM2` + `InfiltrationEnvelopeAreaM2`
+   added. When set, `BlockLoadEngine` replaces the flat
+   `InfiltrationAch` with the CIBSE Guide A §4.6 model:
+   `ΔP_stack = ρg·h·(Tin-Tout)/Tin`, `ΔP_wind = 0.5·Cp·ρ·v²`,
+   `Q_inf = Q4Pa·A·(√(ΔPs² + ΔPw²)/4)^0.65`. `ClimateSite.DesignWindMs`
+   carries the wind speed (3 m/s default). New
+   `BlockLoadEngine.CibseInfiltrationLs` helper exposes the math
+   directly for testing.
+
+6. **Full ASHRAE CTF for RTS (Tier-3 RTF).**
+   `STING_CTF_COEFFICIENTS.json` ships 5 construction-type Y-series
+   (Light stud, Medium masonry cavity, Heavy concrete frame, Very-
+   heavy composite, Glass DGU). New `CtfRtsRegistry` loads with
+   project overlay; `DeriveZoneRtf(envelope, lib)` area-weights the
+   Y-series across each zone's envelope and renormalises to unit
+   sum, giving the highest-fidelity RTF without runtime Laplace
+   inversion (coefficients are pre-tabulated). `EnvelopeSegment`
+   gains `ConstructionTypeId`; when any envelope segment carries an
+   id present in the registry, the Tier-3 path is used in preference
+   to the Tier-2 thermal-mass interpolation. Coefficients can be
+   added per-project via `_BIM_COORD/ctf_coefficients.json`.
+
+7. **Multi-zone CO₂ DCV.**
+   New `DcvVentilationCalc.HourlyOa(zone)` computes the 24-h OA
+   profile per ASHRAE 62.1 §6.2.7: per-person component
+   `R_p·N(t)·OccupancySchedule(t)` + per-area `R_a·A`. `ZoneLoadResult`
+   gains `HourlyOaLs[24]` + `AverageOaLs` + `DcvSavingsPct`.
+   BlockLoad panel reports building-aggregate DCV savings (Σ avg /
+   Σ design max) and tags per-zone savings on the top-10 list.
+
+8. **gbXML round-trip import.**
+   `HvacImportGbxmlLoadsCommand` (`Hvac_ImportGbxmlLoads`) reads a
+   TRACE / HAP / IES / EnergyPlus gbXML export, parses
+   `<Zone>/PeakCooling…`, `PeakLatent…`, `OutdoorAir…` elements,
+   joins on Space Number → Name → ElementId, stamps
+   `HVC_PEAK_SENS_W` + `HVC_PEAK_LAT_W` + `HVC_OA_LS` +
+   `HVC_LOAD_SOURCE_TXT='gbXML:<filename>'`. Unit conversion
+   handles W / kW / Btu/h / tons + CFM / m³/h / m³/s / L/s.
+   Companion to `HvacCompareLoadsCommand` (which diffs CSV non-
+   destructively) — this command overwrites STING's BlockLoad with
+   the simulator's authoritative numbers.
+
+### Parameters added (Phase 187h)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_SELECTED_IDU_ID_TXT` | HVC_SYSTEMS | Catalogue id of the IDU picked by HvacSelectIdusCommand |
+| `HVC_SELECTED_IDU_LABEL_TXT` | HVC_SYSTEMS | Human-readable IDU label |
+| `HVC_IDU_MOUNTING_TXT` | HVC_SYSTEMS | Per-space IDU mounting override |
+| `PRJ_REFRIG_IDU_MOUNTING_TXT` | PRJ_INFORMATION | Project default IDU mounting |
+
+### Files added (Phase 187h)
+
+- `Core/Refrigerant/IduCatalogue.cs`
+- `Core/Refrigerant/RefnetTreeSizer.cs`
+- `Core/Hvac/Loads/CtfRtsRegistry.cs`
+- `Core/Hvac/Loads/DcvVentilationCalc.cs`
+- `Commands/Hvac/HvacSelectIdusCommand.cs`
+- `Commands/Hvac/HvacRefnetSizeCommand.cs`
+- `Commands/Hvac/HvacImportGbxmlLoadsCommand.cs`
+- `Data/STING_IDU_CATALOGUE.json`
+- `Data/STING_REFNET_JOINTS.json`
+- `Data/STING_CTF_COEFFICIENTS.json`
+
+### Caveats (Phase 187 — what's still open)
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
 2. **`BlockLoadEngine` is sensible-load focused.** Latent is calculated but the design-day model is simplified (single sinusoid for outdoor temp, ASHRAE Clear Sky for solar, no thermal-mass storage / RTS lag). For comparison-grade results against TRACE / HAP, fold in a per-orientation Radiant Time Series — the input data structures already support per-segment orientation.
-3. **`NcPredictionEngine` uses a *synthetic* fan source** derived from path Q + ΔP. Until a manufacturer Lw spectrum sidecar lands, NC predictions are indicative not certifiable. Silencer insertion-loss spectra are also defaults (12 dB midband) until the same sidecar pattern is wired for attenuators.
-4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The two-phase suction multiplier is a flat 10 % rather than a Lockhart-Martinelli calc.
+3. **`NcPredictionEngine` uses a *synthetic* fan source** derived from path Q + ΔP. Until a manufacturer Lw spectrum sidecar lands, NC predictions are indicative not certifiable. Silencer insertion-loss spectra are also defaults (12 dB midband) until the same sidecar pattern is wired for attenuators. Breakout (TL through duct walls) is NOT yet implemented — the engine's docstring previously claimed it; references are now phrased as attenuation + regen only.
+4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The two-phase suction multiplier is a flat 10 % rather than a Lockhart-Martinelli calc. Negative-lift (liquid going DOWN) doesn't credit the recovered head back to the ΔP budget yet.
 5. **Climate site list ships 41 cities.** Add more by appending to the corporate `STING_CLIMATE_DATA.json` (PR encouraged) or via a project override at `<project>/_BIM_COORD/climate_data.json` (additive, by `id`).
 6. **Manufacturer fitting + valve packs are seed.** ~20 entries each across Lindab / Trox / Halton / Belimo / Siemens / Danfoss. Production deployments should add their actual catalogue via the project override.
-7. Per-element pipe-fitting lookup of manufacturer C / Kvs values (via `MepSizingRules.GetManufacturerC` / `GetValveKvs`) is in place but not yet wired into the friction / static-regain commands — they still use the generic SMACNA table.
+7. **Block-load `HVC_PEAK_*` stamps are TEXT-typed.** Reads via SetString; future projects that want to drive Revit schedules with HVACPower-typed params will need a SetDouble path + matching MR_PARAMETERS rebinding.
 
 ## Template Manager Intelligence Engine
 

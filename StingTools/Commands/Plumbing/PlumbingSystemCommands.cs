@@ -1,7 +1,12 @@
-// PlumbingSystemCommands — Phase 179a SYSTEM tab.
+// PlumbingSystemCommands — Phase 179a / 187 SYSTEM tab.
 //
-// Plumb_SaveSystemConfig — modeless dialog → PlumbingSystemConfig.Save.
-// Plumb_LoadSystemConfig — read existing config + push to ProjectInformation.
+// Plumb_SaveSystemConfig — reads the inline form on the SYSTEM tab of
+//   StingPlumbingPanel and persists it via PlumbingSystemConfig.Save.
+//   When the panel isn't open the command refuses (no modal dialog
+//   fallback — the legacy PlumbingSystemConfigDialog was retired in
+//   Phase 187 because the inline form replaces it).
+// Plumb_LoadSystemConfig — reads the on-disk config, pushes the values
+//   back into the inline form (when the panel is open).
 
 using System;
 using System.Linq;
@@ -24,24 +29,55 @@ namespace StingTools.Commands.Plumbing
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
-            var existing = PlumbingSystemConfig.Load(ctx.Doc);
-            var dlg = new PlumbingSystemConfigDialog(ctx.Doc, existing) { Owner = null };
-            try { dlg.ShowDialog(); } catch (Exception ex) { TaskDialog.Show("STING Plumbing", "Dialog error: " + ex.Message); return Result.Failed; }
-            if (!dlg.Saved) return Result.Cancelled;
 
-            var panel = StingResultPanel.Create("Plumbing System Config Saved");
-            panel.SetSubtitle($"Path: {PlumbingSystemConfig.ProjectConfigPath(ctx.Doc) ?? "(project not saved)"}");
-            panel.AddSection("ACTIVE")
-                 .Metric("Building",         dlg.Result.BuildingType)
-                 .Metric("K factor",         dlg.Result.KFactor.ToString("F2"))
-                 .Metric("Drainage standard", dlg.Result.DrainStandard)
-                 .Metric("Supply standard",   dlg.Result.SupplyStandard)
-                 .Metric("DCW material",      dlg.Result.MaterialFor("DCW"))
-                 .Metric("DHW material",      dlg.Result.MaterialFor("DHW"))
-                 .Metric("Drain material",    dlg.Result.MaterialFor("Drainage"))
-                 .Metric("Vent material",     dlg.Result.MaterialFor("Vent"))
-                 .Metric("Supply pressure",   dlg.Result.SupplyPressureBarAtEntry.ToString("F2") + " bar");
-            panel.Show();
+            var panel = StingPlumbingPanel.Instance;
+            if (panel == null)
+            {
+                TaskDialog.Show("STING Plumbing — Save System Config",
+                    "Open the STING Plumbing panel and edit the SYSTEM tab before saving.");
+                return Result.Cancelled;
+            }
+
+            PlumbingSystemConfig cfg;
+            try
+            {
+                var existing = PlumbingSystemConfig.Load(ctx.Doc);
+                cfg = panel.Dispatcher.Invoke(() => panel.ReadSystemForm(existing));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Plumb_SaveSystemConfig ReadSystemForm", ex);
+                message = "Could not read inline SYSTEM form: " + ex.Message;
+                panel?.ShowInlineResult("Save System Config: read failed — " + ex.Message);
+                return Result.Failed;
+            }
+
+            try
+            {
+                using (var tx = new Transaction(ctx.Doc, "STING Plumbing — Save System Config"))
+                {
+                    tx.Start();
+                    PlumbingSystemConfig.Save(ctx.Doc, cfg);
+                    tx.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Plumb_SaveSystemConfig persist", ex);
+                message = "Could not save plumbing system config: " + ex.Message;
+                panel?.ShowInlineResult("Save System Config: persist failed — " + ex.Message);
+                return Result.Failed;
+            }
+
+            // Inline summary — no popup window. The activity-log surface in
+            // the SYSTEM tab captures the full single-line confirmation.
+            string summary =
+                $"Saved · Building={cfg.BuildingType} · K={cfg.KFactor:F2} · " +
+                $"Drain={cfg.DrainStandard} · Supply={cfg.SupplyStandard} · " +
+                $"DCW={cfg.MaterialFor("DCW")} · DHW={cfg.MaterialFor("DHW")} · " +
+                $"HeadLoss={cfg.HeadLossMethod} · Sizing={cfg.SupplySizingStrategy} · " +
+                $"InletBar={cfg.SupplyPressureBarAtEntry:F2}";
+            panel.ShowInlineResult("Save System Config: " + summary);
             return Result.Succeeded;
         }
     }
@@ -56,32 +92,28 @@ namespace StingTools.Commands.Plumbing
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var cfg = PlumbingSystemConfig.Load(ctx.Doc);
 
-            var panel = StingResultPanel.Create("Plumbing System Config (current)");
-            panel.SetSubtitle($"Path: {PlumbingSystemConfig.ProjectConfigPath(ctx.Doc) ?? "(no project file)"}");
-            panel.AddSection("PROJECT")
-                 .Metric("Building",            cfg.BuildingType)
-                 .Metric("K factor",            cfg.KFactor.ToString("F2"))
-                 .Metric("Drainage standard",   cfg.DrainStandard)
-                 .Metric("Supply standard",     cfg.SupplyStandard)
-                 .Metric("Flush valve majority", cfg.FlushValveMajority ? "yes" : "no")
-                 .Metric("Occupancy",           cfg.OccupancyCount.ToString())
-                 .Metric("Beds / workstations", cfg.BedsOrWorkstations.ToString())
-                 .Metric("Saved (UTC)",         string.IsNullOrEmpty(cfg.LastSavedUtc) ? "(never)" : cfg.LastSavedUtc);
+            // Push the loaded config into the inline form (if the panel is
+            // open) and log a one-line summary inline. No modal popup.
+            var panel = StingPlumbingPanel.Instance;
+            try { panel?.Dispatcher.Invoke(() => panel.LoadSystemForm(cfg)); }
+            catch (Exception ex) { StingLog.Warn($"Plumb_LoadSystemConfig push: {ex.Message}"); }
 
-            panel.AddSection("MATERIALS");
-            foreach (var kv in cfg.Materials.OrderBy(k => k.Key))
-                panel.Metric(kv.Key, kv.Value);
+            string summary =
+                $"Loaded · Building={cfg.BuildingType} · K={cfg.KFactor:F2} · " +
+                $"Drain={cfg.DrainStandard} · Supply={cfg.SupplyStandard} · " +
+                $"DCW={cfg.MaterialFor("DCW")} · DHW={cfg.MaterialFor("DHW")} · " +
+                $"Saved={(string.IsNullOrEmpty(cfg.LastSavedUtc) ? "(never)" : cfg.LastSavedUtc)}";
+            panel?.ShowInlineResult("Load System Config: " + summary);
 
-            panel.AddSection("VELOCITY LIMITS (m/s)");
-            foreach (var kv in cfg.VelocityMps.OrderBy(k => k.Key))
-                panel.Metric(kv.Key, kv.Value.ToString("F2"));
-
-            panel.AddSection("MIN SLOPE (%)");
-            foreach (var kv in cfg.SlopePctMin.OrderBy(k => k.Key))
-                panel.Metric(kv.Key, kv.Value.ToString("F2"));
-
-            panel.Show();
+            // For headless / no-panel paths still emit a TaskDialog so the
+            // user sees something.
+            if (panel == null)
+            {
+                TaskDialog.Show("STING Plumbing — System Config",
+                    summary.Replace(" · ", "\n"));
+            }
             return Result.Succeeded;
         }
     }
 }
+

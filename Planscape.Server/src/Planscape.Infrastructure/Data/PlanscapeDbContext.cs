@@ -1039,6 +1039,28 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
         });
 
+        // Phase 187d — HVAC engine result indexes. Dashboard queries
+        // filter by (ProjectId, CapturedAt) on every table; NC dashboards
+        // additionally filter by (PredictedNc > TargetNc) so a covering
+        // index on (ProjectId, PredictedNc) speeds the "over target"
+        // aggregate.
+        modelBuilder.Entity<HvacLoadSnapshot>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.SystemId });
+        });
+        modelBuilder.Entity<HvacNcSnapshot>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.PredictedNc });
+        });
+        modelBuilder.Entity<HvacRefrigerantSizing>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.RefrigerantId });
+            e.HasIndex(x => new { x.ProjectId, x.Ok });
+        });
+
         // Phase 178b — SitePhoto compound (ProjectId, PairKey) for
         // before/after pair lookups. The single-column PairKey index
         // exists already; the compound version skips a second-pass
