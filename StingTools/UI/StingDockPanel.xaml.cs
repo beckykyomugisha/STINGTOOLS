@@ -2302,5 +2302,676 @@ namespace StingTools.UI
                 }
             });
         }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  MAT tab — inline Material Manager (replaces the modal dialog)
+        // ════════════════════════════════════════════════════════════════════
+
+        // Backing collection for the materials DataGrid; lazy-built on first
+        // Refresh so opening the panel is free of cost.
+        private System.Collections.ObjectModel.ObservableCollection<StingTools.UI.MaterialRow> _matRows;
+        private bool _matLoaded;
+
+        // ── N1 — Live selection sync ───────────────────────────────────────
+
+        private static bool _selSyncSubscribed;
+
+        public static void SubscribeSelectionSync(UIApplication uiapp)
+        {
+            if (_selSyncSubscribed || uiapp == null) return;
+            try
+            {
+                uiapp.SelectionChanged += OnRevitSelectionChanged;
+                _selSyncSubscribed = true;
+                StingLog.Info("MaterialManager: live selection sync subscribed");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SubscribeSelectionSync: {ex.Message}");
+            }
+            // I-5 — Subscribe the external-rename watcher once we have an
+            // Application reference. Idempotent.
+            try { MaterialRenameWatcher.Subscribe(uiapp.Application); }
+            catch (Exception ex) { StingLog.Warn($"RenameWatcher subscribe: {ex.Message}"); }
+            // N+1 — Also listen for region/standards changes pushed by the
+            // ProjectSetupWizard or other surfaces, so the MAT panel snaps
+            // its Region combo and re-formats the grid live.
+            try
+            {
+                StingTools.Standards.ProjectStandardsManager.Instance.StandardsChanged -= OnStandardsChanged;
+                StingTools.Standards.ProjectStandardsManager.Instance.StandardsChanged += OnStandardsChanged;
+            }
+            catch (Exception ex) { StingLog.Warn($"StandardsChanged subscribe: {ex.Message}"); }
+        }
+
+        private static void OnStandardsChanged(object sender, EventArgs e)
+        {
+            var inst = LastInstance;
+            if (inst == null) return;
+            try
+            {
+                inst.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                        if (doc == null) return;
+                        inst.SyncMatRegionCombo();
+                        StingTools.UI.MaterialRow.ActiveLocale = MaterialLocaleManager.Resolve(doc);
+                        if (inst._matRows != null)
+                            System.Windows.Data.CollectionViewSource.GetDefaultView(inst._matRows).Refresh();
+                    }
+                    catch (Exception ex2) { StingLog.Warn($"OnStandardsChanged dispatch: {ex2.Message}"); }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex) { StingLog.Warn($"OnStandardsChanged: {ex.Message}"); }
+        }
+
+        private static void OnRevitSelectionChanged(object sender,
+            Autodesk.Revit.UI.Events.SelectionChangedEventArgs e)
+        {
+            // Cheap exit when the dock panel hasn't been opened — no grid
+            // to highlight, no work to do.
+            var inst = LastInstance;
+            if (inst == null || inst._matRows == null || inst._matRows.Count == 0) return;
+            try
+            {
+                var doc = e.GetDocument();
+                var ids = e.GetSelectedElements();
+                if (doc == null || ids == null || ids.Count == 0) return;
+
+                // Resolve the first selected element's material(s).
+                // GetMaterialIds covers compound elements; Material parameter
+                // covers MEP fittings / family instances.
+                var matIds = new HashSet<long>();
+                foreach (var id in ids.Take(50)) // cap traversal — selection-bound work
+                {
+                    var el = doc.GetElement(id);
+                    if (el == null) continue;
+                    try
+                    {
+                        var ms = el.GetMaterialIds(false);
+                        if (ms != null) foreach (var m in ms) if (m != null && m.Value > 0) matIds.Add(m.Value);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"SelSync GetMaterialIds: {ex.Message}"); }
+                    try
+                    {
+                        var p = el.LookupParameter("Material") ?? el.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.MATERIAL_ID_PARAM);
+                        if (p != null && p.StorageType == Autodesk.Revit.DB.StorageType.ElementId)
+                        {
+                            var mid = p.AsElementId();
+                            if (mid != null && mid.Value > 0) matIds.Add(mid.Value);
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"SelSync Material param: {ex.Message}"); }
+                }
+                if (matIds.Count == 0) return;
+
+                // Marshal back to the WPF thread to update the grid.
+                inst.Dispatcher.BeginInvoke(new Action(() => inst.HighlightMaterials(matIds)),
+                    System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex) { StingLog.Warn($"OnRevitSelectionChanged: {ex.Message}"); }
+        }
+
+        private void HighlightMaterials(HashSet<long> matIds)
+        {
+            if (dgMaterials == null || _matRows == null) return;
+            try
+            {
+                StingTools.UI.MaterialRow firstMatch = null;
+                foreach (var row in _matRows)
+                {
+                    if (row.Id != null && matIds.Contains(row.Id.Value)) { firstMatch = row; break; }
+                }
+                if (firstMatch == null) return;
+                dgMaterials.SelectedItem = firstMatch;
+                dgMaterials.ScrollIntoView(firstMatch);
+                if (txtMatStatus != null)
+                    txtMatStatus.Text = $"Synced from Revit selection → '{firstMatch.Name}'";
+            }
+            catch (Exception ex) { StingLog.Warn($"HighlightMaterials: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Public entry point used by the Hub "Materials" button:
+        /// surface the dock panel, activate the MAT tab, load on first hit.
+        /// </summary>
+        public void ShowMaterialsTab()
+        {
+            try
+            {
+                for (int i = 0; i < tabMain.Items.Count; i++)
+                {
+                    if (tabMain.Items[i] is TabItem ti && (ti.Header as string) == "MAT")
+                    {
+                        tabMain.SelectedIndex = i;
+                        if (!_matLoaded) Dispatcher.BeginInvoke(new Action(LoadMaterials),
+                            DispatcherPriority.Background);
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ShowMaterialsTab: {ex.Message}"); }
+        }
+
+        private void LoadMaterials()
+        {
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) { if (txtMatStatus != null) txtMatStatus.Text = "No document open."; return; }
+
+                _matRows = StingTools.UI.MaterialRowBuilder.Build(doc);
+                _matLoaded = true;
+
+                if (dgMaterials != null)
+                {
+                    dgMaterials.ItemsSource = _matRows;
+                    var view = System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows);
+                    view.Filter = MatRowFilter;
+                }
+                UpdateMatHeaderCounts();
+                UpdateMatRollup();
+                SyncMatRegionCombo();
+
+                // F2 — Peer-edit detection. Read all peers' snapshot files
+                // and report diffs against the current state. After scan,
+                // refresh my own snapshot so the baseline advances.
+                try
+                {
+                    var edits = StingTools.UI.MaterialPeerEditWatcher.Scan(doc, _matRows.ToList());
+                    if (edits.Count > 0)
+                    {
+                        // Group by peer
+                        var byPeer = edits.GroupBy(e => e.Peer).Take(3);
+                        var parts = new List<string>();
+                        foreach (var g in byPeer) parts.Add($"{g.Key} ({g.Count()})");
+                        if (txtMatStatus != null)
+                            txtMatStatus.Text = $"Loaded {_matRows.Count} materials. Peer edits since last refresh: {string.Join(", ", parts)}.";
+                    }
+                    else if (txtMatStatus != null)
+                        txtMatStatus.Text = $"Loaded {_matRows.Count} materials.";
+
+                    // Advance my baseline snapshot.
+                    StingTools.UI.MaterialPeerEditWatcher.WriteMySnapshot(doc, _matRows.ToList());
+                }
+                catch (Exception peerEx) { StingLog.Warn($"Peer-edit watcher: {peerEx.Message}"); }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("LoadMaterials", ex);
+                if (txtMatStatus != null) txtMatStatus.Text = $"Load failed: {ex.Message}";
+            }
+        }
+
+        private bool MatRowFilter(object item)
+        {
+            if (!(item is StingTools.UI.MaterialRow r)) return false;
+            string q = txtMatSearch?.Text?.Trim() ?? "";
+            string origin = (cmbMatOrigin?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
+            string used = (cmbMatUsed?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All Used";
+
+            bool originOk = origin == "All" || string.Equals(r.Origin, origin, StringComparison.OrdinalIgnoreCase);
+            bool usedOk = used switch
+            {
+                "Used"   => r.UsageCount > 0,
+                "Unused" => r.UsageCount == 0,
+                _        => true,
+            };
+            bool textOk = string.IsNullOrEmpty(q)
+                          || (r.Name ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0
+                          || (r.Class ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0;
+            return originOk && usedOk && textOk;
+        }
+
+        private void UpdateMatHeaderCounts()
+        {
+            if (_matRows == null || txtMatCounts == null) return;
+            try
+            {
+                int total = _matRows.Count;
+                int selected = dgMaterials?.SelectedItems?.Count ?? 0;
+                int unused = _matRows.Count(r => r.UsageCount == 0);
+                // A-2 — Surface tag-stale + cost-stale chips alongside the
+                // existing counters. Reads ASS_TAG_STALE_BOOL + ASS_CST_STALE_BOOL
+                // on every materialable element so the user sees the project
+                // stale state without leaving the MAT panel.
+                int tagStale = 0, cstStale = 0;
+                try
+                {
+                    var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                    if (doc != null)
+                    {
+                        foreach (var el in new Autodesk.Revit.DB.FilteredElementCollector(doc).WhereElementIsNotElementType())
+                        {
+                            try
+                            {
+                                var ts = el.LookupParameter("ASS_TAG_STALE_BOOL");
+                                if (ts != null && ts.StorageType == Autodesk.Revit.DB.StorageType.String && ts.AsString() == "1") tagStale++;
+                                var cs = el.LookupParameter("ASS_CST_STALE_BOOL");
+                                if (cs != null && cs.StorageType == Autodesk.Revit.DB.StorageType.String && cs.AsString() == "1") cstStale++;
+                            }
+                            catch (Exception ex) { StingLog.WarnRateLimited("StaleChip.El", $"Stale chip walk: {ex.Message}"); }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"StaleChip walk: {ex.Message}"); }
+                string staleChip = (tagStale > 0 || cstStale > 0)
+                    ? $" · ⚠ tag-stale {tagStale} / cost-stale {cstStale}"
+                    : "";
+                txtMatCounts.Text = $"{total} materials · {selected} selected · {unused} unused{staleChip}";
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateMatHeaderCounts: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// N2 — Project roll-up. Sums the material library's defined values
+        /// across every row plus an EPD freshness breakdown. Different from
+        /// the modelled-quantity totals (those need volumes/areas per
+        /// element and live elsewhere); this is a library health snapshot
+        /// answering "how complete is our material spec?".
+        /// </summary>
+        private void UpdateMatRollup()
+        {
+            if (_matRows == null || txtMatRollup == null) return;
+            try
+            {
+                int total = _matRows.Count;
+                if (total == 0) { txtMatRollup.Text = "(no materials in this project)"; return; }
+
+                int costed     = _matRows.Count(r => r.Cost > 0);
+                int carboned   = _matRows.Count(r => r.CarbonKgCo2e > 0);
+                double sumCost = _matRows.Sum(r => r.Cost);
+                double sumCarbon = _matRows.Sum(r => r.CarbonKgCo2e);
+
+                int fresh   = _matRows.Count(r => r.EpdFreshness == StingTools.UI.EpdFreshness.Fresh);
+                int stale   = _matRows.Count(r => r.EpdFreshness == StingTools.UI.EpdFreshness.Stale);
+                int expired = _matRows.Count(r => r.EpdFreshness == StingTools.UI.EpdFreshness.Expired);
+                int missing = _matRows.Count(r => r.EpdFreshness == StingTools.UI.EpdFreshness.Missing);
+
+                txtMatRollup.Text =
+                    $"Library: {costed}/{total} costed (Σ ${sumCost:F0}) · " +
+                    $"{carboned}/{total} carboned (Σ {sumCarbon:F0} kgCO₂e/m³ avg) · " +
+                    $"EPD ✓{fresh} △{stale} ✗{expired} —{missing}";
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateMatRollup: {ex.Message}"); }
+        }
+
+        // ── XAML event handlers ────────────────────────────────────────────
+
+        private void MatSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            if (_matRows == null) return;
+            System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+            UpdateMatFilterChip();
+        }
+
+        private void MatFilter_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_matRows == null) return;
+            System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+            UpdateMatFilterChip();
+        }
+
+        /// <summary>
+        /// Build the human-readable chip describing the active filters and
+        /// hide it when no filter is in effect. One-click clear via the
+        /// MAT_ClearFilters dispatch tag wired to ClearMatFilters().
+        /// </summary>
+        private void UpdateMatFilterChip()
+        {
+            if (bdrMatFilterChip == null || txtMatFilterChip == null) return;
+            try
+            {
+                string search = txtMatSearch?.Text?.Trim() ?? "";
+                string origin = (cmbMatOrigin?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
+                string used = (cmbMatUsed?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All Used";
+
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(search)) parts.Add($"Search: '{search}'");
+                if (!string.Equals(origin, "All", StringComparison.OrdinalIgnoreCase)) parts.Add($"Origin: {origin}");
+                if (!string.Equals(used, "All Used", StringComparison.OrdinalIgnoreCase)) parts.Add($"Usage: {used}");
+
+                if (parts.Count == 0)
+                { bdrMatFilterChip.Visibility = Visibility.Collapsed; return; }
+                int shown = _matRows == null ? 0 : _matRows.Count(r => MatRowFilter(r));
+                int total = _matRows?.Count ?? 0;
+                txtMatFilterChip.Text = string.Join(" · ", parts) + $"   →   {shown}/{total} shown";
+                bdrMatFilterChip.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateMatFilterChip: {ex.Message}"); }
+        }
+
+        private bool _matRegionSyncing;
+
+        /// <summary>
+        /// Region combo changed by the user — persist the new region into
+        /// ProjectInformation and rebuild the grid so currency / unit
+        /// labels reflect the choice.
+        /// </summary>
+        private void MatRegion_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_matRegionSyncing) return; // suppress feedback from SyncMatRegionCombo
+            try
+            {
+                string s = (cmbMatRegion?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "UK";
+                if (!Enum.TryParse<StingTools.UI.MaterialRegion>(s, true, out var region)) return;
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                MaterialLocaleManager.WriteRegionToProject(doc, region);
+                // Pin the locale immediately so the currently-visible rows
+                // re-format on the next CollectionView refresh.
+                StingTools.UI.MaterialRow.ActiveLocale = MaterialLocaleManager.BuildLocale(region);
+                if (_matRows != null)
+                    System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+            }
+            catch (Exception ex) { StingLog.Warn($"MatRegion_Changed: {ex.Message}"); }
+        }
+
+        /// <summary>Sync the Region combo to whatever's stored in PRJ_REGION_TXT
+        /// — called on every LoadMaterials so the picker reflects current state.</summary>
+        internal void SyncMatRegionCombo()
+        {
+            if (cmbMatRegion == null) return;
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                var region = MaterialLocaleManager.ReadRegionFromProject(doc);
+                _matRegionSyncing = true;
+                try
+                {
+                    foreach (var item in cmbMatRegion.Items)
+                    {
+                        if (item is ComboBoxItem cbi &&
+                            string.Equals(cbi.Content?.ToString(), region.ToString(), StringComparison.OrdinalIgnoreCase))
+                        { cmbMatRegion.SelectedItem = cbi; break; }
+                    }
+                }
+                finally { _matRegionSyncing = false; }
+            }
+            catch (Exception ex) { StingLog.Warn($"SyncMatRegionCombo: {ex.Message}"); }
+        }
+
+        /// <summary>One-click reset for every MAT filter control.</summary>
+        public void ClearMatFilters()
+        {
+            try
+            {
+                if (txtMatSearch != null) txtMatSearch.Text = "";
+                if (cmbMatOrigin != null) cmbMatOrigin.SelectedIndex = 0;
+                if (cmbMatUsed   != null) cmbMatUsed.SelectedIndex = 0;
+                if (_matRows != null)
+                    System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+                UpdateMatFilterChip();
+            }
+            catch (Exception ex) { StingLog.Warn($"ClearMatFilters: {ex.Message}"); }
+        }
+
+        private void MatGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateMatHeaderCounts();
+            RefreshAssetsSubTab();
+        }
+
+        /// <summary>
+        /// Populate the Assets sub-tab DataGrid with the three assets of
+        /// the currently-selected material plus a 'shared by N' chip per
+        /// row. Empty when no row is picked.
+        /// </summary>
+        private void RefreshAssetsSubTab()
+        {
+            if (dgAssets == null) return;
+            if (!(dgMaterials?.SelectedItem is StingTools.UI.MaterialRow row))
+            { dgAssets.ItemsSource = null; return; }
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                var mat = doc.GetElement(row.Id) as Autodesk.Revit.DB.Material;
+                if (mat == null) return;
+
+                var rows = new List<AssetRow>();
+                rows.Add(new AssetRow
+                {
+                    Kind = "Appearance",
+                    Name = NameOfAsset(doc, mat.AppearanceAssetId),
+                    SharedByText = row.AppearanceSharedBy > 0
+                        ? $"{row.AppearanceSharedBy} other material(s)"
+                        : "exclusive",
+                    ActionHint = row.AppearanceSharedBy > 0 ? "Duplicate to detach" : "Safe to edit",
+                });
+                rows.Add(new AssetRow
+                {
+                    Kind = "Physical",
+                    Name = mat.StructuralAssetId != null && mat.StructuralAssetId.Value > 0
+                        ? NameOfAsset(doc, mat.StructuralAssetId) : "(none)",
+                    SharedByText = row.PhysicalSharedBy > 0
+                        ? $"{row.PhysicalSharedBy} other material(s)"
+                        : (mat.StructuralAssetId?.Value > 0 ? "exclusive" : "—"),
+                    ActionHint = row.PhysicalSharedBy > 0 ? "Duplicate to detach" : "—",
+                });
+                rows.Add(new AssetRow
+                {
+                    Kind = "Thermal",
+                    Name = mat.ThermalAssetId != null && mat.ThermalAssetId.Value > 0
+                        ? NameOfAsset(doc, mat.ThermalAssetId) : "(none)",
+                    SharedByText = row.ThermalSharedBy > 0
+                        ? $"{row.ThermalSharedBy} other material(s)"
+                        : (mat.ThermalAssetId?.Value > 0 ? "exclusive" : "—"),
+                    ActionHint = row.ThermalSharedBy > 0 ? "Duplicate to detach" : "—",
+                });
+                dgAssets.ItemsSource = rows;
+            }
+            catch (Exception ex) { StingLog.Warn($"RefreshAssetsSubTab: {ex.Message}"); }
+        }
+
+        private static string NameOfAsset(Autodesk.Revit.DB.Document doc, Autodesk.Revit.DB.ElementId id)
+        {
+            try
+            {
+                if (id == null || id.Value <= 0) return "(none)";
+                return doc.GetElement(id)?.Name ?? "(unnamed)";
+            }
+            catch (Exception ex) { StingLog.Warn($"NameOfAsset: {ex.Message}"); return "(error)"; }
+        }
+
+        private class AssetRow
+        {
+            public string Kind { get; set; }
+            public string Name { get; set; }
+            public string SharedByText { get; set; }
+            public string ActionHint { get; set; }
+        }
+
+        private void MatGrid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            // Double-click on an editable cell starts editing (Revit's
+            // default) — only fall through to Where-Used on read-only cells.
+            try
+            {
+                if (e?.OriginalSource is System.Windows.DependencyObject src)
+                {
+                    var cell = FindAncestor<DataGridCell>(src);
+                    if (cell != null && !cell.IsReadOnly) return;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"MatGrid_DoubleClick: {ex.Message}"); }
+            DispatchMat("MAT_WhereUsed");
+        }
+
+        private static T FindAncestor<T>(System.Windows.DependencyObject d) where T : System.Windows.DependencyObject
+        {
+            while (d != null)
+            {
+                if (d is T hit) return hit;
+                d = System.Windows.Media.VisualTreeHelper.GetParent(d);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Inline cell-edit commit. Routes Class / Cost / Carbon edits
+        /// into a transaction, audit-logs the diff, and refreshes the row.
+        /// Discards edits that didn't actually change the value.
+        /// </summary>
+        private void MatGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction != DataGridEditAction.Commit) return;
+            if (!(e.Row?.Item is StingTools.UI.MaterialRow row)) return;
+            if (row.Id == null || row.Id.Value <= 0) return;
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                var mat = doc.GetElement(row.Id) as Autodesk.Revit.DB.Material;
+                if (mat == null) return;
+
+                string col = e.Column?.Header?.ToString() ?? "";
+                string raw = (e.EditingElement as TextBox)?.Text ?? "";
+                StingTools.UI.MatCellCommitter.Commit(doc, mat, row, col, raw);
+                // Re-pull the row so EpdFreshness / display strings update.
+                MatRefreshRow(row.Id);
+            }
+            catch (Exception ex) { StingLog.Warn($"MatGrid_CellEditEnding: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Every MAT-tab button funnels through here. The toolbar 'Create…'
+        /// buttons keep their existing Cmd_Click wiring (CreateBLEMaterials /
+        /// CreateMEPMaterials) so transactions stay in their original homes.
+        /// </summary>
+        private void MatBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button btn) || !(btn.Tag is string tag)) return;
+            try
+            {
+                // Local UI actions don't need the external event — they don't
+                // touch the Revit DB until the user confirms a sub-action.
+                switch (tag)
+                {
+                    case "MAT_Refresh":
+                        _matLoaded = false;
+                        LoadMaterials();
+                        return;
+                    default:
+                        DispatchMat(tag);
+                        return;
+                }
+            }
+            catch (Exception ex) { StingLog.Error($"MatBtn_Click {tag}", ex); }
+        }
+
+        /// <summary>
+        /// MAT-tab buttons that need the Revit API thread piggy-back on the
+        /// existing IExternalEventHandler with an extra payload (the
+        /// currently-selected material id, if any) handed through the same
+        /// Param1/Param2 channel the rest of the panel uses.
+        /// </summary>
+        private void DispatchMat(string tag)
+        {
+            string selId = "";
+            if (dgMaterials?.SelectedItem is StingTools.UI.MaterialRow row && row.Id != null && row.Id.Value > 0)
+                selId = row.Id.Value.ToString();
+            DispatchCommand(tag, selId);
+        }
+
+        /// <summary>
+        /// Re-populate a single row in the grid after a Revit transaction.
+        /// Used by MAT actions that modify material state inline.
+        /// </summary>
+        internal void MatRefreshRow(Autodesk.Revit.DB.ElementId id)
+        {
+            if (_matRows == null || id == null) return;
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                var idx = _matRows.ToList().FindIndex(r => r.Id?.Value == id.Value);
+                if (idx < 0) return;
+                if (doc.GetElement(id) is Autodesk.Revit.DB.Material m)
+                    _matRows[idx] = StingTools.UI.MaterialRowBuilder.BuildOne(doc, m);
+                UpdateMatHeaderCounts();
+            }
+            catch (Exception ex) { StingLog.Warn($"MatRefreshRow: {ex.Message}"); }
+        }
+
+        // ── Duplicates sub-tab support ─────────────────────────────────────
+
+        /// <summary>Populate the Duplicates DataGrid (called from MatActions).</summary>
+        internal void SetDuplicateRows(IList<StingTools.UI.DuplicateRow> rows)
+        {
+            try { if (dgDuplicates != null) dgDuplicates.ItemsSource = rows; }
+            catch (Exception ex) { StingLog.Warn($"SetDuplicateRows: {ex.Message}"); }
+        }
+
+        internal StingTools.UI.DuplicateMode GetDuplicateMode()
+        {
+            try
+            {
+                string s = (cmbDupMode?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+                if (s.StartsWith("Same name",   StringComparison.OrdinalIgnoreCase)) return StingTools.UI.DuplicateMode.SameName;
+                if (s.StartsWith("Fuzzy",        StringComparison.OrdinalIgnoreCase)) return StingTools.UI.DuplicateMode.FuzzyName;
+                if (s.StartsWith("Same RGB",    StringComparison.OrdinalIgnoreCase)) return StingTools.UI.DuplicateMode.SameRgb;
+                if (s.StartsWith("Same Appear", StringComparison.OrdinalIgnoreCase)) return StingTools.UI.DuplicateMode.SameAppearance;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetDuplicateMode: {ex.Message}"); }
+            return StingTools.UI.DuplicateMode.SameName;
+        }
+
+        internal IList<StingTools.UI.DuplicateRow> GetDuplicateRows()
+        {
+            try
+            {
+                if (dgDuplicates?.ItemsSource is IList<StingTools.UI.DuplicateRow> list) return list;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetDuplicateRows: {ex.Message}"); }
+            return new List<StingTools.UI.DuplicateRow>();
+        }
+
+        // ── Layers sub-tab support ─────────────────────────────────────────
+
+        private Autodesk.Revit.DB.ElementId _layerHostId;
+
+        internal void SetLayerRows(IList<StingTools.UI.MaterialLayer> rows, Autodesk.Revit.DB.ElementId hostId)
+        {
+            try
+            {
+                _layerHostId = hostId;
+                if (dgLayers != null) dgLayers.ItemsSource = rows;
+            }
+            catch (Exception ex) { StingLog.Warn($"SetLayerRows: {ex.Message}"); }
+        }
+
+        internal IList<StingTools.UI.MaterialLayer> GetLayerRows()
+        {
+            try { if (dgLayers?.ItemsSource is IList<StingTools.UI.MaterialLayer> list) return list; }
+            catch (Exception ex) { StingLog.Warn($"GetLayerRows: {ex.Message}"); }
+            return new List<StingTools.UI.MaterialLayer>();
+        }
+
+        internal Autodesk.Revit.DB.ElementId GetLayerHostId() => _layerHostId;
+
+        // ── Assets sub-tab — return the picked Asset kind (Appearance /
+        // Physical / Thermal) so MatActions.DetachAsset / RepointAsset
+        // know which slot to act on. ─────────────────────────────────────
+        /// <summary>Return the in-memory material rows cached after the
+        /// last Refresh — used by validators / gates that prefer the
+        /// already-loaded snapshot over rebuilding from scratch.</summary>
+        public IReadOnlyList<StingTools.UI.MaterialRow> GetCachedMaterialRows()
+            => _matRows == null ? null : (IReadOnlyList<StingTools.UI.MaterialRow>)_matRows.ToList();
+
+        internal string GetSelectedAssetKind()
+        {
+            try
+            {
+                if (dgAssets?.SelectedItem == null) return null;
+                var t = dgAssets.SelectedItem.GetType();
+                var prop = t.GetProperty("Kind");
+                return prop?.GetValue(dgAssets.SelectedItem) as string;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetSelectedAssetKind: {ex.Message}"); return null; }
+        }
     }
 }

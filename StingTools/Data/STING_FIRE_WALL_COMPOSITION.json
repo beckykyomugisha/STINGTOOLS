@@ -1,0 +1,74 @@
+{
+  "_comment": "E5 — Fire-rated wall material composition gate. Each rule fires when an element has FIRE_RATING_MIN_NR >= minutes but its layer composition doesn't credibly deliver that rating.",
+  "_help": [
+    "where: element predicate (categoryIn / paramGreaterThan).",
+    "requireLayer*: regex match against at least one CompoundStructure layer Material.",
+    "minTotalThicknessMm: aggregate compound thickness floor for the rating.",
+    "Severity: Info | Warning | Block."
+  ],
+  "rules": [
+    {
+      "id": "FIRE_FD30_Composition",
+      "standard": "BS 476-22 / Approved Doc B",
+      "severity": "Warning",
+      "message": "FD30 wall — needs ≥12.5 mm Type-A plasterboard OR a recognised cementitious / masonry layer. Confirm composition.",
+      "where": {
+        "categoryIn": ["Walls"],
+        "paramGreaterThan": { "FIRE_RATING_MIN_NR": 29 },
+        "paramLessThan":    { "FIRE_RATING_MIN_NR": 60 }
+      },
+      "requireLayerMaterialRegex": "(?i)plasterboard|gypsum|concrete|block|masonry|fire.?board",
+      "minTotalThicknessMm": 75
+    },
+    {
+      "id": "FIRE_FD60_Composition",
+      "standard": "BS 476-22 / Approved Doc B",
+      "severity": "Block",
+      "message": "FD60 wall — needs ≥2× 15 mm Type-F plasterboard OR a recognised cementitious / masonry layer ≥100 mm. Composition appears thin.",
+      "where": {
+        "categoryIn": ["Walls"],
+        "paramGreaterThan": { "FIRE_RATING_MIN_NR": 59 },
+        "paramLessThan":    { "FIRE_RATING_MIN_NR": 90 }
+      },
+      "requireLayerMaterialRegex": "(?i)plasterboard|gypsum|concrete|block|masonry|fire.?board",
+      "minTotalThicknessMm": 100
+    },
+    {
+      "id": "FIRE_FD90_Composition",
+      "standard": "BS 476-22 / Approved Doc B",
+      "severity": "Block",
+      "message": "FD90 wall — needs heavy masonry / concrete ≥150 mm or specified Type-F multi-layer assembly. Composition appears thin.",
+      "where": {
+        "categoryIn": ["Walls"],
+        "paramGreaterThan": { "FIRE_RATING_MIN_NR": 89 },
+        "paramLessThan":    { "FIRE_RATING_MIN_NR": 120 }
+      },
+      "requireLayerMaterialRegex": "(?i)concrete|block|masonry|fire.?board",
+      "minTotalThicknessMm": 150
+    },
+    {
+      "id": "FIRE_FD120_Composition",
+      "standard": "BS 476-22 / Approved Doc B",
+      "severity": "Block",
+      "message": "FD120 wall — needs heavy masonry / concrete ≥200 mm.",
+      "where": {
+        "categoryIn": ["Walls"],
+        "paramGreaterThan": { "FIRE_RATING_MIN_NR": 119 }
+      },
+      "requireLayerMaterialRegex": "(?i)concrete|block|masonry",
+      "minTotalThicknessMm": 200
+    },
+    {
+      "id": "FIRE_FloorRated_Composition",
+      "standard": "BS 476-22",
+      "severity": "Warning",
+      "message": "Fire-rated floor — confirm cementitious / structural composition ≥100 mm or recognised intumescent system.",
+      "where": {
+        "categoryIn": ["Floors"],
+        "paramGreaterThan": { "FIRE_RATING_MIN_NR": 30 }
+      },
+      "requireLayerMaterialRegex": "(?i)concrete|cement|steel|plasterboard",
+      "minTotalThicknessMm": 100
+    }
+  ]
+}

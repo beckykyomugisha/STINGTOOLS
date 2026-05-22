@@ -109,6 +109,40 @@ namespace Planscape.Docs.Templates
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => LifecycleCommandHelper.Run(data, ref message, (doc, engine) =>
             {
+                // STING Material Coverage gate — block / warn when too many
+                // materialable elements still have no material assigned.
+                if (!StingTools.UI.MaterialCoverageGate.ConfirmOrBlock(doc, actionLabel: "Issue Deliverable"))
+                    return new DeliverableLifecycle.LifecycleResult { Ok = false, Message = "Cancelled by material coverage gate." };
+
+                // AL-2 — Block-severity findings in the sustainability +
+                // healthcare + fire-wall gates now actually block. The gate
+                // chain runs read-only; the issuer is given a one-shot
+                // override path with audit trail.
+                var blockerChain = StingTools.UI.MaterialBlockerChain.Check(doc);
+                if (blockerChain.HasBlockers)
+                {
+                    var td = new Autodesk.Revit.UI.TaskDialog("STING Material Blockers — Issue Deliverable")
+                    {
+                        MainInstruction = $"{blockerChain.BlockerCount} Block-severity finding(s) across {blockerChain.GatesWithBlockers} gate(s).",
+                        MainContent = blockerChain.Summary,
+                        CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Cancel,
+                    };
+                    td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1, "Cancel issue — fix blockers first",
+                        "Open the offending gate's UI to resolve before retrying.");
+                    td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2, "Override (audit-logged)",
+                        "Issue anyway. Audit log captures the override with reason field.");
+                    var res = td.Show();
+                    if (res != Autodesk.Revit.UI.TaskDialogResult.CommandLink2)
+                        return new DeliverableLifecycle.LifecycleResult { Ok = false, Message = "Cancelled by material blocker chain." };
+                    StingTools.UI.MaterialAuditLogger.Log(doc, "MAT_BlockerOverride", "(IssueDeliverable)",
+                        new System.Collections.Generic.Dictionary<string, object>
+                        {
+                            ["blockerCount"] = blockerChain.BlockerCount,
+                            ["gatesWithBlockers"] = blockerChain.GatesWithBlockers,
+                            ["user"] = Environment.UserName,
+                        });
+                }
+
                 dynamic d = LifecycleCommandHelper.ResolveSelection(doc);
                 if (d == null) return new DeliverableLifecycle.LifecycleResult { Ok = false, Message = "No deliverable selected." };
                 string user = Environment.UserName;

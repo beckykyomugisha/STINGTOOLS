@@ -86,6 +86,13 @@ namespace StingTools.BOQ
                     StampString(el,  "Pset_StingCost", "RateSource",      item.RateSource ?? "");
                     StampString(el,  "Pset_StingCost", "NRM2Section",     item.NRM2Section ?? "");
                     StampBoolean(el, "Pset_StingCost", "ProvisionalSum",  item.Source == BOQRowSource.ProvisionalSum);
+
+                    // I-1 — Pset_EnvironmentalImpactIndicators carries the
+                    // material's embodied carbon + EPD provenance + Uniclass
+                    // code so external LCA tooling that reads the standard
+                    // IFC4 environmental impact Pset can consume them
+                    // without a STING-specific schema.
+                    StingTools.UI.IfcMaterialPsetWriter.Stamp(el, item);
                     stamped++;
                 }
                 catch (Exception ex) { StingLog.Warn($"IfcQuantitySetWriter on {item.RevitElementId}: {ex.Message}"); }

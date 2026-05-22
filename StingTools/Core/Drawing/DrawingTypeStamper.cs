@@ -56,8 +56,18 @@ namespace StingTools.Core.Drawing
                 var p = el.LookupParameter(PARAM_DRAWING_TYPE_ID);
                 if (p == null || p.IsReadOnly || p.StorageType != StorageType.String) return false;
                 var current = p.AsString();
-                if (string.Equals(current, drawingTypeId, StringComparison.Ordinal)) return true;
-                p.Set(drawingTypeId);
+                bool newStamp = !string.Equals(current, drawingTypeId, StringComparison.Ordinal);
+                if (newStamp) p.Set(drawingTypeId);
+
+                // A6 — Offer to load the material pack bound to this drawing
+                // type on the first stamp. Skips silently when the doc isn't
+                // available, when the profile has no pack, or when every
+                // pack material is already in the project.
+                if (newStamp)
+                {
+                    try { StingTools.UI.MatActions.SuggestPackForDrawingType(el.Document, drawingTypeId); }
+                    catch (Exception sugEx) { StingTools.Core.StingLog.Warn($"Stamp pack-suggest: {sugEx.Message}"); }
+                }
                 return true;
             }
             catch (Exception ex)

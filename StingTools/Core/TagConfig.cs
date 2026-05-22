@@ -2674,7 +2674,34 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"TagConfig: EnsureProdRulesLoaded failed: {ex.Message}"); }
         }
 
+        /// <summary>
+        /// N+2 — Material-aware wrapper around the legacy
+        /// <see cref="GetFamilyAwareProdCodeCore"/>. Looks up an
+        /// optional material-driven suffix (-STL / -CON / -TIM / etc.)
+        /// from <c>STING_MATERIAL_PROD_OVERRIDES.csv</c> and appends it
+        /// to the base PROD code. Falls through to the legacy behaviour
+        /// when no material rule matches.
+        /// </summary>
         public static string GetFamilyAwareProdCode(Element el, string categoryName)
+        {
+            string baseProd = GetFamilyAwareProdCodeCore(el, categoryName);
+            try
+            {
+                string suffix = MaterialProdOverrideRegistry.ResolveSuffix(el, categoryName);
+                if (string.IsNullOrEmpty(suffix)) return baseProd;
+                if (string.IsNullOrEmpty(baseProd)) return suffix;
+                // Avoid double-suffixing when an explicit CSV PROD already
+                // ends with the same material code (e.g. "STL" → "STL-STL").
+                if (baseProd.EndsWith("-" + suffix, StringComparison.OrdinalIgnoreCase) ||
+                    baseProd.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    return baseProd;
+                return $"{baseProd}-{suffix}";
+            }
+            catch (Exception ex) { StingLog.Warn($"GetFamilyAwareProdCode material suffix: {ex.Message}"); }
+            return baseProd;
+        }
+
+        private static string GetFamilyAwareProdCodeCore(Element el, string categoryName)
         {
             string familyName = ParameterHelpers.GetFamilyName(el);
             string symbolName = ParameterHelpers.GetFamilySymbolName(el);

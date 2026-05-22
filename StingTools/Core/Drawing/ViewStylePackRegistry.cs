@@ -164,6 +164,14 @@ namespace StingTools.Core.Drawing
                     foreach (var kv in p.VgOverrides) merged.VgOverrides[kv.Key] = kv.Value;
                 if (p.TagFamilies != null)
                     foreach (var kv in p.TagFamilies) merged.TagFamilies[kv.Key] = kv.Value;
+                // C4 — byMaterialClass merges with last-pack-wins semantics
+                // matching VgOverrides above.
+                if (p.ByMaterialClass != null)
+                {
+                    if (merged.ByMaterialClass == null)
+                        merged.ByMaterialClass = new Dictionary<string, StyleVgOverride>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var kv in p.ByMaterialClass) merged.ByMaterialClass[kv.Key] = kv.Value;
+                }
             }
             return merged;
         }

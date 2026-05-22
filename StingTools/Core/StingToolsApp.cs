@@ -82,6 +82,11 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // Register the Material Updater (IUpdater) — auto-apply OFF,
+                // auto-fill ON. Both behaviours share one trigger budget so
+                // the cost when fully idle is the same as one disabled updater.
+                StingTools.UI.StingMaterialUpdater.Register(application);
+
                 // Register the cost stale marker (IUpdater) — starts disabled.
                 // Toggled via Cost_ToggleStaleMarker. Marks ASS_CST_STALE_BOOL
                 // when geometry / material / type changes invalidate a costed
@@ -1074,6 +1079,16 @@ namespace StingTools.Core
                 if (!_savingAsPaths.TryRemove(doc.GetHashCode(), out var paths)) return;
                 if (string.IsNullOrEmpty(paths.OldPath) || string.IsNullOrEmpty(paths.NewPath)) return;
                 MigrateLiveProfileSyncSnapshot(paths.OldPath, paths.NewPath);
+
+                // A-3 — Invalidate material caches keyed by old path so a
+                // Save As doesn't leave stale name + usage indexes behind.
+                try
+                {
+                    StingTools.UI.MaterialNameCache.InvalidateAll();
+                    StingTools.UI.MaterialUsageIndex.InvalidateAll();
+                    StingTools.UI.MaterialOverrideRegistry.Reload(doc);
+                }
+                catch (Exception cacheEx) { StingLog.Warn($"OnDocumentSavedAs cache invalidate: {cacheEx.Message}"); }
             }
             catch (Exception ex) { StingLog.Warn($"OnDocumentSavedAs: {ex.Message}"); }
         }
@@ -1907,9 +1922,15 @@ namespace StingTools.Core
                 ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
                 ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
                 ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,    typeof(HubAutoTagCommand).FullName),
+                ("ExportCenter",         "Export Center", "EX", DrawingColor.DarkSlateBlue, typeof(HubExportCenterCommand).FullName),
+                ("DocWizard",            "Doc Auto",      "DA", DrawingColor.DarkOrchid,   typeof(HubDocAutomationCommand).FullName),
+                ("CreateFolders",        "Folders",       "FD", DrawingColor.SaddleBrown,  typeof(HubFolderManagerCommand).FullName),
+                ("MaterialManager",      "Materials",     "MM", DrawingColor.DarkOliveGreen,typeof(HubMaterialManagerCommand).FullName),
+                ("ClashManager",         "Clash Mgr",     "CM", DrawingColor.IndianRed,    typeof(HubClashManagerCommand).FullName),
+                ("TemplateDashboard",    "Template Mgr",  "TM", DrawingColor.DarkTurquoise,typeof(HubTemplateManagerCommand).FullName),
             };
 
-            var buttons = new List<PushButtonData>(12);
+            var buttons = new List<PushButtonData>(18);
             foreach (var s in specs)
             {
                 var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
@@ -1930,10 +1951,12 @@ namespace StingTools.Core
 
             try
             {
-                panel.AddStackedItems(buttons[0], buttons[1], buttons[2]);
-                panel.AddStackedItems(buttons[3], buttons[4], buttons[5]);
-                panel.AddStackedItems(buttons[6], buttons[7], buttons[8]);
-                panel.AddStackedItems(buttons[9], buttons[10], buttons[11]);
+                panel.AddStackedItems(buttons[0],  buttons[1],  buttons[2]);
+                panel.AddStackedItems(buttons[3],  buttons[4],  buttons[5]);
+                panel.AddStackedItems(buttons[6],  buttons[7],  buttons[8]);
+                panel.AddStackedItems(buttons[9],  buttons[10], buttons[11]);
+                panel.AddStackedItems(buttons[12], buttons[13], buttons[14]);
+                panel.AddStackedItems(buttons[15], buttons[16], buttons[17]);
             }
             catch (Exception ex)
             {
@@ -2234,5 +2257,53 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run("AutoTag", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubExportCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("ExportCenter", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubDocAutomationCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("DocWizard", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubFolderManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("CreateFolders", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubMaterialManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("MaterialManager", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubClashManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("ClashManager", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubTemplateManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("TemplateDashboard", ref message);
     }
 }
