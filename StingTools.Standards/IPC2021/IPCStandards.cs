@@ -697,4 +697,126 @@ namespace StingTools.Standards.IPC2021
 
         #endregion
     }
+
+    /// <summary>
+    /// SI-unit bridge over <see cref="IPCStandards"/> for code that works in the
+    /// STING/BS EN 12056 coordinate system (mm, l/s, kPa, percent slope).
+    ///
+    /// Conversion factors used throughout:
+    ///   1 inch  = 25.4 mm
+    ///   1 GPM   = 0.06309 l/s
+    ///   1 psi   = 6.89476 kPa
+    ///   slope %  → in/ft: (pct / 100) × 12
+    /// </summary>
+    public static class IPCSiAdapter
+    {
+        // ── Unit conversion constants ────────────────────────────────────────
+        private const double InchToMm     = 25.4;
+        private const double GpmToLps     = 0.06309;
+        private const double PsiToKpa     = 6.89476;
+        private const double FtToM        = 0.3048;
+        private const double InchesPerFt  = 12.0;
+
+        // ── Pipe-size round-up table (nominal mm → nearest imperial label) ──
+        // Used by GetMinimumDrainPipeSizeMm to convert the IPC string result
+        // to a nominal SI diameter in mm.
+        private static readonly Dictionary<string, int> _imperialToNominalMm =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "1-1/4\"", 32  },
+            { "1-1/2\"", 40  },
+            { "2\"",      50  },
+            { "2-1/2\"",  63  },
+            { "3\"",      75  },
+            { "4\"",     100  },
+            { "5\"",     125  },
+            { "6\"",     150  },
+            { "8\"",     200  },
+            { "10\"",    250  },
+            { "12\"",    300  },
+        };
+
+        // ── Conversion helpers ───────────────────────────────────────────────
+
+        /// <summary>Converts mm to decimal inches.</summary>
+        public static double MmToInches(double mm) => mm / InchToMm;
+
+        /// <summary>Converts decimal inches to mm.</summary>
+        public static double InchesToMm(double inches) => inches * InchToMm;
+
+        /// <summary>Converts litres/second to US GPM.</summary>
+        public static double LpsToGpm(double lps) => lps / GpmToLps;
+
+        /// <summary>Converts US GPM to litres/second.</summary>
+        public static double GpmToLitresPerSecond(double gpm) => gpm * GpmToLps;
+
+        /// <summary>Converts kPa to psi.</summary>
+        public static double KpaToPsi(double kpa) => kpa / PsiToKpa;
+
+        /// <summary>Converts psi to kPa.</summary>
+        public static double PsiToKilopascal(double psi) => psi * PsiToKpa;
+
+        /// <summary>Converts a percent slope (e.g. 1.0 for 1 %) to inches/foot.</summary>
+        public static double PctSlopeToInchesPerFoot(double pct) => (pct / 100.0) * InchesPerFt;
+
+        /// <summary>Converts inches/foot slope to a percent slope.</summary>
+        public static double InchesPerFootToPctSlope(double inPerFt) => (inPerFt / InchesPerFt) * 100.0;
+
+        // ── SI-facing IPC sizing methods ─────────────────────────────────────
+
+        /// <summary>
+        /// Returns the minimum drain pipe nominal diameter in mm per IPC 2021 Table 710.1.
+        /// </summary>
+        /// <param name="dfu">Drainage Fixture Units (dimensionless).</param>
+        /// <param name="slopePct">Gravity slope in percent (e.g. 1.0 for 1 %).</param>
+        /// <param name="isStack">True for a vertical soil/waste stack; false for a branch.</param>
+        /// <returns>Nominal internal diameter in mm, or -1 when IPC returns an
+        /// unrecognised string (caller should log and default to 100 mm).</returns>
+        public static int GetMinimumDrainPipeSizeMm(double dfu, double slopePct, bool isStack)
+        {
+            double slopeInPerFt = PctSlopeToInchesPerFoot(slopePct);
+            string imperialSize = IPCStandards.GetMinimumDrainPipeSize(dfu, slopeInPerFt, isStack);
+            if (_imperialToNominalMm.TryGetValue(imperialSize, out int mm)) return mm;
+            return -1;
+        }
+
+        /// <summary>
+        /// Converts accumulated DFU load to an approximate peak flow in l/s
+        /// using Hunter's Curve (IPC 2021 Table 604.1 / Appendix E).
+        /// </summary>
+        public static double DfuToLitresPerSecond(double dfu)
+            => GpmToLitresPerSecond(IPCStandards.ConvertFixtureUnitsToGPM(dfu));
+
+        /// <summary>
+        /// Calculates pressure drop in kPa for a pipe segment using
+        /// Hazen-Williams (IPC 2021 §604).
+        /// </summary>
+        /// <param name="flowLps">Flow rate in l/s.</param>
+        /// <param name="pipeDiameterMm">Internal pipe diameter in mm.</param>
+        /// <param name="lengthM">Pipe segment length in metres.</param>
+        /// <param name="hazenWilliamsC">Hazen-Williams C coefficient (default 140 for copper).</param>
+        public static double CalculatePressureDropKpa(
+            double flowLps, double pipeDiameterMm, double lengthM, double hazenWilliamsC = 140)
+        {
+            double gpm        = LpsToGpm(flowLps);
+            double diamInch   = MmToInches(pipeDiameterMm);
+            double lengthFt   = lengthM / FtToM;
+            double dropPsi    = IPCStandards.CalculatePressureDrop(gpm, diamInch, lengthFt, hazenWilliamsC);
+            return PsiToKilopascal(dropPsi);
+        }
+
+        /// <summary>
+        /// Returns the minimum water supply pipe nominal diameter in mm
+        /// for the given fixture-unit load.
+        /// </summary>
+        /// <param name="wsfu">Water Supply Fixture Units (WSFU).</param>
+        /// <param name="isHotWater">True for hot-water branch sizing.</param>
+        public static int GetMinimumSupplyPipeSizeMm(double wsfu, bool isHotWater = false)
+        {
+            double gpm       = IPCStandards.ConvertFixtureUnitsToGPM(wsfu);
+            string imperial  = IPCStandards.GetMinimumPipeSize(gpm);
+            if (_imperialToNominalMm.TryGetValue(imperial, out int mm)) return mm;
+            return -1;
+        }
+    }
 }

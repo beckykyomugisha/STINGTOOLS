@@ -208,13 +208,20 @@ namespace StingTools.Core.Calc
                 fix.OriginalPct = slopePct;
                 fix.TargetPct   = MinSlopeSanitaryPct;
 
-                // Wrong direction: swap endpoints.
+                // Wrong direction: fix the lower connector (s) and apply a descending
+                // slope so the far end (e) depresses below s — preserves connector
+                // topology via Pipe.SetSlope (Revit 2018+). Falls back to the
+                // LocationCurve.Curve swap when the API refuses (constrained pipe).
                 if (dz > 0 && slopePct >= MinSlopeSanitaryPct)
                 {
                     if (!dryRun)
                     {
-                        var reversed = Line.CreateBound(e, s);
-                        lc.Curve = reversed;
+                        bool applied = TrySetSlopeApi(pipe, s, -(slopePct / 100.0));
+                        if (!applied)
+                        {
+                            var reversed = Line.CreateBound(e, s);
+                            lc.Curve = reversed;
+                        }
                     }
                     fix.Action     = "FLIP";
                     fix.AppliedPct = slopePct;
@@ -240,16 +247,22 @@ namespace StingTools.Core.Calc
 
                 if (!dryRun && additional > 1e-6)
                 {
-                    // Pick the downstream end: the one that is currently
-                    // lower, or if flat, end 1.
+                    // Fix the upper (currently higher) connector and apply a descending
+                    // slope toward the far end. Preserves connector topology.
                     bool secondEndIsDown = e.Z <= s.Z;
-                    var downEndPoint = secondEndIsDown ? e : s;
-                    var newPoint = new XYZ(downEndPoint.X, downEndPoint.Y,
-                                           downEndPoint.Z - additional);
-                    var newCurve = secondEndIsDown
-                        ? Line.CreateBound(s, newPoint)
-                        : Line.CreateBound(newPoint, e);
-                    lc.Curve = newCurve;
+                    XYZ upperEnd = secondEndIsDown ? s : e;
+                    bool applied = TrySetSlopeApi(pipe, upperEnd, -(MinSlopeSanitaryPct / 100.0));
+                    if (!applied)
+                    {
+                        // Fallback: move the downstream end further downward.
+                        var downEndPoint = secondEndIsDown ? e : s;
+                        var newPoint = new XYZ(downEndPoint.X, downEndPoint.Y,
+                                               downEndPoint.Z - additional);
+                        var newCurve = secondEndIsDown
+                            ? Line.CreateBound(s, newPoint)
+                            : Line.CreateBound(newPoint, e);
+                        lc.Curve = newCurve;
+                    }
                 }
 
                 fix.Action     = "DEPRESS";
@@ -261,6 +274,37 @@ namespace StingTools.Core.Calc
             {
                 fix.FailureReason = ex.Message;
                 return fix;
+            }
+        }
+
+        /// <summary>
+        /// Applies slope via <c>Pipe.SetSlope(Connector, double)</c> (Revit 2018+),
+        /// which adjusts the far-end elevation while leaving the fixed connector's
+        /// 3-D position and its network connections undisturbed.
+        /// </summary>
+        /// <param name="pipe">Pipe to adjust.</param>
+        /// <param name="fixedEnd">World-space point nearest the connector that must not move.</param>
+        /// <param name="slopeFtFt">Signed slope ft/ft (negative = far end descends).</param>
+        /// <returns><c>true</c> when the API call succeeded; <c>false</c> prompts
+        /// the caller to fall back to the LocationCurve.Curve setter.</returns>
+        private static bool TrySetSlopeApi(Pipe pipe, XYZ fixedEnd, double slopeFtFt)
+        {
+            try
+            {
+                Connector fixedConnector = null;
+                double bestDist = double.MaxValue;
+                foreach (Connector c in pipe.ConnectorManager.Connectors)
+                {
+                    double d = c.Origin.DistanceTo(fixedEnd);
+                    if (d < bestDist) { bestDist = d; fixedConnector = c; }
+                }
+                if (fixedConnector == null) return false;
+                pipe.SetSlope(fixedConnector, slopeFtFt);
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
     }
