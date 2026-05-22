@@ -11,20 +11,67 @@
       "subcategory": "Lighting",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LAMP_TYPE", "type": "Text", "shared": true, "instance": false },
-        { "name": "WATTAGE", "type": "Text", "shared": true, "instance": false },
-        { "name": "LUMEN_OUTPUT", "type": "Text", "shared": true, "instance": false },
-        { "name": "EMERGENCY", "type": "YesNo", "shared": true, "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "LAMP_TYPE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "WATTAGE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "LUMEN_OUTPUT",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "EMERGENCY",
+          "type": "YesNo",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0 },
-          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 150, "heightMm": 20 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 150,
+        "heightMm": 20
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_DOWNLIGHT_SQ",
@@ -35,21 +82,71 @@
       "subcategory": "Lighting",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LAMP_TYPE", "type": "Text", "shared": true, "instance": false },
-        { "name": "WATTAGE", "type": "Text", "shared": true, "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "LAMP_TYPE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "WATTAGE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5 },
-          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
-          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5 },
-          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5 },
-          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
-          { "x1": -0.5, "y1":  0.5, "x2":  0.5, "y2": -0.5 }
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 200, "depthMm": 200, "heightMm": 20 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 200,
+        "depthMm": 200,
+        "heightMm": 20
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_SURFACE_RND",
@@ -60,24 +157,79 @@
       "subcategory": "Lighting",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LAMP_TYPE", "type": "Text", "shared": true, "instance": false },
-        { "name": "WATTAGE", "type": "Text", "shared": true, "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "LAMP_TYPE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "WATTAGE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "filledRegions": [
           {
             "boundary": [
-              { "x": -0.5, "y": 0 }, { "x": -0.35, "y": -0.35 },
-              { "x": 0, "y": -0.5 }, { "x": 0.35, "y": -0.35 },
-              { "x": 0.5, "y": 0 }, { "x": 0.35, "y": 0.35 },
-              { "x": 0, "y": 0.5 }, { "x": -0.35, "y": 0.35 }
+              {
+                "x": -0.5,
+                "y": 0
+              },
+              {
+                "x": -0.35,
+                "y": -0.35
+              },
+              {
+                "x": 0,
+                "y": -0.5
+              },
+              {
+                "x": 0.35,
+                "y": -0.35
+              },
+              {
+                "x": 0.5,
+                "y": 0
+              },
+              {
+                "x": 0.35,
+                "y": 0.35
+              },
+              {
+                "x": 0,
+                "y": 0.5
+              },
+              {
+                "x": -0.35,
+                "y": 0.35
+              }
             ]
           }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 250, "heightMm": 80 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 250,
+        "heightMm": 80
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_SURFACE_SQ",
@@ -88,20 +240,49 @@
       "subcategory": "Lighting",
       "symbolSize": 4.5,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "WATTAGE", "type": "Text", "shared": true, "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "WATTAGE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
         "filledRegions": [
           {
             "boundary": [
-              { "x": -0.5, "y": -0.5 }, { "x": 0.5, "y": -0.5 },
-              { "x": 0.5, "y": 0.5 }, { "x": -0.5, "y": 0.5 }
+              {
+                "x": -0.5,
+                "y": -0.5
+              },
+              {
+                "x": 0.5,
+                "y": -0.5
+              },
+              {
+                "x": 0.5,
+                "y": 0.5
+              },
+              {
+                "x": -0.5,
+                "y": 0.5
+              }
             ]
           }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 300, "depthMm": 300, "heightMm": 80 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 300,
+        "depthMm": 300,
+        "heightMm": 80
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_PENDANT",
@@ -112,16 +293,42 @@
       "subcategory": "Lighting",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "DROP_HEIGHT_MM", "type": "Text", "shared": true, "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DROP_HEIGHT_MM",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
         "arcs": [
-          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 },
-          { "cx": 0, "cy": 0, "r": 0.05, "startDeg": 0, "endDeg": 360 }
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.05,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 200, "heightMm": 100 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 200,
+        "heightMm": 100
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_TRACK_LINEAR",
@@ -132,24 +339,82 @@
       "subcategory": "Lighting",
       "symbolSize": 10.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "TRACK_LENGTH_MM", "type": "Text", "shared": true, "instance": false },
-        { "name": "HEAD_COUNT", "type": "Integer", "shared": true, "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "TRACK_LENGTH_MM",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "HEAD_COUNT",
+          "type": "Integer",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.1, "x2":  0.5, "y2": -0.1 },
-          { "x1":  0.5, "y1": -0.1, "x2":  0.5, "y2":  0.1 },
-          { "x1":  0.5, "y1":  0.1, "x2": -0.5, "y2":  0.1 },
-          { "x1": -0.5, "y1":  0.1, "x2": -0.5, "y2": -0.1 }
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.1,
+            "x2": -0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": -0.5,
+            "y2": -0.1
+          }
         ],
         "arcs": [
-          { "cx": -0.25, "cy": 0, "r": 0.05, "startDeg": 0, "endDeg": 360 },
-          { "cx":   0.0,  "cy": 0, "r": 0.05, "startDeg": 0, "endDeg": 360 },
-          { "cx":  0.25,  "cy": 0, "r": 0.05, "startDeg": 0, "endDeg": 360 }
+          {
+            "cx": -0.25,
+            "cy": 0,
+            "r": 0.05,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0.0,
+            "cy": 0,
+            "r": 0.05,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0.25,
+            "cy": 0,
+            "r": 0.05,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 1500, "depthMm": 50, "heightMm": 50 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 1500,
+        "depthMm": 50,
+        "heightMm": 50
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_FLUORO_1T",
@@ -160,20 +425,67 @@
       "subcategory": "Lighting",
       "symbolSize": 12.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LENGTH_MM", "type": "Text", "shared": true, "default": "1200", "instance": false },
-        { "name": "WATTAGE", "type": "Text", "shared": true, "default": "36", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "LENGTH_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "1200",
+          "instance": false
+        },
+        {
+          "name": "WATTAGE",
+          "type": "Text",
+          "shared": true,
+          "default": "36",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.06, "x2":  0.5, "y2": -0.06 },
-          { "x1":  0.5, "y1": -0.06, "x2":  0.5, "y2":  0.06 },
-          { "x1":  0.5, "y1":  0.06, "x2": -0.5, "y2":  0.06 },
-          { "x1": -0.5, "y1":  0.06, "x2": -0.5, "y2": -0.06 },
-          { "x1": -0.5, "y1":  0.0,  "x2":  0.5, "y2":  0.0  }
+          {
+            "x1": -0.5,
+            "y1": -0.06,
+            "x2": 0.5,
+            "y2": -0.06
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.06,
+            "x2": 0.5,
+            "y2": 0.06
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.06,
+            "x2": -0.5,
+            "y2": 0.06
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.06,
+            "x2": -0.5,
+            "y2": -0.06
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.0
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 1200, "depthMm": 60, "heightMm": 50 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 1200,
+        "depthMm": 60,
+        "heightMm": 50
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_FLUORO_2T",
@@ -184,20 +496,66 @@
       "subcategory": "Lighting",
       "symbolSize": 12.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LENGTH_MM", "type": "Text", "shared": true, "default": "1200", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "LENGTH_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "1200",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.1, "x2":  0.5, "y2": -0.1 },
-          { "x1":  0.5, "y1": -0.1, "x2":  0.5, "y2":  0.1 },
-          { "x1":  0.5, "y1":  0.1, "x2": -0.5, "y2":  0.1 },
-          { "x1": -0.5, "y1":  0.1, "x2": -0.5, "y2": -0.1 },
-          { "x1": -0.5, "y1": -0.04, "x2":  0.5, "y2": -0.04 },
-          { "x1": -0.5, "y1":  0.04, "x2":  0.5, "y2":  0.04 }
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.1,
+            "x2": -0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": -0.5,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.04,
+            "x2": 0.5,
+            "y2": -0.04
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.04,
+            "x2": 0.5,
+            "y2": 0.04
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 1200, "depthMm": 100, "heightMm": 50 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 1200,
+        "depthMm": 100,
+        "heightMm": 50
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_LED_LINEAR",
@@ -208,20 +566,66 @@
       "subcategory": "Lighting",
       "symbolSize": 10.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LENGTH_MM", "type": "Text", "shared": true, "instance": false },
-        { "name": "WATTS_PER_M", "type": "Text", "shared": true, "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "LENGTH_MM",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "WATTS_PER_M",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.04, "x2":  0.5, "y2": -0.04 },
-          { "x1":  0.5, "y1": -0.04, "x2":  0.5, "y2":  0.04 },
-          { "x1":  0.5, "y1":  0.04, "x2": -0.5, "y2":  0.04 },
-          { "x1": -0.5, "y1":  0.04, "x2": -0.5, "y2": -0.04 },
-          { "x1": -0.5, "y1":   0.0, "x2":  0.5, "y2":   0.0, "style": "Hidden Lines" }
+          {
+            "x1": -0.5,
+            "y1": -0.04,
+            "x2": 0.5,
+            "y2": -0.04
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.04,
+            "x2": 0.5,
+            "y2": 0.04
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.04,
+            "x2": -0.5,
+            "y2": 0.04
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.04,
+            "x2": -0.5,
+            "y2": -0.04
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.0,
+            "style": "Hidden Lines"
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 1000, "depthMm": 15, "heightMm": 10 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 1000,
+        "depthMm": 15,
+        "heightMm": 10
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_EMERGENCY_MAINTAINED",
@@ -232,19 +636,65 @@
       "subcategory": "Emergency",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "BATTERY_RUNTIME_MIN", "type": "Text", "shared": true, "default": "180", "instance": false },
-        { "name": "EMERGENCY", "type": "YesNo", "shared": true, "default": "true", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "BATTERY_RUNTIME_MIN",
+          "type": "Text",
+          "shared": true,
+          "default": "180",
+          "instance": false
+        },
+        {
+          "name": "EMERGENCY",
+          "type": "YesNo",
+          "shared": true,
+          "default": "true",
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0.05, "r": 0.45, "startDeg": 0, "endDeg": 360 } ],
-        "text": [ { "x": 0, "y": 0.1, "value": "EM", "heightMm": 1.5 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.05,
+            "r": 0.45,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0.1,
+            "value": "EM",
+            "heightMm": 1.5
+          }
+        ],
         "lines": [
-          { "x1": -0.08, "y1": -0.4, "x2": -0.08, "y2": -0.25 },
-          { "x1":  0.08, "y1": -0.45, "x2":  0.08, "y2": -0.25 }
+          {
+            "x1": -0.08,
+            "y1": -0.4,
+            "x2": -0.08,
+            "y2": -0.25
+          },
+          {
+            "x1": 0.08,
+            "y1": -0.45,
+            "x2": 0.08,
+            "y2": -0.25
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 250, "heightMm": 100 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 250,
+        "heightMm": 100
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_EMERGENCY_NON",
@@ -255,14 +705,44 @@
       "subcategory": "Emergency",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "EMERGENCY", "type": "YesNo", "shared": true, "default": "true", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "EMERGENCY",
+          "type": "YesNo",
+          "shared": true,
+          "default": "true",
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.45, "startDeg": 0, "endDeg": 360 } ],
-        "text": [ { "x": 0, "y": 0, "value": "NM", "heightMm": 1.5 } ]
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "NM",
+            "heightMm": 1.5
+          }
+        ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 250, "heightMm": 100 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 250,
+        "heightMm": 100
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_EXIT_SIGN",
@@ -273,21 +753,72 @@
       "subcategory": "Emergency",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "DIRECTION", "type": "Text", "shared": true, "default": "Right", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DIRECTION",
+          "type": "Text",
+          "shared": true,
+          "default": "Right",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.2, "x2":  0.5, "y2": -0.2 },
-          { "x1":  0.5, "y1": -0.2, "x2":  0.5, "y2":  0.2 },
-          { "x1":  0.5, "y1":  0.2, "x2": -0.5, "y2":  0.2 },
-          { "x1": -0.5, "y1":  0.2, "x2": -0.5, "y2": -0.2 },
-          { "x1": -0.3, "y1":  0.0, "x2":  0.3, "y2":  0.0 },
-          { "x1":  0.3, "y1":  0.0, "x2":  0.15, "y2":  0.1 },
-          { "x1":  0.3, "y1":  0.0, "x2":  0.15, "y2": -0.1 }
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.2,
+            "x2": -0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.0,
+            "x2": 0.3,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.0,
+            "x2": 0.15,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.0,
+            "x2": 0.15,
+            "y2": -0.1
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 250, "depthMm": 50, "heightMm": 100 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 250,
+        "depthMm": 50,
+        "heightMm": 100
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_SPOTLIGHT",
@@ -298,19 +829,50 @@
       "subcategory": "Lighting",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "BEAM_ANGLE", "type": "Text", "shared": true, "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "BEAM_ANGLE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
         "arcs": [
-          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 },
-          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": -45, "endDeg": 45 }
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": -45,
+            "endDeg": 45
+          }
         ],
         "lines": [
-          { "x1": 0.4, "y1": 0, "x2": 0.5, "y2": 0 }
+          {
+            "x1": 0.4,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 150 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 100,
+        "heightMm": 150
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_WALL_BRACKET",
@@ -321,18 +883,55 @@
       "subcategory": "Lighting",
       "symbolSize": 3.5,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 180 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 180
+          }
+        ],
         "lines": [
-          { "x1": -0.4, "y1": 0, "x2": 0.4, "y2": 0 },
-          { "x1": -0.3, "y1": 0.05, "x2": -0.5, "y2": 0.25 },
-          { "x1":  0.0, "y1": 0.1,  "x2":  0.0, "y2": 0.4 },
-          { "x1":  0.3, "y1": 0.05, "x2":  0.5, "y2": 0.25 }
+          {
+            "x1": -0.4,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.05,
+            "x2": -0.5,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.1,
+            "x2": 0.0,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.05,
+            "x2": 0.5,
+            "y2": 0.25
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 200, "heightMm": 100 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 200,
+        "heightMm": 100
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_FLOODLIGHT_EXT",
@@ -343,22 +942,78 @@
       "subcategory": "External",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "WATTAGE", "type": "Text", "shared": true, "instance": false },
-        { "name": "IP_RATING", "type": "Text", "shared": true, "default": "IP65", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "WATTAGE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "IP_RATING",
+          "type": "Text",
+          "shared": true,
+          "default": "IP65",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.4, "y1": -0.25, "x2":  0.0, "y2": -0.25 },
-          { "x1":  0.0, "y1": -0.25, "x2":  0.0, "y2":  0.25 },
-          { "x1":  0.0, "y1":  0.25, "x2": -0.4, "y2":  0.25 },
-          { "x1": -0.4, "y1":  0.25, "x2": -0.4, "y2": -0.25 },
-          { "x1":  0.0, "y1":  0.25, "x2":  0.5, "y2":  0.4 },
-          { "x1":  0.0, "y1":  0.0,  "x2":  0.5, "y2":  0.0 },
-          { "x1":  0.0, "y1": -0.25, "x2":  0.5, "y2": -0.4 }
+          {
+            "x1": -0.4,
+            "y1": -0.25,
+            "x2": 0.0,
+            "y2": -0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.25,
+            "x2": 0.0,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.25,
+            "x2": -0.4,
+            "y2": 0.25
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.25,
+            "x2": -0.4,
+            "y2": -0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.25,
+            "x2": 0.5,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.25,
+            "x2": 0.5,
+            "y2": -0.4
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 400, "depthMm": 200, "heightMm": 250 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 400,
+        "depthMm": 200,
+        "heightMm": 250
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_BOLLARD",
@@ -369,17 +1024,50 @@
       "subcategory": "External",
       "symbolSize": 2.5,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "HEIGHT_MM", "type": "Text", "shared": true, "default": "800", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "HEIGHT_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "800",
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.25, "y1": -0.25, "x2":  0.25, "y2":  0.25 },
-          { "x1": -0.25, "y1":  0.25, "x2":  0.25, "y2": -0.25 }
+          {
+            "x1": -0.25,
+            "y1": -0.25,
+            "x2": 0.25,
+            "y2": 0.25
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.25,
+            "x2": 0.25,
+            "y2": -0.25
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 800 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 100,
+        "heightMm": 800
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_STREET_LIGHT",
@@ -390,21 +1078,74 @@
       "subcategory": "External",
       "symbolSize": 4.5,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "COLUMN_HEIGHT_M", "type": "Text", "shared": true, "default": "6", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "COLUMN_HEIGHT_M",
+          "type": "Text",
+          "shared": true,
+          "default": "6",
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.4, "y1": 0, "x2": 0.4, "y2": 0 },
-          { "x1": 0, "y1": -0.4, "x2": 0, "y2": 0.4 },
-          { "x1": -0.07, "y1": -0.07, "x2":  0.07, "y2": -0.07 },
-          { "x1":  0.07, "y1": -0.07, "x2":  0.07, "y2":  0.07 },
-          { "x1":  0.07, "y1":  0.07, "x2": -0.07, "y2":  0.07 },
-          { "x1": -0.07, "y1":  0.07, "x2": -0.07, "y2": -0.07 }
+          {
+            "x1": -0.4,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.4,
+            "x2": 0,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.07,
+            "y1": -0.07,
+            "x2": 0.07,
+            "y2": -0.07
+          },
+          {
+            "x1": 0.07,
+            "y1": -0.07,
+            "x2": 0.07,
+            "y2": 0.07
+          },
+          {
+            "x1": 0.07,
+            "y1": 0.07,
+            "x2": -0.07,
+            "y2": 0.07
+          },
+          {
+            "x1": -0.07,
+            "y1": 0.07,
+            "x2": -0.07,
+            "y2": -0.07
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 200, "heightMm": 6000 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 200,
+        "heightMm": 6000
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_HIGH_BAY",
@@ -415,19 +1156,62 @@
       "subcategory": "Industrial",
       "symbolSize": 6.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LUMEN_OUTPUT", "type": "Text", "shared": true, "default": "20000", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "LUMEN_OUTPUT",
+          "type": "Text",
+          "shared": true,
+          "default": "20000",
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1":  0.0, "y1": -0.5, "x2": 0.0, "y2": 0.5 },
-          { "x1": -0.35, "y1": -0.35, "x2":  0.35, "y2":  0.35 },
-          { "x1": -0.35, "y1":  0.35, "x2":  0.35, "y2": -0.35 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.5,
+            "x2": 0.0,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.35,
+            "y1": -0.35,
+            "x2": 0.35,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.35,
+            "x2": 0.35,
+            "y2": -0.35
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 500, "heightMm": 250 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 500,
+        "heightMm": 250
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_LOW_BAY",
@@ -438,17 +1222,49 @@
       "subcategory": "Industrial",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LUMEN_OUTPUT", "type": "Text", "shared": true, "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "LUMEN_OUTPUT",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.45, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.32, "y1": -0.32, "x2":  0.32, "y2":  0.32 },
-          { "x1": -0.32, "y1":  0.32, "x2":  0.32, "y2": -0.32 }
+          {
+            "x1": -0.32,
+            "y1": -0.32,
+            "x2": 0.32,
+            "y2": 0.32
+          },
+          {
+            "x1": -0.32,
+            "y1": 0.32,
+            "x2": 0.32,
+            "y2": -0.32
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 400, "heightMm": 200 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 400,
+        "heightMm": 200
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_ANTI_VANDAL",
@@ -459,16 +1275,44 @@
       "subcategory": "Industrial",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "IK_RATING", "type": "Text", "shared": true, "default": "IK10", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "IK_RATING",
+          "type": "Text",
+          "shared": true,
+          "default": "IK10",
+          "instance": false
+        }
       ],
       "geometry": {
         "arcs": [
-          { "cx": 0, "cy": 0, "r": 0.45, "startDeg": 0, "endDeg": 360, "style": "Wide Lines" },
-          { "cx": 0, "cy": 0, "r": 0.35, "startDeg": 0, "endDeg": 360 }
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startDeg": 0,
+            "endDeg": 360,
+            "style": "Wide Lines"
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.35,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 300, "heightMm": 120 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 300,
+        "heightMm": 120
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_CLEAN_ROOM",
@@ -479,22 +1323,78 @@
       "subcategory": "Specialist",
       "symbolSize": 8.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "IP_RATING", "type": "Text", "shared": true, "default": "IP65", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "IP_RATING",
+          "type": "Text",
+          "shared": true,
+          "default": "IP65",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.25, "x2":  0.5, "y2": -0.25 },
-          { "x1":  0.5, "y1": -0.25, "x2":  0.5, "y2":  0.25 },
-          { "x1":  0.5, "y1":  0.25, "x2": -0.5, "y2":  0.25 },
-          { "x1": -0.5, "y1":  0.25, "x2": -0.5, "y2": -0.25 },
-          { "x1": -0.45, "y1": -0.2, "x2":  0.45, "y2": -0.2 },
-          { "x1":  0.45, "y1": -0.2, "x2":  0.45, "y2":  0.2 },
-          { "x1":  0.45, "y1":  0.2, "x2": -0.45, "y2":  0.2 },
-          { "x1": -0.45, "y1":  0.2, "x2": -0.45, "y2": -0.2 }
+          {
+            "x1": -0.5,
+            "y1": -0.25,
+            "x2": 0.5,
+            "y2": -0.25
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.25,
+            "x2": 0.5,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.25,
+            "x2": -0.5,
+            "y2": 0.25
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.25,
+            "x2": -0.5,
+            "y2": -0.25
+          },
+          {
+            "x1": -0.45,
+            "y1": -0.2,
+            "x2": 0.45,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.2,
+            "x2": 0.45,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.45,
+            "y1": 0.2,
+            "x2": -0.45,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.45,
+            "y1": 0.2,
+            "x2": -0.45,
+            "y2": -0.2
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 600, "depthMm": 300, "heightMm": 100 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 600,
+        "depthMm": 300,
+        "heightMm": 100
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_EXPLOSION_PROOF",
@@ -505,17 +1405,50 @@
       "subcategory": "Specialist",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "ATEX_ZONE", "type": "Text", "shared": true, "default": "Zone 1" }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "ATEX_ZONE",
+          "type": "Text",
+          "shared": true,
+          "default": "Zone 1"
+        }
       ],
       "geometry": {
         "arcs": [
-          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 },
-          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 }
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
-        "text": [ { "x": 0, "y": 0, "value": "EX", "heightMm": 1.5 } ]
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "EX",
+            "heightMm": 1.5
+          }
+        ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 350, "heightMm": 250 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 350,
+        "heightMm": 250
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_SENSOR_LIGHT",
@@ -526,21 +1459,62 @@
       "subcategory": "Lighting",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "SENSOR_TYPE", "type": "Text", "shared": true, "default": "PIR", "instance": false }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SENSOR_TYPE",
+          "type": "Text",
+          "shared": true,
+          "default": "PIR",
+          "instance": false
+        }
       ],
       "geometry": {
         "arcs": [
-          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 }
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "lines": [
-          { "x1": -0.4, "y1": 0, "x2":  0.4, "y2": 0 },
-          { "x1": 0, "y1": -0.4, "x2": 0, "y2": 0.4 },
-          { "x1":  0.4, "y1": -0.05, "x2":  0.55, "y2":  0.0 },
-          { "x1":  0.4, "y1":  0.05, "x2":  0.55, "y2":  0.0 }
+          {
+            "x1": -0.4,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.4,
+            "x2": 0,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.05,
+            "x2": 0.55,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.05,
+            "x2": 0.55,
+            "y2": 0.0
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 200, "heightMm": 60 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 200,
+        "heightMm": 60
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_RECESSED_TRIMLESS",
@@ -551,23 +1525,58 @@
       "subcategory": "Lighting",
       "symbolSize": 3.5,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
         "arcs": [
-          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 },
-          { "cx": 0, "cy": 0, "r": 0.05, "startDeg": 0, "endDeg": 360 }
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.05,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "filledRegions": [
           {
             "boundary": [
-              { "x": -0.05, "y": 0 }, { "x": 0, "y": -0.05 },
-              { "x": 0.05, "y": 0 }, { "x": 0, "y": 0.05 }
+              {
+                "x": -0.05,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": -0.05
+              },
+              {
+                "x": 0.05,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 0.05
+              }
             ]
           }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 30 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 100,
+        "heightMm": 30
+      },
+      "status": "draft"
     },
     {
       "id": "LTG_STEP_LIGHT",
@@ -578,19 +1587,61 @@
       "subcategory": "Lighting",
       "symbolSize": 3.0,
       "parameters": [
-        { "name": "CIRCUIT_REF", "type": "Text", "shared": true }
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.4, "y1":  0.0, "x2":  0.4, "y2":  0.0 },
-          { "x1":  0.4, "y1":  0.0, "x2":  0.4, "y2":  0.15 },
-          { "x1":  0.4, "y1":  0.15, "x2": -0.4, "y2":  0.15 },
-          { "x1": -0.4, "y1":  0.15, "x2": -0.4, "y2":  0.0 },
-          { "x1": -0.3, "y1": -0.1, "x2":  0.3, "y2": -0.1, "style": "Hidden Lines" },
-          { "x1": -0.3, "y1": -0.2, "x2":  0.3, "y2": -0.2, "style": "Hidden Lines" }
+          {
+            "x1": -0.4,
+            "y1": 0.0,
+            "x2": 0.4,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.0,
+            "x2": 0.4,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.15,
+            "x2": -0.4,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.15,
+            "x2": -0.4,
+            "y2": 0.0
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1,
+            "style": "Hidden Lines"
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2,
+            "style": "Hidden Lines"
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 100, "depthMm": 30, "heightMm": 50 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 100,
+        "depthMm": 30,
+        "heightMm": 50
+      },
+      "status": "draft"
     }
   ]
 }

@@ -97,15 +97,59 @@ namespace StingTools.Commands.Plumbing
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            // Defaults: 250 m² flat roof, Cr 0.90, intensity 0.021 l/s/m² (UK 2-min storm)
+            var ctx = ParameterHelpers.GetContext(data);
             double area = 250, cr = 0.90, intensity = 0.021;
+            string source = "default UK 2-min storm";
+
+            // Phase 189 — pull the project rainfall intensity if set. Falls
+            // back to the Uganda regional profile when PRJ_ORG_REGION_TXT is
+            // populated. STR_RAIN_INTENSITY_MMH is stored in mm/h on the
+            // project; convert to l/s/m² for the calc (1 mm/h = 1/3600 l/s/m²).
+            if (ctx?.Doc?.ProjectInformation != null)
+            {
+                var pi = ctx.Doc.ProjectInformation;
+                double mmh = 0;
+                try
+                {
+                    var p = pi.LookupParameter("STR_RAIN_INTENSITY_MMH");
+                    if (p != null && p.HasValue && p.StorageType == StorageType.String
+                        && double.TryParse(p.AsString(), out double v)) mmh = v;
+                }
+                catch (Exception ex) { StingLog.Warn($"Read STR_RAIN_INTENSITY_MMH: {ex.Message}"); }
+
+                if (mmh <= 0)
+                {
+                    try
+                    {
+                        var pr = pi.LookupParameter("PRJ_ORG_REGION_TXT");
+                        if (pr != null && pr.HasValue && pr.StorageType == StorageType.String)
+                        {
+                            var region = pr.AsString();
+                            if (!string.IsNullOrEmpty(region))
+                            {
+                                var prof = StingTools.Core.UgandaRegionalDefaults.ForRegion(region);
+                                if (prof != null) { mmh = prof.RainIntensityMmh; source = $"Uganda regional ({prof.Id})"; }
+                            }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Read PRJ_ORG_REGION_TXT: {ex.Message}"); }
+                }
+                else
+                {
+                    source = "STR_RAIN_INTENSITY_MMH (project)";
+                }
+
+                if (mmh > 0) intensity = mmh / 3600.0;
+            }
+
             double q = PlumbingSustainabilityCalc.RoofDrainageLps(area, cr, intensity);
             int outletSize = q < 1.5 ? 75 : q < 5 ? 100 : q < 10 ? 125 : 150;
             int outletCount = (int)Math.Ceiling(q / (q < 1.5 ? 0.8 : q < 5 ? 1.5 : 3.0));
 
             var panel = StingResultPanel.Create("Roof Drainage (BS EN 12056-3)");
-            panel.SetSubtitle($"Defaults: {area} m² flat roof · Cr {cr} · r {intensity} l/s/m² · f 1.5");
+            panel.SetSubtitle($"Defaults: {area} m² flat roof · Cr {cr} · r {intensity:F4} l/s/m² ({intensity * 3600:F0} mm/h, {source}) · f 1.5");
             panel.AddSection("RESULT")
+                 .Metric("Rainfall (mm/h)",        $"{intensity * 3600:F0}")
                  .Metric("Design flow Q_r (l/s)",  q.ToString("F2"))
                  .Metric("Outlet DN (mm)",         outletSize.ToString())
                  .Metric("Outlets recommended",    outletCount.ToString());

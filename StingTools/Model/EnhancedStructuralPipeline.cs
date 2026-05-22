@@ -346,13 +346,60 @@ namespace StingTools.Model
                 catch (Exception ex) { r.ColumnsSkipped++; r.Warnings.Add($"Col {col.Id.Value}: {ex.Message}"); }
             }
 
+            // Read the project-level soil bearing once per run so each
+            // foundation uses the regional / explicit value written to
+            // ProjectInformation. Falls back to a conservative 150 kPa
+            // when nothing is set.
+            double projectSoilKPa = 150;
+            bool projectBlackCotton = false;
+            try
+            {
+                if (doc.ProjectInformation != null)
+                {
+                    double v = TryReadDouble(doc.ProjectInformation, "STR_SOIL_BEARING_KPA", 0);
+                    if (v > 0) projectSoilKPa = v;
+                    // Phase 190 — black-cotton (expansive clay) flag. Drives a
+                    // shrink/swell warning per BS 1377-2; foundations need to
+                    // extend below the active zone (typically 1.5 m) and the
+                    // bearing capacity needs derating per site investigation.
+                    try
+                    {
+                        var bp = doc.ProjectInformation.LookupParameter("STR_BLACK_COTTON_RISK_BOOL");
+                        if (bp != null && bp.HasValue && bp.StorageType == StorageType.Integer)
+                            projectBlackCotton = bp.AsInteger() == 1;
+                    }
+                    catch (Exception exB) { StingLog.Warn($"Black-cotton flag read: {exB.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Project soil bearing read: {ex.Message}"); }
+
+            if (projectBlackCotton)
+            {
+                r.Warnings.Add("⚠ Black-cotton / expansive-clay flag set on ProjectInformation. " +
+                    "Foundation sizing uses project soil bearing as supplied, but: " +
+                    "(1) verify active-zone depth via BS 1377-2 swelling test, " +
+                    "(2) extend pad / strip below the seasonal active zone (typically 1.5 m), " +
+                    "(3) consider raft foundation or stabilised sub-base, " +
+                    "(4) the regional bearing default is already derated — site investigation must confirm.");
+            }
+
+            // Phase 190 — stamp WARN_STR_FND_BLACK_COTTON + propagate the
+            // STR_BLACK_COTTON_RISK_BOOL onto every foundation so tags,
+            // schedules and TAG7 paragraphs surface the warning on drawings,
+            // not just inside the sizing result panel.
+            const string BlackCottonWarnText =
+                "⚠ Black-cotton subgrade — extend below active zone (~1.5 m), " +
+                "verify BS 1377-2 swelling test, consider raft / stabilised sub-base";
+
             foreach (var fnd in all.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFoundation))
             {
                 r.FoundationsInspected++;
                 try
                 {
                     double axialKN = TryReadDouble(fnd, "STR_COL_AXIAL_KN", 500);
-                    double soilKPa = TryReadDouble(fnd, "STR_SOIL_BEARING_KPA", 150);
+                    // Per-foundation override wins over the project value,
+                    // which in turn beats the hard-coded 150.
+                    double soilKPa = TryReadDouble(fnd, "STR_SOIL_BEARING_KPA", projectSoilKPa);
                     var (w, h, summary) = AutoSizeFoundation(axialKN, soilKPa);
                     // FindOrCreateFoundationType takes (widthMm, depthMm) — pass square pad.
                     var match = factory.FindOrCreateFoundationType(w, w);
@@ -371,6 +418,23 @@ namespace StingTools.Model
                         // close the loop for the user.
                     }
                     else if (apply) r.FoundationsSkipped++;
+
+                    // Phase 190 — propagate the project-level black-cotton flag
+                    // onto every foundation so tag formulas (if(TAG_WARN_VISIBLE_BOOL,
+                    // WARN_STR_FND_BLACK_COTTON, "")), schedules and TAG7 paragraphs
+                    // surface the warning on drawings, not just in the result panel.
+                    if (apply && projectBlackCotton)
+                    {
+                        try
+                        {
+                            ParameterHelpers.SetString(fnd, "WARN_STR_FND_BLACK_COTTON",
+                                BlackCottonWarnText, overwrite: true);
+                            var bp = fnd.LookupParameter("STR_BLACK_COTTON_RISK_BOOL");
+                            if (bp != null && !bp.IsReadOnly && bp.StorageType == StorageType.Integer)
+                                bp.Set(1);
+                        }
+                        catch (Exception exW) { StingLog.Warn($"Black-cotton stamp {fnd.Id.Value}: {exW.Message}"); }
+                    }
                 }
                 catch (Exception ex) { r.FoundationsSkipped++; r.Warnings.Add($"Fnd {fnd.Id.Value}: {ex.Message}"); }
             }

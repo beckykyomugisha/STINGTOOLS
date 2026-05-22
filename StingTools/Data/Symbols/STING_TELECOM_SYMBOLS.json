@@ -1,0 +1,1161 @@
+{
+  "version": "1.0",
+  "standard": "BS EN 50173 / BICSI TDMM / BS 5839-8 / BS EN 62676 / BS EN 60839",
+  "description": "Telecom / voice / data / AV / security symbols (RJ45 outlets, cabinets, switches, WAPs, speakers, intercoms, CCTV, access readers)",
+  "symbols": [
+    {
+      "id": "TEL_RJ45",
+      "name": "RJ45 Data Outlet (Cat 6/6A)",
+      "category": "Outlets",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Outlets",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0.15,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.15,
+            "x2": 0.05,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "BS EN 50173 / BICSI TDMM",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_RJ45_DOUBLE",
+      "name": "Double RJ45 Data Outlet",
+      "category": "Outlets",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Outlets",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0.15,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.15,
+            "x2": 0.05,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "BS EN 50173 / BICSI TDMM",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_VOICE",
+      "name": "Voice Outlet (RJ11)",
+      "category": "Outlets",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Outlets",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0.15,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.15,
+            "x2": 0.05,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "BS EN 50173 / BICSI TDMM",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_COMBO",
+      "name": "Combined Voice / Data Outlet",
+      "category": "Outlets",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Outlets",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0.15,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.15,
+            "x2": 0.05,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "BS EN 50173 / BICSI TDMM",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_FIBRE",
+      "name": "Fibre-Optic Outlet (LC/SC)",
+      "category": "Outlets",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Outlets",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0.15,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.15,
+            "x2": 0.05,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "BS EN 50173 / BICSI TDMM",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_TV",
+      "name": "TV / Co-Axial Outlet",
+      "category": "Outlets",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Outlets",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0.15,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.15,
+            "x2": 0.05,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "BS EN 50173 / BICSI TDMM",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_SAT",
+      "name": "Satellite (LNB) Outlet",
+      "category": "Outlets",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Outlets",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0.15,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.15,
+            "x2": 0.05,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "BS EN 50173 / BICSI TDMM",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_HDMI",
+      "name": "HDMI / Audio-Visual Outlet",
+      "category": "Outlets",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Outlets",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0.15,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.15,
+            "x2": 0.05,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "BS EN 50173 / BICSI TDMM",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_USB",
+      "name": "USB Charging Outlet",
+      "category": "Outlets",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Outlets",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0.15,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.15,
+            "x2": 0.05,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "BS EN 50173 / BICSI TDMM",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_CABINET",
+      "name": "Comms Cabinet / Rack",
+      "category": "Distribution",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Distribution",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.4,
+            "x2": 0.3,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.4,
+            "x2": 0.3,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.4,
+            "x2": -0.3,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.4,
+            "x2": -0.3,
+            "y2": -0.4
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          }
+        ]
+      },
+      "standard": "BS EN 50173",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_PATCH_PANEL",
+      "name": "Patch Panel (24-port)",
+      "category": "Distribution",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Distribution",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.1,
+            "x2": 0.4,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.1,
+            "x2": 0.4,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.1,
+            "x2": -0.4,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.1,
+            "x2": -0.4,
+            "y2": -0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.3,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.2,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.3,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS EN 50173",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_SWITCH",
+      "name": "Network Switch",
+      "category": "Distribution",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Distribution",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.15,
+            "x2": 0.3,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.15,
+            "x2": 0.3,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.15,
+            "x2": -0.3,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.15,
+            "x2": -0.3,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.05,
+            "x2": 0.2,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.05,
+            "x2": 0.2,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.05,
+            "x2": -0.2,
+            "y2": -0.05
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.05,
+            "x2": 0.2,
+            "y2": -0.05
+          }
+        ]
+      },
+      "standard": "BS EN 50173",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_ROUTER",
+      "name": "Router / Edge Device",
+      "category": "Distribution",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Distribution",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.15,
+            "x2": 0.15,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.15,
+            "y1": -0.15,
+            "x2": -0.15,
+            "y2": 0.15
+          }
+        ]
+      },
+      "standard": "BS EN 50173",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_WAP",
+      "name": "Wireless Access Point",
+      "category": "Wireless",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Wireless",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "BS EN 50173 / IEEE 802.11",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_ANTENNA",
+      "name": "Antenna (5G / DAS)",
+      "category": "Wireless",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "Wireless",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.3,
+            "x2": 0,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.3,
+            "x2": 0,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": 0.1,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "BS EN 50173",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_SPEAKER",
+      "name": "Loudspeaker (PA)",
+      "category": "AV",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "AV",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "BS 5839-8",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_INTERCOM",
+      "name": "Door Intercom",
+      "category": "AV",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "AV",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.3,
+            "x2": 0.2,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.3,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.3,
+            "x2": -0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.3,
+            "x2": -0.2,
+            "y2": -0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.15,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.1,
+            "cy": -0.05,
+            "r": 0.03,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": -0.05,
+            "r": 0.03,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": -0.05,
+            "r": 0.03,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS EN 50173",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_DOORBELL",
+      "name": "Doorbell",
+      "category": "AV",
+      "familyType": "GenericAnnotation",
+      "discipline": "Comms",
+      "subcategory": "AV",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.15,
+            "x2": 0,
+            "y2": 0.15
+          }
+        ]
+      },
+      "standard": "BS EN 50173",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_CCTV",
+      "name": "CCTV Camera",
+      "category": "CCTV",
+      "familyType": "GenericAnnotation",
+      "discipline": "Security",
+      "subcategory": "CCTV",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0.4,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 180,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS EN 62676",
+      "status": "draft"
+    },
+    {
+      "id": "TEL_ACCESS_READER",
+      "name": "Access-Control Reader",
+      "category": "Access Control",
+      "familyType": "GenericAnnotation",
+      "discipline": "Security",
+      "subcategory": "Access Control",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.25,
+            "x2": 0.2,
+            "y2": -0.25
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.25,
+            "x2": 0.2,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.25,
+            "x2": -0.2,
+            "y2": 0.25
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.25,
+            "x2": -0.2,
+            "y2": -0.25
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS EN 60839",
+      "status": "draft"
+    }
+  ]
+}
