@@ -677,6 +677,30 @@ namespace StingTools.Core
             result.IssuesByType.TryGetValue(issueType, out int ibtc);
             result.IssuesByType[issueType] = ibtc + 1;
         }
+
+        /// <summary>
+        /// Wave B #3 — push the last LPS compliance verdict into the
+        /// cached scan so the status bar + dashboard surface it.
+        /// Called by LpsComplianceCheckCommand at the end of every
+        /// full audit.
+        /// </summary>
+        public static void UpdateLpsVerdict(string verdict, int total, int pass, int warn, int fail, string lpsClass = null)
+        {
+            try
+            {
+                lock (_cacheLock)
+                {
+                    if (_cached == null) return;
+                    _cached.LpsVerdict     = string.IsNullOrEmpty(verdict) ? "NONE" : verdict;
+                    _cached.LpsChecksTotal = total;
+                    _cached.LpsChecksPass  = pass;
+                    _cached.LpsChecksWarn  = warn;
+                    _cached.LpsChecksFail  = fail;
+                    if (!string.IsNullOrWhiteSpace(lpsClass)) _cached.LpsClass = lpsClass;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateLpsVerdict: {ex.Message}"); }
+        }
     }
 
     /// <summary>Per-discipline compliance data.</summary>
@@ -813,29 +837,6 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
             return System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
-        }
-
-        /// <summary>
-        /// Wave B #3 — push the last LPS compliance verdict into the
-        /// cached scan so the status bar + dashboard surface it. Called
-        /// by LpsComplianceCheckCommand at the end of every full audit.
-        /// </summary>
-        public static void UpdateLpsVerdict(string verdict, int total, int pass, int warn, int fail, string lpsClass = null)
-        {
-            try
-            {
-                lock (_cacheLock)
-                {
-                    if (_cached == null) return;
-                    _cached.LpsVerdict     = string.IsNullOrEmpty(verdict) ? "NONE" : verdict;
-                    _cached.LpsChecksTotal = total;
-                    _cached.LpsChecksPass  = pass;
-                    _cached.LpsChecksWarn  = warn;
-                    _cached.LpsChecksFail  = fail;
-                    if (!string.IsNullOrWhiteSpace(lpsClass)) _cached.LpsClass = lpsClass;
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"UpdateLpsVerdict: {ex.Message}"); }
         }
 
         /// <summary>Record today's compliance snapshot.</summary>
