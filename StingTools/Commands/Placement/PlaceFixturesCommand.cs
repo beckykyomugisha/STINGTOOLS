@@ -23,21 +23,21 @@ namespace StingTools.Commands.Placement
     /// maps 1:1 to a CheckBox in StingDockPanel.xaml. Defaults match
     /// the XAML IsChecked="True" initial state.
     /// </summary>
-    /// <summary>Defines which set of rooms the Place Fixtures command operates on.</summary>
-    public enum FixtureScopeMode
-    {
-        /// <summary>Only rooms on the currently active plan view level.</summary>
-        ActiveView,
-        /// <summary>Only rooms that were selected in the model when the command was invoked.</summary>
-        SelectedRooms,
-        /// <summary>All rooms in the entire project.</summary>
-        AllRooms,
-        /// <summary>Rooms explicitly filtered by room name / department criteria.</summary>
-        ByRoom,
-    }
-
     public static class PlaceFixturesOptions
     {
+        /// <summary>Defines which set of rooms the Place Fixtures command operates on.</summary>
+        public enum FixtureScopeMode
+        {
+            /// <summary>Only rooms on the currently active plan view level.</summary>
+            ActiveView,
+            /// <summary>Only rooms that were selected in the model when the command was invoked.</summary>
+            SelectedRooms,
+            /// <summary>All rooms in the entire project.</summary>
+            AllRooms,
+            /// <summary>Rooms explicitly filtered by room name / department criteria.</summary>
+            ByRoom,
+        }
+
         public static bool DryRunPreference { get; set; } = true;
         public static bool SnapTo300mmGrid  { get; set; } = true;
 

@@ -19,7 +19,7 @@ namespace StingTools.BIMManager;
 /// Handles authentication, automatic token refresh, and all sync/query operations.
 /// Thread-safe singleton — use PlanscapeServerClient.Instance.
 /// </summary>
-public sealed class PlanscapeServerClient : IDisposable
+public sealed partial class PlanscapeServerClient : IDisposable
 {
     // ── Singleton ──────────────────────────────────────────────────────────────
     private static PlanscapeServerClient? _instance;
