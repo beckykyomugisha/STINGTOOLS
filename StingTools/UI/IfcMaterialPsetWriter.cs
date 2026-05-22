@@ -41,7 +41,7 @@ namespace StingTools.UI
 
                 // IFC4 Pset_EnvironmentalImpactIndicators (subset).
                 Set(el, "Pset_EnvironmentalImpactIndicators", "GlobalWarmingPotential_PerLifeCycle", carbon);
-                Set(el, "Pset_EnvironmentalImpactIndicators", "ReferenceUnit", "kgCO2e");
+                SetString(el, "Pset_EnvironmentalImpactIndicators", "ReferenceUnit", "kgCO2e");
                 if (!string.IsNullOrEmpty(epdSrc))
                     SetString(el, "Pset_EnvironmentalImpactIndicators", "ProductionReference", epdSrc);
 

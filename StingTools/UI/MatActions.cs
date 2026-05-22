@@ -626,7 +626,8 @@ namespace StingTools.UI
                 // Structural + Thermal asset duplication is via PropertySetElement.Duplicate.
                 if (doc.GetElement(srcId) is PropertySetElement pse)
                 {
-                    var dupe = pse.Duplicate($"{pse.Name}_copy");
+                    // Revit 2025+ signature is Duplicate(Document, string).
+                    var dupe = pse.Duplicate(doc, $"{pse.Name}_copy");
                     if (kind == "Physical") mat.StructuralAssetId = dupe.Id;
                     else if (kind == "Thermal") mat.ThermalAssetId = dupe.Id;
                     return true;
