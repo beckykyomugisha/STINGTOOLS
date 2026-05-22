@@ -1226,9 +1226,9 @@ namespace StingTools.UI
             [JsonProperty("phaseName",     NullValueHandling = NullValueHandling.Ignore)]
             public string PhaseName      { get; set; }
             [JsonProperty("farClipMm",     NullValueHandling = NullValueHandling.Ignore)]
-            public double FarClipMm      { get; set; }
+            public double? FarClipMm      { get; set; }
             [JsonProperty("annotationCrop", NullValueHandling = NullValueHandling.Ignore)]
-            public bool   AnnotationCrop { get; set; }
+            public bool?   AnnotationCrop { get; set; }
             [JsonProperty("viewRange",     NullValueHandling = NullValueHandling.Ignore)]
             public PackViewRangeUi ViewRange { get; set; }
 

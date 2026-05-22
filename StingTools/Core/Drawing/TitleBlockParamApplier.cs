@@ -355,6 +355,9 @@ namespace StingTools.Core.Drawing
             ICollection<string> unresolved)
         {
             if (string.IsNullOrEmpty(template)) return "";
+            // Cache key for the resolved-string memo at the bottom of the method.
+            // (Local declaration restored after the merge dropped it.)
+            string cacheKey = template;
 
             // N+4 — MAT_* tokens take precedence over ProjectInfo lookup so
             // a title-block cell can resolve "${MAT_PRIMARY_NAME}" /
@@ -557,6 +560,8 @@ namespace StingTools.Core.Drawing
                 }
             }
             catch { return null; }
+            if (_piCache != null) _piCache[name] = val;
+            return val;
         }
 
         /// <summary>

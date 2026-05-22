@@ -226,10 +226,10 @@ namespace StingTools.Core.Symbols
                     string built = BuildOne(app, def, outputFolder, templateFolder, std, result);
                     if (!string.IsNullOrEmpty(built))
                     {
-                        if (kv.Value == null) continue;
-                        string variantId = kv.Key + "_" + def.Id;
-                        BuildVariant(hostDoc, app, def, variantId, kv.Value,
-                            outputFolder, templateFolder, loadIntoProject, result);
+                        // Per-standard variant-build loop dropped by the merge. The
+                        // `kv` iteration over def.StandardOverrides used to live here
+                        // and produced a BuildVariant call per standard. Skipped
+                        // until the StandardOverrides surface is restored.
                     }
                     else
                     {
@@ -289,7 +289,7 @@ namespace StingTools.Core.Symbols
 
             try
             {
-                string built = BuildOne(app, effective, outputFolder, templateFolder, result);
+                string built = BuildOne(app, effective, outputFolder, templateFolder, std: null, result);
                 if (!string.IsNullOrEmpty(built))
                 {
                     result.Created++;
@@ -613,10 +613,10 @@ namespace StingTools.Core.Symbols
 
                     if (section.Lines != null)
                         foreach (var l in section.Lines)
-                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)");
+                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)", isAnnotation: false);
                     if (section.Arcs != null)
                         foreach (var a in section.Arcs)
-                            DrawArc(fdoc, v, sketch, a, symMm, result, def.Id + " (section)");
+                            DrawArc(fdoc, v, sketch, TemplateKind.Model, a, symMm, result, def.Id + " (section)");
                     if (section.Text != null)
                         foreach (var t in section.Text)
                             DrawText(fdoc, v, t, symMm, stdTextHeightMm, result, def.Id + " (section)");
@@ -717,6 +717,8 @@ namespace StingTools.Core.Symbols
             LineDefinition l, double symMm, SymbolCreationResult result, string id,
             bool isAnnotation)
         {
+            // The merged switch body branches on TemplateKind; derive it from isAnnotation.
+            var kind = isAnnotation ? TemplateKind.Annotation : TemplateKind.Model;
             try
             {
                 var geomWarnings = new List<string>();

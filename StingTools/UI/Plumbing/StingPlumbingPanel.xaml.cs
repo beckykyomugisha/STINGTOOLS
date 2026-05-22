@@ -764,5 +764,11 @@ namespace StingTools.UI.Plumbing
     public class PlumbStormInputs
     {
         public double RoofAreaM2, RunoffCoefficient, RainIntensityMmH, ClimateUpliftPct;
+        // Merge-recovery additions — populated by Storm tab inputs.
+        public int    SepticPersons;
+        public double SoakAreaM2, SoakStormMmHr, SoakInfiltMs;
+        public double SudsAreaM2, SudsImperm;
+        public double RwhAreaM2, RwhRainfallMm, RwhDemandL;
+        public string RwhMaterial = "";
     }
 }

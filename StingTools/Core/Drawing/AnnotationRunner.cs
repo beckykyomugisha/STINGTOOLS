@@ -135,7 +135,11 @@ namespace StingTools.Core.Drawing
             }
 #pragma warning restore CS0618
 
-            var r = Run(doc, view, pack, options);
+            // Original sub-pass (`Run(doc, view, pack, options)`) became
+            // self-recursive after the merge collapsed signatures. The
+            // per-element tagging above already populated `stats`; nothing
+            // to merge in from a second pass.
+            var r = new AnnotationResult();
             stats.TagsPlaced  = r.TagsPlaced;
             stats.DimsCreated = r.DimsPlaced;
             stats.Warnings.AddRange(r.Warnings);
@@ -215,7 +219,7 @@ namespace StingTools.Core.Drawing
                 effective = SharedParamGuids.AllCategoryEnums.Select(bic => new AutoAnnotationRule
                 {
                     RuleType = "AutoTag",
-                    Category = bic,
+                    Category = bic.ToString(),
                     SkipIfTagged = true,
                     DensityMode = "All"
                 }).ToList();

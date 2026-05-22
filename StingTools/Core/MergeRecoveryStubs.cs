@@ -85,20 +85,8 @@ namespace StingTools.Commands.Plumbing
     public sealed class DocsPipeScheduleRow   { public string Name { get; set; } public string Status { get; set; } public string System { get; set; } public int Dn { get; set; } public string Material { get; set; } public double LengthM { get; set; } }
     public sealed class AuditIssueRow         { public string Code { get; set; } public string Detail { get; set; } public string Severity { get; set; } = "Info"; public string Element { get; set; } public string Issue { get; set; } }
 
-    /// <summary>Storm-drainage input bag read from the SI panel.</summary>
-    public sealed class PlumbStormInputs
-    {
-        public int    SepticPersons    { get; set; }
-        public double SoakAreaM2       { get; set; }
-        public double SoakStormMmHr    { get; set; }
-        public double SoakInfiltMs     { get; set; }
-        public double SudsAreaM2       { get; set; }
-        public double SudsImperm       { get; set; }
-        public double RwhAreaM2        { get; set; }
-        public double RwhRainfallMm    { get; set; }
-        public string RwhMaterial      { get; set; } = "";
-        public double RwhDemandL       { get; set; }
-    }
+    // PlumbStormInputs lives at StingTools.UI.Plumbing.StingPlumbingPanel.cs alongside
+    // the panel; merge-recovery added the Rwh*/Soak*/Suds*/Septic* fields there.
 
     /// <summary>
     /// Extension methods on the Plumbing dock panel so call sites
@@ -136,7 +124,7 @@ namespace StingTools.Commands.Plumbing
         public static void SetDocsPipeScheduleResult(this StingTools.UI.Plumbing.StingPlumbingPanel _, List<DocsPipeScheduleRow> rows, string status = "") { }
         public static void SetDocsBoqResult         (this StingTools.UI.Plumbing.StingPlumbingPanel _, List<DocsBoqRow> rows, string status = "") { }
         public static void SetDrainageInvertResult  (this StingTools.UI.Plumbing.StingPlumbingPanel _, List<DrainageInvertRow> rows, string status = "") { }
-        public static object ReadRouteAutoOptions   (this StingTools.UI.Plumbing.StingPlumbingPanel _) => null;
+        public static RoutePTrapOptions ReadRouteAutoOptions(this StingTools.UI.Plumbing.StingPlumbingPanel _) => new RoutePTrapOptions();
     }
 }
 
@@ -181,7 +169,13 @@ namespace StingTools.UI
         public string Kind        { get; set; }
         public int    PhotoCount  { get; set; }
         public bool   IsLocked    { get; set; }
-        public List<Guid> Photos  { get; set; } = new();
+        public List<PhotoAlbumEntryDto> Photos { get; set; } = new();
+    }
+
+    /// <summary>Stub — single photo entry inside an album.</summary>
+    public sealed class PhotoAlbumEntryDto
+    {
+        public Guid PhotoId { get; set; }
     }
 
     /// <summary>Stub — Site Photos NDA policy payload.</summary>
@@ -190,6 +184,14 @@ namespace StingTools.UI
         public string NdaText  { get; set; }
         public string NdaSha   { get; set; }
         public bool   Required { get; set; }
+    }
+
+    /// <summary>Stub — share-link response.</summary>
+    public sealed class PhotoShareLinkDto
+    {
+        public string   Token         { get; set; } = "";
+        public DateTime ExpiresAt     { get; set; }
+        public bool     ForceRedacted { get; set; }
     }
 
     public sealed class PhotoChecklistDto
@@ -233,26 +235,20 @@ namespace StingTools.Core.Drawing
         public string DetailLevel      { get; set; }
         public string ScaleHint        { get; set; }
         public string ColorScheme      { get; set; }
-        public PackAppearanceInfo Appearance { get; set; }
+        public PackAppearanceDto Appearance { get; set; }
         public string PhaseName        { get; set; }
-        public List<ByMaterialClassRule> ByMaterialClass  { get; set; }
+        public Dictionary<string, ByMaterialClassOverride> ByMaterialClass  { get; set; }
     }
 
-    /// <summary>Stub — typography / line-weight / fill appearance for a view-style pack.</summary>
-    public sealed class PackAppearanceInfo
+    /// <summary>Stub — per-material-class graphic override used by ApplyMaterialClassOverrides.</summary>
+    public sealed class ByMaterialClassOverride
     {
-        public double LineWeightScale     { get; set; } = 1.0;
-        public string TextStyleName       { get; set; }
-        public string DimensionStyleName  { get; set; }
-        public string HatchPalette        { get; set; }
-    }
-
-    /// <summary>Stub — single by-material-class filter rule for a pack.</summary>
-    public sealed class ByMaterialClassRule
-    {
-        public string MaterialClass { get; set; }
-        public string ColorHex      { get; set; }
-        public int    LineWeight    { get; set; }
+        public bool?  Halftone             { get; set; }
+        public int?   Transparency         { get; set; }
+        public int?   ProjectionLineWeight { get; set; }
+        public int?   CutLineWeight        { get; set; }
+        public string ProjectionLineColor  { get; set; }
+        public string CutLineColor         { get; set; }
     }
 }
 
@@ -271,13 +267,16 @@ namespace StingTools.BIMManager
 
         // Model registry — ComputeSha256 must be static per call sites in PublishModelCommand.
         public static string ComputeSha256(string s) => "";
-        public Task<JObject?> FindModelByHashAsync(Guid projectId, string sha256) => Task.FromResult<JObject?>(null);
-        public Task<bool> RefreshModelMetadataAsync(Guid projectId, Guid modelId, object payload, string? elementMapPath = null) => Task.FromResult(false);
-        public Task<bool> DeleteModelAsync(Guid projectId, Guid modelId) => Task.FromResult(false);
+        public Task<Guid?> FindModelByHashAsync(Guid projectId, string sha256) => Task.FromResult<Guid?>(null);
+        public Task<bool> RefreshModelMetadataAsync(Guid projectId, Guid modelId,
+            string? elementMapPath = null, string? name = null, string? discipline = null,
+            string? revision = null, int elementCount = 0) => Task.FromResult(false);
+        public Task<(bool ok, string error)> DeleteModelAsync(Guid projectId, Guid modelId) => Task.FromResult((true, ""));
 
         // Site Photos — NDA / policy
         public Task<StingTools.UI.PhotoPolicyDto?> GetPhotoPolicyAsync(Guid projectId) => Task.FromResult<StingTools.UI.PhotoPolicyDto?>(null);
         public Task<bool>     AcceptPhotoNdaAsync(Guid projectId, string? ndaSha = null) => Task.FromResult(false);
+        public Task<bool>     AcceptPhotoNdaAsync(Guid projectId, Guid photoId) => Task.FromResult(false);
         public HashSet<Guid>  LastNdaRequiredIds { get; set; } = new();
 
         // Site Photos — checklists / albums / distribution
@@ -287,12 +286,14 @@ namespace StingTools.BIMManager
         public Task<StingTools.UI.PhotoAlbumDto?>           CreatePhotoAlbumAsync(Guid projectId, string name, string? description = null, string visibility = "Project") => Task.FromResult<StingTools.UI.PhotoAlbumDto?>(null);
         public Task<bool> AddPhotosToAlbumAsync(Guid projectId, Guid albumId, IEnumerable<Guid> photoIds) => Task.FromResult(false);
         public Task<bool> LockPhotoAlbumAsync(Guid projectId, Guid albumId, bool locked) => Task.FromResult(false);
-        public Task<string?> CreatePhotoShareLinkAsync(Guid projectId, Guid albumId, TimeSpan? expiry = null, string? label = null) => Task.FromResult<string?>(null);
-        public Task<bool> ExportPhotosAsync(Guid projectId, IEnumerable<Guid>? photoIds = null, string format = "zip", Guid? albumId = null) => Task.FromResult(false);
+        public Task<StingTools.UI.PhotoShareLinkDto?> CreatePhotoShareLinkAsync(Guid projectId, Guid albumId, TimeSpan? expiry = null, string? label = null) => Task.FromResult<StingTools.UI.PhotoShareLinkDto?>(null);
+        public Task<string?> ExportPhotosAsync(Guid projectId, string outputPath, Guid? albumId = null, string format = "zip") => Task.FromResult<string?>(null);
+        public Task<bool>    ExportPhotosAsync(Guid projectId, IEnumerable<Guid>? photoIds = null, string format = "zip") => Task.FromResult(false);
 
-        // Site Photos — admin bulk
-        public Task<bool> BulkReclassifyPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, string newClass) => Task.FromResult(false);
-        public Task<bool> BulkReanchorPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, object? payload = null, string? levelCode = null, string? zoneCode = null) => Task.FromResult(false);
+        // Site Photos — admin bulk — return the count of affected photos
+        // (callers do `n > 0` on the result).
+        public Task<int> BulkReclassifyPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, string newClass) => Task.FromResult(0);
+        public Task<int> BulkReanchorPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, object? payload = null, string? levelCode = null, string? zoneCode = null) => Task.FromResult(0);
         public Task<List<DistributionGroupDto>?> ListDistributionGroupsAsync(Guid projectId) => Task.FromResult<List<DistributionGroupDto>?>(new List<DistributionGroupDto>());
         public Task<bool> CreateDistributionGroupAsync(Guid projectId, string name, IEnumerable<string>? recipients = null, string? kind = null) => Task.FromResult(false);
     }
@@ -423,10 +424,15 @@ namespace StingTools.Core.Drawing
 {
     public static partial class TitleBlockParamApplier
     {
-        internal static System.Collections.Generic.IEnumerable<Element> FindAllTitleBlockInstances(Document doc)
-            => new FilteredElementCollector(doc)
+        internal static System.Collections.Generic.List<Autodesk.Revit.DB.FamilyInstance> FindAllTitleBlockInstances(Document doc, ViewSheet sheet = null)
+        {
+            var q = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                .WhereElementIsNotElementType();
+                .WhereElementIsNotElementType()
+                .Cast<Autodesk.Revit.DB.FamilyInstance>();
+            if (sheet != null) q = q.Where(tb => tb.OwnerViewId == sheet.Id);
+            return q.ToList();
+        }
 
         internal static bool TitleBlockHasAnyKey(Element tb, System.Collections.Generic.IEnumerable<string> keys)
         {
@@ -485,6 +491,7 @@ namespace StingTools.Core.Calc
     internal static class PipeSetSlopeExt
     {
         public static void SetSlope(this Autodesk.Revit.DB.Plumbing.Pipe _, double slopePct, double minDropMm = 0) { /* stub */ }
+        public static void SetSlope(this Autodesk.Revit.DB.Plumbing.Pipe _, Autodesk.Revit.DB.Connector fixedConnector, double slopeFtFt) { /* stub */ }
     }
 }
 
