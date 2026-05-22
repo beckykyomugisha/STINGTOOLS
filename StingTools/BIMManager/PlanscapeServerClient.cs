@@ -305,6 +305,53 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return Guid.Empty; }
     }
 
+    /// <summary>
+    /// Create a new project on the server. Returns the new project id on
+    /// success. On 409 (duplicate code within tenant) or 400 (project limit
+    /// reached) returns ok=false with a human-readable error message so the
+    /// caller can surface the precise reason.
+    /// </summary>
+    public async Task<(bool ok, Guid id, string? error)> CreateProjectAsync(
+        string name, string code, string? phase = null, string? description = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, Guid.Empty, LastError ?? "Not authenticated");
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(code))
+            return (false, Guid.Empty, "Name and Code are required.");
+        try
+        {
+            var payload = new
+            {
+                name = name.Trim(),
+                code = code.Trim(),
+                phase = string.IsNullOrWhiteSpace(phase) ? null : phase.Trim(),
+                description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
+            };
+            var resp = await PostJsonAsync("/api/projects", payload);
+            if (resp.ok)
+            {
+                var json = JObject.Parse(resp.body);
+                var id = Guid.TryParse(json["id"]?.Value<string>(), out var g) ? g : Guid.Empty;
+                return (true, id, null);
+            }
+
+            // Friendlier mapping for the two errors the user is most likely to
+            // hit: 409 duplicate code, 400 project-limit reached.
+            string friendly = resp.status switch
+            {
+                409 => $"A project with code '{code}' already exists in this tenant.",
+                400 => resp.body, // server returns plain string for limit reached
+                402 => "Project quota exceeded for the current subscription tier.",
+                _   => $"HTTP {resp.status}: {resp.body}",
+            };
+            return (false, Guid.Empty, friendly);
+        }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            return (false, Guid.Empty, ex.Message);
+        }
+    }
+
     /// <summary>Get project dashboard (issues, docs, recent workflows).</summary>
     public async Task<JObject?> GetDashboardAsync(Guid projectId)
     {

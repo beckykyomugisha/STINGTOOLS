@@ -5706,6 +5706,7 @@ namespace StingTools.Core
                 { "PlanscapeClearCredentials", "PlanscapeDisconnect" },
                 { "PlanscapeOpenBrowser",      "PlanscapeOpenWebDashboard" },
                 { "PublishModelToPlanscape",   "PublishModelToPlanscape" },
+                { "PlanscapeCreateProject",    "PlanscapeCreateProject" },
 
                 // Workflow actions
                 { "RunWorkflowPreset", "WorkflowPreset" },

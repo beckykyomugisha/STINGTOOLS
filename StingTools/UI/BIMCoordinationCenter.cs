@@ -4234,6 +4234,7 @@ namespace StingTools.UI
                     ("🔗 Generate QR Link",    "PlanscapeQR",       CHeaderBg,                        "Generate QR code linking to the latest exported HTML dashboard"),
                     ("📊 Export HTML Dashboard","PlanscapeHTML",    Color.FromRgb(0x6A, 0x1B, 0x9A), "Export full coordination dashboard as standalone HTML file (shareable, no login needed)"),
                     ("🧊 Publish 3D Model",    "PublishModelToPlanscape", Color.FromRgb(0xE6, 0x5F, 0x00), "Export the active 3D view to GLB (or pick a file) and publish it + the element-map sidecar to Planscape Models"),
+                    ("➕ Create Project…",     "PlanscapeCreateProject",  Color.FromRgb(0x2E, 0x7D, 0x32), "Create a new Planscape project on the server (Name / Code / Phase) — appears in the project picker for Publish 3D Model and other actions"),
                 };
                 foreach (var (lbl, act, clr, tip) in btns)
                 {
