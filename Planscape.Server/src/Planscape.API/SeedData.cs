@@ -294,8 +294,8 @@ public static class SeedData
                 ProjectId = p.Id,
                 UserId = leadUser.Id,
                 ProjectRole = "Contributor",
-                Iso19650Role = iso,
-                InvitedBy = label,
+                Iso19650Role = lead.Iso19650Role,
+                InvitedBy = lead.DisplayName,
             });
         }
 
