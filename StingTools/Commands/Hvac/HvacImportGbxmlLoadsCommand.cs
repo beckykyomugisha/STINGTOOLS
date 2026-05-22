@@ -33,6 +33,7 @@ using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.UI;
+using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 
 namespace StingTools.Commands.Hvac
 {

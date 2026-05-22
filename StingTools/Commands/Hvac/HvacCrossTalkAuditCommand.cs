@@ -121,8 +121,8 @@ namespace StingTools.Commands.Hvac
                     var attenB = AccumulateAttenuationToShared(b, shared);
                     // Total path attenuation = upstream A + upstream B + 6 dB tee split.
                     var attenTotal = new OctaveBand();
-                    for (int i = 0; i < 8; i++)
-                        attenTotal[i] = attenA[i] + attenB[i] + 6.0;
+                    for (int k = 0; k < 8; k++)
+                        attenTotal[k] = attenA[k] + attenB[k] + 6.0;
 
                     // Phase 187g — proper room receiver model.
                     //
@@ -141,7 +141,7 @@ namespace StingTools.Commands.Hvac
                     // duct-side attenuation — a large absorptive room is
                     // 5-8 dB more forgiving than a small reflective one.
                     var talkerLw = new OctaveBand();
-                    for (int i = 0; i < 8; i++) talkerLw[i] = TalkerLpRefOct[i] + 11.0;
+                    for (int k = 0; k < 8; k++) talkerLw[k] = TalkerLpRefOct[k] + 11.0;
                     var receiverLw = talkerLw - attenTotal;
                     var receiverLp = NcPredictionEngine.RoomLwToLp(receiverLw, b.Receiver);
                     int receiverNc = NcCurves.Rate(receiverLp);

@@ -91,7 +91,7 @@ namespace StingTools.Commands.Hvac
 
                 // Phase 187b — per-duct role + role-velocity check, plus
                 // adjacent-fitting ΔP contribution. Batch-detect roles once.
-                var rules = StingTools.Core.Mep.MepSizingRegistry.Get(doc);
+                // `rules` already resolved at top of Execute.
                 var roleMap = StingTools.Core.Mep.HvacSegmentRoleDetector.DetectRolesBatch(doc, ducts);
 
                 using var tx = new Transaction(doc, "STING HVAC Pressure-class Audit");

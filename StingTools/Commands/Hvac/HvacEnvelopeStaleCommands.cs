@@ -7,6 +7,7 @@
 // the model edit-loop fast on projects that don't run block-loads.
 
 using System;
+using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;

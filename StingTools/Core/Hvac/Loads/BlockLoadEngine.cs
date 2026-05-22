@@ -281,7 +281,7 @@ namespace StingTools.Core.Hvac.Loads
             // (rigorous ASHRAE CTF would require Laplace-domain inversion;
             // this is the practical middle ground). Falls back to the
             // class-based RTF when no thermal-mass data is present.
-            var rf = RadiantTimeSeries.RadiantFraction;
+            // RadiantTimeSeries.RadiantFraction is a static class — access const members through the type.
             double[] zoneRtf = null;
             if (rts != RtsConstructionClass.Reactive && z.Envelope != null && z.Envelope.Count > 0)
             {
@@ -324,26 +324,26 @@ namespace StingTools.Core.Hvac.Loads
             {
                 if (zoneRtf != null)
                 {
-                    condByOrient[b]  = RadiantTimeSeries.ApplyRtsToGainWithRtf(condByOrient[b],  rf.Conduction, zoneRtf);
-                    solarByOrient[b] = RadiantTimeSeries.ApplyRtsToGainWithRtf(solarByOrient[b], rf.SolarGlass, zoneRtf);
+                    condByOrient[b]  = RadiantTimeSeries.ApplyRtsToGainWithRtf(condByOrient[b],  RadiantTimeSeries.RadiantFraction.Conduction, zoneRtf);
+                    solarByOrient[b] = RadiantTimeSeries.ApplyRtsToGainWithRtf(solarByOrient[b], RadiantTimeSeries.RadiantFraction.SolarGlass, zoneRtf);
                 }
                 else
                 {
-                    condByOrient[b]  = RadiantTimeSeries.ApplyRtsToGain(condByOrient[b],  rf.Conduction, rts);
-                    solarByOrient[b] = RadiantTimeSeries.ApplyRtsToGain(solarByOrient[b], rf.SolarGlass, rts);
+                    condByOrient[b]  = RadiantTimeSeries.ApplyRtsToGain(condByOrient[b],  RadiantTimeSeries.RadiantFraction.Conduction, rts);
+                    solarByOrient[b] = RadiantTimeSeries.ApplyRtsToGain(solarByOrient[b], RadiantTimeSeries.RadiantFraction.SolarGlass, rts);
                 }
             }
             if (zoneRtf != null)
             {
-                occW = RadiantTimeSeries.ApplyRtsToGainWithRtf(occW, rf.Occupant,  zoneRtf);
-                litW = RadiantTimeSeries.ApplyRtsToGainWithRtf(litW, rf.Lighting,  zoneRtf);
-                eqpW = RadiantTimeSeries.ApplyRtsToGainWithRtf(eqpW, rf.Equipment, zoneRtf);
+                occW = RadiantTimeSeries.ApplyRtsToGainWithRtf(occW, RadiantTimeSeries.RadiantFraction.Occupant,  zoneRtf);
+                litW = RadiantTimeSeries.ApplyRtsToGainWithRtf(litW, RadiantTimeSeries.RadiantFraction.Lighting,  zoneRtf);
+                eqpW = RadiantTimeSeries.ApplyRtsToGainWithRtf(eqpW, RadiantTimeSeries.RadiantFraction.Equipment, zoneRtf);
             }
             else
             {
-                occW = RadiantTimeSeries.ApplyRtsToGain(occW, rf.Occupant,  rts);
-                litW = RadiantTimeSeries.ApplyRtsToGain(litW, rf.Lighting,  rts);
-                eqpW = RadiantTimeSeries.ApplyRtsToGain(eqpW, rf.Equipment, rts);
+                occW = RadiantTimeSeries.ApplyRtsToGain(occW, RadiantTimeSeries.RadiantFraction.Occupant,  rts);
+                litW = RadiantTimeSeries.ApplyRtsToGain(litW, RadiantTimeSeries.RadiantFraction.Lighting,  rts);
+                eqpW = RadiantTimeSeries.ApplyRtsToGain(eqpW, RadiantTimeSeries.RadiantFraction.Equipment, rts);
             }
 
             var sens = new double[24];

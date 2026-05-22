@@ -189,22 +189,6 @@ namespace StingTools.UI
                     case "Placement_Diagnose":
                         RunCommand<Commands.Placement.PlacementDiagnoseCommand>(app); break;
 
-                    // ── Phase 139.2 — placement centre additions ──
-                    case "Placement_AutoPopulateCatalogue":
-                        RunCommand<Commands.Placement.ManufacturerCatalogueAutoPopulateCommand>(app); break;
-                    case "Placement_ExportNogginRequirements":
-                        RunCommand<Commands.Placement.NogginRequirementExportCommand>(app); break;
-                    case "Placement_ExportRulesExcel":
-                        RunCommand<Commands.Placement.PlacementRulesExcelExportCommand>(app); break;
-                    case "Placement_ImportRulesExcel":
-                        RunCommand<Commands.Placement.PlacementRulesExcelImportCommand>(app); break;
-                    case "Placement_RunWallChase":
-                        RunCommand<Commands.Placement.RunWallChaseCommand>(app); break;
-                    case "Placement_AuditSetup":
-                        RunCommand<Commands.Placement.PlacementSetupAuditCommand>(app); break;
-                    case "Placement_Diagnose":
-                        RunCommand<Commands.Placement.PlacementDiagnoseCommand>(app); break;
-
                     // ── v4 MVP: auto-drop routing (Phase 3) ──
                     case "Routing_AutoDrop":         RunCommand<Commands.Routing.AutoDropCommand>(app); break;
                     case "Routing_GenerateLayout":   RunCommand<Commands.Routing.GenerateLayoutCommand>(app); break;
@@ -694,24 +678,6 @@ namespace StingTools.UI
                     case "TitleBlock_ToggleBIMMode":      RunCommand<Commands.Drawing.TitleBlockToggleBIMModeCommand>(app); break;
                     case "TitleBlock_AuditLegacy":        RunCommand<Commands.Drawing.TitleBlockAuditLegacyCommand>(app); break;
                     case "TitleBlock_MigrateLegacy":      RunCommand<Commands.Drawing.TitleBlockMigrateLegacyCommand>(app); break;
-
-                    // ── Drawing Template Manager · Phase 137 — production engine ──
-                    case "DrawingTypes_ProducePerLevel":           RunCommand<Commands.Drawing.ProduceViewsPerLevelCommand>(app); break;
-                    case "DrawingTypes_ProduceFromScopeBoxes":     RunCommand<Commands.Drawing.ProduceViewsFromScopeBoxesCommand>(app); break;
-                    case "DrawingTypes_ProduceInteriorElevations": RunCommand<Commands.Drawing.ProduceInteriorElevationsCommand>(app); break;
-                    case "DrawingTypes_ProduceExteriorElevations": RunCommand<Commands.Drawing.ProduceExteriorElevationsCommand>(app); break;
-                    case "DrawingTypes_ProduceSections":           RunCommand<Commands.Drawing.ProduceSectionsCommand>(app); break;
-                    case "DrawingTypes_RegenerateTemplates":       RunCommand<Commands.Drawing.RegeneratePackTemplatesCommand>(app); break;
-                    case "DrawingTypes_ConvertToManaged":          RunCommand<Commands.Drawing.ConvertPackToManagedCommand>(app); break;
-                    case "DrawingTypes_DetachManaged":             RunCommand<Commands.Drawing.DetachFromManagedCommand>(app); break;
-                    case "DrawingTypes_ExportPackage":             RunCommand<Commands.Drawing.DrawingPackageExportCommand>(app); break;
-                    case "DrawingTypes_SequencePackage":           RunCommand<Commands.Drawing.DrawingPackageSequenceCommand>(app); break;
-                    case "DrawingTypes_AuditPackages":
-                    case "DrawingTypes_PackageAudit":              RunCommand<Commands.Drawing.DrawingPackageAuditCommand>(app); break;
-
-                    // ── Phase 170 — Title-block factory ──
-                    case "TitleBlock_Create":        RunCommand<Commands.Drawing.TitleBlockCreateCommand>(app); break;
-                    case "TitleBlock_CreateAll":     RunCommand<Commands.Drawing.TitleBlockCreateAllCommand>(app); break;
 
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
