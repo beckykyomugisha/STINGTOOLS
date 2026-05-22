@@ -126,6 +126,22 @@ namespace StingTools.UI.PlacementCenter
             if (cmbGlazingSpec         != null)    cmbGlazingSpec.ItemsSource         = VM.GlazingSpecs;
             if (cmbMaintenanceClearance != null)   cmbMaintenanceClearance.ItemsSource = VM.MaintenanceClearances;
 
+            // Phase 139 — pack-chip + new-card combobox sources.
+            if (cmbSourcePack != null)
+            {
+                cmbSourcePack.ItemsSource = VM.SourcePackChips;
+                cmbSourcePack.SelectedIndex = 0;
+            }
+            if (cmbProfileBuildingType != null)    cmbProfileBuildingType.ItemsSource = VM.BuildingTypes;
+            if (cmbBuildingType        != null)    cmbBuildingType.ItemsSource        = VM.BuildingTypes;
+            if (cmbWetZone             != null)    cmbWetZone.ItemsSource             = VM.WetZoneOptions;
+            if (cmbHeightStandard      != null)    cmbHeightStandard.ItemsSource      = VM.HeightStandardKeys;
+            if (cmbRoutingMode         != null)    cmbRoutingMode.ItemsSource         = VM.RoutingModes;
+            if (cmbRouteFace           != null)    cmbRouteFace.ItemsSource           = VM.RouteFaces;
+            if (cmbRouteSegmentCategory != null)   cmbRouteSegmentCategory.ItemsSource = VM.RouteSegmentCategories;
+            if (cmbGlazingSpec         != null)    cmbGlazingSpec.ItemsSource         = VM.GlazingSpecs;
+            if (cmbMaintenanceClearance != null)   cmbMaintenanceClearance.ItemsSource = VM.MaintenanceClearances;
+
             // Run-option two-way bindings
             chkProvenance.IsChecked  = VM.RunOpts.StampProvenance;
             chkLearned.IsChecked     = VM.RunOpts.HonourLearned;

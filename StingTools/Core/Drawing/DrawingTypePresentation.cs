@@ -512,6 +512,13 @@ namespace StingTools.Core.Drawing
                 StingTools.Core.StingLog.Info(
                     $"DrawingType '{dt.Id}' has scale <= 0 and no pack fallback; skipping view scale assignment.");
             }
+            else
+            {
+                // 3D / perspective profiles legitimately ship without a fixed
+                // scale; assigning view.Scale = 0 throws InvalidOperationException.
+                StingTools.Core.StingLog.Info(
+                    $"DrawingType '{dt.Id}' has scale <= 0; skipping view scale assignment.");
+            }
 
             // Detail level -----------------------------------------------
             if (!string.IsNullOrWhiteSpace(effectiveDetailLevel))

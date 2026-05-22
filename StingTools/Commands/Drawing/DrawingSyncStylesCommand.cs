@@ -86,6 +86,7 @@ namespace StingTools.Commands.Drawing
 
                 int resynced = 0;
                 var warnings = new System.Collections.Generic.List<string>();
+                using (TitleBlockParamApplier.Batch())
                 using (var tx = new Transaction(doc, "STING — Sync Drawing Type Styles"))
                 {
                     tx.Start();
@@ -94,6 +95,19 @@ namespace StingTools.Commands.Drawing
                         if (!(doc.GetElement(r.ViewId) is View v)) continue;
                         var dt = DrawingTypeRegistry.Get(doc, r.DrawingTypeId);
                         if (dt == null) continue;
+
+                        // Phase 167 — sheets route through ApplyToSheet so the
+                        // TitleBlockParamApplier runs and TITLE_BLOCK_PARAM
+                        // drift heals; views go through the full pipeline.
+                        if (v is ViewSheet sheet)
+                        {
+                            var sheetApplied = DrawingTypePresentation.ApplyToSheet(doc, sheet, dt);
+                            if (sheetApplied.Warnings.Count > 0)
+                                warnings.AddRange(sheetApplied.Warnings.Select(w => $"[{v.Name}] {w}"));
+                            resynced++;
+                            continue;
+                        }
+
                         // Phase 137 — explicit annotation skips so SyncStyles
                         // re-applies VG/template/managed-template state without
                         // running auto-tag / auto-dim / decorative / spot passes.

@@ -1309,6 +1309,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            // SAFETY-001: Reset static warning counter so a previous failed run
+            // does not suppress warnings for this execution.
+            MaterialPropertyHelper.ResetSharedParamWarnings();
             try
             {
                 var ctx = ParameterHelpers.GetContext(commandData);
@@ -1338,6 +1341,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            // SAFETY-001: Reset static warning counter so a previous failed run
+            // does not suppress warnings for this execution.
+            MaterialPropertyHelper.ResetSharedParamWarnings();
             try
             {
                 var ctx = ParameterHelpers.GetContext(commandData);
