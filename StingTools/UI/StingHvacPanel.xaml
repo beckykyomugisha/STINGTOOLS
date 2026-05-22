@@ -510,6 +510,15 @@
                             <Button Style="{StaticResource HvacActionBtn}" Content="Refrigerant size"
                                     Tag="Hvac_RefrigSize" Click="Cmd_Click"
                                     ToolTip="Size R410A / R32 / R134a / CO₂ pipes with oil-return + vendor envelope checks"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Refrig → duct"
+                                    Tag="Hvac_PropagateRefrigToDuct" Click="Cmd_Click"
+                                    ToolTip="Auto-stamp HVC_FLOW_LS on supply ducts of ducted refrigerant IDUs from capacity (Phase 187e)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Cross-talk audit"
+                                    Tag="Hvac_CrossTalkAudit" Click="Cmd_Click"
+                                    ToolTip="NC cross-talk between rooms via shared duct paths (Phase 187e)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="RTS benchmark"
+                                    Tag="Hvac_RtsBenchmark" Click="Cmd_Click"
+                                    ToolTip="Regression-grade comparison of BlockLoadEngine against ASHRAE / CIBSE worked examples (Phase 187e)"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Fitting loss"
                                     Tag="Mep_FittingLoss" Click="Cmd_Click" ToolTip="Per-fitting Kv loss report"/>
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Run all validators"

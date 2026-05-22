@@ -227,6 +227,16 @@ namespace StingTools.UI
                     case "Hvac_PublishToServer":
                         // Phase 187d — push BlockLoad/NC/Refrigerant results to Planscape.
                         Run<StingTools.Commands.Hvac.HvacPublishToServerCommand>(app); break;
+                    case "Hvac_PropagateRefrigToDuct":
+                        // Phase 187e — auto-stamp HVC_FLOW_LS on supply ducts of
+                        // ducted refrigerant IDUs from equipment capacity.
+                        Run<StingTools.Commands.Hvac.HvacPropagateRefrigerantToDuctCommand>(app); break;
+                    case "Hvac_CrossTalkAudit":
+                        // Phase 187e — NC cross-talk between rooms via shared duct.
+                        Run<StingTools.Commands.Hvac.HvacCrossTalkAuditCommand>(app); break;
+                    case "Hvac_RtsBenchmark":
+                        // Phase 187e — RTS regression benchmark against ASHRAE / CIBSE worked examples.
+                        Run<StingTools.Commands.Hvac.HvacRtsBenchmarkCommand>(app); break;
                     case "Hvac_NcPredict":
                         // STING-design-engines: VDI 2081 / ASHRAE A48 NC prediction
                         // from duct selection + regenerated noise + room model.

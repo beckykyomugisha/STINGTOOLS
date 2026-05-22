@@ -3093,6 +3093,61 @@ Eight items from the Phase 187c deferred list are now in place:
 |---|---|---|
 | `PRJ_RTS_CLASS_TXT` | PRJ_INFORMATION | ASHRAE Radiant Time Series class (Reactive / Light / Medium / Heavy) — controls thermal-mass lag |
 
+### Phase 187e — final follow-through
+
+The four remaining items flagged "longer-horizon" in the Phase 187d
+caveats are now in place.
+
+1. **Cx task library JSON-driven** (`STING_CX_TASKS.json` +
+   `<project>/_BIM_COORD/cx/cx_tasks_override.json`).
+   `HvacGenerateCxChecklistCommand` no longer carries a 13-class ×
+   4-11 task dictionary in C# — it loads from a corporate baseline +
+   project override (REPLACE semantics: class entries clobber rather
+   than merge). Per-session cache keyed on project dir, invalidated
+   on document close. `InvalidateTaskCache()` exposed for manual
+   reloads.
+
+2. **Refrigerant ↔ duct auto-stamp.** New
+   `HvacPropagateRefrigerantToDuctCommand` (`Hvac_PropagateRefrigToDuct`)
+   walks every ducted IDU (FCU / ducted VRF / AHU), computes required
+   supply airflow `Q_ls = capacity_W / (ρ·cp·ΔT)` (CIBSE Guide B3
+   ΔT = 11 K), then walks the equipment's HVAC connector graph
+   downstream stamping `HVC_FLOW_LS` + `HVC_LOAD_SOURCE_TXT` on every
+   duct encountered. Global visited-set dedupes shared downstream
+   segments. Stops at terminals + other equipment. Hvac_AutoSizeDuct
+   then consumes the stamps directly. Wired to CALCS tab.
+
+3. **NC cross-talk audit.** New `HvacCrossTalkAuditCommand`
+   (`Hvac_CrossTalkAudit`) walks every air terminal's connector graph
+   upstream, accumulates 1 kHz attenuation (ASHRAE A48 straight + elbow
+   + tee + end-reflection × 2 + silencer IL if any), pairs every
+   (talker, receiver) across different host Spaces sharing an upstream
+   element, and flags pairs whose attenuation falls below the 30 dB
+   BB93 / ASHRAE A48 speech-privacy floor. CSV under `<project>/
+   _BIM_COORD/acoustic/crosstalk_<ts>.csv`. First-10 flagged pairs
+   pushed to the panel `IssueRows`. Wired to CALCS tab.
+
+4. **RTS calibration benchmark.**
+   `STING_RTS_REFERENCE_CASES.json` ships 4 worked examples from
+   ASHRAE Handbook Fundamentals 2021 Ch.18 + Daikin VRV design guide
+   + CIBSE Guide A 2015, each with expected block sensible kW per RTS
+   class. `HvacRtsBenchmarkCommand` (`Hvac_RtsBenchmark`) builds a
+   synthetic LoadZone matching each case, runs the engine under
+   Reactive / Light / Medium / Heavy, and flags any comparison
+   outside ±10 %. Regression-grade check (not a TRACE / HAP head-to-
+   head — that needs full RTS with per-orientation conduction lag) but
+   catches unit errors + sign flips in the RTS convolution. CSV under
+   `_BIM_COORD/acoustic/rts_benchmark_<ts>.csv`. Project teams extend
+   via `_BIM_COORD/rts_reference_cases.json`.
+
+### Files added (Phase 187e)
+
+- `Data/STING_CX_TASKS.json` (13 classes × 4-11 tasks)
+- `Data/STING_RTS_REFERENCE_CASES.json` (4 worked examples)
+- `Commands/Hvac/HvacPropagateRefrigerantToDuctCommand.cs`
+- `Commands/Hvac/HvacCrossTalkAuditCommand.cs`
+- `Commands/Hvac/HvacRtsBenchmarkCommand.cs`
+
 ### Caveats (Phase 187 — what's still open)
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
