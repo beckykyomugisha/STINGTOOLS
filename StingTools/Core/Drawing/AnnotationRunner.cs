@@ -180,7 +180,11 @@ namespace StingTools.Core.Drawing
                         }
                         catch { /* defensive */ }
 
-                        var r3d = StingTools.Tags.Tag3DCommand.PlaceTagsInView(doc, v3d, useNarrative);
+                        // wrapTransaction:false — AnnotationRunner's caller owns
+                        // the open Transaction (see file header contract).
+                        var r3d = StingTools.Tags.Tag3DCommand.PlaceTagsInView(
+                            doc, v3d, useNarrative,
+                            hostFilter: null, wrapTransaction: false, progress: null);
                         result.TagsPlaced += r3d.Placed;
                         foreach (var w in r3d.Warnings) result.Warnings.Add($"Auto3DTag: {w}");
                     }
