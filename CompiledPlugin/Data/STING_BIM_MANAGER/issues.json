@@ -1,0 +1,46 @@
+[
+  {
+    "issue_id": "CLASH-0001",
+    "type": "CLASH",
+    "type_description": "Coordination Clash",
+    "priority": "HIGH",
+    "title": "CLASH: Title Blocks",
+    "description": "CLASH raised against Title Blocks on unknown level. Priority: HIGH.",
+    "status": "OPEN",
+    "assigned_to": "BIM Coordinator",
+    "discipline": "Z",
+    "raised_by": "del",
+    "date_raised": "2026-03-18 16:48",
+    "date_due": "2026-03-21",
+    "date_closed": "",
+    "response": "",
+    "element_ids": [
+      "1660047"
+    ],
+    "view_name": "Unnamed",
+    "revision": "1",
+    "resolved_in_revision": "",
+    "comments": []
+  },
+  {
+    "issue_id": "RFI-0001",
+    "type": "RFI",
+    "type_description": "Request for Information",
+    "priority": "MEDIUM",
+    "title": "RFI: L1 - Architectural",
+    "description": "Issue observed in view 'L1 - Architectural' Priority: MEDIUM.",
+    "status": "OPEN",
+    "assigned_to": "Design Lead",
+    "discipline": "Z",
+    "raised_by": "del",
+    "date_raised": "2026-03-21 16:33",
+    "date_due": "2026-03-28",
+    "date_closed": "",
+    "response": "",
+    "element_ids": [],
+    "view_name": "L1 - Architectural",
+    "revision": "1",
+    "resolved_in_revision": "",
+    "comments": []
+  }
+]

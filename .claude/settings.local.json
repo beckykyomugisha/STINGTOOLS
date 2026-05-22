@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(grep -n IssueTypes /c/Dev/STINGTOOLS/.claude/worktrees/crazy-visvesvaraya/StingTools/Core/*.cs /c/Dev/STINGTOOLS/.claude/worktrees/crazy-visvesvaraya/StingTools/BIMManager/*.cs)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet restore:*)"
+    ]
+  }
+}

@@ -1,0 +1,1301 @@
+2026-03-28 14:44:31 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-28 14:44:31 [WARN] PYREVIT_SCRIPT_MANIFEST: 18 script path(s) not found on disk.
+2026-03-28 14:44:31 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-28 14:44:31 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-28 14:44:31 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-28 14:44:31 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-28 14:44:31 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-28 14:44:31 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-28 14:44:31 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-28 14:44:31 [INFO] ThemeManager: applied 'Light' theme
+2026-03-28 14:44:31 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-28 14:44:31 [INFO] Dockable panel registered successfully
+2026-03-28 14:44:31 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-28 14:44:31 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: read 219063 chars, parsing JSON
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-28 14:44:31 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-28 14:44:31 [INFO] ParamRegistry: supplemented 1808 GUIDs from MR_PARAMETERS.txt
+2026-03-28 14:44:31 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2316 GUIDs
+2026-03-28 14:44:31 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-28 14:44:31 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-28 14:44:31 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-28 14:44:32 [INFO] TagConfig: supplemented 311 additional warning refs from tag config CSVs
+2026-03-28 14:44:32 [INFO] STING Tools dockable panel loaded successfully
+2026-03-28 14:45:45 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-28 14:46:28 [INFO] DocumentClosing: auto-saved warning baseline
+2026-03-28 14:46:28 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-28 14:46:30 [INFO] STING Tools shutting down
+2026-03-28 14:46:30 [INFO] StingAutoTagger: unregistered
+2026-03-28 14:47:23 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-28 14:47:23 [WARN] PYREVIT_SCRIPT_MANIFEST: 18 script path(s) not found on disk.
+2026-03-28 14:47:23 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-28 14:47:23 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-28 14:47:23 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-28 14:47:23 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-28 14:47:23 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-28 14:47:23 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-28 14:47:23 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-28 14:47:23 [INFO] ThemeManager: applied 'Light' theme
+2026-03-28 14:47:23 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-28 14:47:23 [INFO] Dockable panel registered successfully
+2026-03-28 14:47:23 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-28 14:47:23 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-28 14:47:23 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-28 14:47:23 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-28 14:47:23 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-28 14:47:23 [INFO] ParamRegistry.LoadFromFile: read 219063 chars, parsing JSON
+2026-03-28 14:47:23 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-28 14:47:23 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-28 14:47:23 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-28 14:47:23 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-28 14:47:24 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-28 14:47:24 [INFO] ParamRegistry: supplemented 1808 GUIDs from MR_PARAMETERS.txt
+2026-03-28 14:47:24 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2316 GUIDs
+2026-03-28 14:47:24 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-28 14:47:24 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-28 14:47:24 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-28 14:47:24 [INFO] TagConfig: supplemented 311 additional warning refs from tag config CSVs
+2026-03-28 14:47:24 [INFO] STING Tools dockable panel loaded successfully
+2026-03-28 14:49:24 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-28 14:49:25 [WARN] TagConfig: unknown config key(s) in project_config.json: PROJECT_FOLDER_ROOT — check for typos
+2026-03-28 14:49:25 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-28 14:49:25 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-28 14:49:25 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-28 14:49:25 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-28 14:49:25 [INFO] Morning briefing deferred to first idle/command
+2026-03-28 14:49:25 [WARN] Formula 'CST_S_CON_SAND_VOLUME_CU_M': invalid Dependency_Level '36863979-00ed-54f3-af15-db3364b8316d', defaulting to 0
+2026-03-28 14:49:25 [WARN] Formula 'CST_S_MAS_SAND_VOLUME_CU_M': invalid Dependency_Level '02663996-87e7-56b1-8abf-2e9bc32d777b', defaulting to 0
+2026-03-28 14:49:25 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_PHS_COUNT_NR', defaulting to 0
+2026-03-28 14:49:25 [WARN] Formula 'S2=standard': suspect Discipline value '(DB Panels). S1=compact' — check CSV quoting
+2026-03-28 14:49:25 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_DESIGNATION_NAME_TXT', defaulting to 0
+2026-03-28 14:49:25 [WARN] Formula 'S2=standard': suspect Discipline value '(Points & Sockets). S1=compact' — check CSV quoting
+2026-03-28 14:49:25 [WARN] Formula 'S2=standard': invalid Dependency_Level 'COM_C_NETWORK_ADDRESS_TXT', defaulting to 0
+2026-03-28 14:49:25 [WARN] Formula 'S2=standard': suspect Discipline value '(BMS). S1=compact' — check CSV quoting
+2026-03-28 14:49:25 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ASS_SYSTEM_TYPE_TXT', defaulting to 0
+2026-03-28 14:49:25 [WARN] Formula 'S2=standard': suspect Discipline value '(Lifts/Gen/ATS). S1=compact' — check CSV quoting
+2026-03-28 14:49:25 [WARN] TagPipelineHelper.LoadFormulas: An item with the same key has already been added. Key: S2=standard
+2026-03-28 14:49:25 [INFO] FUT-19: Background pre-warming completed (formulas only — Revit API deferred)
+2026-03-28 14:49:36 [INFO] Tab 7 content loaded (lazy)
+2026-03-28 14:49:40 [INFO] Tab 6 content loaded (lazy)
+2026-03-28 14:49:46 [INFO] Tab 5 content loaded (lazy)
+2026-03-28 14:52:33 [INFO] SharedParamGuids.AllCategoryEnums: resolving (first access)
+2026-03-28 14:52:33 [INFO] ResolveUniversalCategoryEnums: resolving 141 categories
+2026-03-28 14:52:33 [INFO] ResolveUniversalCategoryEnums: resolved to 129 BuiltInCategory enums
+2026-03-28 14:52:33 [INFO] SharedParamGuids.AllCategoryEnums: 129 categories resolved
+2026-03-28 14:56:30 [INFO] Warning baseline saved: 19 warnings
+2026-03-28 14:56:30 [INFO] DocumentClosing: auto-saved warning baseline
+2026-03-28 14:56:30 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-28 14:56:32 [INFO] STING Tools shutting down
+2026-03-28 14:56:32 [INFO] StingAutoTagger: unregistered
+2026-03-28 14:57:32 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-28 14:57:32 [WARN] PYREVIT_SCRIPT_MANIFEST: 18 script path(s) not found on disk.
+2026-03-28 14:57:32 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-28 14:57:32 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-28 14:57:32 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-28 14:57:32 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-28 14:57:32 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-28 14:57:32 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-28 14:57:32 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-28 14:57:32 [INFO] ThemeManager: applied 'Light' theme
+2026-03-28 14:57:32 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-28 14:57:32 [INFO] Dockable panel registered successfully
+2026-03-28 14:57:32 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-28 14:57:32 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: read 219063 chars, parsing JSON
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-28 14:57:32 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-28 14:57:32 [INFO] ParamRegistry: supplemented 1808 GUIDs from MR_PARAMETERS.txt
+2026-03-28 14:57:32 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2316 GUIDs
+2026-03-28 14:57:32 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-28 14:57:32 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-28 14:57:32 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-28 14:57:32 [INFO] TagConfig: supplemented 311 additional warning refs from tag config CSVs
+2026-03-28 14:57:32 [INFO] STING Tools dockable panel loaded successfully
+2026-03-28 14:58:28 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-28 14:58:28 [WARN] TagConfig: unknown config key(s) in project_config.json: PROJECT_FOLDER_ROOT — check for typos
+2026-03-28 14:58:28 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-28 14:58:28 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-28 14:58:28 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-28 14:58:28 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-28 14:58:28 [INFO] Morning briefing deferred to first idle/command
+2026-03-28 14:58:28 [WARN] Formula 'CST_S_CON_SAND_VOLUME_CU_M': invalid Dependency_Level '36863979-00ed-54f3-af15-db3364b8316d', defaulting to 0
+2026-03-28 14:58:28 [WARN] Formula 'CST_S_MAS_SAND_VOLUME_CU_M': invalid Dependency_Level '02663996-87e7-56b1-8abf-2e9bc32d777b', defaulting to 0
+2026-03-28 14:58:28 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_PHS_COUNT_NR', defaulting to 0
+2026-03-28 14:58:28 [WARN] Formula 'S2=standard': suspect Discipline value '(DB Panels). S1=compact' — check CSV quoting
+2026-03-28 14:58:28 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_DESIGNATION_NAME_TXT', defaulting to 0
+2026-03-28 14:58:28 [WARN] Formula 'S2=standard': suspect Discipline value '(Points & Sockets). S1=compact' — check CSV quoting
+2026-03-28 14:58:28 [WARN] Formula 'S2=standard': invalid Dependency_Level 'COM_C_NETWORK_ADDRESS_TXT', defaulting to 0
+2026-03-28 14:58:28 [WARN] Formula 'S2=standard': suspect Discipline value '(BMS). S1=compact' — check CSV quoting
+2026-03-28 14:58:29 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ASS_SYSTEM_TYPE_TXT', defaulting to 0
+2026-03-28 14:58:29 [WARN] Formula 'S2=standard': suspect Discipline value '(Lifts/Gen/ATS). S1=compact' — check CSV quoting
+2026-03-28 14:58:29 [WARN] TagPipelineHelper.LoadFormulas: An item with the same key has already been added. Key: S2=standard
+2026-03-28 14:58:29 [INFO] FUT-19: Background pre-warming completed (formulas only — Revit API deferred)
+2026-03-28 14:59:00 [INFO] Tab 7 content loaded (lazy)
+2026-03-28 14:59:03 [INFO] Tab 2 content loaded (lazy)
+2026-03-28 14:59:32 [INFO] SharedParamGuids.AllCategoryEnums: resolving (first access)
+2026-03-28 14:59:32 [INFO] ResolveUniversalCategoryEnums: resolving 141 categories
+2026-03-28 14:59:32 [INFO] ResolveUniversalCategoryEnums: resolved to 129 BuiltInCategory enums
+2026-03-28 14:59:32 [INFO] SharedParamGuids.AllCategoryEnums: 129 categories resolved
+2026-03-28 14:59:35 [INFO] RunCommand<CropToContentCommand>: start
+2026-03-28 14:59:37 [INFO] RunCommand<CropToContentCommand>: done
+2026-03-28 14:59:41 [INFO] Tab 3 content loaded (lazy)
+2026-03-28 15:02:50 [INFO] Tab 6 content loaded (lazy)
+2026-03-28 15:05:32 [INFO] Tab 8 content loaded (lazy)
+2026-03-28 15:07:04 [INFO] RunCommand<ProjectDashboardCommand>: start
+2026-03-28 15:07:04 [INFO] BIMManager: Building project dashboard...
+2026-03-28 15:07:05 [INFO] BIMManager: saved project_dashboard.json
+2026-03-28 15:07:09 [INFO] Dashboard: RAG=RED, tagged=0/2025
+2026-03-28 15:07:09 [INFO] RunCommand<ProjectDashboardCommand>: done
+2026-03-28 15:07:40 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-28 15:07:44 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-28 15:08:55 [INFO] RunCommand<SelectLightingCommand>: start
+2026-03-28 15:08:56 [INFO] RunCommand<SelectLightingCommand>: done
+2026-03-28 15:08:57 [INFO] RunCommand<SelectElectricalCommand>: start
+2026-03-28 15:08:57 [INFO] Selected 1 Electrical Equipment elements
+2026-03-28 15:08:57 [INFO] RunCommand<SelectElectricalCommand>: done
+2026-03-28 15:09:06 [INFO] RunCommand<SelectRoomsCommand>: start
+2026-03-28 15:09:06 [INFO] Selected 23 Rooms elements
+2026-03-28 15:09:06 [INFO] RunCommand<SelectRoomsCommand>: done
+2026-03-28 15:09:08 [INFO] RunCommand<SelectRoomsCommand>: start
+2026-03-28 15:09:08 [INFO] Selected 23 Rooms elements
+2026-03-28 15:09:08 [INFO] RunCommand<SelectRoomsCommand>: done
+2026-03-28 15:09:10 [INFO] RunCommand<SelectWindowsCommand>: start
+2026-03-28 15:09:10 [INFO] Selected 36 Windows elements
+2026-03-28 15:09:10 [INFO] RunCommand<SelectWindowsCommand>: done
+2026-03-28 15:09:16 [INFO] RunCommand<SelectRoomsCommand>: start
+2026-03-28 15:09:16 [INFO] Selected 23 Rooms elements
+2026-03-28 15:09:16 [INFO] RunCommand<SelectRoomsCommand>: done
+2026-03-28 15:09:20 [INFO] RunCommand<SelectRoomsCommand>: start
+2026-03-28 15:09:20 [INFO] Selected 23 Rooms elements
+2026-03-28 15:09:20 [INFO] RunCommand<SelectRoomsCommand>: done
+2026-03-28 15:09:25 [INFO] RunCommand<SelectElectricalCommand>: start
+2026-03-28 15:09:25 [INFO] Selected 1 Electrical Equipment elements
+2026-03-28 15:09:25 [INFO] RunCommand<SelectElectricalCommand>: done
+2026-03-28 15:09:27 [INFO] RunCommand<SelectRoomsCommand>: start
+2026-03-28 15:09:27 [INFO] Selected 23 Rooms elements
+2026-03-28 15:09:27 [INFO] RunCommand<SelectRoomsCommand>: done
+2026-03-28 15:09:30 [INFO] RunCommand<SelectSprinklersCommand>: start
+2026-03-28 15:09:32 [INFO] RunCommand<SelectSprinklersCommand>: done
+2026-03-28 15:09:33 [INFO] RunCommand<SelectPipesCommand>: start
+2026-03-28 15:09:35 [INFO] RunCommand<SelectPipesCommand>: done
+2026-03-28 15:09:36 [INFO] RunCommand<SelectDuctsCommand>: start
+2026-03-28 15:09:37 [INFO] RunCommand<SelectDuctsCommand>: done
+2026-03-28 15:09:38 [INFO] RunCommand<SelectConduitsCommand>: start
+2026-03-28 15:09:40 [INFO] RunCommand<SelectConduitsCommand>: done
+2026-03-28 15:09:41 [INFO] RunCommand<SelectCableTraysCommand>: start
+2026-03-28 15:09:42 [INFO] RunCommand<SelectCableTraysCommand>: done
+2026-03-28 15:09:43 [INFO] RunCommand<SelectAllTaggableCommand>: start
+2026-03-28 15:09:43 [INFO] Selected 483 taggable elements
+2026-03-28 15:09:43 [INFO] RunCommand<SelectAllTaggableCommand>: done
+2026-03-28 15:09:46 [INFO] RunCommand<SelectCustomCategoryCommand>: start
+2026-03-28 15:09:54 [INFO] RunCommand<SelectCustomCategoryCommand>: done
+2026-03-28 15:10:20 [INFO] Tab 1 content loaded (lazy)
+2026-03-28 15:10:24 [INFO] Tab 5 content loaded (lazy)
+2026-03-28 15:10:26 [INFO] Dropdowns populated with 2357 params
+2026-03-28 15:10:29 [INFO] AnomalyRefresh: 483 elements, 1449 issues, health=0%
+2026-03-28 15:12:17 [INFO] RunCommand<StrCADToStructuralCommand>: start
+2026-03-28 15:12:20 [INFO] RunCommand<StrCADToStructuralCommand>: done
+2026-03-28 15:12:24 [INFO] RunCommand<StrFullReportCommand>: start
+2026-03-28 15:12:24 [INFO] Voronoi tributary areas calculated for 5 columns
+2026-03-28 15:12:24 [INFO] Full structural report generated (42 lines)
+2026-03-28 15:12:27 [INFO] Structural report exported: D:\Work 2025\TROKON\ISAAC N. MITCHELL- TOWER HILL COMMUNITY-MARGIBI\STING_Exports\STING_StructuralReport_20260328_151227.txt
+2026-03-28 15:12:27 [INFO] RunCommand<StrFullReportCommand>: done
+2026-03-28 15:16:02 [INFO] BIMCoordCenter built: health=80, warnings=19, compliance=0.0%
+2026-03-28 15:16:21 [INFO] DispatchCoordAction: executed 'DiscComplianceReport' → CompletenessDashboardCommand
+2026-03-28 15:16:21 [INFO] BIMCoordCenter built: health=80, warnings=19, compliance=0.0%
+2026-03-28 15:16:30 [INFO] DispatchCoordAction: executed 'ExportReport' → ExportModelHealthCommand
+2026-03-28 15:16:30 [INFO] BIMCoordCenter built: health=80, warnings=19, compliance=0.0%
+2026-03-28 15:16:34 [INFO] DispatchCoordAction: executed 'IssueBatchUpdate' → UpdateIssueCommand
+2026-03-28 15:16:34 [INFO] BIMCoordCenter built: health=80, warnings=19, compliance=0.0%
+2026-03-28 15:19:06 [INFO] BIMCoordCenter built: health=80, warnings=19, compliance=0.0%
+2026-03-28 15:23:40 [INFO] RunCommand<WorkflowPresetCommand>: start
+2026-03-28 15:23:40 [INFO] Workflow 'Daily QA Sync': starting 13 steps
+2026-03-28 15:23:40 [INFO] WorkflowEngine: skipping 'Retag stale elements first' — no stale elements found
+2026-03-28 15:23:42 [INFO] Workflow step 2: Pre-tag dry-run audit (skip if already compliant) — SKIP (2.0s)
+2026-03-28 15:23:43 [INFO] Workflow step 3: Tag new elements only — SKIP (1.4s)
+2026-03-28 15:23:45 [INFO] Workflow step 4: Update changed element tokens (delta sync) — SKIP (1.5s)
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:46 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:46 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:47 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:47 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:48 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:48 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'DOOR_HEAD_HT' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'DOOR_FUNC' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_FLR' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_WALL' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_CLG' not found in extended_params
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ROOM_FINISH_BASE' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:49 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:49 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:52 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:52 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:53 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:53 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:54 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:54 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:55 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:56 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:57 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:23:58 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:03 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:03 [WARN] ParamRegistry.Ext: key 'WINDOW_HEAD_HT' not found in extended_params
+2026-03-28 15:24:03 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:03 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:24:03 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:03 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:03 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:04 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:04 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:04 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:04 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:05 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [INFO] GetLevelCode: unrecognized level name 'GROUND FLOOR PLAN', defaulting to XX
+2026-03-28 15:24:06 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:24:07 [INFO] GetLevelCode: unrecognized level name 'WALLPLATE', defaulting to XX
+2026-03-28 15:24:07 [WARN] ParamRegistry.Ext: key 'ELE_VOLUME' not found in extended_params
+2026-03-28 15:24:40 [INFO] Workflow step 5: Sync Revit native params → STING shared — OK (55.3s)
+2026-03-28 15:24:40 [WARN] Formula 'CST_S_CON_SAND_VOLUME_CU_M': invalid Dependency_Level '36863979-00ed-54f3-af15-db3364b8316d', defaulting to 0
+2026-03-28 15:24:40 [WARN] Formula 'CST_S_MAS_SAND_VOLUME_CU_M': invalid Dependency_Level '02663996-87e7-56b1-8abf-2e9bc32d777b', defaulting to 0
+2026-03-28 15:24:40 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_PHS_COUNT_NR', defaulting to 0
+2026-03-28 15:24:40 [WARN] Formula 'S2=standard': suspect Discipline value '(DB Panels). S1=compact' — check CSV quoting
+2026-03-28 15:24:40 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_DESIGNATION_NAME_TXT', defaulting to 0
+2026-03-28 15:24:40 [WARN] Formula 'S2=standard': suspect Discipline value '(Points & Sockets). S1=compact' — check CSV quoting
+2026-03-28 15:24:40 [WARN] Formula 'S2=standard': invalid Dependency_Level 'COM_C_NETWORK_ADDRESS_TXT', defaulting to 0
+2026-03-28 15:24:40 [WARN] Formula 'S2=standard': suspect Discipline value '(BMS). S1=compact' — check CSV quoting
+2026-03-28 15:24:40 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ASS_SYSTEM_TYPE_TXT', defaulting to 0
+2026-03-28 15:24:40 [WARN] Formula 'S2=standard': suspect Discipline value '(Lifts/Gen/ATS). S1=compact' — check CSV quoting
+2026-03-28 15:24:40 [WARN] Workflow step 6 attempt 0: An item with the same key has already been added. Key: S2=standard
+2026-03-28 15:24:40 [ERROR] Workflow step 6: Evaluate 199 dependency formulas: An item with the same key has already been added. Key: S2=standard
+2026-03-28 15:28:27 [INFO] Workflow step 7: Update all tag containers — SKIP (227.1s)
+2026-03-28 15:28:27 [INFO] ValidateTags: scanning... 2000 elements processed (1990 taggable so far)
+2026-03-28 15:28:27 [INFO] BIMManager: saved document_register.json
+2026-03-28 15:28:27 [INFO] Auto-registered export: DOC-0002 — STING_Validation_Report.csv
+2026-03-28 15:28:27 [INFO] BIMManager: saved issues.json
+2026-03-28 15:28:27 [INFO] AutoRaiseComplianceIssues: raised 1 new issues
+2026-03-28 15:28:28 [INFO] ValidateTagsCommand: auto-raised 1 BIM compliance issues
+2026-03-28 15:28:43 [INFO] Workflow step 8: Validate ISO 19650 compliance — OK (16.1s)
+2026-03-28 15:28:44 [INFO] BIMManager: saved document_register.json
+2026-03-28 15:28:44 [INFO] Auto-registered export: DOC-0003 — STING_Validation_20260328_152844.csv
+2026-03-28 15:28:55 [INFO] ValidateTemplate: 19/24 passed, critical=0, time=0.1s
+2026-03-28 15:28:55 [INFO] Workflow step 9: Validate data integrity (45 checks) — OK (11.7s)
+2026-03-28 15:28:55 [INFO] Auto-assign: No STING templates found, using 6 project templates.
+2026-03-28 15:28:59 [INFO] Auto-Assign: 11 assigned, 11 existing, 10 no match, 0 skipped
+2026-03-28 15:28:59 [INFO] Workflow step 10: Re-assign templates to new views — OK (3.8s)
+2026-03-28 15:29:01 [INFO] Workflow step 11: Auto-fix template issues — OK (1.9s)
+2026-03-28 15:29:01 [INFO] RevisionEngine: Snapshot 'baseline' saved (2022 elements)
+2026-03-28 15:32:01 [INFO] Workflow step 12: Auto-revision check (score-based) — OK (179.9s)
+2026-03-28 15:32:02 [INFO] Workflow step 13: Tag sheets with ISO 19650 document codes — SKIP (1.4s)
+2026-03-28 15:32:03 [INFO] Workflow 'Daily QA Sync' complete: 6/13 OK, 4 failed, elapsed=502.2s
+2026-03-28 15:32:03 [INFO] RunCommand<WorkflowPresetCommand>: done
+2026-03-28 16:00:52 [INFO] Warning baseline saved: 19 warnings
+2026-03-28 16:00:52 [INFO] DocumentClosing: auto-saved warning baseline
+2026-03-28 16:00:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-28 16:00:56 [INFO] STING Tools shutting down
+2026-03-28 16:00:56 [INFO] StingAutoTagger: unregistered
+2026-03-28 21:12:27 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-28 21:12:27 [WARN] PYREVIT_SCRIPT_MANIFEST: 18 script path(s) not found on disk.
+2026-03-28 21:12:27 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-28 21:12:27 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-28 21:12:27 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-28 21:12:27 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-28 21:12:27 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-28 21:12:27 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-28 21:12:27 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-28 21:12:27 [INFO] ThemeManager: applied 'Light' theme
+2026-03-28 21:12:27 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-28 21:12:27 [INFO] Dockable panel registered successfully
+2026-03-28 21:12:27 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-28 21:12:27 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: read 219063 chars, parsing JSON
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-28 21:12:27 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-28 21:12:27 [INFO] ParamRegistry: supplemented 1808 GUIDs from MR_PARAMETERS.txt
+2026-03-28 21:12:27 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2316 GUIDs
+2026-03-28 21:12:27 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-28 21:12:27 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-28 21:12:27 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-28 21:12:27 [INFO] TagConfig: supplemented 311 additional warning refs from tag config CSVs
+2026-03-28 21:12:27 [INFO] STING Tools dockable panel loaded successfully
+2026-03-29 01:09:57 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-29 01:09:58 [WARN] TagConfig: unknown config key(s) in project_config.json: PROJECT_FOLDER_ROOT — check for typos
+2026-03-29 01:09:58 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-29 01:09:58 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-29 01:09:58 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-29 01:09:58 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-29 01:09:58 [INFO] Morning briefing deferred to first idle/command
+2026-03-29 01:09:58 [WARN] Formula 'CST_S_CON_SAND_VOLUME_CU_M': invalid Dependency_Level '36863979-00ed-54f3-af15-db3364b8316d', defaulting to 0
+2026-03-29 01:09:58 [WARN] Formula 'CST_S_MAS_SAND_VOLUME_CU_M': invalid Dependency_Level '02663996-87e7-56b1-8abf-2e9bc32d777b', defaulting to 0
+2026-03-29 01:09:58 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_PHS_COUNT_NR', defaulting to 0
+2026-03-29 01:09:58 [WARN] Formula 'S2=standard': suspect Discipline value '(DB Panels). S1=compact' — check CSV quoting
+2026-03-29 01:09:58 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_DESIGNATION_NAME_TXT', defaulting to 0
+2026-03-29 01:09:58 [WARN] Formula 'S2=standard': suspect Discipline value '(Points & Sockets). S1=compact' — check CSV quoting
+2026-03-29 01:09:58 [WARN] Formula 'S2=standard': invalid Dependency_Level 'COM_C_NETWORK_ADDRESS_TXT', defaulting to 0
+2026-03-29 01:09:58 [WARN] Formula 'S2=standard': suspect Discipline value '(BMS). S1=compact' — check CSV quoting
+2026-03-29 01:09:58 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ASS_SYSTEM_TYPE_TXT', defaulting to 0
+2026-03-29 01:09:58 [WARN] Formula 'S2=standard': suspect Discipline value '(Lifts/Gen/ATS). S1=compact' — check CSV quoting
+2026-03-29 01:09:58 [WARN] TagPipelineHelper.LoadFormulas: An item with the same key has already been added. Key: S2=standard
+2026-03-29 01:09:58 [INFO] FUT-19: Background pre-warming completed (formulas only — Revit API deferred)
+2026-03-29 01:10:16 [INFO] Tab 7 content loaded (lazy)
+2026-03-29 01:10:25 [INFO] SharedParamGuids.AllCategoryEnums: resolving (first access)
+2026-03-29 01:10:25 [INFO] ResolveUniversalCategoryEnums: resolving 141 categories
+2026-03-29 01:10:25 [INFO] ResolveUniversalCategoryEnums: resolved to 129 BuiltInCategory enums
+2026-03-29 01:10:25 [INFO] SharedParamGuids.AllCategoryEnums: 129 categories resolved
+2026-03-29 01:16:07 [INFO] RunCommand<GenerateDashboardCommand>: start
+2026-03-29 01:16:07 [ERROR] GenerateDashboard: Object reference not set to an instance of an object.
+2026-03-29 01:16:07 [INFO] RunCommand<GenerateDashboardCommand>: done
+2026-03-29 01:16:26 [INFO] RunCommand<WarningsDashboardCommand>: start
+2026-03-29 01:16:42 [INFO] WarningsDashboard: 87 total, 0 fixable, health=0
+2026-03-29 01:16:42 [INFO] RunCommand<WarningsDashboardCommand>: done
+2026-03-29 01:16:52 [INFO] Tab 6 content loaded (lazy)
+2026-03-29 01:18:57 [INFO] RunCommand<ModelDWGToModelCommand>: start
+2026-03-29 01:19:18 [INFO] RunCommand<ModelDWGToModelCommand>: done
+2026-03-29 01:19:22 [INFO] RunCommand<ModelDWGPreviewCommand>: start
+2026-03-29 01:24:44 [INFO] RunCommand<ModelDWGPreviewCommand>: done
+2026-03-29 01:24:49 [INFO] Warning baseline saved: 87 warnings
+2026-03-29 01:24:49 [INFO] DocumentClosing: auto-saved warning baseline
+2026-03-29 01:24:49 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-29 01:24:54 [INFO] STING Tools shutting down
+2026-03-29 01:24:54 [INFO] StingAutoTagger: unregistered

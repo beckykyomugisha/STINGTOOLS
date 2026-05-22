@@ -1,0 +1,17 @@
+ZoneTypeCode,ZoneTypeName,Category,Description,ClassificationCode,RegulatoryDriver,Properties
+ZONE-FIRE-01,Fire Compartment,Fire Safety,Fire compartment zone per BS 9999,SL_90_50_30,BS 9999:2017; RRO 2005,FireRating_mins;CompartmentArea_m2;MaxTravelDistance_m;SprinklerProtected
+ZONE-FIRE-02,Smoke Zone,Fire Safety,Smoke control/ventilation zone,SL_90_50_70,BS EN 12101,SmokeExhaustRate_m3s;MakeUpAirRate_m3s;AoV_m2;ControlType
+ZONE-FIRE-03,Means of Escape,Fire Safety,Protected escape route zone,SL_90_50_30,BS 9999:2017,RouteWidth_mm;MaxOccupants;DischargePoint;Pressurised
+ZONE-HVAC-01,HVAC Zone,Environmental,Heating/cooling/ventilation zone,SL_90_50_40,CIBSE Guide A,HeatingSetpoint_C;CoolingSetpoint_C;VentilationRate_Ls;HumidityRange_pct
+ZONE-HVAC-02,VAV Zone,Environmental,Variable air volume control zone,SL_90_50_40,CIBSE Guide B,MinAirflow_pct;MaxAirflow_pct;ZoneSensorType;DamperActuator
+ZONE-HVAC-03,Underfloor Zone,Environmental,Underfloor heating/cooling zone,SL_90_50_40,CIBSE Guide A,FloorTemp_C;ManifoldRef;LoopCount;FlowRate_Ls
+ZONE-LTG-01,Lighting Zone,Lighting,Lighting control zone,SL_90_50_45,CIBSE LG7;SLL Code,CircuitRef;ControlType;OccupancySensor;DaylightLink;LuxTarget
+ZONE-LTG-02,Emergency Lighting,Lighting,Emergency lighting zone,SL_90_50_45,BS 5266-1:2016,Duration_hr;LuxLevel;Route;TestSchedule
+ZONE-SEC-01,Security Zone,Security,Access-controlled security zone,SL_90_50_65,BS EN 60839,AccessLevel;CardReaderType;InterlockGroup;CCTV_Coverage
+ZONE-SEC-02,Intruder Detection,Security,Intruder alarm zone,SL_90_50_65,BS EN 50131,DetectorTypes;ZoneNumber;ResponseGrade;MonitoringCentre
+ZONE-ACOU-01,Acoustic Zone,Acoustic,Noise/vibration control zone,SL_90_50_05,BB93;BS 8233:2014,NR_Rating;Rw_dB;Ctr_dB;VibrationClass
+ZONE-OCC-01,Occupancy Zone,Management,FM/operational management zone,SL_90_50_55,BIFM,TenantRef;CostCentre;CleaningFreq;WasteStream
+ZONE-OCC-02,Cleaning Zone,Management,Cleaning and housekeeping zone,SL_90_50_55,BIFM,CleaningFrequency;CleaningMethod;ContractRef;FloorArea_m2
+ZONE-ELC-01,Electrical Zone,Electrical,Electrical distribution zone,SL_90_50_25,BS 7671:2018,DistributionBoard;MaxDemand_kW;EarthingSystem;LightningProtection
+ZONE-VENT-01,Ventilation Zone,Ventilation,Dedicated ventilation zone,SL_90_50_40,BB101;ADF,AirChangeRate;CO2Limit_ppm;FreshAirRate_Ls;ExhaustType
+ZONE-WATER-01,Water Zone,Plumbing,Water distribution pressure zone,SL_90_50_90,BS EN 806;HSG 274,PressureRange_bar;BoosterSet;StorageCapacity_L;LegionellaRisk

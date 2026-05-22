@@ -1,0 +1,259 @@
+{
+  "last_sync": "0001-01-01T00:00:00.0000000",
+  "current_sync": "2026-03-20T10:08:47.3251811Z",
+  "changes": [
+    {
+      "file": "cost_estimate_5d.json",
+      "modified": "2026-03-13T19:19:00.3996450Z",
+      "size_bytes": 351,
+      "change_type": "modified"
+    },
+    {
+      "file": "issues.json",
+      "modified": "2026-03-18T13:48:23.4472260Z",
+      "size_bytes": 645,
+      "change_type": "modified"
+    },
+    {
+      "file": "project_bep.json",
+      "modified": "2026-03-14T16:06:34.9098257Z",
+      "size_bytes": 13394,
+      "change_type": "modified"
+    },
+    {
+      "file": "project_dashboard.json",
+      "modified": "2026-03-14T19:41:06.9546636Z",
+      "size_bytes": 529,
+      "change_type": "modified"
+    },
+    {
+      "file": "schedule_4d.json",
+      "modified": "2026-03-20T01:11:03.0229559Z",
+      "size_bytes": 1869,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260313\\COBie_Component.csv",
+      "modified": "2026-03-13T19:05:17.2078283Z",
+      "size_bytes": 214,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260313\\COBie_Contact.csv",
+      "modified": "2026-03-13T19:05:17.2058179Z",
+      "size_bytes": 276,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260313\\COBie_Document.csv",
+      "modified": "2026-03-13T19:05:17.2088259Z",
+      "size_bytes": 318,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260313\\COBie_Facility.csv",
+      "modified": "2026-03-13T19:05:17.2058179Z",
+      "size_bytes": 587,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260313\\COBie_Floor.csv",
+      "modified": "2026-03-13T19:05:17.2058179Z",
+      "size_bytes": 354,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260313\\COBie_Job.csv",
+      "modified": "2026-03-13T19:05:17.2078283Z",
+      "size_bytes": 180,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260313\\COBie_Space.csv",
+      "modified": "2026-03-13T19:05:17.2068445Z",
+      "size_bytes": 171,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260313\\COBie_System.csv",
+      "modified": "2026-03-13T19:05:17.2078283Z",
+      "size_bytes": 129,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260313\\COBie_Type.csv",
+      "modified": "2026-03-13T19:05:17.2078283Z",
+      "size_bytes": 90120,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260313\\COBie_V24_Complete.xlsx",
+      "modified": "2026-03-13T19:05:17.3395582Z",
+      "size_bytes": 67087,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260313\\COBie_Zone.csv",
+      "modified": "2026-03-13T19:05:17.2068445Z",
+      "size_bytes": 125,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Assembly.csv",
+      "modified": "2026-03-20T10:06:21.0666131Z",
+      "size_bytes": 10607,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Attribute.csv",
+      "modified": "2026-03-20T10:06:21.0676135Z",
+      "size_bytes": 165,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Component.csv",
+      "modified": "2026-03-20T10:06:21.0656136Z",
+      "size_bytes": 214,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Connection.csv",
+      "modified": "2026-03-20T10:06:21.0666131Z",
+      "size_bytes": 195,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Contact.csv",
+      "modified": "2026-03-20T10:06:21.0637218Z",
+      "size_bytes": 486,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Coordinate.csv",
+      "modified": "2026-03-20T10:06:21.0676135Z",
+      "size_bytes": 175,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Document.csv",
+      "modified": "2026-03-20T10:06:21.0666131Z",
+      "size_bytes": 318,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Facility.csv",
+      "modified": "2026-03-20T10:06:21.0637218Z",
+      "size_bytes": 587,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Floor.csv",
+      "modified": "2026-03-20T10:06:21.0637218Z",
+      "size_bytes": 354,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Impact.csv",
+      "modified": "2026-03-20T10:06:21.0676135Z",
+      "size_bytes": 13351,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Instruction.csv",
+      "modified": "2026-03-20T10:06:21.0637218Z",
+      "size_bytes": 676,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Issue.csv",
+      "modified": "2026-03-20T10:06:21.0676135Z",
+      "size_bytes": 332,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Job.csv",
+      "modified": "2026-03-20T10:06:21.0666131Z",
+      "size_bytes": 180,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_PickLists.csv",
+      "modified": "2026-03-20T10:06:21.0686122Z",
+      "size_bytes": 16438,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Resource.csv",
+      "modified": "2026-03-20T10:06:21.0676135Z",
+      "size_bytes": 928,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Space.csv",
+      "modified": "2026-03-20T10:06:21.0646238Z",
+      "size_bytes": 171,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Spare.csv",
+      "modified": "2026-03-20T10:06:21.0666131Z",
+      "size_bytes": 160,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_System.csv",
+      "modified": "2026-03-20T10:06:21.0666131Z",
+      "size_bytes": 129,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Type.csv",
+      "modified": "2026-03-20T10:06:21.0656136Z",
+      "size_bytes": 91221,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_V24_Complete.xlsx",
+      "modified": "2026-03-20T10:06:21.2490492Z",
+      "size_bytes": 90254,
+      "change_type": "modified"
+    },
+    {
+      "file": "COBie_V24_20260320\\COBie_Zone.csv",
+      "modified": "2026-03-20T10:06:21.0646238Z",
+      "size_bytes": 125,
+      "change_type": "modified"
+    },
+    {
+      "file": "Revisions\\snapshot_pre_rev_P01_20260319_171540.json",
+      "modified": "2026-03-19T14:15:40.2611308Z",
+      "size_bytes": 362500,
+      "change_type": "modified"
+    },
+    {
+      "file": "SharePoint_20260314\\index.html",
+      "modified": "2026-03-14T11:00:15.0352777Z",
+      "size_bytes": 2792,
+      "change_type": "modified"
+    },
+    {
+      "file": "SharePoint_20260314\\metadata.xml",
+      "modified": "2026-03-14T11:00:15.0491119Z",
+      "size_bytes": 706,
+      "change_type": "modified"
+    },
+    {
+      "file": "SharePoint_20260314\\02_SHARED\\project_dashboard.json",
+      "modified": "2026-03-14T08:10:06.6770129Z",
+      "size_bytes": 529,
+      "change_type": "modified"
+    },
+    {
+      "file": "SharePoint_20260314\\05_BEP\\project_bep.json",
+      "modified": "2026-03-14T07:20:12.3101248Z",
+      "size_bytes": 13394,
+      "change_type": "modified"
+    }
+  ],
+  "total_changes": 42
+}

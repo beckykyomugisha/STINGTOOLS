@@ -3092,7 +3092,7 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 
 ### Branching
 
-- The default branch is `main`
+- The default branch is `master`
 - Feature branches: `feature/<description>` or `claude/<session-id>`
 - Always create feature branches from the latest `main`
 - Never commit directly to local `main` — branch off it, PR back. Direct

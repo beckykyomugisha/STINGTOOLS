@@ -1,0 +1,795 @@
+2026-03-30 10:16:58 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-30 10:16:58 [WARN] PYREVIT_SCRIPT_MANIFEST: 18 script path(s) not found on disk.
+2026-03-30 10:16:58 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-30 10:16:58 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-30 10:16:58 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-30 10:16:58 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-30 10:16:58 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-30 10:16:58 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-30 10:16:58 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-30 10:16:58 [INFO] ThemeManager: applied 'Light' theme
+2026-03-30 10:16:58 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-30 10:16:58 [INFO] Dockable panel registered successfully
+2026-03-30 10:16:58 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-30 10:16:58 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: read 219063 chars, parsing JSON
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-30 10:16:58 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-30 10:16:58 [INFO] ParamRegistry: supplemented 1808 GUIDs from MR_PARAMETERS.txt
+2026-03-30 10:16:58 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2316 GUIDs
+2026-03-30 10:16:58 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-30 10:16:58 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-30 10:16:58 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-30 10:16:58 [INFO] TagConfig: supplemented 311 additional warning refs from tag config CSVs
+2026-03-30 10:16:58 [INFO] STING Tools dockable panel loaded successfully
+2026-03-30 10:21:20 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 10:21:20 [WARN] TagConfig: unknown config key(s) in project_config.json: PROJECT_FOLDER_ROOT — check for typos
+2026-03-30 10:21:20 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-30 10:21:20 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-30 10:21:20 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-30 10:21:20 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-30 10:21:20 [INFO] Morning briefing deferred to first idle/command
+2026-03-30 10:21:20 [WARN] Formula 'CST_S_CON_SAND_VOLUME_CU_M': invalid Dependency_Level '36863979-00ed-54f3-af15-db3364b8316d', defaulting to 0
+2026-03-30 10:21:20 [WARN] Formula 'CST_S_MAS_SAND_VOLUME_CU_M': invalid Dependency_Level '02663996-87e7-56b1-8abf-2e9bc32d777b', defaulting to 0
+2026-03-30 10:21:20 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_PHS_COUNT_NR', defaulting to 0
+2026-03-30 10:21:20 [WARN] Formula 'S2=standard': suspect Discipline value '(DB Panels). S1=compact' — check CSV quoting
+2026-03-30 10:21:20 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_DESIGNATION_NAME_TXT', defaulting to 0
+2026-03-30 10:21:20 [WARN] Formula 'S2=standard': suspect Discipline value '(Points & Sockets). S1=compact' — check CSV quoting
+2026-03-30 10:21:20 [WARN] Formula 'S2=standard': invalid Dependency_Level 'COM_C_NETWORK_ADDRESS_TXT', defaulting to 0
+2026-03-30 10:21:20 [WARN] Formula 'S2=standard': suspect Discipline value '(BMS). S1=compact' — check CSV quoting
+2026-03-30 10:21:20 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ASS_SYSTEM_TYPE_TXT', defaulting to 0
+2026-03-30 10:21:20 [WARN] Formula 'S2=standard': suspect Discipline value '(Lifts/Gen/ATS). S1=compact' — check CSV quoting
+2026-03-30 10:21:20 [WARN] TagPipelineHelper.LoadFormulas: An item with the same key has already been added. Key: S2=standard
+2026-03-30 10:21:20 [INFO] FUT-19: Background pre-warming completed (formulas only — Revit API deferred)
+2026-03-30 10:21:39 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 10:25:23 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 10:25:23 [WARN] TagConfig: unknown config key(s) in project_config.json: PROJECT_FOLDER_ROOT — check for typos
+2026-03-30 10:25:23 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-30 10:25:23 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-30 10:25:23 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-30 10:25:23 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-30 10:25:23 [WARN] Formula 'CST_S_CON_SAND_VOLUME_CU_M': invalid Dependency_Level '36863979-00ed-54f3-af15-db3364b8316d', defaulting to 0
+2026-03-30 10:25:23 [WARN] Formula 'CST_S_MAS_SAND_VOLUME_CU_M': invalid Dependency_Level '02663996-87e7-56b1-8abf-2e9bc32d777b', defaulting to 0
+2026-03-30 10:25:23 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_PHS_COUNT_NR', defaulting to 0
+2026-03-30 10:25:23 [WARN] Formula 'S2=standard': suspect Discipline value '(DB Panels). S1=compact' — check CSV quoting
+2026-03-30 10:25:23 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_DESIGNATION_NAME_TXT', defaulting to 0
+2026-03-30 10:25:23 [WARN] Formula 'S2=standard': suspect Discipline value '(Points & Sockets). S1=compact' — check CSV quoting
+2026-03-30 10:25:23 [WARN] Formula 'S2=standard': invalid Dependency_Level 'COM_C_NETWORK_ADDRESS_TXT', defaulting to 0
+2026-03-30 10:25:23 [WARN] Formula 'S2=standard': suspect Discipline value '(BMS). S1=compact' — check CSV quoting
+2026-03-30 10:25:23 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ASS_SYSTEM_TYPE_TXT', defaulting to 0
+2026-03-30 10:25:23 [WARN] Formula 'S2=standard': suspect Discipline value '(Lifts/Gen/ATS). S1=compact' — check CSV quoting
+2026-03-30 10:25:23 [WARN] TagPipelineHelper.LoadFormulas: An item with the same key has already been added. Key: S2=standard
+2026-03-30 10:25:23 [INFO] FUT-19: Background pre-warming completed (formulas only — Revit API deferred)
+2026-03-30 10:40:12 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 10:40:13 [WARN] TagConfig: unknown config key(s) in project_config.json: PROJECT_FOLDER_ROOT — check for typos
+2026-03-30 10:40:13 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-30 10:40:13 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-30 10:40:13 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-30 10:40:13 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-30 10:40:13 [WARN] Formula 'CST_S_CON_SAND_VOLUME_CU_M': invalid Dependency_Level '36863979-00ed-54f3-af15-db3364b8316d', defaulting to 0
+2026-03-30 10:40:13 [WARN] Formula 'CST_S_MAS_SAND_VOLUME_CU_M': invalid Dependency_Level '02663996-87e7-56b1-8abf-2e9bc32d777b', defaulting to 0
+2026-03-30 10:40:13 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_PHS_COUNT_NR', defaulting to 0
+2026-03-30 10:40:13 [WARN] Formula 'S2=standard': suspect Discipline value '(DB Panels). S1=compact' — check CSV quoting
+2026-03-30 10:40:13 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_DESIGNATION_NAME_TXT', defaulting to 0
+2026-03-30 10:40:13 [WARN] Formula 'S2=standard': suspect Discipline value '(Points & Sockets). S1=compact' — check CSV quoting
+2026-03-30 10:40:13 [WARN] Formula 'S2=standard': invalid Dependency_Level 'COM_C_NETWORK_ADDRESS_TXT', defaulting to 0
+2026-03-30 10:40:13 [WARN] Formula 'S2=standard': suspect Discipline value '(BMS). S1=compact' — check CSV quoting
+2026-03-30 10:40:13 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ASS_SYSTEM_TYPE_TXT', defaulting to 0
+2026-03-30 10:40:13 [WARN] Formula 'S2=standard': suspect Discipline value '(Lifts/Gen/ATS). S1=compact' — check CSV quoting
+2026-03-30 10:40:13 [WARN] TagPipelineHelper.LoadFormulas: An item with the same key has already been added. Key: S2=standard
+2026-03-30 10:40:13 [INFO] FUT-19: Background pre-warming completed (formulas only — Revit API deferred)
+2026-03-30 12:27:30 [INFO] Tab 7 content loaded (lazy)
+2026-03-30 12:27:41 [INFO] SharedParamGuids.AllCategoryEnums: resolving (first access)
+2026-03-30 12:27:41 [INFO] ResolveUniversalCategoryEnums: resolving 141 categories
+2026-03-30 12:27:41 [INFO] ResolveUniversalCategoryEnums: resolved to 129 BuiltInCategory enums
+2026-03-30 12:27:41 [INFO] SharedParamGuids.AllCategoryEnums: 129 categories resolved
+2026-03-30 14:22:35 [INFO] Tab 2 content loaded (lazy)
+2026-03-30 15:37:02 [INFO] Tab 3 content loaded (lazy)
+2026-03-30 15:37:06 [INFO] Tab 6 content loaded (lazy)
+2026-03-30 15:37:17 [INFO] RunCommand<StrCADWizardCommand>: start
+2026-03-30 15:43:34 [INFO] RunCommand<StrCADWizardCommand>: done
+2026-03-30 17:01:35 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:01:43 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:04:54 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:05:10 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:05:18 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:05:30 [INFO] Warning baseline saved: 0 warnings
+2026-03-30 17:05:30 [INFO] DocumentClosing: auto-saved warning baseline
+2026-03-30 17:05:30 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-30 17:05:30 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:05:40 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:05:42 [INFO] Warning baseline saved: 0 warnings
+2026-03-30 17:05:42 [INFO] DocumentClosing: auto-saved warning baseline
+2026-03-30 17:05:42 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-30 17:05:43 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:05:57 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:06:08 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-30 17:06:09 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:06:35 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:06:35 [WARN] TagConfig: unknown config key(s) in project_config.json: PROJECT_FOLDER_ROOT — check for typos
+2026-03-30 17:06:35 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-30 17:06:35 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-30 17:06:35 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-30 17:06:35 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-30 17:06:35 [WARN] Formula 'CST_S_CON_SAND_VOLUME_CU_M': invalid Dependency_Level '36863979-00ed-54f3-af15-db3364b8316d', defaulting to 0
+2026-03-30 17:06:35 [WARN] Formula 'CST_S_MAS_SAND_VOLUME_CU_M': invalid Dependency_Level '02663996-87e7-56b1-8abf-2e9bc32d777b', defaulting to 0
+2026-03-30 17:06:35 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_PHS_COUNT_NR', defaulting to 0
+2026-03-30 17:06:35 [WARN] Formula 'S2=standard': suspect Discipline value '(DB Panels). S1=compact' — check CSV quoting
+2026-03-30 17:06:35 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_DESIGNATION_NAME_TXT', defaulting to 0
+2026-03-30 17:06:35 [WARN] Formula 'S2=standard': suspect Discipline value '(Points & Sockets). S1=compact' — check CSV quoting
+2026-03-30 17:06:35 [WARN] Formula 'S2=standard': invalid Dependency_Level 'COM_C_NETWORK_ADDRESS_TXT', defaulting to 0
+2026-03-30 17:06:35 [WARN] Formula 'S2=standard': suspect Discipline value '(BMS). S1=compact' — check CSV quoting
+2026-03-30 17:06:35 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ASS_SYSTEM_TYPE_TXT', defaulting to 0
+2026-03-30 17:06:35 [WARN] Formula 'S2=standard': suspect Discipline value '(Lifts/Gen/ATS). S1=compact' — check CSV quoting
+2026-03-30 17:06:35 [WARN] TagPipelineHelper.LoadFormulas: An item with the same key has already been added. Key: S2=standard
+2026-03-30 17:06:35 [INFO] FUT-19: Background pre-warming completed (formulas only — Revit API deferred)
+2026-03-30 17:07:20 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 17:08:31 [INFO] RunCommand<CreateParametersCommand>: start
+2026-03-30 17:08:31 [INFO] LoadSharedParams: step 1 — locating MR_PARAMETERS.txt
+2026-03-30 17:08:31 [INFO] Set shared parameter file: C:\Dev\STINGTOOLS\CompiledPlugin\data\MR_PARAMETERS.txt
+2026-03-30 17:08:31 [INFO] LoadSharedParams: step 2 — opening definition file
+2026-03-30 17:08:31 [INFO] LoadSharedParams: 2316 definitions in 18 groups
+2026-03-30 17:08:31 [INFO] LoadSharedParams: step 3 — scanning existing bindings
+2026-03-30 17:08:31 [INFO] Pre-scan: 14 parameters already bound
+2026-03-30 17:08:31 [INFO] To bind: 2316, already bound: 0
+2026-03-30 17:08:31 [INFO] LoadSharedParams: step 4 — building category sets
+2026-03-30 17:08:31 [INFO] BuildCategorySet: 123/129 categories resolved
+2026-03-30 17:08:31 [INFO] Core CategorySet: 120 categories
+2026-03-30 17:08:31 [INFO] Binding 2316 params across 18 groups
+2026-03-30 17:08:31 [INFO] Group [1/18] 'ASS_MNG': 175 params → 120 categories
+2026-03-30 17:08:42 [INFO]   → committed: 175 bound, 0 skipped
+2026-03-30 17:08:42 [INFO] Group [2/18] 'CST_PROC': 227 params → 120 categories
+2026-03-30 17:09:28 [INFO]   → committed: 227 bound, 0 skipped
+2026-03-30 17:09:28 [INFO] Group [3/18] 'COM_DAT': 194 params → 120 categories
+2026-03-30 17:10:53 [INFO]   → committed: 194 bound, 0 skipped
+2026-03-30 17:10:53 [INFO] Group [4/18] 'ELC_PWR': 117 params → 26 categories
+2026-03-30 17:12:03 [INFO]   → committed: 117 bound, 0 skipped
+2026-03-30 17:12:03 [INFO] Group [5/18] 'HVC_SYSTEMS': 93 params → 26 categories
+2026-03-30 17:12:51 [INFO]   → committed: 93 bound, 0 skipped
+2026-03-30 17:12:51 [INFO] Group [6/18] 'PLM_DRN': 128 params → 26 categories
+2026-03-30 17:14:03 [INFO]   → committed: 128 bound, 0 skipped
+2026-03-30 17:14:03 [INFO] Group [7/18] 'LTG_CONTROLS': 24 params → 26 categories
+2026-03-30 17:14:17 [INFO]   → committed: 24 bound, 0 skipped
+2026-03-30 17:14:17 [INFO] Group [8/18] 'FLS_LIFE_SFTY': 55 params → 26 categories
+2026-03-30 17:14:51 [INFO]   → committed: 55 bound, 0 skipped
+2026-03-30 17:14:51 [INFO] Group [9/18] 'PER_SUST': 96 params → 120 categories
+2026-03-30 17:15:53 [INFO]   → committed: 96 bound, 0 skipped
+2026-03-30 17:15:53 [INFO] Group [10/18] 'BLE_ELES': 147 params → 20 categories
+2026-03-30 17:17:33 [INFO]   → committed: 147 bound, 0 skipped
+2026-03-30 17:17:33 [INFO] Group [11/18] 'TPL_TRACKING': 175 params → 120 categories
+2026-03-30 17:19:53 [INFO]   → committed: 175 bound, 0 skipped
+2026-03-30 17:19:53 [INFO] Group [12/18] 'MAT_INFO': 48 params → 1 categories
+2026-03-30 17:20:35 [INFO]   → committed: 48 bound, 0 skipped
+2026-03-30 17:20:35 [INFO] Group [13/18] 'PRJ_INFORMATION': 53 params → 120 categories
+2026-03-30 17:21:25 [INFO]   → committed: 53 bound, 0 skipped
+2026-03-30 17:21:25 [INFO] Group [14/18] 'PROP_PHYSICAL': 13 params → 1 categories
+2026-03-30 17:21:38 [INFO]   → committed: 13 bound, 0 skipped
+2026-03-30 17:21:38 [INFO] Group [15/18] 'RGL_CMPL': 82 params → 120 categories
+2026-03-30 17:22:57 [INFO]   → committed: 82 bound, 0 skipped
+2026-03-30 17:22:57 [INFO] Group [16/18] 'BLE_STRUCTURE': 141 params → 20 categories
+2026-03-30 17:25:26 [INFO]   → committed: 141 bound, 0 skipped
+2026-03-30 17:25:26 [INFO] Group [17/18] 'STINGTags_ISO19650': 547 params → 120 categories
+2026-03-30 17:38:04 [INFO]   → committed: 547 bound, 0 skipped
+2026-03-30 17:38:04 [INFO] Group [18/18] 'WARN_THRESHOLDS': 1 params → 120 categories
+2026-03-30 17:38:07 [INFO]   → committed: 1 bound, 0 skipped
+2026-03-30 17:39:13 [INFO] LoadSharedParams complete: 2316 bound, 0 already present, 0 skipped
+2026-03-30 17:39:13 [INFO] RunCommand<CreateParametersCommand>: done
+2026-03-30 17:41:23 [INFO] RunCommand<CreateBLEMaterialsCommand>: start
+2026-03-30 17:41:23 [INFO] STING Tools - Create BLE Materials: 815 materials to create in batches of 50 (skipping 0 existing)
+2026-03-30 17:41:23 [WARN] Material parameter 'Keywords' not found on 'GYPSUM BOARD STANDARD 9.5MM' — run Load Shared Parameters first to bind parameters to the Material category
+2026-03-30 17:41:23 [WARN] Material parameter 'MAT_COST_UNIT_USD' not found on 'GYPSUM BOARD STANDARD 9.5MM' — run Load Shared Parameters first to bind parameters to the Material category
+2026-03-30 17:41:23 [WARN] Material parameter 'MAT_COST_UNIT_UGX' not found on 'GYPSUM BOARD STANDARD 9.5MM' — run Load Shared Parameters first to bind parameters to the Material category
+2026-03-30 17:41:23 [WARN] Material parameter 'MAT_COST_ASSEMBLY_USD' not found on 'GYPSUM BOARD STANDARD 9.5MM' — run Load Shared Parameters first to bind parameters to the Material category
+2026-03-30 17:41:23 [WARN] Material parameter 'MAT_COST_ASSEMBLY_UGX' not found on 'GYPSUM BOARD STANDARD 9.5MM' — run Load Shared Parameters first to bind parameters to the Material category
+2026-03-30 17:41:27 [INFO] STING Tools - Create BLE Materials: batch 1 committed (50 created so far)
+2026-03-30 17:41:32 [INFO] STING Tools - Create BLE Materials: batch 2 committed (100 created so far)
+2026-03-30 17:41:36 [INFO] STING Tools - Create BLE Materials: batch 3 committed (150 created so far)
+2026-03-30 17:41:41 [INFO] STING Tools - Create BLE Materials: batch 4 committed (200 created so far)
+2026-03-30 17:41:46 [INFO] STING Tools - Create BLE Materials: batch 5 committed (250 created so far)
+2026-03-30 17:41:50 [INFO] STING Tools - Create BLE Materials: batch 6 committed (300 created so far)
+2026-03-30 17:41:55 [INFO] STING Tools - Create BLE Materials: batch 7 committed (350 created so far)
+2026-03-30 17:42:00 [INFO] STING Tools - Create BLE Materials: batch 8 committed (400 created so far)
+2026-03-30 17:42:04 [INFO] STING Tools - Create BLE Materials: batch 9 committed (450 created so far)
+2026-03-30 17:42:08 [INFO] STING Tools - Create BLE Materials: batch 10 committed (500 created so far)
+2026-03-30 17:42:09 [INFO] STING Tools - Create BLE Materials: batch 11 committed (550 created so far)
+2026-03-30 17:42:11 [INFO] STING Tools - Create BLE Materials: batch 12 committed (600 created so far)
+2026-03-30 17:42:13 [INFO] STING Tools - Create BLE Materials: batch 13 committed (650 created so far)
+2026-03-30 17:42:15 [INFO] STING Tools - Create BLE Materials: batch 14 committed (700 created so far)
+2026-03-30 17:42:17 [INFO] STING Tools - Create BLE Materials: batch 15 committed (750 created so far)
+2026-03-30 17:42:18 [INFO] STING Tools - Create BLE Materials: batch 16 committed (800 created so far)
+2026-03-30 17:42:19 [INFO] STING Tools - Create BLE Materials: batch 17 committed (815 created so far)
+2026-03-30 17:42:33 [INFO] STING Tools - Create BLE Materials: Created 815 materials. |   Duplicated from base: 489 |   Created blank: 326 | Skipped 0 (already exist). | Source: BLE_MATERIALS.csv (815 rows)
+2026-03-30 17:42:33 [INFO] RunCommand<CreateBLEMaterialsCommand>: done
+2026-03-30 17:47:27 [INFO] RunCommand<CreateMEPMaterialsCommand>: start
+2026-03-30 17:47:28 [INFO] STING Tools - Create MEP Materials: 464 materials to create in batches of 50 (skipping 0 existing)
+2026-03-30 17:47:28 [WARN] Suppressed: The given value for name is already in use as an appearance asset name.
+Parameter name: name
+2026-03-30 17:47:28 [WARN] Material parameter 'Keywords' not found on 'LADDER CABLE TRAY 300MM X 1.5MM' — run Load Shared Parameters first to bind parameters to the Material category
+2026-03-30 17:47:28 [WARN] Material parameter 'MAT_COST_UNIT_USD' not found on 'LADDER CABLE TRAY 300MM X 1.5MM' — run Load Shared Parameters first to bind parameters to the Material category
+2026-03-30 17:47:28 [WARN] Material parameter 'MAT_COST_UNIT_UGX' not found on 'LADDER CABLE TRAY 300MM X 1.5MM' — run Load Shared Parameters first to bind parameters to the Material category
+2026-03-30 17:47:28 [WARN] Material parameter 'MAT_COST_ASSEMBLY_USD' not found on 'LADDER CABLE TRAY 300MM X 1.5MM' — run Load Shared Parameters first to bind parameters to the Material category
+2026-03-30 17:47:28 [WARN] Material parameter 'MAT_COST_ASSEMBLY_UGX' not found on 'LADDER CABLE TRAY 300MM X 1.5MM' — run Load Shared Parameters first to bind parameters to the Material category
+2026-03-30 17:47:28 [WARN] Suppressed: The given value for name is already in use as an appearance asset name.
+Parameter name: name
+2026-03-30 17:47:29 [WARN] Suppressed: The given value for name is already in use as an appearance asset name.
+Parameter name: name
+2026-03-30 17:47:29 [WARN] Suppressed: The given value for name is already in use as an appearance asset name.
+Parameter name: name
+2026-03-30 17:47:32 [INFO] STING Tools - Create MEP Materials: batch 1 committed (50 created so far)
+2026-03-30 17:47:34 [WARN] Suppressed: The given value for name is already in use as an appearance asset name.
+Parameter name: name
+2026-03-30 17:47:37 [INFO] STING Tools - Create MEP Materials: batch 2 committed (100 created so far)
+2026-03-30 17:47:41 [INFO] STING Tools - Create MEP Materials: batch 3 committed (150 created so far)
+2026-03-30 17:47:42 [WARN] Suppressed: The given value for name is already in use as an appearance asset name.
+Parameter name: name
+2026-03-30 17:47:46 [INFO] STING Tools - Create MEP Materials: batch 4 committed (200 created so far)
+2026-03-30 17:47:46 [WARN] Suppressed: The given value for name is already in use as an appearance asset name.
+Parameter name: name
+2026-03-30 17:47:46 [WARN] Suppressed: The given value for name is already in use as an appearance asset name.
+Parameter name: name
+2026-03-30 17:47:50 [WARN] Suppressed: The given value for name is already in use as an appearance asset name.
+Parameter name: name
+2026-03-30 17:47:50 [INFO] STING Tools - Create MEP Materials: batch 5 committed (250 created so far)
+2026-03-30 17:47:50 [WARN] Suppressed: The given value for name is already in use as an appearance asset name.
+Parameter name: name
+2026-03-30 17:47:55 [INFO] STING Tools - Create MEP Materials: batch 6 committed (300 created so far)
+2026-03-30 17:47:59 [INFO] STING Tools - Create MEP Materials: batch 7 committed (350 created so far)
+2026-03-30 17:48:01 [INFO] STING Tools - Create MEP Materials: batch 8 committed (400 created so far)
+2026-03-30 17:48:03 [INFO] STING Tools - Create MEP Materials: batch 9 committed (450 created so far)
+2026-03-30 17:48:03 [INFO] STING Tools - Create MEP Materials: batch 10 committed (464 created so far)
+2026-03-30 17:49:52 [INFO] STING Tools - Create MEP Materials: Created 464 materials. |   Duplicated from base: 344 |   Created blank: 120 | Skipped 0 (already exist). | Source: MEP_MATERIALS.csv (464 rows)
+2026-03-30 17:49:52 [INFO] RunCommand<CreateMEPMaterialsCommand>: done
+2026-03-30 17:51:54 [INFO] RunCommand<CreateWallsCommand>: start
+2026-03-30 17:51:55 [WARN] Type create failed: STING - DPC POLYTHENE 1000 GAUGE: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:51:55 [WARN] Type create failed: STING - DPC POLYTHENE 1200 GAUGE: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:51:55 [WARN] Type create failed: STING - BASEMENT WALL: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:10 [INFO] RunCommand<CreateWallsCommand>: done
+2026-03-30 17:53:33 [INFO] RunCommand<CreateFloorsCommand>: start
+2026-03-30 17:53:33 [WARN] Floor 'STING - STANDARD CEMENT SCREED 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:33 [WARN] Floor 'STING - HEAVY DUTY CEMENT SCREED 75MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:33 [WARN] Floor 'STING - POLISHED CEMENT SCREED 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:33 [WARN] Floor 'STING - GRANOLITHIC SCREED 40MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:33 [WARN] Floor 'STING - LIGHTWEIGHT SCREED 40MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:33 [WARN] Floor 'STING - FLOWING SELF-LEVELING SCREED 35MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:33 [WARN] Floor 'STING - FAST DRYING SCREED 30MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:33 [WARN] Floor 'STING - SELF LEVELING COMPOUND 5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:33 [WARN] Floor 'STING - HOMOGENEOUS VINYL TILES 2MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:33 [WARN] Floor 'STING - LUXURY VINYL TILE 5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:33 [WARN] Floor 'STING - SHEET VINYL 2MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:33 [WARN] Floor 'STING - STONE PLASTIC COMPOSITE 5MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:33 [WARN] Floor 'STING - SAFETY VINYL 3MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - CERAMIC TILES 200X200MM 8MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - CERAMIC TILES 300X300MM 10MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - PORCELAIN TILES 600X600MM 10MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - PORCELAIN TILES 600X1200MM 12MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - PORCELAIN SLABS 800X1600MM 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - VITRIFIED TILES 600X600MM 10MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - GRANITE TILES 20MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - MARBLE TILES 20MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - SLATE TILES 12MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - LIMESTONE TILES 20MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - TRAVERTINE TILES 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - LAMINATE FLOORING 8MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:34 [WARN] Floor 'STING - ENGINEERED WOOD 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:34 [WARN] Floor 'STING - SOLID HARDWOOD 18MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:34 [WARN] Floor 'STING - SOLID BAMBOO 14MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:34 [WARN] Floor 'STING - HERRINGBONE PARQUET 15MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:34 [WARN] Floor 'STING - CHEVRON PARQUET 15MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:35 [WARN] Floor 'STING - CAST IN-SITU TERRAZZO 30MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - TERRAZZO TILES 20MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - EPOXY TERRAZZO 12MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:35 [WARN] Floor 'STING - CONCRETE PAVER 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - CONCRETE PAVER 60MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - CONCRETE PAVER 80MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - CONCRETE PAVER 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - STANDARD INTERLOCKING PAVER 60MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - ZIG-ZAG INTERLOCKING PAVER 60MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - HEAVY DUTY INTERLOCKING 80MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - PERMEABLE INTERLOCKING 80MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - GRASS GRID PAVER 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - SMALL COBBLESTONE 80MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - MEDIUM COBBLESTONE 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - LARGE COBBLESTONE 120MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - EXTRA LARGE COBBLESTONE 150MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:35 [WARN] Floor 'STING - GRANITE COBBLESTONE 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - RECLAIMED GRANITE SETTS 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - CLAY BLOCK PAVING 60MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - HEAVY DUTY BLOCK PAVING 80MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - INDUSTRIAL BLOCK PAVING 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - HERRINGBONE BLOCK PAVING 65MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - CLAY BRICK PAVER 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - CLAY BRICK PAVER 65MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - HEAVY DUTY BRICK PAVER 80MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - ENGINEERING BRICK PAVER 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - GRANITE PAVING 30MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - GRANITE PAVING 40MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - GRANITE PAVING 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - SANDSTONE PAVING 40MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - LIMESTONE PAVING 40MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - SLATE PAVING 25MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - BLUESTONE PAVING 40MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - SANDSTONE FLAGSTONE 40MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:36 [WARN] Floor 'STING - LIMESTONE FLAGSTONE 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - CRAZY PAVING 40MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - CARPET TILE 6MM 500X500MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - BROADLOOM CARPET 8MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - LOOP PILE CARPET 7MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - LUXURY CUT PILE 10MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - RUBBER SHEET 3MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - RUBBER TILE 6MM 500X500MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - STUDDED RUBBER 8MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - SAFETY RUBBER 10MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - SELF-LEVELING EPOXY 3MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:37 [WARN] Floor 'STING - ANTI-SLIP EPOXY 5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - PU RESIN FLOOR 4MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:37 [WARN] Floor 'STING - MMA RESIN 6MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:37 [WARN] Floor 'STING - ANTI-STATIC FLOOR 5MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:37 [WARN] Floor 'STING - POLISHED CONCRETE 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - EXPOSED AGGREGATE POLISHED 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:37 [WARN] Floor 'STING - MICROCEMENT 3MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:38 [WARN] Floor 'STING - MICROCEMENT HEAVY DUTY 5MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:38 [WARN] Floor 'STING - CORK TILE 6MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:38 [WARN] Floor 'STING - LINOLEUM SHEET 2.5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:38 [WARN] Floor 'STING - PU SPORTS FLOOR 8MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:38 [WARN] Floor 'STING - WOODEN SPORTS FLOOR 22MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:53:38 [WARN] Floor 'STING - STANDARD ACCESS FLOOR 150MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:38 [WARN] Floor 'STING - LOW PROFILE ACCESS FLOOR 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:38 [WARN] Floor 'STING - GLASS MOSAIC 6MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:38 [WARN] Floor 'STING - CERAMIC MOSAIC 6MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:38 [WARN] Floor 'STING - STAMPED CONCRETE 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:38 [WARN] Floor 'STING - EXPOSED AGGREGATE 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:38 [WARN] Floor 'STING - HARDWOOD DECKING 25MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:53:38 [WARN] Floor 'STING - COMPOSITE DECKING 25MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:54:11 [INFO] RunCommand<CreateFloorsCommand>: done
+2026-03-30 17:57:35 [INFO] RunCommand<CreateCeilingsCommand>: start
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - GYPSUM BOARD STANDARD 9.5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - GYPSUM BOARD STANDARD 12.5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - GYPSUM BOARD STANDARD 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - FIRE-RATED GYPSUM TYPE X 12.5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - FIRE-RATED GYPSUM TYPE X 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - MOISTURE RESISTANT GYPSUM 12.5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - MOISTURE RESISTANT GYPSUM 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - MOLD RESISTANT GYPSUM 12.5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - IMPACT RESISTANT GYPSUM 12.5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - ACOUSTIC GYPSUM BOARD 12.5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - ACOUSTIC GYPSUM BOARD 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - THERMAL GYPSUM BOARD 12.5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - FLEXIBLE GYPSUM BOARD 6MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - BLUE BOARD GYPSUM 12.5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - FOIL BACKED GYPSUM 12.5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - CEMENT PLASTER FINISH 12MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - CEMENT PLASTER HEAVY 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - GYPSUM PLASTER SMOOTH 10MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - GYPSUM PLASTER STANDARD 12MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - LIME PLASTER TRADITIONAL 12MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - VENETIAN PLASTER 3MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - ACOUSTIC PLASTER 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - SKIM COAT PLASTER 2MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - MINERAL FIBER TILE 15MM 600X600' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - MINERAL FIBER TILE 19MM 600X600' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - MINERAL FIBER TILE 25MM 600X600' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - FIBERGLASS ACOUSTIC TILE 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - FIBERGLASS ACOUSTIC TILE 20MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - WOOD FIBER ACOUSTIC TILE 25MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - PERFORATED METAL ACOUSTIC 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:35 [WARN] Ceiling 'STING - FABRIC WRAPPED PANEL 25MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - FABRIC WRAPPED PANEL 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - ACOUSTIC BAFFLES 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - ACOUSTIC CLOUDS 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - METAL GRID ACOUSTIC 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - ALUMINUM PAN CEILING 0.5MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - ALUMINUM STRIP CEILING 0.7MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - ALUMINUM PLANK CEILING 0.7MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - STEEL CEILING TILE 0.6MM 600X600' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - PERFORATED ALUMINUM PANEL 0.7MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - EXPANDED METAL MESH CEILING 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - METAL BAFFLE CEILING 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - OPEN METAL GRID CEILING 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - METAL CASSETTE CEILING 0.7MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - CLIP-IN METAL PANEL 0.6MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - PVC CEILING PANEL 10MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - PVC TONGUE & GROOVE 8MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - PVC LAMINATED PANEL 8MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - PVC STRETCH CEILING 0.2MM' compound structure failed: One or more layers is not valid.
+Parameter name: layers
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - TRANSLUCENT PVC PANEL 10MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - TIMBER BOARD CEILING 12MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - TIMBER T&G CEILING 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - TIMBER PLANK CEILING 20MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - WOOD VENEER PANEL 6MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - TIMBER SLAT CEILING 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - TIMBER BAFFLE CEILING 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - ACOUSTIC TIMBER PANEL 25MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - PLYWOOD CEILING PANEL 9MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - MDF CEILING PANEL 12MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - HARDBOARD CEILING PANEL 3MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - EXPOSED T-GRID 25MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - EXPOSED T-GRID 38MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - CONCEALED SPLINE GRID 15MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - CONCEALED EDGE GRID 20MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - SEISMIC RATED GRID 25MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - HEAVY DUTY GRID 40MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - CEILING HANGER WIRE 4MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - CEILING HANGER ROD 6MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - FIBER CEMENT CEILING 6MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - FIBER CEMENT CEILING 9MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - CALCIUM SILICATE BOARD 10MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - GRP CEILING PANEL 12MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - TRANSLUCENT CEILING PANEL 10MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:36 [WARN] Ceiling 'STING - MIRROR CEILING PANEL 4MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:37 [WARN] Ceiling 'STING - GLASS CEILING PANEL 10MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:37 [WARN] Ceiling 'STING - METAL COMPOSITE PANEL 4MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:37 [WARN] Ceiling 'STING - FABRIC CEILING SYSTEM 1MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:37 [WARN] Ceiling 'STING - CLOUD CEILING PANEL 50MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:37 [WARN] Ceiling 'STING - FIBERGLASS BATT 100MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:37 [WARN] Ceiling 'STING - FOAM BOARD INSULATION 25MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:57:37 [WARN] Ceiling 'STING - REFLECTIVE FOIL INSULATION 5MM' compound structure failed: Input compound structure has wrong EndCap condition for this element type.
+Parameter name: srcStructure
+2026-03-30 17:58:00 [INFO] RunCommand<CreateCeilingsCommand>: done
+2026-03-30 18:11:38 [WARN] Unrecognised command tag: CreateBatch
+2026-03-30 18:13:11 [INFO] RunCommand<CreateMaterialSchedulesCommand>: start
+2026-03-30 18:13:15 [INFO] RunCommand<CreateMaterialSchedulesCommand>: done
+2026-03-30 18:13:33 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 18:13:38 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 18:13:57 [INFO] RunCommand<BatchSchedulesCommand>: start
+2026-03-30 18:13:57 [INFO] Loaded 108 field remaps from SCHEDULE_FIELD_REMAP.csv
+2026-03-30 18:14:36 [WARN] Schedule field 'Discipline: Ascending; Category: Ascending' not found for sort/group/filter.
+2026-03-30 18:14:36 [WARN] Schedule field 'N/A' not found for sort/group/filter.
+2026-03-30 18:14:36 [INFO] Created view filter: Cable Tray (2 categories)
+2026-03-30 18:14:38 [INFO] RunCommand<BatchSchedulesCommand>: done
+2026-03-30 18:15:08 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 18:22:13 [INFO] RunCommand<TemplateSetupWizardCommand>: start
+2026-03-30 18:22:33 [INFO] RunCommand<TemplateSetupWizardCommand>: done
+2026-03-30 18:22:39 [INFO] RunCommand<TemplateVGAuditCommand>: start
+2026-03-30 18:22:48 [INFO] RunCommand<TemplateVGAuditCommand>: done
+2026-03-30 18:22:54 [INFO] RunCommand<FamilyParameterProcessorCommand>: start
+2026-03-30 18:23:07 [INFO] RunCommand<FamilyParameterProcessorCommand>: done
+2026-03-30 18:23:11 [INFO] RunCommand<BatchAddFamilyParamsCommand>: start
+2026-03-30 18:24:03 [INFO] Batch Family Params: 0 bound, 5862 skipped, 0 failed
+2026-03-30 18:24:03 [INFO] RunCommand<BatchAddFamilyParamsCommand>: done
+2026-03-30 18:24:07 [INFO] RunCommand<FamilyParameterProcessorCommand>: start
+2026-03-30 18:24:15 [INFO] RunCommand<FamilyParameterProcessorCommand>: done
+2026-03-30 18:24:28 [INFO] RunCommand<COBieExportCommand>: start
+2026-03-30 18:24:38 [INFO] RunCommand<COBieExportCommand>: done
+2026-03-30 18:38:45 [INFO] Tab 1 content loaded (lazy)
+2026-03-30 18:40:33 [INFO] RunCommand<SheetOrganizerCommand>: start
+2026-03-30 18:40:49 [INFO] RunCommand<SheetOrganizerCommand>: done
+2026-03-30 18:41:04 [INFO] RunCommand<AutoNumberSheetsCommand>: start
+2026-03-30 18:41:19 [INFO] RunCommand<AutoNumberSheetsCommand>: done
+2026-03-30 18:41:43 [INFO] Tab 8 content loaded (lazy)
+2026-03-30 18:42:45 [INFO] RunCommand<SheetIndexCommand>: start
+2026-03-30 18:42:45 [ERROR] RunCommand<SheetIndexCommand> failed: categoryId is not a valid category for a regular schedule.
+Parameter name: categoryId
+2026-03-30 18:42:58 [INFO] RunCommand<MapSheetsCommand>: start
+2026-03-30 18:43:08 [INFO] MapSheetsCommand: 44 values written across 22 sheets
+2026-03-30 18:43:08 [INFO] RunCommand<MapSheetsCommand>: done
+2026-03-30 18:43:10 [INFO] RunCommand<TagSheetsCommand>: start
+2026-03-30 18:43:35 [INFO] TagSheetsCommand: 22 sheets, 154 tokens, 1.1s
+2026-03-30 18:43:35 [INFO] RunCommand<TagSheetsCommand>: done
+2026-03-30 18:43:43 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 18:44:00 [INFO] RunCommand<SheetManagerCommand>: start
+2026-03-30 18:44:07 [INFO] RunCommand<SheetManagerCommand>: done
+2026-03-30 18:44:21 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 18:44:57 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 18:45:26 [INFO] Sheet Manager live op 'SwapTitleBlock' completed.
+2026-03-30 18:45:32 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 19:00:21 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-30 19:00:21 [INFO] Warning baseline saved: 0 warnings
+2026-03-30 19:00:21 [INFO] DocumentClosing: auto-saved warning baseline
+2026-03-30 19:00:21 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-30 19:00:22 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 19:00:23 [INFO] Warning baseline saved: 0 warnings
+2026-03-30 19:00:23 [INFO] DocumentClosing: auto-saved warning baseline
+2026-03-30 19:00:23 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-30 19:00:23 [INFO] Warning baseline saved: 0 warnings
+2026-03-30 19:00:23 [INFO] DocumentClosing: auto-saved warning baseline
+2026-03-30 19:00:23 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-30 19:00:28 [INFO] STING Tools shutting down
+2026-03-30 19:00:28 [INFO] StingAutoTagger: unregistered
+2026-03-30 22:25:18 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-30 22:25:18 [WARN] PYREVIT_SCRIPT_MANIFEST: 18 script path(s) not found on disk.
+2026-03-30 22:25:18 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-30 22:25:18 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-30 22:25:18 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-30 22:25:18 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-30 22:25:18 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-30 22:25:18 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-30 22:25:18 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-30 22:25:18 [INFO] ThemeManager: applied 'Light' theme
+2026-03-30 22:25:18 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-30 22:25:18 [INFO] Dockable panel registered successfully
+2026-03-30 22:25:18 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-30 22:25:18 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: read 219063 chars, parsing JSON
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-30 22:25:18 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-30 22:25:18 [INFO] ParamRegistry: supplemented 1808 GUIDs from MR_PARAMETERS.txt
+2026-03-30 22:25:18 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2316 GUIDs
+2026-03-30 22:25:18 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-30 22:25:18 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-30 22:25:18 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-30 22:25:18 [INFO] TagConfig: supplemented 311 additional warning refs from tag config CSVs
+2026-03-30 22:25:18 [INFO] STING Tools dockable panel loaded successfully
+2026-03-30 22:25:47 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:25:47 [WARN] TagConfig: unknown config key(s) in project_config.json: PROJECT_FOLDER_ROOT — check for typos
+2026-03-30 22:25:47 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-30 22:25:47 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-30 22:25:47 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-30 22:25:47 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-30 22:25:47 [INFO] Morning briefing deferred to first idle/command
+2026-03-30 22:25:47 [WARN] Formula 'CST_S_CON_SAND_VOLUME_CU_M': invalid Dependency_Level '36863979-00ed-54f3-af15-db3364b8316d', defaulting to 0
+2026-03-30 22:25:47 [WARN] Formula 'CST_S_MAS_SAND_VOLUME_CU_M': invalid Dependency_Level '02663996-87e7-56b1-8abf-2e9bc32d777b', defaulting to 0
+2026-03-30 22:25:47 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_PHS_COUNT_NR', defaulting to 0
+2026-03-30 22:25:47 [WARN] Formula 'S2=standard': suspect Discipline value '(DB Panels). S1=compact' — check CSV quoting
+2026-03-30 22:25:47 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_DESIGNATION_NAME_TXT', defaulting to 0
+2026-03-30 22:25:47 [WARN] Formula 'S2=standard': suspect Discipline value '(Points & Sockets). S1=compact' — check CSV quoting
+2026-03-30 22:25:47 [WARN] Formula 'S2=standard': invalid Dependency_Level 'COM_C_NETWORK_ADDRESS_TXT', defaulting to 0
+2026-03-30 22:25:47 [WARN] Formula 'S2=standard': suspect Discipline value '(BMS). S1=compact' — check CSV quoting
+2026-03-30 22:25:47 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ASS_SYSTEM_TYPE_TXT', defaulting to 0
+2026-03-30 22:25:47 [WARN] Formula 'S2=standard': suspect Discipline value '(Lifts/Gen/ATS). S1=compact' — check CSV quoting
+2026-03-30 22:25:47 [WARN] TagPipelineHelper.LoadFormulas: An item with the same key has already been added. Key: S2=standard
+2026-03-30 22:25:47 [INFO] FUT-19: Background pre-warming completed (formulas only — Revit API deferred)
+2026-03-30 22:26:16 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:27:15 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:27:24 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:27:36 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:27:45 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:27:49 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:29:22 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:29:24 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:29:50 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:29:51 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:29:55 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:30:41 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:31:46 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:33:12 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:33:15 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:34:12 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:35:02 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:36:05 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:37:03 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:37:33 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:37:34 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:37:42 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:37:50 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:37:55 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:37:56 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:40:19 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:40:37 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:41:49 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:42:41 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:43:03 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:43:07 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:43:09 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:44:18 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:45:46 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:45:48 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:45:49 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:46:04 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:46:24 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:46:29 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:48:43 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:48:47 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:52:54 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:53:31 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 22:53:44 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 23:47:32 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 23:47:38 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-30 23:47:39 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-31 00:15:18 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-31 00:39:52 [INFO] Warning baseline saved: 82 warnings
+2026-03-31 00:39:52 [INFO] DocumentClosing: auto-saved warning baseline
+2026-03-31 00:39:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches
+2026-03-31 00:39:56 [INFO] STING Tools shutting down
+2026-03-31 00:39:56 [INFO] StingAutoTagger: unregistered
