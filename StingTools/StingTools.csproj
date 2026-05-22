@@ -91,6 +91,14 @@
     <Compile Remove="BIMManager\BcfEngine.cs" />
   </ItemGroup>
 
+  <!-- S03: bring in the Planscape plugin-sync client (SyncScheduler / SyncClient /
+       OfflineQueue) and the shared sync payload contracts. Both are plain net8.0
+       libraries, consumable from this net8.0-windows plugin. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Planscape.Server\src\Planscape.Shared\Planscape.Shared.csproj" />
+    <ProjectReference Include="..\Planscape.Server\src\Planscape.PluginSync\Planscape.PluginSync.csproj" />
+  </ItemGroup>
+
   <!--
     Prevent .NET runtime/framework assemblies from being copied to the output directory.
     ClosedXML's dependency chain (ClosedXML -> DocumentFormat.OpenXml -> System.IO.Packaging

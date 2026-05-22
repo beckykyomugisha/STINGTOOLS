@@ -446,3 +446,80 @@ export interface SitePhotoCaptureMeta {
   modelY?: number;
   modelZ?: number;
 }
+
+// ── NEW-INT-01 — entities the mobile app can now list/read ────────────
+
+export interface Transmittal {
+  id: string;
+  projectId: string;
+  transmittalNumber: string;
+  subject: string;
+  issuedBy: string;
+  issuedTo: string;
+  status: 'DRAFT' | 'SENT' | 'ACKNOWLEDGED';
+  createdAt: string;
+  sentAt?: string;
+  documentCount?: number;
+}
+
+export interface Meeting {
+  id: string;
+  projectId: string;
+  title: string;
+  type: string;
+  scheduledAt: string;
+  status: string;
+  organiser: string;
+  actionItemCount?: number;
+}
+
+export interface WorkflowRun {
+  id: string;
+  projectId: string;
+  presetName: string;
+  userName: string;
+  stepsPassed: number;
+  stepsFailed: number;
+  stepsSkipped: number;
+  durationMs: number;
+  complianceBefore: number;
+  complianceAfter: number;
+  executedAt: string;
+}
+
+export interface WarningRecord {
+  id: string;
+  projectId: string;
+  category: string;
+  severity: string;
+  description: string;
+  elementId?: string;
+  createdAt: string;
+}
+
+export interface ProjectSettings {
+  issueTypes: string[];
+  priorities: string[];
+  disciplines: string[];
+  cdeStates: string[];
+  suitabilityCodes: string[];
+  limits: { maxAttachmentMB: number; maxDocumentMB: number; maxPhotosPerIssue: number };
+  slaHours: { critical: number; high: number; medium: number; low: number };
+  geofence: { hasBoundary: boolean; requireBoundary: boolean };
+}
+
+export interface NotificationPreferences {
+  id: string;
+  userId: string;
+  tenantId: string;
+  issuesEnabled: boolean;
+  complianceEnabled: boolean;
+  revisionsEnabled: boolean;
+  meetingsEnabled: boolean;
+  slaBreachesEnabled: boolean;
+  channel: 'push' | 'email' | 'signalr' | 'all';
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  timeZone?: string;
+  updatedAt: string;
+}
