@@ -1,0 +1,41 @@
+{
+  "_schema": "STING_FAN_SPECTRA",
+  "_version": "1.0",
+  "_notes": [
+    "Fan sound-power octave-band spectra (Lw, dB re 1 pW).",
+    "Looked up via the fan family name (substring match, case-insensitive).",
+    "Falls back to a synthetic Lw derived from path Q + ΔP when no match.",
+    "Sources: vendor selection sheets (sample subset). Replace with",
+    "project-specific data via <project>/_BIM_COORD/fan_spectra.json."
+  ],
+  "fans": [
+    {
+      "match": "AHU",   "label": "Generic AHU centrifugal (mid-size)",
+      "lw":     [82, 84, 86, 84, 82, 78, 73, 65]
+    },
+    {
+      "match": "FCU",   "label": "Generic fan-coil EC",
+      "lw":     [55, 58, 60, 58, 55, 51, 47, 42]
+    },
+    {
+      "match": "VAV",   "label": "VAV terminal fan-powered",
+      "lw":     [60, 63, 65, 63, 60, 56, 52, 47]
+    },
+    {
+      "match": "Trox AT", "label": "Trox AT 600 Y series",
+      "lw":     [54, 56, 58, 56, 54, 50, 46, 41]
+    },
+    {
+      "match": "Halton MFB", "label": "Halton MFB mixed-flow",
+      "lw":     [78, 80, 82, 81, 79, 75, 70, 64]
+    },
+    {
+      "match": "Mixed flow", "label": "Mixed-flow generic",
+      "lw":     [76, 78, 80, 78, 76, 72, 67, 61]
+    },
+    {
+      "match": "Axial", "label": "Axial fan generic",
+      "lw":     [82, 85, 87, 86, 84, 80, 75, 69]
+    }
+  ]
+}

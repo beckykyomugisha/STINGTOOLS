@@ -87,6 +87,10 @@ namespace StingTools.Core
                 // element so the QS sees the stale BOQ row before exporting.
                 StingCostStaleMarker.Register(application);
 
+                // Phase 187f — register the HVAC envelope-stale IUpdater.
+                // Starts disabled; toggled via Hvac_EnvelopeStaleToggle.
+                Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Register(application);
+
                 // Register the Tag 7 narrative auto-updater (IUpdater) — starts disabled.
                 // Keeps ASS_TAG_7_TXT in sync with the active paragraph preset when
                 // source parameters change. Users enable it from Tag Studio.
@@ -285,6 +289,28 @@ namespace StingTools.Core
                 // Phase 167: Drop the per-doc ProjectSetup cache so reopens re-detect.
                 try { ProjectFolderEngine.InvalidateSetupCache(e.Document?.PathName); }
                 catch (Exception cEx) { StingLog.Warn($"Setup cache invalidate: {cEx.Message}"); }
+                // Phase 187c: drop HVAC per-document caches so they don't outlive
+                // the source document (block-load top-level, climate, MEP sizing).
+                try { Commands.Hvac.HvacBlockLoadCommand.InvalidateTopLevelCache(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"HVAC top-level cache invalidate: {cEx.Message}"); }
+                try { Core.Climate.ClimateRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Climate cache invalidate: {cEx.Message}"); }
+                try { Core.Mep.MepSizingRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"MEP sizing cache invalidate: {cEx.Message}"); }
+                try { Core.Hvac.Loads.LoadProfileRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Load profile cache invalidate: {cEx.Message}"); }
+                try { Commands.Hvac.HvacGenerateCxChecklistCommand.InvalidateTaskCache(); }
+                catch (Exception cEx) { StingLog.Warn($"Cx task cache invalidate: {cEx.Message}"); }
+                try { Core.Refrigerant.RefrigerantVendorRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Refrig vendor cache invalidate: {cEx.Message}"); }
+                try { Core.Refrigerant.RefrigerantChargeRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Refrig charge cache invalidate: {cEx.Message}"); }
+                try { Core.Refrigerant.IduCatalogueRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"IDU catalogue invalidate: {cEx.Message}"); }
+                try { Core.Refrigerant.RefnetRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"REFNET catalogue invalidate: {cEx.Message}"); }
+                try { Core.Hvac.Loads.CtfRtsRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"CTF RTS cache invalidate: {cEx.Message}"); }
                 // Phase 78: Save dropped element IDs to sidecar before clearing queue
                 StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
                 // R-02: Clear deferred elements on document close
@@ -541,6 +567,40 @@ namespace StingTools.Core
                     }
                 }
                 catch (Exception regEx) { StingLog.Warn($"Standards region sync skipped: {regEx.Message}"); }
+
+                // Phase 187b — HVAC climate auto-stamp. Resolves the active site
+                // once on document open (PRJ_CLIMATE_SITE_ID → address fuzzy
+                // match → fallback) and stamps both the id and human-readable
+                // label back onto ProjectInformation. Subsequent commands read
+                // the stamp directly without re-fuzzing the address.
+                try
+                {
+                    var pi = e.Document?.ProjectInformation;
+                    if (pi != null)
+                    {
+                        string already = pi.LookupParameter("PRJ_CLIMATE_SITE_ID")?.AsString();
+                        if (string.IsNullOrWhiteSpace(already))
+                        {
+                            var site = StingTools.Core.Climate.ClimateRegistry.ActiveSite(e.Document);
+                            if (site != null && !string.Equals(site.Id, "fallback", StringComparison.OrdinalIgnoreCase))
+                            {
+                                using (var tx = new Transaction(e.Document, "STING — Stamp climate site"))
+                                {
+                                    if (tx.Start() == TransactionStatus.Started)
+                                    {
+                                        ParameterHelpers.SetString(pi, "PRJ_CLIMATE_SITE_ID",
+                                            site.Id, overwrite: true);
+                                        ParameterHelpers.SetString(pi, "PRJ_CLIMATE_SITE_LABEL_TXT",
+                                            site.Label, overwrite: true);
+                                        tx.Commit();
+                                        StingLog.Info($"HVAC climate site auto-stamped: {site.Id} ({site.Label})");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception climEx) { StingLog.Warn($"Climate auto-stamp skipped: {climEx.Message}"); }
 
                 // C4 / G1.3: Reload TagConfig on document open — prefer project-adjacent config
                 // to prevent config bleed between projects
@@ -1288,6 +1348,7 @@ namespace StingTools.Core
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingCostStaleMarker.Unregister();
+            try { Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Unregister(); } catch { }
             StingTag7NarrativeUpdater.Unregister();
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
             try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }

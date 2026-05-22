@@ -897,6 +897,60 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return false; }
     }
 
+    // ── HVAC engine results (Phase 187d) ──────────────────────────────────────
+    //
+    // Pushes BlockLoad / NC / refrigerant-sizing snapshots from the desktop
+    // commands so the design history is auditable in the Planscape mobile
+    // app. All endpoints are tenant-scoped via TenantResolutionMiddleware.
+
+    /// <summary>POST /api/projects/{id}/hvac/loads — single block-load snapshot.</summary>
+    public async Task<bool> PushHvacLoadAsync(Guid projectId, object dto)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/hvac/loads", dto);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>POST /api/projects/{id}/hvac/loads/bulk — N block-load snapshots in one round-trip.</summary>
+    public async Task<bool> PushHvacLoadsBulkAsync(Guid projectId, System.Collections.Generic.IEnumerable<object> dtos)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/hvac/loads/bulk", dtos);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>POST /api/projects/{id}/hvac/nc — NC prediction record.</summary>
+    public async Task<bool> PushHvacNcAsync(Guid projectId, object dto)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/hvac/nc", dto);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>POST /api/projects/{id}/hvac/refrigerant — refrigerant sizing record.</summary>
+    public async Task<bool> PushHvacRefrigerantAsync(Guid projectId, object dto)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/hvac/refrigerant", dto);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
     // ── BOQ Snapshot (feature gap 3) ──────────────────────────────────────────
 
     /// <summary>

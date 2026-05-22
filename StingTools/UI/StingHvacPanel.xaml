@@ -275,9 +275,12 @@
                                     </Grid>
                                 </Expander>
 
-                                <Expander Header="ACOUSTICS" Style="{StaticResource HvacExpander}"/>
-                                <Expander Header="CONNECTIONS" Style="{StaticResource HvacExpander}"/>
-                                <Expander Header="COBie + ASSET" Style="{StaticResource HvacExpander}"/>
+                                <!-- Acoustics / Connections / COBie + ASSET expanders are deferred to a later phase.
+                                     They were previously rendered as empty headers which made the panel look broken;
+                                     re-add them with real content (or a 'wired by Phase X' placeholder inside) when ready. -->
+                                <Expander Header="ACOUSTICS"     Style="{StaticResource HvacExpander}" Visibility="Collapsed"/>
+                                <Expander Header="CONNECTIONS"   Style="{StaticResource HvacExpander}" Visibility="Collapsed"/>
+                                <Expander Header="COBie + ASSET" Style="{StaticResource HvacExpander}" Visibility="Collapsed"/>
                             </StackPanel>
                         </Grid>
 
@@ -500,7 +503,43 @@
                             <Button Style="{StaticResource HvacActionBtn}" Content="Balance"
                                     Tag="Hvac_HardyCross" Click="Cmd_Click" ToolTip="Hardy-Cross balancing"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Vibro-ac"
-                                    Tag="Mep_VibroAcoustic" Click="Cmd_Click" ToolTip="Duct-borne NC rating"/>
+                                    Tag="Mep_VibroAcoustic" Click="Cmd_Click" ToolTip="Duct-borne NC rating (legacy)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="NC predict"
+                                    Tag="Hvac_NcPredict" Click="Cmd_Click"
+                                    ToolTip="VDI 2081 / ASHRAE A48 NC prediction from duct selection (regenerated + breakout)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Refrigerant size"
+                                    Tag="Hvac_RefrigSize" Click="Cmd_Click"
+                                    ToolTip="Size R410A / R32 / R134a / CO₂ pipes with oil-return + vendor envelope checks"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Refrig → duct"
+                                    Tag="Hvac_PropagateRefrigToDuct" Click="Cmd_Click"
+                                    ToolTip="Auto-stamp HVC_FLOW_LS on supply ducts of ducted refrigerant IDUs from capacity (Phase 187e)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Cross-talk audit"
+                                    Tag="Hvac_CrossTalkAudit" Click="Cmd_Click"
+                                    ToolTip="NC cross-talk between rooms via shared duct paths (Phase 187e)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="RTS benchmark"
+                                    Tag="Hvac_RtsBenchmark" Click="Cmd_Click"
+                                    ToolTip="Regression-grade comparison of BlockLoadEngine against ASHRAE / CIBSE worked examples (Phase 187e)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Envelope-stale on/off"
+                                    Tag="Hvac_EnvelopeStaleToggle" Click="Cmd_Click"
+                                    ToolTip="Toggle the IUpdater that flags Spaces as load-stale when envelope geometry changes (Phase 187f)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Clear stale flags"
+                                    Tag="Hvac_EnvelopeStaleClear" Click="Cmd_Click"
+                                    ToolTip="Clear HVC_LOAD_STALE_BOOL on every Space (Phase 187f)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Refrig charge"
+                                    Tag="Hvac_RefrigCharge" Click="Cmd_Click"
+                                    ToolTip="Compute vendor additional refrigerant charge from per-OD pipe lengths (Phase 187g)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Compare loads (TRACE/HAP)"
+                                    Tag="Hvac_CompareLoads" Click="Cmd_Click"
+                                    ToolTip="Import a TRACE / HAP CSV export + diff per zone against STING BlockLoad (Phase 187g)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="IDU select"
+                                    Tag="Hvac_SelectIdus" Click="Cmd_Click"
+                                    ToolTip="Pick the matching IDU per space from STING_IDU_CATALOGUE.json (Phase 187h)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="REFNET size"
+                                    Tag="Hvac_RefnetSize" Click="Cmd_Click"
+                                    ToolTip="Size REFNET branch joints from per-IDU capacity + vendor catalogue (Phase 187h)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="gbXML import"
+                                    Tag="Hvac_ImportGbxmlLoads" Click="Cmd_Click"
+                                    ToolTip="Import per-zone loads from a TRACE / HAP / IES gbXML export + stamp on Spaces (Phase 187h)"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Fitting loss"
                                     Tag="Mep_FittingLoss" Click="Cmd_Click" ToolTip="Per-fitting Kv loss report"/>
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Run all validators"
@@ -695,9 +734,18 @@
                         </Grid>
 
                         <WrapPanel Margin="0,6,0,0">
-                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Run loads"
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Block load"
+                                    Tag="Hvac_BlockLoad" Click="Cmd_Click"
+                                    ToolTip="STING block-load engine: peak-pick at system level + diversity factor (location-aware)"/>
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Propagate"
+                                    Tag="Hvac_PropagateLoads" Click="Cmd_Click"
+                                    ToolTip="Stamp HVC_FLOW_LS on ducts from served space's peak (Phase 187b bridge to AutoSize)"/>
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Full design pass"
+                                    Tag="Hvac_FullDesignPass" Click="Cmd_Click"
+                                    ToolTip="Block-load → propagate → auto-size → balance → NC → pressure-class → stale scan (Phase 187c)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Run loads (Revit)"
                                     Tag="Hvac_RunLoads" Click="Cmd_Click"
-                                    ToolTip="Run heating + cooling loads (Revit native or via gbXML)"/>
+                                    ToolTip="Run heating + cooling loads via Revit's native engine"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Export gbXML"
                                     Tag="Hvac_ExportGbxml" Click="Cmd_Click" ToolTip="Export gbXML for IES / TRACE / HAP / EnergyPlus"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Audit envelope"
@@ -863,8 +911,25 @@
                                     Tag="DocPackage" Click="Cmd_Click" ToolTip="Bundle HVAC drawings into a PDF pack"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Push to API"
                                     Tag="PlatformSync" Click="Cmd_Click" ToolTip="Push results to Planscape server"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Refresh grids"
+                                    Tag="Hvac_RefreshGrids" Click="Cmd_Click"
+                                    ToolTip="Rebuild Equipment / Systems / DuctTypes panel grids from the live model (Phase 187b)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Climate inspect"
+                                    Tag="Hvac_ClimateInspect" Click="Cmd_Click"
+                                    ToolTip="Show the active climate site + corporate site catalogue"/>
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Reload rules"
                                     Tag="Hvac_ReloadRules" Click="Cmd_Click" ToolTip="Re-read STING_MEP_SIZING_RULES.json"/>
+                            <Button Style="{StaticResource HvacWarnBtn}" Content="Reload climate"
+                                    Tag="Hvac_ClimateReload" Click="Cmd_Click" ToolTip="Re-read STING_CLIMATE_DATA.json + project override"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Cx checklist"
+                                    Tag="Hvac_GenerateCxChecklist" Click="Cmd_Click"
+                                    ToolTip="Emit ASHRAE Guideline 0 / CIBSE TM39 commissioning checklist as CSV (Phase 187d)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Publish to server"
+                                    Tag="Hvac_PublishToServer" Click="Cmd_Click"
+                                    ToolTip="Push panel BlockLoad / NC / refrigerant results to Planscape Server (Phase 187d)"/>
+                            <Button Style="{StaticResource HvacWarnBtn}" Content="Reload all profiles"
+                                    Tag="Hvac_ReloadProfiles" Click="Cmd_Click"
+                                    ToolTip="Reload load profiles + construction + acoustic + climate + MEP sizing in one shot (Phase 187c)"/>
                         </WrapPanel>
                     </StackPanel>
                 </ScrollViewer>

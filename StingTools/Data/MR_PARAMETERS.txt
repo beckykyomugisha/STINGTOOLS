@@ -3201,6 +3201,25 @@ PARAM	ecbc8e8a-3466-53dd-92c9-a28d15ebf43d	HVC_SIZE_STALE_BOOL	TEXT		5	1	1 when 
 PARAM	b99d07d1-6eca-50cf-b983-b6fe2442bc8c	HVC_REFRIGERANT_KG_NR	TEXT		5	1	Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand x GWP) [Phase 183]	1
 PARAM	10d87a6e-b7d8-5058-81a9-bc62394d9bad	HVC_REFRIGERANT_TYPE_TXT	TEXT		5	1	Refrigerant id (R32 / R290 / R410A / R407C / R134A / R454B / R513A / R744 / R717 / R1234yf / R1234ze) [Phase 183]	1
 PARAM	397ee526-7af0-5516-a2a1-48db5a42f249	HVC_CAPACITY_KW	TEXT		5	1	Equipment design capacity in kW (sensible+latent for cooling, output for heating) [Phase 183]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b60	HVC_PROD_REF_TXT	TEXT		5	1	Manufacturer product reference 'brand:productCode' (e.g. 'lindab:BFU-90-CIRC')  -  resolved against STING_MEP_SIZING_RULES.json manufacturerFittings/valveCv [Phase 187]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b61	HVC_PEAK_SENS_W	TEXT		5	1	Per-space peak sensible load in W from BlockLoadEngine [Phase 187]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b62	HVC_PEAK_LAT_W	TEXT		5	1	Per-space peak latent load in W from BlockLoadEngine [Phase 187]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b63	HVC_PEAK_HOUR	TEXT		5	1	Hour-of-day (HH:00) of the per-space peak from BlockLoadEngine [Phase 187]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b64	HVC_OA_LS	TEXT		5	1	Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b65	PRJ_CLIMATE_SITE_ID	TEXT		13	1	Active STING climate site id resolved by ClimateRegistry (london / paris / new_york / etc.) [Phase 187]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b66	HVC_LOAD_SOURCE_TXT	TEXT		5	1	Provenance string written by HvacPropagateLoadsCommand: served space + peak sensible + design OA → derived HVC_FLOW_LS [Phase 187b]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b67	PRJ_CLIMATE_SITE_LABEL_TXT	TEXT		13	1	Human-readable climate site label stamped by the DocumentOpened auto-stamp [Phase 187b]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b68	PRJ_CONSTRUCTION_PROFILE_TXT	TEXT		13	1	Active construction profile id (PartL2021 / PartL2013 / PreRegs1990 / Passivhaus / IECC2021_CZ4 / ASHRAE901_2019_CZ5 / EnEV2014_DE)  -  drives U-values + SHGC in BlockLoadEngine [Phase 187c]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b69	PRJ_RTS_CLASS_TXT	TEXT		13	1	ASHRAE Radiant Time Series construction class (Reactive / Light / Medium / Heavy)  -  controls thermal-mass lag in BlockLoadEngine [Phase 187d]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b6a	HVC_LOAD_STALE_BOOL	YESNO		5	1	1 when an envelope geometry change has invalidated this Space's last BlockLoad result. Cleared by Hvac_BlockLoad or Hvac_EnvelopeStaleClear [Phase 187f]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b6b	HVC_LOAD_STALE_REASON_TXT	TEXT		5	1	Short tag identifying what envelope element changed (wall geom / window geom / roof geom / etc.) [Phase 187f]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b6c	PRJ_REFRIG_VENDOR_SERIES_TXT	TEXT		13	1	Refrigerant vendor series id for charge-table lookup (e.g. 'Daikin-VRV-5', 'Mitsubishi-CityMulti-R2', 'Toshiba-SHRMe') [Phase 187g]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b6d	PRJ_REFRIG_FLUID_TXT	TEXT		13	1	Project refrigerant fluid id (R410A / R32 / R134a / CO2) — drives HvacRefrigerantChargeCommand lookup [Phase 187g]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b6e	PRJ_TRACE_TOLERANCE_PCT	TEXT		13	1	Acceptance band (percent) for HvacCompareLoadsCommand vs TRACE / HAP reference loads (default 15%) [Phase 187g]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b6f	HVC_SELECTED_IDU_ID_TXT	TEXT		5	1	Catalogue id of the indoor unit picked by HvacSelectIdusCommand for this Space [Phase 187h]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b70	HVC_SELECTED_IDU_LABEL_TXT	TEXT		5	1	Human-readable label of the IDU picked by HvacSelectIdusCommand [Phase 187h]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b71	HVC_IDU_MOUNTING_TXT	TEXT		5	1	Per-space IDU mounting override (Ducted / CeilingCassette / WallMounted / FourWay) [Phase 187h]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b72	PRJ_REFRIG_IDU_MOUNTING_TXT	TEXT		13	1	Default IDU mounting for the project, used when HVC_IDU_MOUNTING_TXT is unset on a Space [Phase 187h]	1
 PARAM	8b3bfdcf-aab3-5944-a451-e4766bfaf8ce	PRJ_ORG_PRESSURE_PROFILE_TXT	TEXT		13	1	Active pressure-regime profile id for GeneralPressureRegimeValidator (healthcare-htm03-01 / gmp-annex1 / iso-14644-cleanroom / bs-en-12128-lab) [Phase 183]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41	ASS_CST_UNIT_RATE_NR	NUMBER		2	1	Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42	ASS_CST_CURRENCY_TXT	TEXT		2	1	ISO 4217 currency code (GBP / UGX / USD / EUR) of ASS_CST_UNIT_RATE_NR [Phase 184]	1
