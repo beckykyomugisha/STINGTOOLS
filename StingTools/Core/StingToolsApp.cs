@@ -2650,4 +2650,224 @@ namespace StingTools.Core
             }
         }
     }
+
+    // ── STING Hub button dispatchers ────────────────────────────────────────
+    // Each ribbon button on the STING Hub panel is bound to one of these thin
+    // wrappers. They delegate to StingDockPanel.DispatchCommand, which raises
+    // the shared ExternalEvent so the request is processed by
+    // StingCommandHandler.Execute on the Revit API thread — same dispatch
+    // path the dockable panel buttons use.
+
+    internal static class HubDispatcher
+    {
+        // Maps STING Hub button tags to the existing handler-tag strings that
+        // are already wired in StingCommandHandler.Execute. This translation
+        // layer lives here so StingCommandHandler.cs stays untouched.
+        private static readonly Dictionary<string, string> _alias =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["BIMCoordCenter_Open"]  = "BIMCoordinationCenter",
+                ["SheetManager_Open"]    = "SheetManager",
+                ["DrawingTypes_Edit"]    = "DrawingTypes_Editor",
+                ["DocumentMgmt_Open"]    = "DocumentManager",
+                ["BOQ_ExportCost"]       = "BOQCostManager",
+                ["Fabrication_Open"]     = "Fabrication_OpenWorkspace",
+                ["Placement_Open"]       = "Placement_OpenCentre",
+                ["StructuralDWGWizard"]  = "StrCADWizard",
+                ["Scheduling_Dashboard"] = "SchedulingCostDashboard",
+
+                // Phase: STING Hub expansion
+                ["ExportCenter_Open"]    = "UnifiedExport",
+                ["DocWizard_Open"]       = "DocWizard",
+                ["Numbering_Open"]       = "RenumberTags",
+                ["BatchRename_Open"]     = "BatchRenameViews",
+                // TagCenter_Open and Colouriser_Open are handled directly by
+                // their wrapper commands (open modeless dialogs) — no
+                // handler dispatch.
+            };
+
+        public static Result Run(string tag, ref string message)
+        {
+            try
+            {
+                string resolved = _alias.TryGetValue(tag, out string handlerTag) ? handlerTag : tag;
+                StingTools.UI.StingDockPanel.DispatchCommand(resolved);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Hub dispatch '{tag}' failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubBIMCoordCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("BIMCoordCenter_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubSheetManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("SheetManager_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubDrawingTypesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("DrawingTypes_Edit", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubDocumentMgmtCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("DocumentMgmt_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubBoqExportCostCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("BOQ_ExportCost", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubFabricationCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Fabrication_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubPlacementCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Placement_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubStructuralDwgWizardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("StructuralDWGWizard", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubSchedulingDashboardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Scheduling_Dashboard", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubExportCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("ExportCenter_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubDocWizardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("DocWizard_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubNumberingCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Numbering_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubBatchRenameCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("BatchRename_Open", ref message);
+    }
+
+    /// <summary>
+    /// Launches the modeless Tag Center dialog directly — no ExternalEvent
+    /// dispatch needed because the ribbon button click is already on the
+    /// Revit API thread.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubTagCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var doc = data?.Application?.ActiveUIDocument?.Document;
+                if (doc == null)
+                {
+                    TaskDialog.Show("STING Tag Center", "No document is open. Please open a Revit project first.");
+                    return Result.Cancelled;
+                }
+                StingTools.UI.TagCenterDialog.Show(doc);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Tag Center dialog launch failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Launches the modeless STING Colouriser dialog — comprehensive element
+    /// + annotation graphic-override surface (parameter-driven coloring,
+    /// 11 quick schemes, palette presets, view-filter generation, halftone /
+    /// transparency / line-weight controls). Inspired by Naviate Color
+    /// Elements, GRAITEC PowerPack, and DiRoots OneFilter.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubColouriserCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var doc = data?.Application?.ActiveUIDocument?.Document;
+                if (doc == null)
+                {
+                    TaskDialog.Show("STING Colouriser", "No document is open. Please open a Revit project first.");
+                    return Result.Cancelled;
+                }
+                StingTools.UI.StingColouriserDialog.Show(doc);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Colouriser dialog launch failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
 }
