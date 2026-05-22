@@ -777,9 +777,6 @@ namespace StingTools.Core
                         {
                             if (!cachedHasStale()) { RecordSkip("no stale elements"); continue; }
                         }
-                        // Phase 39: WorkflowStep.RequiresWorksharedModel condition
-                        if (step.RequiresWorksharedModel && !doc.IsWorkshared)
-                        { RecordSkip("not workshared"); continue; }
                         // Phase 39: Element count range condition (cached — count doesn't change between steps)
                         if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
                         {
@@ -899,11 +896,8 @@ namespace StingTools.Core
                         bool compoundResult = isOr ? results.Any(r => r) : results.All(r => r);
                         if (!compoundResult)
                         {
-                            skipped++;
                             string logic = isOr ? "OR" : "AND";
-                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compound {logic}: {string.Join(", ", step.Conditions)})");
-                            previousStepSkipped = true;
-                            stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "SKIPPED" });
+                            RecordSkip($"compound {logic}: {string.Join(", ", step.Conditions)}");
                             continue;
                         }
                     }
@@ -1133,10 +1127,11 @@ namespace StingTools.Core
                         // Executed steps (whether succeeded or failed) reset the skip flag.
                         previousStepSkipped = false;
 
-                        // C-03 FIX: Reset previousStepSkipped after each executed step.
-                        // Previously never reset to false, causing cascade-skip to permanently
-                        // lock after the first skipped step.
-                        previousStepSkipped = (stepResult != Result.Succeeded && stepResult != Result.Cancelled);
+                        // B03 FIX: Only set previousStepSkipped for actual skips, not failures.
+                        // Failed steps should NOT trigger SkipIfPreviousSkipped cascade —
+                        // that flag is specifically for skipped (condition-gated) steps.
+                        // Executed steps (whether succeeded or failed) reset the skip flag.
+                        previousStepSkipped = false;
 
                         StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
 

@@ -72,7 +72,14 @@ namespace StingTools.UI
         }
 
 
-        private static readonly HashSet<string> _listOps = new HashSet<string> { OpCreateBatch, OpAudit, OpExportCsv, OpManage };
+        // ── Schedule item model ─────────────────────────────────────────
+        private class ScheduleItem
+        {
+            public string Name { get; set; } = string.Empty;
+            public bool ExistsInProject { get; set; }
+            public bool ExistsInCsv { get; set; }
+            public bool IsSelected { get; set; }
+        }
 
         /// <summary>
         /// Show the comprehensive scheduling dashboard.
