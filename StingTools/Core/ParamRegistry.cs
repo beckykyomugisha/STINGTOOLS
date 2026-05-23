@@ -47,9 +47,9 @@ namespace StingTools.Core
         // remain as guard infrastructure for the next time the cache is
         // re-introduced. Silence CS0414 since the field is intentionally
         // write-only for now.
-#pragma warning disable CS0414
+#pragma warning disable CS0169 // never used — kept for future write-side caching
         private static string[] _cachedSegmentOrder;
-#pragma warning restore CS0414
+#pragma warning restore CS0169
 
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;
