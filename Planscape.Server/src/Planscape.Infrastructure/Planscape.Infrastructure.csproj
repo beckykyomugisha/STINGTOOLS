@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <NoWarn>NU1902</NoWarn>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Planscape.Infrastructure</RootNamespace>
@@ -26,7 +27,7 @@
     <!-- IHostEnvironment used by EmailTemplateRenderer + I18nService (FLEX-03/15) -->
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
     <PackageReference Include="ClosedXML" Version="0.104.2" />
-    <PackageReference Include="MailKit" Version="4.13.0" />
+    <PackageReference Include="MailKit" Version="4.16.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <!-- STORAGE-01 — S3-compatible object storage (AWS S3, MinIO, R2, Spaces) -->
     <PackageReference Include="AWSSDK.S3" Version="3.7.412" />

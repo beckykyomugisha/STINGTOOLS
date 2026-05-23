@@ -303,6 +303,10 @@ public class BoqController : ControllerBase
             {
                 v.Id, v.Reference, v.Title, v.Description, v.Kind,
                 v.Status, v.NetValue, v.Currency,
+                // Phase 184o — reason + liability surface in the mobile list.
+                v.Reason, v.Liability, v.EotDays,
+                // Phase 184q — contract family.
+                v.ContractForm,
                 v.BimIssueId, v.SubmittedAt, v.ApprovedAt, v.ApprovedBy,
                 v.CreatedAt, v.CreatedBy
             })
@@ -331,6 +335,13 @@ public class BoqController : ControllerBase
             NetValue   = req.NetValue,
             Currency   = req.Currency ?? "GBP",
             BimIssueId = req.BimIssueId,
+            // Phase 184o — reason + liability + EOT carried in from the plugin.
+            Reason     = req.Reason ?? "Other",
+            Liability  = req.Liability ?? "Employer",
+            ReasonDetail = req.ReasonDetail,
+            EotDays    = req.EotDays ?? 0,
+            // Phase 184q
+            ContractForm = req.ContractForm ?? "JCT2024",
             CreatedBy  = User.Identity?.Name,
         };
         _db.BoqVariations.Add(variation);
@@ -384,6 +395,13 @@ public class BoqController : ControllerBase
             v.Id,
             number = v.Reference,
             kind = v.Kind,
+            // Phase 184q — contract family.
+            contractForm = v.ContractForm,
+            // Phase 184o — reason / liability / EOT routed back to mobile detail.
+            reason = v.Reason,
+            liability = v.Liability,
+            reasonDetail = v.ReasonDetail,
+            eotDays = v.EotDays,
             status = v.Status,
             title = v.Title,
             description = v.Description,
@@ -731,7 +749,14 @@ public record CreateVariationRequest(
     string? Kind,
     decimal NetValue,
     string? Currency,
-    Guid? BimIssueId);
+    Guid? BimIssueId,
+    // Phase 184o
+    string? Reason,
+    string? Liability,
+    string? ReasonDetail,
+    int? EotDays,
+    // Phase 184q
+    string? ContractForm);
 
 public record UpdateStatusRequest(string Status);
 
@@ -756,13 +781,16 @@ public record CreatePaymentCertRequest(
     decimal TotalPayable,
     string? SovJson);
 
+// SignaturePngBase64: Base64-encoded PNG of the captured signature (from
+// react-native-signature-canvas). Optional -- typed-name signing without
+// a graphical signature is still permitted on desktop.
+// SignaturePngBase64: Base64-encoded PNG of the captured signature (from
+// react-native-signature-canvas). Optional -- typed-name signing without
+// a graphical signature is still permitted on desktop.
 public record SignPaymentCertRequest(
     string Action,
     string? SignerName,
     string? Rationale,
-    /// <summary>Base64-encoded PNG of the captured signature (from
-    /// react-native-signature-canvas). Optional — typed-name signing
-    /// without a graphical signature is still permitted on desktop.</summary>
     string? SignaturePngBase64);
 
 public record CreateWorkPackageRequest(

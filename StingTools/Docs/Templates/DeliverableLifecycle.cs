@@ -173,6 +173,10 @@ namespace Planscape.Docs.Templates
                 JArray arr;
                 if (File.Exists(path))
                 {
+                    // S3.6.2 — version gate before deserialise.
+                    StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
+                        path, "planscape.deliverables",
+                        StingTools.Core.PluginSchemaVersion.CurrentDeliverables);
                     arr = JArray.Parse(File.ReadAllText(path));
                 }
                 else arr = new JArray();
@@ -213,6 +217,14 @@ namespace Planscape.Docs.Templates
 
         private static string ResolveProjectRoot(Document doc)
         {
+            // Folder consolidation: nest "_BIM_COORD" inside the unified
+            // project root's _data folder rather than as a sibling of the .rvt.
+            try
+            {
+                string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
+                if (!string.IsNullOrEmpty(consolidated)) return consolidated;
+            }
+            catch { /* fall through to legacy lookup */ }
             try
             {
                 string p = doc?.PathName;

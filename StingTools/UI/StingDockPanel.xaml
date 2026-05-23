@@ -1007,21 +1007,27 @@
                             </WrapPanel>
                         </Border>
 
-                        <!-- PDF EXPORT -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="PDF EXPORT"/>
+                        <!-- EXPORT CENTER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="EXPORT CENTER"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <ComboBox x:Name="cmbPaperSize" FontSize="10" Height="24" Width="60">
-                                    <ComboBoxItem Content="A1" IsSelected="True"/>
-                                    <ComboBoxItem Content="A0"/>
-                                    <ComboBoxItem Content="A2"/>
-                                    <ComboBoxItem Content="A3"/>
-                                    <ComboBoxItem Content="A4"/>
-                                </ComboBox>
-                                <Button Style="{StaticResource ActionBtn}" Content="All Sheets" Tag="PrintSheets" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Selected Sheets" Tag="PdfSelectedSheets" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Active View" Tag="PdfActiveView" Click="Cmd_Click"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Export Center" Tag="ExportCenter" Click="Cmd_Click" ToolTip="Unified export workspace: PDF / DWG / IFC / NWC / DGN / DWF / Image / XML with ISO 19650 naming, profiles &amp; scheduled exports"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="PDF Preset" Tag="ExportCenterPDF" Click="Cmd_Click" ToolTip="Open Export Center with PDF preset selected"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <ComboBox x:Name="cmbPaperSize" FontSize="10" Height="24" Width="60">
+                                        <ComboBoxItem Content="A1" IsSelected="True"/>
+                                        <ComboBoxItem Content="A0"/>
+                                        <ComboBoxItem Content="A2"/>
+                                        <ComboBoxItem Content="A3"/>
+                                        <ComboBoxItem Content="A4"/>
+                                    </ComboBox>
+                                    <Button Style="{StaticResource ActionBtn}" Content="All Sheets" Tag="PrintSheets" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Selected Sheets" Tag="PdfSelectedSheets" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Active View" Tag="PdfActiveView" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- SHEET INDEX -->
@@ -1155,6 +1161,26 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Sequence Package" Tag="DrawingTypes_SequencePackage" Click="Cmd_Click" ToolTip="Phase 137 — re-stamp STING_SHEET_SEQUENCE for a selected package, ordered by current sheet number"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit Packages" Tag="DrawingTypes_AuditPackages" Click="Cmd_Click" ToolTip="Phase 137 — list all drawing packages with sheet count, view count, and sequence-gap count"/>
                                     <Button Style="{StaticResource ActionBtn}" Background="#1A6B2A" Foreground="White" FontWeight="Bold" Content="⚡ Produce &amp; Export" Tag="DrawingTypes_ProduceAndExport" Click="Cmd_Click" ToolTip="AUTO-2: One-click produce all plan views per level, sync styles and revisions, export every stamped sheet to PDF, and write a sheet register CSV."/>
+                                </WrapPanel>
+                                <!-- Phase 137 — Production -->
+                                <Separator/>
+                                <TextBlock Text="Production" FontWeight="SemiBold" Margin="2,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Produce Per Level" Tag="DrawingTypes_ProducePerLevel" Click="Cmd_Click" ToolTip="Phase 137 — open production-config dialog and produce per-level views/sheets for the selected drawing types"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Produce Sections" Tag="DrawingTypes_ProduceSections" Click="Cmd_Click" ToolTip="Phase 137 — produce section views via grid alignment / room walls / manual selection per the chosen preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Exterior Elevations" Tag="DrawingTypes_ProduceExteriorElevations" Click="Cmd_Click" ToolTip="Phase 137 — auto-place 4 exterior elevations using detected building footprint, with optional 1+4-view sheet"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Interior Elevations" Tag="DrawingTypes_ProduceInteriorElevations" Click="Cmd_Click" ToolTip="Phase 137 — produce interior elevations for selected rooms"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="From Scope Boxes (Produce)" Tag="DrawingTypes_ProduceFromScopeBoxes" Click="Cmd_Click" ToolTip="Phase 137 — produce views/sheets driven by STING::… scope boxes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Regenerate Templates" Tag="DrawingTypes_RegenerateTemplates" Click="Cmd_Click" ToolTip="Phase 137 — re-mint managed view templates for selected packs"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="→ Managed Mode" Tag="DrawingTypes_ConvertToManaged" Click="Cmd_Click" ToolTip="Phase 137 — convert an external pack to managed mode by importing settings from a chosen view template"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Detach Managed" Tag="DrawingTypes_DetachManaged" Click="Cmd_Click" ToolTip="Phase 137 — flip a managed pack to external and rename its STING:* templates"/>
+                                </WrapPanel>
+                                <Separator/>
+                                <TextBlock Text="Packages" FontWeight="SemiBold" Margin="2,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Package" Tag="DrawingTypes_ExportPackage" Click="Cmd_Click" ToolTip="Phase 137 — export every sheet in a selected drawing package as PDFs in sequence order"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sequence Package" Tag="DrawingTypes_SequencePackage" Click="Cmd_Click" ToolTip="Phase 137 — re-stamp STING_SHEET_SEQUENCE for a selected package, ordered by current sheet number"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Audit Packages" Tag="DrawingTypes_AuditPackages" Click="Cmd_Click" ToolTip="Phase 137 — list all drawing packages with sheet count, view count, and sequence-gap count"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -1510,6 +1536,9 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Place All Views" Tag="Symbols_PlaceAll" Click="Cmd_Click" ToolTip="Same, project-wide"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Std Audit" Tag="Symbols_Audit" Click="Cmd_Click" ToolTip="Drift + coverage report"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sync Filters" Tag="Symbols_SyncFilters" Click="Cmd_Click" ToolTip="Mirror host visibility onto symbol tags"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Place Toggle" Tag="Symbols_AutoPlaceToggle" Click="Cmd_Click" ToolTip="Toggle whether the StingAutoTagger drops symbol overlays on every newly-placed MEP element (project_config.symbol_auto_place)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Remove In View" Tag="Symbols_RemoveInView" Click="Cmd_Click" ToolTip="Delete every STING symbol overlay (and its label TextNote) from the active view; non-STING tags untouched"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Remove All Views" Tag="Symbols_RemoveAll" Click="Cmd_Click" ToolTip="Project-wide: delete every STING symbol overlay across all views (chunked, interruptible). Tally-confirmation dialog shows top views by count before committing."/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource ActionBtn}" Content="Augment Families" Tag="Symbols_AugmentAll" Click="Cmd_Click" ToolTip="Inject STING symbol parameters into all loaded families"/>
@@ -1732,6 +1761,345 @@
 
                     </StackPanel>
                 </ScrollViewer>
+            </TabItem>
+
+            <!-- =============== MAT TAB =============== -->
+            <!-- Inline Material Manager — replaces the modal MaterialManagerDialog.
+                 Browse + Layers + Assets + Duplicates + Library + I/O sub-tabs.
+                 Live materials grid bound to ObservableCollection in code-behind;
+                 toolbar actions dispatch through Cmd_Click. -->
+            <TabItem Header="MAT">
+                <Grid Margin="6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Row 0 — Header strip with live counts -->
+                    <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" Padding="8,6,8,6" CornerRadius="3" Margin="0,0,0,6">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="txtMatHeader" Text="Material Manager"
+                                           FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource HeaderFg}" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1" x:Name="cmbMatRegion" Width="90" Height="22" Margin="0,0,6,0"
+                                          FontSize="10" SelectionChanged="MatRegion_Changed"
+                                          ToolTip="Region — drives currency symbol and density / thermal unit display. Persisted in PRJ_REGION_TXT.">
+                                    <ComboBoxItem Content="UK" IsSelected="True"/>
+                                    <ComboBoxItem Content="EU"/>
+                                    <ComboBoxItem Content="US"/>
+                                    <ComboBoxItem Content="AU"/>
+                                    <ComboBoxItem Content="Africa"/>
+                                </ComboBox>
+                                <TextBlock Grid.Column="2" x:Name="txtMatCounts" Text="0 materials · 0 selected"
+                                           FontSize="10" Foreground="{DynamicResource HeaderFg}" Opacity="0.75" VerticalAlignment="Center"/>
+                            </Grid>
+                            <!-- N2 — Project roll-up strip. Live totals across the
+                                 whole material library: cost/carbon coverage, EPD
+                                 freshness, unused / undocumented counts. -->
+                            <TextBlock x:Name="txtMatRollup" FontSize="10" Margin="0,4,0,0"
+                                       Foreground="{DynamicResource HeaderFg}" Opacity="0.85" TextWrapping="Wrap"
+                                       Text="(roll-up loads on first Refresh)"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Row 1 — Sub-tab toolbar (six switches) -->
+                    <TabControl Grid.Row="1" Grid.RowSpan="2" x:Name="matSubTabs" FontSize="11" Padding="2" Background="{DynamicResource PrimaryBg}">
+
+                        <!-- ── BROWSE ── -->
+                        <TabItem Header="Browse">
+                            <Grid Margin="2,4,2,2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Filter row -->
+                                <Grid Grid.Row="0" Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="txtMatSearch" Height="24" Padding="6,2,6,2"
+                                             ToolTip="Search by name or class"
+                                             TextChanged="MatSearch_TextChanged"/>
+                                    <ComboBox Grid.Column="1" x:Name="cmbMatOrigin" Width="100" Height="24" Margin="4,0,0,0"
+                                              SelectionChanged="MatFilter_Changed">
+                                        <ComboBoxItem Content="All" IsSelected="True"/>
+                                        <ComboBoxItem Content="STING"/>
+                                        <ComboBoxItem Content="BLE"/>
+                                        <ComboBoxItem Content="MEP"/>
+                                        <ComboBoxItem Content="Other"/>
+                                    </ComboBox>
+                                    <ComboBox Grid.Column="2" x:Name="cmbMatUsed" Width="80" Height="24" Margin="4,0,0,0"
+                                              SelectionChanged="MatFilter_Changed">
+                                        <ComboBoxItem Content="All Used" IsSelected="True"/>
+                                        <ComboBoxItem Content="Used"/>
+                                        <ComboBoxItem Content="Unused"/>
+                                    </ComboBox>
+                                </Grid>
+                                <!-- Active-filter chip — hidden when no filters active -->
+                                <Border x:Name="bdrMatFilterChip" Margin="0,0,0,4" Padding="6,2,6,2"
+                                        Background="#1F3D6FBA" CornerRadius="3" Visibility="Collapsed">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" x:Name="txtMatFilterChip"
+                                                   FontSize="10" Foreground="#1F3D6F" VerticalAlignment="Center"
+                                                   Text="(no filters)"/>
+                                        <Button Grid.Column="1" Content="✕ Clear" FontSize="10" Padding="6,1,6,1"
+                                                Tag="MAT_ClearFilters" Click="MatBtn_Click"
+                                                ToolTip="Clear all active filters and show every material"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Action button strip -->
+                                <WrapPanel Grid.Row="1" Margin="0,0,0,4">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Refresh" Tag="MAT_Refresh" Click="MatBtn_Click" ToolTip="Reload materials from project"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Where Used" Tag="MAT_WhereUsed" Click="MatBtn_Click" ToolTip="Show every element using the selected material"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Apply → Sel" Tag="MAT_Apply" Click="MatBtn_Click" ToolTip="Apply selected material to the currently-selected Revit elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Eyedropper" Tag="MAT_Eyedropper" Click="MatBtn_Click" ToolTip="Pick a face in Revit → highlight its material in the list"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Edit Identity" Tag="MAT_EditIdentity" Click="MatBtn_Click" ToolTip="Open Revit material editor for the selected row"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Family Materials" Tag="MAT_FamilyMaterials" Click="MatBtn_Click" ToolTip="List Material parameters defined in every loaded Family Type — catches materials referenced but not yet instantiated."/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Make Legend" Tag="MaterialLegend" Click="Cmd_Click" ToolTip="B4 — Cross-link to LegendBuilder.MaterialLegendCommand. Creates a drafting view legend with FilledRegion swatches grouped by class."/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Create BLE (815)" Tag="CreateBLEMaterials" Click="Cmd_Click" ToolTip="Create 815 building materials from BLE_MATERIALS.csv"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Create MEP (464)" Tag="CreateMEPMaterials" Click="Cmd_Click" ToolTip="Create 464 MEP materials from MEP_MATERIALS.csv"/>
+                                </WrapPanel>
+
+                                <!-- Live DataGrid -->
+                                <DataGrid Grid.Row="2" x:Name="dgMaterials" AutoGenerateColumns="False" IsReadOnly="False"
+                                          SelectionMode="Extended" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                                          AlternatingRowBackground="#10000000"
+                                          RowHeight="22" FontSize="11"
+                                          CanUserAddRows="False" CanUserDeleteRows="False"
+                                          SelectionChanged="MatGrid_SelectionChanged"
+                                          MouseDoubleClick="MatGrid_DoubleClick"
+                                          CellEditEnding="MatGrid_CellEditEnding"
+                                          VirtualizingPanel.IsVirtualizing="True"
+                                          VirtualizingPanel.VirtualizationMode="Recycling"
+                                          ScrollViewer.CanContentScroll="True">
+                                    <DataGrid.Columns>
+                                        <DataGridTemplateColumn Header="Color" Width="46" IsReadOnly="True">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{Binding ColorSwatch}" Width="30" Height="14"
+                                                            BorderBrush="#888" BorderThickness="1" CornerRadius="2" Margin="2"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <!-- Name + Origin + Used + RGB stay read-only (rename via Revit material editor;
+                                             Origin / Used / RGB are derived). Class / Cost / Carbon are editable. -->
+                                        <DataGridTextColumn Header="Name"   Binding="{Binding Name}"      Width="*" MinWidth="180" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Class"  Binding="{Binding Class}"     Width="100"/>
+                                        <DataGridTextColumn Header="Origin" Binding="{Binding Origin}"    Width="60"  IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Used"   Binding="{Binding UsageCount}" Width="50" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="RGB"    Binding="{Binding ColorText}" Width="80"  IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Cost"   Binding="{Binding Cost, StringFormat=F2}"         Width="60"/>
+                                        <DataGridTextColumn Header="kgCO₂e" Binding="{Binding CarbonKgCo2e, StringFormat=F1}" Width="60"/>
+                                        <DataGridTemplateColumn Header="EPD" Width="70" IsReadOnly="True">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding EpdFreshnessText}" Foreground="{Binding EpdFreshnessBrush}" Margin="3,0,0,0"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <!-- Status footer -->
+                                <TextBlock Grid.Row="3" x:Name="txtMatStatus" Margin="2,4,2,0" FontSize="10"
+                                           Foreground="#888" Text="Click Refresh to load project materials."/>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- ── LAYERS ── -->
+                        <TabItem Header="Layers">
+                            <Grid Margin="2,4,2,2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Margin="2,2,2,6" FontSize="11" TextWrapping="Wrap"
+                                           Text="Select a Wall / Floor / Roof / Ceiling / Foundation / Pad in Revit, then click 'Read Layers'. Layers can be edited inline; Apply writes back to the element TYPE."/>
+                                <Grid Grid.Row="1">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <WrapPanel Grid.Row="0" Margin="0,0,0,4">
+                                        <Button Style="{StaticResource BlueBtn}" Content="Read Layers" Tag="MAT_ReadLayers" Click="MatBtn_Click" ToolTip="Inspect layer stack of selected compound element"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Generate Layer Tag" Tag="MAT_LayerTag" Click="MatBtn_Click" ToolTip="Write multi-line tag into STING_LAYERS_TXT (Type)"/>
+                                    </WrapPanel>
+                                    <DataGrid Grid.Row="1" x:Name="dgLayers" AutoGenerateColumns="False" IsReadOnly="True"
+                                              RowHeight="22" FontSize="11" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="#" Binding="{Binding Layer}" Width="34"/>
+                                            <DataGridTextColumn Header="Function" Binding="{Binding Function}" Width="100"/>
+                                            <DataGridTextColumn Header="Material" Binding="{Binding Material}" Width="*"/>
+                                            <DataGridTextColumn Header="Thickness (mm)" Binding="{Binding Thickness}" Width="100"/>
+                                            <DataGridCheckBoxColumn Header="Wraps" Binding="{Binding Wraps}" Width="50"/>
+                                            <DataGridCheckBoxColumn Header="Var." Binding="{Binding Variable}" Width="44"/>
+                                            <DataGridCheckBoxColumn Header="Mem." Binding="{Binding Membrane}" Width="44"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- ── ASSETS ── -->
+                        <TabItem Header="Assets">
+                            <Grid Margin="2,4,2,2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Margin="2,2,2,6" FontSize="11" TextWrapping="Wrap"
+                                           Text="Each Revit material owns one Appearance asset and (optionally) Physical and Thermal assets. Assets are SHARED — many materials can point to the same one. Pick a row in Browse, then use Detach / Repoint to break or share."/>
+                                <WrapPanel Grid.Row="1" Margin="0,0,0,4">
+                                    <Button Style="{StaticResource BlueBtn}" Content="Detach (duplicate)" Tag="MAT_DetachAsset" Click="MatBtn_Click"
+                                            ToolTip="Duplicate the selected asset and re-point the active material at the new copy. Other materials keep the original — your edits won't leak."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Repoint to…" Tag="MAT_RepointAsset" Click="MatBtn_Click"
+                                            ToolTip="Point the selected Asset row at another material's asset (consolidates duplicates)."/>
+                                </WrapPanel>
+                                <DataGrid Grid.Row="2" x:Name="dgAssets" AutoGenerateColumns="False" IsReadOnly="True"
+                                          SelectionMode="Single"
+                                          RowHeight="22" FontSize="11" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Asset Kind" Binding="{Binding Kind}" Width="100"/>
+                                        <DataGridTextColumn Header="Name"       Binding="{Binding Name}" Width="*"/>
+                                        <DataGridTextColumn Header="Shared by"  Binding="{Binding SharedByText}" Width="80"/>
+                                        <DataGridTextColumn Header="Action"     Binding="{Binding ActionHint}" Width="120"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- ── DUPLICATES ── -->
+                        <TabItem Header="Duplicates">
+                            <StackPanel Margin="2,4,2,2">
+                                <TextBlock FontSize="11" TextWrapping="Wrap" Margin="2,2,2,6"
+                                           Text="Detect materials that should probably be merged."/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <ComboBox x:Name="cmbDupMode" Width="220" Height="24" Margin="0,0,4,0">
+                                        <ComboBoxItem Content="Same name (case-insensitive)" IsSelected="True"/>
+                                        <ComboBoxItem Content="Fuzzy name (Levenshtein ≤ 2)"/>
+                                        <ComboBoxItem Content="Same RGB (±5)"/>
+                                        <ComboBoxItem Content="Same Appearance asset"/>
+                                    </ComboBox>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Find Duplicates" Tag="MAT_FindDups" Click="MatBtn_Click"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Merge Selected" Tag="MAT_MergeDups" Click="MatBtn_Click"
+                                            ToolTip="Pick a 'keeper' row in each cluster, then Merge — every usage repoints to the keeper and the others are deleted."/>
+                                </WrapPanel>
+                                <DataGrid x:Name="dgDuplicates" AutoGenerateColumns="False" IsReadOnly="False"
+                                          RowHeight="22" FontSize="11" Height="320" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn       Header="Cluster" Binding="{Binding ClusterKey}" Width="60" IsReadOnly="True"/>
+                                        <DataGridCheckBoxColumn   Header="Keep"    Binding="{Binding IsKeeper}"   Width="50"/>
+                                        <DataGridTextColumn       Header="Name"    Binding="{Binding Name}"       Width="*" IsReadOnly="True"/>
+                                        <DataGridTextColumn       Header="Used"    Binding="{Binding UsageCount}" Width="50" IsReadOnly="True"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </TabItem>
+
+                        <!-- ── LIBRARY ── -->
+                        <TabItem Header="Library">
+                            <StackPanel Margin="2,4,2,2">
+                                <TextBlock FontSize="11" TextWrapping="Wrap" Margin="2,2,2,6"
+                                           Text="Project-level material override: `_BIM_COORD/materials.json` is layered on top of the corporate BLE/MEP catalogues so projects can pin specific cost / carbon / thermal values without forking the whole CSV."/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Edit Project Overrides" Tag="MAT_EditOverrides" Click="MatBtn_Click"
+                                            ToolTip="Open the project-scoped materials.json in the default editor"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Reload Library" Tag="MAT_ReloadLib" Click="MatBtn_Click"
+                                            ToolTip="Force re-read of corporate CSVs + project override"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Edit Rules…" Tag="MAT_EditRules" Click="MatBtn_Click"
+                                            ToolTip="Open material_rules.json — controls auto-apply on element creation"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Load Pack…" Tag="MAT_LoadPack" Click="MatBtn_Click"
+                                            ToolTip="Mint a named material set (arch / struct / MEP / healthcare / fabrication) bound to a Drawing Type"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Push to Corporate" Tag="MAT_PushCorp" Click="MatBtn_Click"
+                                            ToolTip="Promote selected project materials to the corporate baseline"/>
+                                </WrapPanel>
+                                <TextBlock Margin="2,8,2,2" FontSize="11" FontWeight="SemiBold" Text="Automation"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="⚙ Toggle Auto-Apply" Tag="MAT_ToggleAutoApply" Click="MatBtn_Click"
+                                            ToolTip="Auto-apply a material to newly-created Walls / Floors / Pipes / etc. based on material_rules.json. Default OFF."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="⚙ Toggle Auto-Fill" Tag="MAT_ToggleAutoFill" Click="MatBtn_Click"
+                                            ToolTip="Auto-fill Cost + Carbon on new Material creation from project override / MATERIAL_LOOKUP.csv. Default ON."/>
+                                </WrapPanel>
+                                <TextBlock Margin="2,8,2,2" FontSize="11" FontWeight="SemiBold" Text="Coverage gate"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Check Coverage" Tag="MAT_CoverageCheck" Click="MatBtn_Click"
+                                            ToolTip="Count materialable elements with no material assigned. Same gate runs automatically before Issue Deliverable."/>
+                                </WrapPanel>
+                                <TextBlock Margin="2,8,2,2" FontSize="11" FontWeight="SemiBold" Text="Sustainability gate"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Run Gate" Tag="MAT_SustainabilityGate" Click="MatBtn_Click"
+                                            ToolTip="Run LEED v5 / BREEAM v6 / EN 15978 rule pack against every material. Findings written to CSV."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Edit Rules" Tag="MAT_SustainabilityEdit" Click="MatBtn_Click"
+                                            ToolTip="Open the project sustainability_gates.json (seeded from corporate baseline on first edit)"/>
+                                </WrapPanel>
+                                <TextBlock Margin="2,8,2,2" FontSize="11" FontWeight="SemiBold" Text="Healthcare material gate"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Run Gate" Tag="MAT_HealthcareGate" Click="MatBtn_Click"
+                                            ToolTip="Check element ↔ material pairings against HTM 04-01 (water), MRI Zone III/IV (ferrous), HTM 03-01 (isolation finishes), NCRP 147 (lead shielding), HTM 06-01 (LSZH cable sheath)."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Edit Rules" Tag="MAT_HealthcareEdit" Click="MatBtn_Click"
+                                            ToolTip="Open the project healthcare_material_gates.json (seeded from corporate on first edit)"/>
+                                </WrapPanel>
+                                <TextBlock x:Name="txtLibStatus" Margin="2,8,2,2" FontSize="10" Foreground="#888" TextWrapping="Wrap"
+                                           Text="(Library status loads on first Refresh.)"/>
+                            </StackPanel>
+                        </TabItem>
+
+                        <!-- ── I/O ── -->
+                        <TabItem Header="I/O">
+                            <StackPanel Margin="2,4,2,2">
+                                <TextBlock FontSize="11" TextWrapping="Wrap" Margin="2,2,2,6"
+                                           Text="Round-trip material data with Excel/CSV. Import shows a diff preview before committing changes."/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="MAT_ExportCsv" Click="MatBtn_Click"
+                                            ToolTip="Write every material to CSV under the project output folder"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Import CSV…" Tag="MAT_ImportCsv" Click="MatBtn_Click"
+                                            ToolTip="Pick a CSV, preview diff, confirm to commit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Open Template" Tag="MAT_TemplateCsv" Click="MatBtn_Click"
+                                            ToolTip="Open the BLE/MEP CSV template for editing"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Audit Family Folder…" Tag="MAT_FamilyAudit" Click="MatBtn_Click"
+                                            ToolTip="Open every .rfa in a picked folder read-only, list their materials, write CSV report. Slow on large drops."/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Generate RFQ" Tag="MAT_GenerateRfq" Click="MatBtn_Click"
+                                            ToolTip="Emit a procurement-ready CSV for every material with Manufacturer/Model/URL set."/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Sync COBie" Tag="MAT_SyncCobie" Click="MatBtn_Click"
+                                            ToolTip="Audit COBIE_TYPE_MAP.csv Material column references against the live material library."/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="BOQ by Material" Tag="MAT_BoqByMaterial" Click="MatBtn_Click"
+                                            ToolTip="Re-pivot the BOQ grouped by primary material. Σ cost + Σ carbon per material across the whole project."/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="What-If…" Tag="MAT_WhatIfSwap" Click="MatBtn_Click"
+                                            ToolTip="Preview the cost + carbon delta of swapping one material for another across the whole project. Commit under one transaction (Ctrl+Z reverts)."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Enrich Schedules" Tag="MAT_EnrichSchedules" Click="MatBtn_Click"
+                                            ToolTip="Add STING_EMB_CARBON_NR / STING_MAT_EPD_SRC_TXT / STING_MAT_EPD_DATE_TXT columns to every Material Takeoff schedule in the project."/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Linked Materials" Tag="MAT_LinkedScan" Click="MatBtn_Click"
+                                            ToolTip="Scan every Revit link's materials + reconcile host vs link (RGB / class / cost / carbon) — flags drifted same-name materials before IFC export."/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Carbon by Phase/Level" Tag="MAT_CarbonPivot" Click="MatBtn_Click"
+                                            ToolTip="Aggregate BOQ carbon by (Phase, Level) — tCO₂e per storey per phase for the sustainability report."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="EPD Format Check" Tag="MAT_EpdFormatCheck" Click="MatBtn_Click"
+                                            ToolTip="Validate STING_MAT_EPD_SRC_TXT against known EPD identifier shapes (EC3 / EPD / IBU / DAPCONS / NMD / ECO-PLATFORM)."/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Fire-Wall Gate" Tag="MAT_FireWallGate" Click="MatBtn_Click"
+                                            ToolTip="Validate that fire-rated walls / floors have a credible material composition for their FIRE_RATING_MIN_NR claim (BS 476-22)."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Normalise Classes" Tag="MAT_NormaliseClasses" Click="MatBtn_Click"
+                                            ToolTip="A-1 — Rewrite material classes to corporate canonical names (Concrete C40 / Reinforced Concrete → Concrete)."/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
             </TabItem>
 
             <!-- =============== CREATE TAB =============== -->
@@ -2529,6 +2897,8 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource OrangeBtn}" Content="★ Auto-Size Report" Tag="StrAutoSizeAll" Click="Cmd_Click" ToolTip="Report-only: lists recommended sections per EC2/EC3/EC7 without changing the model"/>
                                     <Button Style="{StaticResource GreenBtn}"  Content="★★ Auto-Size + Apply" Tag="StrAutoSizeApply" Click="Cmd_Click" ToolTip="Preview-and-apply: walks beams / columns / foundations, swaps each FamilySymbol via ChangeTypeId to the recommended section, stamps STR_*_SECTION_TXT" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="RC Design (EC2)" Tag="StrRCDesign" Click="Cmd_Click" ToolTip="Walks concrete beams + columns, derives demand from LoadCombinationEngine, calls EC2 reinforcement design, stamps STR_REBAR_DETAIL_TXT + STR_REBAR_SIZE_MM"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="🇺🇬 Uganda defaults" Tag="StrSetUgandanDefaults" Click="Cmd_Click" ToolTip="Pick a Uganda region (Kampala / Mbarara / Fort Portal / Gulu / Mbale / Jinja / Lira / Kasese / Kabale / Arua / Soroti) and write the regional wind / seismic / soil / rainfall / live-load defaults onto ProjectInformation. ProjectLoadCombinationEngine picks them up automatically."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Grid Optimize" Tag="StrGridOptimize" Click="Cmd_Click" ToolTip="Genetic algorithm column grid optimization"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Carbon Opt" Tag="StrCarbonOptimize" Click="Cmd_Click" ToolTip="Embodied carbon minimization per structural element"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BBS Export" Tag="StrBarBending" Click="Cmd_Click" ToolTip="Bar bending schedule export per BS 8666"/>
@@ -2925,85 +3295,16 @@
                                             ToolTip="Generate S-curve cash flow from 4D schedule + 5D cost"/>
                                 </WrapPanel>
 
-                                <!-- Phase 184 / P2 — Cost automation engine -->
-                                <TextBlock Style="{StaticResource SubLabel}" Text="COST — AUTOMATION (P2)"/>
+                                <!--
+                                    Phase 184n — Cost-management actions (P0 → P8) consolidated.
+                                    Every command lives inside the BOQ Cost Manager → Actions tab
+                                    so the QS finds the entire toolchain in one place rather than
+                                    spread across the dock panel. This block is a single launcher.
+                                -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="COST MANAGEMENT (P0 → P8)"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ Run Cost Workflow" Tag="Cost_RunWorkflow" Click="Cmd_Click" FontWeight="Bold"
-                                            ToolTip="Pick and run a WORKFLOW_BOQ_*.json preset (Full Refresh / Quick Valuation / Tender Pack)"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Validate Cost" Tag="Cost_ValidateAll" Click="Cmd_Click"
-                                            ToolTip="Run the 5-validator chain (missing material / untyped category / unpriced PROD / zero qty / stale)"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Clear Stale" Tag="Cost_ClearStale" Click="Cmd_Click"
-                                            ToolTip="Reset ASS_CST_STALE_BOOL on every element after a successful BOQ build"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Stale Marker Toggle" Tag="Cost_ToggleStaleMarker" Click="Cmd_Click"
-                                            ToolTip="Enable/disable the StingCostStaleMarker IUpdater that flags BOQ rows as stale on geometry change"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Reload Rules" Tag="Cost_ReloadRules" Click="Cmd_Click"
-                                            ToolTip="Invalidate the rate provider / take-off rule / ICMS3 phase / CostStamp / default-rates caches"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Migrate UGX → Neutral" Tag="Cost_MigrateCurrencyParams" Click="Cmd_Click"
-                                            ToolTip="One-shot: copy legacy CST_UNIT_RATE_UGX into currency-neutral ASS_CST_UNIT_RATE_NR / CURRENCY_TXT / FX params"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Migrate ES v1 → v2" Tag="Cost_MigrateESEntities" Click="Cmd_Click"
-                                            ToolTip="Bulk-migrate v1 Extensible Storage cost overrides to v2 (waste / OH / profit / dayworks / lock)"/>
-                                </WrapPanel>
-
-                                <!-- Phase 184f / P4 — NRM1 elemental cost plan -->
-                                <TextBlock Style="{StaticResource SubLabel}" Text="COST PLAN — NRM1 (P4 / RIBA 1-3)"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ New Cost Plan" Tag="CostPlan_Create" Click="Cmd_Click" FontWeight="Bold"
-                                            ToolTip="Mint a £/m² GIFA elemental cost plan — pick building type + GIFA, get a PERT 3-point estimate"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Compare vs BOQ" Tag="CostPlan_Compare" Click="Cmd_Click"
-                                            ToolTip="Variance report — NRM1 cost plan vs live BOQ totals, RAG-coded per element"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Export Cost Plan" Tag="CostPlan_Export" Click="Cmd_Click"
-                                            ToolTip="Export the active cost plan to xlsx (full NRM1 breakdown + totals)"/>
-                                </WrapPanel>
-
-                                <!-- Phase 184g / P5.1 — Payment certificates -->
-                                <TextBlock Style="{StaticResource SubLabel}" Text="PAYMENT CERTS (P5.1 / JCT / NEC4 / FIDIC)"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ Issue Cert" Tag="PaymentCert_Issue" Click="Cmd_Click" FontWeight="Bold"
-                                            ToolTip="Build a draft interim payment cert from current BOQ + weighted % complete. Retention auto-halves at threshold."/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Approve Cert" Tag="PaymentCert_Approve" Click="Cmd_Click"
-                                            ToolTip="Advance the cert state machine — Draft → Issued, or Issued → Agreed"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Cert Register" Tag="PaymentCert_Register" Click="Cmd_Click"
-                                            ToolTip="Export a CSV register of every cert (gross / retention / payable / signers / cumulative)"/>
-                                </WrapPanel>
-
-                                <!-- Phase 184g / P5.2 — Variations + star rates -->
-                                <TextBlock Style="{StaticResource SubLabel}" Text="VARIATIONS + STAR RATES (P5.2)"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ Variation from Diff" Tag="Variation_FromDiff" Click="Cmd_Click" FontWeight="Bold"
-                                            ToolTip="Mint a draft VO from a BOQSnapshotDiff (pick baseline A + revised B). Numbered VO-AI / VO-CE / VO-EI / VO-CC."/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Star Rate Build-Up" Tag="Variation_BuildStarRate" Click="Cmd_Click"
-                                            ToolTip="Author a star rate from first principles — labour + plant + materials + OH + profit"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="VO Register" Tag="Variation_ExportRegister" Click="Cmd_Click"
-                                            ToolTip="Export all variations to CSV (number / status / instruction date / value / signers)"/>
-                                </WrapPanel>
-
-                                <!-- Phase 184g / P5.3 — Earned Value Management -->
-                                <TextBlock Style="{StaticResource SubLabel}" Text="EVM (P5.3 / PMI)"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ Calculate EVM" Tag="Evm_Calculate" Click="Cmd_Click" FontWeight="Bold"
-                                            ToolTip="Compute BCWS / BCWP / ACWP + CV / SV / CPI / SPI / EAC / ETC / VAC / TCPI with Green/Amber/Red health gates"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Import Actuals" Tag="Evm_ImportActuals" Click="Cmd_Click"
-                                            ToolTip="Sum the latest actuals CSV (Date, Section, Amount) under _bim_manager/actuals/"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="EVM S-Curve" Tag="Evm_ExportReport" Click="Cmd_Click"
-                                            ToolTip="Export S-curve CSV of every EVM period"/>
-                                </WrapPanel>
-
-                                <!-- Phase 184h / P6 — Multi-standard take-off -->
-                                <TextBlock Style="{StaticResource SubLabel}" Text="MEASUREMENT STANDARD (P6)"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Set Standard" Tag="Cost_SetMeasurementStandard" Click="Cmd_Click"
-                                            ToolTip="Pick the active measurement standard — NRM2 / CESMM4 / POMI / ICMS3 / MMHW"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Standard Preview" Tag="Cost_StandardInspect" Click="Cmd_Click"
-                                            ToolTip="Diagnostic preview — how each standard classifies + units common categories"/>
-                                </WrapPanel>
-
-                                <!-- Phase 184j / P8 — IFC4 Qto + ICMS3 -->
-                                <TextBlock Style="{StaticResource SubLabel}" Text="IFC + ICMS3 (P8)"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Stamp IFC Qto" Tag="Cost_StampIfcQuantities" Click="Cmd_Click"
-                                            ToolTip="Populate IFC4 Qto_*BaseQuantities + Pset_StingCost on every BOQ element so Cost-X / CostOS / Candy / Bluebeam Revu read cost direct from IFC"/>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ ICMS3 Report" Tag="Cost_ExportIcms3Report" Click="Cmd_Click" FontWeight="Bold"
-                                            ToolTip="Export ICMS3 cost + carbon ledger — £ + kgCO₂e + £/kgCO₂e per ICMS group 01/02/03/04"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Open BOQ Cost Manager" Tag="BOQCostManager" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="One place for every cost workflow: BOQ build, snapshots, validators, cost plan, payment certs, variations, EVM, measurement standards, IFC Qto, ICMS3. Open and switch to the Actions tab."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -3488,6 +3789,22 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- SPECKLE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SPECKLE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#0277BD">
+                            <StackPanel>
+                                <TextBlock Text="Snapshot-based Speckle integration (HTTP push/pull pending SDK v2)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Diff" Tag="SpeckleDiff" Click="Cmd_Click"
+                                            ToolTip="Compare current model to last Speckle snapshot"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Send" Tag="SpeckleSend" Click="Cmd_Click"
+                                            ToolTip="Export tagged elements to Speckle snapshot"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Receive" Tag="SpeckleReceive" Click="Cmd_Click"
+                                            ToolTip="Load elements from Speckle snapshot"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- REVISION MANAGEMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="REVISION MANAGEMENT"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#C62828">
@@ -3703,6 +4020,141 @@
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══════════════════════ HVAC TAB (Phase 188 / A4) ═══════════════════════ -->
+            <!-- Launcher for the dedicated STING HVAC dock panel + quick-access
+                 buttons for the most-used HVAC commands. The full grid editor
+                 lives in the separate panel (Ribbon → ❄ HVAC → STING HVAC). -->
+            <TabItem Header="HVAC">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+
+                        <!-- HEADER -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="HVAC — DUCT · PIPE · LOADS · CARBON" FontWeight="Bold" FontSize="11" Foreground="#00897B"/>
+                                <TextBlock Text="Sizing, balancing, drift detection, pressure-class audit, plant carbon, loads + gbXML" FontSize="9" Foreground="#888"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PRIMARY ENTRY: Open the dedicated HVAC dock panel -->
+                        <Border BorderBrush="#00695C" BorderThickness="2" CornerRadius="4" Margin="0,2,0,6" Padding="8"
+                                Background="#E0F2F1">
+                            <StackPanel>
+                                <TextBlock Text="❄ STING HVAC CENTER" FontWeight="Bold" FontSize="12" Foreground="#004D40"/>
+                                <TextBlock Text="Full 7-tab editor: EQPT · SYS · CALCS · DUCT · LOADS · FAB · RPRT"
+                                           FontSize="10" Foreground="#00695C" Margin="0,2,0,6"/>
+                                <Button Content="Open STING HVAC Panel"
+                                        Tag="ToggleHvacPanel" Click="Cmd_Click"
+                                        Background="#00897B" Foreground="White"
+                                        FontWeight="Bold" Height="30" FontSize="11"
+                                        ToolTip="Toggle the dedicated STING HVAC dockable panel (tabbed behind PropertiesPalette)"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- SIZING -->
+                        <TextBlock Text="SIZING" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Auto-size Duct" Tag="Mep_AutoSizeDuct"
+                                    Click="Cmd_Click" ToolTip="Auto-size ducts per active strategy + segment role (Phase 182/183)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Auto-size Pipe" Tag="Mep_AutoSizePipe"
+                                    Click="Cmd_Click" ToolTip="Auto-size pipes per detected service (chw/hws/dcw/dhw/refrig/steam/gas)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Auto-size All" Tag="Mep_AutoSizeAll"
+                                    Click="Cmd_Click" ToolTip="Run duct + pipe + conduit auto-size in sequence"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Friction" Tag="Hvac_DuctFriction"
+                                    Click="Cmd_Click" ToolTip="Darcy-Weisbach + SMACNA fitting-loss report"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Static regain" Tag="Hvac_StaticRegain"
+                                    Click="Cmd_Click" ToolTip="Static-regain sizing"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Equal friction" Tag="Hvac_EqualFriction"
+                                    Click="Cmd_Click" ToolTip="Equal-friction sizing"/>
+                        </WrapPanel>
+
+                        <!-- BALANCE + AUDIT -->
+                        <TextBlock Text="BALANCE · AUDIT" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Hardy-Cross" Tag="Hvac_HardyCross"
+                                    Click="Cmd_Click" ToolTip="Hardy-Cross flow balancing on pipe loops"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Pressure drop" Tag="Mep_PressureDrop"
+                                    Click="Cmd_Click" ToolTip="Per-system pressure drop report"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Vibro-acoustic" Tag="Mep_VibroAcoustic"
+                                    Click="Cmd_Click" ToolTip="Duct-borne NC rating per branch"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Pressure class" Tag="Hvac_PressureClassAudit"
+                                    Click="Cmd_Click" ToolTip="Audit ducts against active DW/144 pressure class (Phase 183)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Detect stale" Tag="Hvac_DetectStaleSizes"
+                                    Click="Cmd_Click" ToolTip="Flag ducts whose size diverges &gt;20% from current flow target (Phase 183)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Run validators" Tag="Hvac_RunAllValidators"
+                                    Click="Cmd_Click" ToolTip="Run v4 + healthcare + pressure-regime validator chain"/>
+                        </WrapPanel>
+
+                        <!-- LOADS + gbXML -->
+                        <TextBlock Text="LOADS · gbXML" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Run loads" Tag="Hvac_RunLoads"
+                                    Click="Cmd_Click" ToolTip="Post Revit's Heating and Cooling Loads dialog (reflection-based, works on all Revit versions)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Export gbXML" Tag="Hvac_ExportGbxml"
+                                    Click="Cmd_Click" ToolTip="Export to gbXML for IES / TRACE / HAP / EnergyPlus"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Space audit" Tag="Hvac_AuditEnvelope"
+                                    Click="Cmd_Click" ToolTip="Audit MEP-space envelope completeness"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Ventilation audit" Tag="Hvac_Ventilation"
+                                    Click="Cmd_Click" ToolTip="ASHRAE 62.1 / ADF1 / BB101 minimum-OA audit"/>
+                        </WrapPanel>
+
+                        <!-- CARBON + SCHEDULE -->
+                        <TextBlock Text="CARBON · SCHEDULE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Plant carbon" Tag="Hvac_CarbonReport"
+                                    Click="Cmd_Click" ToolTip="CIBSE TM65 embodied + IPCC AR6 refrigerant GWP (Phase 183)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Scrape params" Tag="Hvac_ScrapeEquipmentParams"
+                                    Click="Cmd_Click" ToolTip="Stamp HVC_CAPACITY_KW + HVC_REFRIGERANT_TYPE_TXT on Mechanical Equipment (Phase 188)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HVAC schedule" Tag="MEPScheduleHVAC"
+                                    Click="Cmd_Click" ToolTip="Generate / refresh mechanical equipment schedule"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Refresh panel" Tag="Hvac_RefreshPanel"
+                                    Click="Cmd_Click" ToolTip="Re-seed the HVAC dock-panel grids from the active document"/>
+                        </WrapPanel>
+
+                        <!-- FABRICATION -->
+                        <TextBlock Text="FABRICATION" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Open workspace" Tag="Fabrication_OpenWorkspace"
+                                    Click="Cmd_Click" ToolTip="Open the fabrication workspace dialog"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Seam audit" Tag="Hvac_DuctSeamAudit"
+                                    Click="Cmd_Click" ToolTip="SMACNA seam tally per spool"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Cut list" Tag="Hvac_ExportCutList"
+                                    Click="Cmd_Click" ToolTip="Export per-spool cut list CSV"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Isometrics" Tag="Hvac_ExportIsometrics"
+                                    Click="Cmd_Click" ToolTip="Export ISO 6412 isometrics"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="NC export" Tag="Hvac_ExportNC"
+                                    Click="Cmd_Click" ToolTip="Export NC machine code"/>
+                        </WrapPanel>
+
+                        <!-- WORKFLOW PRESETS -->
+                        <TextBlock Text="WORKFLOW PRESETS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="HVAC Design"
+                                    Tag="WorkflowPreset_HVACDesign" Click="Cmd_Click"
+                                    ToolTip="Run the 7-step HVAC design preset: audit → size → balance → NC → validators (Phase 182)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HVAC Commissioning"
+                                    Tag="WorkflowPreset_HVACCommissioning" Click="Cmd_Click"
+                                    ToolTip="Run the CIBSE TM39 commissioning sequence"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Duct Spool Pack"
+                                    Tag="WorkflowPreset_DuctSpoolProduction" Click="Cmd_Click"
+                                    ToolTip="Build duct fabrication hand-off pack (8 steps)"/>
+                        </WrapPanel>
+
+                        <!-- SYNC · MOBILE -->
+                        <TextBlock Text="SYNC · MOBILE · SETTINGS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Push to API" Tag="Hvac_PushSnapshot"
+                                    Click="Cmd_Click" ToolTip="Push drift / loads / sizing snapshots to Planscape server — mobile HVAC dashboard reads these (Phase 188 / Tier 3)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Reload rules" Tag="Hvac_ReloadRules"
+                                    Click="Cmd_Click" ToolTip="Reload STING_MEP_SIZING_RULES.json + project override"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HVAC settings" Tag="Hvac_OpenSettings"
+                                    Click="Cmd_Click" ToolTip="Open the MEP sizing rules registry info dialog"/>
+                        </WrapPanel>
 
                     </StackPanel>
                 </ScrollViewer>
@@ -4274,6 +4726,39 @@
                                             </StackPanel>
                                         </Border>
 
+                                        <!-- HANDOVER MODE TOGGLE + PARAGRAPH BUILDER -->
+                                        <TextBlock Text="HANDOVER MODE (T4–T10 DEFAULT CONTENT)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="80"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Mode" FontSize="9" VerticalAlignment="Center"/>
+                                                    <WrapPanel Grid.Column="1">
+                                                        <RadioButton x:Name="rbModeHandover"  Content="Handover / FM"         GroupName="HandoverMode" IsChecked="True" Margin="2" FontSize="9"
+                                                                     ToolTip="Commissioning · Cost · Carbon · Fab · Clash · As-built · Compliance"/>
+                                                        <RadioButton x:Name="rbModeDesign"    Content="Design &amp; Construction" GroupName="HandoverMode" Margin="2" FontSize="9"
+                                                                     ToolTip="Design intent · Performance · Material · Installation · Coordination · Warranty · Classification"/>
+                                                        <RadioButton x:Name="rbModeCustom"    Content="Custom"                 GroupName="HandoverMode" Margin="2" FontSize="9"
+                                                                     ToolTip="User-edited preset from PARAGRAPH_PRESETS.json"/>
+                                                    </WrapPanel>
+                                                </Grid>
+                                                <WrapPanel Margin="0,6,0,0">
+                                                    <Button Style="{StaticResource BlueBtn}"   Content="Paragraph Builder…"  Tag="ParagraphBuilder"        Click="Cmd_Click" Width="132" Height="26"
+                                                            ToolTip="Edit T4–T10 rows (parameter + prefix + suffix), save as preset"/>
+                                                    <Button Style="{StaticResource GreenBtn}"  Content="Apply preset"        Tag="ApplyParagraphPreset"    Click="Cmd_Click" Width="90"  Height="26"
+                                                            ToolTip="Write composed paragraphs into ASS_TAG_7_TXT on elements in scope"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Run full workflow"   Tag="RunWorkflow_TierConversionHandover" Click="Cmd_Click" Width="110" Height="26"
+                                                            ToolTip="Apply preset → Set depth → Validate → COBie/Handover export"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Live refresh"        Tag="Tag7NarrativeUpdaterToggle" Click="Cmd_Click" Width="90"  Height="26"
+                                                            ToolTip="Toggle IUpdater that keeps ASS_TAG_7_TXT in sync with parameter changes"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="Switches T4–T10 default content between Handover (FM) and Design &amp; Construction. Custom lets you save your own." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
                                         <!-- COBIE FIELD PRE-SEEDING -->
                                         <TextBlock Text="COBie FIELD PRE-SEEDING" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
@@ -4378,6 +4863,25 @@
                                  TabItem named "Categories" — the "ORPHAN-FIX: re-instated"
                                  loop only stopped after this consolidation. -->
                             <TabItem Header="Categories">
+                                <TabItem.Resources>
+                                    <Style x:Key="CategoryCheckListItemStyle" TargetType="ListBoxItem">
+                                        <Setter Property="Padding" Value="2,1"/>
+                                        <Setter Property="Margin" Value="0"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Border Background="Transparent">
+                                                        <CheckBox FontSize="9"
+                                                                  Margin="2,1"
+                                                                  Focusable="False"
+                                                                  Content="{TemplateBinding Content}"
+                                                                  IsChecked="{Binding IsSelected, RelativeSource={RelativeSource Mode=TemplatedParent}}"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </TabItem.Resources>
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="4">
 
@@ -4786,6 +5290,7 @@
                                     <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
                                         <Button Style="{StaticResource GreenBtn}"  Content="System trace"    Tag="Mep_SystemTracer"  Click="Cmd_Click" Width="100" Height="30" ToolTip="BFS walk of the MEP connector graph from selection"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Auto-size all"   Tag="Mep_AutoSizeAll"   Click="Cmd_Click" Width="100" Height="30" ToolTip="Size every pipe / duct / conduit from flow + cable data"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Cross-stamp"     Tag="MepCrossStamp"     Click="Cmd_Click" Width="100" Height="30" ToolTip="Pull native Revit MEP data (flow / voltage / current / system name / insulation) into STING shared params so schedules + BOQ see it"/>
                                         <Button Style="{StaticResource OrangeBtn}" Content="Auto-sleeve"     Tag="Mep_AutoSleeve"    Click="Cmd_Click" Width="100" Height="30" ToolTip="Insert sleeve families at every wall / floor / roof crossing"/>
                                     </WrapPanel>
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -5071,79 +5576,675 @@
 
             <!-- ═══════════════════ HEALTHCARE TAB (H-1..H-30) ═══════════════════ -->
             <TabItem Header="HEALTHCARE">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
-                    <StackPanel>
+                <!-- Inline-interactive Healthcare tab.
+                     Sticky context bar (top), 6 sub-tabs (centre), sticky action bar (bottom).
+                     Named controls flushed to StingCommandHandler.SetExtraParam by
+                     StingDockPanel.SetHealthcareOptions() before any Healthcare_* dispatches. -->
+                <DockPanel LastChildFill="True">
 
-                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00838F">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource SectionLabel}" Text="HEALTHCARE PACK — Hospital Design / FM" Foreground="#00838F"/>
-                                <TextBlock FontSize="9" Foreground="#666" TextWrapping="Wrap" Margin="0,0,0,6"
-                                           Text="HTM / HBN / FGI / NFPA 99 / NCRP 147 / ASHRAE 170 / USP 797-800 / SFG20 healthcare overlay. Gated on PRJ_ORG_HEALTH_FACILITY_TYPE_TXT."/>
-                            </StackPanel>
-                        </Border>
+                    <!-- ─── STICKY CONTEXT BAR (top) ─── -->
+                    <Border DockPanel.Dock="Top" Style="{StaticResource GroupBorder}" BorderBrush="#00838F" Margin="4,4,4,2">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="HEALTHCARE PACK — HTM / HBN / FGI / NFPA 99 / NCRP 147" Foreground="#00838F"/>
+                            <Grid Margin="0,2,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60"/>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Facility" FontSize="9" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1" x:Name="cmbHcFacility" FontSize="9" Height="22" ToolTip="Sets PRJ_ORG_HEALTH_FACILITY_TYPE_TXT — gates the validator chain.">
+                                    <ComboBoxItem Content="ACUTE" Tag="ACUTE" IsSelected="True"/>
+                                    <ComboBoxItem Content="FULL" Tag="FULL"/>
+                                    <ComboBoxItem Content="COMMUNITY" Tag="COMMUNITY"/>
+                                    <ComboBoxItem Content="DENTAL" Tag="DENTAL"/>
+                                    <ComboBoxItem Content="IMAGING-ONLY" Tag="IMAGING-ONLY"/>
+                                    <ComboBoxItem Content="MENTAL-HEALTH" Tag="MENTAL-HEALTH"/>
+                                </ComboBox>
+                                <TextBlock Grid.Column="2" x:Name="lblHcProfile" FontSize="9" Foreground="#666" Margin="8,0,0,0" VerticalAlignment="Center" Text="Profile applied: derived from facility"/>
+                            </Grid>
+                            <WrapPanel Margin="0,4,0,0">
+                                <TextBlock Text="Scope" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <RadioButton Content="Project"    GroupName="HcScope" x:Name="rbHcScopeProject"   IsChecked="True" Margin="2,0" FontSize="9"/>
+                                <RadioButton Content="Active view" GroupName="HcScope" x:Name="rbHcScopeView"      Margin="2,0" FontSize="9"/>
+                                <RadioButton Content="Selection"  GroupName="HcScope" x:Name="rbHcScopeSelection" Margin="2,0" FontSize="9"/>
+                                <CheckBox Content="Skip rooms without CLN_ROOM_CLASS" x:Name="chkHcSkipUnclassified" IsChecked="True" Margin="12,0,4,0" FontSize="9"/>
+                                <CheckBox Content="Include linked models" x:Name="chkHcIncludeLinks" Margin="4,0" FontSize="9"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
 
-                        <!-- VALIDATION (H-5 + H-23..H-30) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="VALIDATION CHAIN"/>
-                        <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="Run All Healthcare" Tag="Healthcare_RunAllValidators" Click="Cmd_Click" ToolTip="Run every healthcare validator (16) through the profile gate. Gated on PRJ_ORG_HEALTH_FACILITY_TYPE_TXT — non-healthcare projects skip the chain."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Pressure Regime"     Tag="Healthcare_PressureAudit"    Click="Cmd_Click" ToolTip="HTM 03-01 / ASHRAE 170 — pressure regime + Δp + ACH + AIIR/PE anteroom cascade."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="MGPS Audit"          Tag="Healthcare_MgasAudit"        Click="Cmd_Click" ToolTip="HTM 02-01 / NFPA 99 — medical-gas network walk + diversified zone loads."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="MGPS Verify"         Tag="Healthcare_MgasVerify"       Click="Cmd_Click" ToolTip="NFPA 99 §5.1.12 — 12-step verification walk-through with verifier sign-off; persists log to _BIM_COORD/healthcare/mgas_verifications/."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="EES Branches"        Tag="Healthcare_EesBranch"        Click="Cmd_Click" ToolTip="NFPA 99 §6.4 / NEC 517 — Life Safety / Critical / Equipment branch tagging + ATS time + IPS in wet locations."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Water Safety"        Tag="Healthcare_WaterSafety"      Click="Cmd_Click" ToolTip="HTM 04-01 — TMV3, sentinel dead-leg ≤ 1 m, augmented-care POU filter, RO-loop topology."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Rad Shield"          Tag="Healthcare_RadShield"        Click="Cmd_Click" ToolTip="NCRP 147 — required vs provided mm Pb on every barrier element with QE sign-off."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Adv Rad (PET/NM)"    Tag="Healthcare_AdvancedRadShield" Click="Cmd_Click" ToolTip="PET 511 keV / SPECT / brachy — flags Pb-only designs that need concrete correction."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Adjacency / Flow"    Tag="Healthcare_AdjacencyAudit"   Click="Cmd_Click" ToolTip="HBN-derived adjacency targets + door-graph BFS for clean/dirty flow."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Anti-Ligature"       Tag="Healthcare_AntiLigature"     Click="Cmd_Click" ToolTip="HBN 03-01 / FGI Pt 2 — every fitting in a ligature-resistant room must carry LIG_PRODUCT_RATING_TXT."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Structural Loads"    Tag="Healthcare_StructuralLoad"   Click="Cmd_Click" ToolTip="Heavy imaging — floor load + VC vibration band + Structural Engineer sign-off."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Acoustic"            Tag="Healthcare_Acoustic"         Click="Cmd_Click" ToolTip="HTM 08-01 NR + RT60 targets per room class."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Endoscope Trace"     Tag="Healthcare_EndoscopeTrace"   Click="Cmd_Click" ToolTip="HTM 01-06 — RFID chain ≥ 4 readers per decon room (soak / AER / drying / storage)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="EES Resilience"      Tag="Healthcare_EesResilience"    Click="Cmd_Click" ToolTip="NFPA 110 — generator + ATS test log freshness + UPS battery age."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="RTLS Coverage"       Tag="Healthcare_RtlsCoverage"     Click="Cmd_Click" ToolTip="RTLS — RF dead-zone + MRI Z3/Z4 wireless prohibition."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Waste Flow"          Tag="Healthcare_WasteFlow"        Click="Cmd_Click" ToolTip="HTM 07-01 — HC1..HC6 class + radioactive controlled-area flag."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="IoT Devices"         Tag="Healthcare_IoTRegistry"      Click="Cmd_Click" ToolTip="IoT device inventory grouped by protocol (BACnet / OPC-UA / Modbus / REST)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="IoT Staleness"       Tag="Healthcare_IoTStaleness"     Click="Cmd_Click" ToolTip="Reports IoT devices not seen in &gt; 30 min."/>
-                        </WrapPanel>
+                    <!-- ─── STICKY ACTION BAR (bottom) ─── -->
+                    <Border DockPanel.Dock="Bottom" Style="{StaticResource GroupBorder}" BorderBrush="#00838F" Margin="4,2,4,4">
+                        <StackPanel>
+                            <WrapPanel>
+                                <Button x:Name="btnHcRunSelected" Style="{StaticResource GreenBtn}" Content="Run selected"  Tag="Healthcare_RunSelected"      Click="Cmd_Click" Width="96" Height="28" ToolTip="Run only the validators ticked in the Validators sub-tab. Reads Hc.SelectedValidators."/>
+                                <Button x:Name="btnHcRunAll"      Style="{StaticResource ActionBtn}" Content="Run all"      Tag="Healthcare_RunAllValidators" Click="Cmd_Click" Width="80" Height="28" ToolTip="Run every healthcare validator through the profile gate."/>
+                                <Button x:Name="btnHcCancel"      Style="{StaticResource ActionBtn}" Content="Cancel"       Tag="Healthcare_Cancel"           Click="Cmd_Click" Width="60" Height="28" ToolTip="Set the cancel flag — the next validator step will return early."/>
+                            </WrapPanel>
+                            <TextBlock x:Name="lblHcLastRun" FontSize="9" Foreground="#666" Margin="2,4,2,2" Text="No run yet."/>
+                            <ProgressBar x:Name="prgHcRag" Height="4" Minimum="0" Maximum="100" Value="0"/>
+                            <!-- Rich inline result host. Auto-expands when a command pushes
+                                 a Builder via StingDockPanel.PushHcResultPanel. Caps the
+                                 panel height at 380 px so the dock stays compact. -->
+                            <Expander x:Name="expHcResultDetails" Header="Details" FontSize="9"
+                                      Margin="0,4,0,0" IsExpanded="False">
+                                <ContentControl x:Name="hostHcResultPanel"/>
+                            </Expander>
+                        </StackPanel>
+                    </Border>
 
-                        <!-- ROOM DATA SHEETS (H-8) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="ROOM DATA SHEETS (H-8)"/>
-                        <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="Issue RDS (one room)" Tag="Healthcare_IssueRDS"        Click="Cmd_Click" ToolTip="Pick a Room and render its A2 RDS (HBN/ADB driven)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Batch RDS (all)"      Tag="Healthcare_BatchRDS"        Click="Cmd_Click" ToolTip="Render an RDS for every clinical room with CLN_ROOM_CLASS_TXT populated."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="RDS Completeness"     Tag="Healthcare_RdsCompleteness" Click="Cmd_Click" ToolTip="Audit: every clinical room must carry the 14 mandatory parameters before its RDS can be issued."/>
-                        </WrapPanel>
+                    <!-- ─── 6 SUB-TABS ─── -->
+                    <TabControl x:Name="hcSubTabs" FontSize="10" Padding="2">
 
-                        <!-- RADIATION CALCULATORS (H-9 / H-25) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="RADIATION (NCRP 147 / 151)"/>
-                        <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="Chest Room Calc" Tag="Healthcare_RadCalcChest" Click="Cmd_Click" ToolTip="NCRP 147 — chest radiography barrier example (UNCONTROLLED, 125 kVp, W=50 mA·min/wk, U=1, T=1, d=2 m)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="CT Room Calc"    Tag="Healthcare_RadCalcCt"    Click="Cmd_Click" ToolTip="NCRP 147 — CT secondary-barrier example (CONTROLLED, 150 kVp, W=600 mA·min/wk, U=0.25, T=0.5, d=3 m)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="LINAC Vault"     Tag="Healthcare_RadCalcLinac" Click="Cmd_Click" ToolTip="NCRP 151 — first-pass LINAC vault primary + maze (10 MV concrete)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="MRI Zoning"      Tag="Healthcare_MriZoneAudit" Click="Cmd_Click" ToolTip="MRI Z1..Z4 + Faraday cage flag audit (IEC 60601-2-33)."/>
-                        </WrapPanel>
+                        <!-- ============ 1. VALIDATORS ============ -->
+                        <TabItem Header="Validators">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
 
-                        <!-- SPECIALIST AUDITS (H-11..H-19) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="SPECIALIST AUDITS"/>
-                        <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="Hybrid OR / Cath" Tag="Healthcare_HybridOr"          Click="Cmd_Click" ToolTip="OR-HYBRID / CATHLAB / IR area minimums (FGI / VA)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Pharmacy USP"     Tag="Healthcare_PharmacyUsp"       Click="Cmd_Click" ToolTip="USP &lt;797&gt; / &lt;800&gt; pressure cascade + ACH."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Behavioural"      Tag="Healthcare_BehaviouralHealth" Click="Cmd_Click" ToolTip="FGI Pt 2 / HBN 03-01 — anti-ligature flag + risk + privacy."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Mortuary"         Tag="Healthcare_Mortuary"          Click="Cmd_Click" ToolTip="HBN 16 — mortuary capacity (0.5 % beds, min 4 bays)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Maternity / NICU" Tag="Healthcare_MaternityNicu"     Click="Cmd_Click" ToolTip="HBN 21 / 09-03 — room areas + NICU NR ≤ 35."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="HSDU"             Tag="Healthcare_Hsdu"              Click="Cmd_Click" ToolTip="HBN 13 — wash / pack / sterile compartment polarity."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Dialysis"         Tag="Healthcare_Dialysis"          Click="Cmd_Click" ToolTip="HBN 07-02 — RO-loop integrity + station / plant counts."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Hyperbaric / IVF" Tag="Healthcare_Hbo"               Click="Cmd_Click" ToolTip="NFPA 99 Ch.14 hyperbaric + USP cytotoxic + IVF."/>
-                        </WrapPanel>
+                                    <!-- Collapsible validator chain (default expanded) -->
+                                    <Expander x:Name="expHcValidatorChain" Header="VALIDATOR CHAIN  (tick rows, then Run selected)"
+                                              FontWeight="Bold" FontSize="10" Foreground="#00838F"
+                                              IsExpanded="True" Margin="0,2,0,4">
+                                        <DataGrid x:Name="dgHcValidators"
+                                                  AutoGenerateColumns="False"
+                                                  CanUserAddRows="False"
+                                                  CanUserDeleteRows="False"
+                                                  CanUserResizeRows="False"
+                                                  HeadersVisibility="Column"
+                                                  GridLinesVisibility="Horizontal"
+                                                  FontSize="9"
+                                                  RowHeight="22"
+                                                  MaxHeight="320">
+                                            <DataGrid.Columns>
+                                                <DataGridCheckBoxColumn Header="Run"        Binding="{Binding Run, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="34"/>
+                                                <DataGridTextColumn     Header="Validator"  Binding="{Binding DisplayName}" Width="160" IsReadOnly="True"/>
+                                                <DataGridTextColumn     Header="Standard"   Binding="{Binding Standard}"    Width="170" IsReadOnly="True"/>
+                                                <DataGridTextColumn     Header="Status"     Binding="{Binding Status}"      Width="60"  IsReadOnly="True"/>
+                                                <DataGridTextColumn     Header="Result"     Binding="{Binding Result}"      Width="80"  IsReadOnly="True"/>
+                                                <DataGridTextColumn     Header="Last run"   Binding="{Binding LastRun}"     Width="*"   IsReadOnly="True"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Expander>
 
-                        <!-- WORKFLOWS (8 healthcare workflow JSONs) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="WORKFLOW PRESETS"/>
-                        <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="List Workflows" Tag="ListWorkflowPresets" Click="Cmd_Click" ToolTip="Show every workflow preset; healthcare ones include HealthcareCommissioning, MgasVerification, PressureRegimeAudit, RdsIssue, HTM-04-01-Annual, AntiLigatureAudit, NFPA110-GeneratorTest, HTM-01-06-EndoReprocess."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Workflow Trend" Tag="WorkflowTrend"       Click="Cmd_Click" ToolTip="View healthcare workflow run-history trend (last 100 runs)."/>
-                        </WrapPanel>
+                                    <Expander x:Name="expHcAdvThresholds" Header="Advanced thresholds (HTM 03-01 / ASHRAE 170 / HTM 04-01)" Margin="0,6,0,0" FontSize="9">
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid Margin="0,2,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="ΔP min (Pa)" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcDpMin" Minimum="0" Maximum="10" Value="2.5" TickFrequency="0.5" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcDpMin, StringFormat={}{0:F1} Pa}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="ACH min" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcAchMin" Minimum="2" Maximum="25" Value="12" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcAchMin, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <CheckBox Content="Anteroom cascade strict" x:Name="chkHcAnteroomStrict" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Dead-leg max (m)" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcDeadLegMaxM" Minimum="0.5" Maximum="3" Value="1" TickFrequency="0.1" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcDeadLegMaxM, StringFormat={}{0:F1} m}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Adjacency BFS depth" FontSize="9" VerticalAlignment="Center"/>
+                                                    <ComboBox Grid.Column="1" x:Name="cmbHcAdjacencyDepth" FontSize="9" Height="22">
+                                                        <ComboBoxItem Content="1" Tag="1"/>
+                                                        <ComboBoxItem Content="2" Tag="2"/>
+                                                        <ComboBoxItem Content="3" Tag="3" IsSelected="True"/>
+                                                        <ComboBoxItem Content="4" Tag="4"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Endo RFID min readers" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcRfidMin" Minimum="2" Maximum="8" Value="4" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcRfidMin, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="UPS max age (yrs)" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcUpsMaxAgeYrs" Minimum="1" Maximum="10" Value="5" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcUpsMaxAgeYrs, StringFormat={}{0:F0} yr}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="IoT stale (mins)" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcIotStaleMins" Minimum="10" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcIotStaleMins, StringFormat={}{0:F0} m}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <CheckBox Content="Rad shield requires QE sign-off"  x:Name="chkHcRadRequireQeSignoff" IsChecked="True" Margin="0,6,0,0" FontSize="9"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Expander>
 
-                    </StackPanel>
-                </ScrollViewer>
+                                    <!-- Per-row launch buttons (single-validator runs). Tinted
+                                         GroupBorder gives the row visual presence (was: bare
+                                         WrapPanel of grey ActionBtns — felt lifeless). Discipline-
+                                         coded button styles surface the validator family at a
+                                         glance: blue = HVAC, green = water, purple = electrical,
+                                         orange = radiation, teal = IoT, red = adjacency / waste. -->
+                                    <TextBlock Text="QUICK SINGLE-VALIDATOR LAUNCHERS" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}" BorderBrush="#B2DFDB" Background="#E0F2F1">
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource BlueBtn}"   Content="Pressure"   Tag="Healthcare_PressureAudit"     Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource BlueBtn}"   Content="MGPS Audit" Tag="Healthcare_MgasAudit"         Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource PurpleBtn}" Content="EES Branch" Tag="Healthcare_EesBranch"         Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource GreenBtn}"  Content="Water"      Tag="Healthcare_WaterSafety"       Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource OrangeBtn}" Content="Rad Shield" Tag="Healthcare_RadShield"         Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource OrangeBtn}" Content="Adv Rad"    Tag="Healthcare_AdvancedRadShield" Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource RedBtn}"    Content="Adjacency"  Tag="Healthcare_AdjacencyAudit"    Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource RedBtn}"    Content="Anti-Lig"   Tag="Healthcare_AntiLigature"      Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Structural" Tag="Healthcare_StructuralLoad"    Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Acoustic"   Tag="Healthcare_Acoustic"          Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource BlueBtn}"   Content="Endo Trace" Tag="Healthcare_EndoscopeTrace"    Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource PurpleBtn}" Content="EES Resil"  Tag="Healthcare_EesResilience"     Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource TealBtn}"   Content="RTLS"       Tag="Healthcare_RtlsCoverage"      Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource RedBtn}"    Content="Waste"      Tag="Healthcare_WasteFlow"         Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource TealBtn}"   Content="IoT Stale"  Tag="Healthcare_IoTStaleness"      Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource TealBtn}"   Content="IoT List"   Tag="Healthcare_IoTRegistry"       Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                        </WrapPanel>
+                                    </Border>
+
+                                    <!-- IoT Functions — additional device-side ops reusing existing
+                                         dispatch tags from the IoT/Twin namespace. Default collapsed
+                                         so the launcher row above stays the focal action. -->
+                                    <Expander x:Name="expHcIotFunctions" Header="IoT Functions  (BACnet / OPC-UA / Modbus / REST)"
+                                              FontSize="9" Margin="0,8,0,0">
+                                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#80CBC4" Background="#E0F2F1">
+                                            <StackPanel>
+                                                <TextBlock FontSize="9" Foreground="#666" TextWrapping="Wrap"
+                                                           Text="Device-side IoT ops. Stale threshold lives in Advanced thresholds above and is read live from Hc.IotStaleMins on every call."/>
+                                                <WrapPanel Margin="0,4,0,0">
+                                                    <Button Style="{StaticResource TealBtn}"   Content="Registry"     Tag="Healthcare_IoTRegistry"  Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Inventory of IoT devices grouped by protocol."/>
+                                                    <Button Style="{StaticResource TealBtn}"   Content="Staleness"    Tag="Healthcare_IoTStaleness" Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Devices not seen within the panel-set threshold."/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Sensor Link"  Tag="IoTSensorLink"           Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Link a Revit element to an IoT sensor record (AssetConditionCommand)."/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Dashboard"    Tag="IoTDashboard"            Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Open IoT maintenance dashboard."/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Alert Config" Tag="IoTAlertConfig"          Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Configure threshold / staleness alerts (EnergyAnalysisCommand surface)."/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV"   Tag="IoTHistoryExport"        Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Export IoT device history / digital-twin snapshot."/>
+                                                </WrapPanel>
+                                                <Grid Margin="0,6,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Group by protocol" FontSize="9" VerticalAlignment="Center"/>
+                                                    <ComboBox Grid.Column="1" x:Name="cmbHcIotProtocol" FontSize="9" Height="22">
+                                                        <ComboBoxItem Content="(any)"  Tag=""        IsSelected="True"/>
+                                                        <ComboBoxItem Content="BACnet" Tag="BACnet"/>
+                                                        <ComboBoxItem Content="OPC-UA" Tag="OPC-UA"/>
+                                                        <ComboBoxItem Content="Modbus" Tag="Modbus"/>
+                                                        <ComboBoxItem Content="REST"   Tag="REST"/>
+                                                        <ComboBoxItem Content="MQTT"   Tag="MQTT"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </Expander>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ============ 2. MGPS ============ -->
+                        <TabItem Header="MGPS">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="MEDICAL GAS — HTM 02-01 / NFPA 99 §5.1" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Gas" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcMgasGas" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="O₂ — Oxygen"          Tag="O2" IsSelected="True"/>
+                                                    <ComboBoxItem Content="N₂O — Nitrous oxide"  Tag="N2O"/>
+                                                    <ComboBoxItem Content="MA4 — Medical air 4 bar"  Tag="MA4"/>
+                                                    <ComboBoxItem Content="MA7 — Medical air 7 bar"  Tag="MA7"/>
+                                                    <ComboBoxItem Content="VAC — Medical vacuum" Tag="VAC"/>
+                                                    <ComboBoxItem Content="WAGD — Anaesthetic gas" Tag="WAGD"/>
+                                                    <ComboBoxItem Content="CO₂ — Carbon dioxide" Tag="CO2"/>
+                                                    <ComboBoxItem Content="AIR-DRY — Surgical air" Tag="AIR-DRY"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Zone" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcMgasZone" FontSize="9" Height="22" IsEditable="True"
+                                                          ToolTip="Type or pick a zone code (loaded at runtime from MgsZone family instances)."/>
+                                            </Grid>
+                                            <TextBlock x:Name="lblHcMgasTerminalCount" FontSize="9" Foreground="#666" Margin="0,4,0,0" Text="Terminals — pick a zone to populate"/>
+                                            <TextBlock x:Name="lblHcMgasFlowResult"   FontSize="9" Foreground="#666" Margin="0,1,0,0" Text="Diversified flow — runs on Audit"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Expander Header="Terminal-unit grid (lazy-loads on Audit)" Margin="0,6,0,0" FontSize="9">
+                                        <DataGrid x:Name="dgHcMgasTerminals"
+                                                  AutoGenerateColumns="False"
+                                                  CanUserAddRows="False"
+                                                  HeadersVisibility="Column"
+                                                  FontSize="9"
+                                                  MaxHeight="200">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="TU"            Binding="{Binding TuId}"          Width="80"  IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="Type"          Binding="{Binding Type}"          Width="100" IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="Designed L/m"  Binding="{Binding DesignedFlow}"  Width="80"  IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="Diversified"   Binding="{Binding DiversifiedFlow}" Width="80" IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="Status"        Binding="{Binding Status}"        Width="*"   IsReadOnly="True"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Expander>
+
+                                    <TextBlock Text="VERIFICATION (NFPA 99 §5.1.12)" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Verifier" FontSize="9" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" x:Name="txtHcMgasVerifier" FontSize="9" Height="22"/>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Step" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcMgasStep" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="1 — Pressure decay"     Tag="1" IsSelected="True"/>
+                                                    <ComboBoxItem Content="2 — Cross-connection"   Tag="2"/>
+                                                    <ComboBoxItem Content="3 — Valve identification" Tag="3"/>
+                                                    <ComboBoxItem Content="4 — Alarm identification" Tag="4"/>
+                                                    <ComboBoxItem Content="5 — Piping purge"        Tag="5"/>
+                                                    <ComboBoxItem Content="6 — Piping particulate"  Tag="6"/>
+                                                    <ComboBoxItem Content="7 — Piping purity"       Tag="7"/>
+                                                    <ComboBoxItem Content="8 — Final tie-in"        Tag="8"/>
+                                                    <ComboBoxItem Content="9 — Operational pressure" Tag="9"/>
+                                                    <ComboBoxItem Content="10 — Medical gas concentration" Tag="10"/>
+                                                    <ComboBoxItem Content="11 — Medical air purity" Tag="11"/>
+                                                    <ComboBoxItem Content="12 — Final tie-in to source" Tag="12"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <CheckBox Content="Sign at completion" x:Name="chkHcMgasSignAtEnd" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                            <WrapPanel Margin="0,6,0,0">
+                                                <Button Style="{StaticResource GreenBtn}" Content="Run audit"  Tag="Healthcare_MgasAudit"        Click="Cmd_Click" Width="80" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Run step"   Tag="Healthcare_MgasVerifyStep"   Click="Cmd_Click" Width="80" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Full verify" Tag="Healthcare_MgasVerify"      Click="Cmd_Click" Width="80" Height="26"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ============ 3. RADIATION ============ -->
+                        <TabItem Header="Radiation">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="RADIATION SHIELDING — NCRP 147 / 151 / IEC 60601-2-33" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Calc type" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcRadCalc" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="Chest room (NCRP 147)"     Tag="Chest"/>
+                                                    <ComboBoxItem Content="CT room (NCRP 147 secondary)" Tag="CT" IsSelected="True"/>
+                                                    <ComboBoxItem Content="LINAC vault (NCRP 151)"    Tag="LINAC"/>
+                                                    <ComboBoxItem Content="Custom (inline inputs)"    Tag="Custom"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <RadioButton Content="UNCONTROLLED area" GroupName="HcRadArea" x:Name="rbHcRadAreaUncontrolled" IsChecked="True" Margin="2" FontSize="9"/>
+                                                <RadioButton Content="CONTROLLED area"   GroupName="HcRadArea" x:Name="rbHcRadAreaControlled"   Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="INPUTS (editable — live preview below)" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="160"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="kVp"                  FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtHcRadKvp"  Text="150"  FontSize="9" Margin="2" Height="22"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="W (mA·min/wk)"        FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtHcRadW"    Text="600"  FontSize="9" Margin="2" Height="22"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="U (use factor)"       FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtHcRadU"    Text="0.25" FontSize="9" Margin="2" Height="22"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="T (occupancy)"        FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtHcRadT"    Text="0.5"  FontSize="9" Margin="2" Height="22"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="d (m, source→target)" FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="4" Grid.Column="1" x:Name="txtHcRadD"    Text="3.0"  FontSize="9" Margin="2" Height="22"/>
+                                            <TextBlock Grid.Row="5" Grid.Column="0" Text="QE name (sign-off)"   FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="5" Grid.Column="1" x:Name="txtHcRadQeName" FontSize="9" Margin="2" Height="22"/>
+                                            <CheckBox  Grid.Row="6" Grid.ColumnSpan="2" x:Name="chkHcRadAutoApply" Content="Auto-apply RAD_PB_REQUIRED_MM to selected wall on Run" Margin="2,4,2,2" FontSize="9"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Style="{StaticResource GroupBorder}" Margin="0,6,0,0" BorderBrush="#FFB300">
+                                        <StackPanel>
+                                            <TextBlock x:Name="lblHcRadRequiredPb" FontSize="11" FontWeight="Bold" Foreground="#5D4037" Text="Required Pb — enter inputs"/>
+                                            <TextBlock x:Name="lblHcRadProvidedPb" FontSize="9"  Foreground="#666"   Text="Provided Pb — from selected wall"/>
+                                            <TextBlock x:Name="lblHcRadVerdict"    FontSize="9"  Foreground="#666"   Text="Verdict will populate after Run"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <WrapPanel Margin="0,6,0,0">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Run inline" Tag="Healthcare_RadCalcInline" Click="Cmd_Click" Width="86" Height="26"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Chest"      Tag="Healthcare_RadCalcChest"  Click="Cmd_Click" Width="60" Height="26"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="CT"         Tag="Healthcare_RadCalcCt"     Click="Cmd_Click" Width="50" Height="26"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="LINAC"      Tag="Healthcare_RadCalcLinac"  Click="Cmd_Click" Width="60" Height="26"/>
+                                    </WrapPanel>
+
+                                    <TextBlock Text="MRI ZONING (IEC 60601-2-33)" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,10,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="MRI zone" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcMriZone" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="Z1 — Public access" Tag="Z1" IsSelected="True"/>
+                                                    <ComboBoxItem Content="Z2 — Reception"     Tag="Z2"/>
+                                                    <ComboBoxItem Content="Z3 — Restricted"    Tag="Z3"/>
+                                                    <ComboBoxItem Content="Z4 — Magnet room"   Tag="Z4"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <CheckBox Content="Faraday cage flag (RAD_MRI_FARADAY_BOOL)" x:Name="chkHcMriFaradayFlag" Margin="0,4,0,0" FontSize="9"/>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <Button Style="{StaticResource ActionBtn}" Content="Run MRI audit" Tag="Healthcare_MriZoneAudit" Click="Cmd_Click" Width="100" Height="26"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ============ 4. ROOMS / RDS ============ -->
+                        <TabItem Header="Rooms / RDS">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="ROOM DATA SHEETS — H-8" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Class filter" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcRoomClassFilter" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="All"           Tag="All" IsSelected="True"/>
+                                                    <ComboBoxItem Content="AIIR"          Tag="AIIR"/>
+                                                    <ComboBoxItem Content="PE"            Tag="PE"/>
+                                                    <ComboBoxItem Content="Endo-AER"      Tag="Endo-AER"/>
+                                                    <ComboBoxItem Content="Bedroom"       Tag="Bedroom"/>
+                                                    <ComboBoxItem Content="OR"            Tag="OR"/>
+                                                    <ComboBoxItem Content="OR-HYBRID"     Tag="OR-HYBRID"/>
+                                                    <ComboBoxItem Content="CathLab"       Tag="CathLab"/>
+                                                    <ComboBoxItem Content="Pharmacy USP-797" Tag="USP-797"/>
+                                                    <ComboBoxItem Content="Pharmacy USP-800" Tag="USP-800"/>
+                                                    <ComboBoxItem Content="Mortuary"      Tag="Mortuary"/>
+                                                    <ComboBoxItem Content="NICU"          Tag="NICU"/>
+                                                    <ComboBoxItem Content="Dialysis"      Tag="Dialysis"/>
+                                                    <ComboBoxItem Content="HBO"           Tag="HBO"/>
+                                                    <ComboBoxItem Content="IVF"           Tag="IVF"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Search" FontSize="9" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" x:Name="txtHcRoomSearch" FontSize="9" Height="22"/>
+                                            </Grid>
+                                            <CheckBox Content="Only rooms with missing mandatory params" x:Name="chkHcRoomMissingOnly" Margin="0,4,0,0" FontSize="9"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="ROOM REGISTER (editable)" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
+                                    <DataGrid x:Name="dgHcRooms"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              HeadersVisibility="Column"
+                                              GridLinesVisibility="Horizontal"
+                                              FontSize="9"
+                                              RowHeight="22"
+                                              MaxHeight="320">
+                                        <DataGrid.Columns>
+                                            <DataGridCheckBoxColumn Header="Run"        Binding="{Binding Run, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="34"/>
+                                            <DataGridTextColumn     Header="Room #"     Binding="{Binding RoomNumber}" Width="60"  IsReadOnly="True"/>
+                                            <DataGridTextColumn     Header="Name"       Binding="{Binding RoomName}"   Width="160" IsReadOnly="True"/>
+                                            <DataGridTextColumn     Header="Class"      Binding="{Binding ClassCode}"  Width="90"/>
+                                            <DataGridTextColumn     Header="ΔP (Pa)"    Binding="{Binding PressurePa}" Width="60"/>
+                                            <DataGridTextColumn     Header="ACH"        Binding="{Binding Ach}"        Width="50"/>
+                                            <DataGridCheckBoxColumn Header="TMV3"       Binding="{Binding Tmv3}"       Width="50"/>
+                                            <DataGridTextColumn     Header="RDS"        Binding="{Binding RdsIssued}"  Width="*" IsReadOnly="True"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <TextBlock x:Name="lblHcRoomsCounts" FontSize="9" Foreground="#666" Margin="2,4,0,0" Text="Pick rooms above and use the buttons below"/>
+
+                                    <WrapPanel Margin="0,6,0,0">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Issue selected"  Tag="Healthcare_IssueSelectedRds"  Click="Cmd_Click" Width="110" Height="28"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Issue (one room)" Tag="Healthcare_IssueRDS"          Click="Cmd_Click" Width="110" Height="28"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Issue all"        Tag="Healthcare_BatchRDS"          Click="Cmd_Click" Width="80"  Height="28"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Completeness"     Tag="Healthcare_RdsCompleteness"   Click="Cmd_Click" Width="100" Height="28"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ============ 5. SPECIALIST ============ -->
+                        <TabItem Header="Specialist">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="SPECIALIST AUDITS" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="Audit" FontSize="9" VerticalAlignment="Center"/>
+                                            <ComboBox Grid.Column="1" x:Name="cmbHcSpecialistKind" FontSize="9" Height="22">
+                                                <ComboBoxItem Content="Hybrid OR / CathLab" Tag="HybridOr" IsSelected="True"/>
+                                                <ComboBoxItem Content="Pharmacy USP"        Tag="PharmacyUsp"/>
+                                                <ComboBoxItem Content="Behavioural health"  Tag="BehaviouralHealth"/>
+                                                <ComboBoxItem Content="Mortuary"            Tag="Mortuary"/>
+                                                <ComboBoxItem Content="Maternity / NICU"    Tag="MaternityNicu"/>
+                                                <ComboBoxItem Content="HSDU"                Tag="Hsdu"/>
+                                                <ComboBoxItem Content="Dialysis"            Tag="Dialysis"/>
+                                                <ComboBoxItem Content="Hyperbaric / IVF"    Tag="Hbo"/>
+                                            </ComboBox>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Cards: only the selected one is Visible. UpdateSpecialistCardVisibility() in code-behind. -->
+                                    <Border x:Name="cardHcHybridOr" Style="{StaticResource GroupBorder}" Margin="0,6,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Hybrid OR / CathLab — FGI / VA" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Room" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcHorRoom" FontSize="9" Height="22" IsEditable="True"/>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Min area (m²)" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcHorMinAreaM2" Minimum="30" Maximum="80" Value="70" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcHorMinAreaM2, StringFormat={}{0:F0} m²}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <CheckBox Content="Include IR / Cath" x:Name="chkHcHorIncludeIr" Margin="0,4,0,0" FontSize="9"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcPharmacyUsp" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Pharmacy — USP &lt;797&gt; / &lt;800&gt;" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <RadioButton Content="USP &lt;797&gt;" GroupName="HcUsp" x:Name="rbHcUsp797" IsChecked="True" Margin="2" FontSize="9"/>
+                                                <RadioButton Content="USP &lt;800&gt;" GroupName="HcUsp" x:Name="rbHcUsp800" Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="ACH min" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcUspAch" Minimum="6" Maximum="60" Value="30" TickFrequency="1"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcUspAch, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="ΔP (Pa)" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcUspDp" Minimum="-20" Maximum="20" Value="2.5" TickFrequency="0.5"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcUspDp, StringFormat={}{0:F1}}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <CheckBox Content="Has buffer room"  x:Name="chkHcUspBuffer"   IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                            <CheckBox Content="Has anteroom"     x:Name="chkHcUspAnteroom" IsChecked="True" Margin="0,2,0,0" FontSize="9"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcBehavioural" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Behavioural health — FGI Pt 2 / HBN 03-01" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <CheckBox Content="Use FGI Pt 2" x:Name="chkHcBhFgi" IsChecked="True" Margin="2" FontSize="9"/>
+                                                <CheckBox Content="Use HBN 03-01" x:Name="chkHcBhHbn" IsChecked="True" Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Risk level" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcBhRiskLevel" Minimum="1" Maximum="5" Value="3" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcBhRiskLevel, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcMortuary" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Mortuary — HBN 16" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Bed count" FontSize="9" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" x:Name="txtHcMortBeds" Text="200" FontSize="9" Height="22"/>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="60"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Bays % of beds" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcMortPctBays" Minimum="0.3" Maximum="1.0" Value="0.5" TickFrequency="0.1"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcMortPctBays, StringFormat={}{0:F2} %}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <TextBlock x:Name="lblHcMortRequired" FontSize="9" Foreground="#666" Margin="0,4,0,0" Text="Min bays will compute on Run"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcMaternity" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Maternity / NICU — HBN 21 / 09-03" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <CheckBox Content="Maternity"  x:Name="chkHcMatMaternity" IsChecked="True" Margin="2" FontSize="9"/>
+                                                <CheckBox Content="NICU"       x:Name="chkHcMatNicu"      IsChecked="True" Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="NICU NR limit" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcMatNrLimit" Minimum="25" Maximum="45" Value="35" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcMatNrLimit, StringFormat={}NR≤{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcHsdu" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="HSDU — HBN 13" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Room" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcHsduRoom" FontSize="9" Height="22" IsEditable="True"/>
+                                            </Grid>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <CheckBox Content="Wash"     x:Name="chkHcHsduWashCheck"    IsChecked="True" Margin="2" FontSize="9"/>
+                                                <CheckBox Content="Pack"     x:Name="chkHcHsduPackCheck"    IsChecked="True" Margin="2" FontSize="9"/>
+                                                <CheckBox Content="Sterile"  x:Name="chkHcHsduSterileCheck" IsChecked="True" Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcDialysis" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Dialysis — HBN 07-02" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Stations" FontSize="9" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" x:Name="txtHcDialStations" Text="20" FontSize="9" Height="22"/>
+                                            </Grid>
+                                            <CheckBox Content="Require RO loop integrity" x:Name="chkHcDialRoLoopRequired" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcHbo" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Hyperbaric / Cytotoxic / IVF — NFPA 99 Ch.14" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <RadioButton Content="HBO chamber"   GroupName="HcHboMode" x:Name="rbHcHboHbo"        IsChecked="True" Margin="2" FontSize="9"/>
+                                                <RadioButton Content="Cytotoxic"     GroupName="HcHboMode" x:Name="rbHcHboCytotoxic"  Margin="2" FontSize="9"/>
+                                                <RadioButton Content="IVF"           GroupName="HcHboMode" x:Name="rbHcHboIvf"        Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                            <CheckBox Content="Require NFPA 99 Ch.14 compliance" x:Name="chkHcHboNfpaCh14" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <Button x:Name="btnHcSpecialistRun" Style="{StaticResource GreenBtn}" Content="Run specialist audit" Tag="Healthcare_HybridOr" Click="HcSpecialistRun_Click" Width="160" Height="28"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ============ 6. WORKFLOWS ============ -->
+                        <TabItem Header="Workflows">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="HEALTHCARE WORKFLOW PRESETS" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Preset" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcWorkflowPreset" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="HealthcareCommissioning" Tag="HealthcareCommissioning" IsSelected="True"/>
+                                                    <ComboBoxItem Content="MgasVerification"        Tag="MgasVerification"/>
+                                                    <ComboBoxItem Content="PressureRegimeAudit"     Tag="PressureRegimeAudit"/>
+                                                    <ComboBoxItem Content="RdsIssue"                Tag="RdsIssue"/>
+                                                    <ComboBoxItem Content="HTM-04-01-Annual"        Tag="HTM-04-01-Annual"/>
+                                                    <ComboBoxItem Content="AntiLigatureAudit"       Tag="AntiLigatureAudit"/>
+                                                    <ComboBoxItem Content="NFPA110-GeneratorTest"   Tag="NFPA110-GeneratorTest"/>
+                                                    <ComboBoxItem Content="HTM-01-06-EndoReprocess" Tag="HTM-01-06-EndoReprocess"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <CheckBox Content="Dry run"        x:Name="chkHcWfDryRun"     Margin="2" FontSize="9"/>
+                                                <CheckBox Content="Stop on fail"   x:Name="chkHcWfStopOnFail" IsChecked="True" Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                            <WrapPanel Margin="0,6,0,0">
+                                                <Button Style="{StaticResource GreenBtn}"  Content="Run preset"     Tag="WorkflowPreset"      Click="Cmd_Click" Width="90" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="List"           Tag="ListWorkflowPresets" Click="Cmd_Click" Width="60" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Trend"          Tag="WorkflowTrend"       Click="Cmd_Click" Width="60" Height="26"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="RECENT RUNS" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
+                                    <DataGrid x:Name="dgHcWfHistory"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              IsReadOnly="True"
+                                              FontSize="9"
+                                              MaxHeight="200">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp}" Width="140"/>
+                                            <DataGridTextColumn Header="Preset"    Binding="{Binding Preset}"    Width="160"/>
+                                            <DataGridTextColumn Header="OK / Fail" Binding="{Binding StepCount}" Width="80"/>
+                                            <DataGridTextColumn Header="Duration"  Binding="{Binding Duration}"  Width="80"/>
+                                            <DataGridTextColumn Header="Δ %"       Binding="{Binding ComplianceDelta}" Width="*"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <TextBlock x:Name="lblHcWfNextSla" FontSize="9" Foreground="#666" Margin="2,4,0,0" Text="SLA scanner — wired in Workflows tab"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                    </TabControl>
+                </DockPanel>
             </TabItem>
 
         </TabControl>

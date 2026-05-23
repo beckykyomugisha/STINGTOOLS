@@ -20,7 +20,7 @@ using System.Globalization;
 
 namespace StingTools.Standards.IPC2021
 {
-    public static class IPCSiAdapter
+    public static partial class IPCSiAdapter
     {
         public const double InchToMm     = 25.4;
         public const double FtToM        = 0.3048;

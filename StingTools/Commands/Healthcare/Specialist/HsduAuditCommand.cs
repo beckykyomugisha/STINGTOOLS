@@ -18,15 +18,33 @@ namespace StingTools.Commands.Healthcare.Specialist
             try
             {
                 var doc = commandData.Application.ActiveUIDocument.Document;
+
+                // Hc.Specialist.Hsdu.* overrides:
+                //   Wash / Pack / Sterile — toggle which compartment polarity
+                //                           checks fire and which compartments
+                //                           are required to be present.
+                //   Room                  — if non-empty, focuses to that one room.
+                bool checkWash    = HcOptions.HsduWashCheck;
+                bool checkPack    = HcOptions.HsduPackCheck;
+                bool checkSterile = HcOptions.HsduSterileCheck;
+                string focusRoom = HcOptions.HsduRoom?.Trim() ?? "";
+
+                bool ScopeMatch(string rc)
+                    => (checkWash && rc == "HSDU-W")
+                    || (checkPack && rc == "HSDU-P")
+                    || (checkSterile && rc == "HSDU-S");
+
                 var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
                     .WhereElementIsNotElementType().ToElements()
-                    .Where(r => Get(r,"CLN_ROOM_CLASS_TXT") is "HSDU-W" or "HSDU-P" or "HSDU-S")
+                    .Where(r => ScopeMatch(Get(r,"CLN_ROOM_CLASS_TXT")))
+                    .Where(r => string.IsNullOrEmpty(focusRoom) ||
+                                string.Equals(r.Name, focusRoom, StringComparison.OrdinalIgnoreCase))
                     .ToList();
                 var sb = new StringBuilder();
                 sb.AppendLine("STING — HSDU Compartment Audit (HBN 13)").AppendLine();
                 bool hasW = rooms.Any(r => Get(r,"CLN_ROOM_CLASS_TXT")=="HSDU-W");
                 bool hasP = rooms.Any(r => Get(r,"CLN_ROOM_CLASS_TXT")=="HSDU-P");
-                if (rooms.Count > 0 && (!hasW || !hasP))
+                if (rooms.Count > 0 && checkWash && checkPack && (!hasW || !hasP))
                     sb.AppendLine("[ERROR  ] HSDU.MISS  HSDU present but missing wash (HSDU-W) or pack (HSDU-P) compartment");
                 foreach (var r in rooms)
                 {

@@ -1,0 +1,122 @@
+{
+  "_schema": "STING_REFRIG_CHARGE_TABLES",
+  "_version": "1.0",
+  "_notes": [
+    "Per-vendor / per-refrigerant additional-charge factors (kg of refrigerant",
+    "per metre of liquid line of a given OD). Used by RefrigerantPipeSolver.ComputeAdditionalCharge",
+    "to estimate the field-charge addition for the run beyond the factory charge.",
+    "",
+    "Daikin / Mitsubishi / Toshiba publish vendor-specific tables in their VRV /",
+    "City Multi / SHRMe data books. Mid-2024 values shipped here as a sample; ",
+    "project teams should override per their installed series via",
+    "<project>/_BIM_COORD/refrig_charge_tables.json.",
+    "",
+    "Formula:",
+    "  additional_charge_kg = Σ_(per OD) ( length_m × charge_kg_per_m )",
+    "                       + offsetKgIfTotalUnder_threshold (when applicable)",
+    "",
+    "Liquid lines only — gas/discharge lines don't carry significant",
+    "additional charge in normal operation. CO₂ + R134a tables omitted as",
+    "they're chiller-side rather than per-pipe-length distribution."
+  ],
+  "tables": [
+    {
+      "id": "Daikin-VRV-IV-S-R410A",
+      "vendorSeriesId": "Daikin-VRV-IV-S",
+      "refrigerantId": "R410A",
+      "label": "Daikin VRV IV-S R410A liquid charge per m",
+      "perOdKgPerM": {
+        "6.35":  0.022,
+        "9.52":  0.054,
+        "12.7":  0.110,
+        "15.88": 0.170,
+        "19.05": 0.260,
+        "22.22": 0.360,
+        "25.4":  0.520
+      },
+      "offsetIfTotalUnderThreshold": { "thresholdM": 30, "offsetKg": -3.0 },
+      "source": "Daikin VRV IV-S 2021 Eng Data Book §4.5.2"
+    },
+    {
+      "id": "Daikin-VRV-5-R32",
+      "vendorSeriesId": "Daikin-VRV-5",
+      "refrigerantId": "R32",
+      "label": "Daikin VRV 5 R32 liquid charge per m",
+      "perOdKgPerM": {
+        "6.35":  0.016,
+        "9.52":  0.039,
+        "12.7":  0.077,
+        "15.88": 0.121,
+        "19.05": 0.184,
+        "22.22": 0.256,
+        "25.4":  0.371
+      },
+      "offsetIfTotalUnderThreshold": { "thresholdM": 30, "offsetKg": -2.5 },
+      "source": "Daikin VRV 5 2024 Eng Data Book §6.5"
+    },
+    {
+      "id": "Daikin-VRV-IV-H-R410A",
+      "vendorSeriesId": "Daikin-VRV-IV-H",
+      "refrigerantId": "R410A",
+      "label": "Daikin VRV IV-H heat-recovery R410A liquid charge per m",
+      "perOdKgPerM": {
+        "9.52":  0.054,
+        "12.7":  0.110,
+        "15.88": 0.170,
+        "19.05": 0.260,
+        "22.22": 0.360,
+        "25.4":  0.520
+      },
+      "offsetIfTotalUnderThreshold": null,
+      "source": "Daikin VRV IV-H 2022 Eng Data Book §4.5.2"
+    },
+    {
+      "id": "Mitsubishi-CityMulti-Y-R410A",
+      "vendorSeriesId": "Mitsubishi-CityMulti-Y",
+      "refrigerantId": "R410A",
+      "label": "Mitsubishi City Multi Y R410A liquid charge per m",
+      "perOdKgPerM": {
+        "6.35":  0.025,
+        "9.52":  0.055,
+        "12.7":  0.105,
+        "15.88": 0.160,
+        "19.05": 0.250,
+        "22.22": 0.350,
+        "25.4":  0.520
+      },
+      "offsetIfTotalUnderThreshold": null,
+      "source": "Mitsubishi City Multi Y 2023 Data Book Tbl 5-7"
+    },
+    {
+      "id": "Mitsubishi-CityMulti-R2-R410A",
+      "vendorSeriesId": "Mitsubishi-CityMulti-R2",
+      "refrigerantId": "R410A",
+      "label": "Mitsubishi City Multi R2 R410A liquid charge per m",
+      "perOdKgPerM": {
+        "9.52":  0.055,
+        "12.7":  0.105,
+        "15.88": 0.160,
+        "19.05": 0.250,
+        "22.22": 0.350,
+        "25.4":  0.520
+      },
+      "offsetIfTotalUnderThreshold": null,
+      "source": "Mitsubishi City Multi R2 2023 Data Book Tbl 5-9"
+    },
+    {
+      "id": "Toshiba-SHRMe-R32",
+      "vendorSeriesId": "Toshiba-SHRMe",
+      "refrigerantId": "R32",
+      "label": "Toshiba SHRMe R32 liquid charge per m",
+      "perOdKgPerM": {
+        "6.35":  0.016,
+        "9.52":  0.039,
+        "12.7":  0.078,
+        "15.88": 0.122,
+        "19.05": 0.185
+      },
+      "offsetIfTotalUnderThreshold": null,
+      "source": "Toshiba SHRMe 2024 Engineering Data Tbl 4-5"
+    }
+  ]
+}

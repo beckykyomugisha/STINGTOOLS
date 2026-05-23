@@ -31422,6 +31422,15 @@
           "description": "Foundation depth minimum",
           "standard": "BS EN 1997-1 / Eurocode 7",
           "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_DEPTH_MM, \"\")"
+        },
+        {
+          "param": "WARN_STR_FND_BLACK_COTTON",
+          "severity": "HIGH",
+          "threshold": "STR_BLACK_COTTON_RISK_BOOL = 1",
+          "unit": "flag",
+          "description": "Black-cotton / expansive subgrade flagged on ProjectInformation -- foundation extension and BS 1377-2 swelling test required",
+          "standard": "BS 1377-2 / Uganda NBC / EC7",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FND_BLACK_COTTON, \"\")"
         }
       ],
       "csv_family_alias": "Structural Foundation"
@@ -75900,6 +75909,234 @@
         }
       ],
       "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+    },
+    "LPS Air Terminal": {
+      "family_name": "STING - LPS Air Terminal Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
+      "categories": ["Electrical Equipment", "Generic Models", "Specialty Equipment"],
+      "discipline": "E",
+      "system": "LPS",
+      "function": "AT",
+      "standard": "BS EN 62305-3:2011 §5.2",
+      "tier_1": [
+        { "param": "ELC_LPS_AIRTERM_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+      ],
+      "tier_2": [
+        { "param": "ELC_LPS_CLASS_TXT",                "spaces": 0, "break": true, "prefix_override": "Class:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_ZONE_TXT",                 "spaces": 0, "break": true, "prefix_override": "LPZ:",   "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_PROTECTION_ANGLE_DEG",     "spaces": 0, "break": true, "prefix_override": "α:", "suffix_override": "°", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_AIR_TERMINAL_COUNT_NR",    "spaces": 0, "break": true, "prefix_override": "N:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "tier_3": [
+        { "param": "ELC_LPS_ROLLING_SPHERE_RADIUS_M",  "spaces": 0, "break": true, "prefix_override": "r:", "suffix_override": " m", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_MESH_SIZE_M",              "spaces": 0, "break": true, "prefix_override": "Mesh:", "suffix_override": " m", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_RISK_ASSESSMENT_TXT",      "spaces": 0, "break": true, "prefix_override": "Risk:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_COMPLIANCE_STATUS_TXT",    "spaces": 0, "break": true, "style": "BOLD", "color": "RED", "size": "2.0" }
+      ],
+      "warnings": [
+        { "param": "WARN_ELC_LPS_NO_CLASS",            "severity": "CRITICAL", "data_type": "TEXT", "standard": "BS EN 62305-1:2011 §8",   "description": "LPS class missing — set I/II/III/IV per BS EN 62305-2 risk assessment", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, \"\")" },
+        { "param": "WARN_ELC_LPS_MESH_SIZE_EXCEEDED",  "severity": "HIGH",     "data_type": "TEXT", "standard": "BS EN 62305-3:2011 Tab 2", "description": "Air-termination mesh exceeds class limit (I=5×5 II=10×10 III=15×15 IV=20×20 m)", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_MESH_SIZE_EXCEEDED, \"\")" },
+        { "param": "WARN_ELC_LPS_NO_ZONE",             "severity": "MEDIUM",   "data_type": "TEXT", "standard": "BS EN 62305-4:2011 §4.1", "description": "LPZ (LPZ0A/LPZ0B/LPZ1/LPZ2/LPZ3) not assigned",                                  "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_ZONE, \"\")" },
+        { "param": "WARN_ELC_LPS_NO_RISK_ASSESSMENT",  "severity": "HIGH",     "data_type": "TEXT", "standard": "BS EN 62305-2:2012",      "description": "Risk assessment (R1..R4) reference missing",                                       "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_RISK_ASSESSMENT, \"\")" }
+      ],
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+    },
+    "LPS Down Conductor": {
+      "family_name": "STING - LPS Down Conductor Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
+      "categories": ["Electrical Equipment", "Generic Models", "Conduits", "Conduit Fittings", "Specialty Equipment"],
+      "discipline": "E",
+      "system": "LPS",
+      "function": "DC",
+      "standard": "BS EN 62305-3:2011 §5.3",
+      "tier_1": [
+        { "param": "ELC_LPS_DOWNCOND_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+      ],
+      "tier_2": [
+        { "param": "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR",  "spaces": 0, "break": true, "prefix_override": "N:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2", "spaces": 0, "break": true, "prefix_override": "A:", "suffix_override": " mm²", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_CONDUCTOR_MATERIAL_TXT",   "spaces": 0, "break": true, "prefix_override": "Mat:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_SEPARATION_DISTANCE_MM",   "spaces": 0, "break": true, "prefix_override": "s:", "suffix_override": " mm", "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "tier_3": [
+        { "param": "ELC_LPS_CLASS_TXT", "spaces": 0, "break": true, "prefix_override": "Class:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_ZONE_TXT",  "spaces": 0, "break": true, "prefix_override": "LPZ:",   "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "warnings": [
+        { "param": "WARN_ELC_LPS_DOWN_COND_INSUFFICIENT",     "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 Tab 4", "description": "Down conductor count below class minimum (Class I=4 II=3 III/IV=2)", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_DOWN_COND_INSUFFICIENT, \"\")" },
+        { "param": "WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW",   "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 Tab 6", "description": "Cross-section below 50 mm² Cu / 70 mm² Al / 50 mm² Steel",       "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW, \"\")" },
+        { "param": "WARN_ELC_LPS_SEPARATION_FAIL",            "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §6.3",  "description": "Separation distance below s = ki·kc·l/km — services flashover risk", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_SEPARATION_FAIL, \"\")" }
+      ],
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+    },
+    "LPS Earth Electrode": {
+      "family_name": "STING - LPS Earth Electrode Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
+      "categories": ["Electrical Equipment", "Generic Models", "Specialty Equipment"],
+      "discipline": "E",
+      "system": "LPS",
+      "function": "EE",
+      "standard": "BS EN 62305-3:2011 §5.4",
+      "tier_1": [
+        { "param": "ELC_LPS_EARTH_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+      ],
+      "tier_2": [
+        { "param": "ELC_LPS_EARTH_TYPE_TXT",            "spaces": 0, "break": true, "prefix_override": "Type:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_EARTH_RESISTANCE_OHM",      "spaces": 0, "break": true, "prefix_override": "R:", "suffix_override": " Ω", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_EARTH_ELECTRODE_COUNT_NR",  "spaces": 0, "break": true, "prefix_override": "N:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_TEST_DATE_TXT",             "spaces": 0, "break": true, "prefix_override": "Tested:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "tier_3": [
+        { "param": "ELC_LPS_INSPECTION_INTERVAL_MONTHS", "spaces": 0, "break": true, "prefix_override": "Inspect:", "suffix_override": " mo", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_CERT_REF_TXT",               "spaces": 0, "break": true, "prefix_override": "Cert:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "warnings": [
+        { "param": "WARN_ELC_LPS_EARTH_RESISTANCE_HIGH", "severity": "HIGH",   "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §5.4.1", "description": "Earth resistance > 10 Ω — supplement electrodes or add ring earth",     "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_EARTH_RESISTANCE_HIGH, \"\")" },
+        { "param": "WARN_ELC_LPS_INSPECTION_OVERDUE",    "severity": "MEDIUM", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §E.7",   "description": "Inspection interval exceeded (Class I/II=12mo III/IV=24mo)",            "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_INSPECTION_OVERDUE, \"\")" }
+      ],
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+    },
+    "LPS Bond": {
+      "family_name": "STING - LPS Bond Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
+      "categories": ["Electrical Equipment", "Generic Models", "Conduits", "Specialty Equipment"],
+      "discipline": "E",
+      "system": "LPS",
+      "function": "BOND",
+      "standard": "BS EN 62305-3:2011 §6.2",
+      "tier_1": [
+        { "param": "ELC_LPS_BOND_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+      ],
+      "tier_2": [
+        { "param": "ELC_LPS_BOND_TYPE_TXT",            "spaces": 0, "break": true, "prefix_override": "Bond:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2", "spaces": 0, "break": true, "prefix_override": "A:", "suffix_override": " mm²", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_ZONE_TXT",                 "spaces": 0, "break": true, "prefix_override": "LPZ:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "warnings": [
+        { "param": "WARN_ELC_LPS_NO_BONDING", "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §6.2", "description": "Equipotential bonding type missing — DIRECT / SPD / ISOLATING_SPARK_GAP required", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, \"\")" }
+      ],
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+    },
+    "LPS SPD": {
+      "family_name": "STING - LPS SPD Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
+      "categories": ["Electrical Equipment", "Specialty Equipment"],
+      "discipline": "E",
+      "system": "LPS",
+      "function": "SPD",
+      "standard": "BS EN 62305-4:2011 / BS EN 61643",
+      "tier_1": [
+        { "param": "ELC_LPS_SPD_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+      ],
+      "tier_2": [
+        { "param": "ELC_LPS_SURGE_PROTECTION_LVL_TXT", "spaces": 0, "break": true, "prefix_override": "SPD:",  "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_ZONE_TXT",                 "spaces": 0, "break": true, "prefix_override": "LPZ:",  "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_BOND_TYPE_TXT",            "spaces": 0, "break": true, "prefix_override": "Bond:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "warnings": [],
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+    },
+    "LPS Test Clamp": {
+      "family_name": "STING - LPS Test Clamp Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
+      "categories": ["Electrical Equipment", "Generic Models", "Specialty Equipment"],
+      "discipline": "E",
+      "system": "LPS",
+      "function": "TC",
+      "standard": "BS EN 62305-3:2011 §7.2",
+      "tier_1": [
+        { "param": "ELC_LPS_TESTCLAMP_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+      ],
+      "tier_2": [
+        { "param": "ELC_LPS_TEST_DATE_TXT",              "spaces": 0, "break": true, "prefix_override": "Tested:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_EARTH_RESISTANCE_OHM",       "spaces": 0, "break": true, "prefix_override": "R:", "suffix_override": " Ω", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_INSPECTION_INTERVAL_MONTHS", "spaces": 0, "break": true, "prefix_override": "Next:", "suffix_override": " mo", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_CERT_REF_TXT",               "spaces": 0, "break": true, "prefix_override": "Cert:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "warnings": [
+        { "param": "WARN_ELC_LPS_INSPECTION_OVERDUE", "severity": "MEDIUM", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §E.7", "description": "Inspection overdue (12mo Class I/II / 24mo Class III/IV)", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_INSPECTION_OVERDUE, \"\")" }
+      ],
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+    },
+    "LPS Foundation Earth (Structural Reuse)": {
+      "family_name": "STING - LPS Foundation Earth (Structural Reuse) Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
+      "categories": ["Structural Foundations", "Structural Rebar", "Structural Area Reinforcement", "Structural Path Reinforcement", "Structural Fabric Reinforcement"],
+      "discipline": "S",
+      "system": "LPS",
+      "function": "EE",
+      "standard": "BS EN 62305-3:2011 §5.4 + Annex E.5.3",
+      "cross_discipline_note": "Structural rebar reused as Type-B foundation earth electrode. Structural team owns geometry; LPS designer needs continuity tag for commissioning + BoQ reconciliation.",
+      "tier_1": [
+        { "param": "ELC_LPS_EARTH_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+      ],
+      "tier_2": [
+        { "param": "ELC_LPS_EARTH_TYPE_TXT",       "spaces": 0, "break": true, "prefix_override": "Type:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_CLASS_TXT",            "spaces": 0, "break": true, "prefix_override": "Class:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_EARTH_RESISTANCE_OHM", "spaces": 0, "break": true, "prefix_override": "R:", "suffix_override": " Ω", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_TEST_DATE_TXT",        "spaces": 0, "break": true, "prefix_override": "Tested:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "tier_3": [
+        { "param": "ELC_LPS_BOND_TYPE_TXT", "spaces": 0, "break": true, "prefix_override": "Bond:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_CERT_REF_TXT",  "spaces": 0, "break": true, "prefix_override": "Cert:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "warnings": [
+        { "param": "WARN_ELC_LPS_EARTH_RESISTANCE_HIGH", "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §5.4.1 + Annex E.5.3", "description": "Foundation earth resistance > 10 Ω — supplement with Type-A rod electrodes", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_EARTH_RESISTANCE_HIGH, \"\")" },
+        { "param": "WARN_ELC_LPS_NO_BONDING",            "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 Annex E.5.3",       "description": "Rebar-to-LPS bonding method not specified — continuity not guaranteed without welded / clamped bonds", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, \"\")" }
+      ],
+      "source_csv": "STING_TAG_CONFIG_v5_0_STR.csv"
+    },
+    "LPS Natural Air Termination (Architectural Reuse)": {
+      "family_name": "STING - LPS Natural Air Termination (Architectural Reuse) Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
+      "categories": ["Roofs", "Walls", "Wall Sweeps", "Curtain Wall Mullions", "Fascia", "Gutter", "Roof Soffits"],
+      "discipline": "A",
+      "system": "LPS",
+      "function": "AT",
+      "standard": "BS EN 62305-3:2011 §5.2.5",
+      "cross_discipline_note": "Metal roof / parapet / coping / metallic facade element acting as natural air-termination component. Architects own geometry; LPS designer needs class + thickness + bond strategy tag.",
+      "tier_1": [
+        { "param": "ELC_LPS_AIRTERM_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+      ],
+      "tier_2": [
+        { "param": "ELC_LPS_CLASS_TXT",                "spaces": 0, "break": true, "prefix_override": "Class:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_ZONE_TXT",                 "spaces": 0, "break": true, "prefix_override": "LPZ:",   "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_CONDUCTOR_MATERIAL_TXT",   "spaces": 0, "break": true, "prefix_override": "Mat:",   "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2", "spaces": 0, "break": true, "prefix_override": "t:", "suffix_override": " mm", "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "tier_3": [
+        { "param": "ELC_LPS_BOND_TYPE_TXT",       "spaces": 0, "break": true, "prefix_override": "Bond:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_RISK_ASSESSMENT_TXT", "spaces": 0, "break": true, "prefix_override": "Risk:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+      ],
+      "warnings": [
+        { "param": "WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW", "severity": "HIGH",     "data_type": "TEXT", "standard": "BS EN 62305-3:2011 Tab 3", "description": "Sheet thickness below natural-component minimum (BS EN 62305-3 Tab 3 — typ. 0.5 mm Cu / 0.7 mm Al / 4 mm Steel for puncture resistance)", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW, \"\")" },
+        { "param": "WARN_ELC_LPS_NO_BONDING",               "severity": "HIGH",     "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §5.2.5", "description": "Bonding to LPS network not specified — natural component is non-functional without continuity",                                              "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, \"\")" },
+        { "param": "WARN_ELC_LPS_NO_CLASS",                 "severity": "CRITICAL", "data_type": "TEXT", "standard": "BS EN 62305-1:2011 §8",     "description": "LPS class not assigned — required to verify natural-component thickness vs BS EN 62305-3 Tab 3",                                       "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, \"\")" }
+      ],
+      "source_csv": "STING_TAG_CONFIG_v5_0_ARCH.csv"
+    },
+    "LPS Generic Component": {
+      "family_name": "STING - LPS Generic Component Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
+      "categories": ["Generic Models", "Specialty Equipment", "Detail Items"],
+      "discipline": "E",
+      "system": "LPS",
+      "function": "LPS",
+      "standard": "BS EN 62305 (multi-part)",
+      "cross_discipline_note": "Catch-all for lightning-protection elements modelled as Generic Models / Specialty Equipment / Detail Items. Sub-PROD (ATR/AMS/ACT/DCN/ERD/ERG/EFE/EME/BCN/BBR/BSG/SPD1-3/TCL) and FUNC (AT/DC/EE/BOND/SPD/TC) auto-resolve from family name in TagConfig.GetFamilyAwareProdCode + ResolveLpsFunc.",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+      ],
+      "tier_2": [
+        { "param": "ELC_LPS_CLASS_TXT",             "spaces": 0, "break": true, "prefix_override": "Class:", "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_ZONE_TXT",              "spaces": 0, "break": true, "prefix_override": "LPZ:",   "style": "NOM", "color": "BLACK", "size": "2.0" },
+        { "param": "ELC_LPS_COMPLIANCE_STATUS_TXT", "spaces": 0, "break": true,                            "style": "BOLD", "color": "RED",   "size": "2.0" }
+      ],
+      "warnings": [
+        { "param": "WARN_ELC_LPS_NO_CLASS", "severity": "CRITICAL", "data_type": "TEXT", "standard": "BS EN 62305-1:2011 §8",   "description": "LPS class missing — set I/II/III/IV per BS EN 62305-2 risk assessment", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, \"\")" },
+        { "param": "WARN_ELC_LPS_NO_ZONE",  "severity": "MEDIUM",   "data_type": "TEXT", "standard": "BS EN 62305-4:2011 §4.1", "description": "Lightning protection zone (LPZ) not assigned",                          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_ZONE, \"\")" }
+      ],
+      "source_csv": "STING_TAG_CONFIG_v5_0_GEN.csv"
     },
     "Brace / Truss": {
       "family_name": "STING - Brace / Truss Tag",

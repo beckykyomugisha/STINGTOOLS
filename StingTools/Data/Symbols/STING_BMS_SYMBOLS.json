@@ -1,0 +1,1301 @@
+{
+  "version": "1.0",
+  "standard": "CIBSE Guide H / ISA-5.1 / ASHRAE 135 (BACnet) / IEC 14908 (LonWorks) / KNX",
+  "description": "Building Management System / DDC symbols (sensors, controllers, actuators, network devices, thermostats, HMIs)",
+  "symbols": [
+    {
+      "id": "SENS_TEMP",
+      "name": "Temperature Sensor",
+      "category": "BMS Sensors",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Sensors",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.25
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H / ISA-5.1",
+      "status": "draft"
+    },
+    {
+      "id": "SENS_HUMID",
+      "name": "Humidity Sensor",
+      "category": "BMS Sensors",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Sensors",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.25
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H / ISA-5.1",
+      "status": "draft"
+    },
+    {
+      "id": "SENS_PRESS",
+      "name": "Pressure Sensor",
+      "category": "BMS Sensors",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Sensors",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.25
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H / ISA-5.1",
+      "status": "draft"
+    },
+    {
+      "id": "SENS_CO2",
+      "name": "CO₂ Sensor",
+      "category": "BMS Sensors",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Sensors",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.25
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H / ISA-5.1",
+      "status": "draft"
+    },
+    {
+      "id": "SENS_OCC",
+      "name": "Occupancy Sensor",
+      "category": "BMS Sensors",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Sensors",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.25
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H / ISA-5.1",
+      "status": "draft"
+    },
+    {
+      "id": "SENS_LUX",
+      "name": "Light-Level Sensor",
+      "category": "BMS Sensors",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Sensors",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.25
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H / ISA-5.1",
+      "status": "draft"
+    },
+    {
+      "id": "SENS_FLOW",
+      "name": "Flow Sensor",
+      "category": "BMS Sensors",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Sensors",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.25
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H / ISA-5.1",
+      "status": "draft"
+    },
+    {
+      "id": "SENS_VOC",
+      "name": "VOC / Air-Quality Sensor",
+      "category": "BMS Sensors",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Sensors",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.25
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H / ISA-5.1",
+      "status": "draft"
+    },
+    {
+      "id": "SENS_DEW",
+      "name": "Dew-Point Sensor",
+      "category": "BMS Sensors",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Sensors",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.25
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H / ISA-5.1",
+      "status": "draft"
+    },
+    {
+      "id": "CTRL_DDC",
+      "name": "Direct Digital Controller (DDC)",
+      "category": "BMS Controllers",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Controllers",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H",
+      "status": "draft"
+    },
+    {
+      "id": "CTRL_RTU",
+      "name": "Remote Terminal Unit (RTU)",
+      "category": "BMS Controllers",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Controllers",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H",
+      "status": "draft"
+    },
+    {
+      "id": "CTRL_FCU",
+      "name": "Fan-Coil Unit Controller",
+      "category": "BMS Controllers",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Controllers",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H",
+      "status": "draft"
+    },
+    {
+      "id": "CTRL_VAV",
+      "name": "VAV Box Controller",
+      "category": "BMS Controllers",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Controllers",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H",
+      "status": "draft"
+    },
+    {
+      "id": "CTRL_PLC",
+      "name": "Programmable Logic Controller",
+      "category": "BMS Controllers",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Controllers",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H",
+      "status": "draft"
+    },
+    {
+      "id": "ACT_DAMPER",
+      "name": "Damper Actuator",
+      "category": "BMS Actuators",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Actuators",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.15,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H",
+      "status": "draft"
+    },
+    {
+      "id": "ACT_VALVE",
+      "name": "Valve Actuator (Motorised)",
+      "category": "BMS Actuators",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Actuators",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": 0.3,
+            "x2": 0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.15,
+            "x2": 0.15,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.3,
+            "x2": -0.15,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.3,
+            "x2": 0.15,
+            "y2": 0.15
+          },
+          {
+            "x1": 0,
+            "y1": 0.15,
+            "x2": 0,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H",
+      "status": "draft"
+    },
+    {
+      "id": "BMS_BACNET_MSTP",
+      "name": "BACnet MS/TP Network Hub",
+      "category": "BMS Network",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Network",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "ASHRAE 135 / IEC 14908",
+      "status": "draft"
+    },
+    {
+      "id": "BMS_BACNET_IP",
+      "name": "BACnet/IP Router",
+      "category": "BMS Network",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Network",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "ASHRAE 135 / IEC 14908",
+      "status": "draft"
+    },
+    {
+      "id": "BMS_MODBUS",
+      "name": "Modbus Gateway",
+      "category": "BMS Network",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Network",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "ASHRAE 135 / IEC 14908",
+      "status": "draft"
+    },
+    {
+      "id": "BMS_KNX",
+      "name": "KNX/EIB Bus Coupler",
+      "category": "BMS Network",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Network",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "ASHRAE 135 / IEC 14908",
+      "status": "draft"
+    },
+    {
+      "id": "BMS_LON",
+      "name": "LonWorks Router",
+      "category": "BMS Network",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Network",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "ASHRAE 135 / IEC 14908",
+      "status": "draft"
+    },
+    {
+      "id": "BMS_THERMOSTAT",
+      "name": "Programmable Thermostat",
+      "category": "BMS Devices",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Devices",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": 0.2,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.15,
+            "x2": 0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.15,
+            "x2": -0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.15,
+            "x2": -0.2,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0.15,
+            "y2": -0.05
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H",
+      "status": "draft"
+    },
+    {
+      "id": "BMS_HMI",
+      "name": "BMS Operator Workstation / HMI",
+      "category": "BMS Devices",
+      "familyType": "GenericAnnotation",
+      "discipline": "HVAC",
+      "subcategory": "BMS Devices",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.1,
+            "x2": -0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": -0.2,
+            "y2": -0.1
+          }
+        ]
+      },
+      "standard": "CIBSE Guide H",
+      "status": "draft"
+    }
+  ]
+}

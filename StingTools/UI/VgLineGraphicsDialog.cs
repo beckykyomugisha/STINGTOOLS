@@ -36,7 +36,8 @@ namespace StingTools.UI
         public static VgLineGraphics Show(
             VgLineGraphics current,
             IList<string> patternOptions,
-            string title = "Line Graphics")
+            string title = "Line Graphics",
+            Func<IList<string>> refreshFromDoc = null)
         {
             current = current ?? new VgLineGraphics();
             var win = new Window
@@ -66,7 +67,14 @@ namespace StingTools.UI
             if (patternOptions != null) foreach (var p in patternOptions)
                 if (!string.IsNullOrEmpty(p) && !cbP.Items.Contains(p) && p != "<no override>") cbP.Items.Add(p);
             cbP.SelectedItem = string.IsNullOrEmpty(current.Pattern) ? "<No Override>" : current.Pattern;
-            var btnPatternMgr = new Button { Content = "…", ToolTip = "Manage line patterns (Revit native)", Width = 24, Height = 24, Margin = new Thickness(0, 4, 0, 4) };
+            var btnPatternMgr = new Button
+            {
+                Content = "…",
+                ToolTip = refreshFromDoc != null
+                    ? "Author a new pattern via Revit Manage > Additional Settings > Line Patterns, then click Refresh below."
+                    : "Manage line patterns (Revit native)",
+                Width = 24, Height = 24, Margin = new Thickness(0, 4, 0, 4)
+            };
             Grid.SetRow(lblP, 1); Grid.SetColumn(lblP, 0);
             Grid.SetRow(cbP, 1);  Grid.SetColumn(cbP, 1);
             Grid.SetRow(btnPatternMgr, 1); Grid.SetColumn(btnPatternMgr, 2);
@@ -97,7 +105,8 @@ namespace StingTools.UI
             Grid.SetRow(cbW, 3);  Grid.SetColumn(cbW, 1); Grid.SetColumnSpan(cbW, 2);
             grid.Children.Add(lblW); grid.Children.Add(cbW);
 
-            // Buttons row
+            // Buttons row — placed at row 4 by default; bumped to row 5 when
+            // the refresh row is injected below.
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
             var btnClear = new Button { Content = "Clear Overrides", Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(8, 4, 8, 4) };
             var btnOk    = new Button { Content = "OK", IsDefault = true, Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(20, 4, 20, 4), MinWidth = 80 };
@@ -105,7 +114,7 @@ namespace StingTools.UI
             btnRow.Children.Add(btnClear);
             btnRow.Children.Add(btnOk);
             btnRow.Children.Add(btnCxl);
-            Grid.SetRow(btnRow, 4); Grid.SetColumn(btnRow, 0); Grid.SetColumnSpan(btnRow, 3);
+            int btnRowIndex = 4;
             grid.Children.Add(btnRow);
 
             VgLineGraphics result = null;
@@ -127,10 +136,48 @@ namespace StingTools.UI
             };
             btnPatternMgr.Click += (s, e) =>
             {
-                Autodesk.Revit.UI.TaskDialog.Show("Line Patterns",
-                    "Use Revit Manage tab → Additional Settings → Line Patterns to author and edit line patterns. " +
-                    "Newly added patterns appear in this dropdown after you re-open the editor.");
+                var msg = "Use Revit Manage tab → Additional Settings → Line Patterns to author and edit line patterns.";
+                if (refreshFromDoc != null)
+                    msg += "\n\nAfter saving the new pattern, click ↻ Refresh patterns from project below to repopulate this dropdown without closing the editor.";
+                else
+                    msg += "\n\nNewly added patterns appear in this dropdown after you re-open the editor.";
+                Autodesk.Revit.UI.TaskDialog.Show("Line Patterns", msg);
             };
+
+            // Phase 183 — Refresh row. Re-reads LinePatternElement names
+            // from the live document so newly-authored patterns appear
+            // without closing the editor. Slots into a dedicated row 5
+            // when caller supplies the refresh callback.
+            Button btnRefresh = null;
+            if (refreshFromDoc != null)
+            {
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                btnRowIndex = 5;
+                btnRefresh = new Button
+                {
+                    Content = "↻ Refresh patterns from project",
+                    Padding = new Thickness(8, 3, 8, 3),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Margin = new Thickness(0, 4, 0, 0),
+                    ToolTip = "Re-scan LinePatternElements after authoring a new pattern via Revit Manage > Additional Settings > Line Patterns."
+                };
+                btnRefresh.Click += (s, e) =>
+                {
+                    var fresh = refreshFromDoc();
+                    if (fresh == null) return;
+                    var keep = cbP.SelectedItem as string;
+                    cbP.Items.Clear();
+                    cbP.Items.Add("<No Override>");
+                    foreach (var p in fresh)
+                        if (!string.IsNullOrEmpty(p) && !cbP.Items.Contains(p) && p != "<no override>")
+                            cbP.Items.Add(p);
+                    cbP.SelectedItem = string.IsNullOrEmpty(keep) ? "<No Override>"
+                        : (cbP.Items.Contains(keep) ? keep : "<No Override>");
+                };
+                Grid.SetRow(btnRefresh, 4); Grid.SetColumn(btnRefresh, 0); Grid.SetColumnSpan(btnRefresh, 3);
+                grid.Children.Add(btnRefresh);
+            }
+            Grid.SetRow(btnRow, btnRowIndex); Grid.SetColumn(btnRow, 0); Grid.SetColumnSpan(btnRow, 3);
 
             win.Content = grid;
             try { win.Owner = Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

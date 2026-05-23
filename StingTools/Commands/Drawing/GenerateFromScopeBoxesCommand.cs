@@ -34,8 +34,16 @@ namespace StingTools.Commands.Drawing
                 var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
-                var bindings = ScopeBoxBinder.ScanProject(doc);
-                if (bindings.Count == 0)
+                // PERF-01: warm view-template + pack caches once before the
+                // batch so per-view Apply() calls hit cached lookups.
+                DrawingTypePresentation.Prewarm(doc);
+                // GAP-F: prime the (DrawingType, ScopeBox) → existing-view
+                // index so per-binding FindExistingView is O(1) instead of
+                // O(views) per call.
+                ScopeBoxBinder.PrimeExistingViewIndex(doc);
+
+                var bindings = ScopeBoxBinder.ScanProject(doc, out var nameWarnings);
+                if (bindings.Count == 0 && nameWarnings.Count == 0)
                 {
                     TaskDialog.Show("STING — Generate from Scope Boxes",
                         "No scope boxes matching the STING::<drawing-type> pattern.\n\n" +
@@ -47,6 +55,10 @@ namespace StingTools.Commands.Drawing
 
                 int created = 0, updated = 0, skipped = 0;
                 var warnings = new List<string>();
+                // ACC-02: surface scope-box names that begin with STING::
+                // but fail strict parsing — typos that previously vanished.
+                foreach (var nw in nameWarnings)
+                    warnings.Add($"'{nw.Name}' → name rejected: {nw.Reason}");
 
                 using (var tx = new Transaction(doc, "STING — Generate from Scope Boxes"))
                 {
@@ -68,6 +80,7 @@ namespace StingTools.Commands.Drawing
                             if (existing != null)
                             {
                                 DrawingTypePresentation.Apply(doc, existing, dt, runAnnotation: false);
+                                StampScopeBoxTag(existing, b, warnings);
                                 updated++;
                                 continue;
                             }
@@ -75,6 +88,7 @@ namespace StingTools.Commands.Drawing
                             var v = CreateView(doc, dt, b, warnings);
                             if (v == null) { skipped++; continue; }
                             DrawingTypePresentation.Apply(doc, v, dt);
+                            StampScopeBoxTag(v, b, warnings);
                             created++;
                         }
                         catch (Exception ex)
@@ -107,6 +121,31 @@ namespace StingTools.Commands.Drawing
                 StingLog.Error("GenerateFromScopeBoxes", ex);
                 msg = ex.Message;
                 return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// INT-01: persist the scope-box tag on the produced view so any
+        /// downstream automation can group / filter by tag, and emit an
+        /// info message if the view ever gets placed on a sheet so the
+        /// operator knows TitleBlockParamApplier will run on the sheet
+        /// (not the view).
+        /// </summary>
+        private static void StampScopeBoxTag(View v, ScopeBoxBinding b, List<string> warnings)
+        {
+            if (v == null || b == null) return;
+            if (!string.IsNullOrEmpty(b.Tag))
+            {
+                try
+                {
+                    var p = v.LookupParameter("STING_SCOPE_BOX_TAG_TXT");
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
+                        p.Set(b.Tag);
+                }
+                catch (Exception ex)
+                {
+                    warnings.Add($"Tag stamp '{b.Tag}': {ex.Message}");
+                }
             }
         }
 

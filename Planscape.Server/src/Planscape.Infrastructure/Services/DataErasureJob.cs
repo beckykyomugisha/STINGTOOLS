@@ -85,65 +85,66 @@ public class DataErasureJob
     {
         // 1. SQL deletes, child → parent. Composite raw SQL keeps it atomic
         //    inside one transaction. Order respects the existing FK graph.
-        await _db.Database.ExecuteSqlRawAsync($@"
+        await _db.Database.ExecuteSqlInterpolatedAsync($@"
             BEGIN;
             -- Pin / CRDT
-            DELETE FROM ""PinCrdtUpdates""        WHERE ""TenantId"" = '{tenantId}';
+            DELETE FROM ""PinCrdtUpdates""        WHERE ""TenantId"" = {tenantId};
             -- Markup + audio
-            DELETE FROM ""ModelMarkups""          WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""IssueAudioNotes""       WHERE ""TenantId"" = '{tenantId}';
+            DELETE FROM ""ModelMarkups""          WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""IssueAudioNotes""       WHERE ""TenantId"" = {tenantId};
             -- Scenes
-            DELETE FROM ""SceneNodes""            WHERE ""TenantId"" = '{tenantId}';
+            DELETE FROM ""SceneNodes""            WHERE ""TenantId"" = {tenantId};
             -- Issues + attachments
-            DELETE FROM ""IssueComments""         WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""IssueAttachments""      WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""Issues""                WHERE ""TenantId"" = '{tenantId}';
+            DELETE FROM ""IssueComments""         WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""IssueAttachments""      WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""Issues""                WHERE ""TenantId"" = {tenantId};
             -- Documents
-            DELETE FROM ""DocumentApprovals""     WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""DocumentVersions""      WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""DocumentMarkups""       WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""Documents""             WHERE ""TenantId"" = '{tenantId}';
+            DELETE FROM ""DocumentApprovals""     WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""DocumentVersions""      WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""DocumentMarkups""       WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""Documents""             WHERE ""TenantId"" = {tenantId};
             -- Meetings
-            DELETE FROM ""MeetingActionItems""    WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""Meetings""              WHERE ""TenantId"" = '{tenantId}';
+            DELETE FROM ""MeetingActionItems""    WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""Meetings""              WHERE ""TenantId"" = {tenantId};
             -- Site diaries + stage gates
-            DELETE FROM ""SiteDiaryAttachments""  WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""SiteDiaries""           WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""StageGateCriteria""     WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""InformationDeliverables"" WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""StageGates""            WHERE ""TenantId"" = '{tenantId}';
+            DELETE FROM ""SiteDiaryAttachments""  WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""SiteDiaries""           WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""StageGateCriteria""     WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""InformationDeliverables"" WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""StageGates""            WHERE ""TenantId"" = {tenantId};
             -- Other tenant-scoped data
-            DELETE FROM ""TaggedElements""        WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""ProjectModels""         WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""ScheduleTasks""         WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""CostItems""             WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""ComplianceSnapshots""   WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""Transmittals""          WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""WorkflowRuns""          WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""SeqCounters""           WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""SyncConflicts""         WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""SyncWatermarks""        WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""IssueCustomFieldSchemas"" WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""ProjectMembers""        WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""Projects""              WHERE ""TenantId"" = '{tenantId}';
+            DELETE FROM ""TaggedElements""        WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""ProjectModels""         WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""ScheduleTasks""         WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""CostItems""             WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""ComplianceSnapshots""   WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""Transmittals""          WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""WorkflowRuns""          WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""SeqCounters""           WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""SyncConflicts""         WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""SyncWatermarks""        WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""IssueCustomFieldSchemas"" WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""ProjectMembers""        WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""Projects""              WHERE ""TenantId"" = {tenantId};
             -- Billing
-            DELETE FROM ""Payments""              WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""Invoices""              WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""Subscriptions""         WHERE ""TenantId"" = '{tenantId}';
+            DELETE FROM ""Payments""              WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""Invoices""              WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""Subscriptions""         WHERE ""TenantId"" = {tenantId};
             -- Tenant-level
-            DELETE FROM ""DevicePushTokens""      WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""LicenseKeys""           WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""OutboundWebhooks""      WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""PlatformConnections""   WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""TenantBrandings""       WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""UserNotificationPreferences"" WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""OutboxMessages""        WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""Users""                 WHERE ""TenantId"" = '{tenantId}';
-            DELETE FROM ""AuditLogs""             WHERE ""TenantId"" = '{tenantId}';
+            DELETE FROM ""DevicePushTokens""      WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""LicenseKeys""           WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""OutboundWebhooks""      WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""PlatformConnections""   WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""TenantBrandings""       WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""UserNotificationPreferences"" WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""OutboxMessages""        WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""Users""                 WHERE ""TenantId"" = {tenantId};
+            DELETE FROM ""AuditLogs""             WHERE ""TenantId"" = {tenantId};
             -- Finally the Tenant row itself
-            DELETE FROM ""Tenants""               WHERE ""Id""       = '{tenantId}';
+            DELETE FROM ""Tenants""               WHERE ""Id""       = {tenantId};
             COMMIT;
         ", ct);
+#pragma warning restore EF1002
 
         // 2. Storage. We can't enumerate efficiently across providers, so
         //    we issue a delete for the conventional tenant prefix; the

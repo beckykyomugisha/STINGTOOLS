@@ -180,33 +180,6 @@ namespace StingTools.Core
     /// <c>TagConfig.StaleWarningThreshold</c>. Fires after the IUpdater
     /// transaction has committed so the document is read-safe.
     /// </summary>
-    public class StaleWarningPromotionJob : IIdlingJob
-    {
-        public string Name     => "StaleWarningPromotion";
-        public int    Priority => 5;
-        public int    BudgetMs => 30;
-
-        public bool Execute(UIApplication uiApp)
-        {
-            try
-            {
-                var doc = uiApp?.ActiveUIDocument?.Document;
-                if (doc == null) return true;
-                // Delegate to BIMManagerCommands.AutoRaiseStaleWarning when
-                // available. Reflection keeps the Core → BIMManager dependency
-                // direction clean.
-                var t = Type.GetType("StingTools.BIMManager.BIMManagerEngine, StingTools");
-                if (t != null)
-                {
-                    var m = t.GetMethod("AutoRaiseStaleWarning",
-                        new[] { typeof(Autodesk.Revit.DB.Document) });
-                    if (m != null) m.Invoke(null, new object[] { doc });
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"StaleWarningPromotionJob: {ex.Message}"); }
-            return true; // one-shot
-        }
-    }
 
     /// <summary>
     /// Pack 8 pilot consumer — compliance-scan refresh. Drops itself after
@@ -231,6 +204,52 @@ namespace StingTools.Core
                 StingLog.Warn($"ComplianceRefreshJob: {ex.Message}");
             }
             return true;
+        }
+    }
+
+    /// <summary>
+    /// TAG-STALE-WARN-01: Idling consumer that promotes stale-element flags into
+    /// the BIM issues register when the stale count crosses a threshold.
+    /// Runs ONCE per enqueue (returns true on completion). Dedupes against any
+    /// existing OPEN "stale" issue inside <see cref="WarningsEngineExt.AutoRaiseStaleIssues"/>.
+    /// </summary>
+    public class StaleWarningPromotionJob : IIdlingJob
+    {
+        public string Name => "StaleWarningPromotion";
+        public int Priority => 4;
+        public int BudgetMs => 30;
+
+        // Don't fire an issue for the first stale element — wait until a meaningful
+        // batch has accumulated to avoid issue noise from a single tweak. Configurable
+        // via TagConfig.StaleWarningThreshold (default 5).
+        private const int DefaultThreshold = 5;
+
+        public bool Execute(UIApplication uiApp)
+        {
+            try
+            {
+                var doc = uiApp?.ActiveUIDocument?.Document;
+                if (doc == null || doc.IsFamilyDocument) return true;
+
+                int threshold = TagConfig.StaleWarningThreshold > 0
+                    ? TagConfig.StaleWarningThreshold
+                    : DefaultThreshold;
+
+                var cached = ComplianceScan.GetCached() ?? ComplianceScan.Scan(doc);
+                if (cached == null || cached.StaleCount < threshold) return true;
+
+                int created = WarningsEngineExt.AutoRaiseStaleIssues(doc);
+                if (created > 0)
+                {
+                    StingLog.Info($"StaleWarningPromotionJob: created {created} stale-element issue(s) " +
+                        $"({cached.StaleCount} stale elements, threshold={threshold}).");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"StaleWarningPromotionJob: {ex.Message}");
+            }
+            return true; // single-shot
         }
     }
 }

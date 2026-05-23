@@ -36,7 +36,7 @@ namespace StingTools.Core
     /// </summary>
     // Note: CA1416 coverage is provided assembly-wide by
     // [assembly: SupportedOSPlatform("windows")] in Properties/AssemblyInfo.cs.
-    public class StingToolsApp : IExternalApplication
+    public partial class StingToolsApp : IExternalApplication
     {
         public static string AssemblyPath { get; private set; }
         public static string DataPath { get; private set; }
@@ -72,20 +72,54 @@ namespace StingTools.Core
                 // via StingIdlingScheduler.Enqueue(job).
                 StingIdlingScheduler.Register(application);
 
-                // Register the dockable panel — the single unified UI
+                // Register the dockable panel — the single unified UI.
+                // Create the shared "STING Tools" ribbon tab FIRST and in its
+                // own try/catch so a failure inside any single panel
+                // registration can never deprive the others of a tab to attach
+                // to. Without this, a throw in StingDockPanel.Initialise or
+                // RegisterDockablePane would skip CreateRibbonTab and then
+                // silently take down both follow-up panels too — the Plumbing
+                // pane would still appear (cached UIState) but its ribbon
+                // button, the Electrical button and the main STING Panel
+                // button would all be missing.
+                EnsureStingRibbonTab(application);
                 RegisterDockablePanel(application);
                 RegisterElectricalPanel(application);
                 RegisterPlumbingPanel(application);
                 RegisterHvacPanel(application);
+                RegisterLpsPanel(application);
 
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
+
+                // Register the Material Updater (IUpdater) — auto-apply OFF,
+                // auto-fill ON. Both behaviours share one trigger budget so
+                // the cost when fully idle is the same as one disabled updater.
+                StingTools.UI.StingMaterialUpdater.Register(application);
+
+                // STING Material Hub — modeless dockable pane (separate
+                // from the main STING dock panel). Three-pane material
+                // dashboard, floats independently.
+                try
+                {
+                    var hubProvider = new StingTools.UI.MaterialHubProvider();
+                    application.RegisterDockablePane(StingTools.UI.MaterialHubProvider.PaneId,
+                        "STING Material Hub", hubProvider);
+                    StingLog.Info("Material Hub: dockable pane registered.");
+                }
+                catch (Exception hubEx) { StingLog.Warn($"Material Hub register: {hubEx.Message}"); }
 
                 // Register the cost stale marker (IUpdater) — starts disabled.
                 // Toggled via Cost_ToggleStaleMarker. Marks ASS_CST_STALE_BOOL
                 // when geometry / material / type changes invalidate a costed
                 // element so the QS sees the stale BOQ row before exporting.
                 StingCostStaleMarker.Register(application);
+
+                // Wave 3 — flag LPS elements (ATs / DCs / earth / bonding /
+                // SPDs) as stale when their geometry changes so the LPS
+                // panel + compliance check pick up modifications without
+                // a manual "Load model" press. Disabled by default.
+                StingTools.Core.Lightning.StingLpsStaleMarker.Register(application);
 
                 // Register the Tag 7 narrative auto-updater (IUpdater) — starts disabled.
                 // Keeps ASS_TAG_7_TXT in sync with the active paragraph preset when
@@ -285,6 +319,28 @@ namespace StingTools.Core
                 // Phase 167: Drop the per-doc ProjectSetup cache so reopens re-detect.
                 try { ProjectFolderEngine.InvalidateSetupCache(e.Document?.PathName); }
                 catch (Exception cEx) { StingLog.Warn($"Setup cache invalidate: {cEx.Message}"); }
+                // Phase 187c: drop HVAC per-document caches so they don't outlive
+                // the source document (block-load top-level, climate, MEP sizing).
+                try { Commands.Hvac.HvacBlockLoadCommand.InvalidateTopLevelCache(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"HVAC top-level cache invalidate: {cEx.Message}"); }
+                try { Core.Climate.ClimateRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Climate cache invalidate: {cEx.Message}"); }
+                try { Core.Mep.MepSizingRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"MEP sizing cache invalidate: {cEx.Message}"); }
+                try { Core.Hvac.Loads.LoadProfileRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Load profile cache invalidate: {cEx.Message}"); }
+                try { Commands.Hvac.HvacGenerateCxChecklistCommand.InvalidateTaskCache(); }
+                catch (Exception cEx) { StingLog.Warn($"Cx task cache invalidate: {cEx.Message}"); }
+                try { Core.Refrigerant.RefrigerantVendorRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Refrig vendor cache invalidate: {cEx.Message}"); }
+                try { Core.Refrigerant.RefrigerantChargeRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Refrig charge cache invalidate: {cEx.Message}"); }
+                try { Core.Refrigerant.IduCatalogueRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"IDU catalogue invalidate: {cEx.Message}"); }
+                try { Core.Refrigerant.RefnetRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"REFNET catalogue invalidate: {cEx.Message}"); }
+                try { Core.Hvac.Loads.CtfRtsRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"CTF RTS cache invalidate: {cEx.Message}"); }
                 // Phase 78: Save dropped element IDs to sidecar before clearing queue
                 StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
                 // R-02: Clear deferred elements on document close
@@ -418,8 +474,6 @@ namespace StingTools.Core
                         StingLog.Info($"Planscape STC sync debounced ({sincePrev.TotalSeconds:F0}s < {PlanscapeSyncDebounceSeconds}s) for {doc.Title}");
                         return;
                     }
-                    _pendingSyncDoc = doc;
-                    _lastPlanscapeSync = DateTime.UtcNow;
                 }
 
                 StingLog.Info("Planscape: auto-sync triggered by STC");
@@ -498,7 +552,6 @@ namespace StingTools.Core
                 // from OnStartup to here.
                 if (!_mainPaneForceShown)
                 {
-                    _mainPaneForceShown = true;
                     try
                     {
                         var uiApp = new UIApplication(e.Document.Application);
@@ -541,6 +594,40 @@ namespace StingTools.Core
                     }
                 }
                 catch (Exception regEx) { StingLog.Warn($"Standards region sync skipped: {regEx.Message}"); }
+
+                // Phase 187b — HVAC climate auto-stamp. Resolves the active site
+                // once on document open (PRJ_CLIMATE_SITE_ID → address fuzzy
+                // match → fallback) and stamps both the id and human-readable
+                // label back onto ProjectInformation. Subsequent commands read
+                // the stamp directly without re-fuzzing the address.
+                try
+                {
+                    var pi = e.Document?.ProjectInformation;
+                    if (pi != null)
+                    {
+                        string already = pi.LookupParameter("PRJ_CLIMATE_SITE_ID")?.AsString();
+                        if (string.IsNullOrWhiteSpace(already))
+                        {
+                            var site = StingTools.Core.Climate.ClimateRegistry.ActiveSite(e.Document);
+                            if (site != null && !string.Equals(site.Id, "fallback", StringComparison.OrdinalIgnoreCase))
+                            {
+                                using (var tx = new Transaction(e.Document, "STING — Stamp climate site"))
+                                {
+                                    if (tx.Start() == TransactionStatus.Started)
+                                    {
+                                        ParameterHelpers.SetString(pi, "PRJ_CLIMATE_SITE_ID",
+                                            site.Id, overwrite: true);
+                                        ParameterHelpers.SetString(pi, "PRJ_CLIMATE_SITE_LABEL_TXT",
+                                            site.Label, overwrite: true);
+                                        tx.Commit();
+                                        StingLog.Info($"HVAC climate site auto-stamped: {site.Id} ({site.Label})");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception climEx) { StingLog.Warn($"Climate auto-stamp skipped: {climEx.Message}"); }
 
                 // C4 / G1.3: Reload TagConfig on document open — prefer project-adjacent config
                 // to prevent config bleed between projects
@@ -712,7 +799,21 @@ namespace StingTools.Core
                     StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
                 }
 
-// Phase 77: Consume any pending workflow presets from WorkflowScheduler triggers
+                // Phase 184 — Gap 9 IfcDropWatcher auto-start block removed.
+                // The Document-open hot path was deactivated alongside the
+                // _activeIfcDropWatcher field. Commands that need a drop-folder
+                // watcher should instantiate StingBridge.IFC.IfcDropWatcher
+                // directly and manage its lifetime themselves.
+
+                // Phase 188 (Tier 2) — auto-populate the HVAC panel if it is open.
+                // Cheap no-op when the panel hasn't been shown yet (Instance is null).
+                try
+                {
+                    StingTools.UI.StingHvacPanel.Instance?.RefreshFromDoc(e.Document);
+                }
+                catch (Exception hvEx) { StingLog.Warn($"HVAC panel auto-refresh: {hvEx.Message}"); }
+
+                // Phase 77: Consume any pending workflow presets from WorkflowScheduler triggers
                 // (document-open, compliance-fall, SLA-violation, warning-threshold triggers)
                 try
                 {
@@ -785,10 +886,80 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentOpened offline-config reload: {ocEx.Message}");
                 }
 
+                // Phase 165 (NEW-02 / Clash wiring) — lazy-start the ClashScheduler
+                // when a project is opened. Pulls the cadence from the project's
+                // default_clash_matrix.json (SchedulerIntervalMinutes) and falls
+                // back to 60 minutes. Idempotent: re-opens hit Instance.Stop()
+                // first so we don't stack timers across documents.
+                try
+                {
+                    if (TagConfig.AutoStartClashScheduler && e.Document != null && !e.Document.IsFamilyDocument)
+                    {
+                        UIApplication uiAppForClash = UI.StingCommandHandler.CurrentApp;
+                        if (uiAppForClash == null)
+                        {
+                            var revitApp = e.Document.Application;
+                            if (revitApp != null) uiAppForClash = new UIApplication(revitApp);
+                        }
+                        if (uiAppForClash != null)
+                        {
+                            try { Clash.ClashScheduler.Instance.Stop(); } catch { /* first-run no-op */ }
+                            Clash.ClashScheduler.Instance.Start(uiAppForClash, intervalMinutes: 0);
+                            StingLog.Info("ClashScheduler started for active document");
+                        }
+                    }
+                }
+                catch (Exception csEx) { StingLog.Warn($"DocumentOpened ClashScheduler start: {csEx.Message}"); }
+
+                // Phase 167 + folder consolidation: auto-bootstrap a default
+                // ProjectSetup so every subsystem writes into ONE project root,
+                // then silently sweep any legacy sibling folders (_BIM_COORD,
+                // _bim_manager, STING_BIM_MANAGER, STING_Exports, STING_Project,
+                // .bimmanager, *_Briefcase_*, STING_BOQ_RateHeatMap,
+                // STING_WORKFLOW_LOG.json) into the unified container.
+                try
+                {
+                    if (e.Document != null && !e.Document.IsFamilyDocument && !string.IsNullOrEmpty(e.Document.PathName))
+                    {
+                        var setup = ProjectFolderEngine.LoadOrBootstrapSetup(e.Document);
+                        if (setup != null)
+                        {
+                            string root = setup.ResolveRootPath(e.Document.PathName);
+                            StingLog.Info($"DocumentOpened: project setup ready — root={root}, mode={setup.Mode}");
+
+                            // Idempotent silent migration. Only reports if it
+                            // actually moved something — no UI prompt, never
+                            // blocks the open path.
+                            try
+                            {
+                                var rep = ProjectFolderEngine.MigrateFromLegacy(e.Document);
+                                if (rep != null && (rep.FilesMoved > 0 || rep.FoldersRemoved > 0))
+                                {
+                                    StingLog.Info($"DocumentOpened auto-migration: {rep.FilesMoved} files moved, {rep.FoldersRemoved} legacy folders removed.");
+                                }
+                            }
+                            catch (Exception mEx) { StingLog.Warn($"DocumentOpened auto-migration: {mEx.Message}"); }
+                        }
+                    }
+                }
+                catch (Exception cfEx) { StingLog.Warn($"DocumentOpened CDE folder bootstrap: {cfEx.Message}"); }
+
                 // Pack 8 — drip-feed a compliance refresh through the Idling
                 // scheduler so the dashboard is live within a second of open.
                 try { StingIdlingScheduler.Enqueue(new ComplianceRefreshJob()); }
                 catch (Exception schEx) { StingLog.Warn($"DocumentOpened Idling enqueue: {schEx.Message}"); }
+
+                // TAG-STALE-WARN-01: After the compliance refresh populates the cache,
+                // promote any pre-existing stale elements that exceed the threshold into
+                // a BIM issue so coordinators see the work outstanding from a previous
+                // session immediately on open. The job is single-shot and dedupes against
+                // any existing OPEN stale issue, so re-opening a model is a no-op.
+                try
+                {
+                    if (TagConfig.StaleWarningThreshold > 0)
+                        StingIdlingScheduler.Enqueue(new StaleWarningPromotionJob());
+                }
+                catch (Exception swEx) { StingLog.Warn($"DocumentOpened stale-warning enqueue: {swEx.Message}"); }
             }
             catch (Exception ex)
             {
@@ -797,9 +968,6 @@ namespace StingTools.Core
         }
 
         // PERF-CRIT: Deferred morning briefing state — runs on first command after document open
-        private static Document _pendingBriefingDoc;
-        internal static volatile bool _briefingPending;
-        private static bool _briefingSubscribed;
 
         /// <summary>PERF-CRIT: Run the morning briefing on demand (called from StingCommandHandler
         /// on first command execution after document open, NOT from DocumentOpened event).
@@ -941,7 +1109,6 @@ namespace StingTools.Core
                 Document currentDoc = view?.Document;
                 if (currentDoc != null && currentDoc != _lastActiveDoc)
                 {
-                    _lastActiveDoc = currentDoc;
                     StingAutoTagger.InvalidateContext();
                     ComplianceScan.InvalidateCache();
                     // GAP-05: Clear parameter lookup cache on document switch to prevent
@@ -1067,6 +1234,16 @@ namespace StingTools.Core
                 if (!_savingAsPaths.TryRemove(doc.GetHashCode(), out var paths)) return;
                 if (string.IsNullOrEmpty(paths.OldPath) || string.IsNullOrEmpty(paths.NewPath)) return;
                 MigrateLiveProfileSyncSnapshot(paths.OldPath, paths.NewPath);
+
+                // A-3 — Invalidate material caches keyed by old path so a
+                // Save As doesn't leave stale name + usage indexes behind.
+                try
+                {
+                    StingTools.UI.MaterialNameCache.InvalidateAll();
+                    StingTools.UI.MaterialUsageIndex.InvalidateAll();
+                    StingTools.UI.MaterialOverrideRegistry.Reload(doc);
+                }
+                catch (Exception cacheEx) { StingLog.Warn($"OnDocumentSavedAs cache invalidate: {cacheEx.Message}"); }
             }
             catch (Exception ex) { StingLog.Warn($"OnDocumentSavedAs: {ex.Message}"); }
         }
@@ -1095,7 +1272,6 @@ namespace StingTools.Core
             Autodesk.Revit.DB.Events.DocumentSavedEventArgs e)
         {
             if (_isSyncing) return;
-            _isSyncing = true;
             try
             {
                 var doc = e.Document;
@@ -1215,7 +1391,6 @@ namespace StingTools.Core
             }
             finally
             {
-                _isSyncing = false;
             }
         }
 
@@ -1285,9 +1460,13 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"SyncScheduler stop: {ex.Message}"); }
 
+            // Phase 184 — _activeIfcDropWatcher Dispose removed alongside the
+            // Gap 9 auto-start block. The IfcDropWatcher class itself remains
+            // available in Commands/IFC/StingBridgeStubs.cs.
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingCostStaleMarker.Unregister();
+            try { Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Unregister(); } catch { }
             StingTag7NarrativeUpdater.Unregister();
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
             try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }
@@ -1494,43 +1673,132 @@ namespace StingTools.Core
 
         // ── Dockable Panel Registration ──────────────────────────────
 
-        private void RegisterDockablePanel(UIControlledApplication application)
+        // Single source of truth for the ribbon tab. A static flag avoids
+        // the "tab already exists" exception when CreateRibbonTab is called
+        // a second time (e.g. during a duplicate addin load).
+        private const string RibbonTabName = "STING Tools";
+        private static bool _ribbonTabReady;
+
+        /// <summary>
+        /// Idempotently create the shared "STING Tools" ribbon tab.
+        /// Each registration step (main panel, Electrical, Plumbing) calls
+        /// this first so a failure in one panel cannot prevent the others
+        /// from rendering — the previous "all-in-one" try/catch let a WPF
+        /// resource error in the main panel skip the CreateRibbonTab call,
+        /// which then made Electrical and Plumbing throw "Unexpected tab".
+        /// </summary>
+        private static void EnsureRibbonTab(UIControlledApplication application)
         {
+            // ── Phase 188 hardening — create the "STING Tools" ribbon tab
+            // BEFORE the main registration body so that even if dockable-pane
+            // registration throws (e.g. a missing XAML StaticResource), the
+            // sibling panel registrations (Electrical, Plumbing, HVAC) can
+            // still find the tab and add their ribbon panels successfully.
+            const string tabName = "STING Tools";
+            bool tabCreated = false;
             try
             {
-                // Initialise the external event handler for panel button dispatching
-                StingDockPanel.Initialise(application);
+                application.CreateRibbonTab(tabName);
+                tabCreated = true;
+                StingLog.Info($"CreateRibbonTab('{tabName}'): created OK");
+            }
+            catch (Exception tabEx)
+            {
+                // Most common cause is "Argument: Ribbon tab name already
+                // exists" which is fine — the tab is there, we just can't
+                // re-create. Anything else is a real failure.
+                if (tabEx.Message.IndexOf("already", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    tabCreated = true;
+                    StingLog.Info($"CreateRibbonTab('{tabName}'): tab already exists, reusing");
+                }
+                else
+                {
+                    StingLog.Warn($"CreateRibbonTab('{tabName}'): {tabEx.GetType().Name}: {tabEx.Message}");
+                }
+            }
 
-                // Register the dockable pane with Revit
+            // ── Last-resort fallback: drop a toggle button into the standard
+            // "Add-Ins" tab if our custom tab failed to create AND it doesn't
+            // already exist. The user's report — "ribbon panels missing but
+            // dockables work" — means the custom tab is broken on their setup,
+            // so a guaranteed-visible button on a built-in tab is the safety net.
+            if (!tabCreated)
+            {
+                try
+                {
+                    var addinsPanel = application.CreateRibbonPanel("STING Tools (fallback)");
+                    AddButton(addinsPanel, "btnTogglePanelFallback", "STING\nPanel",
+                        AssemblyPath, typeof(ToggleDockPanelCommand).FullName,
+                        "Show/hide the STING Tools dockable panel (fallback on Add-Ins tab — custom 'STING Tools' tab failed to create).");
+                    AddButton(addinsPanel, "btnToggleHvacFallback", "STING\nHVAC",
+                        AssemblyPath, typeof(ToggleHvacPanelCommand).FullName,
+                        "Show/hide the STING HVAC Center dockable panel (fallback).");
+                    StingLog.Info("Add-Ins fallback panel registered with STING Panel + STING HVAC toggle buttons.");
+                }
+                catch (Exception fbEx) { StingLog.Warn($"Add-Ins fallback: {fbEx.Message}"); }
+            }
+        }
+
+        private void RegisterDockablePanel(UIControlledApplication application)
+        {
+            string asmPath = AssemblyPath;
+            const string tabName = "STING Tools";
+
+            // Step 1 — external event handler. Independent try/catch so a
+            // throw here doesn't stop the dockable-pane register or the
+            // toggle button being added.
+            try { StingDockPanel.Initialise(application); }
+            catch (Exception ex) { StingLog.Error("StingDockPanel.Initialise", ex); }
+
+            // Step 2 — dockable pane register.
+            try
+            {
                 var provider = new StingDockPanelProvider();
                 application.RegisterDockablePane(
                     StingDockPanelProvider.PaneId,
                     "STING Tools",
                     provider);
-
-                // Create a minimal ribbon tab with just a toggle button
-                const string tabName = "STING Tools";
-                application.CreateRibbonTab(tabName);
-                string asmPath = AssemblyPath;
+                StingLog.Info("RegisterDockablePanel: dockable pane registered");
 
                 // STING Hub — quick-launch panel (added FIRST so it sits at the
                 // left end of the tab). 9 small stacked buttons with runtime-
                 // drawn letter icons; no image files on disk.
-                RibbonPanel hubPanel = application.CreateRibbonPanel(tabName, "STING Hub");
-                BuildHubPanel(hubPanel);
+                RibbonPanel hubPanel = null;
+                try { hubPanel = application.CreateRibbonPanel(tabName, "STING Hub"); }
+                catch (Exception hpEx) { StingLog.Error($"CreateRibbonPanel('STING Hub') failed: {hpEx.Message}", hpEx); }
+                if (hubPanel != null)
+                {
+                    try { BuildHubPanel(hubPanel); StingLog.Info("STING Hub panel populated"); }
+                    catch (Exception bhEx) { StingLog.Error("BuildHubPanel failed", bhEx); }
+                }
 
-                var togglePanel = application.CreateRibbonPanel(tabName, "Panel");
-                AddButton(togglePanel, "btnTogglePanel", "STING\nPanel",
-                    asmPath, typeof(ToggleDockPanelCommand).FullName,
-                    "Show/hide the STING Tools dockable panel");
+                RibbonPanel togglePanel = null;
+                try { togglePanel = application.CreateRibbonPanel(tabName, "Panel"); }
+                catch (Exception tpEx) { StingLog.Error($"CreateRibbonPanel('Panel') failed: {tpEx.Message}", tpEx); }
+                if (togglePanel != null)
+                {
+                    try
+                    {
+                        AddButton(togglePanel, "btnTogglePanel", "STING\nPanel",
+                            asmPath, typeof(ToggleDockPanelCommand).FullName,
+                            "Show/hide the STING Tools dockable panel");
+                        AddButton(togglePanel, "btnTogglePanelHvac", "STING\nHVAC",
+                            asmPath, typeof(ToggleHvacPanelCommand).FullName,
+                            "Show/hide the STING HVAC Center dockable panel (backup entry — see also 'STING HVAC' panel + STING Hub 'HVAC Panel' tile)");
+                        StingLog.Info("Panel ribbon panel populated (STING Panel + STING HVAC)");
+                    }
+                    catch (Exception abEx) { StingLog.Error("Panel AddButton failed", abEx); }
+                }
 
-                StingLog.Info("Dockable panel registered successfully");
+                StingLog.Info("Dockable panel registered successfully (Panel + HVAC backup button)");
             }
             catch (Exception ex)
             {
-                StingLog.Error("Failed to register dockable panel", ex);
+                StingLog.Error($"Failed to create ribbon tab '{RibbonTabName}'", ex);
             }
         }
+
 
         // ── Phase 177 — STING Electrical Center registration ────────────
 
@@ -1541,6 +1809,8 @@ namespace StingTools.Core
         /// </summary>
         private void RegisterElectricalPanel(UIControlledApplication application)
         {
+            EnsureRibbonTab(application);
+
             try
             {
                 var provider = new StingTools.UI.StingElectricalPanelProvider();
@@ -1548,44 +1818,62 @@ namespace StingTools.Core
                     StingTools.UI.StingElectricalPanelProvider.PaneId,
                     "⚡ STING Electrical",
                     provider);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RegisterDockablePane (Electrical) failed", ex);
+            }
 
-                const string tabName = "STING Tools";
-                string asmPath = AssemblyPath;
-                var elecPanel = application.CreateRibbonPanel(tabName, "⚡ Electrical");
+            if (!_ribbonTabReady) return;
+
+            try
+            {
+                var elecPanel = application.CreateRibbonPanel(RibbonTabName, "⚡ Electrical");
                 AddButton(elecPanel, "btnToggleElectrical", "STING\nElectrical",
-                    asmPath, typeof(ToggleElectricalPanelCommand).FullName,
+                    AssemblyPath, typeof(ToggleElectricalPanelCommand).FullName,
                     "Show/hide the STING Electrical Center dockable panel.");
                 StingLog.Info("Electrical dockable panel registered successfully");
             }
             catch (Exception ex)
             {
-                StingLog.Error("Failed to register Electrical dockable panel", ex);
+                StingLog.Error("Failed to add Electrical ribbon button", ex);
             }
         }
 
         // ── Phase 178c — STING Plumbing Center registration ─────────────
         private void RegisterPlumbingPanel(UIControlledApplication application)
         {
+            EnsureRibbonTab(application);
+
+            try { StingTools.UI.Plumbing.StingPlumbingCommandHandler.Initialise(application); }
+            catch (Exception ex) { StingLog.Error("StingPlumbingCommandHandler.Initialise failed", ex); }
+
             try
             {
-                StingTools.UI.Plumbing.StingPlumbingCommandHandler.Initialise(application);
                 var provider = new StingTools.UI.Plumbing.StingPlumbingPanelProvider();
                 application.RegisterDockablePane(
                     StingTools.UI.Plumbing.StingPlumbingPanelProvider.PaneId,
                     "💧 STING Plumbing",
                     provider);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RegisterDockablePane (Plumbing) failed", ex);
+            }
 
-                const string tabName = "STING Tools";
-                string asmPath = AssemblyPath;
-                var plumbPanel = application.CreateRibbonPanel(tabName, "💧 Plumbing");
+            if (!_ribbonTabReady) return;
+
+            try
+            {
+                var plumbPanel = application.CreateRibbonPanel(RibbonTabName, "💧 Plumbing");
                 AddButton(plumbPanel, "btnTogglePlumbing", "STING\nPlumbing",
-                    asmPath, typeof(TogglePlumbingPanelCommand).FullName,
+                    AssemblyPath, typeof(TogglePlumbingPanelCommand).FullName,
                     "Show/hide the STING Plumbing Center dockable panel.");
                 StingLog.Info("Plumbing dockable panel registered successfully");
             }
             catch (Exception ex)
             {
-                StingLog.Error("Failed to register Plumbing dockable panel", ex);
+                StingLog.Error("Failed to add Plumbing ribbon button", ex);
             }
         }
 
@@ -1594,24 +1882,76 @@ namespace StingTools.Core
         {
             try
             {
+                StingLog.Info("RegisterHvacPanel: starting…");
                 StingTools.UI.StingHvacCommandHandler.Initialise(application);
+                StingLog.Info("RegisterHvacPanel: command handler initialised");
                 var provider = new StingTools.UI.StingHvacPanelProvider();
                 application.RegisterDockablePane(
                     StingTools.UI.StingHvacPanelProvider.PaneId,
-                    "❄ STING HVAC",
+                    "STING HVAC",
+                    provider);
+                StingLog.Info($"RegisterHvacPanel: dockable pane registered " +
+                    $"(GUID={StingTools.UI.StingHvacPanelProvider.PaneGuid})");
+
+                const string tabName = "STING Tools";
+                string asmPath = AssemblyPath;
+                // Plain-ASCII panel name: the leading snowflake (U+2744) was a
+                // suspect in the "panel doesn't render" investigation. Rename
+                // to "STING HVAC" to be sure Revit isn't dropping the panel
+                // due to unicode-handling weirdness.
+                var hvacPanel = application.CreateRibbonPanel(tabName, "STING HVAC");
+                StingLog.Info("RegisterHvacPanel: ribbon panel 'STING HVAC' created");
+                AddButton(hvacPanel, "btnToggleHvac", "STING\nHVAC",
+                    asmPath, typeof(ToggleHvacPanelCommand).FullName,
+                    "Show/hide the STING HVAC Center dockable panel.");
+                StingLog.Info("HVAC dockable panel registered successfully — " +
+                    "look for '❄ HVAC' panel on the right side of the STING Tools tab " +
+                    "(may be collapsed to a chevron if the Revit window is narrow).");
+            }
+            catch (Exception ex)
+            {
+                // Make this loud — TaskDialog so the user sees it, not just a log line.
+                StingLog.Error("Failed to register HVAC dockable panel", ex);
+                try
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show(
+                        "STING — HVAC panel registration failed",
+                        $"The STING HVAC ribbon panel did not register:\n\n" +
+                        $"{ex.GetType().Name}: {ex.Message}\n\n" +
+                        $"Stack:\n{ex.StackTrace}\n\n" +
+                        $"See StingTools.log for full details. " +
+                        $"STING Electrical + STING Plumbing should still work.");
+                }
+                catch { /* TaskDialog may be unavailable at OnStartup time */ }
+            }
+        }
+
+        // ── STING Lightning Protection Center registration ───────────────
+        // Sibling to RegisterHvacPanel / RegisterElectricalPanel / RegisterPlumbingPanel.
+        // Surfaces the 20 LPS commands + 3 net-new panel commands (risk inline,
+        // SPD coordinate, SPD recommend) in an inline 7-tab dockable panel.
+        private void RegisterLpsPanel(UIControlledApplication application)
+        {
+            try
+            {
+                StingTools.UI.StingLpsCommandHandler.Initialise(application);
+                var provider = new StingTools.UI.StingLpsPanelProvider();
+                application.RegisterDockablePane(
+                    StingTools.UI.StingLpsPanelProvider.PaneId,
+                    "⚡ STING Lightning Protection",
                     provider);
 
                 const string tabName = "STING Tools";
                 string asmPath = AssemblyPath;
-                var hvacPanel = application.CreateRibbonPanel(tabName, "❄ HVAC");
-                AddButton(hvacPanel, "btnToggleHvac", "STING\nHVAC",
-                    asmPath, typeof(ToggleHvacPanelCommand).FullName,
-                    "Show/hide the STING HVAC Center dockable panel.");
-                StingLog.Info("HVAC dockable panel registered successfully");
+                var lpsPanel = application.CreateRibbonPanel(tabName, "⚡ LPS");
+                AddButton(lpsPanel, "btnToggleLps", "STING\nLPS",
+                    asmPath, typeof(ToggleLpsPanelCommand).FullName,
+                    "Show/hide the STING Lightning Protection Center dockable panel.");
+                StingLog.Info("LPS dockable panel registered successfully");
             }
             catch (Exception ex)
             {
-                StingLog.Error("Failed to register HVAC dockable panel", ex);
+                StingLog.Error("Failed to register LPS dockable panel", ex);
             }
         }
 
@@ -1871,6 +2211,7 @@ namespace StingTools.Core
                 ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
                 ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
                 ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,    typeof(HubAutoTagCommand).FullName),
+                ("ToggleHvacPanel",      "HVAC Panel",    "HV", DrawingColor.LightSeaGreen,typeof(HubHvacPanelCommand).FullName),
             };
 
             var buttons = new List<PushButtonData>(12);
@@ -2046,6 +2387,39 @@ namespace StingTools.Core
         }
     }
 
+    /// <summary>
+    /// Toggle the STING Lightning Protection Center dockable panel.
+    /// Sibling to <see cref="ToggleHvacPanelCommand"/> /
+    /// <see cref="ToggleElectricalPanelCommand"/> / <see cref="TogglePlumbingPanelCommand"/>.
+    /// </summary>
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class ToggleLpsPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var pane = ParameterHelpers.GetApp(commandData)
+                    .GetDockablePane(StingTools.UI.StingLpsPanelProvider.PaneId);
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING LPS",
+                        "LPS panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+                if (pane.IsShown()) pane.Hide(); else pane.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle LPS panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
     // ── STING Hub button dispatchers ────────────────────────────────────────
     // Each ribbon button on the STING Hub panel is bound to one of these thin
     // wrappers. They delegate to StingDockPanel.DispatchCommand, which raises
@@ -2059,7 +2433,34 @@ namespace StingTools.Core
         {
             try
             {
-                StingTools.UI.StingDockPanel.DispatchCommand(tag);
+                // If the main dock-panel handler hasn't been primed (the
+                // panel has never been opened in this session), DispatchCommand
+                // returns false silently. Surface that to the user by opening
+                // the dock panel first, then retrying once on the WPF
+                // dispatcher so the button actually does something.
+                if (!StingTools.UI.StingDockPanel.DispatchCommand(tag))
+                {
+                    // Fall back to surfacing the dock panel via the UIApp —
+                    // Show() forces Revit to construct the page and prime
+                    // the ExternalEvent handler.
+                    var uiApp = StingTools.UI.StingCommandHandler.CurrentApp;
+                    if (uiApp != null)
+                    {
+                        try
+                        {
+                            var pane = uiApp.GetDockablePane(StingTools.UI.StingDockPanelProvider.PaneId);
+                            if (pane != null && !pane.IsShown()) pane.Show();
+                        }
+                        catch (Exception exShow) { StingLog.Warn($"Hub dispatch show: {exShow.Message}"); }
+                    }
+                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                        new Action(() =>
+                        {
+                            try { StingTools.UI.StingDockPanel.DispatchCommand(tag); }
+                            catch (Exception exRetry) { StingLog.Warn($"Hub dispatch retry '{tag}': {exRetry.Message}"); }
+                        }),
+                        System.Windows.Threading.DispatcherPriority.Background);
+                }
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -2076,7 +2477,7 @@ namespace StingTools.Core
     public class HubBIMCoordCenterCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("BIMCoordinationCenter", ref message);
+            => HubDispatcher.Run("BIMCoordCenter_Open", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]

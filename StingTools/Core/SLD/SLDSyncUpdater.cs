@@ -27,6 +27,23 @@ namespace StingTools.Core.SLD
     {
         private readonly UpdaterId _updaterId;
 
+        // Per-document gate cache. Reading project_config.json on every
+        // IUpdater fire is excessive; SLDSyncToggleCommand calls
+        // InvalidateGateCache after writing the new value so the cache
+        // refreshes on the next fire.
+        private static readonly Dictionary<string, bool> _gateCache
+            = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        private static readonly object _gateLock = new object();
+
+        public static void InvalidateGateCache(string docPathName = null)
+        {
+            lock (_gateLock)
+            {
+                if (string.IsNullOrEmpty(docPathName)) _gateCache.Clear();
+                else _gateCache.Remove(docPathName);
+            }
+        }
+
         public SLDSyncUpdater(AddInId addInId)
         {
             // Stable GUID for this updater — used to register/unregister.
@@ -103,6 +120,20 @@ namespace StingTools.Core.SLD
 
         private static bool IsSyncEnabled(Document doc)
         {
+            string key = doc?.PathName ?? "";
+            if (string.IsNullOrEmpty(key)) return false;
+
+            lock (_gateLock)
+            {
+                if (_gateCache.TryGetValue(key, out var cached)) return cached;
+            }
+            bool value = ReadGateFromDisk(doc);
+            lock (_gateLock) { _gateCache[key] = value; }
+            return value;
+        }
+
+        private static bool ReadGateFromDisk(Document doc)
+        {
             try
             {
                 if (string.IsNullOrEmpty(doc?.PathName)) return false;
@@ -113,7 +144,7 @@ namespace StingTools.Core.SLD
             }
             catch (Exception ex)
             {
-                StingTools.Core.StingLog.Warn($"SLDSyncUpdater.IsSyncEnabled: {ex.Message}");
+                StingTools.Core.StingLog.Warn($"SLDSyncUpdater.ReadGateFromDisk: {ex.Message}");
                 return false;
             }
         }

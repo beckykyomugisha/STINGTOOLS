@@ -1354,6 +1354,48 @@ const styles = StyleSheet.create({
     color: theme.colors.danger,
   },
 
+  // MODEL-VIEWER — inline 3D context.
+  viewerSection: {
+    padding: theme.spacing.md,
+    paddingBottom: 0,
+  },
+  viewerHeader: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.sm,
+  },
+  viewerHost: {
+    height: 280,
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
+  },
+  viewerHint: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  // Phase 164 caveat 2 — resolved-sibling toggle.
+  viewerToggle: {
+    marginTop: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.background,
+    alignSelf: 'flex-start',
+  },
+  viewerToggleText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+  },
+  viewerError: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.danger,
+  },
+
   gallerySection: {
     padding: theme.spacing.md,
   },

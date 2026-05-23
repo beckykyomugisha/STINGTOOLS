@@ -41,13 +41,37 @@ namespace StingTools.Core.Drawing
 
     public static class ScopeBoxBinder
     {
+        // PERF-07: a strict prefix the collector can pre-filter on so
+        // non-STING scope boxes never reach the regex.
+        private const string NamePrefix = "STING::";
+
+        // ACC-02: the only legal characters inside a token segment are
+        // alphanumerics + dot + hyphen + underscore. Anything else is a
+        // typo or a manual rename that doesn't survive the parser.
         private static readonly Regex _pattern =
-            new Regex(@"^STING::([A-Za-z0-9_\-]+)(?:::([A-Za-z0-9_\-]+))?(?:::([A-Za-z0-9_\-]+))?$",
+            new Regex(@"^STING::([A-Za-z0-9_\-\.]+)(?:::([A-Za-z0-9_\-\.]+))?(?:::([A-Za-z0-9_\-\.]+))?$",
                       RegexOptions.Compiled);
 
+        /// <summary>
+        /// ACC-02: a scope-box name beginning with STING:: that fails the
+        /// strict pattern is reported back to callers so the user can
+        /// rename rather than seeing the box silently dropped from the
+        /// generation list.
+        /// </summary>
+        public sealed class NameWarning
+        {
+            public ElementId ScopeBoxId { get; set; }
+            public string    Name { get; set; }
+            public string    Reason { get; set; }
+        }
+
         public static List<ScopeBoxBinding> ScanProject(Document doc)
+            => ScanProject(doc, out _);
+
+        public static List<ScopeBoxBinding> ScanProject(Document doc, out List<NameWarning> warnings)
         {
             var results = new List<ScopeBoxBinding>();
+            warnings = new List<NameWarning>();
             if (doc == null) return results;
 
             try
@@ -57,8 +81,22 @@ namespace StingTools.Core.Drawing
                     .WhereElementIsNotElementType())
                 {
                     var name = el.Name ?? "";
+                    // PERF-07: cheap startswith filter before the regex.
+                    if (!name.StartsWith(NamePrefix, StringComparison.OrdinalIgnoreCase)) continue;
                     var m = _pattern.Match(name);
-                    if (!m.Success) continue;
+                    if (!m.Success)
+                    {
+                        // ACC-02: surface the rejection so the operator can
+                        // fix typos like "STING::arch plan" → "STING::arch-plan".
+                        warnings.Add(new NameWarning
+                        {
+                            ScopeBoxId = el.Id,
+                            Name       = name,
+                            Reason     = "name has STING:: prefix but does not match "
+                                       + "STING::<id>[::<level>][::<tag>] (allowed chars: A-Z 0-9 . _ -)",
+                        });
+                        continue;
+                    }
                     results.Add(new ScopeBoxBinding
                     {
                         ScopeBox = el,
@@ -75,6 +113,37 @@ namespace StingTools.Core.Drawing
             return results;
         }
 
+        // GAP-F: per-Scan cache built lazily — ScanProject runs once at
+        // command entry, then FindExistingView is called per binding;
+        // building the index once is O(views) total instead of
+        // O(views × bindings).
+        [ThreadStatic] private static Dictionary<(string dtId, long sbId), ElementId> _existingByBinding;
+
+        public static void PrimeExistingViewIndex(Document doc)
+        {
+            if (doc == null) { _existingByBinding = null; return; }
+            var idx = new Dictionary<(string, long), ElementId>();
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
+                {
+                    if (!(el is View v) || v.IsTemplate) continue;
+                    var dtId = DrawingTypeStamper.Read(v);
+                    if (string.IsNullOrEmpty(dtId)) continue;
+                    var sbParam = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                    if (sbParam == null) continue;
+                    var sbId = sbParam.AsElementId();
+                    if (sbId == null || sbId == ElementId.InvalidElementId) continue;
+                    idx[(dtId, sbId.Value)] = v.Id;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"ScopeBoxBinder.PrimeExistingViewIndex: {ex.Message}");
+            }
+            _existingByBinding = idx;
+        }
+
         /// <summary>
         /// Find the existing view (if any) that was previously created
         /// by this binding — same DrawingType stamp + same scope-box
@@ -82,7 +151,16 @@ namespace StingTools.Core.Drawing
         /// </summary>
         public static View FindExistingView(Document doc, ScopeBoxBinding b)
         {
-            if (doc == null || b == null) return null;
+            if (doc == null || b == null || b.ScopeBox == null) return null;
+            // GAP-F: short-circuit via thread-local index when primed.
+            if (_existingByBinding != null
+                && _existingByBinding.TryGetValue((b.DrawingTypeId, b.ScopeBox.Id.Value), out var cachedId))
+            {
+                if (doc.GetElement(cachedId) is View vCached
+                    && vCached.IsValidObject && !vCached.IsTemplate)
+                    return vCached;
+                // Stale entry — fall through to the slow path.
+            }
             try
             {
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))

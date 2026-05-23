@@ -1,0 +1,59 @@
+{
+  "_schema": "STING_CONSTRUCTION_PROFILES",
+  "_version": "1.0",
+  "_notes": [
+    "Envelope U-value + SHGC + shading defaults per construction era / target.",
+    "Keys map to PRJ_CONSTRUCTION_PROFILE_TXT on ProjectInformation; falls",
+    "back to 'PartL2021' when unset. Project override at",
+    "<project>/_BIM_COORD/construction_profiles.json overrides individual",
+    "profiles by id.",
+    "",
+    "U-values in W/m²K, SHGC dimensionless, shadingFactor 0..1 (1 = none).",
+    "Sources: UK Approved Document L 2021, IECC 2021 climate zone 4,",
+    "Passivhaus standard, German EnEV 2014, CIBSE Guide A 2015."
+  ],
+  "profiles": [
+    {
+      "id": "PartL2021", "label": "UK Approved Document L 2021 (default)",
+      "wallUvalue": 0.18, "roofUvalue": 0.16, "floorUvalue": 0.18,
+      "windowUvalue": 1.4, "windowSHGC": 0.50, "windowShadingFactor": 0.90,
+      "doorUvalue": 1.4
+    },
+    {
+      "id": "PartL2013", "label": "UK Part L 2013 (older new-build / refurb)",
+      "wallUvalue": 0.28, "roofUvalue": 0.18, "floorUvalue": 0.22,
+      "windowUvalue": 1.6, "windowSHGC": 0.55, "windowShadingFactor": 0.95,
+      "doorUvalue": 1.8
+    },
+    {
+      "id": "PreRegs1990", "label": "Pre-regulation UK stock (≤1990)",
+      "wallUvalue": 1.50, "roofUvalue": 0.50, "floorUvalue": 0.70,
+      "windowUvalue": 5.6, "windowSHGC": 0.70, "windowShadingFactor": 1.00,
+      "doorUvalue": 3.5
+    },
+    {
+      "id": "Passivhaus", "label": "Passivhaus standard",
+      "wallUvalue": 0.10, "roofUvalue": 0.10, "floorUvalue": 0.10,
+      "windowUvalue": 0.80, "windowSHGC": 0.50, "windowShadingFactor": 0.70,
+      "doorUvalue": 0.80
+    },
+    {
+      "id": "IECC2021_CZ4", "label": "US IECC 2021 Climate Zone 4",
+      "wallUvalue": 0.27, "roofUvalue": 0.18, "floorUvalue": 0.27,
+      "windowUvalue": 1.8, "windowSHGC": 0.40, "windowShadingFactor": 0.85,
+      "doorUvalue": 2.3
+    },
+    {
+      "id": "ASHRAE901_2019_CZ5", "label": "ASHRAE 90.1-2019 Climate Zone 5",
+      "wallUvalue": 0.32, "roofUvalue": 0.20, "floorUvalue": 0.32,
+      "windowUvalue": 2.0, "windowSHGC": 0.40, "windowShadingFactor": 0.85,
+      "doorUvalue": 2.5
+    },
+    {
+      "id": "EnEV2014_DE", "label": "German EnEV 2014 reference",
+      "wallUvalue": 0.20, "roofUvalue": 0.16, "floorUvalue": 0.25,
+      "windowUvalue": 1.3, "windowSHGC": 0.50, "windowShadingFactor": 0.90,
+      "doorUvalue": 1.4
+    }
+  ]
+}

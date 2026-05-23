@@ -73,7 +73,10 @@ namespace StingTools.Core.Drawing
                     if (lib?.Packs != null && lib.Packs.Count > 0)
                     {
                         foreach (var p in lib.Packs)
+                        {
                             if (string.IsNullOrEmpty(p.Origin)) p.Origin = "corporate";
+                            PromoteAppearance(p);
+                        }
                         return lib;
                     }
                 }
@@ -97,7 +100,10 @@ namespace StingTools.Core.Drawing
                 var lib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(path));
                 if (lib?.Packs != null)
                     foreach (var p in lib.Packs)
+                    {
                         if (string.IsNullOrEmpty(p.Origin)) p.Origin = "project";
+                        PromoteAppearance(p);
+                    }
                 return lib;
             }
             catch (Exception ex)
@@ -164,6 +170,16 @@ namespace StingTools.Core.Drawing
                     foreach (var kv in p.VgOverrides) merged.VgOverrides[kv.Key] = kv.Value;
                 if (p.TagFamilies != null)
                     foreach (var kv in p.TagFamilies) merged.TagFamilies[kv.Key] = kv.Value;
+
+                // Phase 135 — Tag Appearance pack-level defaults
+                if (!string.IsNullOrEmpty(p.TagColorScheme))   merged.TagColorScheme = p.TagColorScheme;
+                if (!string.IsNullOrEmpty(p.DefaultTagStyle))  merged.DefaultTagStyle = p.DefaultTagStyle;
+                if (p.CategoryTagStyles != null)
+                {
+                    if (merged.CategoryTagStyles == null)
+                        merged.CategoryTagStyles = new Dictionary<string, string>();
+                    foreach (var kv in p.CategoryTagStyles) merged.CategoryTagStyles[kv.Key] = kv.Value;
+                }
             }
             return merged;
         }

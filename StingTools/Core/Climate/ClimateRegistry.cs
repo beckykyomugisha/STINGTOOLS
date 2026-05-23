@@ -46,13 +46,55 @@ namespace StingTools.Core.Climate
         public double Cooling996DbC { get; set; }
         /// <summary>Mean coincident wet-bulb at the cooling design hour, °C.</summary>
         public double Cooling996McwbC { get; set; }
+        /// <summary>Cooling design dry-bulb at 1% annual exceedance, °C (may be
+        /// 0 when the data file only lists 0.4%; fall back to <see cref="Cooling996DbC"/>).</summary>
+        public double Cooling99DbC  { get; set; }
+        /// <summary>Cooling design dry-bulb at 2% annual exceedance, °C (may be 0).</summary>
+        public double Cooling98DbC  { get; set; }
         /// <summary>Heating design dry-bulb at 99.6% annual exceedance, °C.</summary>
         public double Heating996DbC { get; set; }
+        /// <summary>Heating design dry-bulb at 99% annual exceedance, °C (may be 0).</summary>
+        public double Heating99DbC  { get; set; }
+
+        /// <summary>Cooling design DB for the chosen exceedance band (0.4 / 1 / 2).</summary>
+        public double CoolingDbCFor(double percentile)
+        {
+            if (Math.Abs(percentile - 0.4) < 0.05) return Cooling996DbC;
+            if (Math.Abs(percentile - 1.0) < 0.1  && Cooling99DbC > 0) return Cooling99DbC;
+            if (Math.Abs(percentile - 2.0) < 0.1  && Cooling98DbC > 0) return Cooling98DbC;
+            return Cooling996DbC;
+        }
+        /// <summary>Heating design DB for the chosen exceedance band (99.6 / 99).</summary>
+        public double HeatingDbCFor(double percentile)
+        {
+            if (Math.Abs(percentile - 99.0) < 0.1 && Heating99DbC != 0) return Heating99DbC;
+            return Heating996DbC;
+        }
         /// <summary>Annual heating degree-days, 18 °C base.</summary>
         public double Hdd18         { get; set; }
         /// <summary>Annual cooling degree-days, 10 °C base.</summary>
         public double Cdd10         { get; set; }
         public string Source        { get; set; } = "";
+
+        /// <summary>Standard-time UTC offset, hours. London = 0, Paris = +1,
+        /// New York = -5, Singapore = +8, etc. Used by BlockLoadEngine to
+        /// convert local-clock hours into solar-time hours so solar noon
+        /// aligns with the actual sun position (default solar geometry
+        /// assumes hour-12 = solar noon).</summary>
+        public double UtcOffsetHours { get; set; } = 0;
+
+        /// <summary>True if the site observes Daylight Saving Time during the
+        /// cooling design day (which is in July for the northern hemisphere
+        /// and most southern-hemisphere sites are at design too in their
+        /// summer). +1 h is added on top of UtcOffsetHours when applying the
+        /// local→solar conversion.</summary>
+        public bool ObservesDstInSummer { get; set; } = false;
+
+        /// <summary>Annual-mean wind speed at 10 m, m/s. ASHRAE 2021 column
+        /// "Wsf" (wind speed at the cooling design hour). Used by the
+        /// CIBSE Guide A §4.6 stack + wind infiltration model. Defaults to
+        /// 3.0 m/s when not in the site record (representative UK mean).</summary>
+        public double DesignWindMs { get; set; } = 3.0;
 
         /// <summary>
         /// Air density at the cooling design dry-bulb, corrected for
@@ -90,13 +132,38 @@ namespace StingTools.Core.Climate
         public ClimateSite ById(string id)
             => Sites.FirstOrDefault(s => string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>
+        /// Find a site whose id, label, or city-name token appears inside
+        /// the supplied free-text fragment (typically the project address).
+        /// Tokenises on whitespace + punctuation so a multi-line address
+        /// like "10 Downing Street, London SW1A 2AA, UK" correctly resolves
+        /// to the `london` site.
+        /// </summary>
         public ClimateSite ByLabelContains(string fragment)
         {
             if (string.IsNullOrWhiteSpace(fragment)) return null;
-            string f = fragment.Trim().ToLowerInvariant();
-            return Sites.FirstOrDefault(s =>
-                s.Label.ToLowerInvariant().Contains(f) ||
-                s.Id.ToLowerInvariant().Contains(f));
+            string haystack = fragment.ToLowerInvariant();
+            // Direct substring of site id (preferred — least ambiguous).
+            foreach (var s in Sites)
+            {
+                if (haystack.Contains(s.Id.ToLowerInvariant())) return s;
+            }
+            // Then site label, splitting "London (Heathrow)" → ["london", "heathrow"]
+            // and matching any token whole-word in the address.
+            var separators = new[] { ' ', ',', '.', '(', ')', '/', '-', '\t', '\n', '\r' };
+            var addrTokens = new HashSet<string>(
+                haystack.Split(separators, StringSplitOptions.RemoveEmptyEntries));
+            foreach (var s in Sites)
+            {
+                var labelTokens = s.Label.ToLowerInvariant()
+                    .Split(separators, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var tok in labelTokens)
+                {
+                    if (tok.Length < 4) continue; // skip "the", "and", short noise
+                    if (addrTokens.Contains(tok)) return s;
+                }
+            }
+            return null;
         }
     }
 
@@ -202,10 +269,16 @@ namespace StingTools.Core.Climate
                     ElevationM      = (double?)s["elevationM"] ?? 0,
                     Cooling996DbC   = (double?)s["cooling996DbC"] ?? 28,
                     Cooling996McwbC = (double?)s["cooling996McwbC"] ?? 20,
+                    Cooling99DbC    = (double?)s["cooling99DbC"]  ?? 0,
+                    Cooling98DbC    = (double?)s["cooling98DbC"]  ?? 0,
                     Heating996DbC   = (double?)s["heating996DbC"] ?? -3,
+                    Heating99DbC    = (double?)s["heating99DbC"]  ?? 0,
                     Hdd18           = (double?)s["hdd18"] ?? 0,
                     Cdd10           = (double?)s["cdd10"] ?? 0,
-                    Source          = (string)s["source"] ?? ""
+                    Source          = (string)s["source"] ?? "",
+                    UtcOffsetHours      = (double?)s["utcOffsetHours"] ?? 0,
+                    ObservesDstInSummer = (bool?)s["observesDstInSummer"] ?? false,
+                    DesignWindMs        = (double?)s["designWindMs"] ?? 3.0
                 };
                 // Project override replaces an existing entry with the same id
                 int existing = data.Sites.FindIndex(x => string.Equals(x.Id, site.Id, StringComparison.OrdinalIgnoreCase));

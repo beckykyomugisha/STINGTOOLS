@@ -33,6 +33,10 @@ namespace Planscape.Docs.Workflow
     public static class AuditLog
     {
         private static readonly object _lock = new object();
+        private static readonly Dictionary<string, StreamWriter> _writers =
+            new Dictionary<string, StreamWriter>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, FileStream> _streams =
+            new Dictionary<string, FileStream>(StringComparer.OrdinalIgnoreCase);
 
         public static void Append(Document doc, string action, string docId, JObject payload)
         {
@@ -54,10 +58,35 @@ namespace Planscape.Docs.Workflow
                     };
                     entry.EntryHash = ComputeHash(entry);
 
-                    string line = JsonConvert.SerializeObject(entry, Formatting.None) + "\n";
-                    File.AppendAllText(path, line, Encoding.UTF8);
+                    string line = JsonConvert.SerializeObject(entry, Formatting.None);
+
+                    if (!_writers.TryGetValue(path, out var writer))
+                    {
+                        var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
+                        writer = new StreamWriter(fs, new UTF8Encoding(false)) { AutoFlush = true };
+                        _streams[path] = fs;
+                        _writers[path] = writer;
+                    }
+                    writer.WriteLine(line);
                 }
                 catch (Exception ex) { StingLog.Error("AuditLog.Append failed", ex); }
+            }
+        }
+
+        public static void Shutdown()
+        {
+            lock (_lock)
+            {
+                foreach (var w in _writers.Values)
+                {
+                    try { w.Flush(); w.Dispose(); } catch { /* ignored */ }
+                }
+                foreach (var s in _streams.Values)
+                {
+                    try { s.Dispose(); } catch { /* ignored */ }
+                }
+                _writers.Clear();
+                _streams.Clear();
             }
         }
 
@@ -171,6 +200,14 @@ namespace Planscape.Docs.Workflow
 
         private static string ResolveProjectRoot(Document doc)
         {
+            // Folder consolidation: nest "_BIM_COORD" inside the unified
+            // project root's _data folder rather than as a sibling of the .rvt.
+            try
+            {
+                string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
+                if (!string.IsNullOrEmpty(consolidated)) return consolidated;
+            }
+            catch { /* fall through to legacy lookup */ }
             try
             {
                 string p = doc?.PathName;

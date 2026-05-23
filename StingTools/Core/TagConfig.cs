@@ -725,6 +725,35 @@ namespace StingTools.Core
             return null;
         }
 
+        /// <summary>Phase 66b: Validate FUNC→PROD pair consistency.
+        /// Detects contradictory function/product combinations like FUNC=SUP with PROD=WC.</summary>
+        // PERF: Static readonly to avoid per-call Dictionary+HashSet allocation
+        private static readonly Dictionary<string, HashSet<string>> _incompatibleFuncProdPairs =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Supply function should not have sanitary/plumbing products
+                { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "URN", "SNK", "SHW", "BTH", "BID", "MOP" } },
+                // Return function should not have electrical products
+                { "RTN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DB", "MCC", "MSB", "SWB", "SKT", "LUM" } },
+                // Lighting function should not have HVAC products
+                { "LTG", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "CHR", "BLR", "RAD", "DAM" } },
+                // Power function should not have plumbing products
+                { "PWR", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "PP", "PFT", "PAC", "FPP", "TRP" } },
+                // Sanitary function should not have HVAC products
+                { "SAN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "FAN", "HRU", "DAM", "CLT" } },
+                // Fire protection function should not have architectural products
+                { "FLS", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DR", "WIN", "WL", "FL", "CLG", "RF", "FUR" } },
+            };
+
+        private static string ValidateFuncProdPair(string func, string prod, string disc)
+        {
+            if (_incompatibleFuncProdPairs.TryGetValue(func, out var badProds) && badProds.Contains(prod))
+                return $"FUNC '{func}' is incompatible with PROD '{prod}' — check discipline assignment";
+
+            return null;
+        }
+
+
         /// <summary>
         /// Validate the format of a complete assembled tag string.
         /// Returns null if valid, or an error description.
@@ -2674,7 +2703,34 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"TagConfig: EnsureProdRulesLoaded failed: {ex.Message}"); }
         }
 
+        /// <summary>
+        /// N+2 — Material-aware wrapper around the legacy
+        /// <see cref="GetFamilyAwareProdCodeCore"/>. Looks up an
+        /// optional material-driven suffix (-STL / -CON / -TIM / etc.)
+        /// from <c>STING_MATERIAL_PROD_OVERRIDES.csv</c> and appends it
+        /// to the base PROD code. Falls through to the legacy behaviour
+        /// when no material rule matches.
+        /// </summary>
         public static string GetFamilyAwareProdCode(Element el, string categoryName)
+        {
+            string baseProd = GetFamilyAwareProdCodeCore(el, categoryName);
+            try
+            {
+                string suffix = MaterialProdOverrideRegistry.ResolveSuffix(el, categoryName);
+                if (string.IsNullOrEmpty(suffix)) return baseProd;
+                if (string.IsNullOrEmpty(baseProd)) return suffix;
+                // Avoid double-suffixing when an explicit CSV PROD already
+                // ends with the same material code (e.g. "STL" → "STL-STL").
+                if (baseProd.EndsWith("-" + suffix, StringComparison.OrdinalIgnoreCase) ||
+                    baseProd.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    return baseProd;
+                return $"{baseProd}-{suffix}";
+            }
+            catch (Exception ex) { StingLog.Warn($"GetFamilyAwareProdCode material suffix: {ex.Message}"); }
+            return baseProd;
+        }
+
+        private static string GetFamilyAwareProdCodeCore(Element el, string categoryName)
         {
             string familyName = ParameterHelpers.GetFamilyName(el);
             string symbolName = ParameterHelpers.GetFamilySymbolName(el);

@@ -163,9 +163,9 @@ namespace StingTools.Core.Validation
                             ValidatorTag));
                     }
 
-                    string raw = ParameterHelpers.GetString(el, ParamRegistry.ELC_CONDUIT_FILL_PCT);
-                    if (!string.IsNullOrEmpty(raw) &&
-                        double.TryParse(raw.Trim().TrimEnd('%'),
+                    string pctRaw = ParameterHelpers.GetString(el, ParamRegistry.ELC_CONDUIT_FILL_PCT);
+                    if (!string.IsNullOrEmpty(pctRaw) &&
+                        double.TryParse(pctRaw.Trim().TrimEnd('%'),
                             NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))
                     {
                         // BS EN 61386 fill limits depend on cable count.

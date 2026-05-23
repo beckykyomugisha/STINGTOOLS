@@ -1,0 +1,182 @@
+{
+  "_meta": {
+    "description": "Conservative regional engineering defaults — NOT verified extracts from a specific published Uganda code or hazard map. Use as a STARTING POINT only; every project requires a proper site investigation, the local authority's approved wind / seismic / soil values, and a structural engineer's sign-off.",
+    "accuracy_caveats": {
+      "wind": "Basic vb,0 (10-min mean at 10m, terrain Cat II) is an engineering estimate from typical East African meteorology — NOT extracted from a published Uganda wind map. Northern values (Gulu / Lira 30 m/s) are on the high side and should be calibrated against actual met-station data when available.",
+      "seismic": "Peak ground acceleration agR/g is plausible for the East African Rift but NOT cited from the Uganda NEMA earthquake risk profile or a peer-reviewed Uganda hazard study. Return period is unstated; treat as approximate 475-year EC8 design hazard. For collapse-prevention design (2475-year) the values may need to be scaled up.",
+      "soil_bearing": "Region-level averages — useless without a site investigation. Kampala has good lateritic on hills and expansive black-cotton clay in valleys (Kololo / Bukoto bottoms etc.); the 150 kPa default applies to the firm-lateritic case only. Same risk in any Ugandan urban valley.",
+      "rainfall": "5-yr return intensity values are typical East African climate norms, NOT extracted from the Uganda Department of Meteorology IDF curves. Use site-specific IDF when available.",
+      "ground_type_q_factor": "EC8 ground type (A-E) and behaviour factor q are NOT captured here. Notes mention soil class loosely. Both must be set per project for any meaningful seismic design force calculation."
+    },
+    "intended_use": [
+      "Quick start when no project-specific load study has been done yet",
+      "Sanity-check baseline against which engineer-supplied values can be compared",
+      "Pre-design exploration of which regions are seismic-critical vs wind-critical"
+    ],
+    "do_not_use_for": [
+      "Final-design seismic forces without consulting Uganda NEMA hazard maps",
+      "Foundation design without a site investigation report",
+      "Storm sizing for return periods other than ~5 years without local IDF curves",
+      "Any claim of code compliance — these are starting points, not certified values"
+    ],
+    "references_to_consult_per_project": [
+      "Uganda National Building Code 2010 (regulatory; STING does not include extracts)",
+      "Uganda NEMA Earthquake Risk Profile / OECD Uganda Disaster Risk Profile 2017",
+      "BS EN 1991-1-4 NA — wind, with terrain category cs/cd and ce(z) per project",
+      "BS EN 1998-1 EC8 — seismic, with ground type S, q-factor and importance class γi",
+      "BS EN 1997-1 EC7 — soils, with site investigation per BS 5930",
+      "Uganda Department of Meteorology IDF curves (project-specific)"
+    ],
+    "phase": 189,
+    "last_updated": "2026-05-21"
+  },
+  "regions": [
+    {
+      "id": "Kampala",
+      "label": "Kampala / Central (Wakiso, Mukono, Entebbe)",
+      "wind_basic_mps":      24, "wind_terrain_cat": "III", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.08, "ground_type": "C", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    150, "black_cotton_risk": false,
+      "rain_intensity_mmh":  90,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Lateritic clay (Type C)",
+      "notes": "Lake-Victoria buffered wind; moderate seismic; lateritic / red clay subgrade typical. Valley pockets (Bukoto / Kololo) may host black-cotton — verify per site."
+    },
+    {
+      "id": "Jinja",
+      "label": "Jinja / Eastern lake-edge",
+      "wind_basic_mps":      26, "wind_terrain_cat": "III", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.10, "ground_type": "C", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    180, "black_cotton_risk": false,
+      "rain_intensity_mmh":  85,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Lateritic + alluvial (Type C/D)",
+      "notes": "Lakefront industrial corridor; alluvial pockets near Nile."
+    },
+    {
+      "id": "Mbale",
+      "label": "Mbale / Tororo / Eastern (Mt Elgon)",
+      "wind_basic_mps":      28, "wind_terrain_cat": "II", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.10, "ground_type": "B", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    200, "black_cotton_risk": false,
+      "rain_intensity_mmh":  95,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Volcanic ferrasols (Type B)",
+      "notes": "Higher wind from Mt Elgon orographic effects; firmer volcanic subgrade."
+    },
+    {
+      "id": "Gulu",
+      "label": "Gulu / Northern (Acholi)",
+      "wind_basic_mps":      26, "wind_terrain_cat": "II", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.05, "ground_type": "C", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    150, "black_cotton_risk": false,
+      "rain_intensity_mmh":  75,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Sandy loam / lateritic (Type C)",
+      "notes": "Open savannah, higher unobstructed wind; low seismic — off the rift. (Recalibrated 30→26 m/s — earlier value was at the edge of cyclonic; 10-min mean ~26 corresponds to 3-sec gust ~36 m/s.)"
+    },
+    {
+      "id": "Lira",
+      "label": "Lira / Northern (Lango)",
+      "wind_basic_mps":      26, "wind_terrain_cat": "II", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.05, "ground_type": "C", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    140, "black_cotton_risk": false,
+      "rain_intensity_mmh":  75,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Sandy loam (Type C)",
+      "notes": "Similar to Gulu — open terrain, low seismic. (Recalibrated 30→26 m/s.)"
+    },
+    {
+      "id": "Mbarara",
+      "label": "Mbarara / Southwestern",
+      "wind_basic_mps":      26, "wind_terrain_cat": "II", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.12, "ground_type": "C", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    180, "black_cotton_risk": false,
+      "rain_intensity_mmh":  85,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Lateritic + clay (Type C)",
+      "notes": "Elevated plateau; rift-edge seismic risk begins to rise."
+    },
+    {
+      "id": "Kabale",
+      "label": "Kabale / Kisoro / Southwestern highlands",
+      "wind_basic_mps":      26, "wind_terrain_cat": "II", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.15, "ground_type": "B", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    200, "black_cotton_risk": false,
+      "rain_intensity_mmh":  100,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Volcanic ferrasols (Type B)",
+      "notes": "On the East African Rift's western branch; significant seismic hazard."
+    },
+    {
+      "id": "Kasese",
+      "label": "Kasese / Bundibugyo / Western (Rwenzori)",
+      "wind_basic_mps":      28, "wind_terrain_cat": "II", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.20, "ground_type": "B", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    250, "black_cotton_risk": false,
+      "rain_intensity_mmh":  100,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Volcanic ferrasols + rocky (Type A/B)",
+      "notes": "Highest seismic hazard in Uganda — directly on the rift western branch; firm volcanic subgrade. Engineering estimate pending NEMA-published hazard map."
+    },
+    {
+      "id": "FortPortal",
+      "label": "Fort Portal / Kabarole / Western",
+      "wind_basic_mps":      28, "wind_terrain_cat": "II", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.18, "ground_type": "B", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    220, "black_cotton_risk": false,
+      "rain_intensity_mmh":  95,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Volcanic ferrasols (Type B)",
+      "notes": "Rift-edge; firm volcanic subgrade; high seismic."
+    },
+    {
+      "id": "Arua",
+      "label": "Arua / West Nile",
+      "wind_basic_mps":      26, "wind_terrain_cat": "II", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.06, "ground_type": "C", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    140, "black_cotton_risk": false,
+      "rain_intensity_mmh":  80,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Sandy loam / lateritic (Type C)",
+      "notes": "Northwestern semi-arid; lower seismic — west of rift."
+    },
+    {
+      "id": "Soroti",
+      "label": "Soroti / Eastern (Teso)",
+      "wind_basic_mps":      26, "wind_terrain_cat": "II", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.08, "ground_type": "D", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    100, "black_cotton_risk": true,
+      "rain_intensity_mmh":  80,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Sandy loam + black cotton (Type C/D)",
+      "notes": "Black-cotton soil pockets common in Teso — verify swelling/shrinkage per BS 1377-2 + extend foundations below active zone (typ 1.5m). Bearing reduced from 130 → 100 kPa to reflect expansive soil derating."
+    },
+    {
+      "id": "Custom",
+      "label": "Custom (engineer-defined)",
+      "wind_basic_mps":      24, "wind_terrain_cat": "II", "wind_cdir": 1.0,
+      "seismic_agr_g":       0.08, "ground_type": "C", "q_factor": 1.5, "importance_class": "II",
+      "soil_bearing_kpa":    150, "black_cotton_risk": false,
+      "rain_intensity_mmh":  90,
+      "live_load_kpa":       2.5, "dead_load_kpa": 4.0,
+      "soil_class":          "Engineer-defined",
+      "notes": "Conservative Kampala-equivalent fallback. Override every value on a per-project site investigation."
+    }
+  ],
+  "occupancy_live_loads_kpa": {
+    "_meta": "EC1-1-1 Cat A-E / Uganda NBC; override BLE_LIVE_LOAD_KPA per occupancy",
+    "Residential":   1.5,
+    "Office":        2.5,
+    "Healthcare":    2.5,
+    "Education":     3.0,
+    "Retail":        4.0,
+    "Assembly":      4.0,
+    "Hospitality":   2.5,
+    "Industrial":    5.0,
+    "Storage":       7.5,
+    "Plant":         5.0,
+    "Roof_non_accessible": 0.6,
+    "Roof_maintenance":    1.5
+  }
+}

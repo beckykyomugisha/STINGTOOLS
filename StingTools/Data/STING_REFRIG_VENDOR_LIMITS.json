@@ -1,0 +1,110 @@
+{
+  "_schema": "STING_REFRIG_VENDOR_LIMITS",
+  "_version": "1.0",
+  "_notes": [
+    "Vendor pipe-length envelope tables for VRF / VRV / split systems.",
+    "Tighter than the generic ΔP-budget calc because they cap *total* run,",
+    "*first-branch to farthest IDU*, and *highest-to-lowest IDU* drops.",
+    "",
+    "Lookup by (refrigerantId, vendorSeries). Selected via the optional",
+    "'series' field on RefrigerantSizingInput; falls back to the generic",
+    "single-fluid envelope from RefrigerantProperties when no match.",
+    "Project override: <project>/_BIM_COORD/refrig_vendor_limits.json.",
+    "",
+    "Source citations are vendor data-book references — these change",
+    "per release; sample values shipped reflect mid-2024 product lines."
+  ],
+  "series": [
+    {
+      "id": "Daikin-VRV-IV-S",
+      "refrigerantId": "R410A",
+      "label": "Daikin VRV IV-S (heat-pump, single condenser)",
+      "totalPipeLengthM": 300,
+      "actualOnewayMaxM": 100,
+      "equivalentOnewayMaxM": 120,
+      "firstBranchToFarIduActualM": 40,
+      "firstBranchToFarIduEquivM": 50,
+      "verticalHighLowOduIduM": 50,
+      "verticalHighLowIduIduM": 15,
+      "source": "Daikin VRV IV-S 2021 Engineering Data Book §3.4"
+    },
+    {
+      "id": "Daikin-VRV-5",
+      "refrigerantId": "R32",
+      "label": "Daikin VRV 5 (heat-pump, R32)",
+      "totalPipeLengthM": 1000,
+      "actualOnewayMaxM": 165,
+      "equivalentOnewayMaxM": 190,
+      "firstBranchToFarIduActualM": 90,
+      "firstBranchToFarIduEquivM": 110,
+      "verticalHighLowOduIduM": 90,
+      "verticalHighLowIduIduM": 30,
+      "source": "Daikin VRV 5 2024 Engineering Data Book §6.3.2"
+    },
+    {
+      "id": "Daikin-VRV-IV-H",
+      "refrigerantId": "R410A",
+      "label": "Daikin VRV IV-H (heat-recovery)",
+      "totalPipeLengthM": 1000,
+      "actualOnewayMaxM": 165,
+      "equivalentOnewayMaxM": 190,
+      "firstBranchToFarIduActualM": 90,
+      "firstBranchToFarIduEquivM": 110,
+      "verticalHighLowOduIduM": 90,
+      "verticalHighLowIduIduM": 30,
+      "source": "Daikin VRV IV-H 2022 Engineering Data Book §3.4"
+    },
+    {
+      "id": "Mitsubishi-CityMulti-Y",
+      "refrigerantId": "R410A",
+      "label": "Mitsubishi City Multi Y (heat-pump)",
+      "totalPipeLengthM": 300,
+      "actualOnewayMaxM": 100,
+      "equivalentOnewayMaxM": 120,
+      "firstBranchToFarIduActualM": 40,
+      "firstBranchToFarIduEquivM": 50,
+      "verticalHighLowOduIduM": 50,
+      "verticalHighLowIduIduM": 15,
+      "source": "Mitsubishi City Multi Y 2023 Data Book Tbl 5-2"
+    },
+    {
+      "id": "Mitsubishi-CityMulti-R2",
+      "refrigerantId": "R410A",
+      "label": "Mitsubishi City Multi R2 (heat-recovery)",
+      "totalPipeLengthM": 510,
+      "actualOnewayMaxM": 165,
+      "equivalentOnewayMaxM": 185,
+      "firstBranchToFarIduActualM": 40,
+      "firstBranchToFarIduEquivM": 50,
+      "verticalHighLowOduIduM": 50,
+      "verticalHighLowIduIduM": 15,
+      "source": "Mitsubishi City Multi R2 2023 Data Book Tbl 5-4"
+    },
+    {
+      "id": "Toshiba-SHRMe",
+      "refrigerantId": "R32",
+      "label": "Toshiba SHRMe (heat-recovery, R32)",
+      "totalPipeLengthM": 235,
+      "actualOnewayMaxM": 100,
+      "equivalentOnewayMaxM": 125,
+      "firstBranchToFarIduActualM": 40,
+      "firstBranchToFarIduEquivM": 50,
+      "verticalHighLowOduIduM": 50,
+      "verticalHighLowIduIduM": 15,
+      "source": "Toshiba SHRMe 2024 Engineering Data Tbl 4-1"
+    },
+    {
+      "id": "Generic-Split",
+      "refrigerantId": "R32",
+      "label": "Generic 1:1 split system (residential / light commercial)",
+      "totalPipeLengthM": 30,
+      "actualOnewayMaxM": 30,
+      "equivalentOnewayMaxM": 30,
+      "firstBranchToFarIduActualM": 0,
+      "firstBranchToFarIduEquivM": 0,
+      "verticalHighLowOduIduM": 15,
+      "verticalHighLowIduIduM": 0,
+      "source": "ASHRAE Handbook Refrigeration 2022 Ch.50 typical"
+    }
+  ]
+}

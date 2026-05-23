@@ -53,7 +53,7 @@
     {
       "RuleId": "mech-air-extract-grille-wc",
       "CategoryFilter": "Air Terminals",
-      "RoomFilter": "(?i)wc|toilet|bathroom|shower",
+      "RoomFilter": "(?i)\\b(wc|toilet|bathroom|shower|en\\s*-?suite|cloakroom|lavatory|powder\\s*room)\\b",
       "AnchorType": "CEILING_CENTRE", "MountingHeightMm": 0.0,
       "MinSpacingMm": 0.0, "MaxPerRoom": 1, "Priority": 65,
       "StandardRef": "Part F / Approved Doc F",

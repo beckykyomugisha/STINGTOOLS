@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -12,12 +12,17 @@
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js'></script>
 </head>
 <body>
-<nav class="topbar">
-  <div class="brand">Planscape</div>
-  <div class="spacer"></div>
-  <select id="projectPicker" class="project-picker"></select>
-  <div id="userChip" class="user-chip">Signing in…</div>
-  <button id="signOutBtn" class="ghost">Sign out</button>
+
+<nav>
+  <div class="brand">Plan<span class="dot">·</span>scape</div>
+  <div class="links">
+    <a href="#features">Features</a>
+    <a href="#compare">Compare</a>
+    <a href="/api/pricing/html">Pricing</a>
+    <a href="/docs/">Docs</a>
+    <a href="/app/">Sign in</a>
+  </div>
+  <a href="/app/" class="cta">Get started</a>
 </nav>
 
 <aside class="sidebar">
@@ -42,22 +47,164 @@
   <a href="#tenant-bim-manager-roles" class="nav-link" data-view="tenant-bim-manager-roles">BIM-Manager roles</a>
 </aside>
 
-<main id="main" class="main">
-  <!-- populated by js/dashboard.js based on active view -->
-</main>
+<section id="features">
+  <h2>Everything you need, nothing you don't</h2>
+  <p class="lead">Built around the workflow ISO 19650 actually demands — and the connectivity East African sites actually have.</p>
+  <div class="grid-3">
+    <div class="feat"><div class="icon">🧊</div><h3>Revit plugin included</h3><p>Tag, sync, publish models direct from Revit. No separate license, no extra seat cost.</p></div>
+    <div class="feat"><div class="icon">📱</div><h3>Offline-first mobile</h3><p>Coordinators work on site without signal. Photos, voice notes, pins queue and replay automatically.</p></div>
+    <div class="feat"><div class="icon">📋</div><h3>ISO 19650 templates</h3><p>Transmittals, RFIs, NCRs, BEPs, MIDPs — pre-built and ready to issue from day one.</p></div>
+    <div class="feat"><div class="icon">🌍</div><h3>Local invoicing</h3><p>UGX, KES, TZS, RWF, NGN, ZAR via Flutterwave. USD/EUR/GBP via Stripe. You pick.</p></div>
+    <div class="feat"><div class="icon">🔐</div><h3>Audit-grade trail</h3><p>Tamper-evident hash chain over every write. Court-admissible by construction.</p></div>
+    <div class="feat"><div class="icon">⚡</div><h3>Fast where it matters</h3><p>30k-element model save in &lt;1s. 200MB federation loads on a 3G phone.</p></div>
+  </div>
+</section>
 
-<!-- Login overlay (shown until we have a token) -->
-<div id="loginOverlay" class="overlay hidden">
-  <form id="loginForm" class="card">
-    <h2>Sign in</h2>
-    <input id="loginEmail" type="email" placeholder="you@company.com" required />
-    <input id="loginPassword" type="password" placeholder="password" required />
-    <button type="submit">Sign in</button>
-    <p id="loginError" class="error"></p>
-    <p class="hint">Use the same credentials as the mobile app. Passwords are never stored in the browser.</p>
-  </form>
+<section id="compare">
+  <h2>How we stack up</h2>
+  <p class="lead">Per-seat cost at a 33-person firm. We don't try to be the most feature-rich BIM platform on earth — we try to be the right one for a mid-size East African practice.</p>
+  <table class="compare">
+    <thead><tr><th>Tool</th><th>Per seat / month</th><th>Offline mobile</th><th>Local invoicing</th></tr></thead>
+    <tbody>
+      <tr><td class="us">Planscape Network</td><td class="us">$4.50</td><td class="us">Yes</td><td class="us">Yes (UGX/KES/TZS/…)</td></tr>
+      <tr><td>Autodesk Construction Cloud</td><td>$40–80</td><td>No</td><td>USD only</td></tr>
+      <tr><td>Procore</td><td>$30–80 (firm-priced)</td><td>Partial</td><td>USD only</td></tr>
+      <tr><td>Trimble Connect</td><td>$20–40</td><td>Partial</td><td>USD only</td></tr>
+      <tr><td>BIM Track</td><td>$40–55</td><td>No</td><td>USD only</td></tr>
+      <tr><td>Dalux</td><td>$30–50</td><td>Partial</td><td>USD only</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <div class="testimonial">
+    <div class="quote">"We were paying for ACC seats we never used. Switched 18 coordinators to Planscape and stopped sweating the monthly USD bill — local invoicing was the unlock."</div>
+    <div class="who">— Architect / Practice owner, Kampala (pilot, name on request)</div>
+  </div>
+</section>
+
+<section id="demo">
+  <h2>See it in 90 seconds</h2>
+  <p class="lead">Drop your email and we'll send you a private demo link. Or click <a href="/app/">Start free trial</a> and try it yourself — no credit card.</p>
+</section>
+
+<section id="africa">
+  <div class="africa-grid">
+    <div>
+      <div class="eyebrow">Made for Africa's AEC sector</div>
+      <h2>Global standards. Built for East &amp; West Africa.</h2>
+      <p>From hospital wings in Kampala to port infrastructure in Lagos, Planscape is built by AEC practitioners who understand the realities of delivery across the continent — mixed teams, variable connectivity, and projects that must satisfy both local standards and international donor requirements.</p>
+      <p>Six live demo pins on the map — drag, zoom, and click any one to see the project status. Compliance scores are seeded from the same data that powers the dashboard.</p>
+      <div class="africa-stats">
+        <span class="stat-chip">🌍 6 active projects across 5 countries</span>
+        <span class="stat-chip">🛰 3 continents served</span>
+      </div>
+    </div>
+    <div>
+      <div id="africa-map"></div>
+    </div>
+  </div>
+</section>
+
+<div class="cta-band">
+  <h2>Stop paying for software you don't use.</h2>
+  <p>30-day free trial. No credit card. Cancel any time.</p>
+  <a href="/app/">Start now</a>
 </div>
 
-<script src="/js/dashboard.js"></script>
+<footer>
+  © 2026 Planscape Ltd · Kampala, Uganda · <a href="mailto:hello@planscape.app">hello@planscape.app</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+</footer>
+
+<!--
+  S4.6 — Crisp chat widget on the marketing site only. Mobile + web
+  app embed a smaller mailto-based help button (see
+  Planscape/src/components/HelpButton.tsx) to keep the bundle small.
+  Replace CRISP_WEBSITE_ID at deploy time with the real id; absent
+  the id the widget silently no-ops, which is what we want during
+  pre-launch.
+-->
+<!--
+  Phase 169 — Africa project location map. Hardcoded demo pins; no API
+  call. Replace PLANSCAPE_MAPBOX_TOKEN below with a real public Mapbox
+  token (free account, no credit card). Without a real token the script
+  silently no-ops and the section still renders the headline + chips.
+-->
+<script type="text/javascript">
+(function(){
+  var MAPBOX_TOKEN = "PLANSCAPE_MAPBOX_TOKEN";
+  if (!window.mapboxgl) return;
+  if (MAPBOX_TOKEN === "PLANSCAPE_MAPBOX_TOKEN") {
+    var el = document.getElementById("africa-map");
+    if (el) el.innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#FFF3E8;color:#6c7280;text-align:center;padding:24px;font-size:14px">' +
+        '<div style="font-size:40px;margin-bottom:8px">🗺</div>' +
+        '<strong style="color:#1c1f26;margin-bottom:4px">Interactive map awaits a Mapbox token</strong>' +
+        '<span>Replace <code>PLANSCAPE_MAPBOX_TOKEN</code> in <code>index.html</code> with a free token from mapbox.com.</span>' +
+      '</div>';
+    return;
+  }
+
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+  var map = new mapboxgl.Map({
+    container: "africa-map",
+    style: "mapbox://styles/mapbox/dark-v11",
+    center: [22, 2],
+    zoom: 2.8,
+    interactive: true,
+    attributionControl: false,
+  });
+  // Don't hijack page scroll; user must click in to enable zoom.
+  map.scrollZoom.disable();
+  map.on("click", function(){ map.scrollZoom.enable(); });
+
+  var demoProjects = [
+    { name: "New Hospital Wing",            city: "Kampala",       country: "Uganda",   lat: 0.3136,  lng: 32.5811, status: "Active",    compliance: 84 },
+    { name: "Airport Terminal Expansion",   city: "Entebbe",       country: "Uganda",   lat: 0.0424,  lng: 32.4430, status: "Active",    compliance: 91 },
+    { name: "Port Infrastructure Project",  city: "Lagos",         country: "Nigeria",  lat: 6.4541,  lng:  3.3947, status: "Active",    compliance: 42 },
+    { name: "Mixed-Use Development",        city: "Nairobi",       country: "Kenya",    lat: -1.2921, lng: 36.8219, status: "Completed", compliance: 98 },
+    { name: "Commercial Centre",            city: "Accra",         country: "Ghana",    lat: 5.6037,  lng: -0.1870, status: "Completed", compliance: 96 },
+    { name: "Water Treatment Plant",        city: "Dar es Salaam", country: "Tanzania", lat: -6.7924, lng: 39.2083, status: "Active",    compliance: 67 },
+  ];
+
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]; }); }
+
+  demoProjects.forEach(function(p){
+    var key = p.status === "Completed" ? "completed" : "active";
+    var el = document.createElement("div");
+    el.className = "map-marker-mkt " + key;
+
+    var indClass = key === "active" ? "ind-active" : "ind-completed";
+    var dot = key === "active" ? "●" : "✓";
+    var html =
+      '<div class="popup-card">' +
+        '<h4>' + esc(p.name) + '</h4>' +
+        '<div class="loc">📍 ' + esc(p.city) + ', ' + esc(p.country) + '</div>' +
+        '<div class="row"><span>Status</span><span class="' + indClass + '">' + dot + ' ' + esc(p.status) + '</span></div>' +
+        '<div class="row"><span>Compliance</span><span>' + p.compliance + '%</span></div>' +
+        '<hr>' +
+        '<a href="#pricing" class="demo-link">Request a Demo →</a>' +
+      '</div>';
+
+    var popup = new mapboxgl.Popup({ offset: 18, closeButton: true })
+      .setHTML(html);
+
+    new mapboxgl.Marker({ element: el })
+      .setLngLat([p.lng, p.lat])
+      .setPopup(popup)
+      .addTo(map);
+  });
+})();
+</script>
+
+<script type="text/javascript">
+  window.$crisp=[];window.CRISP_WEBSITE_ID="__CRISP_WEBSITE_ID__";
+  (function(){
+    if (window.CRISP_WEBSITE_ID === "__CRISP_WEBSITE_ID__") return;
+    var d=document; var s=d.createElement("script"); s.src="https://client.crisp.chat/l.js"; s.async=1;
+    d.getElementsByTagName("head")[0].appendChild(s);
+  })();
+</script>
+
 </body>
 </html>

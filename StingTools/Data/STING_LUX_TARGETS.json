@@ -1,0 +1,25 @@
+{
+  "_comment": "Single source of truth for room maintained-illuminance targets. Phase 182 — replaces the duplicated tables in ElectricalSnapshotBuilder.LuxTargetFor (default 300) and PhotometricDesignReviewCommand.BuildLuxTargets (default 300, but mismatch with Snapshot's per-pattern values). All values in lux at the working plane per BS EN 12464-1 / CIBSE LG7 / ASHRAE 90.1 baseline.",
+  "_standard": "BS EN 12464-1:2021 + CIBSE LG7:2015 + ASHRAE 90.1-2019",
+  "version": "1.0",
+  "defaultLuxTarget": 300,
+  "patterns": [
+    { "type": "Office",              "patterns": ["office", "open plan", "bullpen", "admin"], "luxTarget": 500, "uniformityMin": 0.6 },
+    { "type": "Conference",          "patterns": ["conference", "meeting", "boardroom"],       "luxTarget": 500, "uniformityMin": 0.6 },
+    { "type": "Reception",           "patterns": ["reception", "lobby", "foyer", "atrium", "entrance"], "luxTarget": 300, "uniformityMin": 0.4 },
+    { "type": "Corridor",            "patterns": ["corridor", "passage", "circulation", "hallway"], "luxTarget": 100, "uniformityMin": 0.4 },
+    { "type": "Stair",               "patterns": ["stair", "staircase", "stairwell"],          "luxTarget": 150, "uniformityMin": 0.4 },
+    { "type": "Toilet",              "patterns": ["toilet", "wc", "bathroom", "shower", "ablution"], "luxTarget": 200, "uniformityMin": 0.4 },
+    { "type": "Kitchen",             "patterns": ["kitchen", "cafeteria", "canteen", "cafe", "break"], "luxTarget": 500, "uniformityMin": 0.6 },
+    { "type": "Storage",             "patterns": ["store", "storage", "riser"],                "luxTarget": 100, "uniformityMin": 0.4 },
+    { "type": "Plant Room",          "patterns": ["plant", "mechanical", "boiler", "pump", "switchgear", "electrical room"], "luxTarget": 200, "uniformityMin": 0.4 },
+    { "type": "Car Park",            "patterns": ["car park", "parking", "garage"],            "luxTarget": 75,  "uniformityMin": 0.25 },
+    { "type": "Warehouse",           "patterns": ["warehouse"],                                "luxTarget": 300, "uniformityMin": 0.4 },
+    { "type": "Retail",              "patterns": ["retail", "shop"],                           "luxTarget": 500, "uniformityMin": 0.6 },
+    { "type": "Classroom",           "patterns": ["classroom", "school"],                      "luxTarget": 500, "uniformityMin": 0.6 },
+    { "type": "Laboratory",          "patterns": ["laboratory", "lab"],                        "luxTarget": 500, "uniformityMin": 0.6 },
+    { "type": "Library",             "patterns": ["library"],                                  "luxTarget": 500, "uniformityMin": 0.6 },
+    { "type": "Examination",         "patterns": ["examination", "treatment"],                 "luxTarget": 1000,"uniformityMin": 0.7 },
+    { "type": "Workshop",            "patterns": ["workshop", "fabrication"],                  "luxTarget": 500, "uniformityMin": 0.6 }
+  ]
+}

@@ -577,6 +577,8 @@ namespace StingTools.Model
                     progress.Close();
                 }
 
+                progress.Close();
+
                 if (result.Success)
                 {
                     TaskDialog.Show("MODEL — Column Grid", ModelCommandHelper.AutoTagAndReport(doc, result));

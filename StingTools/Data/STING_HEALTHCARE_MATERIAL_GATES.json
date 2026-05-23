@@ -1,0 +1,88 @@
+{
+  "_comment": "STING healthcare material gates — HTM 04-01 / HTM 03-01 / NCRP 147 / MRI Zone IV.",
+  "_help": [
+    "where: element predicate — categoryIn (list), paramRegex (dict), paramEquals (dict), paramGreaterThan (dict).",
+    "materialMustRegex      — finding fires when material does NOT match.",
+    "materialMustNotRegex   — finding fires when material DOES match.",
+    "materialClassRegex     — finding fires when material's Class does NOT match.",
+    "Severity: Info | Warning | Block.",
+    "Override at <project>/_BIM_COORD/healthcare_material_gates.json."
+  ],
+  "rules": [
+    {
+      "id": "HTM_04_01_NoLeadSolder",
+      "standard": "HTM 04-01",
+      "severity": "Block",
+      "message": "Water / medical-gas pipework must not use lead-soldered or leaded-brass material — HTM 04-01 prohibits lead in potable water + medical gas systems.",
+      "where": {
+        "categoryIn": ["Pipes", "Plumbing Fixtures", "Mechanical Equipment"],
+        "paramRegex": { "MGS_GAS_TYPE_TXT": "^(O2|MA4|MA7|N2O|N2|CO2|HE|VAC|AGS|DENT)$" }
+      },
+      "materialMustNotRegex": "(?i)lead.solder|leaded.?brass|lead.?bronze|gunmetal.*pre.?ban"
+    },
+    {
+      "id": "HTM_04_01_CopperOrStainless",
+      "standard": "HTM 04-01",
+      "severity": "Warning",
+      "message": "Domestic-water pipework should be copper, stainless steel, or PEX — confirm material against HTM 04-01 §4.",
+      "where": {
+        "categoryIn": ["Pipes"],
+        "paramRegex": { "PLM_SYSTEM_TYPE_TXT": "^(DCW|DHW|DHWR|DOM_CW|DOM_HW)$" }
+      },
+      "materialMustRegex": "(?i)copper|stainless|PEX|cross.linked.polyethylene|MDPE|HDPE"
+    },
+    {
+      "id": "MRI_Zone_IV_NoFerrous",
+      "standard": "MRI Safety (ACR Manual)",
+      "severity": "Block",
+      "message": "Element falls inside MRI Zone IV (5G line) — ferrous materials are prohibited. Switch to brass / aluminium / stainless / non-ferrous fixings.",
+      "where": {
+        "paramEquals": { "CLN_ROOM_CLASS_TXT": "MRI-ZONE-IV" }
+      },
+      "materialMustNotRegex": "(?i)^(?!.*stainless)(steel|iron|ferrous|carbon.steel|galv.steel|black.steel|cast.iron)"
+    },
+    {
+      "id": "MRI_Zone_III_FerrousWarn",
+      "standard": "MRI Safety (ACR Manual)",
+      "severity": "Warning",
+      "message": "Element is in MRI Zone III — ferrous materials need a documented MR-safety risk assessment. Prefer non-ferrous when feasible.",
+      "where": {
+        "paramEquals": { "CLN_ROOM_CLASS_TXT": "MRI-ZONE-III" }
+      },
+      "materialMustNotRegex": "(?i)^(?!.*stainless)(steel|iron|ferrous|carbon.steel)"
+    },
+    {
+      "id": "HTM_03_01_IsolationFinishes",
+      "standard": "HTM 03-01 / HBN 04",
+      "severity": "Warning",
+      "message": "Isolation / protective-environment / ICU finishes must be wipeable, non-porous, and antimicrobial. Replace porous finishes with vinyl sheet, hygienic resin, or sealed mineral surface.",
+      "where": {
+        "categoryIn": ["Walls", "Ceilings", "Floors"],
+        "paramRegex": { "CLN_ROOM_CLASS_TXT": "(?i)AIIR|PE-PROT|ICU|HDU|OR-ULTRA|OR-CONV|OR-HYBRID|ENDOSCOPY" }
+      },
+      "materialMustNotRegex": "(?i)carpet|fabric|porous|untreated.wood|softwood.lining|exposed.brick|plaster.unfinished"
+    },
+    {
+      "id": "NCRP_147_LeadShieldingBound",
+      "standard": "NCRP 147",
+      "severity": "Block",
+      "message": "Element has RAD_LEAD_MM_NR > 0 but its material is not lead-class. The Pb thickness can't be delivered by the assigned material — bind to BLE_Lead_RadShield_*mm or equivalent.",
+      "where": {
+        "categoryIn": ["Walls", "Floors", "Ceilings", "Doors"],
+        "paramGreaterThan": { "RAD_LEAD_MM_NR": 0.0 }
+      },
+      "materialMustRegex": "(?i)lead|BLE_Lead_|barium.plaster|loaded.gypsum"
+    },
+    {
+      "id": "HTM_06_01_EES_FireRetardantCableSheath",
+      "standard": "HTM 06-01 / BS 7211",
+      "severity": "Warning",
+      "message": "Essential-Electrical-Services cables in healthcare spaces should use LSZH (low-smoke zero-halogen) sheathing — confirm BLE_/MEP_ material against BS 7211.",
+      "where": {
+        "categoryIn": ["Cable Trays", "Conduits"],
+        "paramRegex": { "ELC_SYSTEM_TYPE_TXT": "^(EES|EES-A|EES-B|UPS|IPS)$" }
+      },
+      "materialMustRegex": "(?i)LSZH|low.smoke|halogen.free|fire.retardant"
+    }
+  ]
+}

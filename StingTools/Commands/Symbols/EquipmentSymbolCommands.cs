@@ -174,6 +174,97 @@ namespace StingTools.Commands.Symbols
             return null;
         }
 
+        // Libraries the user has already declined to auto-build this session;
+        // we never re-prompt for the same library to avoid pop-up spam.
+        private static readonly HashSet<string> _declinedAutoBuild =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Event fired after a symbol-place command finishes. Discipline panels
+        /// subscribe to write the message to their inline status bar instead of
+        /// showing a modal TaskDialog. Decouples Commands/Symbols from UI/*.
+        /// </summary>
+        public static event Action<string> StatusUpdated;
+
+        internal static void EmitStatus(string message)
+        {
+            try { StatusUpdated?.Invoke(message); }
+            catch (Exception ex) { StingLog.Warn($"EmitStatus: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Convenience: resolve + place + emit inline status — the full
+        /// per-button workflow. Returns the count placed; caller can early-out
+        /// when the family couldn't be resolved (count == -1).
+        /// </summary>
+        internal static int ResolveAndPlace(
+            Document doc, UIDocument uidoc,
+            string symbolId, string jsonFile,
+            string promptTitle, string statusLabel)
+        {
+            var fs = ResolveFamilySymbolAutoBuild(doc, symbolId, jsonFile, promptTitle);
+            if (fs == null)
+            {
+                EmitStatus($"{promptTitle}: family '{symbolId}' not available.");
+                return -1;
+            }
+            int n = PlaceAtPickPoints(doc, uidoc, fs, symbolId, promptTitle);
+            EmitStatus($"{promptTitle}: placed {n} {statusLabel}{(n == 1 ? "" : "s")}.");
+            return n;
+        }
+
+        /// <summary>
+        /// Symbol-button-friendly resolver: tries <see cref="ResolveFamilySymbol"/>,
+        /// and on miss offers to run <see cref="SymbolBatchHelper.RunBatch"/> for
+        /// the parent JSON library. Eliminates the "WC symbol family not found"
+        /// dead-end UX so the per-symbol buttons feel alive on a freshly-opened
+        /// project. Returns null if the user declines, the build fails, or the
+        /// symbol is still missing after generation.
+        /// </summary>
+        internal static FamilySymbol ResolveFamilySymbolAutoBuild(
+            Document doc, string symbolId, string jsonFile, string promptTitle)
+        {
+            var fs = ResolveFamilySymbol(doc, symbolId, jsonFile);
+            if (fs != null) return fs;
+
+            string key = (jsonFile ?? "").ToUpperInvariant();
+            if (_declinedAutoBuild.Contains(key)) return null;
+
+            string libraryLabel = ResolveSubfolder(jsonFile);
+            var td = new TaskDialog(promptTitle ?? "STING Symbols")
+            {
+                MainInstruction = $"'{symbolId}' is not yet in the project.",
+                MainContent = $"The {libraryLabel} symbol library has not been generated for " +
+                              "this project. Generate it now? This writes .rfa files into " +
+                              "<project>/_BIM_COORD/Families/Symbols/ and loads them into the project.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.Yes
+            };
+            if (td.Show() != TaskDialogResult.Yes)
+            {
+                _declinedAutoBuild.Add(key);
+                return null;
+            }
+
+            try
+            {
+                var batch = SymbolBatchHelper.RunBatch(doc, jsonFile, libraryLabel);
+                StingLog.Info($"Auto-build {libraryLabel}: " +
+                    $"created={batch.Created}, existed={batch.Existed}, failed={batch.Failed}");
+                if (batch.Errors != null && batch.Errors.Count > 0)
+                    StingLog.Warn($"Auto-build errors: {string.Join("; ", batch.Errors)}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Auto-build {libraryLabel}", ex);
+                TaskDialog.Show(promptTitle ?? "STING Symbols",
+                    $"Could not generate library: {ex.Message}");
+                return null;
+            }
+
+            return ResolveFamilySymbol(doc, symbolId, jsonFile);
+        }
+
         private static FamilySymbol FindLoaded(Document doc, string famName)
         {
             try
@@ -265,8 +356,9 @@ namespace StingTools.Commands.Symbols
                 }
             }
 
-            TaskDialog.Show(promptTitle,
-                $"Pick point(s) to place '{symbolId}'. Press Escape when done.");
+            // No modal pre-pick popup — the Revit status bar prompt in PickPoint
+            // is enough. Less interruption for batch placements.
+            EmitStatus($"{promptTitle}: pick to place '{symbolId}'. Escape when done.");
 
             while (true)
             {
@@ -554,12 +646,20 @@ namespace StingTools.Commands.Symbols
     {
         private static readonly (string File, string Label)[] Sources = new[]
         {
-            ("STING_ELEC_SYMBOLS.json",      "Electrical"),
-            ("STING_LIGHTING_SYMBOLS.json",  "Lighting"),
-            ("STING_FP_SYMBOLS.json",        "Fire Protection"),
-            ("STING_MEP_SYMBOLS.json",       "HVAC"),
-            ("STING_PLUMBING_SYMBOLS.json",  "Plumbing"),
-            ("STING_PIPE_ACCESSORIES.json",  "Pipe Accessories"),
+            ("STING_ELEC_SYMBOLS.json",            "Electrical"),
+            ("STING_LIGHTING_SYMBOLS.json",        "Lighting"),
+            ("STING_FP_SYMBOLS.json",              "Fire Protection"),
+            ("STING_MEP_SYMBOLS.json",             "HVAC"),
+            ("STING_PLUMBING_SYMBOLS.json",        "Plumbing"),
+            ("STING_PIPE_ACCESSORIES.json",        "Pipe Accessories"),
+            ("STING_WIRE_ANNOTATIONS.json",        "Wire/Cable Annotations"),
+            ("STING_EARTHING_SYMBOLS.json",        "Earthing & Bonding"),
+            ("STING_BMS_SYMBOLS.json",             "BMS & DDC Controls"),
+            ("STING_TELECOM_SYMBOLS.json",         "Telecom / Voice / Data / AV"),
+            ("STING_STRUCTURAL_ANNOTATIONS.json",  "Structural Annotations"),
+            ("STING_SAFETY_SYMBOLS.json",          "ISO 7010 Safety Pictograms"),
+            ("STING_GAS_SYMBOLS.json",             "Natural Gas / LPG"),
+            ("STING_DRAINAGE_ABOVE.json",          "Above-Ground Drainage"),
         };
 
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
@@ -602,7 +702,37 @@ namespace StingTools.Commands.Symbols
 
         private static string InferJsonFile(string symbolId)
         {
-            // Route by STING id prefix convention
+            // Route by STING id prefix convention. Order matters: more specific
+            // prefixes must come before shorter ambiguous ones (e.g. CDT_DROP
+            // belongs to wire annotations, not conduit fittings).
+            if (symbolId.StartsWith("ISO7010_", StringComparison.OrdinalIgnoreCase))
+                return "STING_SAFETY_SYMBOLS.json";
+            if (symbolId.StartsWith("EARTH_", StringComparison.OrdinalIgnoreCase))
+                return "STING_EARTHING_SYMBOLS.json";
+            if (symbolId.StartsWith("TEL_", StringComparison.OrdinalIgnoreCase))
+                return "STING_TELECOM_SYMBOLS.json";
+            if (symbolId.StartsWith("STR_", StringComparison.OrdinalIgnoreCase))
+                return "STING_STRUCTURAL_ANNOTATIONS.json";
+            if (symbolId.StartsWith("DRN_", StringComparison.OrdinalIgnoreCase))
+                return "STING_DRAINAGE_ABOVE.json";
+            if (symbolId.StartsWith("GAS_", StringComparison.OrdinalIgnoreCase))
+                return "STING_GAS_SYMBOLS.json";
+            if (symbolId.StartsWith("SENS_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("CTRL_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("ACT_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("BMS_", StringComparison.OrdinalIgnoreCase))
+                return "STING_BMS_SYMBOLS.json";
+            if (symbolId.StartsWith("WIRE_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.Equals("JBOX", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("PULL_BOX", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("CABLE_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("FAULT_LOOP", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("VOLT_RISE", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("CDT_DROP", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("CDT_RISE", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("BUSWAY", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("CKT_NUMBER", StringComparison.OrdinalIgnoreCase))
+                return "STING_WIRE_ANNOTATIONS.json";
             if (symbolId.StartsWith("ELEC_", StringComparison.OrdinalIgnoreCase) ||
                 symbolId.StartsWith("LTG_", StringComparison.OrdinalIgnoreCase))
                 return "STING_ELEC_SYMBOLS.json";
@@ -614,6 +744,7 @@ namespace StingTools.Commands.Symbols
                 symbolId.StartsWith("FLS_", StringComparison.OrdinalIgnoreCase))
                 return "STING_FP_SYMBOLS.json";
             if (symbolId.StartsWith("HVAC_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("HVC_", StringComparison.OrdinalIgnoreCase) ||
                 symbolId.StartsWith("MEP_", StringComparison.OrdinalIgnoreCase))
                 return "STING_MEP_SYMBOLS.json";
             if (symbolId.StartsWith("PLM_", StringComparison.OrdinalIgnoreCase) ||

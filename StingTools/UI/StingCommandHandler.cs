@@ -79,6 +79,12 @@ namespace StingTools.UI
             // StingCommandHandler.CurrentApp when ExternalCommandData is null
             CurrentApp = app;
 
+            // N1 — Wire the Material Manager's live selection-sync once we
+            // have a real UIApplication. The hook is idempotent so calling
+            // every Execute is safe; the field-level guard means it's free
+            // after the first hit.
+            UI.StingDockPanel.SubscribeSelectionSync(app);
+
             // Snapshot command state under lock to prevent race with WPF UI thread
             string tag, p1, p2;
             lock (_lock)
@@ -166,6 +172,22 @@ namespace StingTools.UI
                     case "Placement_Learn":         RunCommand<Commands.Placement.LearnPlacementV4Command>(app); break;
                     // Phase 177 — toilet-room specific placement + BS 6465 provision check.
                     case "Placement_ToiletRoom":    RunCommand<Commands.Placement.PlaceToiletRoomCommand>(app); break;
+
+                    // ── Phase 139.2 — placement centre additions ──
+                    case "Placement_AutoPopulateCatalogue":
+                        RunCommand<Commands.Placement.ManufacturerCatalogueAutoPopulateCommand>(app); break;
+                    case "Placement_ExportNogginRequirements":
+                        RunCommand<Commands.Placement.NogginRequirementExportCommand>(app); break;
+                    case "Placement_ExportRulesExcel":
+                        RunCommand<Commands.Placement.PlacementRulesExcelExportCommand>(app); break;
+                    case "Placement_ImportRulesExcel":
+                        RunCommand<Commands.Placement.PlacementRulesExcelImportCommand>(app); break;
+                    case "Placement_RunWallChase":
+                        RunCommand<Commands.Placement.RunWallChaseCommand>(app); break;
+                    case "Placement_AuditSetup":
+                        RunCommand<Commands.Placement.PlacementSetupAuditCommand>(app); break;
+                    case "Placement_Diagnose":
+                        RunCommand<Commands.Placement.PlacementDiagnoseCommand>(app); break;
 
                     // ── Phase 139.2 — placement centre additions ──
                     case "Placement_AutoPopulateCatalogue":
@@ -389,6 +411,7 @@ namespace StingTools.UI
                     case "Mep_AutoSizeDuct":    RunCommand<Commands.Mep.MepAutoSizeDuctCommand>(app); break;
                     case "Mep_AutoSizeConduit": RunCommand<Commands.Mep.MepAutoSizeConduitCommand>(app); break;
                     case "Mep_AutoSizeAll":     RunCommand<Commands.Mep.MepAutoSizeAllCommand>(app); break;
+                    case "MepCrossStamp":       RunCommand<Commands.Mep.MepCrossStampCommand>(app); break;
                     case "Mep_FillLiveCalc":    RunCommand<Commands.Mep.MepFillLiveCalcCommand>(app); break;
                     case "Mep_NamingAudit":     RunCommand<Commands.Mep.MepNamingAuditCommand>(app); break;
 
@@ -428,6 +451,9 @@ namespace StingTools.UI
                     case "Symbols_PlaceAll":       RunCommand<Commands.Symbols.PlaceSymbolsProjectWideCommand>(app); break;
                     case "Symbols_Audit":          RunCommand<Commands.Symbols.SymbolStandardAuditCommand>(app); break;
                     case "Symbols_SyncFilters":    RunCommand<Commands.Symbols.SyncViewFilterVisibilityCommand>(app); break;
+                    case "Symbols_AutoPlaceToggle": RunCommand<Commands.Symbols.SymbolsAutoPlaceToggleCommand>(app); break;
+                    case "Symbols_RemoveInView":   RunCommand<Commands.Symbols.RemoveSymbolsInViewCommand>(app); break;
+                    case "Symbols_RemoveAll":      RunCommand<Commands.Symbols.RemoveSymbolsProjectWideCommand>(app); break;
 
                     // ── Phase 175: Symbol Augmentation ──
                     case "Symbols_AugmentAll":      RunCommand<Commands.Symbols.AugmentProjectFamiliesCommand>(app); break;
@@ -600,6 +626,36 @@ namespace StingTools.UI
                     case "DrawingTypes_SyncRevisions": RunCommand<Commands.Drawing.TitleBlockRevisionSyncCommand>(app); break;
                     case "DrawingTypes_BulkReStamp":      RunCommand<Commands.Drawing.BulkReStampDrawingTypeCommand>(app); break;
                     case "DrawingTypes_ProduceAndExport": RunCommand<Commands.Drawing.DrawingProduceAndExportCommand>(app); break;
+
+                    // ── Drawing Template Manager · Phase 137 — production engine ──
+                    case "DrawingTypes_ProducePerLevel":           RunCommand<Commands.Drawing.ProduceViewsPerLevelCommand>(app); break;
+                    case "DrawingTypes_ProduceFromScopeBoxes":     RunCommand<Commands.Drawing.ProduceViewsFromScopeBoxesCommand>(app); break;
+                    case "DrawingTypes_ProduceInteriorElevations": RunCommand<Commands.Drawing.ProduceInteriorElevationsCommand>(app); break;
+                    case "DrawingTypes_ProduceExteriorElevations": RunCommand<Commands.Drawing.ProduceExteriorElevationsCommand>(app); break;
+                    case "DrawingTypes_ProduceSections":           RunCommand<Commands.Drawing.ProduceSectionsCommand>(app); break;
+                    case "DrawingTypes_RegenerateTemplates":       RunCommand<Commands.Drawing.RegeneratePackTemplatesCommand>(app); break;
+                    case "DrawingTypes_ConvertToManaged":          RunCommand<Commands.Drawing.ConvertPackToManagedCommand>(app); break;
+                    case "DrawingTypes_DetachManaged":             RunCommand<Commands.Drawing.DetachFromManagedCommand>(app); break;
+                    case "DrawingTypes_ExportPackage":             RunCommand<Commands.Drawing.DrawingPackageExportCommand>(app); break;
+                    case "DrawingTypes_SequencePackage":           RunCommand<Commands.Drawing.DrawingPackageSequenceCommand>(app); break;
+                    case "DrawingTypes_AuditPackages":
+                    case "DrawingTypes_PackageAudit":              RunCommand<Commands.Drawing.DrawingPackageAuditCommand>(app); break;
+
+                    // ── Phase 168 / 169 — Match-line subsystem ──
+                    case "MatchLine_Generate":       RunCommand<Commands.Drawing.MatchLineGenerateCommand>(app); break;
+                    case "MatchLine_Sync":           RunCommand<Commands.Drawing.MatchLineSyncCommand>(app); break;
+                    case "MatchLine_Validate":       RunCommand<Commands.Drawing.MatchLineValidateCommand>(app); break;
+                    case "MatchLine_ValidateBundle": RunCommand<Commands.Drawing.MatchLineValidateBundleCommand>(app); break;
+                    case "MatchLine_Inspect":        RunCommand<Commands.Drawing.MatchLineInspectCommand>(app); break;
+
+                    // ── Phase 170 — Title-block factory ──
+                    case "TitleBlock_Create":             RunCommand<Commands.Drawing.TitleBlockCreateCommand>(app); break;
+                    case "TitleBlock_CreateAll":          RunCommand<Commands.Drawing.TitleBlockCreateAllCommand>(app); break;
+                    // ── Phase 170 revision — Two-family BIM architecture + slot automation ──
+                    case "TitleBlock_AutoPlaceViewports": RunCommand<Commands.Drawing.TitleBlockAutoPlaceViewportsCommand>(app); break;
+                    case "TitleBlock_ToggleBIMMode":      RunCommand<Commands.Drawing.TitleBlockToggleBIMModeCommand>(app); break;
+                    case "TitleBlock_AuditLegacy":        RunCommand<Commands.Drawing.TitleBlockAuditLegacyCommand>(app); break;
+                    case "TitleBlock_MigrateLegacy":      RunCommand<Commands.Drawing.TitleBlockMigrateLegacyCommand>(app); break;
 
                     // ── Drawing Template Manager · Phase 137 — production engine ──
                     case "DrawingTypes_ProducePerLevel":           RunCommand<Commands.Drawing.ProduceViewsPerLevelCommand>(app); break;
@@ -1824,6 +1880,9 @@ namespace StingTools.UI
                     // ── Enhanced Structural Algorithms ──
                     case "StrAutoSizeAll": RunCommand<Model.StrAutoSizeAllCommand>(app); break;
                     case "StrAutoSizeApply": RunCommand<Model.StrAutoSizeApplyCommand>(app); break;
+                    case "StrRCDesign": RunCommand<Model.StrRCDesignCommand>(app); break;
+                    case "StrSetUgandanDefaults":
+                        RunCommand<Commands.Structural.SetUgandanDefaultsCommand>(app); break;
                     case "StrGridOptimize": RunCommand<Model.StrGridOptimizeCommand>(app); break;
                     case "StrCarbonOptimize": RunCommand<Model.StrCarbonOptimizeCommand>(app); break;
                     case "StrBarBending": RunCommand<Model.StrGenerateBarBendingCommand>(app); break;
@@ -1979,6 +2038,11 @@ namespace StingTools.UI
                     case "ApplyParagraphPreset": RunCommand<Tags.ApplyParagraphPresetCommand>(app); break;
                     case "SetHandoverMode": RunCommand<Tags.SetHandoverModeCommand>(app); break;
                     case "Tag7NarrativeUpdaterToggle": RunCommand<Core.Tag7NarrativeUpdaterToggleCommand>(app); break;
+
+                    // Phase 188 — sibling-panel toggles so dialogs / quick-action buttons can fire them.
+                    case "ToggleHvacPanel":        RunCommand<Core.ToggleHvacPanelCommand>(app); break;
+                    case "ToggleElectricalPanel":  RunCommand<Core.ToggleElectricalPanelCommand>(app); break;
+                    case "TogglePlumbingPanel":    RunCommand<Core.TogglePlumbingPanelCommand>(app); break;
 
                     // Briefcase — Reference Document Viewer
                     case "BriefcaseView": RunCommand<BIMManager.BriefcaseViewCommand>(app); break;
@@ -2390,10 +2454,13 @@ namespace StingTools.UI
                     case "WorkflowPreset": RunCommand<Temp.WorkflowPresetRunnerCommand>(app); break;
                     case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
 
-                    // Workflow presets dispatched from Document Manager
+                    // Workflow presets dispatched from Document Manager + HVAC tab
                     case "WorkflowPreset_DailyQA":
                     case "WorkflowPreset_DocumentPackage":
                     case "WorkflowPreset_ProjectKickoff":
+                    case "WorkflowPreset_HVACDesign":
+                    case "WorkflowPreset_HVACCommissioning":
+                    case "WorkflowPreset_DuctSpoolProduction":
                     {
                         // Phase 74: Use local `tag` not instance `_commandTag` to prevent race condition
                         string presetName = tag.Replace("WorkflowPreset_", "");
@@ -3321,6 +3388,13 @@ namespace StingTools.UI
                     case "SpeckleReceive": RunCommand<BIMManager.SpeckleReceiveCommand>(app); break;
                     case "SpeckleDiff":    RunCommand<BIMManager.SpeckleDiffCommand>(app);    break;
 
+                    // ── Publish 3D Model — meta action: pops a picker
+                    //    (Speckle / ACC / IFC) inside Publish3DModelCommand
+                    //    and routes to the chosen target. Same command class
+                    //    is registered in WorkflowEngine.ResolveCommand so
+                    //    BCC's ExternalEvent dispatcher resolves it too.
+                    case "Publish3DModel": RunCommand<BIMManager.Publish3DModelCommand>(app); break;
+
                     // ── Phase 91: BOQ & Cost Manager dispatch ──
                     case "BOQCostManager":
                     {
@@ -3376,6 +3450,7 @@ namespace StingTools.UI
                     case "Variation_FromDiff":          RunCommand<Commands.Cost.VariationFromDiffCommand>(app); break;
                     case "Variation_BuildStarRate":     RunCommand<Commands.Cost.VariationBuildStarRateCommand>(app); break;
                     case "Variation_ExportRegister":    RunCommand<Commands.Cost.VariationExportRegisterCommand>(app); break;
+                    case "Variation_ReclassifyLegacy":  RunCommand<Commands.Cost.VariationReclassifyLegacyCommand>(app); break;
                     case "Evm_Calculate":               RunCommand<Commands.Cost.EvmCalculateCommand>(app); break;
                     case "Evm_ImportActuals":           RunCommand<Commands.Cost.EvmImportActualsCommand>(app); break;
                     case "Evm_ExportReport":            RunCommand<Commands.Cost.EvmExportReportCommand>(app); break;
@@ -3721,6 +3796,7 @@ namespace StingTools.UI
                                                    TaskDialog.Show("Planscape", "Disconnected from Planscape server."); break;
                     case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
                     case "PublishModelToPlanscape": RunCommand<BIMManager.PublishModelCommand>(app); break;
+                    case "PlanscapeCreateProject":  RunCommand<BIMManager.PlanscapeCreateProjectCommand>(app); break;
                     case "LoadFamilyLibrary":       RunCommand<Temp.FamilyLibraryLoaderCommand>(app); break;
                     // Phase 78 Section 6.1: Additional Planscape action tags (renamed from StingBIM per Phase 88)
                     case "PlanscapeAddMember":      RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
@@ -3957,6 +4033,12 @@ namespace StingTools.UI
             }
         }
 
+        // ── Fabrication workspace launcher ────────────────────────────
+
+
+        // ── Fabrication workspace launcher ────────────────────────────
+
+
         // ── Generic command runner ────────────────────────────────────
 
         /// <summary>Phase 165 (INT-02 framework) — public bridge so the new
@@ -4051,6 +4133,8 @@ namespace StingTools.UI
             uidoc.ActiveView.HideElementsTemporary(ids);
         }
 
+        // Phase 74c: Removed unnecessary reflection — EnableTemporaryViewMode is a
+        // direct instance method in Revit 2025+ API (this plugin targets net8.0-windows).
         private static void ViewRevealHidden(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;

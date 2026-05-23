@@ -1295,8 +1295,10 @@ namespace StingTools.Temp
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Unified material management: browse project materials, create BLE/MEP
-    /// materials from CSV, and export material list to CSV.
+    /// Unified material management: browse project materials in a proper WPF
+    /// dialog (with search + filter + colour swatches), create BLE/MEP
+    /// materials from CSV, and export material list to CSV. Replaces the
+    /// legacy 4-option TaskDialog with <see cref="UI.MaterialManagerDialog"/>.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -1309,64 +1311,23 @@ namespace StingTools.Temp
             {
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
-                Document doc = ctx.Doc;
 
-                var dlg = new TaskDialog("STING Material Manager");
-                dlg.MainInstruction = "Material Management";
-                dlg.MainContent = "Choose an action for material management.";
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Browse Materials",
-                    "View all materials currently in this project.");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Create BLE Materials",
-                    "Create building element materials from BLE_MATERIALS.csv.");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Create MEP Materials",
-                    "Create MEP materials from MEP_MATERIALS.csv.");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Export Material List",
-                    "Export all project material names to CSV.");
-                dlg.CommonButtons = TaskDialogCommonButtons.Close;
-
-                // PERF: Collect materials once — reused by browse and export branches
-                var materials = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Material))
-                    .Cast<Material>()
-                    .OrderBy(m => m.Name)
-                    .ToList();
-
-                var result = dlg.Show();
-
-                if (result == TaskDialogResult.CommandLink1)
+                var res = StingTools.UI.MaterialManagerDialog.Show(ctx.UIDoc);
+                if (res != null && res.Confirmed)
                 {
-                    // Browse materials
-
-                    var sb = new StringBuilder();
-                    sb.AppendLine($"Total materials: {materials.Count}\n");
-
-                    int stingCount = 0;
-                    foreach (var mat in materials)
+                    // Browse / Apply / Export are handled inline by the dialog.
+                    // Create paths return through here so they can run under the
+                    // transaction model their own command provides.
+                    if (res.Operation == "CreateBLEMaterials")
                     {
-                        string name = mat.Name ?? "(unnamed)";
-                        if (name.StartsWith("STING", StringComparison.OrdinalIgnoreCase) ||
-                            name.StartsWith("BLE_", StringComparison.OrdinalIgnoreCase) ||
-                            name.StartsWith("MEP_", StringComparison.OrdinalIgnoreCase))
-                            stingCount++;
+                        string msg = "";
+                        new CreateBLEMaterialsCommand().Execute(commandData, ref msg, elements);
                     }
-
-                    sb.AppendLine($"STING/BLE/MEP materials: {stingCount}");
-                    sb.AppendLine($"Other materials: {materials.Count - stingCount}");
-                    sb.AppendLine();
-
-                    int shown = 0;
-                    foreach (var mat in materials)
+                    else if (res.Operation == "CreateMEPMaterials")
                     {
-                        sb.AppendLine($"  {mat.Name}");
-                        if (++shown >= 200)
-                        {
-                            sb.AppendLine($"  ... and {materials.Count - shown} more");
-                            break;
-                        }
+                        string msg = "";
+                        new CreateMEPMaterialsCommand().Execute(commandData, ref msg, elements);
                     }
-
-                    TaskDialog.Show("Project Materials", sb.ToString());
-                    StingLog.Info($"MaterialManager: browsed {materials.Count} materials");
                 }
                 else if (result == TaskDialogResult.CommandLink2)
                 {
@@ -1468,7 +1429,8 @@ namespace StingTools.Temp
             catch (Exception ex)
             {
                 StingLog.Error("StingMaterialManagerCommand failed", ex);
-                try { TaskDialog.Show("STING", $"Material Manager failed:\n{ex.Message}"); } catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
+                try { TaskDialog.Show("STING", $"Material Manager failed:\n{ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
                 return Result.Failed;
             }
         }

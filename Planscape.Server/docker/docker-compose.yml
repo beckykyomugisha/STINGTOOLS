@@ -36,6 +36,8 @@ services:
       - ClamAv__Host=${CLAMAV_HOST:-clamav}
       - ClamAv__Port=${CLAMAV_PORT:-3310}
     depends_on:
+      pgbouncer:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -72,6 +74,39 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # S3.4 — PgBouncer transaction-pooling proxy in front of Postgres.
+  # Multiplexes 5,000 client connections onto ~50 backend connections so
+  # the ASP.NET Core pool doesn't saturate Postgres at firm #6+.
+  pgbouncer:
+    # 2026-05 — pgbouncer is gated behind the optional `pool` profile.
+    # Default `docker compose up` skips it (the API talks straight to
+    # Postgres). To enable transaction pooling at scale:
+    #   docker compose --profile pool up -d
+    # The edoburu/pgbouncer 1.23.1 / 1.22.1 tags were withdrawn from
+    # Docker Hub; bitnami/pgbouncer is actively maintained.
+    profiles: ["pool"]
+    image: bitnami/pgbouncer:latest
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: planscape
+      DB_PASSWORD: ${DB_PASSWORD:-Planscape2026!}
+      DB_NAME: planscape
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "5000"
+      DEFAULT_POOL_SIZE: "50"
+      RESERVE_POOL_SIZE: "10"
+      RESERVE_POOL_TIMEOUT: "5"
+      AUTH_TYPE: scram-sha-256
+      ADMIN_USERS: planscape
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits,search_path,statement_timeout
+    ports:
+      - "6432:6432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     ports:
@@ -83,7 +118,14 @@ services:
   # S5.2 — Node sidecar that splits uploaded GLBs into per-discipline
   # chunks via gltf-transform + Draco compression. Stays a separate
   # container so we can scale it horizontally without scaling the API.
+  #
+  # 2026-05 — gated behind the optional `converter` compose profile.
+  # The Dockerfile COPYs a `handlers/` directory that hasn't been
+  # written yet, so default `docker compose up` skipped it. Re-enable
+  # once handlers/ is committed and the build passes:
+  #   docker compose --profile converter up -d
   converter:
+    profiles: ["converter"]
     build:
       context: ../src/converter-sidecar
     environment:
@@ -217,6 +259,51 @@ services:
     ports:
       - "4317:4317"  # OTLP gRPC
       - "4318:4318"  # OTLP HTTP
+    restart: unless-stopped
+
+  # ── Observability stack (MON-01/02/03) ─────────────────────────────────
+  # Opt-in via profile so they never run by default:
+  #   docker compose --profile observability up -d
+  # Then set in appsettings.*.json or env:
+  #   Serilog__Seq__ServerUrl=http://seq:5341
+  #   (Prometheus scrapes http://api:8080/metrics automatically via prometheus.yml)
+  seq:
+    image: datalust/seq:2024.3
+    profiles: ["observability"]
+    environment:
+      ACCEPT_EULA: "Y"
+    volumes:
+      - seqdata:/data
+    ports:
+      - "5341:80"   # UI + ingestion
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    profiles: ["observability"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    profiles: ["observability"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-planscape}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
     restart: unless-stopped
 
 volumes:

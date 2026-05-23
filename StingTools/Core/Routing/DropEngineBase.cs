@@ -43,7 +43,7 @@ namespace StingTools.Core.Routing
     /// Base class for the three drop engines. Lifetime: one instance
     /// per command invocation; not thread-safe.
     /// </summary>
-    public abstract class DropEngineBase
+    public abstract partial class DropEngineBase
     {
         protected const double MmToFt = 1.0 / 304.8;
         protected const double ConnectorProximityFt = 0.01; // ~3mm tolerance

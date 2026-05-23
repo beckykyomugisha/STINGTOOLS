@@ -58,12 +58,26 @@ namespace StingTools.Core.Drawing
             if (doc == null || sheet == null || dt?.TitleBlockParams == null
                 || dt.TitleBlockParams.Count == 0) return r;
 
-            var tb = FindTitleBlockInstance(doc, sheet);
-            if (tb == null)
+            // GAP-A: walk every title-block instance on the sheet, not just
+            // the first. Sheets that host more than one TB (front + back,
+            // landscape + portrait variants) used to leave the second
+            // instance with stale values; now every TB receives the same
+            // declarative payload.
+            var tbs = FindAllTitleBlockInstances(doc, sheet);
+            if (tbs.Count == 0)
             {
                 r.Warnings.Add($"Sheet '{sheet.SheetNumber}' has no title block to stamp.");
                 return r;
             }
+
+            foreach (var tb in tbs)
+            {
+                // GAP-M: a secondary title block (e.g. a North arrow or a
+                // fabrication-only stamp on the same sheet) typically has
+                // zero of the declared keys. Skip silently rather than
+                // emitting a "no parameter" warning per key per secondary TB.
+                if (tbs.Count > 1 && !TitleBlockHasAnyKey(tb, dt.TitleBlockParams.Keys))
+                    continue;
 
             foreach (var kv in dt.TitleBlockParams)
             {
@@ -73,6 +87,9 @@ namespace StingTools.Core.Drawing
                 string resolved;
                 try
                 {
+                    // ACC-07: a null/empty template still resolves to the
+                    // empty string and writes through, ensuring cloned
+                    // sheets don't carry stale prior values forward.
                     resolved = ResolveTemplate(doc, kv.Value ?? "", tokens);
                 }
                 catch (Exception ex)
@@ -97,14 +114,19 @@ namespace StingTools.Core.Drawing
                     switch (p.StorageType)
                     {
                         case StorageType.String:
-                            p.Set(resolved);
+                            // ACC-07: always set, even for empty string,
+                            // so cloned/template sheets reset stale text.
+                            p.Set(resolved ?? string.Empty);
+                            wrote = true;
                             break;
                         case StorageType.Integer:
-                            if (int.TryParse(resolved, out var iv)) p.Set(iv);
+                            if (string.IsNullOrEmpty(resolved)) p.Set(0);
+                            else if (int.TryParse(resolved, out var iv)) p.Set(iv);
                             else r.Warnings.Add($"'{paramName}' expects integer; '{resolved}' not parsable.");
                             break;
                         case StorageType.Double:
-                            if (double.TryParse(resolved, out var dv)) p.Set(dv);
+                            if (string.IsNullOrEmpty(resolved)) p.Set(0.0);
+                            else if (double.TryParse(resolved, out var dv)) p.Set(dv);
                             else r.Warnings.Add($"'{paramName}' expects number; '{resolved}' not parsable.");
                             break;
                         default:
@@ -118,6 +140,7 @@ namespace StingTools.Core.Drawing
                     r.Warnings.Add($"Write '{paramName}': {ex.Message}");
                 }
             }
+            } // end per-TB block (GAP-M)
             return r;
         }
 
@@ -127,12 +150,7 @@ namespace StingTools.Core.Drawing
         /// helpers. No actual batching is performed — Apply() is
         /// lightweight enough to call per-sheet.
         /// </summary>
-        public static System.IDisposable Batch() => new BatchScope();
 
-        private sealed class BatchScope : System.IDisposable
-        {
-            public void Dispose() { /* intentional no-op */ }
-        }
 
         /// <summary>
         /// Apply dt.TitleBlockParams to a batch of sheets. Returns a flat list of
@@ -310,27 +328,6 @@ namespace StingTools.Core.Drawing
         /// Used by pre-flight validators and drift detectors to compare what
         /// would be written against what is already on the sheet.
         /// </summary>
-        public static Dictionary<string, string> Peek(
-            Document doc, DrawingType dt,
-            IDictionary<string, string> tokens = null)
-        {
-            var result = new Dictionary<string, string>();
-            if (doc == null || dt?.TitleBlockParams == null) return result;
-            foreach (var kv in dt.TitleBlockParams)
-            {
-                if (string.IsNullOrWhiteSpace(kv.Key)) continue;
-                try
-                {
-                    result[kv.Key] = ResolveTemplate(doc, kv.Value ?? "", tokens);
-                }
-                catch (Exception ex)
-                {
-                    StingTools.Core.StingLog.Warn($"TitleBlockParamApplier.Peek '{kv.Key}': {ex.Message}");
-                    result[kv.Key] = "";
-                }
-            }
-            return result;
-        }
 
         private static FamilyInstance FindTitleBlockInstance(Document doc, ViewSheet sheet)
         {

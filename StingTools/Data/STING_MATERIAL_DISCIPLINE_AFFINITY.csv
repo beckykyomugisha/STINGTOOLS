@@ -1,0 +1,20 @@
+MaterialClassPattern,PrimaryDiscipline,SecondaryDisciplines,Notes
+# B6 — MaterialClass → discipline affinity. Drives DrawingType.materialOriginAllowed
+# validation, BCC dashboards, and the affinity score on MAT > Browse.
+# PrimaryDiscipline: A/S/M/E/P/FP/LV/G/H/MG/RP. SecondaryDisciplines: comma-separated.
+(?i)concrete|cement|grout,S,A,Structural primary; arch finishes (screed) secondary
+(?i)reinforcement|rebar,S,,Structural exclusive
+(?i)steel.*structural|UB |UC |IPE|HE[ABMR]?,S,,Structural sections
+(?i)brick|masonry|block,A,S,Arch primary; structural masonry secondary
+(?i)plasterboard|gypsum|drywall,A,,Arch exclusive
+(?i)glass|glazing,A,,Arch exclusive
+(?i)timber|wood,A,S,Arch primary; light-frame structural secondary
+(?i)mineral wool|rockwool|stone wool|glass wool|PIR|EPS|XPS,A,M,Thermal envelope (arch) + duct insulation (M)
+(?i)copper,M,P,Pipework — mechanical + plumbing
+(?i)PVC|polyethylene|HDPE,P,M,Plumbing pipes + MEP conduit
+(?i)cable.?tray|EMT|conduit,E,,Electrical exclusive
+(?i)paint|coating,A,,Arch finishes
+(?i)tile|ceramic,A,P,Arch primary; wet-area plumbing secondary
+(?i)bitumen|asphalt,A,G,Roofing arch + civils
+(?i)lead,RP,P,Radiation shielding + (legacy) plumbing
+(?i)medical.gas|MGS|VAC,MG,M,Medical gas exclusive

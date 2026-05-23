@@ -20,6 +20,14 @@ using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 using System.Text.RegularExpressions;
 
+// Autodesk.Revit.UI ships TextBox + ComboBox types that collide with
+// System.Windows.Controls equivalents used by the WPF dockable panel.
+// Alias the WPF types so this file's controls code compiles without
+// having to fully-qualify every call site.
+using TextBox = System.Windows.Controls.TextBox;
+using ComboBox = System.Windows.Controls.ComboBox;
+using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+
 namespace StingTools.UI
 {
     /// <summary>
@@ -86,9 +94,20 @@ namespace StingTools.UI
         public StingDockPanel()
         {
             InitializeComponent();
-            // Register this panel as the theme target before seeding resources
-            ThemeManager.RegisterTarget(this);
-            ThemeManager.InitialiseResources();
+            // Register this panel as the theme target before seeding resources.
+            // Any failure during seed → fall back to Corporate so the panel
+            // never renders against an empty resource dictionary.
+            try
+            {
+                ThemeManager.RegisterTarget(this);
+                ThemeManager.InitialiseResources();
+            }
+            catch (Exception exTheme)
+            {
+                StingLog.Error("StingDockPanel: theme init failed — forcing Corporate", exTheme);
+                try { ThemeManager.ApplyTheme(ThemeManager.FallbackTheme); }
+                catch { /* nothing more we can do */ }
+            }
 
             // CRASH FIX: Immediately after XAML parsing, detach content from all
             // non-active tabs BEFORE the first WPF layout pass (Measure/Arrange).
@@ -97,7 +116,6 @@ namespace StingTools.UI
             DeferNonActiveTabContent();
 
             BuildColorSwatches();
-            _instance = this;
 
             // Subscribe to PlacementResultBus so Fixtures and Routing result strips
             // update automatically after any placement/routing run.
@@ -275,13 +293,36 @@ namespace StingTools.UI
                     SetCategoryFilterParams();
                 }
 
-                // Handle theme cycling directly in WPF thread (no Revit API needed)
+                // Handle theme cycling directly in WPF thread (no Revit API needed).
+                // Wrapped in try/catch with a Corporate fallback per the
+                // "if theme switching fails, default to Corporate" rule —
+                // any WPF resource resolution glitch in the hosted pane is
+                // contained here rather than crashing the panel.
                 if (cmdTag == "CycleTheme")
                 {
-                    string next = ThemeManager.CycleTheme();
-                    // Force WPF to re-evaluate DynamicResource bindings in Revit's hosted pane
-                    InvalidateVisual();
-                    UpdateLayout();
+                    string next;
+                    try
+                    {
+                        next = ThemeManager.CycleTheme();
+                    }
+                    catch (Exception exTheme)
+                    {
+                        StingLog.Error("StingDockPanel: CycleTheme failed — forcing Corporate", exTheme);
+                        try { ThemeManager.ApplyTheme(ThemeManager.FallbackTheme); } catch { /* no-op */ }
+                        next = ThemeManager.CurrentTheme;
+                    }
+                    // Force WPF to re-evaluate DynamicResource bindings in Revit's hosted pane.
+                    // Revit's WPF host occasionally drops DynamicResource updates if the
+                    // visual tree is not invalidated explicitly, so do both passes.
+                    try
+                    {
+                        InvalidateVisual();
+                        UpdateLayout();
+                    }
+                    catch (Exception exRefresh)
+                    {
+                        StingLog.Warn($"StingDockPanel: theme refresh failed: {exRefresh.Message}");
+                    }
                     UpdateStatus($"Theme: {next}");
                     return;
                 }
@@ -292,6 +333,16 @@ namespace StingTools.UI
                 if (cmdTag.StartsWith("Placement_"))  SetV4PlacementOptions();
                 if (cmdTag.StartsWith("Routing_"))    SetV4RoutingOptions();
                 if (cmdTag.StartsWith("Fabrication_")) SetV4FabricationOptions();
+
+                // Healthcare tab — flush every Hc.* control state into
+                // SetExtraParam so commands can read user choices. Init is
+                // idempotent; if the user clicks before TabMain_SelectionChanged
+                // fired the lazy init this catches up.
+                if (cmdTag.StartsWith("Healthcare_"))
+                {
+                    InitializeHealthcareTab();
+                    SetHealthcareOptions();
+                }
 
                 _handler?.SetCommand(cmdTag);
                 var result = _externalEvent?.Raise() ?? ExternalEventRequest.Denied;
@@ -310,6 +361,19 @@ namespace StingTools.UI
                     UpdateStatus("Busy — try again...");
                 }
             }
+        }
+
+        /// <summary>
+        /// Healthcare → Specialist sub-tab Run button. Re-tags itself based on
+        /// the selected specialist combo and re-enters Cmd_Click so the standard
+        /// pre-dispatch flush runs.
+        /// </summary>
+        private void HcSpecialistRun_Click(object sender, RoutedEventArgs e)
+        {
+            if (btnHcSpecialistRun == null) return;
+            string kind = SelectedComboTag(cmbHcSpecialistKind, "HybridOr");
+            btnHcSpecialistRun.Tag = "Healthcare_" + kind;
+            Cmd_Click(btnHcSpecialistRun, e);
         }
 
         /// <summary>FIX-4.1: Read Leader &amp; Elbow sliders and pass as ExtraParams.</summary>
@@ -373,6 +437,19 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("Scale500Mm",  (sldScale500?.Value  ?? 12.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
                 StingCommandHandler.SetExtraParam("Scale1000Mm", (sldScale1000?.Value ?? 20.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
                 StingCommandHandler.SetExtraParam("OffsetCapFt", (sldOffsetCap?.Value ?? 30.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+
+                // Phase 165 — per-category scale multipliers (previously orphaned).
+                // Read by ApplyScaleTiersCommand and persisted to project_config.json
+                // under SCALE_CATEGORY_MULTIPLIERS so SmartTagPlacementCommand can
+                // multiply the base offset by the per-category factor at placement time.
+                if (FindName("sldMultDucts") is System.Windows.Controls.Slider mD)
+                    StingCommandHandler.SetExtraParam("MultDucts", mD.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultPipes") is System.Windows.Controls.Slider mP)
+                    StingCommandHandler.SetExtraParam("MultPipes", mP.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultEquipment") is System.Windows.Controls.Slider mE)
+                    StingCommandHandler.SetExtraParam("MultEquipment", mE.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultFixtures") is System.Windows.Controls.Slider mF)
+                    StingCommandHandler.SetExtraParam("MultFixtures", mF.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
             }
             catch (Exception ex) { StingLog.Warn($"Read Scale tab sliders failed: {ex.Message}"); }
         }
@@ -697,6 +774,19 @@ namespace StingTools.UI
             return def;
         }
 
+        // Phase 139.7 — read a named RadioButton's IsChecked state.
+        private static bool RadState(DependencyObject root, string name, bool def)
+        {
+            if (root == null) return def;
+            try
+            {
+                var rb = FindVisualChild<System.Windows.Controls.RadioButton>(root, name);
+                if (rb != null) return rb.IsChecked == true;
+            }
+            catch { }
+            return def;
+        }
+
         private static bool RadioState(DependencyObject root, string name, bool def)
         {
             if (root == null) return def;
@@ -740,6 +830,17 @@ namespace StingTools.UI
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludePlumbingFixtures     = ChkState(root, "chkFxPlm",     true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludeAirTerminals         = ChkState(root, "chkFxHvac",    true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludeSprinklers           = ChkState(root, "chkFxSpr",     true);
+
+                // Phase 139.7 — Fixtures scope radios. Default to
+                // SelectedRooms so an unset state preserves historic
+                // behaviour. The radios are mutually exclusive
+                // (GroupName = "FxScope") so the first checked wins.
+                if (RadState(root, "rbFxScopeView", false))
+                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.ActiveView;
+                else if (RadState(root, "rbFxScopeAll", false))
+                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.AllRooms;
+                else
+                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.SelectedRooms;
 
                 StingTools.Commands.Placement.PlaceFixturesOptions.EnforceDocM    = ChkState(root, "chkFxDocM",    true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.EnforceBS7671  = ChkState(root, "chkFxBS7671",  true);
@@ -1071,6 +1172,14 @@ namespace StingTools.UI
                                 tab.Content = content;
                                 _deferredTabContent.Remove(capturedIdx);
                                 Core.StingLog.Info($"Tab {capturedIdx} content loaded (lazy)");
+                            }
+
+                            // Healthcare tab: now that the named controls are
+                            // realised, seed the validator grid and wire combo
+                            // change handlers. Idempotent.
+                            if (tab.Header is string hdr && string.Equals(hdr, "HEALTHCARE", StringComparison.OrdinalIgnoreCase))
+                            {
+                                InitializeHealthcareTab();
                             }
                         }
                         catch (Exception ex)
@@ -2066,15 +2175,6 @@ namespace StingTools.UI
         private static readonly SuggestionItem[] _commandBarHints = new[]
         {
             new SuggestionItem { CommandName = "TagAndCombine",        Description = "One-click tag and combine all" },
-            new SuggestionItem { CommandName = "AutoTag",              Description = "Tag elements in active view" },
-            new SuggestionItem { CommandName = "BatchTag",             Description = "Tag all elements in project" },
-            new SuggestionItem { CommandName = "Validate",             Description = "Validate tag compliance" },
-            new SuggestionItem { CommandName = "PreTagAudit",          Description = "Dry-run tag prediction before committing" },
-            new SuggestionItem { CommandName = "ResolveAllIssues",     Description = "Fix all ISO 19650 compliance issues" },
-            new SuggestionItem { CommandName = "CompletenessDashboard",Description = "Tag completeness report by discipline" },
-            new SuggestionItem { CommandName = "SmartPlaceTags",       Description = "Place visual annotation tags" },
-            new SuggestionItem { CommandName = "COBieExport",          Description = "Export COBie handover data" },
-            new SuggestionItem { CommandName = "MorningHealthCheck",   Description = "Run morning health-check workflow" },
         };
 
         private void UpdateCommandBarSuggestions()

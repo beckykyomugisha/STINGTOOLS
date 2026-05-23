@@ -23,7 +23,10 @@ namespace StingTools.Commands.Healthcare.Specialist
                     var p = doc.ProjectInformation.LookupParameter("PRJ_ORG_HEALTH_BEDS_INT");
                     if (p?.HasValue == true && p.StorageType==StorageType.Integer) beds = p.AsInteger();
                 } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                int requiredBays = (int)Math.Max(4, Math.Ceiling(beds * 0.005));
+                // Source label + percentage used for the audit math (HBN 16: 0.5% of beds, min 4).
+                string bedsSrc = "PRJ_ORG_HEALTH_BEDS_INT";
+                double pct = 0.5;
+                int requiredBays = (int)Math.Max(4, Math.Ceiling(beds * (pct / 100.0)));
                 var clinicalCats = new ElementMulticategoryFilter(new[] {
                     BuiltInCategory.OST_MedicalEquipment,
                     BuiltInCategory.OST_NurseCallDevices,
@@ -34,8 +37,8 @@ namespace StingTools.Commands.Healthcare.Specialist
                     .Count(e => string.Equals(Get(e,"ASS_PRODCT_COD_TXT"), "MORT-FRG", StringComparison.OrdinalIgnoreCase));
                 var sb = new StringBuilder();
                 sb.AppendLine("STING — Mortuary Capacity Audit (HBN 16)").AppendLine();
-                sb.AppendLine($"Beds (PRJ_ORG_HEALTH_BEDS_INT): {beds}");
-                sb.AppendLine($"Required mortuary bays (0.5 % beds, min 4): {requiredBays}");
+                sb.AppendLine($"Beds ({bedsSrc}): {beds}");
+                sb.AppendLine($"Required mortuary bays ({pct:F2} % of beds, min 4): {requiredBays}");
                 sb.AppendLine($"Mortuary fridges in model (PROD=MORT-FRG): {actualBays}");
                 sb.AppendLine(actualBays >= requiredBays ? "[OK] Capacity meets HBN 16 baseline" : "[ERROR] Capacity below HBN 16 baseline");
                 StingLog.Info(sb.ToString());

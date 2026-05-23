@@ -64,6 +64,12 @@ export default function CaptureSitePhotoScreen() {
     anchorIssueId?: string;
     anchorElementGuid?: string;
     context?: string;
+    // Phase 179.2 — when launched from a checklist item, these flow
+    // through so the upload can auto-fulfil the originating item.
+    checklistId?: string;
+    checklistItemId?: string;
+    checklistItemTitle?: string;
+    defaultReason?: string;
   }>();
   const activeProject = useProjectStore((s) => s.active);
   const projectId = params.projectId ?? activeProject?.id;
@@ -198,9 +204,18 @@ export default function CaptureSitePhotoScreen() {
         hasGps: lat !== undefined,
         hasActiveWorkPackage: false, // wired later if/when project filters land
       });
-      setReason(classifier.reason);
-      setClassifierConfidence(classifier.confidence);
-      setClassifierSignals(classifier.signals);
+      // Phase 179.2 — when launched from a checklist item, the
+      // originating item carries a defaultReason; that takes priority
+      // over the on-device classifier's pick.
+      if (params.defaultReason && (REASONS as string[]).includes(params.defaultReason)) {
+        setReason(params.defaultReason as SitePhotoReason);
+        setClassifierConfidence(1.0);
+        setClassifierSignals({ ...classifier.signals, source: 'checklist-item' });
+      } else {
+        setReason(classifier.reason);
+        setClassifierConfidence(classifier.confidence);
+        setClassifierSignals(classifier.signals);
+      }
 
       // Surface queue saturation hint up-front.
       try {
@@ -241,8 +256,10 @@ export default function CaptureSitePhotoScreen() {
 
     try {
       const net = await NetInfo.fetch();
+      const checklistId = params.checklistId;
+      const checklistItemId = params.checklistItemId;
       if (net.isConnected) {
-        await captureSitePhoto({
+        const created = await captureSitePhoto({
           projectId,
           uri: shot.uri,
           fileName: `site-photo-${Date.now()}.jpg`,
@@ -250,17 +267,30 @@ export default function CaptureSitePhotoScreen() {
           meta: { ...meta, queuedClient: false },
           pairKey: pairKey ?? undefined,
         });
+        // Phase 179.2 — auto-link to the originating checklist item.
+        let fulfilNote = '';
+        if (checklistId && checklistItemId && created?.id) {
+          try {
+            await fulfilChecklistItem(projectId, checklistId, checklistItemId, created.id);
+            fulfilNote = '\n\n✓ Linked to your checklist item.';
+          } catch {
+            // Fulfilment failure is non-fatal — the photo still uploaded.
+            fulfilNote = '\n\n(Could not auto-link to checklist; you can link manually.)';
+          }
+        }
         Alert.alert(
           'Photo saved',
-          reasonAutoCreatesIssue(reason)
+          (reasonAutoCreatesIssue(reason)
             ? 'Photo uploaded and a corresponding issue has been opened.'
             : reasonRoutesToReview(reason)
               ? 'Photo uploaded and queued for PM review.'
-              : 'Photo saved to internal gallery.',
+              : 'Photo saved to internal gallery.') + fulfilNote,
         );
         router.back();
       } else {
-        // Offline path — copy bytes to stable storage and enqueue.
+        // Offline path — copy bytes to stable storage and enqueue. The
+        // queue replay handler reads checklistId/checklistItemId and
+        // calls fulfilChecklistItem after the upload succeeds.
         const stored = await persistPhotoForQueue(shot.uri);
         await enqueue('CAPTURE_SITE_PHOTO', {
           projectId,
@@ -272,7 +302,8 @@ export default function CaptureSitePhotoScreen() {
         });
         Alert.alert(
           'Saved offline',
-          'Photo will upload automatically when network is back.',
+          'Photo will upload automatically when network is back.' +
+            (checklistId ? '\n\nChecklist item will auto-link on replay.' : ''),
         );
         router.back();
       }
@@ -374,6 +405,16 @@ export default function CaptureSitePhotoScreen() {
           style={{ flex: 1 }}
           facing="back"
         />
+        {/* Phase 180 — context pill so the user knows which checklist
+            item the photo will fulfil. Hidden when not launched from
+            a checklist. */}
+        {params.checklistItemTitle ? (
+          <View style={styles.contextPill}>
+            <Text style={styles.contextPillText} numberOfLines={1}>
+              For: {params.checklistItemTitle}
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.cameraBar}>
           <TouchableOpacity
             style={styles.cancelBtn}
@@ -656,6 +697,12 @@ const styles = StyleSheet.create({
   },
   cancelBtn: { padding: theme.spacing.sm },
   cancelText: { color: '#fff', fontSize: theme.fontSize.md },
+  contextPill: {
+    position: 'absolute', top: 12, left: 12, right: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 8, paddingHorizontal: 14, borderRadius: 18,
+  },
+  contextPillText: { color: '#fff', fontSize: 13, fontWeight: '600', textAlign: 'center' },
   shutter: {
     width: 72, height: 72, borderRadius: 36,
     backgroundColor: 'rgba(255,255,255,0.2)',

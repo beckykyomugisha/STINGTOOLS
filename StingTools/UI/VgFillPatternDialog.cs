@@ -40,7 +40,8 @@ namespace StingTools.UI
         public static VgFillPattern Show(
             VgFillPattern current,
             IList<string> patternOptions,
-            string title = "Fill Pattern Graphics")
+            string title = "Fill Pattern Graphics",
+            Func<IList<string>> refreshFromDoc = null)
         {
             current = current ?? new VgFillPattern();
             var win = new Window
@@ -57,15 +58,47 @@ namespace StingTools.UI
             var hdr = new TextBlock { Text = "Pattern Overrides", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 8) };
             root.Children.Add(hdr);
 
+            // Per-section comboboxes captured so the Refresh button can
+            // repopulate both Fg + Bg without recreating the dialog.
+            ComboBox fgCombo = null, bgCombo = null;
+
             // Foreground
-            root.Children.Add(BuildSection("Foreground", current.FgVisible ?? true,
-                current.FgPattern, current.FgColor, patternOptions,
-                (vis, pat, col) => { current.FgVisible = vis; current.FgPattern = pat; current.FgColor = col; }));
+            var fgSection = BuildSection("Foreground", current.FgVisible ?? true,
+                current.FgPattern, current.FgColor, patternOptions, refreshFromDoc,
+                (vis, pat, col) => { current.FgVisible = vis; current.FgPattern = pat; current.FgColor = col; },
+                cb => fgCombo = cb);
+            root.Children.Add(fgSection);
 
             // Background
-            root.Children.Add(BuildSection("Background", current.BgVisible ?? true,
-                current.BgPattern, current.BgColor, patternOptions,
-                (vis, pat, col) => { current.BgVisible = vis; current.BgPattern = pat; current.BgColor = col; }));
+            var bgSection = BuildSection("Background", current.BgVisible ?? true,
+                current.BgPattern, current.BgColor, patternOptions, refreshFromDoc,
+                (vis, pat, col) => { current.BgVisible = vis; current.BgPattern = pat; current.BgColor = col; },
+                cb => bgCombo = cb);
+            root.Children.Add(bgSection);
+
+            // Phase 183 — Refresh button. Re-reads FillPatternElement names
+            // from the live document so newly-authored patterns appear
+            // without closing the editor. No-op when caller didn't supply
+            // a refresh callback (legacy invocations).
+            if (refreshFromDoc != null)
+            {
+                var refreshRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+                var btnRefresh = new Button
+                {
+                    Content = "↻ Refresh patterns from project",
+                    Padding = new Thickness(8, 3, 8, 3),
+                    ToolTip = "Re-scan FillPatternElements after authoring a new pattern via Revit Manage > Additional Settings > Fill Patterns."
+                };
+                btnRefresh.Click += (s, e) =>
+                {
+                    var fresh = refreshFromDoc();
+                    if (fresh == null) return;
+                    RepopulateCombo(fgCombo, fresh, current.FgPattern);
+                    RepopulateCombo(bgCombo, fresh, current.BgPattern);
+                };
+                refreshRow.Children.Add(btnRefresh);
+                root.Children.Add(refreshRow);
+            }
 
             // "How do these settings affect view graphics?" hint link
             var link = new TextBlock { Margin = new Thickness(0, 8, 0, 0) };
@@ -110,7 +143,9 @@ namespace StingTools.UI
         private static FrameworkElement BuildSection(
             string label, bool visible, string pattern, string colorHex,
             IList<string> patternOptions,
-            Action<bool, string, string> onChange)
+            Func<IList<string>> refreshFromDoc,
+            Action<bool, string, string> onChange,
+            Action<ComboBox> exposeCombo = null)
         {
             var section = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
             // Header row: label + Visible
@@ -132,16 +167,27 @@ namespace StingTools.UI
                 if (!string.IsNullOrEmpty(p) && !cbP.Items.Contains(p) && p != "<no override>" && p != "<Solid fill>") cbP.Items.Add(p);
             cbP.Items.Add("<Solid fill>");
             cbP.SelectedItem = string.IsNullOrEmpty(pattern) ? "<No Override>" : (cbP.Items.Contains(pattern) ? pattern : "<No Override>");
-            var btnPM = new Button { Content = "…", Width = 24, Height = 24, ToolTip = "Open Revit's Fill Patterns dialog (Manage > Additional Settings)" };
+            var btnPM = new Button
+            {
+                Content = "…",
+                Width = 24, Height = 24,
+                ToolTip = refreshFromDoc != null
+                    ? "Author a new pattern via Revit Manage > Additional Settings > Fill Patterns, then click Refresh below."
+                    : "Open Revit's Fill Patterns dialog (Manage > Additional Settings)"
+            };
             btnPM.Click += (s, e) =>
             {
-                Autodesk.Revit.UI.TaskDialog.Show("Fill Patterns",
-                    "Use Revit Manage tab → Additional Settings → Fill Patterns to author and edit fill patterns. " +
-                    "Newly added patterns appear in this dropdown after you re-open the editor.");
+                var msg = "Use Revit Manage tab → Additional Settings → Fill Patterns to author and edit fill patterns.";
+                if (refreshFromDoc != null)
+                    msg += "\n\nAfter saving the new pattern, click ↻ Refresh patterns from project below to repopulate this dropdown without closing the editor.";
+                else
+                    msg += "\n\nNewly added patterns appear in this dropdown after you re-open the editor.";
+                Autodesk.Revit.UI.TaskDialog.Show("Fill Patterns", msg);
             };
             Grid.SetColumn(lblP, 0); Grid.SetColumn(cbP, 1); Grid.SetColumn(btnPM, 2);
             patternRow.Children.Add(lblP); patternRow.Children.Add(cbP); patternRow.Children.Add(btnPM);
             section.Children.Add(patternRow);
+            exposeCombo?.Invoke(cbP);
 
             // Colour row
             var colorRow = new Grid();
@@ -176,6 +222,20 @@ namespace StingTools.UI
 
         private static string StripSentinel(string s)
             => (s == "<No Override>" || string.IsNullOrEmpty(s)) ? null : s;
+
+        private static void RepopulateCombo(ComboBox cb, IList<string> patterns, string preserveSelection)
+        {
+            if (cb == null) return;
+            var keep = (cb.SelectedItem as string) ?? preserveSelection;
+            cb.Items.Clear();
+            cb.Items.Add("<No Override>");
+            if (patterns != null) foreach (var p in patterns)
+                if (!string.IsNullOrEmpty(p) && !cb.Items.Contains(p)
+                    && p != "<no override>" && p != "<Solid fill>") cb.Items.Add(p);
+            cb.Items.Add("<Solid fill>");
+            cb.SelectedItem = string.IsNullOrEmpty(keep) ? "<No Override>"
+                : (cb.Items.Contains(keep) ? keep : "<No Override>");
+        }
 
         private static void UpdateColorButtonContent(Button btn, string hex)
         {

@@ -116,6 +116,13 @@ namespace StingTools.Tags
                 TaskDialog.Show("Tag 3D", "Active view is a view template; nothing placed.");
                 return Result.Succeeded;
             }
+            PlaceTagsCore(doc, view, tagSymbol, useTag7Narrative, r);
+            return r;
+        }
+
+        private static void PlaceTagsCore(Document doc, View view, FamilySymbol tagSymbol,
+            bool useTag7Narrative, Tag3DResult result)
+        {
 
             // Selection scope — if user has an active selection, ask whether to
             // restrict to it. Default for empty selection is whole-view.
@@ -175,6 +182,28 @@ namespace StingTools.Tags
             TaskDialog.Show("Tag 3D", report);
             TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
+        }
+
+        // PlaceTagsCore 5-arg overload — the merged code put an Execute()-style
+        // body here by mistake (uidoc / v3d / r not in scope, return statements
+        // in a void method). The 8-arg overload at line ~258 has the real
+        // implementation; this overload delegates to the public PlaceTagsInView
+        // entry point that AnnotationRunner uses.
+        private static void PlaceTagsCore(Document doc, View view, FamilySymbol tagSymbol,
+            bool useTag7Narrative, Tag3DResult result)
+        {
+            if (view is View3D v3d)
+            {
+                var r = PlaceTagsInView(doc, v3d, useTag7Narrative,
+                    hostFilter: null, wrapTransaction: false, progress: null);
+                if (result != null && r != null)
+                {
+                    result.Placed       += r.Placed;
+                    result.Skipped      += r.Skipped;
+                    result.Errors       += r.Errors;
+                    foreach (var w in r.Warnings) result.Warnings.Add(w);
+                }
+            }
         }
 
         /// <summary>

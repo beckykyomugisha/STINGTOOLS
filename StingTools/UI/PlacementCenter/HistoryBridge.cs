@@ -24,6 +24,16 @@ namespace StingTools.UI.PlacementCenter
             public string CreatedUtc { get; set; } = "";
             public int Count { get; set; }
             public List<ElementId> Ids { get; set; } = new List<ElementId>();
+
+            // Phase 139 I4 — extra columns for the history panel.
+            public double CoveragePercent { get; set; } = -1;   // -1 = unknown
+            public int    SkippedCount    { get; set; } = 0;
+            public int    WarningCount    { get; set; } = 0;
+            public string Detail          { get; set; } = "";   // free-text appended by run results
+
+            public string CoverageDisplay  => CoveragePercent < 0 ? "—" : $"{CoveragePercent:F0}%";
+            public string SkippedDisplay   => SkippedCount == 0 ? "—" : SkippedCount.ToString();
+            public string WarningDisplay   => WarningCount == 0 ? "—" : WarningCount.ToString();
         }
 
         /// <summary>
