@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Create your first project — Planscape tutorial</title>
+<meta name="description" content="From signup to a working project with team members, GPS coordinates, and ISO 19650 metadata. 8-minute walkthrough.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.app/tutorials/create-first-project.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/" style="color:var(--accent)">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/tutorials/">Tutorials</a> &rsaquo; Create your first project</div>
+  <h1>Create your first project</h1>
+  <div class="meta">⏱️ 8 minutes · Beginner · Last updated 2026-05-23</div>
+
+  <p>You've signed up, you're staring at an empty tenant dashboard. This tutorial walks you through creating a project end-to-end with realistic example data, so by the end you have a working playground to explore the rest of Planscape.</p>
+
+  <div class="callout">
+    <strong>Before you start:</strong> sign up at <a href="https://planscape.app/signup">planscape.app/signup</a> if you haven't already. Free, no credit card.
+  </div>
+
+  <h2>What you'll build</h2>
+  <ul>
+    <li>A project called "Demo Hospital — Wing A"</li>
+    <li>Centred on Kampala, Uganda (you can change this to your real site later)</li>
+    <li>With ISO 19650 codes configured</li>
+    <li>With a draft BEP auto-generated</li>
+    <li>With at least one teammate invited</li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2>Step 1 — Open the new project form</h2>
+  <p>From the tenant dashboard, find the orange <strong>+ New project</strong> button at the top right. Click it. The new-project form opens.</p>
+
+  <h2>Step 2 — Fill the basics</h2>
+  <p>Use these example values (or your real project data):</p>
+  <table>
+    <thead><tr><th>Field</th><th>Example value</th></tr></thead>
+    <tbody>
+      <tr><td>Project name</td><td>Demo Hospital — Wing A</td></tr>
+      <tr><td>Project code</td><td><code>DH-WA</code></td></tr>
+      <tr><td>Sector</td><td>Healthcare</td></tr>
+      <tr><td>Client</td><td>Demo Client Ministry</td></tr>
+      <tr><td>Description</td><td>50-bed wing including paediatrics, maternity, and outpatient.</td></tr>
+      <tr><td>Project value</td><td>$8,400,000</td></tr>
+      <tr><td>Start date</td><td>Today</td></tr>
+      <tr><td>Target completion</td><td>18 months from today</td></tr>
+    </tbody>
+  </table>
+  <p>The "Sector: Healthcare" choice will switch the BEP template default to the NHS / Healthcare variant — you'll see that change reflected in the BEP section below.</p>
+
+  <h2>Step 3 — Drop the GPS pin</h2>
+  <p>Scroll to the GPS section. Three input methods are offered — for this tutorial, use <strong>Pick on map</strong>.</p>
+  <ol>
+    <li>Click "Pick on map".</li>
+    <li>The map opens centred on the world view.</li>
+    <li>Search for "Kampala" in the search box.</li>
+    <li>Click anywhere in Kampala to drop the pin.</li>
+    <li>Click <strong>Use this location</strong>.</li>
+  </ol>
+  <p>The coordinates field auto-fills (something close to <code>0.3136, 32.5811</code>).</p>
+
+  <h2>Step 4 — ISO 19650 setup</h2>
+  <p>Scroll to the ISO 19650 section. Set:</p>
+  <ul>
+    <li><strong>Originator code</strong> — leave as the default (your tenant's code).</li>
+    <li><strong>Volume code</strong> — <code>ZZ</code>.</li>
+    <li><strong>BEP template</strong> — already auto-set to "NHS / Healthcare" because you picked Healthcare as sector. Keep it.</li>
+    <li><strong>Suitability schema</strong> — default S0–S7.</li>
+    <li><strong>Revision schema</strong> — default P/C/A.</li>
+  </ul>
+
+  <h2>Step 5 — RIBA stage</h2>
+  <p>Pick <strong>Stage 4 — Technical Design</strong>. This is a sensible default for any project in active design.</p>
+
+  <h2>Step 6 — Invite a teammate</h2>
+  <p>Scroll to the Initial team section. Click <strong>+ Add member</strong>.</p>
+  <p>For this tutorial, invite yourself at a second email address so you can see how the invite looks. Or invite a colleague — anyone you trust to receive a test invite.</p>
+  <p>Set their role to <strong>Coordinator</strong>. Click <strong>Add</strong>.</p>
+
+  <h2>Step 7 — Create</h2>
+  <p>Hit the orange <strong>Create project</strong> button at the bottom of the form.</p>
+  <p>You'll land on the project dashboard within a couple of seconds.</p>
+
+  <h2>Step 8 — Look around</h2>
+  <p>The project dashboard has these sections — give each one a click to see what's there:</p>
+  <ul>
+    <li><strong>Overview</strong> — RAG status, recent activity, key dates.</li>
+    <li><strong>Issues</strong> — empty (you haven't raised any yet).</li>
+    <li><strong>Documents</strong> — already contains the auto-generated BEP draft as a .docx.</li>
+    <li><strong>Deliverables</strong> — MIDP view. Empty; you can add deliverables here later.</li>
+    <li><strong>Team</strong> — you + the colleague you invited.</li>
+    <li><strong>Settings</strong> — all the project metadata you just configured.</li>
+  </ul>
+
+  <h2>Step 9 — Download &amp; review the auto-generated BEP</h2>
+  <p>Documents tab → <code>BEP Draft v0.1</code> → Download. Open in Word. You'll see a full BEP with:</p>
+  <ul>
+    <li>Project metadata pre-filled (name, code, client, dates).</li>
+    <li>ISO 19650 file-naming convention with your codes baked in.</li>
+    <li>CDE state-machine diagram.</li>
+    <li>NHS-specific sections (HBN cross-references, HTM compliance matrix) because you picked Healthcare.</li>
+    <li>Placeholder sections for your project team to fill in (information requirements, exchange points, etc.).</li>
+  </ul>
+
+  <h2>Step 10 — Customise the BEP and re-upload</h2>
+  <p>Edit the .docx in Word — fill in any of the placeholder sections. Save. Back in Planscape: Documents → BEP → <strong>Upload new version</strong>. Your edit is preserved as v0.2 alongside the auto-generated v0.1.</p>
+
+  <hr class="divider">
+
+  <h2>What you've achieved</h2>
+  <ul>
+    <li>A configured project with ISO 19650 metadata.</li>
+    <li>A geocoded site location ready for mobile use.</li>
+    <li>A team member invited.</li>
+    <li>A draft BEP ready to refine.</li>
+    <li>A working playground to explore the rest of Planscape.</li>
+  </ul>
+
+  <h2>What's next</h2>
+  <ul>
+    <li><a href="/tutorials/install-mobile-app.html">Install the mobile app</a> and sync this project (5 min)</li>
+    <li><a href="/tutorials/raise-issue-from-mobile.html">Raise your first issue from mobile</a> (6 min)</li>
+    <li><a href="/tutorials/install-revit-plugin.html">Install the Revit plugin</a> (7 min)</li>
+    <li><a href="/guides/iso-19650-workflow.html">Read the ISO 19650 workflow guide</a> to understand what's happening under the hood</li>
+  </ul>
+
+  <div class="callout">
+    <strong>Don't want to keep this demo project?</strong> Project Settings → Archive project. Or rename it and use it as your real project — entirely up to you.
+  </div>
+
+  <div class="next-prev">
+    <a href="/tutorials/install-mobile-app.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Install &amp; log into the mobile app
+    </a>
+    <a href="/tutorials/invite-team.html" class="next">
+      <span class="lbl">Next →</span>
+      Invite your team
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.app">hello@planscape.app</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

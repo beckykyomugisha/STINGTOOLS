@@ -15,23 +15,43 @@ marketing-site/
 ├── contact.html           — contact form + WhatsApp + office details
 ├── privacy.html           — privacy policy
 ├── terms.html             — terms of service
-├── robots.txt
-├── sitemap.xml
+├── robots.txt             — search-engine policy
+├── sitemap.xml            — all URLs for crawlers
+├── _headers               — Cloudflare/Netlify HTTP headers (CSP, caching, HSTS)
+├── _redirects             — Cloudflare/Netlify redirect rules (/features → /features.html etc.)
+├── wrangler.toml          — Cloudflare Pages config for `wrangler pages deploy`
+├── DEPLOY.md              — step-by-step deploy + domain-purchase walkthrough
+├── README.md              — this file
 ├── assets/
-│   ├── site.css           — shared styles (nav, footer, cards, forms, articles)
+│   ├── site.css           — shared styles (nav, footer, cards, forms, articles, blog)
 │   ├── nav.html           — nav reference (copy into each page)
 │   ├── footer.html        — footer reference (copy into each page)
 │   └── template-guide.html — boilerplate for new guides/tutorials
-├── guides/
-│   ├── index.html         — guides hub (30+ guide links by category)
+├── guides/                — 9 complete guides + hub with 30+ link slots
+│   ├── index.html
 │   ├── getting-started.html
 │   ├── revit-plugin-setup.html
 │   ├── mobile-onboarding.html
-│   └── … (more to write — use assets/template-guide.html as the starting point)
-└── tutorials/
-    ├── index.html         — tutorials hub (25+ tutorial cards)
-    ├── raise-issue-from-mobile.html
-    └── … (more to write)
+│   ├── inviting-team.html
+│   ├── creating-first-project.html
+│   ├── iso-19650-workflow.html
+│   ├── billing-and-trials.html
+│   ├── self-hosting.html
+│   ├── raising-issues.html
+│   └── gps-site-map.html
+├── tutorials/             — 5 complete tutorials + hub with 25+ link slots
+│   ├── index.html
+│   ├── create-first-project.html
+│   ├── install-mobile-app.html
+│   ├── install-revit-plugin.html
+│   ├── raise-issue-from-mobile.html
+│   └── capture-site-photos.html
+└── blog/                  — 3 posts + RSS feed
+    ├── index.html
+    ├── rss.xml
+    ├── 2026-05-23-why-we-built-planscape.html
+    ├── 2026-05-20-iso-19650-in-east-africa.html
+    └── 2026-05-15-offline-first-mobile-bim.html
 ```
 
 ## Design system
@@ -72,30 +92,19 @@ Component classes (in `site.css`):
 
 ## Deploy
 
-### Cloudflare Pages (recommended — free, fast, no card)
+**Full walkthrough in [DEPLOY.md](./DEPLOY.md)** — covers domain purchase, Cloudflare Pages setup, DNS, email, analytics, and search-engine submission. Total cost: ~$10/year (domain only).
+
+Quick TL;DR for someone who's done this before:
 
 ```bash
-# Drag-drop in the Cloudflare dashboard, or:
-wrangler pages deploy marketing-site --project-name=planscape-marketing
+# Deploy to Cloudflare Pages via CLI
+wrangler pages deploy . --project-name=planscape-marketing
+
+# Or connect GitHub repo in the dashboard: Workers & Pages → Create → Pages → Connect to Git
+# Build settings: framework = None, build command = empty, output dir = marketing-site
 ```
 
-DNS in Cloudflare:
-
-```
-A     planscape.app      → Cloudflare proxy
-CNAME www.planscape.app  → planscape.app
-```
-
-### GitHub Pages
-
-Add the `marketing-site/` folder as the Pages source (Settings → Pages → branch `main`, folder `/marketing-site`).
-Cloudflare DNS / CNAME pointing at `<user>.github.io` if you want a custom domain.
-
-### Netlify
-
-```bash
-netlify deploy --dir=marketing-site --prod
-```
+The `_headers`, `_redirects`, and `wrangler.toml` are pre-configured for Cloudflare Pages. They also work on Netlify with minimal changes.
 
 ## Environment placeholders
 
@@ -119,15 +128,20 @@ Keep each page under 200 KB on the wire so it loads fast on slow East African mo
 - Guides / tutorials ~ 12 KB each
 - `site.css` ~ 11 KB (shared, cached)
 
-## What's not built yet
+## What's already written vs still to write
 
-Most guide and tutorial pages on the hubs link to pages that don't yet exist. The hub pages are deliberately comprehensive so the SEO structure and editorial direction are clear. Fill in the actual articles using `assets/template-guide.html` as the starting point.
+**Top-level pages** — all complete: index, features, pricing, about, contact, privacy, terms.
 
-Priority guides to write next (highest impact for trial conversions):
+**Guides** — 9 complete (getting-started, revit-plugin-setup, mobile-onboarding, inviting-team, creating-first-project, iso-19650-workflow, billing-and-trials, self-hosting, raising-issues, gps-site-map). ~20 more linked from the hub for editorial direction.
 
-1. `guides/iso-19650-workflow.html`
-2. `guides/billing-and-trials.html`
-3. `guides/self-hosting.html`
-4. `tutorials/install-mobile-app.html`
-5. `tutorials/install-revit-plugin.html`
-6. `tutorials/sync-revit-to-cloud.html`
+**Tutorials** — 5 complete (create-first-project, install-mobile-app, install-revit-plugin, raise-issue-from-mobile, capture-site-photos). ~20 more linked from the hub.
+
+**Blog** — 3 complete posts (why-we-built-planscape, iso-19650-in-east-africa, offline-first-mobile-bim) + RSS feed.
+
+Priority articles to write next:
+
+1. `guides/photo-capture.html` (referenced by raising-issues + capture-site-photos)
+2. `guides/auto-tagging.html` (highest-volume Revit-plugin command)
+3. `tutorials/sync-revit-to-cloud.html` (key conversion driver for Revit users)
+4. `tutorials/gps-site-map.html` (key mobile-first workflow)
+5. `tutorials/tag-elements-in-revit.html` (advanced ISO 19650 workflow)

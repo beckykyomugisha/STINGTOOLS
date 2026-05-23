@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Install the Revit plugin — Planscape tutorial</title>
+<meta name="description" content="Download, install, license-bind the Planscape Revit plugin on Revit 2025/26/27. 7-minute walkthrough.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.app/tutorials/install-revit-plugin.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/" style="color:var(--accent)">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/tutorials/">Tutorials</a> &rsaquo; Install the Revit plugin</div>
+  <h1>Install the Revit plugin</h1>
+  <div class="meta">⏱️ 7 minutes · Beginner · Last updated 2026-05-23</div>
+
+  <p>The Planscape Revit plugin (STING Tools) brings 763+ commands to your Revit ribbon and dockable panel. This tutorial walks through downloading, installing, and signing in on a single workstation.</p>
+
+  <div class="callout">
+    <strong>Before you start:</strong>
+    <ul>
+      <li>Windows 10 or 11 with Revit 2025, 2026, or 2027 installed.</li>
+      <li>A Planscape account (free trial works).</li>
+      <li>Admin rights on your machine — only needed if you choose "all users" install.</li>
+    </ul>
+  </div>
+
+  <h2>Step 1 — Download the plugin</h2>
+  <ol>
+    <li>Go to <a href="https://planscape.app/">planscape.app</a> and sign in.</li>
+    <li>Open any project workspace.</li>
+    <li>Click <strong>Tools → Download Revit plugin</strong>.</li>
+    <li>You get <code>StingTools.zip</code> (about 45 MB).</li>
+  </ol>
+
+  <h2>Step 2 — Pick a Revit version folder</h2>
+  <p>On your Windows machine, press <code>Win + R</code> to open the Run dialog. Paste this path and hit Enter:</p>
+  <pre><code>%APPDATA%\Autodesk\Revit\Addins\</code></pre>
+  <p>You'll see folders for each Revit version installed (2025, 2026, 2027). Open the one matching your Revit. If the folder doesn't exist, create it.</p>
+  <div class="callout">
+    <strong>Pick one Revit version per machine.</strong> If you have multiple Revit versions and want the plugin in all of them, copy the files into each folder separately.
+  </div>
+
+  <h2>Step 3 — Extract the ZIP</h2>
+  <ol>
+    <li>Open the downloaded <code>StingTools.zip</code>.</li>
+    <li>Select all contents (Ctrl+A).</li>
+    <li>Copy / drag everything into the Addins folder you opened in Step 2.</li>
+  </ol>
+  <p>The folder should now contain:</p>
+  <ul>
+    <li><code>StingTools.addin</code></li>
+    <li><code>StingTools.dll</code></li>
+    <li><code>Newtonsoft.Json.dll</code> + a few other supporting DLLs</li>
+    <li><code>data/</code> subdirectory with 72 runtime data files</li>
+  </ul>
+
+  <h2>Step 4 — Start Revit</h2>
+  <p>Launch Revit. Wait for it to fully load (open the home screen at minimum). You should see:</p>
+  <ul>
+    <li>A new <strong>STING Tools</strong> tab on the Revit ribbon</li>
+    <li>A dockable panel on the right side called "Planscape"</li>
+  </ul>
+  <p>If you don't see them, see the troubleshooting section at the bottom.</p>
+
+  <h2>Step 5 — Allow the addin (first run only)</h2>
+  <p>Revit checks the digital signature of each addin and asks you to confirm on first load:</p>
+  <ol>
+    <li>You'll see a dialog: "Planscape Ltd — Always Load / Load Once / Do Not Load".</li>
+    <li>Click <strong>Always Load</strong>.</li>
+  </ol>
+  <p>Subsequent Revit launches load the plugin without asking.</p>
+
+  <h2>Step 6 — Sign in</h2>
+  <ol>
+    <li>In the dockable panel, click the <strong>Sign in</strong> button at the bottom-left.</li>
+    <li>Enter your Planscape email + password.</li>
+    <li>If you're a member of multiple firms, pick the firm to bind to.</li>
+    <li>Pick the project you want to work on.</li>
+  </ol>
+  <p>The panel header changes to show your name, the project, and a green "Connected" status.</p>
+
+  <h2>Step 7 — Run the smoke test</h2>
+  <p>Confirm the plugin actually does something:</p>
+  <ol>
+    <li>Open any Revit project (a sample if you don't have one).</li>
+    <li>In the dockable panel, click the <strong>SELECT</strong> tab.</li>
+    <li>Click <strong>Lighting Fixtures</strong>.</li>
+    <li>You should see a count of lighting fixtures in the active view (or "0 found" if there aren't any).</li>
+  </ol>
+  <p>If that works, the plugin is correctly installed.</p>
+
+  <h2>Step 8 — Optional first-run setup</h2>
+  <p>The plugin offers to do project-level setup the first time you open a project on a logged-in account:</p>
+  <ul>
+    <li><strong>Load shared parameters?</strong> — Yes, on new projects. Binds the 2,555 STING shared parameters. ~30 seconds.</li>
+    <li><strong>Apply ISO 19650 view templates?</strong> — Yes on a brand new project; No if you've set them up manually.</li>
+    <li><strong>Run compliance scan?</strong> — Yes. Surfaces orphaned elements or non-compliant naming up front.</li>
+  </ul>
+  <p>You can skip these and run them later from the SETUP tab.</p>
+
+  <hr class="divider">
+
+  <h2>Troubleshooting</h2>
+
+  <h3>I don't see the STING Tools tab</h3>
+  <ol>
+    <li>Is <code>StingTools.addin</code> actually in the Addins folder? Files starting with a dot can be hidden — switch on "show hidden files" in Explorer.</li>
+    <li>Open <code>StingTools.addin</code> in Notepad. The <code>&lt;Assembly&gt;</code> element should point to a file that exists in the same folder.</li>
+    <li>Check the log: <code>%LOCALAPPDATA%\Planscape\StingTools.log</code> — last few lines usually explain.</li>
+  </ol>
+
+  <h3>"Cannot connect to api.planscape.app"</h3>
+  <ul>
+    <li>Most common cause: your corporate firewall blocks outbound HTTPS.</li>
+    <li>Ask IT to allow outbound 443 to <code>api.planscape.app</code>.</li>
+    <li>You can still use most non-sync commands offline.</li>
+  </ul>
+
+  <h3>The dockable panel won't appear</h3>
+  <p>Revit hides docked panels by default. From the Revit menu:</p>
+  <pre><code>View → User Interface → STING Tools Panel</code></pre>
+
+  <h3>"This addin is not signed by a trusted publisher"</h3>
+  <p>Revit's security policy is strict. Click <strong>Always Load</strong> — we sign every release with a code-signing certificate from Planscape Ltd. If "Publisher: Unknown" instead of "Publisher: Planscape Ltd", you probably have a corrupted download. Re-download from your project workspace.</p>
+
+  <hr class="divider">
+
+  <h2>What's next</h2>
+  <ul>
+    <li><a href="/tutorials/tag-elements-in-revit.html">Tag elements in Revit (ISO 19650)</a> (10 min)</li>
+    <li><a href="/tutorials/sync-revit-to-cloud.html">Sync your Revit model to the cloud</a> (5 min)</li>
+    <li><a href="/tutorials/run-clash-detection.html">Run clash detection</a> (12 min)</li>
+    <li><a href="/guides/revit-plugin-setup.html">Read the full Revit plugin guide</a></li>
+  </ul>
+
+  <div class="next-prev">
+    <a href="/tutorials/install-mobile-app.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Install &amp; log into the mobile app
+    </a>
+    <a href="/tutorials/tag-elements-in-revit.html" class="next">
+      <span class="lbl">Next →</span>
+      Tag elements in Revit
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.app">hello@planscape.app</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

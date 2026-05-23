@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Using the GPS site map — Planscape</title>
+<meta name="description" content="Centre the map on your project, drop pins, share live coordinator position, navigate to issues. Works offline.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.app/guides/gps-site-map.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Using the GPS site map</div>
+  <h1>Using the GPS site map</h1>
+  <div class="meta">📖 7-minute read · Beginner · Last updated 2026-05-23</div>
+
+  <p>The GPS site map is the second screen most coordinators open after the issue list. It plots every issue on a Mapbox map centred on your project, shows where you are right now, and lets you drop new pins with a long-press. This guide covers the basics, the offline behaviour, and the small features that make it useful on site.</p>
+
+  <h2>Opening the map</h2>
+  <p>Bottom tab bar &rsaquo; <strong>Map</strong>. The map loads centred on your project's GPS coordinates with all open issues plotted.</p>
+
+  <h2>Pin colours</h2>
+  <table>
+    <thead><tr><th>Pin colour</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>🔴 Red</td><td>Open issue</td></tr>
+      <tr><td>🟠 Amber</td><td>In-progress issue</td></tr>
+      <tr><td>🟢 Green</td><td>Resolved issue (last 7 days)</td></tr>
+      <tr><td>🔵 Blue (pulsing)</td><td>You — live GPS position</td></tr>
+    </tbody>
+  </table>
+  <p>Resolved-and-verified issues older than 7 days are hidden by default to reduce clutter. Toggle via Filter → "Show resolved older than 7d".</p>
+
+  <h2>Interacting with pins</h2>
+
+  <h3>Tap a pin</h3>
+  <p>Opens the issue summary bottom sheet: title, status, assignee, raised date, first photo thumbnail. Tap "View full issue" to open the detail screen.</p>
+
+  <h3>Long-press a pin</h3>
+  <p>Quick actions: Assign, Change status, Add comment, Get directions.</p>
+
+  <h3>Long-press anywhere on the map</h3>
+  <p>Opens the new-issue form with the tapped point's GPS coordinates pre-filled. Fastest way to raise an issue when you're not standing right at the location.</p>
+
+  <h2>Live position</h2>
+  <p>The blue pulsing dot is you. It updates every 5 seconds (or whenever you've moved &gt; 3m). Tap the blue compass-needle button in the bottom-right to centre the map on you.</p>
+  <p>The "Share live position with team" toggle (Map &rsaquo; Settings) makes your position visible to other project members. Useful during coordinated site walks.</p>
+
+  <h2>Search &amp; filter</h2>
+  <p>Top of the map screen has search + filter:</p>
+  <ul>
+    <li><strong>Search</strong> — finds issues by title or tag. Matching pins highlight, others fade.</li>
+    <li><strong>Filter</strong> — by type, priority, assignee, age. Persists across sessions.</li>
+  </ul>
+
+  <h2>Layers</h2>
+  <p>Top-right layers icon opens the layer panel:</p>
+  <ul>
+    <li><strong>Issues</strong> — toggle off to declutter when you just want the map.</li>
+    <li><strong>Site boundary</strong> — if you've drawn a boundary polygon under Project Settings → Site boundary.</li>
+    <li><strong>Workspaces / compounds</strong> — admin-defined sub-areas.</li>
+    <li><strong>Team positions</strong> — other coordinators' live positions if they've shared.</li>
+    <li><strong>Photo locations</strong> — every captured site photo plotted as a small camera icon.</li>
+  </ul>
+
+  <h2>Map styles</h2>
+  <p>Tap the map-style icon (stack-of-paper) to switch between:</p>
+  <ul>
+    <li><strong>Streets</strong> — default. Best for navigation.</li>
+    <li><strong>Satellite</strong> — best for seeing actual site features.</li>
+    <li><strong>Hybrid</strong> — satellite + street names.</li>
+    <li><strong>Dark</strong> — easier on the eyes in night-shift work.</li>
+  </ul>
+
+  <h2>Navigation to an issue</h2>
+  <p>Tap a pin → "Get directions". Opens your phone's default map app (Apple Maps / Google Maps) with the issue's GPS as destination.</p>
+
+  <h2>Offline behaviour</h2>
+  <p>Mapbox tiles within a 5km radius of your project pin are pre-cached when you first open the project. While offline:</p>
+  <ul>
+    <li>The map renders from the cache at all zoom levels.</li>
+    <li>Your live position keeps updating.</li>
+    <li>Pins for cached issues display correctly.</li>
+    <li>New pins (issues raised offline) appear as outlined-only markers until they sync.</li>
+    <li>Pan/zoom outside the cached area shows a grey grid with "Offline — tiles not cached".</li>
+  </ul>
+
+  <h2>Pre-syncing tiles</h2>
+  <p>If your project covers a larger area than 5km radius:</p>
+  <ol>
+    <li>Map &rsaquo; Settings &rsaquo; Tile cache &rsaquo; <strong>Extend cache</strong>.</li>
+    <li>Pan + zoom to define the area you need offline.</li>
+    <li>Tap "Cache this area" — downloads happen in the background.</li>
+  </ol>
+  <p>Each km² adds ~5 MB to your phone's storage. A typical 5×5km cache is ~125 MB.</p>
+
+  <h2>Battery considerations</h2>
+  <p>The map with live GPS uses ~10% of a modern phone's battery per hour. To reduce:</p>
+  <ul>
+    <li>Map &rsaquo; Settings &rsaquo; <strong>GPS accuracy: Balanced</strong> (drops accuracy from ±3m to ±10m, halves battery use).</li>
+    <li>Stop sharing live position when you don't need to.</li>
+    <li>Lower screen brightness — usually the bigger drain.</li>
+  </ul>
+
+  <h2>Privacy</h2>
+  <p>Your live position is only visible to other members of the same project, and only if you've turned on Share. Position history is not stored — once you stop sharing, the data is gone.</p>
+  <p>Photo geotags are visible to anyone with photo access. If you don't want photos geotagged, disable in Profile → Settings → Photos → "Geotag captures: Off".</p>
+
+  <h2>Common issues</h2>
+
+  <h3>"Map is blank / centred on Kampala"</h3>
+  <p>Your project's GPS coordinates haven't been set. Open the project on the web app → Settings → GPS coordinates → drop a pin or paste lat/lng.</p>
+
+  <h3>"My position keeps drifting"</h3>
+  <p>Indoor GPS is noisy. Step outside briefly to re-acquire signal. Indoors you can manually drop pins instead.</p>
+
+  <h3>"Tiles won't cache"</h3>
+  <p>You need to be online when you trigger pre-cache — the tiles download from Mapbox. Check your connection and try again. If you're on cellular and have data caps, do it on WiFi.</p>
+
+  <h3>"Issue pins are missing"</h3>
+  <p>Check the filter panel — you may have filters applied that hide them. Reset filters to default.</p>
+
+  <h2>What's next</h2>
+  <ul>
+    <li><a href="/guides/raising-issues.html">Raising and resolving issues</a></li>
+    <li><a href="/guides/photo-capture.html">Capturing site photos</a></li>
+    <li><a href="/tutorials/gps-site-map.html">Tutorial: Use the GPS site map</a></li>
+  </ul>
+
+  <div class="next-prev">
+    <a href="/guides/sharing-with-clients.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Sharing projects with clients
+    </a>
+    <a href="/guides/raising-issues.html" class="next">
+      <span class="lbl">Next →</span>
+      Raising and resolving issues
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.app">hello@planscape.app</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,28 @@
+# Cloudflare Pages / Netlify redirects
+# Format: <from> <to> <status>
+# 301 = permanent, 302 = temporary
+
+# Legacy URLs
+/docs           https://docs.planscape.app/    301
+/docs/*         https://docs.planscape.app/:splat 301
+
+# Cleaner URLs without .html
+/features       /features.html                 301
+/pricing        /pricing.html                  301
+/about          /about.html                    301
+/contact        /contact.html                  301
+/privacy        /privacy.html                  301
+/terms          /terms.html                    301
+
+# App routes — proxy to the API for signup / login
+/signup         https://api.planscape.app/auth/signup 302
+/login          https://api.planscape.app/auth/login  302
+/app            https://app.planscape.app/             302
+/app/*          https://app.planscape.app/:splat       302
+
+# API
+/api/*          https://api.planscape.app/:splat       200
+
+# Old WordPress-style paths (just in case)
+/?p=*           /blog/                          301
+/category/*     /blog/                          301

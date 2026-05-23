@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ISO 19650 in East Africa — what actually applies — Planscape blog</title>
+<meta name="description" content="ISO 19650 was written with UK practice in mind. Here's what to adopt, what to adapt, and what to skip when delivering in East Africa.">
+<meta property="og:title" content="ISO 19650 in East Africa — what actually applies">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-05-20T08:00:00+03:00">
+<meta property="og:url" content="https://planscape.app/blog/2026-05-20-iso-19650-in-east-africa.html">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.app/blog/2026-05-20-iso-19650-in-east-africa.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/blog/" style="color:var(--accent)">Blog</a>
+    <a href="/about.html">About</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/blog/">Blog</a> &rsaquo; ISO 19650 in East Africa</div>
+  <h1>ISO 19650 in East Africa — what actually applies</h1>
+  <div class="meta">20 May 2026 · 9-minute read · By the Planscape team</div>
+
+  <p>If you've worked on a UK-funded project in East Africa in the last five years, you've been asked for ISO 19650 compliance. If you've worked on a donor-funded project — World Bank, AfDB, EIB, USAID, DFI portfolio — the chances are even higher.</p>
+
+  <p>The standard is good. But it was written with UK practice in mind: the Building Regulations 2010 framework, the UK BIM Framework's interpretation, NHS Estates' adoption pattern, even the language ("appointing party" / "lead appointed party") was tuned to UK procurement law. Most of it transposes cleanly to East African work. Some of it doesn't. And a few of the "best practice" extensions that float around (UK BIM Framework Information Protocol, BS 8536, the PAS series remnants) will get you in awkward conversations with local authorities.</p>
+
+  <p>This is our running guide — what we tell our team and what we tell new clients. It's opinionated. We're happy to be argued out of any of it.</p>
+
+  <h2>The core that always applies</h2>
+
+  <p>These bits of ISO 19650 are universal. Adopt without modification:</p>
+
+  <ul>
+    <li><strong>The information management lifecycle (Part 1).</strong> Concept → delivery → operation. The diagram in §5.1 of ISO 19650-1 is correct regardless of jurisdiction.</li>
+    <li><strong>The roles (Part 2 §5.1).</strong> Appointing party / lead appointed party / appointed party / task team. The vocabulary maps cleanly to your client / lead consultant / sub-consultant structure in any jurisdiction.</li>
+    <li><strong>The CDE state machine.</strong> WIP → Shared → Published → Archived. Universal — this isn't even a UK concept; it's an information-management invariant.</li>
+    <li><strong>The file-naming convention (Part 2 Annex A).</strong> Project–Originator–Volume–Level–Type–Role–Number is sensible everywhere. The codes aren't sacred — but the structure is.</li>
+    <li><strong>The suitability codes (S0–S7).</strong> Universal.</li>
+    <li><strong>The revision schema (P / C / A).</strong> Universal.</li>
+    <li><strong>The audit-trail requirement (§5.6).</strong> Universal — and in our experience, the bit that earns its keep faster than any other when disputes arise.</li>
+  </ul>
+
+  <h2>The UK-specific bits to adapt</h2>
+
+  <p>These need translation for local practice:</p>
+
+  <h3>UK BIM Framework Information Protocol</h3>
+  <p>Annex A of the protocol assumes UK procurement: NEC contracts, JCT terms, references to UK CDM Regulations. The information requirements model is fine; the contract-clause integration won't survive a Ugandan or Kenyan procurement context. Use the IR structure, draft the contract clauses yourself with local counsel.</p>
+
+  <h3>The "OIR / AIR / EIR" cascade</h3>
+  <p>UK clients (especially NHS Estates) have well-developed OIRs and AIRs. Most East African clients don't. Telling a Ministry of Health that they need to issue an OIR before you can proceed will produce blank looks. Either draft the OIR/AIR yourself in consultation with the client team, or adopt a "presumed information needs" approach where you specify what you'll deliver and they sign it off.</p>
+
+  <h3>BS 1192:2007 references</h3>
+  <p>The earlier BS 1192 was the precursor to ISO 19650. Several UK guides still reference it. Where your project documents reference BS 1192 specifically, either swap the reference to ISO 19650-2 (which supersedes it) or, where the BS detail is more specific than ISO 19650, retain BS 1192 alongside.</p>
+
+  <h2>The bits that don't apply — and don't try to make them</h2>
+
+  <h3>BS 8536-1 / -2 ("Briefing for design and construction")</h3>
+  <p>UK-specific framework for the briefing process. Useful conceptual reading; not contractually applicable here. Don't pretend it is.</p>
+
+  <h3>UK government Soft Landings</h3>
+  <p>The handover-and-aftercare framework is UK-specific. The Soft Landings concept (better commissioning, better handover, post-occupancy evaluation) is universally good — but the formal framework references UK Government Construction Strategy 2025, BSRIA's specific guidance, and assumes a UK FM market structure. Borrow the ideas; don't try to formally adopt the framework.</p>
+
+  <h3>NEC4 BIM-specific clauses</h3>
+  <p>If your contract isn't NEC4 (and most East African public-sector contracts aren't), don't import the NEC4 BIM clauses verbatim. The intent is fine; the wording assumes NEC4 procedural language.</p>
+
+  <h2>What East African delivery adds</h2>
+
+  <p>Things ISO 19650 doesn't cover that you'll need:</p>
+
+  <h3>Donor-funded reporting requirements</h3>
+  <p>World Bank, AfDB, IFC, EIB — each has its own information reporting templates and frequencies. Your BIM Execution Plan should reference them explicitly. Most have an "environmental and social management framework" that requires geo-tagged photographic evidence of progress — fit naturally into the audit trail you've built for ISO 19650 anyway.</p>
+
+  <h3>Local building authority approvals</h3>
+  <p>Kampala City Authority, Nairobi County, Lagos State Physical Planning Permit Authority — each has its own drawing submission requirements. They typically want stamped PDFs, not IFC. Plan a workflow that produces both: your BIM-native deliverables for the design team, and authority-stamped PDFs from the same source.</p>
+
+  <h3>Multi-currency cost reporting</h3>
+  <p>Most large projects mix local-currency contracts with USD-denominated equipment imports. Your information requirements should call out which costs are reported in which currency, and what FX rate fix point applies. ISO 19650 is currency-agnostic; your BEP shouldn't be.</p>
+
+  <h3>French-language deliverables (for francophone West Africa)</h3>
+  <p>If you're working in francophone West Africa, you need bilingual document sets — French for the client, English for international consultants. ISO 19650 has French versions of the standard; the vocabulary table is in NF EN ISO 19650-1:2019.</p>
+
+  <h2>Compliance evidence — what we recommend</h2>
+
+  <p>When a donor auditor or sceptical client asks "show us your ISO 19650 compliance," these are the artefacts that pass without fuss:</p>
+
+  <ol>
+    <li><strong>Signed BEP</strong> with version history.</li>
+    <li><strong>MIDP</strong> with status against each deliverable.</li>
+    <li><strong>CDE state log</strong> — every file's transition history from WIP to Published.</li>
+    <li><strong>Suitability-coded deliverable register</strong> — S2 / S4 / S6 visible per file.</li>
+    <li><strong>Hash-chained audit log</strong> — proves no tampering. Run the chain-verify command live for the auditor; takes 5 seconds.</li>
+    <li><strong>Transmittal log</strong> — every Published deliverable, who it went to, when.</li>
+  </ol>
+
+  <p>If you can produce these six in a single export, you'll pass any ISO 19650 audit we've ever seen. Planscape does it as a one-click bundle — but the principle applies regardless of tool.</p>
+
+  <h2>Things we wish the standard said more clearly</h2>
+
+  <ul>
+    <li><strong>Naming for federation files.</strong> ISO 19650-2 Annex A is great for individual file naming but unclear about how to name the federation that combines them. We use <code>&lt;Project&gt;-&lt;Originator&gt;-ZZ-ZZ-FD-&lt;Discipline&gt;-&lt;Number&gt;</code> where <code>FD</code> = federation. Borrowed pragmatically from a UK firm's house style.</li>
+    <li><strong>Phase-handover vs project-handover.</strong> Multi-phase projects (e.g. four hospital wings delivered over three years) need clearer handover guidance than the standard gives. Plan it in the BEP.</li>
+    <li><strong>Sub-consultant TIDP relationships.</strong> When you have three layers of sub-consultancy (lead → primary sub → sub-sub-sub), the TIDP roll-up gets ambiguous. We map every actor explicitly in the BEP.</li>
+  </ul>
+
+  <h2>Closing</h2>
+
+  <p>ISO 19650 is the right baseline. It's worth the investment to learn it. But it isn't a tick-box and it isn't a UK-only thing — it's a structured way to manage information across the lifecycle, and most of it works fine for East African delivery.</p>
+
+  <p>The bits you adapt (OIR/AIR, contract clauses), the bits you replace (procurement-law references), and the bits you add (donor reporting, multi-currency, local authority workflows) all sit comfortably alongside the standard's core.</p>
+
+  <p>If you'd like to talk about ISO 19650 adoption on your project — happy to. Drop us a line at <a href="mailto:hello@planscape.app">hello@planscape.app</a>.</p>
+
+  <div class="next-prev">
+    <a href="/blog/2026-05-23-why-we-built-planscape.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Why we built Planscape
+    </a>
+    <a href="/blog/2026-05-15-offline-first-mobile-bim.html" class="next">
+      <span class="lbl">Next →</span>
+      Building an offline-first mobile BIM tool
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.app">hello@planscape.app</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

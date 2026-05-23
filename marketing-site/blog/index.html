@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blog — Planscape</title>
+<meta name="description" content="Notes from the Planscape team — BIM coordination, ISO 19650, African AEC delivery, product updates, engineering write-ups.">
+<meta property="og:title" content="Planscape blog">
+<meta property="og:url" content="https://planscape.app/blog/">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.app/blog/">
+<link rel="alternate" type="application/rss+xml" title="Planscape blog RSS" href="/blog/rss.xml">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.post-card {
+  display:flex; flex-direction:column;
+  background:var(--card); border:1px solid var(--line);
+  border-radius:14px; padding:24px;
+  text-decoration:none; color:inherit;
+  transition: border-color 0.15s, transform 0.1s;
+  margin-bottom:16px;
+}
+.post-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+.post-card .pmeta { font-size:13px; color:var(--muted); margin-bottom:8px; }
+.post-card .pmeta .tag { display:inline-block; background:rgba(232,145,45,0.1); color:var(--accent); padding:2px 8px; border-radius:999px; font-weight:600; font-size:11px; margin-right:6px; }
+.post-card h2 { margin:0 0 8px; font-size:22px; color:var(--ink); }
+.post-card p { margin:0; color:var(--muted); font-size:15px; line-height:1.5; }
+.post-card .readmore { color:var(--accent); font-weight:600; font-size:14px; margin-top:12px; }
+.rss-strip {
+  background:var(--card); border:1px solid var(--line);
+  border-radius:10px; padding:14px 18px;
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:14px; color:var(--muted);
+  margin:32px 0;
+  flex-wrap:wrap; gap:12px;
+}
+.rss-strip a { color:var(--accent); font-weight:600; }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/blog/" style="color:var(--accent)">Blog</a>
+    <a href="/about.html">About</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<header class="page-header">
+  <h1>The Planscape blog</h1>
+  <p>Notes from the team on BIM coordination, ISO 19650 in the African delivery context, engineering write-ups, and product updates.</p>
+</header>
+
+<section style="padding-top:0;max-width:780px">
+
+  <div class="rss-strip">
+    <span>📡 Subscribe to the RSS feed</span>
+    <a href="/blog/rss.xml">/blog/rss.xml →</a>
+  </div>
+
+  <a href="/blog/2026-05-23-why-we-built-planscape.html" class="post-card">
+    <div class="pmeta">
+      <span class="tag">Founder note</span>
+      <span>23 May 2026 · 6-minute read · By the Planscape team</span>
+    </div>
+    <h2>Why we built Planscape</h2>
+    <p>We were paying for Autodesk Construction Cloud seats we never used, sweating the FX spread every month, and watching our coordinators screenshot clashes into WhatsApp groups because the official tool didn't work without 4G. So we built the thing we wished existed.</p>
+    <div class="readmore">Read more →</div>
+  </a>
+
+  <a href="/blog/2026-05-20-iso-19650-in-east-africa.html" class="post-card">
+    <div class="pmeta">
+      <span class="tag">ISO 19650</span>
+      <span>20 May 2026 · 9-minute read · By the Planscape team</span>
+    </div>
+    <h2>ISO 19650 in East Africa — what actually applies</h2>
+    <p>ISO 19650 was written with UK practice in mind. Most of it transposes cleanly to East African delivery — but some bits don't, and a few of the "best practice" guides from the UK BIM Framework will get you in trouble with local building authorities. Here's our running guide to what to adopt, what to adapt, and what to skip.</p>
+    <div class="readmore">Read more →</div>
+  </a>
+
+  <a href="/blog/2026-05-15-offline-first-mobile-bim.html" class="post-card">
+    <div class="pmeta">
+      <span class="tag">Engineering</span>
+      <span>15 May 2026 · 11-minute read · By the Planscape team</span>
+    </div>
+    <h2>Building an offline-first mobile BIM tool</h2>
+    <p>Five lessons from a year of building Planscape's mobile app for sites with no fibre, intermittent 4G, and the occasional total outage. Conflict resolution, replay queues, why we chose SQLite over Realm, and how the federated model loads on a 3-year-old Android.</p>
+    <div class="readmore">Read more →</div>
+  </a>
+
+  <hr class="divider">
+
+  <p class="text-center muted" style="font-size:14px">
+    Want to write a guest post? <a href="mailto:hello@planscape.app" style="color:var(--accent);font-weight:600">Pitch us</a>.
+  </p>
+</section>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.app">hello@planscape.app</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>
