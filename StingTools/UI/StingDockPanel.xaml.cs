@@ -20,6 +20,14 @@ using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 using System.Text.RegularExpressions;
 
+// Autodesk.Revit.UI ships TextBox + ComboBox types that collide with
+// System.Windows.Controls equivalents used by the WPF dockable panel.
+// Alias the WPF types so this file's controls code compiles without
+// having to fully-qualify every call site.
+using TextBox = System.Windows.Controls.TextBox;
+using ComboBox = System.Windows.Controls.ComboBox;
+using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+
 namespace StingTools.UI
 {
     /// <summary>

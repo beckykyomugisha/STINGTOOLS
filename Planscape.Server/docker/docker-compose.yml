@@ -219,6 +219,51 @@ services:
       - "4318:4318"  # OTLP HTTP
     restart: unless-stopped
 
+  # ── Observability stack (MON-01/02/03) ─────────────────────────────────
+  # Opt-in via profile so they never run by default:
+  #   docker compose --profile observability up -d
+  # Then set in appsettings.*.json or env:
+  #   Serilog__Seq__ServerUrl=http://seq:5341
+  #   (Prometheus scrapes http://api:8080/metrics automatically via prometheus.yml)
+  seq:
+    image: datalust/seq:2024.3
+    profiles: ["observability"]
+    environment:
+      ACCEPT_EULA: "Y"
+    volumes:
+      - seqdata:/data
+    ports:
+      - "5341:80"   # UI + ingestion
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    profiles: ["observability"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    profiles: ["observability"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-planscape}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:
