@@ -12,7 +12,11 @@
       "protectionAngleDeg_60m": 0,
       "downConductorSpacingM": 10,
       "minConductorCrossSectionMm2": 50,
-      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
+      "minConductorCrossSectionMm2ByMaterial": {
+        "COPPER": 50,
+        "ALUMINIUM": 70,
+        "STEEL": 50
+      },
       "inspectionIntervalMonths": 12,
       "earthResistanceTargetOhm": 10.0,
       "kiFactor": 0.08,
@@ -29,7 +33,11 @@
       "protectionAngleDeg_60m": 0,
       "downConductorSpacingM": 10,
       "minConductorCrossSectionMm2": 50,
-      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
+      "minConductorCrossSectionMm2ByMaterial": {
+        "COPPER": 50,
+        "ALUMINIUM": 70,
+        "STEEL": 50
+      },
       "inspectionIntervalMonths": 12,
       "earthResistanceTargetOhm": 10.0,
       "kiFactor": 0.06,
@@ -46,11 +54,15 @@
       "protectionAngleDeg_60m": 0,
       "downConductorSpacingM": 15,
       "minConductorCrossSectionMm2": 50,
-      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
+      "minConductorCrossSectionMm2ByMaterial": {
+        "COPPER": 50,
+        "ALUMINIUM": 70,
+        "STEEL": 50
+      },
       "inspectionIntervalMonths": 24,
       "earthResistanceTargetOhm": 10.0,
       "kiFactor": 0.04,
-      "protectionEfficiency": 0.90
+      "protectionEfficiency": 0.9
     },
     {
       "id": "IV",
@@ -63,11 +75,15 @@
       "protectionAngleDeg_60m": 25,
       "downConductorSpacingM": 20,
       "minConductorCrossSectionMm2": 50,
-      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
+      "minConductorCrossSectionMm2ByMaterial": {
+        "COPPER": 50,
+        "ALUMINIUM": 70,
+        "STEEL": 50
+      },
       "inspectionIntervalMonths": 24,
       "earthResistanceTargetOhm": 10.0,
       "kiFactor": 0.04,
-      "protectionEfficiency": 0.80
+      "protectionEfficiency": 0.8
     }
   ],
   "materialFactors": {
@@ -78,9 +94,36 @@
   },
   "tolerableRisk": {
     "_comment": "Tolerable annual risk Rt per loss type (BS EN 62305-2 Table 7).",
-    "L1_human_life":      0.00001,
-    "L2_public_service":  0.001,
-    "L3_cultural":        0.0001,
-    "L4_economic":        0.001
+    "L1_human_life": 1e-05,
+    "L2_public_service": 0.001,
+    "L3_cultural": 0.0001,
+    "L4_economic": 0.001
+  },
+  "standardToClassMap": {
+    "_comment": "Wave E #19 — translate LPS class IDs between standards. STING normalises everything to BS EN 62305 (I/II/III/IV); this table tells consumers how to display per-standard.",
+    "BS_EN_62305": {
+      "I": "I",
+      "II": "II",
+      "III": "III",
+      "IV": "IV"
+    },
+    "IEC_62305": {
+      "I": "I",
+      "II": "II",
+      "III": "III",
+      "IV": "IV"
+    },
+    "NFPA_780": {
+      "I": "I (≤23m)",
+      "II": "II (23-46m)",
+      "III": "III (46-77m)",
+      "IV": "IV (>77m)"
+    },
+    "NFC_17_102": {
+      "I": "1",
+      "II": "2",
+      "III": "3",
+      "IV": "4"
+    }
   }
 }

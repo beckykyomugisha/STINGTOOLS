@@ -2857,6 +2857,12 @@
       "purpose": "*",
       "discipline": "*",
       "stylePackId": "corp-base"
+    },
+    {
+      "viewStylePackId": "corp-elec-lps",
+      "disciplineMatches": "^E$",
+      "purposeMatches": "^(Plan|Coordination)$",
+      "drawingTypeMatches": "^elec-lps-.*$"
     }
   ]
 }

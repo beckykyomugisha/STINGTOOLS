@@ -77,6 +77,7 @@ namespace StingTools.Core
                 RegisterElectricalPanel(application);
                 RegisterPlumbingPanel(application);
                 RegisterHvacPanel(application);
+                RegisterLpsPanel(application);
 
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
@@ -86,6 +87,12 @@ namespace StingTools.Core
                 // when geometry / material / type changes invalidate a costed
                 // element so the QS sees the stale BOQ row before exporting.
                 StingCostStaleMarker.Register(application);
+
+                // Wave 3 — flag LPS elements (ATs / DCs / earth / bonding /
+                // SPDs) as stale when their geometry changes so the LPS
+                // panel + compliance check pick up modifications without
+                // a manual "Load model" press. Disabled by default.
+                StingTools.Core.Lightning.StingLpsStaleMarker.Register(application);
 
                 // Register the Tag 7 narrative auto-updater (IUpdater) — starts disabled.
                 // Keeps ASS_TAG_7_TXT in sync with the active paragraph preset when
@@ -1685,6 +1692,35 @@ namespace StingTools.Core
             }
         }
 
+        // ── STING Lightning Protection Center registration ───────────────
+        // Sibling to RegisterHvacPanel / RegisterElectricalPanel / RegisterPlumbingPanel.
+        // Surfaces the 20 LPS commands + 3 net-new panel commands (risk inline,
+        // SPD coordinate, SPD recommend) in an inline 7-tab dockable panel.
+        private void RegisterLpsPanel(UIControlledApplication application)
+        {
+            try
+            {
+                StingTools.UI.StingLpsCommandHandler.Initialise(application);
+                var provider = new StingTools.UI.StingLpsPanelProvider();
+                application.RegisterDockablePane(
+                    StingTools.UI.StingLpsPanelProvider.PaneId,
+                    "⚡ STING Lightning Protection",
+                    provider);
+
+                const string tabName = "STING Tools";
+                string asmPath = AssemblyPath;
+                var lpsPanel = application.CreateRibbonPanel(tabName, "⚡ LPS");
+                AddButton(lpsPanel, "btnToggleLps", "STING\nLPS",
+                    asmPath, typeof(ToggleLpsPanelCommand).FullName,
+                    "Show/hide the STING Lightning Protection Center dockable panel.");
+                StingLog.Info("LPS dockable panel registered successfully");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to register LPS dockable panel", ex);
+            }
+        }
+
         /* Ribbon panels removed — all commands now accessible via the dockable panel.
            Original panels: Select (22 cmds), Docs (17 cmds), Tags (28 cmds),
            Organise (32 cmds), Temp (64 cmds). */
@@ -2110,6 +2146,39 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Error("Toggle HVAC panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Toggle the STING Lightning Protection Center dockable panel.
+    /// Sibling to <see cref="ToggleHvacPanelCommand"/> /
+    /// <see cref="ToggleElectricalPanelCommand"/> / <see cref="TogglePlumbingPanelCommand"/>.
+    /// </summary>
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class ToggleLpsPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var pane = ParameterHelpers.GetApp(commandData)
+                    .GetDockablePane(StingTools.UI.StingLpsPanelProvider.PaneId);
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING LPS",
+                        "LPS panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+                if (pane.IsShown()) pane.Hide(); else pane.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle LPS panel failed", ex);
                 message = ex.Message;
                 return Result.Failed;
             }
