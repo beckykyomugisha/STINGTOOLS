@@ -1406,6 +1406,11 @@ namespace StingTools.Tags
                 ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
                 ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS
             };
+            // I-8 — Inject Material Manager params on every family so a
+            // freshly-created family is ready for the auto-fill IUpdater
+            // and inline edits work without a separate Load-Shared-Params
+            // pass.
+            list.AddRange(ParamRegistry.AllMaterialParams);
 
             // Add TAG container param names
             var containers = ParamRegistry.AllContainers;

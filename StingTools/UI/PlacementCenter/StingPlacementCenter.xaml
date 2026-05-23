@@ -25,6 +25,13 @@
         <KeyBinding Key="Delete" Command="{x:Static local:PlacementCentreCommands.DeleteSelected}"/>
     </Window.InputBindings>
     <Window.Resources>
+        <!-- Converters declared in XAML so they exist at parse time. The
+             code-behind EnsureResources() falls through silently inside Revit
+             because Application.Current is null in a Revit add-in host. -->
+        <local:DirtyDotConverter             x:Key="DirtyDotConverter"/>
+        <local:HexToBrushConverter           x:Key="HexToBrushConverter"/>
+        <local:EmptyStringToVisibilityConverter x:Key="EmptyStringToVisibility"/>
+
         <Style x:Key="ToolBtn" TargetType="Button">
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Margin"  Value="2,0"/>
@@ -652,9 +659,9 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Coverage radius (mm)"/>
-                                <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtCoverageRadius" Margin="0,2"/>
+                                <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtCoverageRadius_v2" Margin="0,2"/>
                                 <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Max spacing (mm)"/>
-                                <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtMaxSpacing"     Margin="0,2"/>
+                                <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtMaxSpacing_v2"     Margin="0,2"/>
 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Wall clearance (mm)"/>
                                 <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtWallClearance"  Margin="0,2"/>
@@ -662,7 +669,7 @@
                                 <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtObstructionClearance" Margin="0,2"/>
 
                                 <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Guarantee coverage"/>
-                                <CheckBox  Grid.Row="2" Grid.Column="1" x:Name="chkGuaranteeCoverage" Margin="0,4"/>
+                                <CheckBox  Grid.Row="2" Grid.Column="1" x:Name="chkGuaranteeCoverage_v2" Margin="0,4"/>
                             </Grid>
                         </StackPanel>
                     </GroupBox>
@@ -681,17 +688,17 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Routing mode"/>
-                            <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbRoutingMode" Margin="0,2"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbRoutingMode_v2" Margin="0,2"/>
                             <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Route face"/>
                             <ComboBox  Grid.Row="0" Grid.Column="3" x:Name="cmbRouteFace"   Margin="0,2"/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Route offset (mm)"/>
-                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtRouteOffset" Margin="0,2"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtRouteOffset_v2" Margin="0,2"/>
                             <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Min bend radius (mm)"/>
                             <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtRouteMinBendRadius" Margin="0,2"/>
 
                             <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Segment category"/>
-                            <ComboBox  Grid.Row="2" Grid.Column="1" x:Name="cmbRouteSegmentCategory" Margin="0,2"/>
+                            <ComboBox  Grid.Row="2" Grid.Column="1" x:Name="cmbRouteSegmentCategory_v2" Margin="0,2"/>
                         </Grid>
                     </GroupBox>
 

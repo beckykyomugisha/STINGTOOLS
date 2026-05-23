@@ -180,33 +180,6 @@ namespace StingTools.Core
     /// <c>TagConfig.StaleWarningThreshold</c>. Fires after the IUpdater
     /// transaction has committed so the document is read-safe.
     /// </summary>
-    public class StaleWarningPromotionJob : IIdlingJob
-    {
-        public string Name     => "StaleWarningPromotion";
-        public int    Priority => 5;
-        public int    BudgetMs => 30;
-
-        public bool Execute(UIApplication uiApp)
-        {
-            try
-            {
-                var doc = uiApp?.ActiveUIDocument?.Document;
-                if (doc == null) return true;
-                // Delegate to BIMManagerCommands.AutoRaiseStaleWarning when
-                // available. Reflection keeps the Core → BIMManager dependency
-                // direction clean.
-                var t = Type.GetType("StingTools.BIMManager.BIMManagerEngine, StingTools");
-                if (t != null)
-                {
-                    var m = t.GetMethod("AutoRaiseStaleWarning",
-                        new[] { typeof(Autodesk.Revit.DB.Document) });
-                    if (m != null) m.Invoke(null, new object[] { doc });
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"StaleWarningPromotionJob: {ex.Message}"); }
-            return true; // one-shot
-        }
-    }
 
     /// <summary>
     /// Pack 8 pilot consumer — compliance-scan refresh. Drops itself after

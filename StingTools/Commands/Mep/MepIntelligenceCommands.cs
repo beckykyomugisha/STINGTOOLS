@@ -138,20 +138,46 @@ namespace StingTools.Commands.Mep
                 return Result.Succeeded;
             }
 
+            // Load the per-document sizing rules so manufacturer-specific C
+            // values (lindab / trox / halton / belimo …) override the generic
+            // SMACNA-derived Kv when an element carries HVC_PROD_REF_TXT.
+            var rules = StingTools.Core.Mep.MepSizingRegistry.Get(ctx?.Doc);
             var counts = new Dictionary<FittingType, int>();
+            var mfgCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            double mfgCSum = 0; double genericCSum = 0;
             foreach (var el in targets)
             {
                 try
                 {
                     var t = FittingLossCalculator.DetectFittingType(el);
                     counts[t] = counts.TryGetValue(t, out var n) ? n + 1 : 1;
+
+                    var rfl = FittingLossCalculator.ResolveFittingLoss(el, rules);
+                    if (!string.IsNullOrEmpty(rfl.Brand))
+                    {
+                        mfgCounts[rfl.Brand] = mfgCounts.TryGetValue(rfl.Brand, out var m) ? m + 1 : 1;
+                        mfgCSum += rfl.C;
+                    }
+                    else genericCSum += rfl.C;
                 }
                 catch (Exception ex2) { StingLog.Warn($"MepFittingLoss: detect on {el?.Id}: {ex2.Message}"); }
             }
 
+            int mfgTotal = mfgCounts.Values.Sum();
+            int genericTotal = targets.Count - mfgTotal;
             panel.AddSection("SUMMARY")
-                 .Metric("Elements inspected", targets.Count.ToString())
-                 .Metric("Distinct fitting types", counts.Count.ToString());
+                 .Metric("Elements inspected",      targets.Count.ToString())
+                 .Metric("Distinct fitting types",  counts.Count.ToString())
+                 .Metric("Manufacturer-specified",  $"{mfgTotal} ({(targets.Count > 0 ? 100.0 * mfgTotal / targets.Count : 0):F0}%)")
+                 .Metric("Generic fallback",        genericTotal.ToString());
+
+            if (mfgCounts.Count > 0)
+            {
+                panel.AddSection("BY MANUFACTURER");
+                foreach (var kv in mfgCounts.OrderByDescending(k => k.Value))
+                    panel.Metric(kv.Key, $"×{kv.Value}");
+            }
+
             panel.AddSection("KV / EQUIV-LENGTH BY TYPE");
             foreach (var kv in counts.OrderByDescending(k => k.Value))
             {
@@ -159,6 +185,9 @@ namespace StingTools.Commands.Mep
                 panel.Metric(kv.Key.ToString(),
                              $"×{kv.Value}  Kv={data?.Kv:F2}  Lₑ={data?.EquivLengthM:F1}m  [{data?.Standard}]");
             }
+            panel.Text("Set HVC_PROD_REF_TXT to 'brand:productCode' (e.g. 'lindab:BFU-90-CIRC') on a fitting " +
+                       "to swap the generic SMACNA Kv for the manufacturer's catalogue C. " +
+                       "Brand+code pairs are resolved against STING_MEP_SIZING_RULES.json → duct.manufacturerFittings.");
             panel.Show();
             return Result.Succeeded;
         }

@@ -43,17 +43,11 @@ namespace StingTools.Commands.Hvac
                 var doc = ctx.Doc;
 
                 var site = ClimateRegistry.ActiveSite(doc);
-                bool cooling = true;
-                try
-                {
-                    var snap = StingHvacCommandHandler.Snapshot();
-                    // Future: a "heating" toggle on the LOADS tab will set this.
-                    cooling = string.IsNullOrEmpty(snap.LoadCode) || !snap.LoadCode.ToLowerInvariant().Contains("heat");
-                }
-                catch { }
-
-                string scope = "Project";
-                try { scope = StingHvacCommandHandler.CurrentScope ?? "Project"; } catch { }
+                // Snapshot the header context atomically (Phase 187c).
+                var snap = StingHvacCommandHandler.Snapshot();
+                bool cooling = string.IsNullOrEmpty(snap.LoadCode)
+                            || !snap.LoadCode.ToLowerInvariant().Contains("heat");
+                string scope = snap.Scope ?? "Project";
 
                 var (zones, skipped) = CollectZones(ctx, scope);
                 if (zones.Count == 0)
@@ -63,42 +57,64 @@ namespace StingTools.Commands.Hvac
                     return Result.Cancelled;
                 }
 
-                var results = BlockLoadEngine.Run(zones, site, cooling);
+                // RTS class — resolved from PRJ_RTS_CLASS_TXT on Project Info
+                // (Reactive / Light / Medium / Heavy). Defaults to Reactive
+                // when unset so legacy projects see the same number.
+                var rts = StingTools.Core.Hvac.Loads.RtsConstructionClass.Reactive;
+                try
+                {
+                    string rtsTxt = doc.ProjectInformation?.LookupParameter("PRJ_RTS_CLASS_TXT")?.AsString();
+                    if (!string.IsNullOrWhiteSpace(rtsTxt) &&
+                        Enum.TryParse(rtsTxt, true, out StingTools.Core.Hvac.Loads.RtsConstructionClass r))
+                        rts = r;
+                }
+                catch { }
+
+                var results = BlockLoadEngine.Run(zones, site, cooling, rts, doc);
                 double grand = results.Sum(r => r.BlockSensibleW);
                 double sumPeaks = results.Sum(r => r.SumOfPeaksSensibleW);
                 double diversity = sumPeaks > 0 ? grand / sumPeaks : 1.0;
 
                 // Stamp per-space peaks back onto Revit so schedules see them.
                 int stamped = 0;
-                using (var tx = new Transaction(doc, "STING Block-load Stamp"))
+                int stampCandidates = results.Sum(s => s.Zones.Count);
+                if (stampCandidates > 0)
                 {
-                    tx.Start();
-                    foreach (var sys in results)
-                    foreach (var z in sys.Zones)
+                    using (var tx = new Transaction(doc, "STING Block-load Stamp"))
                     {
-                        var el = doc.GetElement(new ElementId(ParseLong(z.ZoneId)));
-                        if (el == null) continue;
-                        try
+                        tx.Start();
+                        foreach (var sys in results)
+                        foreach (var z in sys.Zones)
                         {
-                            if (ParameterHelpers.SetString(el, "HVC_PEAK_SENS_W",
-                                $"{z.PeakSensibleW:F0}", overwrite: true)) stamped++;
-                            ParameterHelpers.SetString(el, "HVC_PEAK_LAT_W",
-                                $"{z.PeakLatentW:F0}", overwrite: true);
-                            ParameterHelpers.SetString(el, "HVC_PEAK_HOUR",
-                                $"{z.PeakHour:D2}:00", overwrite: true);
-                            ParameterHelpers.SetString(el, "HVC_OA_LS",
-                                $"{z.OaLs:F1}", overwrite: true);
+                            var el = doc.GetElement(new ElementId(ParseLong(z.ZoneId)));
+                            if (el == null) continue;
+                            try
+                            {
+                                if (ParameterHelpers.SetString(el, "HVC_PEAK_SENS_W",
+                                    $"{z.PeakSensibleW:F0}", overwrite: true)) stamped++;
+                                ParameterHelpers.SetString(el, "HVC_PEAK_LAT_W",
+                                    $"{z.PeakLatentW:F0}", overwrite: true);
+                                ParameterHelpers.SetString(el, "HVC_PEAK_HOUR",
+                                    $"{z.PeakHour:D2}:00", overwrite: true);
+                                ParameterHelpers.SetString(el, "HVC_OA_LS",
+                                    $"{z.OaLs:F1}", overwrite: true);
+                                // Phase 187f — clear the stale flag that the
+                                // envelope IUpdater may have set since the
+                                // previous BlockLoad run.
+                                ParameterHelpers.SetInt(el, "HVC_LOAD_STALE_BOOL", 0, overwrite: true);
+                                ParameterHelpers.SetString(el, "HVC_LOAD_STALE_REASON_TXT", "", overwrite: true);
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Block-load stamp {el.Id}: {ex.Message}"); }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Block-load stamp {el.Id}: {ex.Message}"); }
+                        tx.Commit();
                     }
-                    tx.Commit();
                 }
 
                 // Result panel
                 var panel = StingResultPanel.Create("HVAC — Block Load");
                 panel.SetSubtitle($"site={site.Label} ({site.Cooling996DbC:F1}/{site.Cooling996McwbC:F1} °C) · " +
                                   $"ρ={site.AirDensityCoolingKgM3():F3} kg/m³ · " +
-                                  $"{(cooling ? "Cooling" : "Heating")} · scope={scope}");
+                                  $"{(cooling ? "Cooling" : "Heating")} · RTS={rts} · scope={scope}");
                 panel.AddSection("BUILDING TOTAL")
                      .Metric("Block (peak) sensible", $"{grand / 1000:F1} kW")
                      .Metric("Σ per-zone peaks",     $"{sumPeaks / 1000:F1} kW")
@@ -118,8 +134,25 @@ namespace StingTools.Commands.Hvac
                 foreach (var z in results.SelectMany(r => r.Zones)
                                          .OrderByDescending(r => r.PeakSensibleW).Take(10))
                 {
+                    string dcvNote = z.DcvSavingsPct > 5
+                        ? $" · DCV avg {z.AverageOaLs:F0} L/s (–{z.DcvSavingsPct:F0} %)"
+                        : "";
                     panel.Text($"{z.ZoneName} · {z.PeakSensibleW / 1000:F1} kW @ {z.PeakHour:D2}:00 · " +
-                               $"{z.AreaM2:F0} m² · OA {z.OaLs:F0} L/s");
+                               $"{z.AreaM2:F0} m² · OA {z.OaLs:F0} L/s{dcvNote}");
+                }
+
+                // Aggregate DCV savings across the building.
+                double sumDesignOa = results.SelectMany(r => r.Zones).Sum(z => z.OaLs);
+                double sumAvgOa    = results.SelectMany(r => r.Zones).Sum(z => z.AverageOaLs);
+                if (sumDesignOa > 0)
+                {
+                    double bldgSavings = 100.0 * (1.0 - sumAvgOa / sumDesignOa);
+                    panel.AddSection("DCV — DESIGN-DAY VENTILATION SAVINGS")
+                         .Metric("Σ design OA",      $"{sumDesignOa:F0} L/s")
+                         .Metric("Σ DCV avg OA",     $"{sumAvgOa:F0} L/s")
+                         .Metric("DCV savings",      $"{bldgSavings:F0} % vs design-day max")
+                         .Text("DCV (ASHRAE 62.1 §6.2.7) modulates the per-person OA component " +
+                               "against the occupancy schedule; per-area component stays constant.");
                 }
 
                 panel.Text("Block load = max over 24 hourly system totals. " +
@@ -128,8 +161,33 @@ namespace StingTools.Commands.Hvac
 
                 try
                 {
-                    StingHvacPanel.Instance?.PushRunRow(
-                        $"Block-load ({grand / 1000:F0} kW, div {diversity:F2})", "⬤");
+                    var p = StingHvacPanel.Instance;
+                    if (p != null)
+                    {
+                        p.PushRunRow($"Block-load ({grand / 1000:F0} kW, div {diversity:F2})", "⬤");
+
+                        // Phase 187b — populate the previously-empty LoadsTab grid.
+                        // Replace the contents wholesale so re-runs reflect the latest pass.
+                        p.SpaceLoadRows.Clear();
+                        foreach (var z in results.SelectMany(r => r.Zones)
+                                                .OrderByDescending(r => r.PeakSensibleW))
+                        {
+                            string warn = "";
+                            if (z.PeakSensibleW <= 0) warn = "no load";
+                            else if (z.OaLs <= 0)     warn = "no OA";
+                            p.SpaceLoadRows.Add(new HvacSpaceLoadRow
+                            {
+                                SpaceName = z.ZoneName,
+                                SpaceType = z.SystemId,
+                                AreaM2    = z.AreaM2,
+                                People    = 0,                                  // populated in F-3 phase
+                                HeatingKw = 0,                                  // cooling-only pass for now
+                                CoolingKw = z.PeakSensibleW / 1000.0,
+                                OAls      = z.OaLs,
+                                Warning   = warn
+                            });
+                        }
+                    }
                 }
                 catch (Exception ex) { StingLog.Warn($"Panel push: {ex.Message}"); }
 
@@ -150,6 +208,10 @@ namespace StingTools.Commands.Hvac
             var doc = ctx.Doc;
             var zones = new List<LoadZone>();
             int skipped = 0;
+            // Phase 187b — per-space-type schedules + densities.
+            var profileLib = StingTools.Core.Hvac.Loads.LoadProfileRegistry.Get(doc);
+            // Phase 187c — construction profile (U-values, SHGC) per project.
+            var construction = StingTools.Core.Hvac.Loads.ConstructionProfileRegistry.Active(doc);
 
             // Prefer MEP Spaces (have ventilation rates + design temps).
             var spaces = new FilteredElementCollector(doc)
@@ -170,7 +232,7 @@ namespace StingTools.Commands.Hvac
                     .ToList();
                 foreach (var r in rooms)
                 {
-                    var z = ZoneFromRoom(r);
+                    var z = ZoneFromRoom(r, profileLib, construction);
                     if (z != null) zones.Add(z); else skipped++;
                 }
             }
@@ -178,7 +240,7 @@ namespace StingTools.Commands.Hvac
             {
                 foreach (var s in spaces)
                 {
-                    var z = ZoneFromSpace(s);
+                    var z = ZoneFromSpace(s, profileLib, construction);
                     if (z != null) zones.Add(z); else skipped++;
                 }
             }
@@ -186,7 +248,9 @@ namespace StingTools.Commands.Hvac
             return (zones, skipped);
         }
 
-        private static LoadZone ZoneFromSpace(Space s)
+        private static LoadZone ZoneFromSpace(Space s,
+            StingTools.Core.Hvac.Loads.LoadProfileLibrary profileLib,
+            StingTools.Core.Hvac.Loads.ConstructionProfile construction)
         {
             try
             {
@@ -194,34 +258,57 @@ namespace StingTools.Commands.Hvac
                 double heightM = UnitUtils.ConvertFromInternalUnits(s.UnboundedHeight, UnitTypeId.Meters);
                 if (heightM <= 0.1) heightM = 3.0; // sane default
 
+                // Resolve space-type id: STING shared param first, then Revit
+                // Space Type name. Profile library applies all of:
+                //   occupant + lighting + equipment density
+                //   schedules (24h arrays)
+                //   OA per-person + per-m²
+                //   setpoints, infiltration
+                string spaceTypeId = s.LookupParameter("HVC_SPACE_TYPE_TXT")?.AsString();
+                if (string.IsNullOrWhiteSpace(spaceTypeId))
+                {
+                    try
+                    {
+                        var st = s.SpaceType;
+                        if (st != SpaceType.NoSpaceType) spaceTypeId = st.ToString();
+                    }
+                    catch { }
+                }
+                var profile = profileLib?.Get(spaceTypeId) ?? new StingTools.Core.Hvac.Loads.LoadProfile();
+
                 var z = new LoadZone
                 {
                     Id          = s.Id.Value.ToString(),
                     Name        = string.IsNullOrEmpty(s.Name) ? $"Space {s.Id}" : s.Name,
                     SystemId    = ResolveSystemId(s),
-                    SpaceTypeId = s.LookupParameter("HVC_SPACE_TYPE_TXT")?.AsString() ?? "Office",
+                    SpaceTypeId = string.IsNullOrEmpty(profile.Id) ? "Office" : profile.Id,
                     FloorAreaM2 = areaM2,
                     HeightM     = heightM
                 };
+                profile.ApplyTo(z);
 
-                // Pull design OA from Revit Space if user has set it.
-                // (Looked up by name — `LookupParameter` avoids hard-coding
-                // BuiltInParameter ids that change name across Revit versions.)
+                // Honour explicit Revit Space airflow if the user has set
+                // "Specified Supply Airflow per area" — overrides the profile.
                 double designOa = TryReadFlowByName(s, "Specified Supply Airflow per area");
                 if (designOa <= 0) designOa = TryReadFlowByName(s, "Calculated Supply Airflow per area");
                 if (designOa > 0) z.OaLpsPerM2 = designOa;
 
+                // Occupant count: prefer explicit Revit param, else derive from
+                // the profile's density (e.g. Kitchen = 5 m²/person → 12 ppl in
+                // a 60 m² space, vs Office's 10 → 6 ppl).
                 int occ = TryReadIntByName(s, "Number of People");
-                if (occ <= 0) occ = (int)Math.Max(1, Math.Round(areaM2 / 10.0)); // 10 m²/person default
+                if (occ <= 0) occ = profile.OccupantCountFor(areaM2);
                 z.OccupantCount = occ;
 
-                AddPerimeterEnvelope(s, z);
+                AddPerimeterEnvelope(s, z, construction);
                 return z;
             }
             catch (Exception ex) { StingLog.Warn($"ZoneFromSpace {s.Id}: {ex.Message}"); return null; }
         }
 
-        private static LoadZone ZoneFromRoom(Autodesk.Revit.DB.Architecture.Room r)
+        private static LoadZone ZoneFromRoom(Autodesk.Revit.DB.Architecture.Room r,
+            StingTools.Core.Hvac.Loads.LoadProfileLibrary profileLib,
+            StingTools.Core.Hvac.Loads.ConstructionProfile construction)
         {
             try
             {
@@ -229,17 +316,25 @@ namespace StingTools.Commands.Hvac
                 double heightM = UnitUtils.ConvertFromInternalUnits(r.UnboundedHeight, UnitTypeId.Meters);
                 if (heightM <= 0.1) heightM = 3.0;
 
+                // Room-only fallback path: no Space Type binding, use Department
+                // name (if filled) as the profile key. Default to Office.
+                string spaceTypeId = r.LookupParameter("Department")?.AsString();
+                if (string.IsNullOrWhiteSpace(spaceTypeId))
+                    spaceTypeId = r.LookupParameter("HVC_SPACE_TYPE_TXT")?.AsString() ?? "Office";
+                var profile = profileLib?.Get(spaceTypeId) ?? new StingTools.Core.Hvac.Loads.LoadProfile();
+
                 var z = new LoadZone
                 {
                     Id          = r.Id.Value.ToString(),
                     Name        = string.IsNullOrEmpty(r.Name) ? $"Room {r.Id}" : r.Name,
                     SystemId    = "(default)",
-                    SpaceTypeId = "Office",
+                    SpaceTypeId = string.IsNullOrEmpty(profile.Id) ? "Office" : profile.Id,
                     FloorAreaM2 = areaM2,
                     HeightM     = heightM,
-                    OccupantCount = (int)Math.Max(1, Math.Round(areaM2 / 10.0))
+                    OccupantCount = profile.OccupantCountFor(areaM2)
                 };
-                AddPerimeterEnvelope(r, z);
+                profile.ApplyTo(z);
+                AddPerimeterEnvelope(r, z, construction);
                 return z;
             }
             catch (Exception ex) { StingLog.Warn($"ZoneFromRoom {r.Id}: {ex.Message}"); return null; }
@@ -251,7 +346,8 @@ namespace StingTools.Commands.Hvac
         /// doesn't yield (linked architectural model, etc.) fall back to a
         /// generic envelope ratio so the calc still runs.
         /// </summary>
-        private static void AddPerimeterEnvelope(SpatialElement spatial, LoadZone z)
+        private static void AddPerimeterEnvelope(SpatialElement spatial, LoadZone z,
+            StingTools.Core.Hvac.Loads.ConstructionProfile construction)
         {
             try
             {
@@ -315,37 +411,84 @@ namespace StingTools.Commands.Hvac
                     z.Envelope.Add(new EnvelopeSegment
                     {
                         Kind = SegmentKind.ExteriorWall, AreaM2 = netWall,
-                        UvalueWm2K = 0.30, OrientationDeg = orientation
+                        UvalueWm2K = construction.WallUvalue, OrientationDeg = orientation
                     });
                 if (glazingAreaM2 > 0)
                     z.Envelope.Add(new EnvelopeSegment
                     {
                         Kind = SegmentKind.Window, AreaM2 = glazingAreaM2,
-                        UvalueWm2K = 1.4, SHGC = 0.4, ShadingFactor = 0.9,
+                        UvalueWm2K = construction.WindowUvalue,
+                        SHGC = construction.WindowSHGC,
+                        ShadingFactor = construction.WindowShadingFactor,
                         OrientationDeg = orientation
                     });
 
-                // Top floor — credit a roof segment when the level looks like the top.
-                z.Envelope.Add(new EnvelopeSegment
+                // Roof segment only when the zone is on the top level.
+                if (IsTopLevel(spatial))
                 {
-                    Kind = SegmentKind.Roof, AreaM2 = z.FloorAreaM2 * 0.5,
-                    UvalueWm2K = 0.20, OrientationDeg = 0
-                });
+                    z.Envelope.Add(new EnvelopeSegment
+                    {
+                        Kind = SegmentKind.Roof, AreaM2 = z.FloorAreaM2,
+                        UvalueWm2K = construction.RoofUvalue, OrientationDeg = 0
+                    });
+                }
                 return;
 
                 Fallback:
                 z.Envelope.Add(new EnvelopeSegment
                 {
                     Kind = SegmentKind.ExteriorWall, AreaM2 = Math.Max(z.FloorAreaM2 * 0.6, 8),
-                    UvalueWm2K = 0.30, OrientationDeg = 180
+                    UvalueWm2K = construction.WallUvalue, OrientationDeg = 180
                 });
                 z.Envelope.Add(new EnvelopeSegment
                 {
                     Kind = SegmentKind.Window, AreaM2 = Math.Max(z.FloorAreaM2 * 0.15, 2),
-                    UvalueWm2K = 1.4, SHGC = 0.4, OrientationDeg = 180
+                    UvalueWm2K = construction.WindowUvalue,
+                    SHGC = construction.WindowSHGC,
+                    ShadingFactor = construction.WindowShadingFactor,
+                    OrientationDeg = 180
                 });
             }
             catch (Exception ex) { StingLog.Warn($"Envelope detect {spatial.Id}: {ex.Message}"); }
+        }
+
+        // Per-document cache of the top level's id — re-resolving the highest
+        // Level on every space gets expensive on large projects.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ElementId> _topLevelCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, ElementId>();
+
+        /// <summary>
+        /// Drop the cached top-level lookup for a document. Called by
+        /// <see cref="StingTools.Core.StingToolsApp"/>'s document-closing hook so
+        /// the cache doesn't outlive its source document.
+        /// </summary>
+        public static void InvalidateTopLevelCache(Document doc)
+        {
+            try { _topLevelCache.TryRemove(doc?.PathName ?? "<no-doc>", out _); } catch { }
+        }
+
+        private static bool IsTopLevel(SpatialElement spatial)
+        {
+            try
+            {
+                var doc = spatial.Document;
+                // SpatialElement.LevelId is on the Element base; safer than
+                // `.Level` which lives on Room/Space individually.
+                var lvlId = spatial.LevelId;
+                if (lvlId == ElementId.InvalidElementId) return false;
+                string key = doc.PathName ?? "<no-doc>";
+                var topId = _topLevelCache.GetOrAdd(key, _ =>
+                {
+                    var top = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Level))
+                        .Cast<Level>()
+                        .OrderByDescending(l => l.Elevation)
+                        .FirstOrDefault();
+                    return top?.Id ?? ElementId.InvalidElementId;
+                });
+                return topId != ElementId.InvalidElementId && topId == lvlId;
+            }
+            catch { return false; }
         }
 
         private static string ResolveSystemId(Space s)

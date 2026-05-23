@@ -42,6 +42,8 @@ namespace StingTools.Commands.Drawing
                 var liveAffected = LiveProfileSync.GetAffectedViewIds(doc);
 
                 var reports = DrawingDriftDetector.Scan(doc);
+                // suppressedOnly count not provided by current Scan() return shape — assume 0.
+                int suppressedOnly = 0;
                 if (reports.Count == 0 && liveAffected.Count == 0)
                 {
                     string msg2 = suppressedOnly > 0

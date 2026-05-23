@@ -1,0 +1,36 @@
+{
+  "_schema": "STING_SILENCER_DATA",
+  "_version": "1.0",
+  "_notes": [
+    "Silencer insertion-loss octave-band spectra (dB).",
+    "Looked up via the silencer family name (substring match).",
+    "Falls back to a generic 12 dB mid-band default.",
+    "Sources: Lindab / Trox / Halton silencer datasheets (sample)."
+  ],
+  "silencers": [
+    {
+      "match": "SLU 600",  "label": "Lindab SLU 600 mm",
+      "il":     [3, 7, 14, 24, 32, 28, 20, 12]
+    },
+    {
+      "match": "SLU 900",  "label": "Lindab SLU 900 mm",
+      "il":     [5, 11, 19, 32, 38, 34, 26, 18]
+    },
+    {
+      "match": "Trox MSA", "label": "Trox MSA absorptive",
+      "il":     [4, 8, 16, 26, 32, 28, 22, 16]
+    },
+    {
+      "match": "Halton HSL", "label": "Halton HSL acoustic louvre",
+      "il":     [2, 5, 11, 18, 24, 22, 16, 10]
+    },
+    {
+      "match": "Generic 600", "label": "Generic 600 mm splitter silencer",
+      "il":     [3, 7, 13, 22, 28, 24, 18, 12]
+    },
+    {
+      "match": "Generic 1200", "label": "Generic 1200 mm splitter silencer",
+      "il":     [6, 12, 22, 36, 42, 38, 30, 22]
+    }
+  ]
+}

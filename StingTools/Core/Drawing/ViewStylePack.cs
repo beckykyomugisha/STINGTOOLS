@@ -1,4 +1,3 @@
-using System;
 // StingTools — Drawing Template Manager · Week 2
 //
 // ViewStylePack factors the graphic-override payload out of
@@ -43,7 +42,7 @@ namespace StingTools.Core.Drawing
         [JsonProperty("orientation", NullValueHandling = NullValueHandling.Ignore)] public string Orientation { get; set; }
     }
 
-    public sealed class ViewStylePack
+    public sealed partial class ViewStylePack
     {
         [JsonProperty("id")]          public string Id { get; set; }
         [JsonProperty("name")]        public string Name { get; set; }
@@ -186,18 +185,6 @@ namespace StingTools.Core.Drawing
 
         // ── Phase 135 — token profile defaults ──────────────────────
 
-        /// <summary>Default tag colour scheme applied at pack level (e.g. "STING Discipline").</summary>
-        [JsonProperty("tagColorScheme", NullValueHandling = NullValueHandling.Ignore)]
-        public string TagColorScheme { get; set; }
-
-        /// <summary>Default tag style preset applied at pack level.</summary>
-        [JsonProperty("defaultTagStyle", NullValueHandling = NullValueHandling.Ignore)]
-        public string DefaultTagStyle { get; set; }
-
-        /// <summary>Per-category tag style overrides. Category name → style preset name.</summary>
-        [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
-        public System.Collections.Generic.Dictionary<string, string> CategoryTagStyles { get; set; }
-
         // ── Phase 177 — per-category paragraph depth ─────────────────
 
         /// <summary>Per-category paragraph depth overrides. Category name → depth tier (1-10).</summary>
@@ -297,24 +284,8 @@ namespace StingTools.Core.Drawing
     {
         [JsonProperty("version")] public int Version { get; set; } = 1;
 
-        // Phase 139 — accept both "stylePacks" (corporate file convention used
-        // by the editor + Excel round-trip) and "viewStylePacks" (legacy).
-        // Whichever key is present populates Packs via the wrapper setters.
+        // Primary list — newer JSON files use "viewStylePacks".
         [JsonProperty("viewStylePacks", NullValueHandling = NullValueHandling.Ignore)]
-        public List<ViewStylePack> ViewStylePacks
-        {
-            get => Packs;
-            set { if (value != null && value.Count > 0) Packs = value; }
-        }
-
-        [JsonProperty("stylePacks", NullValueHandling = NullValueHandling.Ignore)]
-        public List<ViewStylePack> StylePacks
-        {
-            get => null; // serialise via ViewStylePacks; this key is read-only
-            set { if (value != null && value.Count > 0) Packs = value; }
-        }
-
-        [JsonIgnore]
         public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
     }
 

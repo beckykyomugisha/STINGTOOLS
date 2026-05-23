@@ -1,8 +1,8 @@
-name: StingTools Plugin — Build
+name: StingTools Plugin — Build, Validate & Release
 
 on:
   push:
-    branches: [main, "claude/**"]
+    branches: [main]
     paths:
       - 'StingTools/**'
       - 'tools/revit-stubs/**'
@@ -24,19 +24,136 @@ env:
   DOTNET_NOLOGO: '1'
 
 jobs:
+  # ── 1. Data file validation (Linux, fast) ────────────────────────────────────
+  validate-data:
+    name: Validate data files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON data files
+        run: |
+          FAIL=0
+          for f in StingTools/Data/**/*.json StingTools/Data/*.json; do
+            [ -f "$f" ] || continue
+            if ! python3 -c "import json,sys; json.load(open('$f'))" 2>/dev/null; then
+              echo "❌ Invalid JSON: $f"
+              FAIL=1
+            fi
+          done
+          [ $FAIL -eq 0 ] && echo "✓ All JSON files valid"
+          exit $FAIL
+
+      - name: Check for duplicate parameter GUIDs
+        run: |
+          python3 - <<'EOF'
+          import re, sys, collections
+
+          seen = collections.defaultdict(list)
+          guid_re = re.compile(r'\b([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\b')
+
+          for path in ['StingTools/Data/MR_PARAMETERS.txt', 'StingTools/Data/MR_PARAMETERS.csv']:
+              try:
+                  for i, line in enumerate(open(path), 1):
+                      for guid in guid_re.findall(line):
+                          seen[guid.lower()].append(f'{path}:{i}')
+              except FileNotFoundError:
+                  pass
+
+          dupes = {g: locs for g, locs in seen.items() if len(locs) > 1}
+          if dupes:
+              for guid, locs in dupes.items():
+                  print(f'❌ Duplicate GUID {guid}:')
+                  for loc in locs:
+                      print(f'   {loc}')
+              sys.exit(1)
+          print(f'✓ No duplicate GUIDs ({len(seen)} unique)')
+          EOF
+
+      - name: Validate CSV structure (required columns)
+        run: |
+          python3 - <<'EOF'
+          import csv, sys, os
+
+          REQUIRED_COLS = {
+            'MR_SCHEDULES.csv': {'ScheduleName', 'Category', 'Discipline'},
+            'COBIE_TYPE_MAP.csv': {'StingCategory', 'COBieType'},
+            'TAG_STYLE_RULES.json': None,  # JSON, skip
+          }
+          FAIL = 0
+          for fname, cols in REQUIRED_COLS.items():
+              if cols is None:
+                  continue
+              path = f'StingTools/Data/{fname}'
+              if not os.path.exists(path):
+                  continue
+              try:
+                  with open(path) as f:
+                      header = next(csv.reader(f))
+                  missing = cols - set(header)
+                  if missing:
+                      print(f'❌ {fname} missing columns: {missing}')
+                      FAIL = 1
+              except Exception as e:
+                  print(f'❌ {fname}: {e}')
+                  FAIL = 1
+          if not FAIL:
+              print('✓ CSV structure valid')
+          sys.exit(FAIL)
+          EOF
+
+  # ── 2. Viewer JS syntax gate (Linux, fast) ───────────────────────────────────
+  viewer-check:
+    name: Viewer JS syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: Planscape/assets/viewer/package-lock.json
+
+      - name: Install viewer deps
+        working-directory: Planscape/assets/viewer
+        run: npm ci --no-audit --no-fund
+
+      - name: Syntax check all JS files
+        working-directory: Planscape/assets/viewer
+        run: npm run check
+
+      - name: Vite build (verify bundle compiles)
+        working-directory: Planscape/assets/viewer
+        run: npm run build
+        continue-on-error: true  # build failures are warnings until CI serves dist/
+
+      - name: Report bundle size
+        working-directory: Planscape/assets/viewer
+        if: always()
+        run: |
+          if [ -d dist ]; then
+            echo "### Viewer bundle sizes" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            du -sh dist/*.js dist/*.css 2>/dev/null | sort -rh >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            TOTAL=$(du -sh dist/ | cut -f1)
+            echo "Total: $TOTAL (target < 200KB)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ── 3. Plugin build (Windows, uses stubs from tools/revit-stubs/ if present) ─
   build:
     name: Build StingTools Plugin
     # Windows required — UseWPF=true and UseWindowsForms=true need Windows SDK
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup .NET ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: '8.0.x'
 
       # ── Step 1: Build Revit API stubs ───────────────────────────────────────
       # The real Revit API DLLs ship only with Autodesk Revit (not redistributable).

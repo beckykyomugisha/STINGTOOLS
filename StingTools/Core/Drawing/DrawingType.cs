@@ -674,6 +674,57 @@ namespace StingTools.Core.Drawing
     }
 
     // ─────────────────────────────────────────────────────────────────────
+    //  ANNOTATION TOKEN PROFILE — Phase 135
+    //
+    //  Per-DrawingType token-level presentation knobs. Distinct from the
+    //  rule-pack (which decides WHAT to tag) — this one decides HOW the
+    //  resulting tags read on the sheet: how many paragraph tiers are
+    //  visible, which TAG7 sub-sections show, what size/style/colour the
+    //  tag text is, and which 8-segment tokens the displayed tag carries.
+    //
+    //  Every field is optional. Null means "inherit / don't override":
+    //    * Pack-level defaults on the resolved ViewStylePack apply when
+    //      this profile leaves a slot empty.
+    //    * Where neither profile nor pack sets a value, the engine
+    //      leaves the underlying parameter alone.
+    //
+    //  Applied by <c>TokenProfileApplier</c> in step 7.5 of the pipeline,
+    //  between ViewStylePack (step 7) and Annotation (step 8).
+    // ─────────────────────────────────────────────────────────────────────
+
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  ANNOTATION TOKEN PROFILE — Phase 135
+    //
+    //  Per-DrawingType token-level presentation knobs. Distinct from the
+    //  rule-pack (which decides WHAT to tag) — this one decides HOW the
+    //  resulting tags read on the sheet: how many paragraph tiers are
+    //  visible, which TAG7 sub-sections show, what size/style/colour the
+    //  tag text is, and which 8-segment tokens the displayed tag carries.
+    //
+    //  Every field is optional. Null means "inherit / don't override":
+    //    * Pack-level defaults on the resolved ViewStylePack apply when
+    //      this profile leaves a slot empty.
+    //    * Where neither profile nor pack sets a value, the engine
+    //      leaves the underlying parameter alone.
+    //
+    //  Applied by <c>TokenProfileApplier</c> in step 7.5 of the pipeline,
+    //  between ViewStylePack (step 7) and Annotation (step 8).
+    // ─────────────────────────────────────────────────────────────────────
+
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  PRODUCTION RULE — Phase 137
+    //
+    //  One rule per companion view a single DrawingType produces. The
+    //  parent profile defines slot geometry, scale, etc; each rule may
+    //  optionally override scale / detail level / view template / pack
+    //  / annotation / phase per produced view, and pin itself to a
+    //  specific slot index.
+    // ─────────────────────────────────────────────────────────────────────
+
+
+    // ─────────────────────────────────────────────────────────────────────
     //  PRINT OVERRIDE
     // ─────────────────────────────────────────────────────────────────────
 

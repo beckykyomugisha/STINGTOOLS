@@ -49,11 +49,15 @@ namespace StingTools.UI
             = StingTools.Core.SLD.SLDAnnotationOptions.Default;
         public static string CurrentLpdStandard = "ASHRAE_90_1_2019";
         public static double CurrentLpdCustomLimit = 0;
+        // Phase 183: earthing-system selector for the BS 7671 compliance audit.
+        // Drives Ze (utility loop impedance) lookup in BS7671ComplianceEngine.
+        public static string CurrentEarthingSystem = "TN-C-S";
 
         // Snapshot outputs surfaced by Phase 178 commands.
         public static List<StingTools.UI.ConduitFillData> LastConduitFills = new();
         public static List<StingTools.UI.EmergAuditRow> LastEmergAudit = new();
         public static List<StingTools.UI.LpdRow> LastLpdRows = new();
+        public static List<StingTools.Commands.Electrical.Compliance.CircuitAuditResult> LastBs7671Results = new();
 
         private StingElectricalCommandHandler(StingElectricalPanel panel) { _panel = panel; }
 
@@ -175,13 +179,14 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.ElecCircuitRenumberCommand>(app); break;
                 case "Circuit_Excel":
                     RunCommand<StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand>(app); break;
-                case "Circuit_Move":
                 case "Circuit_Create":
+                    RunCommand<StingTools.Commands.Electrical.CircuitCreateCommand>(app); break;
                 case "Circuit_Delete":
+                    RunCommand<StingTools.Commands.Electrical.CircuitDeleteCommand>(app); break;
+                case "Circuit_Move":
+                    RunCommand<StingTools.Commands.Electrical.CircuitMoveCommand>(app); break;
                 case "Circuit_Sort":
-                    TaskDialog.Show("STING Electrical",
-                        $"{tag} is planned for Phase 178. Use the panel schedule UI for now.");
-                    break;
+                    RunCommand<StingTools.Commands.Electrical.CircuitSortCommand>(app); break;
 
                 // ── CALCS ────────────────────────────────────────────
                 case "Calc_LoadSummary":
@@ -211,11 +216,13 @@ namespace StingTools.UI
                 case "SLD_SwitchStandard":
                     RunCommand<StingTools.Commands.SLD.SLDSwitchStandardCommand>(app); break;
                 case "SLD_Refresh":
-                    /* fresh snapshot will run after Dispatch */
+                    // The PushSnapshot tail-call rebuilds the SLD tree; this
+                    // case just records the refresh timestamp so the panel
+                    // status bar visibly confirms the request landed.
+                    FlashRefreshed("SLD refreshed");
                     break;
                 case "SLD_Export":
-                    TryRunByTypeName("StingTools.Commands.SLD.SLDExportCommand", app);
-                    break;
+                    RunCommand<StingTools.Commands.SLD.SLDExportCommand>(app); break;
                 case "SLD_ZoomTo":
                     ZoomToSelectedSld(app, doc);
                     break;
@@ -233,29 +240,61 @@ namespace StingTools.UI
 
                 // ── LITE ─────────────────────────────────────────────
                 case "Lite_Refresh":
-                    /* snapshot picks up lighting refresh */
+                    FlashRefreshed("Lighting refreshed");
                     break;
                 case "Lite_CreateSchedule":
                     RunCommand<StingTools.Commands.Electrical.ElecLightingScheduleCommand>(app); break;
                 case "Lite_UpdateTargets":
-                    /* snapshot picks up targets */
+                    StingTools.Photometrics.LuxTargetTable.InvalidateCache();
+                    FlashRefreshed("Lux targets reloaded");
                     break;
+                case "Elec_ClearOverrides":
+                    ClearActiveViewOverrides(app, doc);
+                    break;
+
+                // ── Phase 183: BS 7671 compliance audit ────────────────
+                case "Bs7671_Audit":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671AuditCommand>(app); break;
+                case "Bs7671_LoopCalcSheet":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671LoopCalcSheetCommand>(app); break;
+                case "Bs7671_Certificate":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671CertificateCommand>(app); break;
+                case "Rprt_CablePullList":
+                    RunCommand<StingTools.Commands.Electrical.Reports.CablePullListCommand>(app); break;
+                case "Rprt_EquipSchedule":
+                    RunCommand<StingTools.Commands.Electrical.Reports.ElectricalEquipmentScheduleCommand>(app); break;
+                case "Calc_LoadDemandAudit":
+                    RunCommand<StingTools.Commands.Electrical.LoadDemand.LoadDemandAuditCommand>(app); break;
+                case "Elec_TccPlot":
+                    RunCommand<StingTools.Commands.Electrical.Coordination.TccPlotCommand>(app); break;
+                case "Elec_ArcFlashBoundary":
+                    RunCommand<StingTools.Commands.Electrical.ArcFlash.ArcFlashBoundaryViewCommand>(app); break;
+                case "Lite_QuickLuxEstimate":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.QuickLuxEstimateCommand>(app); break;
+                case "Lite_ControlZones":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LightingControlZoneCommand>(app); break;
+                case "Bs7671_WorkingClearance":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.WorkingClearanceCommand>(app); break;
+                case "Elec_CarbonRollup":
+                    RunCommand<StingTools.Commands.Electrical.Sustainability.ElectricalCarbonCommand>(app); break;
+                case "Lite_LightingCalcSheet":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LightingCalcSheetCommand>(app); break;
+                case "Lite_LuminaireRegistry":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LuminaireRegistryCommand>(app); break;
+                case "Elec_DrawingLegend":
+                    RunCommand<StingTools.Commands.Electrical.Reports.ElectricalDrawingLegendCommand>(app); break;
 
                 // ── RPRT ─────────────────────────────────────────────
                 case "Rprt_Audit":
                     RunCommand<StingTools.Commands.Panels.PanelScheduleAuditCommand>(app); break;
                 case "Rprt_PDF":
-                    TaskDialog.Show("STING Electrical",
-                        "PDF report generation is queued for Phase 178. Excel export is available now.");
-                    break;
+                    RunCommand<StingTools.Commands.Electrical.Reports.ElecPdfReportCommand>(app); break;
                 case "Rprt_ExcelExport":
                     RunCommand<StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand>(app); break;
                 case "Rprt_ExcelImport":
                     RunCommand<StingTools.Commands.Panels.ImportPanelSchedulesFromExcelCommand>(app); break;
                 case "Rprt_ShowDiff":
-                    TaskDialog.Show("STING Electrical",
-                        "Last import diff is logged in StingTools.log. A dedicated viewer arrives in Phase 178.");
-                    break;
+                    RunCommand<StingTools.Commands.Electrical.Reports.ImportDiffViewerCommand>(app); break;
                 case "Rprt_CircuitExport":
                     RunCommand<StingTools.Commands.Electrical.ExportCircuitsCommand>(app); break;
                 case "Rprt_COBie":
@@ -701,6 +740,37 @@ namespace StingTools.UI
             // hint so the button on the dock panel is discoverable.
             TaskDialog.Show("STING Circuit Wizard",
                 "Click 'Launch Wizard' to open the modal proposer / editor.");
+        }
+
+        private void FlashRefreshed(string message)
+        {
+            try { _panel?.UpdateStatus($"{message}  ·  {DateTime.Now:HH:mm:ss}"); } catch { }
+        }
+
+        // Clear graphic overrides applied by ArcFlash / LPD / EmergAudit /
+        // PhotometricDesignReview — those commands tint elements red/amber/green
+        // and leave the colour stuck on the active view. One-shot reset.
+        private void ClearActiveViewOverrides(UIApplication app, Document doc)
+        {
+            if (doc == null) return;
+            var view = app?.ActiveUIDocument?.ActiveView;
+            if (view == null || view.IsTemplate) return;
+            try
+            {
+                using var tx = new Transaction(doc, "STING Clear Electrical Overrides");
+                tx.Start();
+                var blank = new OverrideGraphicSettings();
+                int n = 0;
+                foreach (var id in new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .ToElementIds())
+                {
+                    try { view.SetElementOverrides(id, blank); n++; } catch { }
+                }
+                tx.Commit();
+                FlashRefreshed($"Cleared overrides on {n} elements");
+            }
+            catch (Exception ex) { StingLog.Warn($"ClearActiveViewOverrides: {ex.Message}"); }
         }
 
         public void RefreshWireRefTable(StingElectricalPanel panel)

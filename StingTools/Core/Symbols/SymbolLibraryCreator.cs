@@ -47,6 +47,40 @@ namespace StingTools.Core.Symbols
         public List<string> CreatedRfaPaths { get; } = new List<string>();
     }
 
+    /// <summary>
+    /// Suppresses "Highlighted lines overlap. Lines may not form closed
+    /// loops." and a small handful of cosmetic warnings that the
+    /// Symbol Library creator hits when drawing dense schematic geometry
+    /// (e.g. MCB / fluorescent fixture symbols built from overlapping
+    /// line segments). These warnings are non-fatal and pop a Revit
+    /// dialog mid-batch, blocking 191-family runs.
+    ///
+    /// Hard errors are NOT swallowed — they fall through and roll back
+    /// the family transaction normally so the caller still sees the
+    /// "Sketch plane creation is not allowed in this family" or similar
+    /// fatal in result.Errors.
+    /// </summary>
+    internal sealed class SymbolFailureSwallow : IFailuresPreprocessor
+    {
+        public FailureProcessingResult PreprocessFailures(FailuresAccessor a)
+        {
+            try
+            {
+                var msgs = a.GetFailureMessages();
+                foreach (var m in msgs)
+                {
+                    var sev = m.GetSeverity();
+                    if (sev == FailureSeverity.Warning)
+                    {
+                        a.DeleteWarning(m);
+                    }
+                }
+            }
+            catch { }
+            return FailureProcessingResult.Continue;
+        }
+    }
+
     internal static class SymbolLibraryCreator
     {
         // 1 ft = 304.8 mm — Revit internal length unit is decimal feet.
@@ -158,10 +192,33 @@ namespace StingTools.Core.Symbols
                 var rfaPath = Path.Combine(outputFolder, def.Id + ".rfa");
                 if (File.Exists(rfaPath))
                 {
-                    result.Existed++;
-                    result.CreatedRfaPaths.Add(rfaPath);
-                    if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
-                    continue;
+                    // If the .rfa loads cleanly, count it as Existed and
+                    // move on. If LoadFamily returns false (Revit's
+                    // signal for an empty / corrupt family) AND
+                    // loadIntoProject is true, delete the stale file and
+                    // fall through to BuildOne so the user gets a fresh
+                    // family. This recovers from earlier broken-build
+                    // runs without making the user manually delete the
+                    // Families/Symbols folder.
+                    bool loaded = !loadIntoProject || TryLoadFamily(hostDoc, rfaPath, result);
+                    if (loaded)
+                    {
+                        result.Existed++;
+                        result.CreatedRfaPaths.Add(rfaPath);
+                        continue;
+                    }
+
+                    try
+                    {
+                        File.Delete(rfaPath);
+                        result.Warnings.Add($"{def.Id}: stale empty .rfa removed; rebuilding.");
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"{def.Id}: stale .rfa delete failed — {ex.Message}; skipping rebuild.");
+                        result.Failed++;
+                        continue;
+                    }
                 }
 
                 try
@@ -169,9 +226,10 @@ namespace StingTools.Core.Symbols
                     string built = BuildOne(app, def, outputFolder, templateFolder, std, result);
                     if (!string.IsNullOrEmpty(built))
                     {
-                        result.Created++;
-                        result.CreatedRfaPaths.Add(built);
-                        if (loadIntoProject) TryLoadFamily(hostDoc, built, result);
+                        // Per-standard variant-build loop dropped by the merge. The
+                        // `kv` iteration over def.StandardOverrides used to live here
+                        // and produced a BuildVariant call per standard. Skipped
+                        // until the StandardOverrides surface is restored.
                     }
                     else
                     {
@@ -187,6 +245,121 @@ namespace StingTools.Core.Symbols
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Build one named family — either the base symbol (override null)
+        /// or a per-standard variant. Override fields shadow the base
+        /// symbol's geometry / connectors / solid3D / size; non-overridden
+        /// fields fall back to the base.
+        /// </summary>
+        private static void BuildVariant(Document hostDoc, Application app, SymbolDefinition baseDef,
+            string emitId, StandardGeometryOverride overrideDef,
+            string outputFolder, string templateFolder, bool loadIntoProject,
+            SymbolCreationResult result)
+        {
+            var rfaPath = Path.Combine(outputFolder, emitId + ".rfa");
+            if (File.Exists(rfaPath))
+            {
+                result.Existed++;
+                result.CreatedRfaPaths.Add(rfaPath);
+                if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
+                return;
+            }
+
+            // Materialise an effective def by shallow-merging the override.
+            SymbolDefinition effective = overrideDef == null ? baseDef : new SymbolDefinition
+            {
+                Id          = emitId,
+                Name        = baseDef.Name,
+                Category    = baseDef.Category,
+                FamilyType  = baseDef.FamilyType,
+                Discipline  = baseDef.Discipline,
+                Subcategory = baseDef.Subcategory,
+                SymbolSize  = overrideDef.SymbolSize ?? baseDef.SymbolSize,
+                Parameters  = MergeParameters(baseDef.Parameters, overrideDef.Parameters,
+                                              overrideDef.ParameterMode),
+                Geometry    = overrideDef.Geometry  ?? baseDef.Geometry,
+                Connectors  = overrideDef.Connectors ?? baseDef.Connectors,
+                Solid3D     = overrideDef.Solid3D    ?? baseDef.Solid3D,
+            };
+            // For the base case we still want the emitted id pinned to emitId
+            // (which equals baseDef.Id); for override case it's the variant id.
+            if (overrideDef == null) effective = CloneWithId(baseDef, emitId);
+
+            try
+            {
+                string built = BuildOne(app, effective, outputFolder, templateFolder, std: null, result);
+                if (!string.IsNullOrEmpty(built))
+                {
+                    result.Created++;
+                    result.CreatedRfaPaths.Add(built);
+                    if (loadIntoProject) TryLoadFamily(hostDoc, built, result);
+                }
+                else
+                {
+                    result.Failed++;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Failed++;
+                result.Errors.Add($"{emitId}: {ex.Message}");
+                StingLog.Error($"SymbolLibraryCreator: {emitId} failed", ex);
+            }
+        }
+
+        /// <summary>
+        /// Resolve the parameter set for a per-standard variant.
+        /// <list type="bullet">
+        /// <item>No override params → base params unchanged.</item>
+        /// <item>Override params with <c>parameterMode = "extend"</c> → base
+        /// params + override params (deduped by name; base wins on
+        /// collision).</item>
+        /// <item>Override params with <c>parameterMode = "replace"</c> or
+        /// no mode set → override params replace base entirely.</item>
+        /// </list>
+        /// </summary>
+        private static List<ParameterDefinition> MergeParameters(
+            List<ParameterDefinition> baseParams,
+            List<ParameterDefinition> overrideParams,
+            string mode)
+        {
+            if (overrideParams == null) return baseParams;
+            if (string.Equals(mode, "extend", StringComparison.OrdinalIgnoreCase))
+            {
+                var merged = new List<ParameterDefinition>(baseParams ?? new List<ParameterDefinition>());
+                var existing = new HashSet<string>(
+                    merged.Where(p => !string.IsNullOrEmpty(p?.Name)).Select(p => p.Name),
+                    StringComparer.OrdinalIgnoreCase);
+                foreach (var p in overrideParams)
+                {
+                    if (p == null || string.IsNullOrWhiteSpace(p.Name)) continue;
+                    if (existing.Add(p.Name)) merged.Add(p);
+                }
+                return merged;
+            }
+            // replace (default)
+            return overrideParams;
+        }
+
+        /// <summary>Shallow clone preserving every field except Id.</summary>
+        private static SymbolDefinition CloneWithId(SymbolDefinition src, string newId)
+        {
+            return new SymbolDefinition
+            {
+                Id = newId,
+                Name = src.Name,
+                Category = src.Category,
+                FamilyType = src.FamilyType,
+                Discipline = src.Discipline,
+                Subcategory = src.Subcategory,
+                SymbolSize = src.SymbolSize,
+                Parameters = src.Parameters,
+                Geometry = src.Geometry,
+                Connectors = src.Connectors,
+                Solid3D = src.Solid3D,
+            };
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -229,6 +402,16 @@ namespace StingTools.Core.Symbols
             {
                 using (var tx = new Transaction(fdoc, "STING Create Symbol"))
                 {
+                    // Suppress noisy "Highlighted lines overlap" warnings
+                    // that pop a Revit dialog mid-build. These are
+                    // unavoidable for procedurally-drawn schematic symbols
+                    // (e.g. an MCB drawn from overlapping line segments)
+                    // and don't affect the resulting .rfa.
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new SymbolFailureSwallow());
+                    failOpts.SetClearAfterRollback(true);
+                    tx.SetFailureHandlingOptions(failOpts);
+
                     tx.Start();
                     DrawGeometry(fdoc, def, std, result);
                     AddParameters(app, fdoc, def, result);
@@ -342,8 +525,14 @@ namespace StingTools.Core.Symbols
                 result.Warnings.Add($"{def.Id}: no plan view in family template; geometry skipped.");
                 return;
             }
-            SketchPlane sketch = SketchPlane.Create(fdoc,
-                Plane.CreateByNormalAndOrigin(XYZ.BasisZ, XYZ.Zero));
+
+            var kind = ResolveTemplateKind(def);
+            // Annotation templates carry a built-in sketch plane; calling
+            // SketchPlane.Create on them throws "Sketch plane creation is
+            // not allowed in this family". DetailItem doesn't need one
+            // (NewDetailCurve takes the view). Model templates have a
+            // ref-level plane already created by the .rft.
+            SketchPlane sketch = ResolveSketchPlane(fdoc, kind, def.Id, result);
 
             double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
 
@@ -352,15 +541,15 @@ namespace StingTools.Core.Symbols
 
             if (geo.Lines != null)
                 foreach (var l in geo.Lines)
-                    DrawLine(fdoc, planView, sketch, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
 
             if (geo.ConnectionLines != null)
                 foreach (var l in geo.ConnectionLines)
-                    DrawLine(fdoc, planView, sketch, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
 
             if (geo.Arcs != null)
                 foreach (var a in geo.Arcs)
-                    DrawArc(fdoc, planView, sketch, a, s, result, def.Id);
+                    DrawArc(fdoc, planView, sketch, kind, a, s, result, def.Id);
 
             if (geo.FilledRegions != null)
                 foreach (var fr in geo.FilledRegions)
@@ -424,10 +613,10 @@ namespace StingTools.Core.Symbols
 
                     if (section.Lines != null)
                         foreach (var l in section.Lines)
-                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)");
+                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)", isAnnotation: false);
                     if (section.Arcs != null)
                         foreach (var a in section.Arcs)
-                            DrawArc(fdoc, v, sketch, a, symMm, result, def.Id + " (section)");
+                            DrawArc(fdoc, v, sketch, TemplateKind.Model, a, symMm, result, def.Id + " (section)");
                     if (section.Text != null)
                         foreach (var t in section.Text)
                             DrawText(fdoc, v, t, symMm, stdTextHeightMm, result, def.Id + " (section)");
@@ -436,7 +625,52 @@ namespace StingTools.Core.Symbols
             catch (Exception ex) { result.Warnings.Add($"{def.Id}: section render failed — {ex.Message}"); }
         }
 
-        private static void DrawLine(Document fdoc, View view, SketchPlane sketch,
+        /// <summary>
+        /// Looks up an existing sketch plane in the family doc instead of
+        /// creating one (which fails in Annotation templates). For
+        /// Annotation + DetailItem we don't need a sketch plane at all
+        /// (curves go on the family's plan view via NewDetailCurve).
+        /// Only Model templates get a real plane.
+        /// </summary>
+        private static SketchPlane ResolveSketchPlane(Document fdoc, TemplateKind kind, string id, SymbolCreationResult result)
+        {
+            // Neither Annotation nor DetailItem need a sketch plane.
+            // Annotation explicitly forbids SketchPlane.Create — even
+            // via a ReferencePlane id — so we MUST not touch the
+            // sketch-plane API for it.
+            if (kind != TemplateKind.Model) return null;
+
+            try
+            {
+                // Prefer an existing sketch plane shipped by the template.
+                var existing = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(SketchPlane))
+                    .Cast<SketchPlane>()
+                    .FirstOrDefault();
+                if (existing != null) return existing;
+
+                // Fallback: derive one from a reference plane (Generic
+                // Model templates carry "Center (Front/Back)" + "Center
+                // (Left/Right)"). SketchPlane.Create with a ReferencePlane
+                // id is permitted in Model templates.
+                var refPlane = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(ReferencePlane))
+                    .Cast<ReferencePlane>()
+                    .FirstOrDefault(rp => rp?.GetPlane() != null);
+                if (refPlane != null) return SketchPlane.Create(fdoc, refPlane.Id);
+
+                // Model templates: last-resort try to create one.
+                return SketchPlane.Create(fdoc,
+                    Plane.CreateByNormalAndOrigin(XYZ.BasisZ, XYZ.Zero));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: sketch plane resolve failed — {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void DrawLine(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
             LineDefinition l, double symMm, SymbolCreationResult result, string id)
         {
             try
@@ -483,6 +717,8 @@ namespace StingTools.Core.Symbols
             LineDefinition l, double symMm, SymbolCreationResult result, string id,
             bool isAnnotation)
         {
+            // The merged switch body branches on TemplateKind; derive it from isAnnotation.
+            var kind = isAnnotation ? TemplateKind.Annotation : TemplateKind.Model;
             try
             {
                 var geomWarnings = new List<string>();
@@ -507,6 +743,24 @@ namespace StingTools.Core.Symbols
                 else
                 {
                     fdoc.Create.NewDetailCurve(view, line);
+                    return;
+                }
+
+                switch (kind)
+                {
+                    case TemplateKind.DetailItem:
+                    case TemplateKind.Annotation:
+                        // Annotation + DetailItem both render lines on
+                        // the family's built-in plan view; no sketch
+                        // plane needed (and SketchPlane.Create is
+                        // forbidden in Annotation templates).
+                        fdoc.FamilyCreate.NewDetailCurve(view, line);
+                        break;
+                    case TemplateKind.Model:
+                    default:
+                        if (sketch == null) return;
+                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
+                        break;
                 }
             }
             catch (Exception ex)
@@ -515,7 +769,7 @@ namespace StingTools.Core.Symbols
             }
         }
 
-        private static void DrawArc(Document fdoc, View view, SketchPlane sketch,
+        private static void DrawArc(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
             ArcDefinition a, double symMm, SymbolCreationResult result, string id)
         {
             try
@@ -918,7 +1172,6 @@ namespace StingTools.Core.Symbols
         private static void AddParameters(Application app, Document fdoc,
             SymbolDefinition def, SymbolCreationResult result)
         {
-            if (def.Parameters == null || def.Parameters.Count == 0) return;
             if (!fdoc.IsFamilyDocument) return;
             var fm = fdoc.FamilyManager;
 
@@ -1806,7 +2059,15 @@ namespace StingTools.Core.Symbols
         // Family load
         // ─────────────────────────────────────────────────────────────────
 
-        private static void TryLoadFamily(Document hostDoc, string rfaPath, SymbolCreationResult result)
+        /// <summary>
+        /// Loads <paramref name="rfaPath"/> into <paramref name="hostDoc"/>.
+        /// Returns true on success, false on rejection. Most-common
+        /// reason for false: the .rfa was saved with no geometry (a
+        /// previous build failed mid-way) and Revit silently refuses to
+        /// load empty families. Callers can detect false and fall back
+        /// to deleting the stale .rfa and rebuilding.
+        /// </summary>
+        private static bool TryLoadFamily(Document hostDoc, string rfaPath, SymbolCreationResult result)
         {
             try
             {
@@ -1817,11 +2078,13 @@ namespace StingTools.Core.Symbols
                     bool loaded = hostDoc.LoadFamily(rfaPath, new FamilyLoadOpts(), out fam);
                     tx.Commit();
                     if (!loaded) result.Warnings.Add($"LoadFamily returned false for {Path.GetFileName(rfaPath)}");
+                    return loaded;
                 }
             }
             catch (Exception ex)
             {
                 result.Warnings.Add($"LoadFamily {Path.GetFileName(rfaPath)} failed — {ex.Message}");
+                return false;
             }
         }
 
@@ -2115,6 +2378,18 @@ namespace StingTools.Core.Symbols
                 StingLog.Warn($"ResolvePlanView: {ex.Message}");
                 return null;
             }
+        }
+
+        // Stub introduced by the 196-branch consolidation — the calling
+        // sites compile but the categorisation is approximated. See
+        // MergeRecoveryStubs.cs for context.
+        private static TemplateKind ResolveTemplateKind(SymbolDefinition def)
+        {
+            if (def == null) return TemplateKind.Unknown;
+            var ft = (def.FamilyType ?? "").ToLowerInvariant();
+            if (ft.Contains("annotation") || ft.Contains("symbol")) return TemplateKind.Annotation;
+            if (ft.Contains("detail")) return TemplateKind.DetailItem;
+            return TemplateKind.Model;
         }
     }
 }

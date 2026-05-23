@@ -158,6 +158,11 @@ public class PlanscapeDbContext : DbContext
     public DbSet<HealthcareAntiLigatureAudit> HealthcareAntiLigatureAudits => Set<HealthcareAntiLigatureAudit>();
     public DbSet<HealthcareRdsSnapshot>       HealthcareRdsSnapshots       => Set<HealthcareRdsSnapshot>();
 
+    // Phase 188 (Tier 3) — HVAC snapshots pushed by the desktop plugin.
+    // One row per sizing / balance / drift / loads / carbon run; mobile
+    // HVAC dashboard reads via /api/projects/{id}/hvac/...
+    public DbSet<HvacSnapshot>                HvacSnapshots                => Set<HvacSnapshot>();
+
     // Phase 178f — penetration commissioning sign-off captured by the
     // mobile app on-site. One row per FRP / fire damper / acoustic
     // seal instance keyed on PenetrationControlNumber + PfvUuid.
@@ -1034,6 +1039,28 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
         });
 
+        // Phase 187d — HVAC engine result indexes. Dashboard queries
+        // filter by (ProjectId, CapturedAt) on every table; NC dashboards
+        // additionally filter by (PredictedNc > TargetNc) so a covering
+        // index on (ProjectId, PredictedNc) speeds the "over target"
+        // aggregate.
+        modelBuilder.Entity<HvacLoadSnapshot>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.SystemId });
+        });
+        modelBuilder.Entity<HvacNcSnapshot>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.PredictedNc });
+        });
+        modelBuilder.Entity<HvacRefrigerantSizing>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.RefrigerantId });
+            e.HasIndex(x => new { x.ProjectId, x.Ok });
+        });
+
         // Phase 178b — SitePhoto compound (ProjectId, PairKey) for
         // before/after pair lookups. The single-column PairKey index
         // exists already; the compound version skips a second-pass
@@ -1435,11 +1462,22 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(x => new { x.ProjectId, x.Reference }).IsUnique();
             e.Property(x => x.Reference).HasMaxLength(40).IsRequired();
             e.Property(x => x.Kind).HasMaxLength(20);
+            // Phase 184q — contract family.
+            e.Property(x => x.ContractForm).HasMaxLength(32).HasDefaultValue("JCT2024");
+            e.HasIndex(x => new { x.ProjectId, x.ContractForm });
             e.Property(x => x.Title).HasMaxLength(400);
             e.Property(x => x.Description).HasMaxLength(4000);
             e.Property(x => x.InstructionRef).HasMaxLength(200);
             e.Property(x => x.Currency).HasMaxLength(8);
             e.Property(x => x.Status).HasMaxLength(20);
+            // Phase 184o — reason + liability fields. String-typed (not
+            // enum) so cross-cluster reporting tools can read directly
+            // from Postgres without enum mapping.
+            e.Property(x => x.Reason).HasMaxLength(32).HasDefaultValue("Other");
+            e.Property(x => x.Liability).HasMaxLength(32).HasDefaultValue("Employer");
+            e.Property(x => x.ReasonDetail).HasMaxLength(4000);
+            e.HasIndex(x => new { x.ProjectId, x.Reason });
+            e.HasIndex(x => new { x.ProjectId, x.Liability });
             e.Property(x => x.SubmittedBy).HasMaxLength(200);
             e.Property(x => x.ApprovedBy).HasMaxLength(200);
             e.Property(x => x.RejectionReason).HasMaxLength(2000);

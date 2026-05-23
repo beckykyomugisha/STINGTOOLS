@@ -17,7 +17,7 @@ namespace StingTools.UI
     /// resource tree can be broken. Resources are set on BOTH the Page and
     /// Application to ensure DynamicResource bindings resolve correctly.
     /// </summary>
-    public static class ThemeManager
+    public static partial class ThemeManager
     {
         // Default theme is "Cool" — light blue-grey body with bright blue
         // accents. The BCC, Document Management Centre, and dockable panel
@@ -227,6 +227,11 @@ namespace StingTools.UI
 
                 CurrentTheme = themeName;
                 StingLog.Info($"ThemeManager: applied '{themeName}' theme");
+
+                // Notify subscribers (modeless windows like BCC) so they can
+                // refresh code-behind brushes that don't go through DynamicResource.
+                try { ThemeChanged?.Invoke(themeName); }
+                catch (Exception ex2) { StingLog.Warn($"ThemeManager.ThemeChanged: {ex2.Message}"); }
             }
             catch (Exception ex)
             {
@@ -258,14 +263,6 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"ThemeManager.ThemeChanged: {ex.Message}"); }
         }
 
-        /// <summary>
-        /// Fires after a successful <see cref="ApplyTheme"/>. Modeless windows
-        /// that build their visual tree in code-behind (BCC, DMD) can subscribe
-        /// to rebuild their brushes when the user cycles themes from the dock
-        /// panel. DynamicResource bindings update automatically and don't need
-        /// this event.
-        /// </summary>
-        public static event EventHandler ThemeChanged;
 
         private static void ApplyToTarget(Dictionary<string, string> theme, ResourceDictionary resources)
         {

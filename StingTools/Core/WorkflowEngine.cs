@@ -810,7 +810,7 @@ namespace StingTools.Core
                                 int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
                                 if (critical == 0) { RecordSkip("no critical warnings"); continue; }
                             }
-                            catch (Exception ex2) { StingLog.Warn($"has_critical_warnings check: {ex2.Message}"); }
+                            catch (Exception ex) { StingLog.Warn($"has_spatial_warnings check: {ex.Message}"); }
                         }
                         if (cond == "has_open_issues")
                         {
@@ -824,7 +824,7 @@ namespace StingTools.Core
                                 int openCount = issuesArr.Count(i => (string)i["status"] == "OPEN");
                                 if (openCount == 0) { RecordSkip("no open issues"); continue; }
                             }
-                            catch (Exception ex2) { StingLog.Warn($"has_open_issues check: {ex2.Message}"); }
+                            catch (Exception ex) { StingLog.Warn($"has_mep_warnings check: {ex.Message}"); }
                         }
                         // Phase 75: has_overdue_issues — skip if no SLA-breaching issues
                         if (cond == "has_overdue_issues")
@@ -1715,6 +1715,8 @@ namespace StingTools.Core
                 case "Variation_FromDiff":         return new Commands.Cost.VariationFromDiffCommand();
                 case "Variation_BuildStarRate":    return new Commands.Cost.VariationBuildStarRateCommand();
                 case "Variation_ExportRegister":   return new Commands.Cost.VariationExportRegisterCommand();
+                // Phase 184p — reclassify legacy default-Other variations
+                case "Variation_ReclassifyLegacy": return new Commands.Cost.VariationReclassifyLegacyCommand();
                 case "Evm_Calculate":              return new Commands.Cost.EvmCalculateCommand();
                 case "Evm_ImportActuals":          return new Commands.Cost.EvmImportActualsCommand();
                 case "Evm_ExportReport":           return new Commands.Cost.EvmExportReportCommand();

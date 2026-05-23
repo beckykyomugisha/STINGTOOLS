@@ -798,6 +798,7 @@ namespace StingTools.BIMManager
                     using (var revTx = new Transaction(doc, "STING Propagate REV"))
                     {
                         revTx.Start();
+                        var catEnums = SharedParamGuids.AllCategoryEnums;
                         var allTagged = new FilteredElementCollector(doc)
                             .WhereElementIsNotElementType();
                         if (catEnums != null && catEnums.Length > 0)

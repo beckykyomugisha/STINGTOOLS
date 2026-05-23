@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using StingTools.Core.Placement;
@@ -260,12 +261,21 @@ namespace StingTools.UI.PlacementCenter
                 var arr = string.IsNullOrEmpty(value)
                     ? new string[0]
                     : value.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries);
-                _rule.ApplicableStandards = arr;
+                _rule.ApplicableStandards = string.Join(",", arr);
                 MarkDirty();
             }
         }
 
-        public string IpRatingMin       { get => _rule.IpRatingMin;       set { if (_rule.IpRatingMin       != value) { _rule.IpRatingMin       = value ?? ""; MarkDirty(); } } }
+        public string IpRatingMin
+        {
+            get => _rule.IpRatingMin.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            set
+            {
+                int.TryParse(value ?? "0", System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture, out var n);
+                if (_rule.IpRatingMin != n) { _rule.IpRatingMin = n; MarkDirty(); }
+            }
+        }
         public string WetZoneExclusion  { get => _rule.WetZoneExclusion;  set { if (_rule.WetZoneExclusion  != value) { _rule.WetZoneExclusion  = value ?? "NONE"; MarkDirty(); } } }
         public bool   AccessibilityCheck { get => _rule.AccessibilityCheck; set { if (_rule.AccessibilityCheck != value) { _rule.AccessibilityCheck = value; MarkDirty(); } } }
         public string HeightStandard    { get => _rule.HeightStandard;    set { if (_rule.HeightStandard    != value) { _rule.HeightStandard    = value ?? ""; MarkDirty(); } } }
@@ -298,7 +308,16 @@ namespace StingTools.UI.PlacementCenter
         public string PostAuditTag         { get => _rule.PostAuditTag;         set { if (_rule.PostAuditTag         != value) { _rule.PostAuditTag         = value ?? ""; MarkDirty(); } } }
         public bool   RequiresCOBieFields  { get => _rule.RequiresCOBieFields;  set { if (_rule.RequiresCOBieFields  != value) { _rule.RequiresCOBieFields  = value; MarkDirty(); } } }
         public bool   RequiresIfcMapping   { get => _rule.RequiresIfcMapping;   set { if (_rule.RequiresIfcMapping   != value) { _rule.RequiresIfcMapping   = value; MarkDirty(); } } }
-        public string MaintenanceClearance { get => _rule.MaintenanceClearance; set { if (_rule.MaintenanceClearance != value) { _rule.MaintenanceClearance = value ?? ""; MarkDirty(); } } }
+        public string MaintenanceClearance
+        {
+            get => _rule.MaintenanceClearance.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            set
+            {
+                double.TryParse(value ?? "0", System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var d);
+                if (System.Math.Abs(_rule.MaintenanceClearance - d) > 1e-9) { _rule.MaintenanceClearance = d; MarkDirty(); }
+            }
+        }
 
         // ── Computed UI helpers ─────────────────────────────────────
 
@@ -343,9 +362,17 @@ namespace StingTools.UI.PlacementCenter
 
         /// <summary>First-listed standard for the Standard column.</summary>
         public string PrimaryStandard
-            => (_rule.ApplicableStandards != null && _rule.ApplicableStandards.Length > 0)
-                ? _rule.ApplicableStandards[0]
-                : "—";
+        {
+            get
+            {
+                var s = _rule.ApplicableStandards;
+                if (string.IsNullOrEmpty(s)) return "—";
+                var first = s.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                              .Select(x => x.Trim())
+                              .FirstOrDefault(x => !string.IsNullOrEmpty(x));
+                return first ?? "—";
+            }
+        }
 
         // ── State ────────────────────────────────────────────────────
 

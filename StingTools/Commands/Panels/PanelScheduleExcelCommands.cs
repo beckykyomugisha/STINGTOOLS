@@ -259,6 +259,17 @@ namespace StingTools.Commands.Panels
     [Regeneration(RegenerationOption.Manual)]
     public class ImportPanelSchedulesFromExcelCommand : IExternalCommand
     {
+        /// <summary>
+        /// Snapshot of the most recent Excel import — populated at the end
+        /// of every successful Execute() so the RPRT tab's "Show Last Import
+        /// Diff" command (<see cref="StingTools.Commands.Electrical.Reports.ImportDiffViewerCommand"/>)
+        /// can surface it without re-running the import. Stays empty until
+        /// the first import of the session.
+        /// </summary>
+        public static List<string> LastImportDiff { get; private set; } = new List<string>();
+        public static DateTime LastImportTime { get; private set; }
+        public static string LastImportSource { get; private set; } = "";
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
@@ -452,6 +463,37 @@ namespace StingTools.Commands.Panels
                  .Text("Empty-cell guard: an xlsx cell that is blank where the Revit cell had content is preserved (prevents accidental erasure from column-shifted edits or truncated workbooks). To intentionally clear a cell, edit it inside Revit's Panel Schedule UI directly.")
                  .Text("Only the BODY section is imported. HEADER and SUMMARY edits in Excel are ignored.");
             panel.Show();
+
+            // Capture the diff for the RPRT tab's "Show Last Import Diff" command —
+            // surfaces every load-delta line plus the cell-write summary in one
+            // dialog without forcing the user to re-open StingTools.log.
+            try
+            {
+                var diff = new List<string>
+                {
+                    $"Sheets processed: {sheetsProcessed}",
+                    $"Cells written:    {cellsWritten}",
+                    $"Cells rejected:   {cellsRejected} (read-only / Revit-managed)",
+                    $"Cells preserved by blank-guard: {cellsBlankPreserved}",
+                    $"Cells skipped (out of schema):  {cellsSkipped}",
+                    ""
+                };
+                if (loadDeltas.Count > 0)
+                {
+                    diff.Add("LOAD CHANGES PER PANEL");
+                    diff.AddRange(loadDeltas);
+                    diff.Add("");
+                }
+                if (failures.Count > 0)
+                {
+                    diff.Add("WARNINGS");
+                    diff.AddRange(failures);
+                }
+                LastImportDiff = diff;
+                LastImportTime = DateTime.Now;
+                LastImportSource = inPath ?? "";
+            }
+            catch (Exception ex) { StingLog.Warn($"LastImportDiff capture: {ex.Message}"); }
 
             StingLog.Info($"PanelSchedule Excel import: sheets={sheetsProcessed} written={cellsWritten} rejected={cellsRejected} blankGuard={cellsBlankPreserved} skipped={cellsSkipped}");
             return Result.Succeeded;

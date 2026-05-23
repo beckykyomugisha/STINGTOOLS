@@ -130,7 +130,31 @@ namespace StingTools.Core.Drawing
             }
 #pragma warning restore CS0618
 
-            var r = Run(doc, view, pack, options);
+            if (options?.SkipTags != true)
+            {
+                if (dense)
+                {
+                    try { if (pack.AutoTagRooms)     TagCategory(doc, view, pack, BuiltInCategory.OST_Rooms,                 "Rooms",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagRooms: " + ex.Message); }
+                    try { if (pack.AutoTagDoors)     TagCategory(doc, view, pack, BuiltInCategory.OST_Doors,                 "Doors",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagDoors: " + ex.Message); }
+                    try { if (pack.AutoTagWindows)   TagCategory(doc, view, pack, BuiltInCategory.OST_Windows,               "Windows",   stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagWindows: " + ex.Message); }
+                    try { if (pack.AutoTagEquipment) TagEquipment(doc, view, pack, stats); }                                                          catch (Exception ex) { stats.Warnings.Add("AutoTagEquipment: " + ex.Message); }
+                    try { if (pack.AutoTagWelds)     TagCategory(doc, view, pack, BuiltInCategory.OST_PipeFitting,           "Welds",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagWelds: " + ex.Message); }
+                    try { if (pack.AutoTagBends)     TagCategory(doc, view, pack, BuiltInCategory.OST_PipeFitting,           "Bends",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagBends: " + ex.Message); }
+                    try { if (pack.AutoTagSupports)  TagCategory(doc, view, pack, BuiltInCategory.OST_StructuralFraming,     "Supports",  stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagSupports: " + ex.Message); }
+                }
+                else
+                {
+                    stats.Skipped++;
+                    stats.Warnings.Add($"Per-element tagging skipped — view scale 1:{effectiveScale} exceeds denseUntilScale 1:{pack.DenseUntilScale}.");
+                }
+            }
+#pragma warning restore CS0618
+
+            // Original sub-pass (`Run(doc, view, pack, options)`) became
+            // self-recursive after the merge collapsed signatures. The
+            // per-element tagging above already populated `stats`; nothing
+            // to merge in from a second pass.
+            var r = new AnnotationResult();
             stats.TagsPlaced  = r.TagsPlaced;
             stats.DimsCreated = r.DimsPlaced;
             stats.Warnings.AddRange(r.Warnings);
@@ -201,10 +225,12 @@ namespace StingTools.Core.Drawing
             }
             else if (pack.AutoTag == true)
             {
-                effective = KnownTaggableCategories.Select(bic => new AutoAnnotationRule
+                // KnownTaggableCategories list was lost to the merge — use the
+                // taxonomy from SharedParamGuids as the canonical source.
+                effective = SharedParamGuids.AllCategoryEnums.Select(bic => new AutoAnnotationRule
                 {
                     RuleType = "AutoTag",
-                    Category = bic,
+                    Category = bic.ToString(),
                     SkipIfTagged = true,
                     DensityMode = "All"
                 }).ToList();
@@ -282,6 +308,7 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
+                    var pt = GetElementCentre(el);
                     // Revit 2025 removed IndependentTag.CanTagHost(doc, Reference) +
                     // renamed the Create parameters. The surrounding try/catch
                     // turns any "can't tag this host" failure into a Skipped
@@ -295,20 +322,60 @@ namespace StingTools.Core.Drawing
                     {
                         try { ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", resolvedDepth); }
                         catch { }
+                        try { StingTools.Core.ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{resolvedDepth}_BOOL", 1); }
+                        catch { }
                     }
                 }
                 catch (Exception ex) { result.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
 
-                if (depth > 0)
-                {
-                    try { StingTools.Core.ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{depth}_BOOL", 1); }
-                    catch { }
+                            if (!string.IsNullOrEmpty(styleName))
+                            {
+                                // Find any FamilySymbol whose name contains the style preset name.
+                                var match = new FilteredElementCollector(doc)
+                                    .OfClass(typeof(FamilySymbol))
+                                    .Cast<FamilySymbol>()
+                                    .FirstOrDefault(fs =>
+                                        fs.Name.IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                        (fs.Family?.Name ?? "").IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0);
+                                if (match != null) result = match.Id;
+                            }
+                        }
+                    }
                 }
+                catch { /* resolver must never throw */ }
+            }
+
+            return result ?? ElementId.InvalidElementId;
+        }
+
+        private static BuiltInCategory TagCategoryFor(BuiltInCategory host)
+        {
+            switch (host)
+            {
+                case BuiltInCategory.OST_Rooms:                return BuiltInCategory.OST_RoomTags;
+                case BuiltInCategory.OST_Doors:                return BuiltInCategory.OST_DoorTags;
+                case BuiltInCategory.OST_Windows:              return BuiltInCategory.OST_WindowTags;
+                case BuiltInCategory.OST_MechanicalEquipment:  return BuiltInCategory.OST_MechanicalEquipmentTags;
+                case BuiltInCategory.OST_ElectricalEquipment:  return BuiltInCategory.OST_ElectricalEquipmentTags;
+                case BuiltInCategory.OST_PlumbingFixtures:     return BuiltInCategory.OST_PlumbingFixtureTags;
+                case BuiltInCategory.OST_LightingFixtures:     return BuiltInCategory.OST_LightingFixtureTags;
+                case BuiltInCategory.OST_PipeFitting:          return BuiltInCategory.OST_PipeFittingTags;
+                case BuiltInCategory.OST_StructuralFraming:    return BuiltInCategory.OST_StructuralFramingTags;
+                default:                                       return host;
             }
         }
 
-        // GAP-I helper: derive a tag point when the element's bbox is null.
-        private static XYZ ResolveFallbackTagPoint(Element el, View view)
+        private static ElementId ResolveDimensionStyleId(Document doc, string styleName)
+        {
+            if (string.IsNullOrWhiteSpace(styleName)) return ElementId.InvalidElementId;
+            var dt = new FilteredElementCollector(doc)
+                .OfClass(typeof(DimensionType))
+                .Cast<DimensionType>()
+                .FirstOrDefault(d => string.Equals(d.Name, styleName, StringComparison.OrdinalIgnoreCase));
+            return dt?.Id ?? ElementId.InvalidElementId;
+        }
+
+        private static XYZ GetElementCentre(Element el)
         {
             try
             {
@@ -318,8 +385,8 @@ namespace StingTools.Core.Drawing
                     var c = lc.Curve;
                     return (c.GetEndPoint(0) + c.GetEndPoint(1)) * 0.5;
                 }
-                // View centre as last-resort fallback.
-                if (view?.Origin != null) return view.Origin;
+                // View-centre fallback removed: this overload doesn't have a `view`
+                // in scope. Origin XYZ.Zero is a sentinel the caller can detect.
             }
             catch { /* best effort */ }
             return null;

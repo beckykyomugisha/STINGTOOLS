@@ -73,7 +73,10 @@ namespace StingTools.Core.Drawing
                     if (lib?.Packs != null && lib.Packs.Count > 0)
                     {
                         foreach (var p in lib.Packs)
+                        {
                             if (string.IsNullOrEmpty(p.Origin)) p.Origin = "corporate";
+                            PromoteAppearance(p);
+                        }
                         return lib;
                     }
                 }
@@ -97,7 +100,10 @@ namespace StingTools.Core.Drawing
                 var lib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(path));
                 if (lib?.Packs != null)
                     foreach (var p in lib.Packs)
+                    {
                         if (string.IsNullOrEmpty(p.Origin)) p.Origin = "project";
+                        PromoteAppearance(p);
+                    }
                 return lib;
             }
             catch (Exception ex)

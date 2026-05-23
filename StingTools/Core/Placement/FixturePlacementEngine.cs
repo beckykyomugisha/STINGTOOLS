@@ -771,7 +771,9 @@ namespace StingTools.Core.Placement
                         int occ = 0;
                         try
                         {
-                            var p = room.LookupParameter("STING_OCC_COUNT_INT");
+                            string occParam = string.IsNullOrEmpty(rule.OccupancyParamName)
+                                ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName;
+                            var p = room.LookupParameter(occParam);
                             if (p != null && p.HasValue && p.StorageType == StorageType.Integer) occ = p.AsInteger();
                         }
                         catch { }

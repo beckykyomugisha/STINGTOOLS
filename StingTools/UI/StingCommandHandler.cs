@@ -79,6 +79,12 @@ namespace StingTools.UI
             // StingCommandHandler.CurrentApp when ExternalCommandData is null
             CurrentApp = app;
 
+            // N1 — Wire the Material Manager's live selection-sync once we
+            // have a real UIApplication. The hook is idempotent so calling
+            // every Execute is safe; the field-level guard means it's free
+            // after the first hit.
+            UI.StingDockPanel.SubscribeSelectionSync(app);
+
             // Snapshot command state under lock to prevent race with WPF UI thread
             string tag, p1, p2;
             lock (_lock)
@@ -445,6 +451,9 @@ namespace StingTools.UI
                     case "Symbols_PlaceAll":       RunCommand<Commands.Symbols.PlaceSymbolsProjectWideCommand>(app); break;
                     case "Symbols_Audit":          RunCommand<Commands.Symbols.SymbolStandardAuditCommand>(app); break;
                     case "Symbols_SyncFilters":    RunCommand<Commands.Symbols.SyncViewFilterVisibilityCommand>(app); break;
+                    case "Symbols_AutoPlaceToggle": RunCommand<Commands.Symbols.SymbolsAutoPlaceToggleCommand>(app); break;
+                    case "Symbols_RemoveInView":   RunCommand<Commands.Symbols.RemoveSymbolsInViewCommand>(app); break;
+                    case "Symbols_RemoveAll":      RunCommand<Commands.Symbols.RemoveSymbolsProjectWideCommand>(app); break;
 
                     // ── Phase 175: Symbol Augmentation ──
                     case "Symbols_AugmentAll":      RunCommand<Commands.Symbols.AugmentProjectFamiliesCommand>(app); break;
@@ -2030,6 +2039,11 @@ namespace StingTools.UI
                     case "SetHandoverMode": RunCommand<Tags.SetHandoverModeCommand>(app); break;
                     case "Tag7NarrativeUpdaterToggle": RunCommand<Core.Tag7NarrativeUpdaterToggleCommand>(app); break;
 
+                    // Phase 188 — sibling-panel toggles so dialogs / quick-action buttons can fire them.
+                    case "ToggleHvacPanel":        RunCommand<Core.ToggleHvacPanelCommand>(app); break;
+                    case "ToggleElectricalPanel":  RunCommand<Core.ToggleElectricalPanelCommand>(app); break;
+                    case "TogglePlumbingPanel":    RunCommand<Core.TogglePlumbingPanelCommand>(app); break;
+
                     // Briefcase — Reference Document Viewer
                     case "BriefcaseView": RunCommand<BIMManager.BriefcaseViewCommand>(app); break;
                     case "BriefcaseRead": RunCommand<BIMManager.BriefcaseReadCommand>(app); break;
@@ -2440,10 +2454,13 @@ namespace StingTools.UI
                     case "WorkflowPreset": RunCommand<Temp.WorkflowPresetRunnerCommand>(app); break;
                     case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
 
-                    // Workflow presets dispatched from Document Manager
+                    // Workflow presets dispatched from Document Manager + HVAC tab
                     case "WorkflowPreset_DailyQA":
                     case "WorkflowPreset_DocumentPackage":
                     case "WorkflowPreset_ProjectKickoff":
+                    case "WorkflowPreset_HVACDesign":
+                    case "WorkflowPreset_HVACCommissioning":
+                    case "WorkflowPreset_DuctSpoolProduction":
                     {
                         // Phase 74: Use local `tag` not instance `_commandTag` to prevent race condition
                         string presetName = tag.Replace("WorkflowPreset_", "");
@@ -3433,6 +3450,7 @@ namespace StingTools.UI
                     case "Variation_FromDiff":          RunCommand<Commands.Cost.VariationFromDiffCommand>(app); break;
                     case "Variation_BuildStarRate":     RunCommand<Commands.Cost.VariationBuildStarRateCommand>(app); break;
                     case "Variation_ExportRegister":    RunCommand<Commands.Cost.VariationExportRegisterCommand>(app); break;
+                    case "Variation_ReclassifyLegacy":  RunCommand<Commands.Cost.VariationReclassifyLegacyCommand>(app); break;
                     case "Evm_Calculate":               RunCommand<Commands.Cost.EvmCalculateCommand>(app); break;
                     case "Evm_ImportActuals":           RunCommand<Commands.Cost.EvmImportActualsCommand>(app); break;
                     case "Evm_ExportReport":            RunCommand<Commands.Cost.EvmExportReportCommand>(app); break;
@@ -3778,6 +3796,7 @@ namespace StingTools.UI
                                                    TaskDialog.Show("Planscape", "Disconnected from Planscape server."); break;
                     case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
                     case "PublishModelToPlanscape": RunCommand<BIMManager.PublishModelCommand>(app); break;
+                    case "PlanscapeCreateProject":  RunCommand<BIMManager.PlanscapeCreateProjectCommand>(app); break;
                     case "LoadFamilyLibrary":       RunCommand<Temp.FamilyLibraryLoaderCommand>(app); break;
                     // Phase 78 Section 6.1: Additional Planscape action tags (renamed from StingBIM per Phase 88)
                     case "PlanscapeAddMember":      RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
@@ -4013,6 +4032,12 @@ namespace StingTools.UI
                 TaskDialog.Show("STING v4 — Fabrication", $"Workspace failed to open:\n{ex.Message}");
             }
         }
+
+        // ── Fabrication workspace launcher ────────────────────────────
+
+
+        // ── Fabrication workspace launcher ────────────────────────────
+
 
         // ── Generic command runner ────────────────────────────────────
 

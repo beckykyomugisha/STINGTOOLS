@@ -31,7 +31,7 @@ namespace StingTools.Core.Placement
         // baseline.  The Centre's first-run flow can offer them as a sector
         // picker; for now they're auto-merged.  Each pack tags its rules with
         // SourcePack so the rules viewmodel can filter by pack chip.
-        private static readonly (string FileName, string PackTag)[] DisciplinePacks = new[]
+        private static readonly (string FileName, string PackTag)[] DisciplinePacks = new (string, string)[]
         {
             "STING_PLACEMENT_RULES.architecture.json",
             "STING_PLACEMENT_RULES.mechanical.json",
@@ -99,9 +99,15 @@ namespace StingTools.Core.Placement
                 // ApplicableStandards gate
                 if (r.ApplicableStandards != null && r.ApplicableStandards.Length > 0 && actSet.Count > 0)
                 {
+                    // ApplicableStandards is a string (CSV) on the runtime POCO,
+                    // not a string[]; split on comma/semicolon then match.
                     bool any = false;
-                    foreach (var s in r.ApplicableStandards)
+                    var parts = r.ApplicableStandards.ToString().Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var raw in parts)
+                    {
+                        var s = raw.Trim();
                         if (!string.IsNullOrEmpty(s) && actSet.Contains(s)) { any = true; break; }
+                    }
                     if (!any) continue;
                 }
 

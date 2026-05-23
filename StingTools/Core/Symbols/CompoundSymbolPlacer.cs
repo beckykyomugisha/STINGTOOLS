@@ -93,7 +93,7 @@ namespace StingTools.Core.Symbols
             foreach (var componentId in concept.CompoundComponents)
             {
                 var pos = new XYZ(origin.X, origin.Y - y, 0);
-                var id = PlaceOne(doc, view, pos, componentId, standardId);
+                var id = PlaceOne(doc, view, pos, componentId, standardId, concept.ConceptId);
                 if (id != ElementId.InvalidElementId) placed.Add(id);
                 if (prev != null) DrawConnectionLine(doc, view, prev, pos);
                 prev = pos;
@@ -114,7 +114,7 @@ namespace StingTools.Core.Symbols
             foreach (var componentId in concept.CompoundComponents)
             {
                 var pos = new XYZ(origin.X + x, origin.Y, 0);
-                var id = PlaceOne(doc, view, pos, componentId, standardId);
+                var id = PlaceOne(doc, view, pos, componentId, standardId, concept.ConceptId);
                 if (id != ElementId.InvalidElementId) placed.Add(id);
                 if (prev != null) DrawConnectionLine(doc, view, prev, pos);
                 prev = pos;
@@ -184,7 +184,7 @@ namespace StingTools.Core.Symbols
                     // spacing with margin on both sides of the bay.
                     double frac = (j + 1.0) / (n + 1.0);
                     var pos = new XYZ(origin.X + bayWidth * frac, yi, 0);
-                    var id  = PlaceOne(doc, view, pos, components[j], standardId);
+                    var id  = PlaceOne(doc, view, pos, components[j], standardId, concept.ConceptId);
                     if (id != ElementId.InvalidElementId) placed.Add(id);
 
                     DrawConnectionLine(doc, view, prev, pos);
@@ -297,7 +297,7 @@ namespace StingTools.Core.Symbols
         // ── Shared helpers ──────────────────────────────────────────────
 
         private static ElementId PlaceOne(Document doc, View view, XYZ pos,
-            string componentId, string standardId)
+            string componentId, string standardId, string parentConceptId = null)
         {
             try
             {
@@ -317,6 +317,9 @@ namespace StingTools.Core.Symbols
                 if (inst != null)
                 {
                     StampParam(inst, "STING_SYMBOL_ID", componentId);
+                    StampParam(inst, "STING_SYMBOL_STANDARD", standardId);
+                    if (!string.IsNullOrEmpty(parentConceptId))
+                        StampParam(inst, "STING_COMPOUND_PARENT_ID", parentConceptId);
                     return inst.Id;
                 }
             }

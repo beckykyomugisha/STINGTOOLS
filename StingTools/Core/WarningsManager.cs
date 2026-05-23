@@ -4862,6 +4862,40 @@ namespace StingTools.Core
                         catch (Exception ex) { StingLog.Warn($"PlanscapeOpenWebDashboard: {ex.Message}"); }
                         return;
                     }
+
+                    // BCC's "Connect" button on the Planscape Native Collaboration Hub
+                    // dispatches PlanscapeConnect (and its alias tags) here. Previously
+                    // this fell through to DispatchCoordAction which bounced through a
+                    // second ExternalEvent (StingDockPanel.DispatchCommand) — when the
+                    // dock panel handler wasn't initialised, or the second event was
+                    // dropped, the user saw "Action 'PlanscapeConnect' is not handled".
+                    // Run the command inline so it executes in this ExternalEvent's
+                    // own call context with no further indirection.
+                    case "PlanscapeConnect":
+                    case "PlanscapeAddMember":
+                    case "PlanscapeRemoveMember":
+                    case "PlanscapeLinkProject":
+                    case "PlanscapeTestConnection":
+                        RunBccPlanscapeCommand<BIMManager.PlanscapeConnectCommand>(action);
+                        return;
+                    case "PlanscapeSyncNow":
+                    case "PlanscapeOpenBrowser":
+                        RunBccPlanscapeCommand<BIMManager.PlatformSyncCommand>(action);
+                        return;
+                    case "PublishModelToPlanscape":
+                        RunBccPlanscapeCommand<BIMManager.PublishModelCommand>(action);
+                        return;
+                    case "PlanscapeExportTeam":
+                    case "PlanscapeExportConfig":
+                        RunBccPlanscapeCommand<BIMManager.ExportCoordLogCommand>(action);
+                        return;
+                    case "PlanscapeShareReport":
+                        RunBccPlanscapeCommand<BIMManager.GenerateDashboardCommand>(action);
+                        return;
+                    case "PlanscapeQR":
+                    case "PlanscapeQRCode":
+                        RunBccPlanscapeCommand<Tags.QRCodeCommand>(action);
+                        return;
                     case "EscalateActions":
                         EscalateOverdueActions(doc);
                         return;
@@ -5635,6 +5669,7 @@ namespace StingTools.Core
                 { "PlanscapeClearCredentials", "PlanscapeDisconnect" },
                 { "PlanscapeOpenBrowser",      "PlanscapeOpenWebDashboard" },
                 { "PublishModelToPlanscape",   "PublishModelToPlanscape" },
+                { "PlanscapeCreateProject",    "PlanscapeCreateProject" },
 
                 // Workflow actions
                 { "RunWorkflowPreset", "WorkflowPreset" },

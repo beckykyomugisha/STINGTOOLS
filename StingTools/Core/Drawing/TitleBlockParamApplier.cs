@@ -117,6 +117,7 @@ namespace StingTools.Core.Drawing
                             // ACC-07: always set, even for empty string,
                             // so cloned/template sheets reset stale text.
                             p.Set(resolved ?? string.Empty);
+                            wrote = true;
                             break;
                         case StorageType.Integer:
                             if (string.IsNullOrEmpty(resolved)) p.Set(0);
@@ -149,12 +150,7 @@ namespace StingTools.Core.Drawing
         /// helpers. No actual batching is performed — Apply() is
         /// lightweight enough to call per-sheet.
         /// </summary>
-        public static System.IDisposable Batch() => new BatchScope();
 
-        private sealed class BatchScope : System.IDisposable
-        {
-            public void Dispose() { /* intentional no-op */ }
-        }
 
         /// <summary>
         /// Apply dt.TitleBlockParams to a batch of sheets. Returns a flat list of
@@ -332,27 +328,6 @@ namespace StingTools.Core.Drawing
         /// Used by pre-flight validators and drift detectors to compare what
         /// would be written against what is already on the sheet.
         /// </summary>
-        public static Dictionary<string, string> Peek(
-            Document doc, DrawingType dt,
-            IDictionary<string, string> tokens = null)
-        {
-            var result = new Dictionary<string, string>();
-            if (doc == null || dt?.TitleBlockParams == null) return result;
-            foreach (var kv in dt.TitleBlockParams)
-            {
-                if (string.IsNullOrWhiteSpace(kv.Key)) continue;
-                try
-                {
-                    result[kv.Key] = ResolveTemplate(doc, kv.Value ?? "", tokens);
-                }
-                catch (Exception ex)
-                {
-                    StingTools.Core.StingLog.Warn($"TitleBlockParamApplier.Peek '{kv.Key}': {ex.Message}");
-                    result[kv.Key] = "";
-                }
-            }
-            return result;
-        }
 
         private static FamilyInstance FindTitleBlockInstance(Document doc, ViewSheet sheet)
         {

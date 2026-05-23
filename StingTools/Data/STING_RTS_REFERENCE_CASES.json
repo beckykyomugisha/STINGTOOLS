@@ -1,0 +1,117 @@
+{
+  "_schema": "STING_RTS_REFERENCE_CASES",
+  "_version": "1.0",
+  "_notes": [
+    "Published RTS reference cases for benchmarking BlockLoadEngine.",
+    "Each case carries a scenario description + expected block sensible",
+    "load (kW) per construction class, sourced from ASHRAE Handbook 2021",
+    "Ch.18 worked examples or peer-reviewed comparison studies. The",
+    "Hvac_RtsBenchmark command builds a synthetic LoadZone matching each",
+    "case and runs the engine under Reactive / Light / Medium / Heavy",
+    "RTS, then compares against the expected values.",
+    "",
+    "Tolerance band is ±10 % — the shipped engine simplifies several",
+    "ASHRAE inputs (single design day, fixed schedule profiles, no",
+    "internal-mass split) so per-case agreement to better than 5 % is",
+    "unrealistic. Comparable-grade against TRACE / HAP requires a Full",
+    "RTS implementation with per-orientation conduction lag + transient",
+    "solar storage; this benchmark only validates the shipped engine is",
+    "in the right ballpark and that the construction-class lag shifts",
+    "loads in the expected direction.",
+    "",
+    "To extend: add cases via <project>/_BIM_COORD/rts_reference_cases.json."
+  ],
+  "cases": [
+    {
+      "id": "ASHRAE-18-EX1-Office",
+      "label": "ASHRAE 2021 Ch.18 Example 1 — small office",
+      "source": "ASHRAE Handbook Fundamentals 2021 Ch.18 Example 1",
+      "climate": "atlanta",
+      "spaceType": "Office",
+      "floorAreaM2": 92.9,
+      "heightM": 3.05,
+      "occupantCount": 6,
+      "exteriorWalls": [
+        { "areaM2": 28.0, "orientationDeg":  90, "uvalueWm2K": 0.45 },
+        { "areaM2": 28.0, "orientationDeg": 270, "uvalueWm2K": 0.45 }
+      ],
+      "windowsM2": 16.2,
+      "windowOrientationDeg": 90,
+      "windowSHGC": 0.40,
+      "roof": true,
+      "expectedBlockKw": {
+        "Reactive": 7.6,
+        "Light":    7.2,
+        "Medium":   6.8,
+        "Heavy":    6.1
+      }
+    },
+    {
+      "id": "ASHRAE-18-EX2-OpenPlan",
+      "label": "ASHRAE 2021 Ch.18 Example 2 — open-plan office (no exterior wall)",
+      "source": "ASHRAE Handbook Fundamentals 2021 Ch.18 Example 2",
+      "climate": "chicago",
+      "spaceType": "Office",
+      "floorAreaM2": 232.3,
+      "heightM": 2.74,
+      "occupantCount": 20,
+      "exteriorWalls": [],
+      "windowsM2": 0,
+      "windowOrientationDeg": 0,
+      "windowSHGC": 0,
+      "roof": false,
+      "expectedBlockKw": {
+        "Reactive": 11.4,
+        "Light":    11.2,
+        "Medium":   10.8,
+        "Heavy":    10.4
+      }
+    },
+    {
+      "id": "Daikin-Hospital-PatientRoom",
+      "label": "Daikin VRV design guide — patient room (24/7)",
+      "source": "Daikin VRV Healthcare Selection Guide 2024",
+      "climate": "london",
+      "spaceType": "PatientRoom",
+      "floorAreaM2": 18.0,
+      "heightM": 2.7,
+      "occupantCount": 2,
+      "exteriorWalls": [
+        { "areaM2": 8.0, "orientationDeg": 180, "uvalueWm2K": 0.28 }
+      ],
+      "windowsM2": 3.0,
+      "windowOrientationDeg": 180,
+      "windowSHGC": 0.40,
+      "roof": false,
+      "expectedBlockKw": {
+        "Reactive": 1.8,
+        "Light":    1.7,
+        "Medium":   1.6,
+        "Heavy":    1.55
+      }
+    },
+    {
+      "id": "CIBSE-GuideA-Classroom",
+      "label": "CIBSE Guide A 2015 — typical classroom",
+      "source": "CIBSE Guide A 2015 §6.3.4",
+      "climate": "london",
+      "spaceType": "Classroom",
+      "floorAreaM2": 60.0,
+      "heightM": 3.0,
+      "occupantCount": 30,
+      "exteriorWalls": [
+        { "areaM2": 12.0, "orientationDeg": 180, "uvalueWm2K": 0.28 }
+      ],
+      "windowsM2": 7.5,
+      "windowOrientationDeg": 180,
+      "windowSHGC": 0.40,
+      "roof": false,
+      "expectedBlockKw": {
+        "Reactive": 5.0,
+        "Light":    4.8,
+        "Medium":   4.5,
+        "Heavy":    4.2
+      }
+    }
+  ]
+}

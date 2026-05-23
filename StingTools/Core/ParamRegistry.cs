@@ -47,9 +47,9 @@ namespace StingTools.Core
         // remain as guard infrastructure for the next time the cache is
         // re-introduced. Silence CS0414 since the field is intentionally
         // write-only for now.
-#pragma warning disable CS0414
+#pragma warning disable CS0169 // never used — kept for future write-side caching
         private static string[] _cachedSegmentOrder;
-#pragma warning restore CS0414
+#pragma warning restore CS0169
 
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;
@@ -283,6 +283,8 @@ namespace StingTools.Core
         public const string SLD_ELEMENT_ID_GUID       = "0A1B2C3D-4E5F-4A6B-7C8D-9E0F1A2B3C4D";
         public const string SYMBOL_LIBRARY_VERSION    = "STING_SYMBOL_LIBRARY_VERSION";
         public const string SYMBOL_LIBRARY_VERSION_GUID = "1B2C3D4E-5F6A-4B7C-8D9E-0F1A2B3C4D5E";
+        public const string SYMBOL_COMPOUND_PARENT_ID = "STING_COMPOUND_PARENT_ID";
+        public const string SYMBOL_COMPOUND_PARENT_ID_GUID = "2C3D4E5F-6A7B-4C8D-9E0F-1A2B3C4D5E6F";
 
         // Family-embedded standard switching — model family (.rfa) parameters.
         // STING_SYMBOL_STD is an Integer type param; each value gates one
@@ -554,6 +556,24 @@ namespace StingTools.Core
             ORG_CLIENT_NAME, ORG_APPOINTING_PARTY, ORG_LEAD_APPOINTED_PARTY, ORG_PARTICIPANTS,
             ORG_PHASE, ORG_CLASS, ORG_WORKFLOW_PROFILE, ORG_SIGNATURE_PROVIDER,
             ORG_AI_EXTRACT_ENABLED
+        };
+
+        // I-4 — Material Manager cost-split + EPD params (registered so the
+        // parameter audit / drift detection picks them up).
+        public const string MAT_COST_SUPPLY  = "MAT_COST_SUPPLY_NR";
+        public const string MAT_COST_INSTALL = "MAT_COST_INSTALL_NR";
+        public const string MAT_VAT_PCT      = "MAT_VAT_PCT_NR";
+        public const string MAT_EMB_CARBON   = "STING_EMB_CARBON_NR";
+        public const string MAT_EPD_SRC      = "STING_MAT_EPD_SRC_TXT";
+        public const string MAT_EPD_DATE     = "STING_MAT_EPD_DATE_TXT";
+
+        /// <summary>All Material-scoped STING parameters surfaced by the
+        /// Material Manager. Drift detection + ParameterHelpers refresh
+        /// passes consult this list.</summary>
+        public static readonly string[] AllMaterialParams = new[]
+        {
+            MAT_COST_SUPPLY, MAT_COST_INSTALL, MAT_VAT_PCT,
+            MAT_EMB_CARBON, MAT_EPD_SRC, MAT_EPD_DATE,
         };
 
         /// <summary>Default values for PRJ_ORG_* parameters (used by TemplateManifest.CreateDefault).</summary>
@@ -932,9 +952,6 @@ namespace StingTools.Core
         // ProjectInformation, and they cannot be written to elements as type
         // params. Constants are named with the same _GUID suffix convention as
         // the rest of the file.
-        public const string MODE_HANDOVER_GUID = "a8f3c1d2-4e56-7890-abcd-ef1234567801";
-        public const string MODE_DC_GUID       = "a8f3c1d2-4e56-7890-abcd-ef1234567802";
-        public const string MODE_CUSTOM_GUID   = "a8f3c1d2-4e56-7890-abcd-ef1234567803";
 
         // ── Warning threshold definitions (v5.5) ─────────────────────────
         // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.

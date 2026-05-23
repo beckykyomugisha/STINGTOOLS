@@ -116,7 +116,6 @@ namespace StingTools.UI
             DeferNonActiveTabContent();
 
             BuildColorSwatches();
-            _instance = this;
 
             // Subscribe to PlacementResultBus so Fixtures and Routing result strips
             // update automatically after any placement/routing run.
@@ -335,6 +334,16 @@ namespace StingTools.UI
                 if (cmdTag.StartsWith("Routing_"))    SetV4RoutingOptions();
                 if (cmdTag.StartsWith("Fabrication_")) SetV4FabricationOptions();
 
+                // Healthcare tab — flush every Hc.* control state into
+                // SetExtraParam so commands can read user choices. Init is
+                // idempotent; if the user clicks before TabMain_SelectionChanged
+                // fired the lazy init this catches up.
+                if (cmdTag.StartsWith("Healthcare_"))
+                {
+                    InitializeHealthcareTab();
+                    SetHealthcareOptions();
+                }
+
                 _handler?.SetCommand(cmdTag);
                 var result = _externalEvent?.Raise() ?? ExternalEventRequest.Denied;
                 if (result == ExternalEventRequest.Accepted)
@@ -352,6 +361,19 @@ namespace StingTools.UI
                     UpdateStatus("Busy — try again...");
                 }
             }
+        }
+
+        /// <summary>
+        /// Healthcare → Specialist sub-tab Run button. Re-tags itself based on
+        /// the selected specialist combo and re-enters Cmd_Click so the standard
+        /// pre-dispatch flush runs.
+        /// </summary>
+        private void HcSpecialistRun_Click(object sender, RoutedEventArgs e)
+        {
+            if (btnHcSpecialistRun == null) return;
+            string kind = SelectedComboTag(cmbHcSpecialistKind, "HybridOr");
+            btnHcSpecialistRun.Tag = "Healthcare_" + kind;
+            Cmd_Click(btnHcSpecialistRun, e);
         }
 
         /// <summary>FIX-4.1: Read Leader &amp; Elbow sliders and pass as ExtraParams.</summary>
@@ -1150,6 +1172,14 @@ namespace StingTools.UI
                                 tab.Content = content;
                                 _deferredTabContent.Remove(capturedIdx);
                                 Core.StingLog.Info($"Tab {capturedIdx} content loaded (lazy)");
+                            }
+
+                            // Healthcare tab: now that the named controls are
+                            // realised, seed the validator grid and wire combo
+                            // change handlers. Idempotent.
+                            if (tab.Header is string hdr && string.Equals(hdr, "HEALTHCARE", StringComparison.OrdinalIgnoreCase))
+                            {
+                                InitializeHealthcareTab();
                             }
                         }
                         catch (Exception ex)
@@ -2145,15 +2175,6 @@ namespace StingTools.UI
         private static readonly SuggestionItem[] _commandBarHints = new[]
         {
             new SuggestionItem { CommandName = "TagAndCombine",        Description = "One-click tag and combine all" },
-            new SuggestionItem { CommandName = "AutoTag",              Description = "Tag elements in active view" },
-            new SuggestionItem { CommandName = "BatchTag",             Description = "Tag all elements in project" },
-            new SuggestionItem { CommandName = "Validate",             Description = "Validate tag compliance" },
-            new SuggestionItem { CommandName = "PreTagAudit",          Description = "Dry-run tag prediction before committing" },
-            new SuggestionItem { CommandName = "ResolveAllIssues",     Description = "Fix all ISO 19650 compliance issues" },
-            new SuggestionItem { CommandName = "CompletenessDashboard",Description = "Tag completeness report by discipline" },
-            new SuggestionItem { CommandName = "SmartPlaceTags",       Description = "Place visual annotation tags" },
-            new SuggestionItem { CommandName = "COBieExport",          Description = "Export COBie handover data" },
-            new SuggestionItem { CommandName = "MorningHealthCheck",   Description = "Run morning health-check workflow" },
         };
 
         private void UpdateCommandBarSuggestions()

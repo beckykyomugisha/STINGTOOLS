@@ -19,21 +19,37 @@ namespace StingTools.Commands.Healthcare.Specialist
             try
             {
                 var doc = commandData.Application.ActiveUIDocument.Document;
+
+                // Hc.Specialist.Hor.* overrides:
+                //   MinAreaM2  → OR-HYBRID minimum (slider 30..80, default 70).
+                //                CATHLAB / IR scale proportionally so the FGI
+                //                ratios stay intact.
+                //   IncludeIr  → if false, IR rooms are skipped.
+                //   Room       → if non-empty, only that single room is audited.
+                double horMin = HcOptions.HorMinAreaM2;
+                double cathMin = horMin * (40.0 / 70.0);
+                double irMin   = horMin * (38.0 / 70.0);
+                bool includeIr = HcOptions.HorIncludeIr;
+                string focusRoom = HcOptions.HorRoom?.Trim() ?? "";
+
                 var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
                     .WhereElementIsNotElementType().ToElements()
                     .Where(r => Get(r, "CLN_ROOM_CLASS_TXT") is "OR-HYBRID" or "CATHLAB" or "IR")
+                    .Where(r => includeIr || Get(r, "CLN_ROOM_CLASS_TXT") != "IR")
+                    .Where(r => string.IsNullOrEmpty(focusRoom) ||
+                                string.Equals(r.Name, focusRoom, StringComparison.OrdinalIgnoreCase))
                     .ToList();
                 var sb = new StringBuilder();
-                sb.AppendLine("STING — Hybrid OR / Cath / IR Audit").AppendLine();
+                sb.AppendLine($"STING — Hybrid OR / Cath{(includeIr ? " / IR" : "")} Audit (min OR-HYBRID {horMin:F0} m²)").AppendLine();
                 if (rooms.Count == 0)
-                    sb.AppendLine("No OR-HYBRID / CATHLAB / IR rooms found.");
+                    sb.AppendLine("No matching rooms found.");
                 foreach (var r in rooms)
                 {
                     var rc = Get(r, "CLN_ROOM_CLASS_TXT");
                     var area = AreaSqM(r);
-                    var min = rc switch { "OR-HYBRID" => 70.0, "CATHLAB" => 40.0, "IR" => 38.0, _ => 0.0 };
+                    var min = rc switch { "OR-HYBRID" => horMin, "CATHLAB" => cathMin, "IR" => irMin, _ => 0.0 };
                     if (area > 0 && area < min)
-                        sb.AppendLine($"[ERROR  ] HYB.AREA  {r.Name} ({rc}) area {area:F1} m² < min {min} m² (FGI / VA)");
+                        sb.AppendLine($"[ERROR  ] HYB.AREA  {r.Name} ({rc}) area {area:F1} m² < min {min:F1} m² (FGI / VA)");
                     else if (area > 0)
                         sb.AppendLine($"[OK     ] HYB.AREA  {r.Name} ({rc}) area {area:F1} m²");
                 }

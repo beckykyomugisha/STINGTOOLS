@@ -482,160 +482,70 @@ namespace StingTools.Core.Placement
 
         // ── Phase 139 A1 — Building & Standards Context ─────────────
 
-        /// <summary>Office|Residential|Healthcare|Education|Hospitality|Industrial|Retail|Mixed (empty = all).</summary>
-        public string BuildingType { get; set; } = "";
 
-        /// <summary>Standards this rule is anchored to (e.g. ["BS7671","BS5839","NFPA13"]).</summary>
-        public string[] ApplicableStandards { get; set; } = new string[0];
 
-        /// <summary>Minimum IP rating required on placed family (e.g. "IP44"); empty = no check.</summary>
-        public string IpRatingMin { get; set; } = "";
 
-        /// <summary>"NONE"|"BS7671_Z1"|"BS7671_Z2"|"IEC60364_Z0"|"IEC60364_Z1".</summary>
-        public string WetZoneExclusion { get; set; } = "NONE";
 
-        /// <summary>When true, validate placed height against Part M / BS8300 reach range.</summary>
-        public bool AccessibilityCheck { get; set; } = false;
 
-        /// <summary>Key into HeightStandardsTable (e.g. "BS8300_SWITCH_1200_1400").</summary>
-        public string HeightStandard { get; set; } = "";
 
         // ── Phase 139 A2 — Coverage & Spacing Standards ────────────
 
-        /// <summary>Coverage radius per device (mm) — engine fills room to 100% coverage when GuaranteeCoverage=true.</summary>
-        public double CoverageRadiusMm { get; set; } = 0.0;
 
-        /// <summary>Upper bound centre-to-centre spacing (mm). Complements MinSpacingMm.</summary>
-        public double MaxSpacingMm { get; set; } = 0.0;
 
-        /// <summary>Minimum clearance from any room boundary wall (mm).</summary>
-        public double WallClearanceMm { get; set; } = 0.0;
 
-        /// <summary>Minimum clearance from ceiling obstructions (mm).</summary>
-        public double ObstructionClearanceMm { get; set; } = 0.0;
 
-        /// <summary>When true, reject run if CoveragePercent &lt; 100% and report uncovered zones.</summary>
-        public bool GuaranteeCoverage { get; set; } = false;
 
         // ── Phase 139 A3 — Routing & Containment ───────────────────
 
-        /// <summary>"NONE"|"WALL_FOLLOW"|"CEILING_FOLLOW"|"FLOOR_FOLLOW"|"CONDUIT_RUN"|"TRAY_RUN".</summary>
-        public string RoutingMode { get; set; } = "NONE";
 
-        /// <summary>Offset from face (mm); positive = into room, negative = into structure.</summary>
-        public double RouteOffsetMm { get; set; } = 0.0;
 
-        /// <summary>"INTERIOR"|"EXTERIOR"|"TOP"|"BOTTOM" — host face to offset from.</summary>
-        public string RouteFace { get; set; } = "INTERIOR";
 
-        /// <summary>Minimum bend radius for conduit/pipe routing (mm).</summary>
-        public double RouteMinBendRadiusMm { get; set; } = 0.0;
 
-        /// <summary>Revit category for route segments: "Conduit"|"CableTray"|"Pipe"|"Duct"|"GenericModel".</summary>
-        public string RouteSegmentCategory { get; set; } = "";
 
         // ── Phase 139 A4 — Window/Sill Variants ────────────────────
 
-        /// <summary>Sill height from FFL (mm) — overrides MountingHeightMm for window rules.</summary>
-        public double SillHeightMm { get; set; } = 0.0;
 
-        /// <summary>Top of window opening from FFL (mm).</summary>
-        public double HeadHeightMm { get; set; } = 0.0;
 
-        /// <summary>Clear drop from sill to floor (mm); &lt;800mm triggers safety glazing.</summary>
-        public double CillToFloorMm { get; set; } = 0.0;
 
-        /// <summary>BS 6206 / Approved Doc N — toughened glazing required when CillToFloorMm &lt; 800.</summary>
-        public bool ToughenedGlazingRequired { get; set; } = false;
 
-        /// <summary>"CLEAR"|"OBSCURED"|"TOUGHENED"|"LAMINATED"|"ACOUSTIC"|"FIRE_RATED"|"UV_FILTER"|"SEALED".</summary>
-        public string GlazingSpec { get; set; } = "";
 
         // ── Phase 139 A5 — Density Extensions ──────────────────────
 
-        /// <summary>Healthcare: 1 fixture per N beds (reads STING_BED_COUNT_INT).</summary>
-        public double PerBed { get; set; } = 0.0;
 
-        /// <summary>Office: 1 per N workstations (reads STING_WORKSTATION_COUNT_INT).</summary>
-        public double PerWorkstation { get; set; } = 0.0;
 
-        /// <summary>Education: 1 per N pupils (reads STING_PUPIL_COUNT_INT).</summary>
-        public double PerPupil { get; set; } = 0.0;
 
-        /// <summary>Sanitary: N wash basins per WC cubicle.</summary>
-        public double PerToiletCubicle { get; set; } = 0.0;
 
-        /// <summary>Override default occupancy param; empty = STING_OCC_COUNT_INT.</summary>
-        public string OccupancyParamName { get; set; } = "";
 
-        /// <summary>"WORKPLACE1992"|"BS6465_OFFICE"|"BS6465_SCHOOL"|"BS6465_HEALTHCARE"|"HTM0201".</summary>
-        public string BuildingTypeTable { get; set; } = "";
 
         // ── Phase 139 A6 — Post-Placement Audit ────────────────────
 
-        /// <summary>If non-empty, write to STING_PLACE_AUDIT_TXT after placement.</summary>
-        public string PostAuditTag { get; set; } = "";
 
-        /// <summary>When true, preflight checks placed family for COBie.Component shared parameters.</summary>
-        public bool RequiresCOBieFields { get; set; } = false;
 
-        /// <summary>When true, preflight checks IfcExportAs parameter on placed family type.</summary>
-        public bool RequiresIfcMapping { get; set; } = false;
 
-        /// <summary>"FRONT_600"|"FRONT_1000"|"SIDES_300"|"TOP_900" — BS4422 / HTM clearance class.</summary>
-        public string MaintenanceClearance { get; set; } = "";
 
         // ── Phase 139.2 A1 — Manufacturer hint ──────────────────────
 
-        public string ManufacturerCode  { get; set; } = "";
-        public string CatalogueRef      { get; set; } = "";
-        public int    BoxDepthMm        { get; set; } = 0;
-        public double ModulePitchMm     { get; set; } = 0.0;
-        public int    GangCount         { get; set; } = 0;
-        public string MountType         { get; set; } = "";
-        public string InsertionOrigin   { get; set; } = "";
 
         // ── Phase 139.2 A2 — Two-phase conduiting ───────────────────
 
-        public string ConstructionPhase  { get; set; } = "";
-        public string CompletionPhase    { get; set; } = "";
-        public string BoxFamilyTypeRegex { get; set; } = "";
-        public string BoxLocationIdParam { get; set; } = "";
-        public bool   TwoPhaseEnabled    { get; set; } = false;
 
         // ── Phase 139.2 A3 — Compound cluster ───────────────────────
 
-        public bool   IsClusterMember     { get; set; } = false;
-        public string ClusterGroupId      { get; set; } = "";
-        public int    ClusterSlotIndex    { get; set; } = 0;
-        public int    ClusterTotalSlots   { get; set; } = 0;
-        public double ClusterFrameWidthMm { get; set; } = 0.0;
 
         // ── Phase 139.2 A4 — Plaster / finish-face offset ───────────
 
-        public string PlasterOffsetMode    { get; set; } = "None";
-        public double PlasterOffsetFixedMm { get; set; } = 0.0;
 
         // ── Phase 139.2 A5 — Ceiling tile snap ──────────────────────
 
-        public bool   CeilingTileSnap     { get; set; } = false;
-        public double TileGridSpacingXMm  { get; set; } = 0.0;
-        public double TileGridSpacingYMm  { get; set; } = 0.0;
 
         // ── Phase 139.2 A6 — Structural fixing check ────────────────
 
-        public bool   StructuralFixingCheck { get; set; } = false;
-        public double JoistClearanceMm      { get; set; } = 0.0;
-        public bool   EmitNogginRequirement { get; set; } = false;
 
         // ── Phase 139.2 A7 — BS 7671 wet zone exclusion ─────────────
 
-        public bool   WetZoneExclude { get; set; } = false;
-        public string WetZoneClass   { get; set; } = "";
 
         // ── Phase 139.2 A8 — Standards aliases ──────────────────────
 
-        public string HeightStandardRef { get; set; } = "";
 
         // ── Methods ─────────────────────────────────────────────────
 

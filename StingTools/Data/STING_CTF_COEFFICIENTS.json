@@ -1,0 +1,66 @@
+{
+  "_schema": "STING_CTF_COEFFICIENTS",
+  "_version": "1.0",
+  "_notes": [
+    "Conduction Transfer Function (CTF) coefficients per construction",
+    "type. These are the Y / Z / Φ series of a 24-term truncated CTF",
+    "expansion (ASHRAE Handbook Fundamentals 2021 Ch.18 §RTS).",
+    "",
+    "STING's BlockLoadEngine RTS implementation has two layers:",
+    "  Tier-1 (Phase 187f): pick one of three published RTF tables",
+    "                       (Light / Medium / Heavy) — instant, no CTF.",
+    "  Tier-2 (Phase 187g): interpolate between the three tables by zone",
+    "                       average ThermalMassKJperM2K — better, still",
+    "                       no CTF math.",
+    "  Tier-3 (Phase 187h): when a construction TYPE has CTF coefficients",
+    "                       in this file, derive the per-zone RTF by",
+    "                       impulse-response convolution of the Y-series.",
+    "                       Most rigorous shipped, no Laplace inversion",
+    "                       at runtime (coefficients are pre-tabulated).",
+    "",
+    "Sources: ASHRAE Handbook Fundamentals 2021 Ch.18 Tbl 24 examples +",
+    "ASHRAE Loads Toolkit 1.4 published CTF series. Coefficients are",
+    "dimensionless impulse-response coefficients; they sum to the wall's",
+    "thermal admittance.",
+    "",
+    "Project teams add custom construction types via:",
+    "  <project>/_BIM_COORD/ctf_coefficients.json"
+  ],
+  "constructions": [
+    {
+      "id": "Light-StudGypsumInsulated",
+      "label": "Lightweight stud + gypsum + R20 batt",
+      "uValue": 0.30,
+      "y": [0.40, 0.32, 0.16, 0.08, 0.04, 0.00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "source": "ASHRAE Loads Toolkit example W1"
+    },
+    {
+      "id": "Medium-MasonryCavityInsulated",
+      "label": "Cavity brick + insulation + block + plaster",
+      "uValue": 0.28,
+      "y": [0.10, 0.16, 0.20, 0.18, 0.14, 0.10, 0.06, 0.04, 0.02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "source": "ASHRAE Loads Toolkit example W4"
+    },
+    {
+      "id": "Heavy-ConcreteFrame200",
+      "label": "Solid concrete 200 mm + 50 mm insulation",
+      "uValue": 0.25,
+      "y": [0.04, 0.10, 0.16, 0.18, 0.16, 0.12, 0.10, 0.06, 0.04, 0.02, 0.02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "source": "ASHRAE Handbook 2021 Tbl 24 ex.7"
+    },
+    {
+      "id": "VeryHeavy-MasonryComposite300",
+      "label": "Composite masonry 300 mm + 100 mm insulation",
+      "uValue": 0.20,
+      "y": [0.02, 0.06, 0.10, 0.14, 0.16, 0.14, 0.12, 0.10, 0.06, 0.04, 0.03, 0.02, 0.01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "source": "ASHRAE Handbook 2021 Tbl 24 ex.9"
+    },
+    {
+      "id": "Glass-DoubleGlazedArgon",
+      "label": "Double-glazed argon-filled 16 mm",
+      "uValue": 1.40,
+      "y": [0.90, 0.08, 0.02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "source": "Generic — glazing has effectively no lag"
+    }
+  ]
+}

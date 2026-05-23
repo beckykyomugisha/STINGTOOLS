@@ -34,6 +34,11 @@ namespace StingTools.Core.Calc
         public double MaxSpanMm        { get; set; }
         public string Basis            { get; set; } = "";
         public bool   Extrapolated     { get; set; }
+        // True when the run is buried / bedded (vitrified clay, concrete
+        // mains, etc.) so no overhead support is required. The engine
+        // skips placement quietly rather than emitting a "no spacing
+        // table match" warning per run.
+        public bool   NoHangersRequired { get; set; }
     }
 
     public static class HangerSpacingTable
@@ -101,6 +106,17 @@ namespace StingTools.Core.Calc
             switch (q.Kind)
             {
                 case HangerRunKind.Pipe:
+                    // Buried / bedded mains carry no overhead supports —
+                    // signal that explicitly so the engine skips placement
+                    // without emitting a "no match" warning.
+                    if (q.Material.Equals("VITRIFIED_CLAY", StringComparison.OrdinalIgnoreCase) ||
+                        q.Material.Equals("CONCRETE",       StringComparison.OrdinalIgnoreCase) ||
+                        q.Material.StartsWith("BURIED",     StringComparison.OrdinalIgnoreCase))
+                    {
+                        r.NoHangersRequired = true;
+                        r.Basis = "buried main — no hangers required";
+                        return r;
+                    }
                     if (q.Material.Equals("COPPER", StringComparison.OrdinalIgnoreCase))
                     { tbl = MssCopper;   basis = "MSS SP-58 copper"; }
                     else if (q.Material.Equals("PLASTIC", StringComparison.OrdinalIgnoreCase) ||

@@ -745,7 +745,7 @@ namespace StingTools.UI
                 ColorHex = "#000000",
                 Weight   = cut ? 4 : 1,
             };
-            var picked = VgLineGraphicsDialog.Show(seed, _linePatterns);
+            var picked = VgLineGraphicsDialog.Show(seed, _linePatterns, "Line Graphics", RefreshLinePatternsFromDoc);
             if (picked == null) return;
 
             // Scope: selected rows on the active grid, falling back to every
@@ -920,7 +920,7 @@ namespace StingTools.UI
                 ColorHex = proj ? row.ProjLineColor    : row.CutLineColor,
                 Weight   = proj ? row.Data.ProjLineWeight : row.Data.CutLineWeight
             };
-            var picked = VgLineGraphicsDialog.Show(current, _linePatterns);
+            var picked = VgLineGraphicsDialog.Show(current, _linePatterns, "Line Graphics", RefreshLinePatternsFromDoc);
             if (picked == null) return;   // cancelled
             if (picked.Cleared)
             {
@@ -971,7 +971,8 @@ namespace StingTools.UI
                 BgColor   = proj ? d.SurfBgColor   : d.CutBgColor
             };
             var picked = VgFillPatternDialog.Show(current, _fillPatterns,
-                proj ? "Fill Pattern Graphics — Surface" : "Fill Pattern Graphics — Cut");
+                proj ? "Fill Pattern Graphics — Surface" : "Fill Pattern Graphics — Cut",
+                RefreshFillPatternsFromDoc);
             if (picked == null) return;
             if (picked.Cleared)
             {
@@ -1289,6 +1290,43 @@ namespace StingTools.UI
                     $"{_fillPatterns.Count} fill patterns, {_lineStyles.Count} line styles harvested.");
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+        }
+
+        // Phase 183 — refresh callbacks passed to the inline pattern dialogs.
+        // The dialogs invoke these on Refresh-button click so newly-authored
+        // FillPatternElement / LinePatternElement entries appear in the
+        // dropdowns without closing the editor. Rebuilds the cached lists
+        // in-place and returns the caller's freshly-sorted view.
+        internal IList<string> RefreshFillPatternsFromDoc()
+        {
+            if (_doc == null) return _fillPatterns;
+            try
+            {
+                var fresh = new List<string> { "<no override>", "<Solid fill>" };
+                foreach (var fp in new FilteredElementCollector(_doc).OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
+                    if (!string.IsNullOrEmpty(fp.Name) && !fresh.Contains(fp.Name))
+                        fresh.Add(fp.Name);
+                fresh.Sort(StringComparer.OrdinalIgnoreCase);
+                _fillPatterns = fresh;
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"RefreshFillPatternsFromDoc: {ex.Message}"); }
+            return _fillPatterns;
+        }
+
+        internal IList<string> RefreshLinePatternsFromDoc()
+        {
+            if (_doc == null) return _linePatterns;
+            try
+            {
+                var fresh = new List<string> { "<no override>", "Solid" };
+                foreach (var lp in new FilteredElementCollector(_doc).OfClass(typeof(LinePatternElement)).Cast<LinePatternElement>())
+                    if (!string.IsNullOrEmpty(lp.Name) && !fresh.Contains(lp.Name))
+                        fresh.Add(lp.Name);
+                fresh.Sort(StringComparer.OrdinalIgnoreCase);
+                _linePatterns = fresh;
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"RefreshLinePatternsFromDoc: {ex.Message}"); }
+            return _linePatterns;
         }
 
         private void OnRowChanged(VgRow r) => RowChanged?.Invoke(r);

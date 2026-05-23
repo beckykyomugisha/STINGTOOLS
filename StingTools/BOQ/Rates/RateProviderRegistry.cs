@@ -76,6 +76,12 @@ namespace StingTools.BOQ.Rates
             {
                 new ParameterOverrideRateProvider(),
                 new ExtensibleStorageRateProvider(),
+                // N+8 — Material-library rate (priority 95). Sits above CSV
+                // category match so a project that has curated material cost
+                // in the MAT panel always wins over the cost_rates_5d.csv
+                // category rate. Falls through to CSV when no material rate
+                // is set, so legacy projects keep working.
+                new MaterialLibraryRateProvider(),
                 // Phase 184j / P8: external + project rate-card providers
                 // are added lazily by RegisterExternalProviders so the
                 // registry doesn't fail when a project hasn't configured

@@ -98,10 +98,7 @@ public class IssueAudioNotesController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<ActionResult> Upload(
         Guid projectId, Guid issueId,
-        [FromForm] IFormFile file,
-        [FromForm] string? transcriptText,
-        [FromForm] string? language,
-        [FromForm] int durationSeconds,
+        [FromForm] AudioNoteUploadRequest req,
         CancellationToken ct)
     {
         if (file == null || file.Length == 0) return BadRequest(new { error = "empty_file" });
@@ -155,9 +152,9 @@ public class IssueAudioNotesController : ControllerBase
             IssueId         = issueId,
             DocumentId      = doc.Id,
             StoragePath     = path,
-            TranscriptText  = transcriptText,
-            Language        = language ?? "en",
-            DurationSeconds = durationSeconds,
+            TranscriptText  = req.TranscriptText,
+            Language        = req.Language ?? "en",
+            DurationSeconds = req.DurationSeconds,
             FileSizeBytes   = file.Length,
             MimeType        = string.IsNullOrEmpty(mime) ? "audio/mp4" : mime,
             CreatedBy       = displayName,
@@ -291,4 +288,12 @@ public class IssueAudioNotesController : ControllerBase
             message = "Audio note queued for transcription. Result will be written to TranscriptText + TranscribedAt when the transcription service is wired up."
         });
     }
+}
+
+public class AudioNoteUploadRequest
+{
+    public IFormFile File { get; set; } = default!;
+    public string? TranscriptText { get; set; }
+    public string? Language { get; set; }
+    public int DurationSeconds { get; set; }
 }
