@@ -93,6 +93,13 @@ export default function TabLayout() {
         issue pre-fill from a scanned asset tag, or punchlist check-in.
       */}
       <Tabs.Screen
+        name="models"
+        options={{
+          title: 'Models',
+          tabBarIcon: ({ focused }) => <TabIcon label="🧊" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="scanner"
         options={{
           title: 'Scanner',

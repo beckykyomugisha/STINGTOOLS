@@ -116,6 +116,13 @@ namespace StingTools.Tags
                 TaskDialog.Show("Tag 3D", "Active view is a view template; nothing placed.");
                 return Result.Succeeded;
             }
+            PlaceTagsCore(doc, view, tagSymbol, useTag7Narrative, r);
+            return r;
+        }
+
+        private static void PlaceTagsCore(Document doc, View view, FamilySymbol tagSymbol,
+            bool useTag7Narrative, Tag3DResult result)
+        {
 
             // Selection scope — if user has an active selection, ask whether to
             // restrict to it. Default for empty selection is whole-view.

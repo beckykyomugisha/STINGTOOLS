@@ -36,6 +36,8 @@ services:
       - ClamAv__Host=${CLAMAV_HOST:-clamav}
       - ClamAv__Port=${CLAMAV_PORT:-3310}
     depends_on:
+      pgbouncer:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -70,6 +72,32 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  # S3.4 — PgBouncer transaction-pooling proxy in front of Postgres.
+  # Multiplexes 5,000 client connections onto ~50 backend connections so
+  # the ASP.NET Core pool doesn't saturate Postgres at firm #6+.
+  pgbouncer:
+    image: edoburu/pgbouncer:1.23.1
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: planscape
+      DB_PASSWORD: ${DB_PASSWORD:-Planscape2026!}
+      DB_NAME: planscape
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "5000"
+      DEFAULT_POOL_SIZE: "50"
+      RESERVE_POOL_SIZE: "10"
+      RESERVE_POOL_TIMEOUT: "5"
+      AUTH_TYPE: scram-sha-256
+      ADMIN_USERS: planscape
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits,search_path,statement_timeout
+    ports:
+      - "6432:6432"
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   redis:

@@ -27,11 +27,11 @@ namespace StingTools.Core.Placement
         private const string ProjectOverrideFileName = "STING_PLACEMENT_RULES.project.json";
         private const string LearnedOverrideFileName = "STING_PLACEMENT_RULES.learned.json";
 
-        // PC-20 — per-discipline packs that ship alongside the baseline.
-        // The Centre's first-run flow can offer them as a sector picker;
-        // for now they're auto-merged so the engine sees ~110 rules instead
-        // of ~43.
-        private static readonly string[] DisciplinePacks = new[]
+        // PC-20 + Phase 139 — per-discipline packs that ship alongside the
+        // baseline.  The Centre's first-run flow can offer them as a sector
+        // picker; for now they're auto-merged.  Each pack tags its rules with
+        // SourcePack so the rules viewmodel can filter by pack chip.
+        private static readonly (string FileName, string PackTag)[] DisciplinePacks = new[]
         {
             "STING_PLACEMENT_RULES.architecture.json",
             "STING_PLACEMENT_RULES.mechanical.json",
@@ -48,16 +48,68 @@ namespace StingTools.Core.Placement
         {
             string baseline = StingToolsApp.FindDataFile(DefaultFileName);
             var merged = LoadFromFileSafe(baseline);
+            // Phase 139 — stamp baseline rules so the UI can filter them.
+            foreach (var r in merged)
+                if (r != null && string.IsNullOrEmpty(r.SourcePack)) r.SourcePack = "Baseline";
 
-            foreach (var packName in DisciplinePacks)
+            foreach (var (packName, packTag) in DisciplinePacks)
             {
                 string p = StingToolsApp.FindDataFile(packName);
                 if (string.IsNullOrEmpty(p)) continue;
                 var packRules = LoadFromFileSafe(p);
                 if (packRules == null || packRules.Count == 0) continue;
+                foreach (var r in packRules)
+                    if (r != null && string.IsNullOrEmpty(r.SourcePack)) r.SourcePack = packTag;
                 merged = MergeRules(merged, packRules);
             }
             return merged;
+        }
+
+        /// <summary>
+        /// Phase 139 F2 — filter rules by active project profile.  A rule
+        /// is included when (a) its BuildingType is empty OR matches
+        /// profile.BuildingType, AND (b) its ApplicableStandards is empty
+        /// OR overlaps profile.ActiveStandards.  Returns ordered by
+        /// Priority descending.
+        /// </summary>
+        public static List<PlacementRule> FilterByProfile(
+            List<PlacementRule> rules,
+            ProjectBuildingProfile profile)
+        {
+            if (rules == null) return new List<PlacementRule>();
+            if (profile == null) return rules;
+
+            var bt = profile.BuildingType ?? "";
+            var act = profile.ActiveStandards ?? new string[0];
+            var actSet = new HashSet<string>(act, StringComparer.OrdinalIgnoreCase);
+
+            var filtered = new List<PlacementRule>();
+            foreach (var r in rules)
+            {
+                if (r == null) continue;
+
+                // BuildingType gate (empty rule.BuildingType matches any)
+                if (!string.IsNullOrEmpty(r.BuildingType) && !string.IsNullOrEmpty(bt))
+                {
+                    if (!string.Equals(r.BuildingType, bt, StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(r.BuildingType, "Mixed",  StringComparison.OrdinalIgnoreCase))
+                        continue;
+                }
+
+                // ApplicableStandards gate
+                if (r.ApplicableStandards != null && r.ApplicableStandards.Length > 0 && actSet.Count > 0)
+                {
+                    bool any = false;
+                    foreach (var s in r.ApplicableStandards)
+                        if (!string.IsNullOrEmpty(s) && actSet.Contains(s)) { any = true; break; }
+                    if (!any) continue;
+                }
+
+                filtered.Add(r);
+            }
+
+            filtered.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+            return filtered;
         }
 
         /// <summary>

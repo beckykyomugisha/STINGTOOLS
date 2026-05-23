@@ -30,7 +30,7 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
-      "RoomFilter": "(?i)bathroom|wc|toilet|shower",
+      "RoomFilter": "(?i)\\b(bathroom|wc|toilet|shower|en\\s*-?suite|lavatory|powder\\s*room|cloakroom)\\b",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
       "MountingHeightMm": 450.0,
@@ -277,7 +277,7 @@
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
-      "RoomFilter": "(?i)bathroom|wc|toilet",
+      "RoomFilter": "(?i)\\b(bathroom|wc|toilet|en\\s*-?suite|lavatory|powder\\s*room|cloakroom)\\b",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
       "MountingHeightMm": 850.0,
@@ -290,7 +290,7 @@
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
-      "RoomFilter": "(?i)bathroom|wc|toilet",
+      "RoomFilter": "(?i)\\b(bathroom|wc|toilet|en\\s*-?suite|lavatory|powder\\s*room|cloakroom)\\b",
       "AnchorType": "WALL_CORNER",
       "OffsetXMm": 300.0,
       "MountingHeightMm": 400.0,

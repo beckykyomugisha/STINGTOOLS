@@ -44,8 +44,11 @@ namespace StingTools.Core.Fabrication
         public const string SHIP_DATE_TXT           = "ASS_SHIP_DATE_TXT";
         public const string SHIP_DATE_TXT_GUID      = "c2fc8e62-b793-517c-94c6-d2d7ae7584fe";
 
-        public const string INSTALL_DATE_TXT        = "ASS_INSTALL_DATE_TXT";
-        public const string INSTALL_DATE_TXT_GUID   = "953575a9-1d0c-5bb5-a4d2-c52b4b4adf96";
+        // Migrated to canonical ASS_INSTALLATION_DATE_TXT (GROUP 1, GUID cfc716aa).
+        // The v4 fabrication alias 953575a9 is retained in MR_PARAMETERS.txt for
+        // backwards compat but marked DEPRECATED.
+        public const string INSTALL_DATE_TXT        = "ASS_INSTALLATION_DATE_TXT";
+        public const string INSTALL_DATE_TXT_GUID   = "cfc716aa-126d-5e9e-a9e8-3c2a2b52d933";
 
         public const string BOM_REV_TXT             = "ASS_BOM_REV_TXT";
         public const string BOM_REV_TXT_GUID        = "0293f487-2ca9-5514-9b18-ac98b1a20b27";

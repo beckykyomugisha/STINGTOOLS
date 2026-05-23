@@ -172,6 +172,21 @@ namespace StingTools.Core.Placement
             {
                 StingLog.Warn($"PlacementScorer: room {room.Id} LocationPoint read failed: {ex.Message}");
             }
+            // Phase 139.4 — degraded DWG-imported rooms can lack a LocationPoint
+            // (linked / un-placed / phase-mismatched). Fall back to the room's
+            // bounding-box centroid so anchor generation still produces
+            // candidates instead of silently returning empty.
+            if (roomPt == null)
+            {
+                try
+                {
+                    var bb = room.get_BoundingBox(null);
+                    if (bb != null) roomPt = (bb.Min + bb.Max) * 0.5;
+                }
+                catch (Exception ex) { StingLog.Warn($"PlacementScorer: room {room.Id} bbox fallback failed: {ex.Message}"); }
+                if (roomPt != null)
+                    StingLog.Info($"PlacementScorer: room {room.Id} has no LocationPoint — using bbox centroid.");
+            }
             if (roomPt == null) return points;
 
             // PC-06 — full 3-D offset and rotation read once per rule.
@@ -255,7 +270,9 @@ namespace StingTools.Core.Placement
                     break;
 
                 default:
-                    points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+                    // Phase 139 — try the new anchor types before fallback.
+                    if (!TryEmitPhase139Anchor(anchor, room, rule, anchorZ, offsetXFt, offsetYFt, points))
+                        points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
                     break;
             }
 
@@ -286,12 +303,22 @@ namespace StingTools.Core.Placement
         }
 
         // PC-10 — emit lighting-grid points snapped to the ceiling tile grid.
+        // Phase 139.2 — grid result cached per (room, rule) so re-entry from
+        // multiple anchor candidates of the same rule does not recompute.
+        private readonly Dictionary<(ElementId, string), LightingGridResult> _gridCache
+            = new Dictionary<(ElementId, string), LightingGridResult>();
+
         private void EmitLightingGridPoints(Room room, PlacementRule rule, XYZ roomPt,
             double offsetXFt, double offsetYFt, double anchorZ, List<XYZ> points)
         {
             try
             {
-                var grid = LightingGrid?.Compute(room);
+                var key = (room.Id, rule?.MergeKey ?? "");
+                if (!_gridCache.TryGetValue(key, out var grid))
+                {
+                    grid = LightingGrid?.Compute(room, rule);
+                    _gridCache[key] = grid;
+                }
                 if (grid == null || grid.Points.Count == 0)
                 {
                     points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
@@ -301,10 +328,6 @@ namespace StingTools.Core.Placement
                 var snapped = CeilingGridSnap.SnapToCeilingGrid(_doc, room, grid.Points);
                 foreach (var p in snapped)
                     points.Add(new XYZ(p.X + offsetXFt, p.Y + offsetYFt, anchorZ));
-                StingLog.Info(
-                    $"PlacementScorer: lighting grid for room {room.Id} — {grid.RoomTypeCode} " +
-                    $"target {grid.TargetLux:F0}lx, {grid.FixturesRequired} fixture(s), " +
-                    $"snapped to ceiling tiles");
             }
             catch (Exception ex)
             {
@@ -375,11 +398,17 @@ namespace StingTools.Core.Placement
             // (helps lighting grids and socket rails line up).
             c.SymmetryScore = ComputeSymmetryScore(anchor, alreadyPlaced);
 
-            c.Score = c.AnchorScore    * AnchorWeight
-                    + c.SideScore      * SideWeight
-                    + c.SpacingScore   * SpacingWeight
-                    + c.CollisionScore * CollisionWeight
-                    + c.SymmetryScore  * SymmetryWeight;
+            // Phase 139.2 P — coverage contribution + manufacturer resolution.
+            double coverageContribution = ScoreCoverageContribution(anchor, rule, alreadyPlaced);
+            double manufacturerScore    = ScoreManufacturerResolution(rule);
+
+            c.Score = c.AnchorScore       * AnchorWeight
+                    + c.SideScore         * SideWeight
+                    + c.SpacingScore      * SpacingWeight
+                    + c.CollisionScore    * CollisionWeight
+                    + c.SymmetryScore     * SymmetryWeight
+                    + coverageContribution * CoverageWeight
+                    + manufacturerScore   * ManufacturerWeight;
 
             // §5.1 — apply family-level placement hints as a final score
             // modifier. Only the level hint biases the composite score
@@ -470,6 +499,83 @@ namespace StingTools.Core.Placement
             }
             catch { }
             return null;
+        }
+
+        /// <summary>
+        /// Phase 139.2 P — coverage contribution.  Returns 1.0 when the
+        /// candidate sits in a previously-uncovered zone, 0.0 when fully
+        /// covered, linear in-between.  CoverageRadiusMm = 0 → neutral 0.5
+        /// so legacy rules score as before.
+        /// </summary>
+        private double ScoreCoverageContribution(XYZ candidate, PlacementRule rule, IList<XYZ> alreadyPlaced)
+        {
+            if (rule == null || candidate == null) return 0.5;
+            if (rule.CoverageRadiusMm <= 0) return 0.5;
+            if (alreadyPlaced == null || alreadyPlaced.Count == 0) return 1.0;
+            double radiusFt = rule.CoverageRadiusMm * MmToFt;
+            double radiusSq = radiusFt * radiusFt;
+            double minSq = double.MaxValue;
+            foreach (var p in alreadyPlaced)
+            {
+                if (p == null) continue;
+                double dx = p.X - candidate.X, dy = p.Y - candidate.Y;
+                double d2 = dx * dx + dy * dy;
+                if (d2 < minSq) minSq = d2;
+                if (d2 >= radiusSq) continue; // candidate stays "outside" — keep scanning for nearer
+            }
+            if (minSq >= radiusSq) return 1.0;
+            return Math.Max(0.0, Math.Sqrt(minSq) / radiusFt);
+        }
+
+        /// <summary>
+        /// Phase 139.2 P — manufacturer resolution.  1.0 when the rule's
+        /// CatalogueRef resolves to an entry whose declared family is
+        /// loaded in the document; 0.0 when CatalogueRef is empty or
+        /// catalogue lookup fails.  Family-name set is cached per scorer
+        /// instance so we don't run FilteredElementCollector per candidate.
+        /// </summary>
+        private HashSet<string> _loadedFamilyNames;
+        private Dictionary<string, string> _loadedFamilyCategoryByName;
+        private double ScoreManufacturerResolution(PlacementRule rule)
+        {
+            if (rule == null || string.IsNullOrEmpty(rule.CatalogueRef)) return 0.0;
+            try
+            {
+                var entry = ManufacturerCatalogueRegistry.GetForRule(rule);
+                if (entry == null) return 0.0;
+                if (string.IsNullOrEmpty(entry.RevitFamilyName)) return 0.5;
+                if (_doc == null) return 0.5;
+                if (_loadedFamilyNames == null)
+                {
+                    // Phase 139.4 — index loaded families by name AND category so
+                    // we don't reward a name match when the family lives in the
+                    // wrong category (e.g. 'MK_LogicPlus_1G_Flush' loaded as a
+                    // generic-model would otherwise score 1.0 against a
+                    // 'Lighting Devices' rule).
+                    _loadedFamilyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    _loadedFamilyCategoryByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var el in new FilteredElementCollector(_doc).OfClass(typeof(Family)))
+                        if (el is Family fam && !string.IsNullOrEmpty(fam.Name))
+                        {
+                            _loadedFamilyNames.Add(fam.Name);
+                            string catName = fam.FamilyCategory?.Name ?? "";
+                            if (!string.IsNullOrEmpty(catName))
+                                _loadedFamilyCategoryByName[fam.Name] = catName;
+                        }
+                }
+                if (!_loadedFamilyNames.Contains(entry.RevitFamilyName)) return 0.5;
+                // Verify the loaded family lives in the rule's expected category.
+                if (!string.IsNullOrEmpty(rule.CategoryFilter)
+                    && _loadedFamilyCategoryByName.TryGetValue(entry.RevitFamilyName, out var loadedCat)
+                    && !string.Equals(loadedCat, rule.CategoryFilter, StringComparison.OrdinalIgnoreCase))
+                    return 0.5;
+                return 1.0;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementScorer.ScoreManufacturerResolution: {ex.Message}");
+                return 0.0;
+            }
         }
 
         /// <summary>
@@ -779,13 +885,39 @@ namespace StingTools.Core.Placement
                         new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
                         new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
                     var bbf = new BoundingBoxIntersectsFilter(outline);
-                    cache.Doors   = CollectInsts(_doc, BuiltInCategory.OST_Doors,   bbf);
+                    cache.Doors   = FilterDoorsForRoom(CollectInsts(_doc, BuiltInCategory.OST_Doors, bbf), room);
                     cache.Windows = CollectInsts(_doc, BuiltInCategory.OST_Windows, bbf);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"PlacementScorer.GetBoundary {room.Id}: {ex.Message}"); }
             _boundaryCache[room.Id] = cache;
             return cache;
+        }
+
+        // Phase 139.18 — filter door instances to those that actually open
+        // into the supplied room. Revit's FamilyInstance.FromRoom /
+        // ToRoom expose the spatial relationship; the bbox-intersect
+        // collector is too greedy and grabs doors of adjacent rooms.
+        // Falls back to bbox-intersect when both FromRoom and ToRoom
+        // are null (door's spatial context not yet computed).
+        private static List<FamilyInstance> FilterDoorsForRoom(List<FamilyInstance> all, Room room)
+        {
+            if (all == null || room == null) return all ?? new List<FamilyInstance>();
+            var keep = new List<FamilyInstance>();
+            foreach (var fi in all)
+            {
+                if (fi == null) continue;
+                Room from = null, to = null;
+                try { from = fi.FromRoom; } catch { }
+                try { to = fi.ToRoom; } catch { }
+                if (from == null && to == null)
+                {
+                    keep.Add(fi); // unknown spatial context — keep, fall through
+                    continue;
+                }
+                if ((from?.Id == room.Id) || (to?.Id == room.Id)) keep.Add(fi);
+            }
+            return keep;
         }
 
         private static List<FamilyInstance> CollectInsts(Document doc, BuiltInCategory cat, ElementFilter bbf)
@@ -827,9 +959,13 @@ namespace StingTools.Core.Placement
             foreach (var seg in b.Segments)
             {
                 if (seg.Curve == null) continue;
-                if (!(seg.Curve is Line line)) continue;
-                var mid = line.Evaluate(0.5, true);
-                XYZ inward = ComputeInward(line, room);
+                // Phase 139.5 Q3 — was `if (!(seg.Curve is Line line)) continue;`
+                // which silently dropped every Arc / Spline / NurbSpline boundary
+                // — curved-wall rooms produced zero anchors. Curve.Evaluate(0.5,
+                // true) returns the midpoint regardless of curve subclass; the
+                // inward normal comes from the tangent at the midpoint.
+                XYZ mid = seg.Curve.Evaluate(0.5, true);
+                XYZ inward = ComputeInwardFromCurve(seg.Curve, room);
                 double xFt = mid.X + inward.X * offsetXFt + (-inward.Y) * offsetYFt;
                 double yFt = mid.Y + inward.Y * offsetXFt + ( inward.X) * offsetYFt;
                 points.Add(new XYZ(xFt, yFt, anchorZ));
@@ -841,16 +977,16 @@ namespace StingTools.Core.Placement
         {
             var b = GetBoundary(room);
             if (b == null || b.Segments.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
-            // Corner = endpoint of every line segment, deduped.
+            // Corner = endpoint of every segment (line, arc or spline), deduped.
             var seen = new HashSet<long>();
             foreach (var seg in b.Segments)
             {
-                if (!(seg.Curve is Line line)) continue;
-                foreach (var pt in new[] { line.GetEndPoint(0), line.GetEndPoint(1) })
+                if (seg.Curve == null) continue;
+                XYZ inward = ComputeInwardFromCurve(seg.Curve, room);
+                foreach (var pt in new[] { seg.Curve.GetEndPoint(0), seg.Curve.GetEndPoint(1) })
                 {
                     long key = (long)(pt.X * 1000) * 100000 + (long)(pt.Y * 1000);
                     if (!seen.Add(key)) continue;
-                    XYZ inward = ComputeInward(line, room);
                     points.Add(new XYZ(pt.X + inward.X * offsetXFt, pt.Y + inward.Y * offsetXFt, anchorZ));
                 }
             }
@@ -868,7 +1004,40 @@ namespace StingTools.Core.Placement
                 if (origin == null) continue;
                 var hostWall = door.Host as Wall;
                 XYZ along = WallTangent(hostWall);
-                if (along == null) along = XYZ.BasisX;
+                if (along == null)
+                {
+                    // Phase 139.16 — door.Host can be a curtain wall or a
+                    // panel rather than a basic Wall, in which case
+                    // WallTangent returns null. Fall back to the door's
+                    // own FacingOrientation rotated 90° about Z to get a
+                    // valid in-plane tangent — this matches the wall the
+                    // door is actually swinging against. Last-resort
+                    // fallback is room-centroid → door direction so the
+                    // 300 mm offset never goes into thin air.
+                    XYZ facing = null;
+                    try { facing = door.FacingOrientation; } catch { }
+                    if (facing != null && !facing.IsZeroLength())
+                    {
+                        along = new XYZ(-facing.Y, facing.X, 0);
+                        if (along.IsZeroLength()) along = XYZ.BasisX;
+                        else along = along.Normalize();
+                    }
+                    else
+                    {
+                        var bbRoom = room.get_BoundingBox(null);
+                        XYZ centroid = bbRoom != null ? (bbRoom.Min + bbRoom.Max) * 0.5 : origin;
+                        XYZ towardCentroid = (centroid - origin);
+                        if (!towardCentroid.IsZeroLength())
+                        {
+                            // Tangent is the cross of (toward-centroid) × Z.
+                            along = new XYZ(-towardCentroid.Y, towardCentroid.X, 0).Normalize();
+                        }
+                        else
+                        {
+                            along = XYZ.BasisX;
+                        }
+                    }
+                }
                 XYZ inward = ComputeInwardFromWall(hostWall, room) ?? XYZ.BasisY;
                 // Hinge side: place along the wall in the direction of FacingFlipped.
                 double hingeSign = hingeSide ? 1 : -1;
@@ -908,13 +1077,24 @@ namespace StingTools.Core.Placement
         {
             try
             {
-                if (w == null || w.Location is not LocationCurve lc || lc.Curve is not Line ln) return null;
-                XYZ tangent = (ln.GetEndPoint(1) - ln.GetEndPoint(0)).Normalize();
+                if (w == null || !(w.Location is LocationCurve lc) || lc.Curve == null) return null;
+                // Phase 139.18 — generalised from `is Line` to any Curve.
+                // Arc / NurbSpline walls used to short-circuit and the door
+                // anchor fell back to world-Y → switches on curved walls
+                // were pushed in a fixed direction unrelated to geometry.
+                XYZ tangent;
+                try
+                {
+                    var deriv = lc.Curve.ComputeDerivatives(0.5, true);
+                    tangent = deriv?.BasisX ?? (lc.Curve.GetEndPoint(1) - lc.Curve.GetEndPoint(0));
+                }
+                catch { tangent = lc.Curve.GetEndPoint(1) - lc.Curve.GetEndPoint(0); }
+                if (tangent.GetLength() < 1e-9) return null;
+                tangent = tangent.Normalize();
                 XYZ normal = new XYZ(-tangent.Y, tangent.X, 0);
-                // Resolve direction: nudge a tiny amount along ±normal and pick the one inside the room bbox.
                 var bb = room.get_BoundingBox(null);
                 if (bb == null) return normal;
-                XYZ wallMid = ln.Evaluate(0.5, true);
+                XYZ wallMid = lc.Curve.Evaluate(0.5, true);
                 XYZ probe = wallMid + normal.Multiply(0.5);
                 if (probe.X >= bb.Min.X && probe.X <= bb.Max.X && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y) return normal;
                 return normal.Negate();
@@ -923,14 +1103,33 @@ namespace StingTools.Core.Placement
         }
 
         private XYZ ComputeInward(Line line, Room room)
+            => ComputeInwardFromCurve(line, room);
+
+        // Phase 139.5 Q3 — generalised inward-normal computation for any
+        // boundary curve (Line, Arc, NurbSpline). Tangent comes from the
+        // first derivative at the midpoint parameter; the normal is the
+        // 90° rotation of the planar tangent.
+        private XYZ ComputeInwardFromCurve(Curve curve, Room room)
         {
             try
             {
-                XYZ tangent = (line.GetEndPoint(1) - line.GetEndPoint(0)).Normalize();
+                if (curve == null) return XYZ.BasisY;
+                XYZ tangent;
+                try
+                {
+                    var deriv = curve.ComputeDerivatives(0.5, true);
+                    tangent = deriv?.BasisX ?? (curve.GetEndPoint(1) - curve.GetEndPoint(0));
+                }
+                catch
+                {
+                    tangent = curve.GetEndPoint(1) - curve.GetEndPoint(0);
+                }
+                if (tangent.GetLength() < 1e-9) return XYZ.BasisY;
+                tangent = tangent.Normalize();
                 XYZ normal = new XYZ(-tangent.Y, tangent.X, 0);
                 var bb = room.get_BoundingBox(null);
                 if (bb == null) return normal;
-                XYZ mid = line.Evaluate(0.5, true);
+                XYZ mid = curve.Evaluate(0.5, true);
                 XYZ probe = mid + normal.Multiply(0.5);
                 if (probe.X >= bb.Min.X && probe.X <= bb.Max.X && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y) return normal;
                 return normal.Negate();
@@ -1173,12 +1372,21 @@ namespace StingTools.Core.Placement
                 string phaseName = "";
                 try
                 {
-                    var phaseParam = room.get_Parameter(BuiltInParameter.ROOM_PHASE_ID);
-                    if (phaseParam != null && phaseParam.HasValue)
+                    // Phase 139.5 Q10 — Revit 2024+ replaced ROOM_PHASE_ID with
+                    // Element.CreatedPhaseId. Try the modern API first; fall back
+                    // to the legacy parameter so the same code path covers
+                    // Revit 2025/2026/2027.
+                    ElementId phaseId = ElementId.InvalidElementId;
+                    try { phaseId = room.CreatedPhaseId; } catch { }
+                    if (phaseId == null || phaseId == ElementId.InvalidElementId)
                     {
-                        var ph = _doc.GetElement(phaseParam.AsElementId()) as Phase;
-                        if (ph != null) phaseName = ph.Name ?? "";
+                        var phaseParam = room.get_Parameter(BuiltInParameter.ROOM_PHASE_ID);
+                        if (phaseParam != null && phaseParam.HasValue)
+                            phaseId = phaseParam.AsElementId();
                     }
+                    if (phaseId != null && phaseId != ElementId.InvalidElementId
+                        && _doc.GetElement(phaseId) is Phase ph)
+                        phaseName = ph.Name ?? "";
                 }
                 catch { }
                 if (!RegexAllow(rule.PhaseFilter, phaseName)) return false;

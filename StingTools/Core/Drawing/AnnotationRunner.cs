@@ -142,12 +142,62 @@ namespace StingTools.Core.Drawing
 
         private static void RunTagRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunOptions opts, AnnotationResult result)
         {
-            // Build effective rule list
+            // FG-02: handle every tag-like RuleType, not just bare "AutoTag".
+            // RoomTag / SpaceTag / AreaTag / MaterialTag / KeynoteTag /
+            // MultiCategoryTag are all variants of "tag this category" and
+            // should run via the same per-rule path; the differentiator is
+            // the resolved tag family (RoomTag uses Room tag families, etc.).
+            // RuleType is preserved on the rule so downstream callers can
+            // pick a tag family by purpose.
+            var tagRuleKinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "AutoTag", "RoomTag", "SpaceTag", "AreaTag",
+                "MaterialTag", "KeynoteTag", "MultiCategoryTag",
+            };
+
+            // Phase 165 — Auto3DTag short-circuits to Tag3DCommand.PlaceTagsInView
+            // when the active view is a 3D view. Pulled out of the standard tag-rule
+            // path because IndependentTag is 2D-only; 3D tags are FamilyInstances of
+            // a Generic Model "tag bubble" carrying ASS_TAG_3D_TXT.
+            if (pack.Rules != null)
+            {
+                var auto3D = pack.Rules
+                    .Where(r => r != null && r.Enabled &&
+                                string.Equals(r.RuleType, "Auto3DTag", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (auto3D.Count > 0)
+                {
+                    if (view is View3D v3d)
+                    {
+                        // Read the DrawingType profile's displayMode 6 hint via the
+                        // STING_DISPLAY_MODE view stamp; if 6, tag with TAG7 narrative.
+                        bool useNarrative = false;
+                        try
+                        {
+                            int dispMode = StingTools.Core.ParameterHelpers
+                                .GetInt(view, StingTools.Core.ParamRegistry.DISPLAY_MODE, 0);
+                            useNarrative = dispMode == 6;
+                        }
+                        catch { /* defensive */ }
+
+                        var r3d = StingTools.Tags.Tag3DCommand.PlaceTagsInView(doc, v3d, useNarrative);
+                        result.TagsPlaced += r3d.Placed;
+                        foreach (var w in r3d.Warnings) result.Warnings.Add($"Auto3DTag: {w}");
+                    }
+                    else
+                    {
+                        result.Warnings.Add($"Auto3DTag rule skipped — active view '{view.Name}' is not a 3D view.");
+                    }
+                }
+            }
+
             List<AutoAnnotationRule> effective;
             if (pack.Rules != null && pack.Rules.Count > 0)
             {
-                effective = pack.Rules.Where(r => r != null && r.Enabled &&
-                    string.Equals(r.RuleType ?? "AutoTag", "AutoTag", StringComparison.OrdinalIgnoreCase)).ToList();
+                effective = pack.Rules
+                    .Where(r => r != null && r.Enabled
+                                && tagRuleKinds.Contains(r.RuleType ?? "AutoTag"))
+                    .ToList();
             }
             else if (pack.AutoTag == true)
             {
@@ -255,6 +305,24 @@ namespace StingTools.Core.Drawing
                     catch { }
                 }
             }
+        }
+
+        // GAP-I helper: derive a tag point when the element's bbox is null.
+        private static XYZ ResolveFallbackTagPoint(Element el, View view)
+        {
+            try
+            {
+                if (el.Location is LocationPoint lp && lp.Point != null) return lp.Point;
+                if (el.Location is LocationCurve lc && lc.Curve != null)
+                {
+                    var c = lc.Curve;
+                    return (c.GetEndPoint(0) + c.GetEndPoint(1)) * 0.5;
+                }
+                // View centre as last-resort fallback.
+                if (view?.Origin != null) return view.Origin;
+            }
+            catch { /* best effort */ }
+            return null;
         }
 
         private static int GetPackTagDepth(AnnotationRulePack pack, string category)

@@ -122,7 +122,7 @@
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save Project"     Click="OnSaveProject_Click"
                         ToolTip="Save valid rules to &lt;project&gt;/STING_PLACEMENT_RULES.project.json (Ctrl+S)."/>
                 <Separator Width="8" Visibility="Hidden"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Run Placement"   Click="OnRunPlacement_Click" ToolTip="Alt+R"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          x:Name="btnRunPlacement" Content="Run Placement"   Click="OnRunPlacement_Click" ToolTip="Alt+R"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Preview"         Click="OnPreview_Click"      ToolTip="Alt+P"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Validate"        Click="OnValidate_Click"     ToolTip="Alt+V"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Undo last run"   Click="OnUndoLast_Click"
@@ -665,6 +665,40 @@
                                     <CheckBox x:Name="vTermination" Content="Termination" Margin="0,0,8,0"/>
                                     <CheckBox x:Name="vSlope"       Content="Slope"       Margin="0,0,8,0"/>
                                     <CheckBox x:Name="vSeparation"  Content="Separation"  Margin="0,0,8,0"/>
+                                </WrapPanel>
+                            </Grid>
+
+                            <!-- Phase 139.8 — explicit category checklist for what to auto-place.
+                                 When ALL boxes are off, every category in the active rule pack is allowed.
+                                 When ANY box is ticked, only those categories are placed. -->
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource LabelStyle}" Text="Auto-place"
+                                           ToolTip="Tick the categories the run should auto-place. Empty = every category."/>
+                                <WrapPanel Grid.Column="1">
+                                    <CheckBox x:Name="cbCatElec"   Content="Electrical Fixtures"  Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatLtgDev" Content="Lighting Devices"     Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatLtgFix" Content="Lighting Fixtures"    Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatComm"   Content="Communication Devices" Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatData"   Content="Data Devices"         Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatSec"    Content="Security Devices"     Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatFire"   Content="Fire Alarm Devices"   Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatPlm"    Content="Plumbing Fixtures"    Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatHvac"   Content="Air Terminals"        Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatSpr"    Content="Sprinklers"           Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatMech"   Content="Mechanical Equipment" Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatCond"   Content="Conduits"             Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatJBox"   Content="Junction Boxes"       Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatPipe"   Content="Pipes"                Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatTray"   Content="Cable Trays"          Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatSpec"   Content="Specialty Equipment"  Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatFurn"   Content="Furniture"            Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatNurse"  Content="Nurse Call Devices"   Margin="0,0,8,2"/>
+                                    <Button x:Name="btnCatAll"  Content="All"  Padding="8,2" Margin="6,0,4,2"/>
+                                    <Button x:Name="btnCatNone" Content="None" Padding="8,2" Margin="0,0,4,2"/>
                                 </WrapPanel>
                             </Grid>
                         </StackPanel>

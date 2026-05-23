@@ -1,14 +1,14 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "name": "STING Corporate View Style Packs",
-  "description": "Single-source-of-truth visual presentation packs. Every pack except the root extends corp-base; only fields that override the parent need to be set. Drawing-type recipes reference packs by id (extendsChain resolved at runtime).",
+  "description": "Single-source-of-truth visual presentation packs. Every pack except the root extends corp-base; only fields that override the parent need to be set. VG standards aligned to BS 1192:2007+A2:2016 + ISO 13567 + CIBSE discipline colours.",
   "namespace": "Planscape Limited",
-  "lastUpdated": "2026-04-25",
+  "lastUpdated": "2026-04-27",
   "stylePacks": [
     {
       "id": "corp-base",
       "name": "Corporate Base (root of extends chain)",
-      "description": "All other packs extend this. Only set fields here that are invariant across every corporate output — house line weights, text/dim styles, hatch palette, and the universal filter rules.",
+      "description": "All other packs extend this. Comprehensive 60+ category VG baseline aligned to BS 1192 + ISO 13567 + CIBSE. Discipline-neutral defaults plus the 5 universal phase / construction filter rules.",
       "extends": null,
       "origin": "corporate",
       "appearance": {
@@ -120,11 +120,17 @@
     {
       "id": "corp-standard-plan",
       "name": "Corporate Plan",
-      "description": "1:100 architectural plan. Walls bold, floors halftoned, ceilings hidden, grids un-halftoned.",
+      "description": "1:100 architectural plan. Walls cut bold, MEP halftoned as background, ceilings halftoned, grids un-halftoned.",
       "extends": "corp-base",
       "origin": "corporate",
       "templateMode": "managed",
-      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "phaseFilter"],
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
       "discipline": "Architectural",
       "visualStyle": "HiddenLine",
       "tagColorScheme": "STING Discipline",
@@ -243,7 +249,7 @@
     {
       "id": "corp-standard-rcp",
       "name": "Corporate RCP",
-      "description": "Reflected ceiling plan, extends Corporate Plan. Walls halftoned, ceilings shown, lights un-halftoned.",
+      "description": "Reflected ceiling plan, extends Corporate Plan. Walls halftoned, ceilings shown bold, lights / air terminals / sprinklers un-halftoned.",
       "extends": "corp-standard-plan",
       "origin": "corporate",
       "viewTemplate": "STING - Ceiling RCP",
@@ -289,7 +295,7 @@
     {
       "id": "corp-standard-section",
       "name": "Corporate Section",
-      "description": "1:50 building section. Cut elements bold, beyond elements halftoned.",
+      "description": "1:50 building section. Cut elements bold, beyond elements halftoned to LW 4.",
       "extends": "corp-base",
       "origin": "corporate",
       "viewTemplate": "STING - Working Section",
@@ -336,7 +342,7 @@
     {
       "id": "corp-standard-elevation",
       "name": "Corporate Elevation",
-      "description": "1:100 elevation. Outline bold, internal lines fine, topo halftoned.",
+      "description": "1:100 elevation. Wall outline bold, mullions LW 5; MEP / structural / rooms halftoned.",
       "extends": "corp-base",
       "origin": "corporate",
       "viewTemplate": "STING - Working Elevation",
@@ -380,10 +386,6 @@
       "detailLevel": "Fine",
       "scaleHint": "1:20",
       "colorScheme": "Monochrome",
-      "appearance": {
-        "lineWeightScale": 1.0,
-        "textStyleName": "STING - 2.0mm"
-      },
       "vgOverrides": {
         "Walls": {
           "projWeight": 6,
@@ -452,11 +454,17 @@
     {
       "id": "corp-coordination",
       "name": "MEP Coordination",
-      "description": "Multi-discipline clash plan. Mechanical blue / Plumbing green / Electrical amber / Fire red / Structural purple.",
+      "description": "Multi-discipline clash plan. Mechanical / Electrical / Plumbing un-halftoned in their CIBSE colours; architectural and structural backgrounds halftoned at 50% transparency.",
       "extends": "corp-base",
       "origin": "corporate",
       "templateMode": "managed",
-      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "phaseFilter"],
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
       "discipline": "Coordination",
       "visualStyle": "Wireframe",
       "viewTemplate": "STING - MEP Coordination",
@@ -552,22 +560,23 @@
     {
       "id": "corp-fabrication-shop",
       "name": "Fabrication Shop Drawing",
-      "description": "Workshop-floor look. Bold MEP, walls/structural hidden, ordinate dimensions.",
-      "extends": "corp-coordination",
+      "description": "Workshop-floor look. Bold mono pipework / ductwork; structural and walls halftoned; ordinate dimensions.",
+      "extends": "corp-base",
       "origin": "corporate",
       "templateMode": "managed",
-      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "phaseFilter"],
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
       "discipline": "Coordination",
       "visualStyle": "Wireframe",
       "viewTemplate": "STING - Fabrication Shop",
       "detailLevel": "Fine",
       "scaleHint": "1:50",
       "colorScheme": "Monochrome",
-      "appearance": {
-        "lineWeightScale": 1.0,
-        "textStyleName": "STING - 2.0mm Shop",
-        "dimensionStyleName": "STING - Ordinate"
-      },
       "vgOverrides": {
         "Pipes": {
           "projWeight": 5
@@ -596,17 +605,14 @@
     {
       "id": "corp-presentation-rich",
       "name": "Technical Presentation",
-      "description": "Internal IDR / TDR. Rich colours, bold outlines, suppressed annotations.",
-      "extends": "corp-standard-plan",
+      "description": "Internal IDR / TDR. Rich material colours, bold outlines, suppressed annotations, MEP / structural / grids halftoned.",
+      "extends": "corp-base",
       "origin": "corporate",
-      "tagColorScheme": "Pastel",
+      "tagColorScheme": "Discipline",
       "viewTemplate": "STING - Presentation Section",
       "detailLevel": "Medium",
       "scaleHint": "1:50",
       "colorScheme": "PresentationRich",
-      "appearance": {
-        "textStyleName": "STING - 3.0mm Presentation"
-      },
       "vgOverrides": {
         "Walls": {
           "projColor": "#263238",
@@ -656,14 +662,14 @@
     {
       "id": "corp-presentation-mono",
       "name": "Client Presentation",
-      "description": "Greyscale client presentation derived from Technical Presentation.",
+      "description": "Greyscale client presentation derived from Technical Presentation. All colours mapped to greyscale (#000000, #404040, #808080, #C0C0C0); transparency cleared; halftone disabled.",
       "extends": "corp-presentation-rich",
       "origin": "corporate",
-      "tagColorScheme": "Monochrome",
+      "tagColorScheme": "Mono",
       "viewTemplate": "STING - Presentation Elevation",
       "detailLevel": "Medium",
       "scaleHint": "1:50",
-      "colorScheme": "Monochrome",
+      "colorScheme": "PresentationMono",
       "vgOverrides": {
         "Walls": {
           "projColor": "#000000",
@@ -1714,37 +1720,57 @@
       "id": "proj-arch-presentation",
       "name": "Project Architectural Presentation",
       "description": "Project-level pack — managed; pastel tags; lighter line weights for client presentation.",
+      "extends": "corp-presentation-rich",
       "origin": "project",
       "templateMode": "managed",
-      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "phaseFilter"],
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
       "discipline": "Architectural",
       "visualStyle": "Consistent Colors",
-      "lineWeightScale": 0.75,
       "tagColorScheme": "Pastel",
-      "defaultTagStyle": "2.5-NOM-BLUE"
+      "defaultTagStyle": "2.5NOM_BLUE",
+      "lineWeightScale": 0.75,
+      "textStyle": null,
+      "dimensionStyle": null,
+      "hatchPalette": null
     },
     {
       "id": "proj-mep-coordination",
       "name": "Project MEP Coordination",
       "description": "Project-level pack — managed; thin lines for clash review.",
+      "extends": "corp-coordination",
       "origin": "project",
       "templateMode": "managed",
-      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "phaseFilter"],
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
       "discipline": "Mechanical",
       "visualStyle": "Wireframe",
+      "tagColorScheme": "STING Discipline",
       "lineWeightScale": 0.5,
-      "tagColorScheme": "STING Discipline"
+      "textStyle": null,
+      "dimensionStyle": null,
+      "hatchPalette": null
     },
     {
       "id": "proj-structural",
       "name": "Project Structural",
       "description": "Project-level pack — external (uses project's existing structural template).",
+      "extends": "corp-structural-plan",
       "origin": "project",
       "templateMode": "external",
       "discipline": "Structural",
       "visualStyle": "HiddenLine"
-    }
-    ,
+    },
     {
       "id": "pres-base",
       "name": "Presentation Base (parent of all pres-* packs)",
@@ -1752,40 +1778,101 @@
       "extends": "corp-base",
       "origin": "corporate",
       "vgOverrides": {
-        "Ducts":                 { "visible": false },
-        "Duct Fittings":         { "visible": false },
-        "Duct Accessories":      { "visible": false },
-        "Pipes":                 { "visible": false },
-        "Pipe Fittings":         { "visible": false },
-        "Pipe Accessories":      { "visible": false },
-        "Conduits":              { "visible": false },
-        "Conduit Fittings":      { "visible": false },
-        "Cable Trays":           { "visible": false },
-        "Cable Tray Fittings":   { "visible": false },
-        "Mechanical Equipment":  { "visible": false },
-        "Electrical Equipment":  { "visible": false },
-        "Electrical Fixtures":   { "visible": false },
-        "Lighting Fixtures":     { "visible": false },
-        "Lighting Devices":      { "visible": false },
-        "Fire Alarm Devices":    { "visible": false },
-        "Sprinklers":            { "visible": false },
-        "Communication Devices": { "visible": false },
-        "Data Devices":          { "visible": false },
-        "Nurse Call Devices":    { "visible": false },
-        "Security Devices":      { "visible": false },
-        "Structural Framing":    { "visible": false },
-        "Structural Foundations":{ "visible": false },
-        "Structural Connections":{ "visible": false },
-        "Structural Rebar":      { "visible": false },
-        "Grids":                 { "visible": false },
-        "Levels":                { "visible": false },
-        "Reference Planes":      { "visible": false },
-        "Scope Boxes":           { "visible": false },
-        "Dimensions":            { "visible": false },
-        "Generic Annotations":   { "visible": false }
+        "Ducts": {
+          "visible": false
+        },
+        "Duct Fittings": {
+          "visible": false
+        },
+        "Duct Accessories": {
+          "visible": false
+        },
+        "Pipes": {
+          "visible": false
+        },
+        "Pipe Fittings": {
+          "visible": false
+        },
+        "Pipe Accessories": {
+          "visible": false
+        },
+        "Conduits": {
+          "visible": false
+        },
+        "Conduit Fittings": {
+          "visible": false
+        },
+        "Cable Trays": {
+          "visible": false
+        },
+        "Cable Tray Fittings": {
+          "visible": false
+        },
+        "Mechanical Equipment": {
+          "visible": false
+        },
+        "Electrical Equipment": {
+          "visible": false
+        },
+        "Electrical Fixtures": {
+          "visible": false
+        },
+        "Lighting Fixtures": {
+          "visible": false
+        },
+        "Lighting Devices": {
+          "visible": false
+        },
+        "Fire Alarm Devices": {
+          "visible": false
+        },
+        "Sprinklers": {
+          "visible": false
+        },
+        "Communication Devices": {
+          "visible": false
+        },
+        "Data Devices": {
+          "visible": false
+        },
+        "Nurse Call Devices": {
+          "visible": false
+        },
+        "Security Devices": {
+          "visible": false
+        },
+        "Structural Framing": {
+          "visible": false
+        },
+        "Structural Foundations": {
+          "visible": false
+        },
+        "Structural Connections": {
+          "visible": false
+        },
+        "Structural Rebar": {
+          "visible": false
+        },
+        "Grids": {
+          "visible": false
+        },
+        "Levels": {
+          "visible": false
+        },
+        "Reference Planes": {
+          "visible": false
+        },
+        "Scope Boxes": {
+          "visible": false
+        },
+        "Dimensions": {
+          "visible": false
+        },
+        "Generic Annotations": {
+          "visible": false
+        }
       }
-    }
-    ,
+    },
     {
       "id": "pres-pink-teal",
       "name": "Presentation — Pink / Teal",
@@ -1793,26 +1880,111 @@
       "extends": "pres-base",
       "origin": "corporate",
       "vgOverrides": {
-        "Walls":                 { "visible": true, "projColor": "#E890BC", "projWeight": 2, "cutColor": "#E870A8", "cutWeight": 3 },
-        "Floors":                { "visible": true, "projColor": "#D060A0", "projWeight": 1, "cutColor": "#D060A0", "cutWeight": 2 },
-        "Roofs":                 { "visible": true, "projColor": "#E870A8", "projWeight": 2, "cutColor": "#E870A8", "cutWeight": 2 },
-        "Ceilings":              { "visible": false },
-        "Stairs":                { "visible": true, "projColor": "#D060A0", "projWeight": 1 },
-        "Railings":              { "visible": true, "projColor": "#D060A0", "projWeight": 1 },
-        "Doors":                 { "visible": true, "projColor": "#E890BC", "projWeight": 1, "cutColor": "#E870A8", "cutWeight": 2 },
-        "Windows":               { "visible": true, "projColor": "#E890BC", "projWeight": 1, "cutColor": "#E870A8", "cutWeight": 1, "transparency": 20 },
-        "Curtain Panels":        { "visible": true, "projColor": "#E890BC", "projWeight": 1, "transparency": 20 },
-        "Curtain Wall Mullions": { "visible": true, "projColor": "#E890BC", "projWeight": 1 },
-        "Topography":            { "visible": true, "projColor": "#2A8A80", "projWeight": 1, "cutColor": "#2A8A80", "cutWeight": 2 },
-        "Furniture":             { "visible": true, "projColor": "#F090C0", "projWeight": 1, "halftone": true },
-        "Specialty Equipment":   { "visible": true, "projColor": "#F090C0", "projWeight": 1, "halftone": true },
-        "Casework":              { "visible": true, "projColor": "#F090C0", "projWeight": 1, "halftone": true },
-        "STING-LargeTree":       { "visible": true, "projColor": "#2A8A80", "projWeight": 1 },
-        "STING-SmallShrub":      { "visible": true, "projColor": "#2A8A80", "projWeight": 1, "transparency": 100 },
-        "STING-PresGround":      { "visible": true, "projColor": "#2A8A80", "projWeight": 5, "cutColor": "#2A8A80", "cutWeight": 5 }
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#E890BC",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#E870A8",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#D060A0",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#D060A0",
+          "cutLineWeight": 2
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#E870A8",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#E870A8",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#D060A0",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#D060A0",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#E890BC",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#E870A8",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#E890BC",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#E870A8",
+          "cutLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#E890BC",
+          "projectionLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projectionLineColor": "#E890BC",
+          "projectionLineWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#2A8A80",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#2A8A80",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#F090C0",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#F090C0",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#F090C0",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#2A8A80",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#2A8A80",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#2A8A80",
+          "projectionLineWeight": 5,
+          "cutLineColor": "#2A8A80",
+          "cutLineWeight": 5
+        }
       }
-    }
-    ,
+    },
     {
       "id": "pres-blue-line",
       "name": "Presentation — Blue Line",
@@ -1820,26 +1992,111 @@
       "extends": "pres-base",
       "origin": "corporate",
       "vgOverrides": {
-        "Walls":                 { "visible": true, "projColor": "#1B6EA8", "projWeight": 2, "cutColor": "#1B6EA8", "cutWeight": 3 },
-        "Floors":                { "visible": true, "projColor": "#1B6EA8", "projWeight": 1, "cutColor": "#1B6EA8", "cutWeight": 2 },
-        "Roofs":                 { "visible": true, "projColor": "#1B6EA8", "projWeight": 2, "cutColor": "#1B6EA8", "cutWeight": 2 },
-        "Ceilings":              { "visible": false },
-        "Stairs":                { "visible": true, "projColor": "#1B6EA8", "projWeight": 1 },
-        "Railings":              { "visible": true, "projColor": "#1B6EA8", "projWeight": 1 },
-        "Doors":                 { "visible": true, "projColor": "#1B6EA8", "projWeight": 1, "cutColor": "#1B6EA8", "cutWeight": 2 },
-        "Windows":               { "visible": true, "projColor": "#1B6EA8", "projWeight": 1, "cutColor": "#1B6EA8", "cutWeight": 1, "transparency": 20 },
-        "Curtain Panels":        { "visible": true, "projColor": "#1B6EA8", "projWeight": 1, "transparency": 20 },
-        "Curtain Wall Mullions": { "visible": true, "projColor": "#1B6EA8", "projWeight": 1 },
-        "Topography":            { "visible": true, "projColor": "#1B6EA8", "projWeight": 1, "cutColor": "#1B6EA8", "cutWeight": 2 },
-        "Furniture":             { "visible": true, "projColor": "#90B8D8", "projWeight": 1, "halftone": true },
-        "Specialty Equipment":   { "visible": true, "projColor": "#90B8D8", "projWeight": 1, "halftone": true },
-        "Casework":              { "visible": true, "projColor": "#90B8D8", "projWeight": 1, "halftone": true },
-        "STING-LargeTree":       { "visible": true, "projColor": "#1B6EA8", "projWeight": 1 },
-        "STING-SmallShrub":      { "visible": true, "projColor": "#1B6EA8", "projWeight": 1, "transparency": 100 },
-        "STING-PresGround":      { "visible": true, "projColor": "#1B6EA8", "projWeight": 4, "cutColor": "#1B6EA8", "cutWeight": 4 }
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 2
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#90B8D8",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#90B8D8",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#90B8D8",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 4,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 4
+        }
       }
-    }
-    ,
+    },
     {
       "id": "pres-red-mint",
       "name": "Presentation — Red / Mint",
@@ -1847,26 +2104,111 @@
       "extends": "pres-base",
       "origin": "corporate",
       "vgOverrides": {
-        "Walls":                 { "visible": true, "projColor": "#B81818", "projWeight": 2, "cutColor": "#B81818", "cutWeight": 3 },
-        "Floors":                { "visible": true, "projColor": "#B81818", "projWeight": 1, "cutColor": "#B81818", "cutWeight": 2 },
-        "Roofs":                 { "visible": true, "projColor": "#B81818", "projWeight": 2, "cutColor": "#B81818", "cutWeight": 2 },
-        "Ceilings":              { "visible": false },
-        "Stairs":                { "visible": true, "projColor": "#B81818", "projWeight": 1 },
-        "Railings":              { "visible": true, "projColor": "#B81818", "projWeight": 1 },
-        "Doors":                 { "visible": true, "projColor": "#B81818", "projWeight": 1, "cutColor": "#B81818", "cutWeight": 2 },
-        "Windows":               { "visible": true, "projColor": "#B81818", "projWeight": 1, "cutColor": "#B81818", "cutWeight": 1, "transparency": 20 },
-        "Curtain Panels":        { "visible": true, "projColor": "#B81818", "projWeight": 1, "transparency": 20 },
-        "Curtain Wall Mullions": { "visible": true, "projColor": "#B81818", "projWeight": 1 },
-        "Topography":            { "visible": true, "projColor": "#6ABCB0", "projWeight": 1, "cutColor": "#6ABCB0", "cutWeight": 2 },
-        "Furniture":             { "visible": true, "projColor": "#E89090", "projWeight": 1, "halftone": true },
-        "Specialty Equipment":   { "visible": true, "projColor": "#E89090", "projWeight": 1, "halftone": true },
-        "Casework":              { "visible": true, "projColor": "#E89090", "projWeight": 1, "halftone": true },
-        "STING-LargeTree":       { "visible": true, "projColor": "#6ABCB0", "projWeight": 1 },
-        "STING-SmallShrub":      { "visible": true, "projColor": "#6ABCB0", "projWeight": 1, "transparency": 100 },
-        "STING-PresGround":      { "visible": true, "projColor": "#B81818", "projWeight": 4, "cutColor": "#B81818", "cutWeight": 4 }
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 2
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#6ABCB0",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#6ABCB0",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#E89090",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#E89090",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#E89090",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#6ABCB0",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#6ABCB0",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 4,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 4
+        }
       }
-    }
-    ,
+    },
     {
       "id": "pres-salmon",
       "name": "Presentation — Salmon",
@@ -1874,26 +2216,111 @@
       "extends": "pres-base",
       "origin": "corporate",
       "vgOverrides": {
-        "Walls":                 { "visible": true, "projColor": "#C06040", "projWeight": 2, "cutColor": "#A03818", "cutWeight": 3 },
-        "Floors":                { "visible": true, "projColor": "#A03818", "projWeight": 1, "cutColor": "#A03818", "cutWeight": 2 },
-        "Roofs":                 { "visible": true, "projColor": "#A03818", "projWeight": 2, "cutColor": "#A03818", "cutWeight": 2 },
-        "Ceilings":              { "visible": false },
-        "Stairs":                { "visible": true, "projColor": "#A03818", "projWeight": 1 },
-        "Railings":              { "visible": true, "projColor": "#A03818", "projWeight": 1 },
-        "Doors":                 { "visible": true, "projColor": "#C06040", "projWeight": 1, "cutColor": "#A03818", "cutWeight": 2 },
-        "Windows":               { "visible": true, "projColor": "#C06040", "projWeight": 1, "cutColor": "#A03818", "cutWeight": 1, "transparency": 20 },
-        "Curtain Panels":        { "visible": true, "projColor": "#C06040", "projWeight": 1, "transparency": 20 },
-        "Curtain Wall Mullions": { "visible": true, "projColor": "#C06040", "projWeight": 1 },
-        "Topography":            { "visible": true, "projColor": "#A03818", "projWeight": 1, "cutColor": "#A03818", "cutWeight": 2 },
-        "Furniture":             { "visible": true, "projColor": "#E8A898", "projWeight": 1, "halftone": true },
-        "Specialty Equipment":   { "visible": true, "projColor": "#E8A898", "projWeight": 1, "halftone": true },
-        "Casework":              { "visible": true, "projColor": "#E8A898", "projWeight": 1, "halftone": true },
-        "STING-LargeTree":       { "visible": true, "projColor": "#C06040", "projWeight": 1 },
-        "STING-SmallShrub":      { "visible": true, "projColor": "#E8C0B0", "projWeight": 1, "transparency": 100 },
-        "STING-PresGround":      { "visible": true, "projColor": "#A03818", "projWeight": 4, "cutColor": "#A03818", "cutWeight": 4 }
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 2
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#E8A898",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#E8A898",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#E8A898",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#E8C0B0",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 4,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 4
+        }
       }
-    }
-    ,
+    },
     {
       "id": "pres-burgund-green",
       "name": "Presentation — Rosewood / Sage",
@@ -1901,23 +2328,93 @@
       "extends": "pres-base",
       "origin": "corporate",
       "vgOverrides": {
-        "Walls":                 { "visible": true, "projColor": "#7B3535", "projWeight": 2, "cutColor": "#7B3535", "cutWeight": 3 },
-        "Floors":                { "visible": true, "projColor": "#6A8C65", "projWeight": 1, "cutColor": "#6A8C65", "cutWeight": 2 },
-        "Roofs":                 { "visible": true, "projColor": "#5A7C55", "projWeight": 2, "cutColor": "#5A7C55", "cutWeight": 2 },
-        "Ceilings":              { "visible": false },
-        "Stairs":                { "visible": true, "projColor": "#6A8C65", "projWeight": 1 },
-        "Railings":              { "visible": true, "projColor": "#6A8C65", "projWeight": 1 },
-        "Structural Columns":    { "visible": true, "projColor": "#7B3535", "projWeight": 2, "cutColor": "#7B3535", "cutWeight": 3 },
-        "Doors":                 { "visible": true, "projColor": "#7B3535", "projWeight": 1, "cutColor": "#7B3535", "cutWeight": 2 },
-        "Windows":               { "visible": true, "projColor": "#7B3535", "projWeight": 1, "transparency": 20 },
-        "Topography":            { "visible": true, "projColor": "#C4A0A0", "projWeight": 1, "cutColor": "#7B3535", "cutWeight": 2 },
-        "Furniture":             { "visible": true, "projColor": "#C4A0A0", "projWeight": 1, "halftone": true },
-        "STING-LargeTree":       { "visible": true, "projColor": "#7B3535", "projWeight": 1 },
-        "STING-SmallShrub":      { "visible": true, "projColor": "#7B3535", "projWeight": 1, "transparency": 100 },
-        "STING-PresGround":      { "visible": true, "projColor": "#5A2020", "projWeight": 4, "cutColor": "#5A2020", "cutWeight": 4 }
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#7B3535",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#6A8C65",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#6A8C65",
+          "cutLineWeight": 2
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#5A7C55",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#5A7C55",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#6A8C65",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#6A8C65",
+          "projectionLineWeight": 1
+        },
+        "Structural Columns": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#7B3535",
+          "cutLineWeight": 3
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#7B3535",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 1,
+          "transparency": 20
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#C4A0A0",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#7B3535",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#C4A0A0",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#5A2020",
+          "projectionLineWeight": 4,
+          "cutLineColor": "#5A2020",
+          "cutLineWeight": 4
+        }
       }
-    }
-    ,
+    },
     {
       "id": "pres-yellow-fill",
       "name": "Presentation — Yellow Fill",
@@ -1926,23 +2423,91 @@
       "origin": "corporate",
       "visualStyle": "Consistent Colors",
       "vgOverrides": {
-        "Walls":                 { "visible": true, "projColor": "#000000", "projWeight": 2, "cutColor": "#000000", "cutWeight": 3 },
-        "Floors":                { "visible": true, "projColor": "#000000", "projWeight": 1, "cutColor": "#000000", "cutWeight": 1 },
-        "Roofs":                 { "visible": true, "projColor": "#000000", "projWeight": 2, "cutColor": "#000000", "cutWeight": 2 },
-        "Stairs":                { "visible": true, "projColor": "#000000", "projWeight": 1 },
-        "Railings":              { "visible": true, "projColor": "#000000", "projWeight": 1 },
-        "Structural Columns":    { "visible": true, "projColor": "#000000", "projWeight": 2, "cutColor": "#000000", "cutWeight": 2 },
-        "Doors":                 { "visible": true, "projColor": "#000000", "projWeight": 1, "cutColor": "#000000", "cutWeight": 2 },
-        "Windows":               { "visible": true, "projColor": "#000000", "projWeight": 1 },
-        "Curtain Panels":        { "visible": true, "projColor": "#000000", "projWeight": 1 },
-        "Topography":            { "visible": true, "projColor": "#808080", "projWeight": 1 },
-        "Furniture":             { "visible": true, "projColor": "#808080", "projWeight": 1 },
-        "STING-LargeTree":       { "visible": true, "projColor": "#808080", "projWeight": 1 },
-        "STING-SmallShrub":      { "visible": true, "projColor": "#808080", "projWeight": 1, "transparency": 100 },
-        "STING-PresGround":      { "visible": true, "projColor": "#000000", "projWeight": 5, "cutColor": "#000000", "cutWeight": 5 }
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 1
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 2
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1
+        },
+        "Structural Columns": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 2
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 5,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 5
+        }
       }
-    }
-    ,
+    },
     {
       "id": "pres-black-night",
       "name": "Presentation — Black Night",
@@ -1950,22 +2515,89 @@
       "extends": "pres-base",
       "origin": "corporate",
       "vgOverrides": {
-        "Walls":                 { "visible": true, "projColor": "#FFFFFF", "projWeight": 2, "cutColor": "#FFFFFF", "cutWeight": 3 },
-        "Floors":                { "visible": true, "projColor": "#FFFFFF", "projWeight": 1, "cutColor": "#FFFFFF", "cutWeight": 1 },
-        "Roofs":                 { "visible": true, "projColor": "#FFFFFF", "projWeight": 2, "cutColor": "#FFFFFF", "cutWeight": 2 },
-        "Stairs":                { "visible": true, "projColor": "#FFFFFF", "projWeight": 1 },
-        "Railings":              { "visible": true, "projColor": "#FFFFFF", "projWeight": 1 },
-        "Doors":                 { "visible": true, "projColor": "#FFFFFF", "projWeight": 1, "cutColor": "#FFFFFF", "cutWeight": 2 },
-        "Windows":               { "visible": true, "projColor": "#FFFFFF", "projWeight": 1, "transparency": 30 },
-        "Curtain Panels":        { "visible": true, "projColor": "#FFFFFF", "projWeight": 1, "transparency": 30 },
-        "Topography":            { "visible": true, "projColor": "#D0D0D0", "projWeight": 1, "cutColor": "#FFFFFF", "cutWeight": 2 },
-        "Furniture":             { "visible": true, "projColor": "#C0C0C0", "projWeight": 1, "halftone": true },
-        "STING-LargeTree":       { "visible": true, "projColor": "#FFFFFF", "projWeight": 1 },
-        "STING-SmallShrub":      { "visible": true, "projColor": "#C0C0C0", "projWeight": 1, "transparency": 100 },
-        "STING-PresGround":      { "visible": true, "projColor": "#FFFFFF", "projWeight": 5, "cutColor": "#FFFFFF", "cutWeight": 5 }
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 1
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 2
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#D0D0D0",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#C0C0C0",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#C0C0C0",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 5,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 5
+        }
       }
-    }
-    ,
+    },
     {
       "id": "pres-grey-shadow",
       "name": "Presentation — Grey Shadow",
@@ -1974,13 +2606,31 @@
       "origin": "corporate",
       "visualStyle": "Consistent Colors",
       "vgOverrides": {
-        "Topography":            { "visible": true, "projColor": "#A0A0A0", "projWeight": 1 },
-        "STING-LargeTree":       { "visible": true, "projColor": "#808080", "projWeight": 1 },
-        "STING-SmallShrub":      { "visible": true, "projColor": "#808080", "projWeight": 1, "transparency": 100 },
-        "STING-PresGround":      { "visible": true, "projColor": "#A8A8A8", "projWeight": 3, "cutColor": "#A8A8A8", "cutWeight": 3 }
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#A0A0A0",
+          "projectionLineWeight": 1
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#A8A8A8",
+          "projectionLineWeight": 3,
+          "cutLineColor": "#A8A8A8",
+          "cutLineWeight": 3
+        }
       }
-    }
-    ,
+    },
     {
       "id": "pres-interior-terracotta",
       "name": "Presentation — Interior Terracotta",
@@ -1989,21 +2639,78 @@
       "origin": "corporate",
       "visualStyle": "Realistic",
       "vgOverrides": {
-        "Walls":                 { "visible": true, "projColor": "#C47060", "projWeight": 2, "cutColor": "#7A3018", "cutWeight": 3 },
-        "Floors":                { "visible": true, "projColor": "#A03818", "projWeight": 1, "cutColor": "#A03818", "cutWeight": 2 },
-        "Ceilings":              { "visible": true, "projColor": "#C47060", "projWeight": 1 },
-        "Structural Columns":    { "visible": true, "projColor": "#7A3018", "projWeight": 2, "cutColor": "#7A3018", "cutWeight": 3 },
-        "Furniture":             { "visible": true, "projColor": "#A0A0A0", "projWeight": 1 },
-        "Casework":              { "visible": true, "projColor": "#A0A0A0", "projWeight": 1 },
-        "Specialty Equipment":   { "visible": true, "projColor": "#A0A0A0", "projWeight": 1 },
-        "Doors":                 { "visible": true, "projColor": "#7A3018", "projWeight": 1, "cutColor": "#7A3018", "cutWeight": 2 },
-        "Windows":               { "visible": true, "projColor": "#7A3018", "projWeight": 1, "transparency": 30 },
-        "Curtain Panels":        { "visible": true, "projColor": "#7A3018", "projWeight": 1, "transparency": 30 },
-        "STING-LargeTree":       { "visible": true, "projColor": "#A0A0A0", "projWeight": 1 },
-        "STING-SmallShrub":      { "visible": true, "projColor": "#C86030", "projWeight": 1 }
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#C47060",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#7A3018",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": true,
+          "projectionLineColor": "#C47060",
+          "projectionLineWeight": 1
+        },
+        "Structural Columns": {
+          "visible": true,
+          "projectionLineColor": "#7A3018",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#7A3018",
+          "cutLineWeight": 3
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#A0A0A0",
+          "projectionLineWeight": 1
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#A0A0A0",
+          "projectionLineWeight": 1
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#A0A0A0",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#7A3018",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#7A3018",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#7A3018",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#7A3018",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#A0A0A0",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#C86030",
+          "projectionLineWeight": 1
+        }
       }
-    }
-    ,
+    },
     {
       "id": "pres-interior-sage",
       "name": "Presentation — Interior Sage",
@@ -2012,19 +2719,81 @@
       "origin": "corporate",
       "visualStyle": "Realistic",
       "vgOverrides": {
-        "Walls":                 { "visible": true, "projColor": "#A0A8A4", "projWeight": 2, "cutColor": "#505050", "cutWeight": 3 },
-        "Floors":                { "visible": true, "projColor": "#A0A8A4", "projWeight": 1, "cutColor": "#505050", "cutWeight": 2 },
-        "Ceilings":              { "visible": true, "projColor": "#B8BEB8", "projWeight": 1 },
-        "Structural Columns":    { "visible": true, "projColor": "#505050", "projWeight": 2, "cutColor": "#505050", "cutWeight": 3 },
-        "Furniture":             { "visible": true, "projColor": "#8BAF85", "projWeight": 1 },
-        "Casework":              { "visible": true, "projColor": "#8BAF85", "projWeight": 1 },
-        "Specialty Equipment":   { "visible": true, "projColor": "#8BAF85", "projWeight": 1 },
-        "Doors":                 { "visible": true, "projColor": "#505050", "projWeight": 1, "cutColor": "#505050", "cutWeight": 2 },
-        "Windows":               { "visible": true, "projColor": "#505050", "projWeight": 1, "transparency": 30 },
-        "Curtain Panels":        { "visible": true, "projColor": "#505050", "projWeight": 1, "transparency": 30 },
-        "Curtain Wall Mullions": { "visible": true, "projColor": "#505050", "projWeight": 1 },
-        "STING-LargeTree":       { "visible": true, "projColor": "#A8A8A8", "projWeight": 1 },
-        "STING-SmallShrub":      { "visible": true, "projColor": "#4A7A4A", "projWeight": 1 }
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#A0A8A4",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#505050",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#A0A8A4",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#505050",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": true,
+          "projectionLineColor": "#B8BEB8",
+          "projectionLineWeight": 1
+        },
+        "Structural Columns": {
+          "visible": true,
+          "projectionLineColor": "#505050",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#505050",
+          "cutLineWeight": 3
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#8BAF85",
+          "projectionLineWeight": 1
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#8BAF85",
+          "projectionLineWeight": 1
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#8BAF85",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#505050",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#505050",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#505050",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#505050",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projectionLineColor": "#505050",
+          "projectionLineWeight": 1
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#A8A8A8",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#4A7A4A",
+          "projectionLineWeight": 1
+        }
       }
     }
   ],
