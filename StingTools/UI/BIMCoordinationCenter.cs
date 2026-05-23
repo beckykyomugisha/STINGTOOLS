@@ -1436,11 +1436,14 @@ namespace StingTools.UI
                 sp.Children.Add(badgeBorder);
             }
 
+            // Add a 4px left-edge accent stripe (transparent when inactive,
+            // accent-colour when selected) so the active nav has a clear
+            // visual marker beyond a flat fill colour.
             var btn = new Button
             {
                 Content = sp, Tag = label,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
-                Height = 36, Padding = new Thickness(16, 0, 8, 0),
+                Height = 36, Padding = new Thickness(12, 0, 8, 0),
                 Margin = new Thickness(0, 1, 0, 1),
                 Background = Brushes.Transparent, Foreground = Br(CHeaderFg),
                 BorderThickness = new Thickness(0), FontSize = 12,
@@ -1476,12 +1479,15 @@ namespace StingTools.UI
                     nb.FontWeight = FontWeights.Normal;
                 }
             }
-            // Highlight active
+            // Highlight active: subtle hover-level fill + 4px accent stripe
+            // on the left edge so the selected nav reads as a marker, not
+            // just a flat colour swap.
             foreach (var child in _navPanel.Children)
             {
                 if (child is Button nb && nb.Tag as string == tabName)
                 {
-                    nb.Background = Br(CNavSelected);
+                    nb.Background = Br(CNavHover);
+                    nb.BorderBrush = Br(CNavSelected);
                     nb.Foreground = Brushes.White;
                     nb.FontWeight = FontWeights.Bold;
                     _activeNav = nb;
@@ -1671,6 +1677,8 @@ namespace StingTools.UI
                 "Capture model compliance state for meeting record — saves tag %, warnings, stale count to snapshots.json"));
             actionsWrap.Children.Add(MakeActionButton("Validate Tags", "ValidateTags", Br(CGreen),
                 "Run ISO 19650 tag validation — checks all tokens, cross-validates DISC/SYS, reports 4-bucket compliance"));
+            actionsWrap.Children.Add(MakeActionButton("📡 Publish 3D Model", "Publish3DModel", Br(CHeaderBg),
+                "Publish the active 3D model — pick Speckle stream, Autodesk Construction Cloud, or IFC export."));
             stack.Children.Add(actionsWrap);
 
             // Phase 106: Coordination checks — surface rule-based clash, clearance and naming audits
@@ -4178,6 +4186,26 @@ namespace StingTools.UI
             handoverWrap2.Children.Add(MakeActionButton("BOQ Export",    "BOQExport",            Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Export Bill of Quantities XLSX"));
             handoverWrap2.Children.Add(MakeActionButton("COBie Stream",  "COBieExport",          Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "COBie V2.4 FM handover export"));
             outerStack.Children.Add(handoverWrap2);
+
+            // ── MODEL PUBLISH section ──
+            outerStack.Children.Add(new Border { Height = 1, Background = Br(CBorder), Margin = new Thickness(16, 8, 16, 8) });
+            var publishHeader = MakeSectionHeader("MODEL PUBLISH");
+            publishHeader.Margin = new Thickness(16, 4, 16, 4);
+            outerStack.Children.Add(publishHeader);
+            var publishWrap = new WrapPanel { Margin = new Thickness(16, 0, 16, 8) };
+            publishWrap.Children.Add(MakeActionButton(
+                "📡 Publish 3D Model", "Publish3DModel", Br(CHeaderBg),
+                "Publish the active 3D model — pick Speckle stream, Autodesk Construction Cloud, or IFC export."));
+            publishWrap.Children.Add(MakeActionButton(
+                "Speckle Send",    "SpeckleSend",   Br(CAccent),
+                "Send the active model to a Speckle stream for browser-based 3D viewing."));
+            publishWrap.Children.Add(MakeActionButton(
+                "ACC Publish",     "ACCPublish",    Br(Color.FromRgb(0x15, 0x65, 0xC0)),
+                "Package the model for Autodesk Construction Cloud / BIM 360 publishing."));
+            publishWrap.Children.Add(MakeActionButton(
+                "IFC Export",      "IFCExport",     Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+                "Export the model as IFC 2x3 / IFC 4 into the project's 05_MODELS folder."));
+            outerStack.Children.Add(publishWrap);
 
             // ── BCF section ──
             outerStack.Children.Add(new Border { Height = 1, Background = Br(CBorder), Margin = new Thickness(16, 0, 16, 8) });
@@ -9038,6 +9066,7 @@ namespace StingTools.UI
                 "FullComplianceDashboard" => "Full project compliance report with per-discipline breakdown",
                 "DocumentManager" => "Open Document Management Center — folders, issues, revisions, CDE",
                 "RepeatLastWorkflow" => $"Re-run last workflow preset",
+                "Publish3DModel" => "Publish the active 3D model — pick Speckle stream, Autodesk Construction Cloud, or IFC export",
                 // Model Health
                 "RefreshHealth" => "Refresh model health metrics (warnings, tags, stale elements)",
                 "ExportHealth" => "Export model health report to CSV/HTML",
