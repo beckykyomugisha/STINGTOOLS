@@ -2946,6 +2946,29 @@ PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e03	STR_CONN_DETAIL_TXT	TEXT		16	1	Steel 
 PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e04	STR_CONN_RATING_KN	TEXT		16	1	Computed shear / moment capacity (kN or kN·m) of beam-end connection per EC3 — ConnectionDetailingEngine [Phase 187]	1
 PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e05	STR_FAB_TOLERANCE_MM	TEXT		16	1	Cumulative geometric tolerance (mm) over assembled member chain per BS EN 1090-2 — FabricationToleranceChecker [Phase 187]	1
 PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e06	ACO_RW_DB	TEXT		9	1	Weighted sound reduction index Rw (dB) of partition per BS EN ISO 717-1 — AcousticAnalysisEngine [Phase 187]	1
+PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e07	STR_ROBUST_STATUS_TXT	TEXT		16	1	Progressive-collapse robustness status (OK / Critical / Risk-class N) per GSA / EC1-1-7 — ProgressiveCollapseChecker [Phase 188]	1
+PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e08	STR_SYSTEM_CLASS_TXT	TEXT		16	1	Auto-classified structural system (Moment frame / Braced frame / Dual / Wall — concrete/steel) — StructuralSystemClassifier [Phase 188]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e09	STR_FRAME_M_KNM	TEXT		16	1	Design moment kNm from frame solve (DirectStiffnessMethod) at the governing end of a member [Phase 188]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0a	STR_PUNCH_UTIL_PCT	TEXT		16	1	Punching shear utilisation percentage (applied shear ÷ resistance) per EC2 §6.4 — PunchingShearChecker [Phase 188]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0b	STR_WIND_PRESSURE_PA	TEXT		16	1	Wind pressure Pa on element / storey per EC1-1-4 lookup — WindLoadCalculator [Phase 188]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0c	STR_REBAR_DETAIL_TXT	TEXT		16	1	Reinforcement detail summary (top/bot count + bar size + links) per EC2 §9 — RCDesignHelper [Phase 188]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c01	PLM_SUP_QD_LPS	TEXT		6	1	Cold/hot water supply design flow Qd l/s — WaterSupplySizer [Phase 188]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c02	PLM_SUP_VEL_MPS	TEXT		6	1	Supply pipe velocity m/s per BS EN 806-3 / Hunter — WaterSupplySizer [Phase 188]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c03	PLM_SUP_DP_PAM	TEXT		6	1	Supply pipe friction pressure drop Pa/m (Hazen-Williams) — WaterSupplySizer [Phase 188]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c04	PLM_SUP_DN_REQ_MM	TEXT		6	1	Recommended supply pipe DN mm — WaterSupplySizer [Phase 188]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d01	PRJ_ORG_REGION_TXT	TEXT		13	1	Project regional context (Kampala / Mbarara / Fort Portal / Gulu / Mbale / Jinja / Lira / Kasese / Kabale / Custom) — drives Uganda NBC + East African Rift seismic + EC1 climate defaults [Phase 189]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d02	STR_WIND_BASIC_MPS	TEXT		16	1	Basic wind velocity vb,0 m/s (10-min mean at 10m, terrain Cat II) — EC1-1-4 / Uganda NBC regional [Phase 189]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d03	STR_SEISMIC_AGR	TEXT		16	1	Reference peak ground acceleration agR /g per EC8-1 / Uganda East African Rift hazard [Phase 189]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d04	BLE_LIVE_LOAD_KPA	TEXT		2	1	Design live (variable) load kPa per EC1-1-1 / Uganda NBC by occupancy [Phase 189]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d05	STR_SOIL_BEARING_KPA	TEXT		16	1	Allowable / characteristic soil bearing capacity kPa — Uganda lateritic / volcanic / alluvial regional default [Phase 189]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d06	STR_RAIN_INTENSITY_MMH	TEXT		16	1	Design rainfall intensity mm/h for storm + SuDS sizing — Uganda regional (5-yr return event) [Phase 189]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e01	STR_GROUND_TYPE_TXT	TEXT		16	1	EC8 §3.1.2 Table 3.1 ground type A / B / C / D / E — drives seismic spectral amplification factor S [Phase 190]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e02	STR_Q_FACTOR_NR	TEXT		16	1	EC8 §3.2.2.5 behaviour factor q for design seismic force reduction (low ductility 1.5, medium 3.0, high 5.0) [Phase 190]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e03	STR_IMPORTANCE_CLASS_TXT	TEXT		16	1	EC8 §4.2.5 importance class I / II / III / IV (ordinary / standard / important / essential — hospitals + emergency = IV) [Phase 190]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e04	STR_WIND_TERRAIN_CAT_TXT	TEXT		16	1	EC1-1-4 §4.3.2 terrain category 0 (sea) / I (lakes) / II (open) / III (suburban) / IV (city) — drives ce(z) exposure factor [Phase 190]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e05	STR_WIND_DIRECTIONAL_NR	TEXT		16	1	EC1-1-4 §4.2 cdir wind directional factor (typically 1.0 unless project-specific wind-rose justifies reduction) [Phase 190]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e06	STR_BLACK_COTTON_RISK_BOOL	YESNO		16	1	Black-cotton / expansive-clay soil presence flag — triggers shrink-swell warning during foundation sizing per BS 1377-2 [Phase 190]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e07	WARN_STR_FND_BLACK_COTTON	TEXT		16	1	Warning: Black-cotton / expansive subgrade detected — extend foundation below active zone (~1.5 m), verify BS 1377-2 swelling test, consider raft or stabilised sub-base [HIGH]	1
 PARAM	c3d5b6ee-0f2e-7283-9405-162718304a5b	ELC_CDT_PENETRATION_COUNT_NR	TEXT		4	1	Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).	1
 PARAM	c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b	ELC_WIRE_CORE_COUNT_INT	INTEGER		4	1	Number of conductors/cores in the wire run (1-4). Drives slash-mark count on wire annotation tag. [BS 7671]	1
 PARAM	d2b3c4d5-e6f7-4081-9b0c-1d2e3f4a5b6c	ELC_WIRE_PHASE_TXT	TEXT		4	1	Phase designation: L1/L2/L3/N/PE/CPC/1P/3P [BS 7671 Appendix 7]	1

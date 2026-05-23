@@ -1160,7 +1160,7 @@ Server federates across hosts via cross-host element-identity
 mapping.
 
 **Net-new top-level folders**:
-- `shared/ifc/` — IFC substrate: 52 enums, 2 psets, 2 IDS files,
+- `shared/ifc/` — IFC substrate: 52 enums, 5 psets, 5 IDS files,
   bSDD publication plan. SHA-256 corporate locks; project-overlay
   resolver for the 3 project-scoped enums (`StingLocationCodes`,
   `StingZoneCodes`, `StingLevelCodes`).
@@ -1216,7 +1216,7 @@ mapping.
 | Pset XMLs | 5 | `Pset_StingTags` (12 props, 9 rules), `Pset_StingSpatialCodes` (6 props, 5 rules), `Pset_StingTag7` (10 props, 3 rules), `Pset_StingDrawing` (12 props, 3 rules), `Pset_StingProjectOrg` (13 props, 3 rules) |
 | SpatialChecker static rules | 12 | LOC/LVL/ZONE/SYS/SEQ/FullTag (Tier-1) + DISC_NOT_EMPTY + DRAWING_TYPE_RESOLVABLE + 2 PROJECTORG_* + BUILDING_LOC_UNIQUE + STOREY_LVL_UNIQUE_WITHIN_BUILDING (Phase 186b) — 100% of declared statically-enforceable rules |
 | SpatialChecker behavioural rules | 8 | `enforced-by="host"` — TOKEN_LOCK / TAG_HISTORY / PROJECTORG_SINGLETON / CROP_KIND_MATCHES_PROFILE / PACK_CHECKSUM_MATCHES / TAG7_NARRATIVE_CONSISTENT / TAG7_PARAGRAPH_STATE_EXCLUSIVE / TAG7_TECHNICAL_SPECS_BY_DISCIPLINE |
-| IDS files | 2 | `sting-tag-grammar.ids` (11 specs), `sting-spatial-codes.ids` (7 specs) |
+| IDS files | 5 | `sting-tag-grammar.ids` (11 specs), `sting-spatial-codes.ids` (8 specs), `sting-drawing.ids` (6 specs), `sting-tag7.ids` (7 specs), `sting-project-org.ids` (6 specs) — 38 specs total across all 5 psets |
 | Project-overlay examples | 3 | LOC / LVL / ZONE worked examples |
 | bSDD publication entries | 52 | 24 ready · 1 draft · 6 external_already · 2 skip_external · 16 private · 3 project_scoped |
 | Python core modules | 13 | enums + psets + tag_grammar + spatial + ids + planscape |

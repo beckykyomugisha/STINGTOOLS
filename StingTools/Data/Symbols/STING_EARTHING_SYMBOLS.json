@@ -1,0 +1,764 @@
+{
+  "version": "1.0",
+  "standard": "BS 7430 / BS 7671 / BS EN 62305",
+  "description": "Earthing and bonding symbols (general earth, PE, chassis, earth rod, earth pit, MET, equipotential bonding, test links, LPS, TT/TN-S/TN-C arrangements)",
+  "symbols": [
+    {
+      "id": "EARTH_GROUND",
+      "name": "Earth (General)",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": -0.13,
+            "y1": -0.05,
+            "x2": 0.13,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.06,
+            "y1": -0.1,
+            "x2": 0.06,
+            "y2": -0.1
+          }
+        ]
+      },
+      "standard": "BS 7430",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_PROTECTIVE",
+      "name": "Protective Earth (PE)",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.1,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": -0.13,
+            "y1": -0.08,
+            "x2": 0.13,
+            "y2": -0.08
+          },
+          {
+            "x1": -0.06,
+            "y1": -0.16,
+            "x2": 0.06,
+            "y2": -0.16
+          }
+        ]
+      },
+      "standard": "BS 7430",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_CHASSIS",
+      "name": "Chassis / Frame Ground",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.1,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": -0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": -0.1
+          }
+        ]
+      },
+      "standard": "BS 7430",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_ROD",
+      "name": "Earth Rod (Buried)",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.4,
+            "x2": 0.05,
+            "y2": -0.4
+          },
+          {
+            "x1": -0.08,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.08,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": -0.4
+          }
+        ]
+      },
+      "standard": "BS 7430",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_PIT",
+      "name": "Earth Pit / Inspection Chamber",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.05,
+            "x2": 0.1,
+            "y2": -0.05
+          },
+          {
+            "x1": 0,
+            "y1": -0.05,
+            "x2": 0,
+            "y2": -0.3
+          }
+        ]
+      },
+      "standard": "BS 7430",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_BAR",
+      "name": "Main Earth Bar (MET)",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.1,
+            "x2": 0.4,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.1,
+            "x2": 0.4,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.1,
+            "x2": -0.4,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.1,
+            "x2": -0.4,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.1,
+            "x2": -0.1,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": 0.3
+          }
+        ]
+      },
+      "standard": "BS 7430",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_BOND",
+      "name": "Equipotential Bonding Conductor",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": -0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          }
+        ]
+      },
+      "standard": "BS 7671",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_TEST_LINK",
+      "name": "Earth Test Link",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": -0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": -0.05
+              },
+              {
+                "x": 0.1,
+                "y": -0.05
+              },
+              {
+                "x": 0.1,
+                "y": 0.05
+              },
+              {
+                "x": -0.1,
+                "y": 0.05
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS 7430",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_LPS_DOWN",
+      "name": "Lightning Protection Down-Conductor",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": -0.5
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": 0.3
+              },
+              {
+                "x": 0.05,
+                "y": 0.3
+              },
+              {
+                "x": 0,
+                "y": 0.5
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": -0.1
+              },
+              {
+                "x": 0.05,
+                "y": -0.1
+              },
+              {
+                "x": 0,
+                "y": 0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS EN 62305",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_LPS_TERMINAL",
+      "name": "Lightning Air Termination",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0
+          },
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.08,
+                "y": 0.5
+              },
+              {
+                "x": 0.08,
+                "y": 0.5
+              },
+              {
+                "x": 0,
+                "y": 0.3
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS EN 62305",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_NEUTRAL_LINK",
+      "name": "Neutral-Earth Link",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": -0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          }
+        ]
+      },
+      "standard": "BS 7671",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_TT",
+      "name": "TT Earthing Arrangement",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.4,
+            "x2": 0.05,
+            "y2": -0.4
+          }
+        ]
+      },
+      "standard": "BS 7671",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_TN_S",
+      "name": "TN-S Earthing Arrangement",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": -0.3
+          }
+        ]
+      },
+      "standard": "BS 7671",
+      "status": "draft"
+    },
+    {
+      "id": "EARTH_TN_C",
+      "name": "TN-C Earthing Arrangement",
+      "category": "Earthing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earthing",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": -0.3
+          }
+        ]
+      },
+      "standard": "BS 7671",
+      "status": "draft"
+    }
+  ]
+}

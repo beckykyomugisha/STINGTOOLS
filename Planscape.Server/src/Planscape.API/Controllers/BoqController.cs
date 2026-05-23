@@ -756,13 +756,16 @@ public record CreatePaymentCertRequest(
     decimal TotalPayable,
     string? SovJson);
 
+// SignaturePngBase64: Base64-encoded PNG of the captured signature (from
+// react-native-signature-canvas). Optional -- typed-name signing without
+// a graphical signature is still permitted on desktop.
+// SignaturePngBase64: Base64-encoded PNG of the captured signature (from
+// react-native-signature-canvas). Optional -- typed-name signing without
+// a graphical signature is still permitted on desktop.
 public record SignPaymentCertRequest(
     string Action,
     string? SignerName,
     string? Rationale,
-    /// <summary>Base64-encoded PNG of the captured signature (from
-    /// react-native-signature-canvas). Optional — typed-name signing
-    /// without a graphical signature is still permitted on desktop.</summary>
     string? SignaturePngBase64);
 
 public record CreateWorkPackageRequest(

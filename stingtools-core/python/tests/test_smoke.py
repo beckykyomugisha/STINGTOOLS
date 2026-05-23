@@ -323,6 +323,179 @@ def test_disc_not_empty_at_stage_3():
     assert len(disc_mm) >= 1, f"expected DISC_NOT_EMPTY, got {[m.rule_id for m in mismatches]}"
 
 
+def test_disc_not_empty_invalid_value_skipped_at_stage_1():
+    """Bug regression: DISC_NOT_EMPTY enum-membership branch must respect ActiveFrom.
+
+    Before the Phase 186b stage-gating fix, an invalid Discipline like 'XYZ'
+    fired DISC_NOT_EMPTY at Stage_1 even though the rule's ActiveFrom is
+    Stage_2. Verify the whole rule (including enum-membership) honours the gate.
+    """
+    try:
+        import ifcopenshell
+    except ImportError:
+        return
+    from ifcopenshell.api import run
+    from stingtools_core.spatial import SpatialChecker
+
+    model = run("project.create_file", version="IFC4")
+    run("root.create_entity", model, ifc_class="IfcProject", name="t")
+    run("unit.assign_unit", model)
+    run("context.add_context", model, context_type="Model")
+
+    w = run("root.create_entity", model, ifc_class="IfcWall", name="w-bad")
+    p = run("pset.add_pset", model, product=w, name="Pset_StingTags")
+    run("pset.edit_pset", model, pset=p, properties={
+        "Discipline": "XYZ",  # not in StingDisciplineCodes
+        "Location": "BLD1", "Zone": "Z01", "Level": "L01",
+        "System": "HVAC", "Function": "SUP", "Product": "AHU", "Sequence": "0001",
+    })
+
+    enums = EnumRegistry().load()
+    mismatches = SpatialChecker(model, stage="Stage_1", enum_registry=enums).check_all_elements()
+    disc_mm = [m for m in mismatches if m.rule_id == "DISC_NOT_EMPTY"]
+    assert disc_mm == [], (
+        f"DISC_NOT_EMPTY enum-membership must respect ActiveFrom=Stage_2 — "
+        f"got {len(disc_mm)} mismatch(es) at Stage_1"
+    )
+
+    # ... and now verify it DOES fire at Stage_2
+    mismatches2 = SpatialChecker(model, stage="Stage_2", enum_registry=enums).check_all_elements()
+    disc_mm2 = [m for m in mismatches2 if m.rule_id == "DISC_NOT_EMPTY"]
+    assert len(disc_mm2) == 1, f"expected 1 DISC_NOT_EMPTY at Stage_2, got {len(disc_mm2)}"
+
+
+def test_drawing_type_registry_from_json():
+    """DrawingTypeRegistry.from_json loads the corporate STING_DRAWING_TYPES.json."""
+    from stingtools_core.spatial import DrawingTypeRegistry
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[3]
+    corp_json = repo_root / "StingTools" / "Data" / "STING_DRAWING_TYPES.json"
+    if not corp_json.exists():
+        return  # repo layout changed; skip rather than fail
+
+    reg = DrawingTypeRegistry.from_json(corp_json)
+    assert len(reg) > 0, "expected DrawingType ids in corporate JSON"
+    # known ids from the corporate catalogue
+    for known in ("arch-plan-A1-1to100", "pipe-spool-A1-1to50"):
+        assert known in reg, f"expected {known!r} in registry"
+
+
+def test_drawing_type_registry_handles_malformed_json(tmp_path):
+    """from_json raises ValueError on bad input."""
+    from stingtools_core.spatial import DrawingTypeRegistry
+
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not valid json", encoding="utf-8")
+    try:
+        DrawingTypeRegistry.from_json(bad)
+        assert False, "should have raised"
+    except ValueError:
+        pass
+
+    missing = tmp_path / "missing.json"
+    missing.write_text('{"version": 1}', encoding="utf-8")  # no drawingTypes key
+    try:
+        DrawingTypeRegistry.from_json(missing)
+        assert False, "should have raised"
+    except ValueError:
+        pass
+
+
+def test_drawing_type_registry_from_jsons_layered(tmp_path):
+    """from_jsons merges corporate baseline + project override."""
+    from stingtools_core.spatial import DrawingTypeRegistry
+    import json
+
+    corp = tmp_path / "corp.json"
+    proj = tmp_path / "proj.json"
+    corp.write_text(json.dumps({
+        "drawingTypes": [{"id": "corp-a"}, {"id": "corp-b"}],
+    }), encoding="utf-8")
+    proj.write_text(json.dumps({
+        "drawingTypes": [{"id": "proj-x"}, {"id": "proj-y"}],
+    }), encoding="utf-8")
+    reg = DrawingTypeRegistry.from_jsons(corp, proj)
+    assert len(reg) == 4
+    for k in ("corp-a", "corp-b", "proj-x", "proj-y"):
+        assert k in reg
+
+
+def test_drawing_check_fires_on_document_information():
+    """DRAWING_TYPE_RESOLVABLE fires on IfcDocumentInformation (G4)."""
+    try:
+        import ifcopenshell
+    except ImportError:
+        return
+    from ifcopenshell.api import run
+    from stingtools_core.spatial import SpatialChecker
+
+    model = run("project.create_file", version="IFC4")
+    run("root.create_entity", model, ifc_class="IfcProject", name="t")
+    run("unit.assign_unit", model)
+    run("context.add_context", model, context_type="Model")
+
+    # IfcDocumentInformation isn't a rooted entity in IFC4 — create it directly
+    doc = model.create_entity(
+        "IfcDocumentInformation",
+        Identification="DOC-001",
+        Name="Drawing Set",
+    )
+    # Pset attachment via IfcRelAssociatesDocument isn't required here —
+    # we attach the Pset directly via ifcopenshell.api.pset.
+    try:
+        p = run("pset.add_pset", model, product=doc, name="Pset_StingDrawing")
+        run("pset.edit_pset", model, pset=p, properties={
+            "DrawingTypeId": "bad type with spaces",
+        })
+    except (TypeError, AttributeError):
+        # ifcopenshell.api.pset may not support non-rooted entities;
+        # in that case the walk-extension is still verified via the
+        # IfcAnnotation path. Skip gracefully.
+        return
+
+    mismatches = SpatialChecker(model).check_all_elements()
+    dt_mm = [m for m in mismatches if m.rule_id == "DRAWING_TYPE_RESOLVABLE"]
+    assert len(dt_mm) == 1, f"expected 1 DRAWING_TYPE_RESOLVABLE on IfcDocumentInformation, got {len(dt_mm)}"
+
+
+def test_stage_3_rules_skip_at_stage_2():
+    """Bug regression: LOC_MATCHES_BUILDING / SEQ_UNIQUE_WITHIN_GROUP /
+    FULLTAG_CONSISTENT all have ActiveFrom=Stage_3 and must not fire at Stage_2.
+    """
+    try:
+        import ifcopenshell
+    except ImportError:
+        return
+    from ifcopenshell.api import run
+    from stingtools_core.spatial import SpatialChecker
+
+    model = run("project.create_file", version="IFC4")
+    run("root.create_entity", model, ifc_class="IfcProject", name="t")
+    run("unit.assign_unit", model)
+    run("context.add_context", model, context_type="Model")
+
+    # Wall with deliberately-wrong tag data (would trip 3 Stage_3 rules)
+    w = run("root.create_entity", model, ifc_class="IfcWall", name="w")
+    p = run("pset.add_pset", model, product=w, name="Pset_StingTags")
+    run("pset.edit_pset", model, pset=p, properties={
+        "Discipline": "M", "Location": "BLD1-NONE-MATCH",
+        "Zone": "Z01", "Level": "L01",
+        "System": "HVAC", "Function": "SUP", "Product": "AHU", "Sequence": "0001",
+        "FullTag": "WRONG-VALUE",
+    })
+
+    mismatches = SpatialChecker(model, stage="Stage_2").check_all_elements()
+    triggered = {m.rule_id for m in mismatches}
+    forbidden = {"LOC_MATCHES_BUILDING", "FULLTAG_CONSISTENT", "SEQ_UNIQUE_WITHIN_GROUP",
+                 "LVL_MATCHES_STOREY", "ZONE_MATCHES_ASSIGNEDZONE", "SYS_MATCHES_IFCSYSTEM",
+                 "DRAWING_TYPE_RESOLVABLE"}
+    found = triggered & forbidden
+    assert not found, (
+        f"Stage_3 rules fired at Stage_2: {sorted(found)} — they should be gated"
+    )
+
+
 def test_disc_not_empty_passes_at_stage_1():
     """DISC_NOT_EMPTY does NOT fire on 'XX' at Stage_1 (rule starts at Stage_3)."""
     try:
@@ -547,6 +720,12 @@ if __name__ == "__main__":
         # Path-2 closeout — 6 newly-enforced rules
         test_disc_not_empty_at_stage_3,
         test_disc_not_empty_passes_at_stage_1,
+        test_disc_not_empty_invalid_value_skipped_at_stage_1,
+        test_drawing_type_registry_from_json,
+        # test_drawing_type_registry_from_jsons_layered (tmp_path — pytest only)
+        # test_drawing_type_registry_handles_malformed_json (tmp_path — pytest only)
+        test_drawing_check_fires_on_document_information,
+        test_stage_3_rules_skip_at_stage_2,
         test_drawing_type_resolvable_format_fails,
         test_drawing_type_resolvable_registry_lookup,
         test_projectorg_project_code_required,

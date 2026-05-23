@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+
+  <info>
+    <title>STING — Drawing template validation</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
+    <description>IDS encoding of the format-side rules from shared/ifc/psets/Pset_StingDrawing.xml. Covers DrawingTypeId format, CropKind enumeration, ColourScheme enumeration, PackChecksum SHA-256 grammar, and TagDepth integer bounds. The behavioural rules (CROP_KIND_MATCHES_PROFILE, PACK_CHECKSUM_MATCHES) live on the host plugin's drift-detection path — IDS v1.0 cannot reach them.</description>
+    <author>info@stingtools.io</author>
+    <date>2026-05-20</date>
+    <purpose>STING Drawing Template Manager (Phase 113) substrate validation</purpose>
+    <milestone>Stage_3_DocumentProduction</milestone>
+  </info>
+
+  <specifications>
+
+    <!-- ============================================================
+         Rule: DRAWING_TYPE_RESOLVABLE (format half)
+         Source: Pset_StingDrawing Rule id="DRAWING_TYPE_RESOLVABLE"
+         Active from: Stage_3
+         ============================================================
+         IDS half: when the Pset is attached, DrawingTypeId must be
+         present AND match the corporate id grammar.
+         STING-side half: registry lookup against
+         STING_DRAWING_TYPES.json (see SpatialChecker).
+    -->
+    <specification name="DrawingTypeId_required_when_pset_present"
+                   identifier="30a-DRAWING-TYPE-PRESENT"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(ANNOTATION|DOCUMENTINFORMATION|DOCUMENTREFERENCE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>DrawingTypeId</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required"
+                  uri="https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/drawing">
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>DrawingTypeId</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^[a-zA-Z][a-zA-Z0-9\-]{2,59}$"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <!-- ============================================================
+         Rule: CropKind enum membership
+         Source: Pset_StingDrawing CropKind <Enumeration>StingCropKinds
+         ============================================================
+    -->
+    <specification name="CropKind_must_be_StingCropKinds_member"
+                   identifier="31-CROP-KIND-ENUM"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(ANNOTATION|DOCUMENTINFORMATION|DOCUMENTREFERENCE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>CropKind</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>CropKind</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="ScopeBox"/>
+              <xs:enumeration value="ScopeBoxOrBbox"/>
+              <xs:enumeration value="TightBbox"/>
+              <xs:enumeration value="RoomBoundary"/>
+              <xs:enumeration value="None"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <!-- ============================================================
+         Rule: CropMarginMm non-negative
+         ============================================================
+    -->
+    <specification name="CropMarginMm_must_be_non_negative"
+                   identifier="32-CROP-MARGIN-RANGE"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(ANNOTATION|DOCUMENTINFORMATION|DOCUMENTREFERENCE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>CropMarginMm</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>CropMarginMm</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:double">
+              <xs:minInclusive value="0"/>
+              <xs:maxInclusive value="500"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <!-- ============================================================
+         Rule: PackChecksum SHA-256 grammar (when set)
+         ============================================================
+         A managed-template pack's checksum is a 64-char lowercase hex.
+    -->
+    <specification name="PackChecksum_must_be_sha256_hex"
+                   identifier="33-PACK-CHECKSUM-FORMAT"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(ANNOTATION|DOCUMENTINFORMATION|DOCUMENTREFERENCE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>PackChecksum</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>PackChecksum</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^[0-9a-f]{64}$"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <!-- ============================================================
+         Rule: TagDepth integer 1..10 (paragraph depth tiers)
+         ============================================================
+    -->
+    <specification name="TagDepth_must_be_1_to_10"
+                   identifier="34-TAG-DEPTH-RANGE"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(ANNOTATION|DOCUMENTINFORMATION|DOCUMENTREFERENCE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>TagDepth</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCINTEGER" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>TagDepth</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:integer">
+              <xs:minInclusive value="1"/>
+              <xs:maxInclusive value="10"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <!-- ============================================================
+         Rule: ColourScheme enum membership
+         Source: Pset_StingDrawing ColourScheme <Enumeration>StingColorSchemes
+         ============================================================
+    -->
+    <specification name="ColourScheme_must_be_StingColorSchemes_member"
+                   identifier="35-COLOUR-SCHEME-ENUM"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(ANNOTATION|DOCUMENTINFORMATION|DOCUMENTREFERENCE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>ColourScheme</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingDrawing</simpleValue></propertySet>
+          <baseName><simpleValue>ColourScheme</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="Discipline"/>
+              <xs:enumeration value="RAG"/>
+              <xs:enumeration value="Spectral"/>
+              <xs:enumeration value="Warm"/>
+              <xs:enumeration value="Cool"/>
+              <xs:enumeration value="Monochrome"/>
+              <xs:enumeration value="HighContrast"/>
+              <xs:enumeration value="Accessible"/>
+              <xs:enumeration value="PresentationRich"/>
+              <xs:enumeration value="PresentationMono"/>
+              <xs:enumeration value="ClarificationRed"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+  </specifications>
+</ids>
