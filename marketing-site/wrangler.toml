@@ -18,7 +18,7 @@ compatibility_date = "2026-05-01"
 # Environment variables — replace placeholders before deploy, or set in the dashboard
 # (Pages → Settings → Environment variables) which is safer for secrets.
 [vars]
-SITE_URL = "https://planscape.app"
+SITE_URL = "https://planscape.co"
 
 # Per-environment overrides
 [env.preview]

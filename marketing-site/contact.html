@@ -6,10 +6,10 @@
 <title>Contact — Planscape</title>
 <meta name="description" content="Get in touch with Planscape. Sales, support, demo bookings, enterprise enquiries. Based in Kampala — responses within 4 business hours.">
 <meta property="og:title" content="Contact — Planscape">
-<meta property="og:url" content="https://planscape.app/contact.html">
+<meta property="og:url" content="https://planscape.co/contact.html">
 <meta name="theme-color" content="#E8912D">
 <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
-<link rel="canonical" href="https://planscape.app/contact.html">
+<link rel="canonical" href="https://planscape.co/contact.html">
 <link rel="stylesheet" href="/assets/site.css">
 <style>
 .contact-grid { display:grid; gap:32px; grid-template-columns:1.2fr 1fr; align-items:start; }
@@ -80,10 +80,10 @@
     <div style="display:flex;flex-direction:column;gap:16px">
       <div class="contact-card">
         <h3>📩 Email</h3>
-        <p><a href="mailto:hello@planscape.app">hello@planscape.app</a> — General</p>
-        <p><a href="mailto:support@planscape.app">support@planscape.app</a> — Customer support</p>
-        <p><a href="mailto:partners@planscape.app">partners@planscape.app</a> — Partnerships</p>
-        <p><a href="mailto:security@planscape.app">security@planscape.app</a> — Security disclosures</p>
+        <p><a href="mailto:hello@planscape.co">hello@planscape.co</a> — General</p>
+        <p><a href="mailto:support@planscape.co">support@planscape.co</a> — Customer support</p>
+        <p><a href="mailto:partners@planscape.co">partners@planscape.co</a> — Partnerships</p>
+        <p><a href="mailto:security@planscape.co">security@planscape.co</a> — Security disclosures</p>
       </div>
       <div class="contact-card" id="demo">
         <h3>📞 WhatsApp</h3>
@@ -109,15 +109,15 @@
   <div class="faq-list">
     <details class="faq-item">
       <summary class="faq-q">How do I report a security vulnerability?</summary>
-      <div class="faq-a">Email <a href="mailto:security@planscape.app">security@planscape.app</a>. Please don't open a public GitHub issue. We follow a 90-day coordinated disclosure policy and credit reporters in our security advisories (with your permission).</div>
+      <div class="faq-a">Email <a href="mailto:security@planscape.co">security@planscape.co</a>. Please don't open a public GitHub issue. We follow a 90-day coordinated disclosure policy and credit reporters in our security advisories (with your permission).</div>
     </details>
     <details class="faq-item">
       <summary class="faq-q">I'm a journalist — who do I talk to?</summary>
-      <div class="faq-a">Email <a href="mailto:press@planscape.app">press@planscape.app</a>. We respond same business day. We have a press kit with logos, screenshots, founder bios, and a one-page company summary on request.</div>
+      <div class="faq-a">Email <a href="mailto:press@planscape.co">press@planscape.co</a>. We respond same business day. We have a press kit with logos, screenshots, founder bios, and a one-page company summary on request.</div>
     </details>
     <details class="faq-item">
       <summary class="faq-q">Do you have a status page?</summary>
-      <div class="faq-a">Yes — <a href="https://status.planscape.app" target="_blank" rel="noopener">status.planscape.app</a>. Live API health, scheduled maintenance, post-incident reports.</div>
+      <div class="faq-a">Yes — <a href="https://status.planscape.co" target="_blank" rel="noopener">status.planscape.co</a>. Live API health, scheduled maintenance, post-incident reports.</div>
     </details>
     <details class="faq-item">
       <summary class="faq-q">Can I tour your office?</summary>
@@ -132,7 +132,7 @@
       <div class="brand-row">Plan<span class="dot">·</span>scape</div>
       <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
       <p>📍 Kampala, Uganda</p>
-      <p><a href="mailto:hello@planscape.app">hello@planscape.app</a></p>
+      <p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p>
     </div>
     <div class="col">
       <h4>Product</h4>
@@ -145,7 +145,7 @@
       <h4>Learn</h4>
       <a href="/guides/">Guides</a>
       <a href="/tutorials/">Tutorials</a>
-      <a href="https://docs.planscape.app/">Developer docs</a>
+      <a href="https://docs.planscape.co/">Developer docs</a>
       <a href="/contact.html">Contact support</a>
     </div>
     <div class="col">
@@ -169,7 +169,7 @@ function handleContact(e){
   new FormData(form).forEach(function(v,k){ data[k]=v; });
   btn.disabled = true;
   btn.textContent = 'Sending…';
-  fetch('https://api.planscape.app/marketing/contact', {
+  fetch('https://api.planscape.co/marketing/contact', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
@@ -184,7 +184,7 @@ function handleContact(e){
     btn.disabled = false;
     btn.textContent = 'Send message';
     msg.style.color = '#dc2626';
-    msg.textContent = 'Something went wrong. Email us at hello@planscape.app instead.';
+    msg.textContent = 'Something went wrong. Email us at hello@planscape.co instead.';
   });
 }
 </script>
