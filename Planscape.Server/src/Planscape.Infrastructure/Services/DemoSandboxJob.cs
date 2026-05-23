@@ -122,5 +122,6 @@ public class DemoSandboxJob
             DELETE FROM ""Projects""            WHERE ""TenantId"" = {DemoTenantId};
             DELETE FROM ""Users""               WHERE ""TenantId"" = {DemoTenantId};
         ", ct);
+#pragma warning restore EF1002
     }
 }

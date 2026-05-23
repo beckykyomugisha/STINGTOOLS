@@ -234,6 +234,26 @@ public static class SeedData
             ("QS", "Quantity Surveyor"),
             ("BC", "BIM Coordinator"),
         };
+        // Create one shared AppUser per lead role so the ProjectMember rows
+        // below have a real FK target (was previously Guid.NewGuid() which
+        // violated FK_ProjectMembers_Users_UserId on insert). Keeps the
+        // dashboard "team: 2 members" count accurate without bloating the
+        // seed with one user per project × per role.
+        var leadUsers = new Dictionary<string, AppUser>();
+        foreach (var (iso, label) in leadRoles)
+        {
+            var u = new AppUser
+            {
+                TenantId      = tenant.Id,
+                Email         = $"{iso.ToLowerInvariant()}-lead@planscape.demo",
+                DisplayName   = label,
+                PasswordHash  = BCrypt.Net.BCrypt.HashPassword("demo-lead", workFactor: 12),
+                Role          = UserRole.Contributor,
+                Iso19650Role  = iso
+            };
+            db.Users.Add(u);
+            leadUsers[iso] = u;
+        }
         for (var i = 0; i < allProjects.Length; i++)
         {
             var p = allProjects[i];

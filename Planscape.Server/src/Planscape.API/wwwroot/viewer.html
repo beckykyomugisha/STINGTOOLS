@@ -719,7 +719,7 @@
       if (v && v.meshoptDecoder && loader.setMeshoptDecoder) loader.setMeshoptDecoder(v.meshoptDecoder);
     } catch (_) {}
     loader.load(
-      fileUrl,
+      url,
       (gltf) => {
         if (modelRoot) scene.remove(modelRoot);
         modelRoot = gltf.scene;

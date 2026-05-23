@@ -954,7 +954,14 @@ else
 // PR2 — Always-on HTTPS redirect. In development this is a no-op when the
 // app binds to an HTTPS port; in production it kicks in for any cleartext
 // listener that slips through.
-app.UseHttpsRedirection();
+// Skip in Development — local dev runs HTTP-only on :5000 and the
+// middleware logs a warning ("Failed to determine the https port for
+// redirect") on every restart since there's no HTTPS listener to
+// point at.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // C1 — serve the wwwroot office dashboard (index.html + viewer.html + js/css).
 // Placed before auth so assets load without a token; the JS handles login
@@ -1396,51 +1403,44 @@ using (var scope = app.Services.CreateScope())
 // S1.6 — daily trial state machine. Sends 7d/3d/1d reminders, freezes
 // expired tenants, prompts dunning. Runs at 06:00 UTC ≈ 09:00 EAT.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
-    "trial-state", j => j.ExecuteAsync(CancellationToken.None),
-    "0 6 * * *", new RecurringJobOptions { QueueName = "default" });
+    "trial-state", "default", j => j.ExecuteAsync(CancellationToken.None), "0 6 * * *");
 
 // S2.6 — daily dunning job. Walks Overdue invoices on the 0/3/7-day
 // cadence, suspends at day 10. Runs at 07:00 UTC ≈ 10:00 EAT (after
 // the trial state machine so today's freezes get a billing reminder
 // today rather than tomorrow).
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
-    "dunning", j => j.ExecuteAsync(CancellationToken.None),
-    "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
+    "dunning", "default", j => j.ExecuteAsync(CancellationToken.None), "0 7 * * *");
 
 // S2.6.1 — daily Flutterwave renewal job. Mints the next-period invoice
 // + emails a payment link 24 h before the current period ends. Stripe
 // subscriptions self-renew; this only handles the FW corridor.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
-    "fw-renewals", j => j.ExecuteAsync(CancellationToken.None),
-    "30 5 * * *", new RecurringJobOptions { QueueName = "default" });
+    "fw-renewals", "default", j => j.ExecuteAsync(CancellationToken.None), "30 5 * * *");
 
 // S3.2 — outbox dispatcher (every minute). Drains OutboxMessages with
 // at-least-once + exponential-backoff retry; dead-letters after 6 attempts.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
-    "outbox", j => j.ExecuteAsync(CancellationToken.None),
-    "* * * * *", new RecurringJobOptions { QueueName = "default" });
+    "outbox", "default", j => j.ExecuteAsync(CancellationToken.None), "* * * * *");
 
 // S4.2 — daily demo sandbox reset. Wipes everything in the 'demo' tenant
 // and re-seeds. Runs at 02:00 UTC (05:00 EAT) so morning prospects find
 // a clean slate.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
-    "demo-reset", j => j.ExecuteAsync(CancellationToken.None),
-    "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
+    "demo-reset", "default", j => j.ExecuteAsync(CancellationToken.None), "0 2 * * *");
 
 // S7.2 — SLA burn-rate alerts every 5 minutes. Reads rolling-window
 // 5xx counts from Redis (populated by the request middleware in S7.2.1)
 // and pages the founder when burn rate exceeds the threshold.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
-    "sla-burn", j => j.ExecuteAsync(CancellationToken.None),
-    "*/5 * * * *", new RecurringJobOptions { QueueName = "default" });
+    "sla-burn", "default", j => j.ExecuteAsync(CancellationToken.None), "*/5 * * * *");
 
 // S7.4.1 — daily GDPR/POPIA erasure job. Walks tenants whose
 // PendingErasureAt has elapsed (set by /api/data-rights/erase) and
 // hard-deletes them. Runs at 04:00 UTC (07:00 EAT) — late enough that
 // any cancel-erase from yesterday has landed before today's sweep.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
-    "data-erasure", j => j.ExecuteAsync(CancellationToken.None),
-    "0 4 * * *", new RecurringJobOptions { QueueName = "default" });
+    "data-erasure", "default", j => j.ExecuteAsync(CancellationToken.None), "0 4 * * *");
 
 // Seed the well-known 'planscape' platform tenant idempotently on startup
 // so /api/platform/revenue + SlaBurnRateJob alerts find their target.

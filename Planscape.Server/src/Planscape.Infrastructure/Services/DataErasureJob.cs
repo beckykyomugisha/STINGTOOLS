@@ -144,6 +144,7 @@ public class DataErasureJob
             DELETE FROM ""Tenants""               WHERE ""Id""       = {tenantId};
             COMMIT;
         ", ct);
+#pragma warning restore EF1002
 
         // 2. Storage. We can't enumerate efficiently across providers, so
         //    we issue a delete for the conventional tenant prefix; the
