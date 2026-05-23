@@ -1,23 +1,18 @@
-// StingTools — Drawing Template Manager · Week 2
+// StingTools — Drawing Template Manager · Week 2 + Phase 137
 //
 // ViewStylePackApplier takes a resolved ViewStylePack and pushes its
 // settings onto a View. Called by DrawingTypePresentation.Apply after
-// the profile-level scale / template / detail-level have landed.
+// the profile-level scale / template / detail-level have landed, and
+// by ManagedTemplateSyncer when minting a managed view template.
 //
-// What it applies:
-//   * per-category VG overrides (halftone, line weight, colour, transparency)
-//   * per-filter rules (category filters → OverrideGraphicSettings)
-//   * text style hint (stored via view parameter — actual switching
-//     happens at annotation-pass time where we create text)
-//   * dimension style hint (same — stored on the view for the
-//     annotation runner to consume)
-//
-// What it does NOT do:
-//   * Line-weight scale — Revit sets that project-wide, not per-view
-//   * Hatch palette — a conceptual grouping the user interprets
-//
-// The applier is defensive: missing filter / category → warning, not
-// error, so partial corporate catalogues still produce output.
+// Phase 137 additions:
+//   * Workset visibility writes
+//   * Per-link override writes (display style + halftone + hide)
+//   * Per-category color-fill scheme writes
+//   * Per-filter enable/disable writes
+//   * Public ReadCategoryOverrides helper (template snapshot)
+//   * Public ApplyPresetOverrides helper (preset cascade)
+//   * Internal *Only wrappers used by ManagedTemplateSyncer
 
 using System;
 using System.Collections.Generic;
@@ -49,16 +44,26 @@ namespace StingTools.Core.Drawing
             if (view.ViewTemplateId != null && view.ViewTemplateId != ElementId.InvalidElementId)
             {
                 r.Warnings.Add("View has an active template — pack VG overrides will be applied to the template, not the view.");
-                // Carry on; writing overrides onto the view is a no-op
-                // when the template locks them, but not an error.
             }
 
             ApplyCategoryOverrides(doc, view, pack, r);
             ApplyFilterRules(doc, view, pack, r);
+            ApplyWorksetVisibility(doc, view, pack, r);
+            ApplyLinkOverrides(doc, view, pack, r);
+            ApplyColorFillSchemes(doc, view, pack, r);
+            ApplyFilterEnabled(doc, view, pack, r);
             return r;
         }
 
-        private static void ApplyCategoryOverrides(Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        // ── Internal wrappers used by ManagedTemplateSyncer ──
+
+        internal static void ApplyCategoryOverridesOnly(Document doc, View view, ViewStylePack pack, PackApplyResult r) =>
+            ApplyCategoryOverrides(doc, view, pack, r);
+
+        internal static void ApplyFilterRulesOnly(Document doc, View view, ViewStylePack pack, PackApplyResult r) =>
+            ApplyFilterRules(doc, view, pack, r);
+
+        internal static void ApplyCategoryOverrides(Document doc, View view, ViewStylePack pack, PackApplyResult r)
         {
             if (pack.VgOverrides == null) return;
             foreach (var kv in pack.VgOverrides)
@@ -68,15 +73,36 @@ namespace StingTools.Core.Drawing
                     var catId = ResolveCategoryId(doc, kv.Key);
                     if (catId == ElementId.InvalidElementId) { r.Warnings.Add($"Category '{kv.Key}' not found."); continue; }
 
-                    var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
                     var src = kv.Value;
+                    if (src == null) continue;
+
+                    // Visibility — set first so a hidden category can still
+                    // carry overrides ready for when it is re-shown.
+                    if (src.Visible.HasValue)
+                    {
+                        try { view.SetCategoryHidden(catId, !src.Visible.Value); } catch { }
+                    }
+
+                    var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
 
                     if (src.Halftone.HasValue)             ogs.SetHalftone(src.Halftone.Value);
                     if (src.ProjectionLineWeight.HasValue) ogs.SetProjectionLineWeight(src.ProjectionLineWeight.Value);
                     if (!string.IsNullOrEmpty(src.ProjectionLineColor)) ogs.SetProjectionLineColor(HexColor(src.ProjectionLineColor));
                     if (src.CutLineWeight.HasValue)        ogs.SetCutLineWeight(src.CutLineWeight.Value);
                     if (!string.IsNullOrEmpty(src.CutLineColor))        ogs.SetCutLineColor(HexColor(src.CutLineColor));
-                    if (src.Transparency.HasValue)         ogs.SetSurfaceTransparency(Clamp(src.Transparency.Value, 0, 100));
+                    if (src.Transparency.HasValue)
+                    {
+                        var t = Clamp(src.Transparency.Value, 0, 100);
+                        ogs.SetSurfaceTransparency(t);
+                        // 100% transparency on a presentation pack means
+                        // "outline only" — hide the surface foreground fill
+                        // so only the projection line work renders.
+                        if (t >= 100)
+                        {
+                            try { ogs.SetSurfaceForegroundPatternVisible(false); } catch { }
+                            try { ogs.SetSurfaceBackgroundPatternVisible(false); } catch { }
+                        }
+                    }
 
                     view.SetCategoryOverrides(catId, ogs);
                     r.OverridesSet++;
@@ -85,7 +111,7 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        private static void ApplyFilterRules(Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        internal static void ApplyFilterRules(Document doc, View view, ViewStylePack pack, PackApplyResult r)
         {
             if (pack.Filters == null) return;
             foreach (var rule in pack.Filters)
@@ -174,17 +200,14 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrWhiteSpace(key)) return ElementId.InvalidElementId;
             try
             {
-                // Try BuiltInCategory first (string parse)
                 if (Enum.TryParse<BuiltInCategory>(key, true, out var bic))
                 {
                     var c = Category.GetCategory(doc, bic);
                     if (c != null) return c.Id;
                 }
-                // Fall back to Name lookup across all Categories
                 foreach (Category c in doc.Settings.Categories)
                     if (string.Equals(c.Name, key, StringComparison.OrdinalIgnoreCase))
                         return c.Id;
-                // Handle subcategory-style keys like "<Room Separation>"
                 var trimmed = key.Trim('<', '>', ' ');
                 foreach (Category c in doc.Settings.Categories)
                     foreach (Category sub in c.SubCategories)
@@ -195,9 +218,59 @@ namespace StingTools.Core.Drawing
             return ElementId.InvalidElementId;
         }
 
+        private static ElementId ResolveSubCategoryId(Document doc, string categoryName, string subCatName)
+        {
+            if (string.IsNullOrWhiteSpace(categoryName) || string.IsNullOrWhiteSpace(subCatName))
+                return ElementId.InvalidElementId;
+            try
+            {
+                var parent = ResolveCategoryId(doc, categoryName);
+                if (parent == ElementId.InvalidElementId) return ElementId.InvalidElementId;
+                var trimmed = subCatName.Trim('<', '>', ' ');
+                foreach (Category c in doc.Settings.Categories)
+                {
+                    if (c.Id != parent) continue;
+                    foreach (Category sub in c.SubCategories)
+                        if (string.Equals(sub.Name.Trim('<', '>', ' '), trimmed, StringComparison.OrdinalIgnoreCase))
+                            return sub.Id;
+                }
+            }
+            catch { }
+            return ElementId.InvalidElementId;
+        }
+
+        private static ElementId ResolveLinePattern(Document doc, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
+            try
+            {
+                if (string.Equals(name, "Solid", StringComparison.OrdinalIgnoreCase))
+                    return LinePatternElement.GetSolidPatternId();
+                var lp = new FilteredElementCollector(doc)
+                    .OfClass(typeof(LinePatternElement))
+                    .Cast<LinePatternElement>()
+                    .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+                return lp?.Id ?? ElementId.InvalidElementId;
+            }
+            catch { return ElementId.InvalidElementId; }
+        }
+
+        private static ElementId ResolveFillPattern(Document doc, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
+            try
+            {
+                var fp = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement))
+                    .Cast<FillPatternElement>()
+                    .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+                return fp?.Id ?? ElementId.InvalidElementId;
+            }
+            catch { return ElementId.InvalidElementId; }
+        }
+
         private static Autodesk.Revit.DB.Color HexColor(string hex)
         {
-            // Accept "#RRGGBB" or "RRGGBB"
             if (string.IsNullOrWhiteSpace(hex)) return new Autodesk.Revit.DB.Color(0, 0, 0);
             var s = hex.TrimStart('#');
             if (s.Length != 6) return new Autodesk.Revit.DB.Color(0, 0, 0);
@@ -205,6 +278,12 @@ namespace StingTools.Core.Drawing
             byte g = byte.Parse(s.Substring(2, 2), NumberStyles.HexNumber);
             byte b = byte.Parse(s.Substring(4, 2), NumberStyles.HexNumber);
             return new Autodesk.Revit.DB.Color(r, g, b);
+        }
+
+        private static string ColorToHex(Autodesk.Revit.DB.Color c)
+        {
+            if (c == null || !c.IsValid) return null;
+            return $"#{c.Red:X2}{c.Green:X2}{c.Blue:X2}";
         }
 
         private static int Clamp(int v, int lo, int hi) => v < lo ? lo : v > hi ? hi : v;

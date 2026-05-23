@@ -348,6 +348,15 @@ namespace StingTools.Core
         public const string MATCH_DIR       = "STING_MATCH_DIR_TXT";
         public const string MATCH_DIR_GUID  = "A8B9CADB-ACBD-4CDE-7F8A-9BACDBECFDAE";
 
+        // ── Phase 137 — Drawing production stamps ────────────────────────
+        // Written onto views/sheets by the production engine so audits and
+        // browser organisers can find STING-produced artefacts.
+        public const string STING_VIEW_CONTEXT_TAG     = "STING_VIEW_CONTEXT_TAG_TXT";
+        public const string STING_DRAWING_PACKAGE_ID   = "STING_DRAWING_PACKAGE_ID_TXT";
+        public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
+        public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
+        public const string STING_SHEET_SEQUENCE       = "STING_SHEET_SEQUENCE_INT";
+
         // LOG-01: Detection source tracking parameters
         public const string LOC_SOURCE = "ASS_LOC_SOURCE_TXT";
         public const string LOC_SOURCE_GUID = "A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D";

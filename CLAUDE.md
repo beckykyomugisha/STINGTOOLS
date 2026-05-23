@@ -1623,6 +1623,39 @@ Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or 
 
 The tab is a pure UI layer on top of the Week 2 data model — no changes to `ViewStylePack` / `ViewStylePackRegistry` / `ViewStylePackApplier`.
 
+### Phase 135 — DrawingType TokenProfile
+
+`DrawingType.TokenProfile` adds per-profile tag depth, style preset, segment mask, and colour scheme. `Core/Drawing/TokenProfileApplier.cs` runs as Step 7.5 between the View Style Pack apply and the Annotation pass so any auto-tags emitted by `AnnotationRunner` inherit the active profile's appearance. Drift detection has a `TOKEN_PROFILE_DRIFT` kind in `DrawingDriftDetector` that compares `STING_VIEW_TAG_STYLE` + `TAG_SEG_MASK_TXT` on stamped views against the resolved profile/pack pair; SyncStyles heals automatically.
+
+### Phase 136 — Editor: ViewStylePack dropdown + full Revit VG editor + fallback chain
+
+Editor gains a `ViewStylePackId` dropdown on Drawing Types > Views card and a full Revit-style 4-tab VG editor on the View Style Packs tab (Model / Annotation / Imported / Filters) with sub-dialogs for line + pattern overrides. `ViewStylePack` extended with `ViewTemplate`, `DetailLevel`, `ScaleHint`, `ColorScheme` so the runtime can read the same fields the editor writes; `DrawingTypePresentation.Apply` resolves the pack early and uses pack settings as fallback when the DrawingType doesn't set its own (DrawingType always wins). Bidirectional template copy: View Style Packs tab gains "Push template → bound types"; Drawing Types tab gains "↑ Push to pack" and "Use pack template" links. `docs/AEC_PRODUCTION_SET_STRATEGY.md` lays out an 11-pack × 80+ DrawingType strategy indexed by RIBA stage × discipline × output.
+
+### Phase 137 — STING-Managed View Templates (Architecture C — Hybrid)
+
+Each `ViewStylePack` now carries a `templateMode` field (`managed | external`). In **managed mode** STING auto-generates and maintains Revit view templates named `STING:<pack-id>:<ViewType>` from the pack JSON. `DrawingTypePresentation.Apply` Step 7 routes through `Core/Drawing/ManagedTemplateSyncer.cs` — `EnsureTemplate(doc, pack, viewType)` is idempotent (absent → copy seed of the right ViewType + rename; present + checksum match → no-op; present + drift → re-apply pack settings + restamp). Managed fields whitelist: `vg`, `filters`, `detailLevel`, `discipline`, `visualStyle`, `phaseFilter`, `phaseName`, `annotationCrop`, `farClipMm`, `viewRange`, `underlay`. Two shared parameters stamp the template for drift detection: `STING_PACK_ID_TXT`, `STING_PACK_CHECKSUM_TXT`. Three migration commands in `Commands/Drawing/ManagedTemplateCommands.cs` — `ConvertPackToManagedCommand` / `DetachFromManagedCommand` / `RegeneratePackTemplatesCommand` — wired into the DRAWING TYPES wrap-panel and the editor toolbar. `MANAGED_TEMPLATE` drift kind added to `DrawingDriftDetector`. Editor's View Style Packs tab gains a `templateMode` toggle plus managed-mode-only fields (Visual style / View discipline / Phase filter / Phase / View range sub-card / Far clip / Annotation crop / managed-fields multi-select). `displayOptions` (shadows / sketchy lines / ambient shadows) flagged as warnings — no public Revit API.
+
+### Phase 138 — Revit VG editor parity + branch consolidation
+
+The Phase 137 entry shipped a compact VG editor and noted the
+Revit-VG-cell-style grid as deferred. That follow-up has now landed
+and every outstanding feature branch has been consolidated into the
+working tree.
+
+**New UI files** under `StingTools/UI/`:
+
+| File | Lines | Purpose |
+|---|---|---|
+| `RevitVgEditor.cs` | 1,194 | Full Revit VG dialog replica embedded inline in the View Style Pack form. Backed by `RevitCategoryTree.TaggableCategories` + `CategoriesWithCut`. Exposes Cut Fg/Bg / Projection Fg/Bg / Halftone / Transparency / Detail-Level cells + filter-rule rows + line-styles tab + working chevron expanders + modeless editor + dispatch surfacing. |
+| `VgFillPatternDialog.cs` | 197 | Fill Pattern Graphics popup mirroring Revit's Override… cell. Resolves `FillPatternElement` ids by name with solid-fill fallback. |
+| `VgLineGraphicsDialog.cs` | 157 | Line Graphics Override popup with line-pattern dropdown + colour picker + weight spinner. |
+| `VgColorPicker.cs` | 120 | Windows colour picker shell with recent-colours strip and discipline-palette swatches sourced from `ColorHelper`. |
+| `TitleBlockSlotLoader.cs` | 146 | Slot-dropdown helper that lazy-loads `<project>/Title Blocks/*.rfa` slot definitions. Exposes `GetSlotsForFamily(...)`. Replaces hardcoded slot index in `DrawingProductionConfigDialog`. |
+
+Typo-prevention pass replaces free-text TextBoxes with dropdowns for fill pattern / line pattern / colour / filter-rule names; override cells render the resolved colour swatch in-grid; per-row swatches update live on edit.
+
+**Branches consolidated**: `claude/implementation-prompt-phase-137-OrI6I` (fast-forward), `claude/merge-branches-main-HB2FF` (April-17 work — twelve content conflicts resolved with `--ours` to keep newer state), `claude/review-template-manager-JEiuF` (Phase 92 reference palettes — one trivial variable-name conflict). After consolidation `git for-each-ref` reports zero remote branches with unique commits not in HEAD. Full per-file resolution log lives in `docs/CHANGELOG.md` Phase 138 entry.
+
 ### Caveats (Drawing Template Manager)
 
 1. Built without `dotnet build` verification (Linux sandbox).

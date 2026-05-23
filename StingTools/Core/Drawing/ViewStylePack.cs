@@ -16,6 +16,7 @@ using System;
 // Inheritance: a pack may set Extends = "<parent-id>"; the registry
 // walks the chain at load-time so resolvers see a merged snapshot.
 
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -228,6 +229,11 @@ namespace StingTools.Core.Drawing
         [JsonProperty("cutLineWeight",         NullValueHandling = NullValueHandling.Ignore)] public int?    CutLineWeight { get; set; }
         [JsonProperty("cutLineColor",          NullValueHandling = NullValueHandling.Ignore)] public string  CutLineColor { get; set; }
         [JsonProperty("transparency",          NullValueHandling = NullValueHandling.Ignore)] public int?    Transparency { get; set; }
+
+        // Optional visibility flag — true = show, false = hide. Null = leave as-is.
+        // Phase 113+ presentation packs use this to hide MEP / structural framing
+        // / scope boxes etc. on architectural presentation drawings.
+        [JsonProperty("visible",               NullValueHandling = NullValueHandling.Ignore)] public bool?   Visible { get; set; }
     }
 
     public sealed class ViewStylePackLibrary

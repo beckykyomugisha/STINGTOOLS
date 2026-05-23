@@ -649,6 +649,31 @@ namespace StingTools.Core.Drawing
     }
 
     // ─────────────────────────────────────────────────────────────────────
+    //  PRODUCTION RULE — Phase 137
+    //
+    //  One rule per companion view a single DrawingType produces. The
+    //  parent profile defines slot geometry, scale, etc; each rule may
+    //  optionally override scale / detail level / view template / pack
+    //  / annotation / phase per produced view, and pin itself to a
+    //  specific slot index.
+    // ─────────────────────────────────────────────────────────────────────
+
+    public sealed class ProductionRule
+    {
+        [JsonProperty("idx")]       public int    Idx { get; set; }
+        [JsonProperty("viewType")]  public string ViewType { get; set; }
+        [JsonProperty("nameSuffix",            NullValueHandling = NullValueHandling.Ignore)] public string NameSuffix { get; set; }
+        [JsonProperty("scaleOverride",         NullValueHandling = NullValueHandling.Ignore)] public int?   ScaleOverride { get; set; }
+        [JsonProperty("detailLevelOverride",   NullValueHandling = NullValueHandling.Ignore)] public string DetailLevelOverride { get; set; }
+        [JsonProperty("viewTemplateOverride",  NullValueHandling = NullValueHandling.Ignore)] public string ViewTemplateOverride { get; set; }
+        [JsonProperty("viewStylePackOverride", NullValueHandling = NullValueHandling.Ignore)] public string ViewStylePackOverride { get; set; }
+        [JsonProperty("annotationOverride",    NullValueHandling = NullValueHandling.Ignore)] public AnnotationRulePack AnnotationOverride { get; set; }
+        [JsonProperty("phaseOverride",         NullValueHandling = NullValueHandling.Ignore)] public string PhaseOverride { get; set; }
+        [JsonProperty("required")]  public bool Required { get; set; } = true;
+        [JsonProperty("slotIndex")] public int  SlotIndex { get; set; } = -1;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
     //  PRINT OVERRIDE
     // ─────────────────────────────────────────────────────────────────────
 

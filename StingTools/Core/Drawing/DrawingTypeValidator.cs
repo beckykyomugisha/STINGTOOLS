@@ -224,6 +224,12 @@ namespace StingTools.Core.Drawing
             // ── GAP-M: detect overlapping slot bounding boxes ──
             ValidateSlotOverlaps(dt, r);
 
+            // ── Phase 137 — annotation family + production rule + managed pack checks ──
+
+            ValidatePhase137Annotation(doc, dt, r);
+            ValidatePhase137ProductionRules(dt, r);
+            ValidatePhase137ManagedPack(doc, dt, r);
+
             return r;
         }
 

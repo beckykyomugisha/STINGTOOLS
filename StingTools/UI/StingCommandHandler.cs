@@ -631,6 +631,20 @@ namespace StingTools.UI
                     case "TitleBlock_AuditLegacy":        RunCommand<Commands.Drawing.TitleBlockAuditLegacyCommand>(app); break;
                     case "TitleBlock_MigrateLegacy":      RunCommand<Commands.Drawing.TitleBlockMigrateLegacyCommand>(app); break;
 
+                    // ── Drawing Template Manager · Phase 137 — production engine ──
+                    case "DrawingTypes_ProducePerLevel":           RunCommand<Commands.Drawing.ProduceViewsPerLevelCommand>(app); break;
+                    case "DrawingTypes_ProduceFromScopeBoxes":     RunCommand<Commands.Drawing.ProduceViewsFromScopeBoxesCommand>(app); break;
+                    case "DrawingTypes_ProduceInteriorElevations": RunCommand<Commands.Drawing.ProduceInteriorElevationsCommand>(app); break;
+                    case "DrawingTypes_ProduceExteriorElevations": RunCommand<Commands.Drawing.ProduceExteriorElevationsCommand>(app); break;
+                    case "DrawingTypes_ProduceSections":           RunCommand<Commands.Drawing.ProduceSectionsCommand>(app); break;
+                    case "DrawingTypes_RegenerateTemplates":       RunCommand<Commands.Drawing.RegeneratePackTemplatesCommand>(app); break;
+                    case "DrawingTypes_ConvertToManaged":          RunCommand<Commands.Drawing.ConvertPackToManagedCommand>(app); break;
+                    case "DrawingTypes_DetachManaged":             RunCommand<Commands.Drawing.DetachFromManagedCommand>(app); break;
+                    case "DrawingTypes_ExportPackage":             RunCommand<Commands.Drawing.DrawingPackageExportCommand>(app); break;
+                    case "DrawingTypes_SequencePackage":           RunCommand<Commands.Drawing.DrawingPackageSequenceCommand>(app); break;
+                    case "DrawingTypes_AuditPackages":
+                    case "DrawingTypes_PackageAudit":              RunCommand<Commands.Drawing.DrawingPackageAuditCommand>(app); break;
+
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
                     case "SetScopeProject": Select.SelectionScopeHelper.SetScope(true); TaskDialog.Show("Scope", "Selection scope: WHOLE PROJECT"); break;

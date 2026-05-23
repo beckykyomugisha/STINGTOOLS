@@ -1151,6 +1151,11 @@
       "viewTemplateName": "STING - MEP Coordination",
       "sheetNumberPattern": "M-CO-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP COORDINATION — {lvl}",
+      "productionRules": [
+        { "idx": 0, "viewType": "FloorPlan", "slotIndex": 0, "required": true,  "nameSuffix": " - PLAN" },
+        { "idx": 1, "viewType": "ThreeD",    "slotIndex": 1, "required": false, "nameSuffix": " - ISO"  },
+        { "idx": 2, "viewType": "Section",   "slotIndex": 2, "required": false, "nameSuffix": " - SEC"  }
+      ],
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
@@ -1274,6 +1279,10 @@
       "viewTemplateName": "STING - Pipe Shop Drawing",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "{discipline} spool {spool}",
+      "productionRules": [
+        { "idx": 0, "viewType": "FloorPlan", "slotIndex": 0, "required": true, "nameSuffix": " - PLAN" },
+        { "idx": 1, "viewType": "ThreeD",    "slotIndex": 1, "required": true, "nameSuffix": " - ISO"  }
+      ],
       "crop": {
         "kind": "TightBbox",
         "marginMm": 300
@@ -3715,6 +3724,10 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation 3D",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "productionRules": [
+        { "idx": 0, "viewType": "ThreeD",    "slotIndex": 0, "required": true,  "nameSuffix": "" },
+        { "idx": 1, "viewType": "FloorPlan", "slotIndex": 1, "required": false, "nameSuffix": " - KEY" }
+      ],
       "sheetNamePattern": "3D AXONOMETRIC — {mark}",
       "crop": {
         "kind": "TightBbox",
@@ -8733,6 +8746,137 @@
       },
       "print": { "colourScheme": "Monochrome", "halftoneLinks": false, "lineWeightScale": 1.1 }
     }
+    ,
+    {
+      "id": "pres-3d-exterior-A1",
+      "name": "Presentation 3D Exterior",
+      "origin": "corporate",
+      "purpose": "3D",
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 0,
+      "detailLevel": "Coarse",
+      "viewTemplateName": null,
+      "viewportTypeName": null,
+      "viewStylePackId": "pres-burgund-green",
+      "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
+      "sheetNamePattern": "Presentation — {discipline} Exterior 3D",
+      "crop": { "kind": "None", "marginMm": 0 },
+      "slots": [
+        {
+          "label": "3D Exterior",
+          "viewType": "3D",
+          "normX": 0.0, "normY": 0.0, "normW": 1.0, "normH": 1.0,
+          "scale": 0,
+          "detailLevel": "Coarse",
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": true,
+        "lineWeightScale": 1.0
+      }
+    }
+    ,
+    {
+      "id": "pres-3d-interior-cutaway-A1",
+      "name": "Presentation 3D Interior Cut-Away",
+      "description": "Apply a Section Box manually before generating with this profile. The section box should cut at ceiling height to expose the interior. Pairs naturally with pres-interior-terracotta or pres-interior-sage.",
+      "origin": "corporate",
+      "purpose": "3D",
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 0,
+      "detailLevel": "Coarse",
+      "viewTemplateName": null,
+      "viewportTypeName": null,
+      "viewStylePackId": "pres-interior-sage",
+      "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
+      "sheetNamePattern": "Presentation — {discipline} Interior Cut-Away",
+      "crop": { "kind": "None", "marginMm": 0 },
+      "slots": [
+        {
+          "label": "3D Interior Cut-Away",
+          "viewType": "3D",
+          "normX": 0.0, "normY": 0.0, "normW": 1.0, "normH": 1.0,
+          "scale": 0,
+          "detailLevel": "Coarse",
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": true,
+        "lineWeightScale": 1.0
+      }
+    }
+    ,
+    {
+      "id": "pres-composite-A1",
+      "name": "Presentation Composite Sheet",
+      "description": "4-slot composite presentation sheet — main 3D axonometric (60% width) plus stacked floor plan, section, and section/elevation strip down the right. The plan and section slots use 1:200 medium detail; the 3D slot is NTS coarse. Pack defaults to pres-burgund-green.",
+      "origin": "corporate",
+      "purpose": "3D",
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 0,
+      "detailLevel": "Coarse",
+      "viewStylePackId": "pres-burgund-green",
+      "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
+      "sheetNamePattern": "Presentation — {discipline} Composite",
+      "crop": { "kind": "None", "marginMm": 0 },
+      "slots": [
+        {
+          "label": "Main 3D Axonometric",
+          "viewType": "3D",
+          "normX": 0.00, "normY": 0.00, "normW": 0.60, "normH": 1.00,
+          "scale": 0, "detailLevel": "Coarse",
+          "required": true
+        },
+        {
+          "label": "Floor Plan",
+          "viewType": "Plan",
+          "normX": 0.62, "normY": 0.66, "normW": 0.38, "normH": 0.34,
+          "scale": 200, "detailLevel": "Medium"
+        },
+        {
+          "label": "Section A",
+          "viewType": "Section",
+          "normX": 0.62, "normY": 0.33, "normW": 0.38, "normH": 0.32,
+          "scale": 200, "detailLevel": "Medium"
+        },
+        {
+          "label": "Section B / Elevation",
+          "viewType": "Elevation",
+          "normX": 0.62, "normY": 0.00, "normW": 0.38, "normH": 0.32,
+          "scale": 200, "detailLevel": "Medium"
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": true,
+        "lineWeightScale": 1.0
+      }
+    }
   ],
   "routing": [
     { "discipline": "M", "phase": "PRESENTATION", "docType": "PLAN", "drawingTypeId": "mep-plan-presentation" },
@@ -9322,5 +9466,6 @@
       "docType": "PENETRATION_REGISTER",
       "drawingTypeId": "penetration-register-A1"
     }
+
   ]
 }
