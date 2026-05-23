@@ -28,10 +28,25 @@
     <RevitApiPath Condition="'$(RevitApiPath)' == '' And Exists('C:\Program Files\Autodesk\Revit 2027\RevitAPI.dll')">C:\Program Files\Autodesk\Revit 2027</RevitApiPath>
   </PropertyGroup>
 
-  <!-- Revit 2025/2026/2027 API assemblies -->
+  <!--
+    CI stub fallback: when RevitApiPath is still empty (Linux CI / no Revit install)
+    resolve stubs from the pre-built path under tools/revit-stubs/.
+    $(RevitApiStubsDir) can also be set explicitly on the command line.
+  -->
+  <PropertyGroup Condition="'$(RevitApiPath)' == ''">
+    <RevitApiStubsDir Condition="'$(RevitApiStubsDir)' == ''">$(MSBuildThisFileDirectory)..\tools\revit-stubs\bin</RevitApiStubsDir>
+    <RevitApiPath>$(RevitApiStubsDir)</RevitApiPath>
+    <UsingRevitApiStubs>true</UsingRevitApiStubs>
+  </PropertyGroup>
+
+  <!-- Revit 2025/2026/2027 API assemblies (real Revit install or CI stubs) -->
   <ItemGroup>
     <Reference Include="RevitAPI">
       <HintPath>$(RevitApiPath)\RevitAPI.dll</HintPath>
+      <!--
+        Private=false: don't copy to output — at runtime Revit loads the real
+        assembly from its own directory; stubs are compile-time-only.
+      -->
       <Private>false</Private>
     </Reference>
     <Reference Include="RevitAPIUI">
