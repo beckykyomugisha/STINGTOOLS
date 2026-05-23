@@ -24,6 +24,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { theme } from '@/utils/theme';
 import { useProjectStore } from '@/stores/projectStore';
+import { NdaPromptModal } from '@/components/site-photos/NdaPromptModal';
 import {
   listSitePhotos,
   getSitePhotoFile,
@@ -84,6 +85,10 @@ export default function GalleryScreen() {
   const [error, setError] = useState<string | null>(null);
   const [focused, setFocused] = useState<SitePhoto | null>(null);
   const [isApprover, setIsApprover] = useState(false);
+  // Phase 179.2 — NDA-gated photos in the current page; tile click
+  // routes through the NdaPromptModal until acceptance lands.
+  const [ndaRequired, setNdaRequired] = useState<Set<string>>(new Set());
+  const [ndaPrompt, setNdaPrompt] = useState<string | null>(null);
 
   const filters: SitePhotoListFilters = useMemo(() => ({
     reason: reason === 'All' ? undefined : reason,
@@ -108,6 +113,10 @@ export default function GalleryScreen() {
       setError(null);
       const res = await listSitePhotos(projectId, filters);
       setPhotos(res.items);
+      // Phase 179.2 — surface the lock badge on tiles whose photo
+      // requires NDA acceptance. The id is removed from this set
+      // after the user accepts and the list refreshes.
+      setNdaRequired(new Set(res.ndaRequiredIds ?? []));
 
       const thumbEntries = await Promise.all(
         res.items.map(async (p) => {
@@ -299,6 +308,23 @@ export default function GalleryScreen() {
           projectId={projectId}
           onClose={() => setFocused(null)}
           onChanged={async () => { await load(); setFocused(null); }}
+        />
+      ) : null}
+
+      {/* Phase 179.2 — NDA acceptance modal */}
+      {ndaPrompt && projectId ? (
+        <NdaPromptModal
+          visible
+          projectId={projectId}
+          photoId={ndaPrompt}
+          onCancel={() => setNdaPrompt(null)}
+          onAccepted={async () => {
+            const acceptedId = ndaPrompt;
+            setNdaPrompt(null);
+            await load();
+            const target = photos.find((p) => p.id === acceptedId);
+            if (target) setFocused(target);
+          }}
         />
       ) : null}
     </View>

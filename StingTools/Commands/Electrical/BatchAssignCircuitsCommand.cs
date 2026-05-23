@@ -226,16 +226,9 @@ namespace StingTools.Commands.Electrical
                         // Revit 2024+ requires FamilyInstance, not the panel name string.
                         // Resolve once here so any pre-existing string-based callers still
                         // get clean error reporting via the catch block below.
-                        var panelFi = (a.PanelId != null && a.PanelId != ElementId.InvalidElementId)
-                            ? doc.GetElement(a.PanelId) as FamilyInstance
-                            : null;
-                        if (panelFi == null)
-                        {
-                            failed++;
-                            StingLog.Warn($"BatchAssignCircuits '{a.SystemName}' → '{a.PanelName}': panel instance not found");
-                            continue;
-                        }
-                        sys.SelectPanel(panelFi);
+                        var panelInst = doc.GetElement(a.PanelId) as FamilyInstance;
+                        if (panelInst == null) { failed++; continue; }
+                        sys.SelectPanel(panelInst);
                         applied++;
 
                         // Stamp ELC_PANEL_REF_TXT on the circuit so STING tag

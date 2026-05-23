@@ -495,6 +495,18 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>
 // ONNX models without dragging the dependency into the API process.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.RedactPublishedPhotoJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyPhotoDigestJob>();
+// Phase 179 — site-photo workflow enhancements
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoBulkExportService>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPdfExportService>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoRetentionJob>();
+// Phase 180 — single read-side facade over PhotoPolicy.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPolicyResolver>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoChecklistDueJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoSmartAlbumMaterialiseJob>();
+// QuestPDF community licence — set once per process. Free for OSS /
+// personal / sub-1M USD revenue companies; switch to .Professional and
+// add the licence key at GA if revenue threshold is crossed.
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhotoRedactionPipeline,
     Planscape.Infrastructure.Services.PhotoPipeline.SkiaPhotoRedactionPipeline>();
 
@@ -1312,6 +1324,22 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
 // depth. 17:00 UTC default; per-project override planned via
 // Project.DigestHour follow-up. Stays on the "default" queue (not
 // "photo-redaction") because rendering thumbnails is light.
+// Phase 179 — daily retention sweep at 03:30 UTC, ahead of digest at 17:00.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoRetentionJob>(
+    "photo-retention",
+    j => j.ExecuteAsync(CancellationToken.None),
+    "30 3 * * *", new RecurringJobOptions { QueueName = "default" });
+// Phase 180 — daily 07:00 UTC checklist-due nudge.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoChecklistDueJob>(
+    "photo-checklist-due",
+    j => j.ExecuteAsync(CancellationToken.None),
+    "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
+// Phase 180 — daily 02:00 UTC smart-album materialiser.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoSmartAlbumMaterialiseJob>(
+    "photo-smart-album",
+    j => j.ExecuteAsync(CancellationToken.None),
+    "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
+
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DailyPhotoDigestJob>(
     "site-photo-digest", "default", j => j.ExecuteAsync(CancellationToken.None),
     "0 17 * * *");
