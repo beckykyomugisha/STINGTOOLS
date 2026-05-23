@@ -2433,7 +2433,34 @@ namespace StingTools.Core
         {
             try
             {
-                StingTools.UI.StingDockPanel.DispatchCommand(tag);
+                // If the main dock-panel handler hasn't been primed (the
+                // panel has never been opened in this session), DispatchCommand
+                // returns false silently. Surface that to the user by opening
+                // the dock panel first, then retrying once on the WPF
+                // dispatcher so the button actually does something.
+                if (!StingTools.UI.StingDockPanel.DispatchCommand(tag))
+                {
+                    // Fall back to surfacing the dock panel via the UIApp —
+                    // Show() forces Revit to construct the page and prime
+                    // the ExternalEvent handler.
+                    var uiApp = StingTools.UI.StingCommandHandler.CurrentApp;
+                    if (uiApp != null)
+                    {
+                        try
+                        {
+                            var pane = uiApp.GetDockablePane(StingTools.UI.StingDockPanelProvider.PaneId);
+                            if (pane != null && !pane.IsShown()) pane.Show();
+                        }
+                        catch (Exception exShow) { StingLog.Warn($"Hub dispatch show: {exShow.Message}"); }
+                    }
+                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                        new Action(() =>
+                        {
+                            try { StingTools.UI.StingDockPanel.DispatchCommand(tag); }
+                            catch (Exception exRetry) { StingLog.Warn($"Hub dispatch retry '{tag}': {exRetry.Message}"); }
+                        }),
+                        System.Windows.Threading.DispatcherPriority.Background);
+                }
                 return Result.Succeeded;
             }
             catch (Exception ex)
