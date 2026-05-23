@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tutorials — Planscape</title>
+<meta name="description" content="Hands-on Planscape tutorials with screenshots and step-by-step instructions. Tag elements, capture photos, raise issues, sync to ACC.">
+<meta property="og:title" content="Planscape tutorials">
+<meta property="og:url" content="https://planscape.app/tutorials/">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.app/tutorials/">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.tut-grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+.tut-card {
+  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:0; overflow:hidden; text-decoration:none; color:inherit;
+  display:flex; flex-direction:column;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.tut-card:hover { border-color:var(--accent); }
+.tut-card .thumb { aspect-ratio:16/9; background:linear-gradient(135deg,rgba(232,145,45,0.15),rgba(232,145,45,0.04)); display:flex;align-items:center;justify-content:center; font-size:48px; }
+.tut-card .body { padding:16px 18px; }
+.tut-card h3 { margin:0 0 6px; font-size:16px; line-height:1.3; }
+.tut-card .meta { font-size:12px; color:var(--muted); margin-bottom:6px; }
+.tut-card p { margin:0; font-size:13px; color:var(--muted); line-height:1.5; }
+.tut-card .tag { display:inline-block; padding:2px 8px; background:rgba(232,145,45,0.10); color:var(--accent); border-radius:999px; font-size:11px; font-weight:600; margin-right:6px; }
+.section-h { font-size:22px; margin:48px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/" style="color:var(--accent)">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<header class="page-header">
+  <h1>Tutorials</h1>
+  <p>Step-by-step walkthroughs with screenshots. Each tutorial takes ~5–15 minutes and you'll end up with a working result.</p>
+</header>
+
+<section style="padding-top:0">
+
+  <h2 class="section-h">🚀 Beginner — start here</h2>
+  <div class="tut-grid">
+    <a href="/tutorials/create-first-project.html" class="tut-card">
+      <div class="thumb">🏗️</div>
+      <div class="body">
+        <div class="meta"><span class="tag">8 min</span> Beginner</div>
+        <h3>Create your first project</h3>
+        <p>From signup to a configured project with team members, GPS coordinates, and the right ISO 19650 metadata.</p>
+      </div>
+    </a>
+    <a href="/tutorials/install-mobile-app.html" class="tut-card">
+      <div class="thumb">📱</div>
+      <div class="body">
+        <div class="meta"><span class="tag">5 min</span> Beginner</div>
+        <h3>Install &amp; log into the mobile app</h3>
+        <p>Download from the App Store / Play Store, log in with your firm credentials, sync your first project.</p>
+      </div>
+    </a>
+    <a href="/tutorials/install-revit-plugin.html" class="tut-card">
+      <div class="thumb">🧊</div>
+      <div class="body">
+        <div class="meta"><span class="tag">7 min</span> Beginner</div>
+        <h3>Install the Revit plugin</h3>
+        <p>Download the .addin, drop it in the right folder, license-bind on first launch. Works on Revit 2025/26/27.</p>
+      </div>
+    </a>
+    <a href="/tutorials/invite-team.html" class="tut-card">
+      <div class="thumb">👥</div>
+      <div class="body">
+        <div class="meta"><span class="tag">4 min</span> Beginner</div>
+        <h3>Invite your team</h3>
+        <p>Add coordinators, assign roles, set per-project permissions. Includes inviting external clients.</p>
+      </div>
+    </a>
+  </div>
+
+  <h2 class="section-h">📱 Site coordination — mobile</h2>
+  <div class="tut-grid">
+    <a href="/tutorials/raise-issue-from-mobile.html" class="tut-card">
+      <div class="thumb">⚠️</div>
+      <div class="body">
+        <div class="meta"><span class="tag">6 min</span> Beginner</div>
+        <h3>Raise an issue from your phone</h3>
+        <p>Spot a problem on site, snap a photo, drop a pin, assign to a coordinator. Works offline.</p>
+      </div>
+    </a>
+    <a href="/tutorials/capture-site-photos.html" class="tut-card">
+      <div class="thumb">📸</div>
+      <div class="body">
+        <div class="meta"><span class="tag">5 min</span> Beginner</div>
+        <h3>Capture &amp; tag site photos</h3>
+        <p>Use the camera in the app, attach photos to issues / elements / general site progress, add captions.</p>
+      </div>
+    </a>
+    <a href="/tutorials/gps-site-map.html" class="tut-card">
+      <div class="thumb">🗺️</div>
+      <div class="body">
+        <div class="meta"><span class="tag">7 min</span> Beginner</div>
+        <h3>Use the GPS site map</h3>
+        <p>Pan to your project, drop pins, share your live location, navigate to a specific issue.</p>
+      </div>
+    </a>
+    <a href="/tutorials/voice-notes.html" class="tut-card">
+      <div class="thumb">🎙️</div>
+      <div class="body">
+        <div class="meta"><span class="tag">4 min</span> Beginner</div>
+        <h3>Record &amp; transcribe voice notes</h3>
+        <p>When typing on site doesn't work. Records in any language, transcribed when back on signal.</p>
+      </div>
+    </a>
+    <a href="/tutorials/qr-scan.html" class="tut-card">
+      <div class="thumb">📲</div>
+      <div class="body">
+        <div class="meta"><span class="tag">6 min</span> Intermediate</div>
+        <h3>QR-scan an asset on site</h3>
+        <p>Pull the full tag history, attached photos, commissioning log, and RFIs for any printed STING tag.</p>
+      </div>
+    </a>
+    <a href="/tutorials/working-offline.html" class="tut-card">
+      <div class="thumb">📵</div>
+      <div class="body">
+        <div class="meta"><span class="tag">8 min</span> Intermediate</div>
+        <h3>Working a full day offline</h3>
+        <p>Pre-sync your project, work all day off-signal, replay everything when you're back in range.</p>
+      </div>
+    </a>
+  </div>
+
+  <h2 class="section-h">🧊 Revit plugin</h2>
+  <div class="tut-grid">
+    <a href="/tutorials/tag-elements-in-revit.html" class="tut-card">
+      <div class="thumb">🏷️</div>
+      <div class="body">
+        <div class="meta"><span class="tag">10 min</span> Intermediate</div>
+        <h3>Tag elements in Revit (ISO 19650)</h3>
+        <p>Configure discipline / system / product codes, auto-detect from rooms, run BatchTag on 30k elements.</p>
+      </div>
+    </a>
+    <a href="/tutorials/sync-revit-to-cloud.html" class="tut-card">
+      <div class="thumb">☁️</div>
+      <div class="body">
+        <div class="meta"><span class="tag">5 min</span> Intermediate</div>
+        <h3>Sync your Revit model to the cloud</h3>
+        <p>One-click publish. Diff-only upload. Resolve conflicts when two authors edit the same workset.</p>
+      </div>
+    </a>
+    <a href="/tutorials/run-clash-detection.html" class="tut-card">
+      <div class="thumb">💥</div>
+      <div class="body">
+        <div class="meta"><span class="tag">12 min</span> Intermediate</div>
+        <h3>Run clash detection</h3>
+        <p>Configure the matrix, run on a federated model, triage by priority, push to BCF, fix the source.</p>
+      </div>
+    </a>
+    <a href="/tutorials/export-cobie.html" class="tut-card">
+      <div class="thumb">📑</div>
+      <div class="body">
+        <div class="meta"><span class="tag">15 min</span> Advanced</div>
+        <h3>Export a full COBie 2.4 handover</h3>
+        <p>Pick a project-type preset, validate the model, generate 19 worksheets, package with O&amp;M documents.</p>
+      </div>
+    </a>
+    <a href="/tutorials/create-drawing-set.html" class="tut-card">
+      <div class="thumb">📐</div>
+      <div class="body">
+        <div class="meta"><span class="tag">10 min</span> Intermediate</div>
+        <h3>Create a drawing set</h3>
+        <p>Use Drawing Type profiles to produce A1 plans + A3 details + schedules with consistent title blocks.</p>
+      </div>
+    </a>
+  </div>
+
+  <h2 class="section-h">📋 ISO 19650 workflows</h2>
+  <div class="tut-grid">
+    <a href="/tutorials/issue-transmittal.html" class="tut-card">
+      <div class="thumb">📨</div>
+      <div class="body">
+        <div class="meta"><span class="tag">8 min</span> Intermediate</div>
+        <h3>Issue a transmittal</h3>
+        <p>Mint a number, select deliverables, render the B06 .docx, push to the CDE, notify recipients.</p>
+      </div>
+    </a>
+    <a href="/tutorials/raise-rfi.html" class="tut-card">
+      <div class="thumb">❓</div>
+      <div class="body">
+        <div class="meta"><span class="tag">6 min</span> Beginner</div>
+        <h3>Raise an RFI</h3>
+        <p>From mobile or web. Attach photos, route to the right reviewer, track to closeout.</p>
+      </div>
+    </a>
+    <a href="/tutorials/weekly-data-drop.html" class="tut-card">
+      <div class="thumb">📦</div>
+      <div class="body">
+        <div class="meta"><span class="tag">12 min</span> Advanced</div>
+        <h3>Run the weekly data drop</h3>
+        <p>Use the 10-step workflow preset to issue a compliant ISO 19650 weekly data drop in one click.</p>
+      </div>
+    </a>
+    <a href="/tutorials/handover-pack.html" class="tut-card">
+      <div class="thumb">📤</div>
+      <div class="body">
+        <div class="meta"><span class="tag">20 min</span> Advanced</div>
+        <h3>Build a project handover pack</h3>
+        <p>Asset register, COBie, O&amp;M manuals, spare-part schedule, commissioning certificates — auto-assembled.</p>
+      </div>
+    </a>
+  </div>
+
+  <h2 class="section-h">🏥 Healthcare workflows</h2>
+  <div class="tut-grid">
+    <a href="/tutorials/mgas-verification.html" class="tut-card">
+      <div class="thumb">⚕️</div>
+      <div class="body">
+        <div class="meta"><span class="tag">15 min</span> Advanced</div>
+        <h3>Run an MGPS verification (HTM 02-01)</h3>
+        <p>12-step NFPA 99 §5.1.12 verification log, witness sign-off, audit-grade record.</p>
+      </div>
+    </a>
+    <a href="/tutorials/pressure-audit.html" class="tut-card">
+      <div class="thumb">💨</div>
+      <div class="body">
+        <div class="meta"><span class="tag">12 min</span> Advanced</div>
+        <h3>Pressure regime audit (HTM 03-01)</h3>
+        <p>Map positive / negative / neutral pressure rooms, identify isolation cubicle violations.</p>
+      </div>
+    </a>
+    <a href="/tutorials/rds-issue.html" class="tut-card">
+      <div class="thumb">🏥</div>
+      <div class="body">
+        <div class="meta"><span class="tag">10 min</span> Intermediate</div>
+        <h3>Issue Room Data Sheets</h3>
+        <p>Per-room RDS .docx with all clinical parameters, signed off by the QE before issue.</p>
+      </div>
+    </a>
+  </div>
+
+  <h2 class="section-h">💳 Account &amp; admin</h2>
+  <div class="tut-grid">
+    <a href="/tutorials/upgrade-plan.html" class="tut-card">
+      <div class="thumb">⬆️</div>
+      <div class="body">
+        <div class="meta"><span class="tag">3 min</span> Beginner</div>
+        <h3>Upgrade your subscription</h3>
+        <p>From trial to paid, or Standard to Large. Pro-rating, payment methods, invoice.</p>
+      </div>
+    </a>
+    <a href="/tutorials/setup-mobile-money.html" class="tut-card">
+      <div class="thumb">💰</div>
+      <div class="body">
+        <div class="meta"><span class="tag">5 min</span> Beginner</div>
+        <h3>Pay with mobile money</h3>
+        <p>MTN MoMo, Airtel Money, M-Pesa. Setup once, auto-renew monthly.</p>
+      </div>
+    </a>
+    <a href="/tutorials/export-data.html" class="tut-card">
+      <div class="thumb">💾</div>
+      <div class="body">
+        <div class="meta"><span class="tag">6 min</span> Intermediate</div>
+        <h3>Export all your data</h3>
+        <p>Full project export: models, documents, issues, photos, audit log. ZIP per project.</p>
+      </div>
+    </a>
+    <a href="/tutorials/enable-sso.html" class="tut-card">
+      <div class="thumb">🔐</div>
+      <div class="body">
+        <div class="meta"><span class="tag">15 min</span> Advanced</div>
+        <h3>Enable SSO (Azure AD)</h3>
+        <p>SAML 2.0 setup with Microsoft Entra ID. Provisioning, role mapping, MFA enforcement.</p>
+      </div>
+    </a>
+  </div>
+
+</section>
+
+<div class="cta-band">
+  <h2>Need something we haven't covered?</h2>
+  <p>Tell us what you'd like a tutorial on — we write them based on what you ask for.</p>
+  <a href="/contact.html">Request a tutorial</a>
+</div>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.app">hello@planscape.app</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/tutorials/">Tutorials</a>
+      <a href="https://docs.planscape.app/">Developer docs</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mobile app onboarding — Planscape</title>
+<meta name="description" content="Install the Planscape mobile app, sign in, sync your first project, prepare for offline use on site.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.app/guides/mobile-onboarding.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Mobile app onboarding</div>
+  <h1>Mobile app onboarding</h1>
+  <div class="meta">📖 8-minute read · Beginner · Last updated 2026-05-23</div>
+
+  <p>The Planscape mobile app is offline-first by design. This guide walks you through installation, sign-in, project sync, and the pre-site preparation that lets you work a full day without signal and have everything replay automatically when you're back in range.</p>
+
+  <h2>Supported devices</h2>
+  <table>
+    <thead><tr><th>Platform</th><th>Minimum version</th><th>Recommended</th></tr></thead>
+    <tbody>
+      <tr><td>iOS</td><td>iOS 16 (iPhone XR or later)</td><td>iPhone 13 or later · 128 GB</td></tr>
+      <tr><td>Android</td><td>Android 10 / API 29</td><td>Android 12+ · 6 GB RAM · 128 GB</td></tr>
+    </tbody>
+  </table>
+  <p>The app is ~85 MB on first install. Each cached project adds 50–500 MB depending on how many photos and model views you pre-sync.</p>
+
+  <h2>Step 1 — Install</h2>
+  <ul>
+    <li><strong>iOS:</strong> <a href="https://apps.apple.com/app/planscape" target="_blank" rel="noopener">App Store — search "Planscape BIM"</a></li>
+    <li><strong>Android:</strong> <a href="https://play.google.com/store/apps/details?id=com.planscape.app" target="_blank" rel="noopener">Play Store — search "Planscape BIM"</a></li>
+  </ul>
+  <p>If you're a beta tester, use the TestFlight / Play Internal Testing link sent to your email instead.</p>
+
+  <h2>Step 2 — First launch &amp; permissions</h2>
+  <p>The app asks for four permissions on first run. All are optional, but you'll need them for the core workflows:</p>
+  <table>
+    <thead><tr><th>Permission</th><th>What it's used for</th><th>If denied</th></tr></thead>
+    <tbody>
+      <tr><td>📷 Camera</td><td>Capture site photos, scan QR codes</td><td>Can still upload from gallery</td></tr>
+      <tr><td>📍 Location</td><td>GPS site map, geotagging photos</td><td>Map shows project pin only, no live position</td></tr>
+      <tr><td>🖼️ Photos</td><td>Pick existing photos from your gallery</td><td>Camera-only photo capture</td></tr>
+      <tr><td>🔔 Notifications</td><td>Issue assignments, comments, trial reminders</td><td>You'll miss real-time updates</td></tr>
+    </tbody>
+  </table>
+  <p>You can change any of these later in your phone's Settings → Planscape.</p>
+
+  <h2>Step 3 — Sign in</h2>
+  <p>Enter the email and password you used for the web app. If your firm has SSO enabled, tap <strong>Sign in with SSO</strong> and you'll be redirected to your identity provider (Azure AD, Google Workspace, Okta).</p>
+  <p>After login, the app fetches your project list and shows the project picker. Tap any project to open it.</p>
+
+  <h2>Step 4 — Pre-sync before going to site</h2>
+  <p>This is the step most people skip and then regret. Pre-syncing downloads everything you'll need to work offline:</p>
+  <ul>
+    <li>The full issue list and all photos.</li>
+    <li>The current document register and all PDFs marked "Site reference".</li>
+    <li>The federated model's plan views at all visible levels.</li>
+    <li>The Mapbox tile cache for a 5 km radius around your project pin.</li>
+  </ul>
+  <p>To pre-sync: open the project, tap the cloud icon in the top right, choose <strong>Full pre-sync</strong>. On a normal 4G connection this takes 2–10 minutes depending on project size. Do it from the office, not the site.</p>
+
+  <div class="callout">
+    <strong>Tip:</strong> The app caches the last 30 days of activity by default. If you only visit a project once a quarter, run a fresh pre-sync the night before.
+  </div>
+
+  <h2>Step 5 — Test offline mode</h2>
+  <p>While you're still at the office, do a quick offline test:</p>
+  <ol>
+    <li>Put your phone in airplane mode.</li>
+    <li>Open the Planscape app.</li>
+    <li>Open your project.</li>
+    <li>Tap <strong>+ New issue</strong>, fill it in, attach a photo, save.</li>
+    <li>You should see a yellow chip on the issue: <strong>"Queued — will sync when online"</strong>.</li>
+    <li>Turn airplane mode off. Within 10–30 seconds the chip should go away and the issue is synced.</li>
+  </ol>
+  <p>If that worked, you're ready for a site visit with confidence.</p>
+
+  <h2>Working a day on site</h2>
+  <h3>The status indicator</h3>
+  <p>The top-right of every screen has a connection indicator:</p>
+  <ul>
+    <li>🟢 <strong>Online</strong> — connected, all features available.</li>
+    <li>🟡 <strong>Queued (N)</strong> — offline; N changes waiting to sync.</li>
+    <li>🔴 <strong>Sync failed</strong> — tap to see why and retry.</li>
+  </ul>
+
+  <h3>What works offline</h3>
+  <ul>
+    <li>Browsing issues, documents, the federated model.</li>
+    <li>Raising new issues with photos and voice notes.</li>
+    <li>Commenting on existing issues.</li>
+    <li>Changing issue status (open → in progress → resolved).</li>
+    <li>The GPS site map (using cached Mapbox tiles).</li>
+    <li>QR scanning an asset (offline lookup hits the local cache).</li>
+  </ul>
+
+  <h3>What needs a connection</h3>
+  <ul>
+    <li>Real-time comment notifications from teammates.</li>
+    <li>Initial document download (use pre-sync to avoid this).</li>
+    <li>Voice-note transcription (the audio file syncs offline; the transcript is generated server-side).</li>
+    <li>Push notifications from teammates.</li>
+  </ul>
+
+  <h3>Conflict handling</h3>
+  <p>When the queue replays, two situations can produce conflicts:</p>
+  <ul>
+    <li><strong>You and a teammate both change the same issue status.</strong> Last-write-wins by timestamp. The app shows a conflict banner on the issue with the alternative value so you can decide.</li>
+    <li><strong>You raised an issue against an element that was deleted in Revit.</strong> The issue still saves but is flagged as "orphaned" — you can re-link it to another element or close it.</li>
+  </ul>
+
+  <h2>Push notifications</h2>
+  <p>You'll get a push notification when:</p>
+  <ul>
+    <li>An issue is assigned to you.</li>
+    <li>Someone comments on an issue you created or are assigned to.</li>
+    <li>A document you authored gets approved or rejected.</li>
+    <li>Your firm's trial is about to expire (7 / 3 / 1 days before).</li>
+  </ul>
+  <p>Tapping a notification opens the relevant screen directly — issue detail, document approval queue, billing page.</p>
+
+  <p>Configure which notification types you want: Profile → Settings → Notifications.</p>
+
+  <h2>Battery &amp; data usage</h2>
+  <p>A typical day on site (8 hours, GPS on, 50 photos, 20 issues raised) uses roughly:</p>
+  <ul>
+    <li><strong>Battery:</strong> 25–40% of a modern phone. Bring a power bank if you'll be out all day.</li>
+    <li><strong>Data:</strong> 15–50 MB when syncing the queue. Pre-syncing the night before reduces this to almost nothing.</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>App won't open / crashes on launch</h3>
+  <p>Most common cause: corrupted cache. Profile → Settings → Storage → <strong>Clear cache</strong>. You'll need to log in and pre-sync again.</p>
+
+  <h3>"Stuck queue" — items won't sync</h3>
+  <ul>
+    <li>Check the status indicator. If it's red, tap it and read the error.</li>
+    <li>Most often: an issue references an element ID that no longer exists. Open the issue, re-attach to a current element, save again.</li>
+    <li>If everything else fails: Profile → Diagnostics → <strong>Export queue</strong> and email it to <a href="mailto:support@planscape.app">support@planscape.app</a>. We'll force-replay server-side.</li>
+  </ul>
+
+  <h3>GPS keeps drifting</h3>
+  <p>Indoor GPS is inherently noisy. Go outdoors briefly to re-acquire signal, or use the manual pin-drop instead of "use my location".</p>
+
+  <h3>Photos take ages to upload</h3>
+  <ul>
+    <li>Photos are 12 MP by default — large. We compress to 80% JPEG, but a 50-photo batch is still ~200 MB.</li>
+    <li>The app auto-pauses uploads on slow connections. Force them to upload now: Profile → Sync → <strong>Resume uploads</strong>.</li>
+    <li>To reduce upload size: Profile → Settings → Photos → <strong>Upload quality: Standard</strong> (drops to 1080p).</li>
+  </ul>
+
+  <div class="next-prev">
+    <a href="/guides/revit-plugin-setup.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Installing the Revit plugin
+    </a>
+    <a href="/guides/inviting-team.html" class="next">
+      <span class="lbl">Next →</span>
+      Inviting your team
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.app">hello@planscape.app</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/tutorials/">Tutorials</a>
+      <a href="https://docs.planscape.app/">Developer docs</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

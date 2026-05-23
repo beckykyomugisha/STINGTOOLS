@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Features — Planscape</title>
+<meta name="description" content="Every Planscape feature, grouped by who uses it: project leads, model authors, site coordinators, BIM managers.">
+<meta property="og:title" content="Features — Planscape">
+<meta property="og:description" content="Revit plugin, offline-first mobile, ISO 19650 templates, audit trail, GPS site mapping, photo capture, RFI/NCR workflows.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://planscape.app/features.html">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.app/features.html">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.feat-section { padding:48px 24px; }
+.feat-section:nth-child(odd of .feat-section) { background: var(--card); }
+.feat-section h2 { font-size:24px; margin:0 0 8px; }
+.feat-section .lead { margin-bottom:24px; }
+.feat-pill {
+  display:inline-block; background:rgba(232,145,45,0.10); color:var(--accent);
+  font-weight:600; font-size:12px; letter-spacing:1px; text-transform:uppercase;
+  padding:4px 10px; border-radius:999px; margin-bottom:8px;
+}
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html" style="color:var(--accent)">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<header class="page-header">
+  <h1>Features</h1>
+  <p>Every Planscape feature, grouped by who uses it. Click any item to jump to the matching guide or tutorial.</p>
+</header>
+
+<section>
+  <span class="feat-pill">For Model Authors</span>
+  <h2>Revit Plugin — STING Tools</h2>
+  <p class="lead">A single compiled .addin for Revit 2025 / 2026 / 2027. No per-seat license — included with every Planscape subscription.</p>
+  <div class="grid-3">
+    <div class="card">
+      <div class="icon">🏷️</div>
+      <h3>ISO 19650 auto-tagging</h3>
+      <p>One click tags every element with the 8-segment ISO 19650 identifier (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ). Spatial auto-detect picks LOC + ZONE from rooms.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📐</div>
+      <h3>Drawing template manager</h3>
+      <p>90+ corporate drawing types · 22 view style packs · 289 AEC filters. One profile defines paper size, title block, view template, crop, annotation, sheet numbering.</p>
+    </div>
+    <div class="card">
+      <div class="icon">⚡</div>
+      <h3>763+ commands</h3>
+      <p>Auto-tagging, schedule generation, COBie export, model health audits, clash detection, BOQ generation, MEP sizing, healthcare validators.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🧪</div>
+      <h3>Healthcare pack</h3>
+      <p>HTM 02-01 medical gas verification, HTM 03-01 pressure regimes, NCRP 147 radiation shielding, anti-ligature audit, RDS room data sheets.</p>
+    </div>
+    <div class="card">
+      <div class="icon">⚙️</div>
+      <h3>MEP engineering</h3>
+      <p>BS 7671 cable sizing, IEC 60909 fault current, IEEE 1584 arc flash, BS EN 12056 drainage, ASHRAE block load + RTS, refrigerant pipe sizing.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📤</div>
+      <h3>One-click cloud sync</h3>
+      <p>Publish to the cloud CDE in a single click. No IFC export, no manual upload — the plugin pushes the diff.</p>
+    </div>
+  </div>
+  <p style="margin-top:24px"><a href="/guides/revit-plugin-setup.html">📖 Guide: Setting up the Revit plugin →</a></p>
+</section>
+
+<section style="background:var(--card)">
+  <span class="feat-pill">For Site Coordinators</span>
+  <h2>Mobile App — iOS &amp; Android</h2>
+  <p class="lead">Offline-first React Native app. The coordinator's tool of choice when there's no signal at the back of the plant room.</p>
+  <div class="grid-3">
+    <div class="card">
+      <div class="icon">🗺️</div>
+      <h3>GPS site map</h3>
+      <p>Mapbox-powered live site map centred on project coordinates. Live coordinator position, issue pins colour-coded by status, long-press to file a new issue.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📸</div>
+      <h3>Photo capture</h3>
+      <p>Camera + gallery. Auto-geotagged + auto-thumbnailed. Attach to issues, elements, or stand alone. Queues offline, replays when you're back on signal.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🎙️</div>
+      <h3>Voice notes</h3>
+      <p>For when typing on site doesn't work. Auto-transcribed via the server. Searchable across the project.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📲</div>
+      <h3>QR scan asset lookup</h3>
+      <p>Print STING tags as QR codes. Scan on site to pull the element's full tag history, photos, RFIs, commissioning log.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🔔</div>
+      <h3>Push notifications</h3>
+      <p>Issue assigned, comment added, status changed — pushed via Expo. Single endpoint covers iOS + Android.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🔄</div>
+      <h3>Real-time sync</h3>
+      <p>SignalR keeps your team's screens in sync. New issue raised on the coordinator's phone shows up on the project lead's laptop in &lt;1 second.</p>
+    </div>
+  </div>
+  <p style="margin-top:24px"><a href="/guides/mobile-onboarding.html">📖 Guide: Mobile app onboarding →</a></p>
+</section>
+
+<section>
+  <span class="feat-pill">For Project Leads</span>
+  <h2>ISO 19650 Workflow Engine</h2>
+  <p class="lead">Every document, every approval, every transmittal — auditable, automatable, repeatable.</p>
+  <div class="grid-3">
+    <div class="card">
+      <div class="icon">📋</div>
+      <h3>Pre-built templates</h3>
+      <p>Transmittals, RFIs, NCRs, BEPs, MIDPs, commissioning checklists, handover certificates. Edit in Word — token contract stays intact.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📨</div>
+      <h3>Transmittal orchestration</h3>
+      <p>Mint number → render docx → start workflow → push to CDE → notify recipients. One command, full audit trail.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🔁</div>
+      <h3>Deliverable lifecycle</h3>
+      <p>Issue → Re-issue → Publish → Supersede → Replace. Every state transition timestamped + hash-chained.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🎯</div>
+      <h3>20+ workflow presets</h3>
+      <p>Daily QA, weekly data drop, HTM 04-01 annual water audit, NFPA 110 generator test, MGPS verification, anti-ligature audit.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🗃️</div>
+      <h3>Hash-chained audit</h3>
+      <p>SHA-256 chain over every write — court-admissible by construction. Satisfies ISO 19650-2 §5.6.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📊</div>
+      <h3>Live compliance dashboard</h3>
+      <p>Per-discipline tag completeness, stale-element detection, missing-document RAG status. Refreshed on every save.</p>
+    </div>
+  </div>
+  <p style="margin-top:24px"><a href="/guides/iso-19650-workflow.html">📖 Guide: Running an ISO 19650 workflow →</a></p>
+</section>
+
+<section style="background:var(--card)">
+  <span class="feat-pill">For BIM Managers</span>
+  <h2>Coordination &amp; Quality</h2>
+  <p class="lead">The federated model is the source of truth — clashes, issues, and RFIs land back on the right element.</p>
+  <div class="grid-3">
+    <div class="card">
+      <div class="icon">💥</div>
+      <h3>Clash detection</h3>
+      <p>Full in-process clash kernel with AABB sweep + Möller–Trumbore SAT + OBB tree. Live re-detection on geometry change. BCF 2.1 round-trip.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🎯</div>
+      <h3>AI clash triage</h3>
+      <p>Prioritises by discipline pair + element size + resolution complexity. Suggests resolution strategies (raise tray, re-route pipe, offset duct).</p>
+    </div>
+    <div class="card">
+      <div class="icon">🏗️</div>
+      <h3>Federation walker</h3>
+      <p>Walks every linked model recursively. Cross-model validation, federated quantity take-off, federation health score.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📑</div>
+      <h3>COBie 2.4 export</h3>
+      <p>22 project-type presets covering NHS, private, commercial, education. 19 worksheets. Full tag integration.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🌱</div>
+      <h3>Embodied carbon</h3>
+      <p>RIBA-stage carbon tracking with EC3 integration hooks. Per-element, per-system, per-level breakdown.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📈</div>
+      <h3>Model health score</h3>
+      <p>12-metric composite score (0–100). Tag completeness, geometry quality, naming convention, file size, warning count, workset health.</p>
+    </div>
+  </div>
+  <p style="margin-top:24px"><a href="/guides/bim-coordination.html">📖 Guide: BIM coordination workflow →</a></p>
+</section>
+
+<section>
+  <span class="feat-pill">For Finance &amp; Operations</span>
+  <h2>Local Invoicing &amp; Multi-Tenancy</h2>
+  <p class="lead">Built for African delivery — local currencies, mobile money, multi-firm collaboration.</p>
+  <div class="grid-3">
+    <div class="card">
+      <div class="icon">💱</div>
+      <h3>9 currencies</h3>
+      <p>UGX · KES · TZS · RWF · NGN · ZAR via Flutterwave. USD · EUR · GBP via Stripe. Invoiced in your chosen currency — no FX spread.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📱</div>
+      <h3>Mobile money</h3>
+      <p>MTN Mobile Money, Airtel Money, M-Pesa, Tigo Pesa, Vodacom — all routed through Flutterwave's collection API.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🏢</div>
+      <h3>Multi-tenant</h3>
+      <p>One firm = one tenant. Cross-firm collaboration: invite a contractor as a project member without forcing them to buy a license.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🛡️</div>
+      <h3>Role-based access</h3>
+      <p>Owner · BIM Manager · Project Lead · Coordinator · Viewer · Client. Each role has explicit project-level permissions.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📊</div>
+      <h3>Usage dashboard</h3>
+      <p>Active users, project count, storage used, mobile sessions — visible to the firm owner so trial-to-paid is a no-surprise conversation.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🎁</div>
+      <h3>30-day free trial</h3>
+      <p>Full Standard tier features. No credit card required. Daily expiry job notifies your admin 7 / 3 / 1 days before end.</p>
+    </div>
+  </div>
+  <p style="margin-top:24px"><a href="/guides/billing-and-trials.html">📖 Guide: Billing &amp; trials →</a></p>
+</section>
+
+<section style="background:var(--card)">
+  <span class="feat-pill">For IT &amp; Compliance</span>
+  <h2>Platform &amp; Integration</h2>
+  <p class="lead">Standards-based, well-documented APIs and import/export paths into the rest of your AEC stack.</p>
+  <div class="grid-3">
+    <div class="card">
+      <div class="icon">🌐</div>
+      <h3>IFC 4 import/export</h3>
+      <p>Substrate-driven IFC layer with 52 enums, 5 Psets, 5 IDS files, bSDD publication plan. Host-agnostic — Revit + Bonsai + (planned) ArchiCAD.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📦</div>
+      <h3>BCF 2.1</h3>
+      <p>Full round-trip: import from Navisworks / Solibri / Trimble Connect. Export to any BCF-compatible tool. Comments, snapshots, viewpoints preserved.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📊</div>
+      <h3>Excel round-trip</h3>
+      <p>Export every schedule to XLSX, edit, re-import. Conflict detection, audit trail, ClosedXML-styled output.</p>
+    </div>
+    <div class="card">
+      <div class="icon">☁️</div>
+      <h3>ACC + SharePoint sync</h3>
+      <p>Push deliverables to Autodesk Construction Cloud or SharePoint CDE. Delta-only sync — only changed files cross the wire.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🔐</div>
+      <h3>SSO + 2FA</h3>
+      <p>SAML 2.0 + OIDC for enterprise SSO. TOTP 2FA for individual accounts. Audit logs every login.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🐳</div>
+      <h3>Self-host option</h3>
+      <p>Docker Compose ships with the Enterprise plan. ASP.NET Core 8 + PostgreSQL + Redis + MinIO. Run on your hardware, your jurisdiction.</p>
+    </div>
+  </div>
+  <p style="margin-top:24px"><a href="/guides/self-hosting.html">📖 Guide: Self-hosting Planscape →</a></p>
+</section>
+
+<div class="cta-band">
+  <h2>See it on your project.</h2>
+  <p>Start a 30-day free trial — full Standard tier features. No credit card required.</p>
+  <a href="/signup">Start now</a>
+</div>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.app">hello@planscape.app</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/tutorials/">Tutorials</a>
+      <a href="https://docs.planscape.app/">Developer docs</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

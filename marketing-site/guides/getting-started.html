@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Getting started with Planscape</title>
+<meta name="description" content="Sign up, set up your firm, create your first project, invite your team. 10-minute walkthrough.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.app/guides/getting-started.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Getting started</div>
+  <h1>Getting started with Planscape</h1>
+  <div class="meta">📖 10-minute read · Beginner · Last updated 2026-05-23</div>
+
+  <p>Welcome. This guide walks you through everything you need to set up Planscape for your firm: signing up, configuring your tenant, creating your first project, and inviting your team. By the end you'll have a working project with the Revit plugin installed and a coordinator on the mobile app.</p>
+
+  <h2>What you'll need</h2>
+  <ul>
+    <li>An email address — yours, not a generic one. You're the tenant owner.</li>
+    <li>Your firm's legal name, billing address, and currency preference.</li>
+    <li>For the Revit plugin: a Windows machine running Revit 2025, 2026, or 2027.</li>
+    <li>For the mobile app: an iOS 16+ or Android 10+ phone.</li>
+    <li>Approximate GPS coordinates of your project site (we'll show you how to find them).</li>
+  </ul>
+
+  <h2>Step 1 — Sign up</h2>
+  <p>Visit <a href="https://planscape.app/signup">planscape.app/signup</a>. You'll be asked for:</p>
+  <ol>
+    <li><strong>Your firm's name</strong> — this becomes your tenant. It can be renamed later.</li>
+    <li><strong>Your name, role, and email</strong> — you're the tenant owner. Your email becomes your login.</li>
+    <li><strong>Country &amp; currency</strong> — pick the currency you'd like to be invoiced in.</li>
+    <li><strong>Password</strong> — minimum 12 characters. We don't enforce silly symbol-count rules, but we do block known-breached passwords.</li>
+  </ol>
+  <div class="callout">
+    <strong>No credit card required.</strong> Your 30-day free trial starts immediately. We'll only ask for a payment method when you're ready to upgrade.
+  </div>
+
+  <h2>Step 2 — Configure your tenant</h2>
+  <p>After signup you land on the tenant dashboard. Two things to do here:</p>
+  <h3>Upload your logo</h3>
+  <p>Settings → Branding. PNG or SVG, 400×400 minimum. This logo appears on every transmittal, RFI, and report your firm generates.</p>
+  <h3>Set your default ISO 19650 vocabulary</h3>
+  <p>Settings → Standards. Pick your default suitability codes, document type codes, and revision schemes. Most projects override these per-project, but having sensible defaults saves time.</p>
+  <div class="callout warn">
+    <strong>Heads up:</strong> Once a project is created with a particular code scheme, changing the tenant default won't retroactively change that project. Each project has its own copy.
+  </div>
+
+  <h2>Step 3 — Create your first project</h2>
+  <p>Click <strong>+ New Project</strong> on the dashboard. The form has three sections:</p>
+
+  <h3>Project metadata</h3>
+  <ul>
+    <li><strong>Project name</strong> — human-readable.</li>
+    <li><strong>Project code</strong> — short identifier (e.g. <code>KIH-2026</code>). Used in document numbers.</li>
+    <li><strong>Client name</strong> — the appointing party.</li>
+    <li><strong>Start &amp; target completion dates</strong> — used by the 4D scheduling tools later.</li>
+  </ul>
+
+  <h3>GPS coordinates</h3>
+  <p>This is what powers the mobile GPS site map. Two ways to set it:</p>
+  <ul>
+    <li><strong>Auto-detect from address</strong> — type the site address, we geocode it.</li>
+    <li><strong>Drop a pin</strong> — click "Pick on map" and click the site location on the world map.</li>
+  </ul>
+  <p>You can refine the coordinates later. The default zoom on the mobile map is set so that a 200m radius around your pin is visible.</p>
+
+  <h3>RIBA stage &amp; ISO 19650 context</h3>
+  <ul>
+    <li><strong>Current RIBA stage</strong> — drives drawing template defaults.</li>
+    <li><strong>BEP profile</strong> — pick from corporate templates or "blank".</li>
+    <li><strong>CDE state machine</strong> — defaults to <code>WIP → Shared → Published → Archived</code>.</li>
+  </ul>
+
+  <p>Click <strong>Create project</strong>. You're now in the project workspace.</p>
+
+  <h2>Step 4 — Invite your team</h2>
+  <p>Project &rsaquo; Team &rsaquo; <strong>+ Invite member</strong>. For each person:</p>
+  <table>
+    <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Email</td><td>Their work email — they'll get an invite link.</td></tr>
+      <tr><td>Role</td><td>Owner, BIM Manager, Project Lead, Coordinator, Viewer, or Client.</td></tr>
+      <tr><td>External?</td><td>Tick for contractors / clients from other firms — they won't count against your user cap.</td></tr>
+    </tbody>
+  </table>
+
+  <p>Roles map to permissions as follows:</p>
+  <ul>
+    <li><strong>Owner</strong> — full access including billing.</li>
+    <li><strong>BIM Manager</strong> — full project access, no billing.</li>
+    <li><strong>Project Lead</strong> — manages deliverables, transmittals, RFIs.</li>
+    <li><strong>Coordinator</strong> — raises issues, captures site data, can't approve deliverables.</li>
+    <li><strong>Viewer</strong> — read-only.</li>
+    <li><strong>Client</strong> — read-only on Published documents; can comment on transmittals.</li>
+  </ul>
+  <p>Roles can be changed any time from the same screen.</p>
+
+  <h2>Step 5 — Install the Revit plugin</h2>
+  <p>Skip if no-one on your team uses Revit.</p>
+  <ol>
+    <li>From your project workspace: Tools &rsaquo; <strong>Download Revit plugin</strong>.</li>
+    <li>You'll get <code>StingTools.zip</code>. Unzip it.</li>
+    <li>Copy the contents (<code>StingTools.addin</code> + <code>StingTools.dll</code> + supporting files) to:<br>
+        <code>%APPDATA%\Autodesk\Revit\Addins\2026\</code></li>
+    <li>Start Revit. You'll see a new <strong>STING Tools</strong> tab on the ribbon, and a "Planscape" dockable panel on the right.</li>
+    <li>Click <strong>Sign in</strong> in the panel and use the same credentials as the web app.</li>
+  </ol>
+  <p>For the full Revit plugin walkthrough, see <a href="/guides/revit-plugin-setup.html">Installing the Revit plugin</a>.</p>
+
+  <h2>Step 6 — Install the mobile app</h2>
+  <ol>
+    <li>iOS: <a href="https://apps.apple.com/app/planscape" target="_blank" rel="noopener">App Store</a></li>
+    <li>Android: <a href="https://play.google.com/store/apps/details?id=com.planscape.app" target="_blank" rel="noopener">Play Store</a></li>
+    <li>Open the app, sign in, choose your project.</li>
+    <li>Tap <strong>Pre-sync</strong> to download the project for offline use — recommended before going to site.</li>
+  </ol>
+  <p>For the full mobile walkthrough, see <a href="/guides/mobile-onboarding.html">Mobile app onboarding</a>.</p>
+
+  <h2>What's next</h2>
+  <p>You're set up. Common next steps:</p>
+  <ul>
+    <li>Walk through <a href="/tutorials/raise-issue-from-mobile.html">Raising your first issue from mobile</a> (6 min).</li>
+    <li>Set up the <a href="/guides/iso-19650-workflow.html">ISO 19650 workflow</a> for your project (CDE codes, suitability, naming).</li>
+    <li>If you're migrating from Autodesk Construction Cloud, see <a href="/guides/acc-sync.html">ACC sync &amp; migration</a>.</li>
+    <li>If you want to self-host instead, see <a href="/guides/self-hosting.html">Self-hosting Planscape</a>.</li>
+  </ul>
+
+  <div class="callout">
+    <strong>Need help?</strong> WhatsApp <a href="https://wa.me/256700000000" target="_blank" rel="noopener">+256 700 000 000</a> or email <a href="mailto:hello@planscape.app">hello@planscape.app</a>. We typically reply within 4 business hours (East Africa Time).
+  </div>
+
+  <div class="next-prev">
+    <a href="/guides/" class="prev">
+      <span class="lbl">← All guides</span>
+      Guides index
+    </a>
+    <a href="/guides/revit-plugin-setup.html" class="next">
+      <span class="lbl">Next →</span>
+      Installing the Revit plugin
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.app">hello@planscape.app</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/tutorials/">Tutorials</a>
+      <a href="https://docs.planscape.app/">Developer docs</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

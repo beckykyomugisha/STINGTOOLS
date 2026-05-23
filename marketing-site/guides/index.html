@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guides — Planscape</title>
+<meta name="description" content="In-depth Planscape guides: setting up the Revit plugin, mobile onboarding, ISO 19650 workflows, BIM coordination, billing, self-hosting.">
+<meta property="og:title" content="Planscape guides">
+<meta property="og:url" content="https://planscape.app/guides/">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.app/guides/">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.guide-cat { margin-top:32px; }
+.guide-cat h2 { font-size:22px; margin:0 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+.guide-list { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+.guide-row {
+  display:block; padding:14px 16px;
+  background:var(--card); border:1px solid var(--line); border-radius:10px;
+  text-decoration:none; color:inherit;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.guide-row:hover { border-color:var(--accent); }
+.guide-row .ttl { font-weight:600; font-size:15px; margin-bottom:4px; color:var(--ink); }
+.guide-row .sub { font-size:13px; color:var(--muted); }
+.guide-row .badge { display:inline-block; padding:2px 8px; background:rgba(232,145,45,0.10); color:var(--accent); border-radius:999px; font-size:11px; font-weight:600; margin-right:6px; }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<header class="page-header">
+  <h1>Guides</h1>
+  <p>Deep-dive guides that walk you through Planscape concept by concept. New to the platform? Start with <a href="/guides/getting-started.html">Getting started</a>.</p>
+</header>
+
+<section style="padding-top:0">
+  <div class="guide-cat">
+    <h2>🚀 Getting started</h2>
+    <div class="guide-list">
+      <a href="/guides/getting-started.html" class="guide-row">
+        <div class="ttl"><span class="badge">START HERE</span> Getting started with Planscape</div>
+        <div class="sub">Create your tenant, invite your team, set up your first project. 10-minute read.</div>
+      </a>
+      <a href="/guides/revit-plugin-setup.html" class="guide-row">
+        <div class="ttl">Installing the Revit plugin</div>
+        <div class="sub">Download, install, license-bind. Works on Revit 2025 / 2026 / 2027.</div>
+      </a>
+      <a href="/guides/mobile-onboarding.html" class="guide-row">
+        <div class="ttl">Mobile app onboarding</div>
+        <div class="sub">Install from the App Store / Play, log in, sync your first project.</div>
+      </a>
+      <a href="/guides/inviting-team.html" class="guide-row">
+        <div class="ttl">Inviting your team</div>
+        <div class="sub">Roles, permissions, external clients, removing users.</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="guide-cat">
+    <h2>🏗️ Project setup</h2>
+    <div class="guide-list">
+      <a href="/guides/creating-first-project.html" class="guide-row">
+        <div class="ttl">Creating your first project</div>
+        <div class="sub">Project metadata, GPS coordinates, ISO 19650 vocabulary, RIBA stages.</div>
+      </a>
+      <a href="/guides/iso-19650-workflow.html" class="guide-row">
+        <div class="ttl">ISO 19650 workflow setup</div>
+        <div class="sub">BEP, MIDP, naming conventions, suitability codes, CDE container model.</div>
+      </a>
+      <a href="/guides/sharing-with-clients.html" class="guide-row">
+        <div class="ttl">Sharing projects with clients</div>
+        <div class="sub">External members, viewer-only access, transmittal recipients, secure links.</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="guide-cat">
+    <h2>📱 Site coordination</h2>
+    <div class="guide-list">
+      <a href="/guides/gps-site-map.html" class="guide-row">
+        <div class="ttl">Using the GPS site map</div>
+        <div class="sub">Centre the map on your project, drop pins, share live location with the team.</div>
+      </a>
+      <a href="/guides/raising-issues.html" class="guide-row">
+        <div class="ttl">Raising and resolving issues</div>
+        <div class="sub">RFIs, NCRs, snag lists, assignment, status workflow, comment threads.</div>
+      </a>
+      <a href="/guides/photo-capture.html" class="guide-row">
+        <div class="ttl">Capturing site photos</div>
+        <div class="sub">Camera + gallery, geotagging, attaching to elements, offline queueing.</div>
+      </a>
+      <a href="/guides/offline-mode.html" class="guide-row">
+        <div class="ttl">Working offline</div>
+        <div class="sub">What syncs, what doesn't, how the replay queue handles conflicts.</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="guide-cat">
+    <h2>🧊 Revit plugin</h2>
+    <div class="guide-list">
+      <a href="/guides/auto-tagging.html" class="guide-row">
+        <div class="ttl">ISO 19650 auto-tagging</div>
+        <div class="sub">Tag 30,000 elements in &lt;1s. Configure discipline / system / product codes per project.</div>
+      </a>
+      <a href="/guides/drawing-templates.html" class="guide-row">
+        <div class="ttl">Drawing Template Manager</div>
+        <div class="sub">90 drawing types, 22 view style packs, healthcare/MEP/architectural profiles.</div>
+      </a>
+      <a href="/guides/clash-detection.html" class="guide-row">
+        <div class="ttl">Clash detection workflow</div>
+        <div class="sub">Run clash, triage by priority, push to BCF, resolve in source model, re-check.</div>
+      </a>
+      <a href="/guides/cobie-export.html" class="guide-row">
+        <div class="ttl">COBie 2.4 export</div>
+        <div class="sub">22 project-type presets, 19 worksheets, validation, handover packaging.</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="guide-cat">
+    <h2>🏥 Healthcare pack</h2>
+    <div class="guide-list">
+      <a href="/guides/healthcare-overview.html" class="guide-row">
+        <div class="ttl">Healthcare pack overview</div>
+        <div class="sub">HTM / HBN / FGI / NFPA 99 / NCRP 147 — what's covered, what to set up.</div>
+      </a>
+      <a href="/guides/mgas-verification.html" class="guide-row">
+        <div class="ttl">Medical gas (HTM 02-01)</div>
+        <div class="sub">12-step verification log, manifold sizing, terminal unit count, alarm panels.</div>
+      </a>
+      <a href="/guides/pressure-regimes.html" class="guide-row">
+        <div class="ttl">Pressure regimes (HTM 03-01)</div>
+        <div class="sub">Pressure cascade audit, isolation cubicles, positive/negative room mapping.</div>
+      </a>
+      <a href="/guides/anti-ligature.html" class="guide-row">
+        <div class="ttl">Anti-ligature audit</div>
+        <div class="sub">Mental-health fittings audit, observation lines, compliance matrix.</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="guide-cat">
+    <h2>💳 Billing &amp; account</h2>
+    <div class="guide-list">
+      <a href="/guides/billing-and-trials.html" class="guide-row">
+        <div class="ttl">Billing &amp; the free trial</div>
+        <div class="sub">30-day trial, upgrading, downgrading, mobile money, FX, invoices.</div>
+      </a>
+      <a href="/guides/changing-currency.html" class="guide-row">
+        <div class="ttl">Changing your billing currency</div>
+        <div class="sub">9 currencies supported, how exchange rates work, cycle alignment.</div>
+      </a>
+      <a href="/guides/canceling.html" class="guide-row">
+        <div class="ttl">Cancelling &amp; exporting data</div>
+        <div class="sub">How to cancel, what we keep, how to export everything.</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="guide-cat">
+    <h2>🛠️ Admin &amp; IT</h2>
+    <div class="guide-list">
+      <a href="/guides/sso.html" class="guide-row">
+        <div class="ttl">Setting up SSO</div>
+        <div class="sub">SAML 2.0 + OIDC. Azure AD, Google Workspace, Okta walk-throughs.</div>
+      </a>
+      <a href="/guides/2fa.html" class="guide-row">
+        <div class="ttl">Two-factor authentication</div>
+        <div class="sub">Enable TOTP per user, enforce 2FA per tenant, recovery codes.</div>
+      </a>
+      <a href="/guides/audit-logs.html" class="guide-row">
+        <div class="ttl">Audit logs &amp; hash chain</div>
+        <div class="sub">What gets logged, how to verify the chain, exporting for compliance.</div>
+      </a>
+      <a href="/guides/self-hosting.html" class="guide-row">
+        <div class="ttl">Self-hosting Planscape</div>
+        <div class="sub">Docker Compose, hardware requirements, backup, monitoring, upgrades.</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="guide-cat">
+    <h2>🔌 Integrations</h2>
+    <div class="guide-list">
+      <a href="/guides/acc-sync.html" class="guide-row">
+        <div class="ttl">Autodesk Construction Cloud sync</div>
+        <div class="sub">Connect ACC, scope what syncs, conflict handling, migration from ACC.</div>
+      </a>
+      <a href="/guides/sharepoint.html" class="guide-row">
+        <div class="ttl">SharePoint integration</div>
+        <div class="sub">Deliverable export to SharePoint CDE folders. M365 tenant binding.</div>
+      </a>
+      <a href="/guides/bcf-roundtrip.html" class="guide-row">
+        <div class="ttl">BCF 2.1 round-trip</div>
+        <div class="sub">Import from Navisworks / Solibri / BIM Track. Export to any BCF tool.</div>
+      </a>
+      <a href="/guides/excel-roundtrip.html" class="guide-row">
+        <div class="ttl">Excel bidirectional sync</div>
+        <div class="sub">Export schedule, edit in Excel, re-import, conflict resolution.</div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<div class="cta-band">
+  <h2>Looking for a hands-on walkthrough?</h2>
+  <p>Tutorials show you exactly how to use each feature, step by step.</p>
+  <a href="/tutorials/">Browse tutorials</a>
+</div>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.app">hello@planscape.app</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/tutorials/">Tutorials</a>
+      <a href="https://docs.planscape.app/">Developer docs</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>
