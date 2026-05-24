@@ -247,20 +247,6 @@ namespace StingTools.UI
                 // still resolve against the in-memory Corporate map.
                 CurrentTheme = FallbackTheme;
             }
-
-            // Set resources on the host element FIRST (direct, always works in Revit)
-            ApplyToTarget(theme, _targetElement?.Resources);
-
-            // Also set on Application.Current for any child windows/dialogs
-            ApplyToTarget(theme, Application.Current?.Resources);
-
-            CurrentTheme = themeName;
-            StingLog.Info($"ThemeManager: applied '{themeName}' theme");
-
-            // Notify subscribers (modeless windows like BCC) so they can
-            // refresh code-behind brushes that don't go through DynamicResource.
-            try { ThemeChanged?.Invoke(null, EventArgs.Empty); }
-            catch (Exception ex) { StingLog.Warn($"ThemeManager.ThemeChanged: {ex.Message}"); }
         }
 
 
