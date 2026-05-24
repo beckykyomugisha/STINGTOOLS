@@ -77,12 +77,21 @@ namespace StingTools.UI
             public Dictionary<string, Border> BadgeDots = new();
         }
 
+        private static bool _providersRegistered;
+
         /// <summary>
         /// Show the v2 dashboard. Doc may be null (read-only inspection mode).
         /// Returns the same TemplateManagerResult contract as v1.
         /// </summary>
         public static TemplateManagerResult Show(Document doc)
         {
+            // Lazy-register preview providers on first show
+            if (!_providersRegistered)
+            {
+                try { PreviewProviders.RegisterAll(); _providersRegistered = true; }
+                catch (Exception ex) { StingLog.Warn($"PreviewProviders.RegisterAll: {ex.Message}"); }
+            }
+
             var state = new DashboardState
             {
                 Doc = doc,
