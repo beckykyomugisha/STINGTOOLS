@@ -905,7 +905,8 @@ namespace StingTools.UI
                     Transparency   = kv.Value != null && kv.Value.Transparency> 0 ? kv.Value.Transparency: (int?)null
                 };
             }
-            catch { }
+            return bridge;
+        }
 
         /// <summary>
         /// Phase 137 — push a single edited row from the inline VG editor
@@ -984,18 +985,6 @@ namespace StingTools.UI
             }
             body.Children.Add(wrap);
             return Card("Managed fields", body);
-        }
-
-
-
-            var ctrls = new UIElement[] { keyBox, vis, ht, pc, pw, cc, cw, tr };
-            for (int i = 0; i < ctrls.Length; i++)
-            {
-                Grid.SetColumn(ctrls[i], i);
-                if (ctrls[i] is FrameworkElement fe) fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
-                g.Children.Add(ctrls[i]);
-            }
-            return g;
         }
 
         private CheckBox MakeChk(bool value, Action<bool> setter)

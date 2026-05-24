@@ -327,25 +327,7 @@ namespace StingTools.Core.Drawing
                     }
                 }
                 catch (Exception ex) { result.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
-
-                            if (!string.IsNullOrEmpty(styleName))
-                            {
-                                // Find any FamilySymbol whose name contains the style preset name.
-                                var match = new FilteredElementCollector(doc)
-                                    .OfClass(typeof(FamilySymbol))
-                                    .Cast<FamilySymbol>()
-                                    .FirstOrDefault(fs =>
-                                        fs.Name.IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                        (fs.Family?.Name ?? "").IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0);
-                                if (match != null) result = match.Id;
-                            }
-                        }
-                    }
-                }
-                catch { /* resolver must never throw */ }
             }
-
-            return result ?? ElementId.InvalidElementId;
         }
 
         private static BuiltInCategory TagCategoryFor(BuiltInCategory host)
@@ -493,38 +475,6 @@ namespace StingTools.Core.Drawing
                 case BuiltInCategory.OST_StructuralFraming:    return BuiltInCategory.OST_StructuralFramingTags;
                 default:                                       return host;
             }
-        }
-
-        private static ElementId ResolveDimensionStyleId(Document doc, string styleName)
-        {
-            if (string.IsNullOrWhiteSpace(styleName)) return ElementId.InvalidElementId;
-            var dt = new FilteredElementCollector(doc)
-                .OfClass(typeof(DimensionType))
-                .Cast<DimensionType>()
-                .FirstOrDefault(d => string.Equals(d.Name, styleName, StringComparison.OrdinalIgnoreCase));
-            return dt?.Id ?? ElementId.InvalidElementId;
-        }
-
-        private static XYZ GetElementCentre(Element el)
-        {
-            try
-            {
-                if (Enum.TryParse<BuiltInCategory>(category, true, out var bic))
-                {
-                    var tagBic = MapCategoryToTagBic(bic);
-                    if (tagBic != null)
-                    {
-                        var sym = new FilteredElementCollector(doc)
-                            .OfClass(typeof(FamilySymbol))
-                            .OfCategory(tagBic.Value)
-                            .Cast<FamilySymbol>()
-                            .FirstOrDefault();
-                        if (sym != null) return sym.Id;
-                    }
-                }
-            }
-            catch { }
-            return ElementId.InvalidElementId;
         }
 
         private static FamilySymbol FindFamilySymbolByName(Document doc, string name)

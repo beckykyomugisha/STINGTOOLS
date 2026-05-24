@@ -680,7 +680,8 @@ namespace StingTools.UI
                     {
                         StingLog.Warn($"SitePhotosTab thumbnail decode {r.Dto.Id}: {ex2.Message}");
                     }
-                }
+                });
+                await Task.WhenAll(tasks);
             }
             _ = LoadThumbsAsync();
         }
