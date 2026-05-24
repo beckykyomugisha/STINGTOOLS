@@ -45,7 +45,7 @@ namespace StingTools.Core.Materials
         {
             try
             {
-                if (mat?.AppearanceAssetId == null || mat.AppearanceAssetId.IntegerValue <= 0) return false;
+                if (mat?.AppearanceAssetId == null || mat.AppearanceAssetId.Value <= 0) return false;
                 if (!(doc.GetElement(mat.AppearanceAssetId) is AppearanceAssetElement aae)) return false;
                 var src = aae.GetRenderingAsset();
                 return src?.FindByName("advanced_base_color") != null;
@@ -83,8 +83,9 @@ namespace StingTools.Core.Materials
                 if (mode == ConvertMode.DuplicateMaterial)
                 {
                     string newName = UniqueMaterialName(doc, mat.Name + " (PBR)");
-                    ElementId dupId = mat.Duplicate(newName);
-                    target = doc.GetElement(dupId) as Material ?? mat;
+                    // Material.Duplicate returns a Material (not an ElementId)
+                    // since Revit 2017.
+                    target = mat.Duplicate(newName) ?? mat;
                 }
 
                 // Duplicate the donor's appearance-asset element so we don't

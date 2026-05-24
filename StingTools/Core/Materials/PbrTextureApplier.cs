@@ -66,7 +66,7 @@ namespace StingTools.Core.Materials
                 r.Warnings.Add("Apply: null doc/material/manifest");
                 return r;
             }
-            if (mat.AppearanceAssetId == null || mat.AppearanceAssetId.IntegerValue <= 0)
+            if (mat.AppearanceAssetId == null || mat.AppearanceAssetId.Value <= 0)
             {
                 r.Warnings.Add($"Apply: material '{mat.Name}' has no AppearanceAssetId");
                 return r;
@@ -171,8 +171,11 @@ namespace StingTools.Core.Materials
                 var slot = asset.FindByName(slotName) as AssetProperty;
                 if (slot == null) return false;
 
-                // Create a UnifiedBitmap asset and connect it.
-                Asset bmpAsset;
+                // Create / locate a UnifiedBitmap asset and connect it.
+                // Revit 2024+ `AssetProperty.AddConnectedAsset(string)` returns
+                // void — fetch the newly-connected asset via
+                // GetSingleConnectedAsset() / GetConnectedProperty(0).
+                Asset bmpAsset = null;
                 if (slot.NumberOfConnectedProperties > 0 &&
                     slot.GetConnectedProperty(0) is Asset existing &&
                     existing.Name == "UnifiedBitmapSchema")
@@ -181,12 +184,12 @@ namespace StingTools.Core.Materials
                 }
                 else
                 {
-                    bmpAsset = slot.GetSingleConnectedAsset() as Asset;
+                    bmpAsset = slot.GetSingleConnectedAsset();
                     if (bmpAsset == null)
                     {
-                        // Add a fresh bitmap connection.
-                        AssetProperty bmpProp = slot.AddConnectedAsset("UnifiedBitmapSchema");
-                        bmpAsset = bmpProp as Asset ?? slot.GetSingleConnectedAsset() as Asset;
+                        slot.AddConnectedAsset("UnifiedBitmapSchema");
+                        bmpAsset = slot.GetSingleConnectedAsset()
+                                ?? slot.GetConnectedProperty(0) as Asset;
                     }
                 }
                 if (bmpAsset == null) return false;
@@ -260,11 +263,15 @@ namespace StingTools.Core.Materials
                         {
                             var prop = asset.FindByName(slotName) as AssetProperty;
                             if (prop == null) continue;
-                            int connections = prop.NumberOfConnectedProperties;
-                            for (int i = connections - 1; i >= 0; i--)
+                            // Revit 2024+ `RemoveConnectedAsset()` takes no args
+                            // and detaches the single connection. Loop until the
+                            // slot reports zero connections — safe even when more
+                            // than one was attached (rare).
+                            int guard = 0;
+                            while (prop.NumberOfConnectedProperties > 0 && guard++ < 8)
                             {
-                                var connected = prop.GetConnectedProperty(i);
-                                if (connected != null) { prop.RemoveConnectedAsset(i); cleared++; }
+                                prop.RemoveConnectedAsset();
+                                cleared++;
                             }
                         }
                         catch (Exception ex) { StingLog.WarnRateLimited("PbrClear", $"Clear '{slotName}': {ex.Message}"); }
