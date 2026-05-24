@@ -101,6 +101,16 @@ namespace StingTools.Core.Materials
                     ["schema"] = r.SchemaUsed,
                     ["slots"] = r.SlotsWritten,
                 });
+                if (r.Success)
+                {
+                    // Downstream consumers (where-used, merge, name-keyed
+                    // lookups, status-bar chip strip) need to see the new
+                    // appearance state immediately rather than at next F5.
+                    try { MaterialNameCache.Invalidate(doc); } catch { /* non-fatal */ }
+                    try { MaterialUsageIndex.Invalidate(doc); } catch { /* non-fatal */ }
+                    try { MaterialActivityFeed.Add("MAT_PbrApply", mat.Name,
+                        $"{r.SlotsWritten} maps · {r.SchemaUsed} · {manifest.ProviderId}"); } catch { /* non-fatal */ }
+                }
                 return r;
             }
             catch (Exception ex)
@@ -279,6 +289,13 @@ namespace StingTools.Core.Materials
                     scope.Commit(true);
                 }
                 MaterialAuditLogger.Log(doc, "MAT_PbrClear", mat.Name, new Dictionary<string, object> { ["slotsCleared"] = cleared });
+                if (cleared > 0)
+                {
+                    try { MaterialNameCache.Invalidate(doc); } catch { /* non-fatal */ }
+                    try { MaterialUsageIndex.Invalidate(doc); } catch { /* non-fatal */ }
+                    try { MaterialActivityFeed.Add("MAT_PbrClear", mat.Name, $"{cleared} slot(s) cleared"); }
+                    catch { /* non-fatal */ }
+                }
             }
             catch (Exception ex) { StingLog.Warn($"PbrTextureApplier.ClearAllSlots('{mat?.Name}'): {ex.Message}"); }
             return cleared;

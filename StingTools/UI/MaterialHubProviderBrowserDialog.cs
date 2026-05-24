@@ -320,7 +320,11 @@ namespace StingTools.UI
                 _cts = new CancellationTokenSource();
                 string resHint = (_resolutionCombo.SelectedItem as ComboBoxItem)?.Content?.ToString();
                 string fmtHint = (_formatCombo.SelectedItem as ComboBoxItem)?.Content?.ToString();
-                var manifest = await _activeProvider.DownloadPackAsync(_selectedAsset, root, resHint, fmtHint, _cts.Token);
+                var ct = _cts.Token;
+                var manifest = await _activeProvider.DownloadPackAsync(_selectedAsset, root, resHint, fmtHint, ct);
+                // Window closed mid-download → don't pop a results MessageBox
+                // on a dead window; just bail.
+                if (ct.IsCancellationRequested) return;
                 if (manifest == null || manifest.Maps.FilledSlotCount == 0)
                 {
                     MessageBox.Show(this, "Download finished but no PBR maps were detected. Check disk permissions and provider connectivity.", "STING", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -331,9 +335,11 @@ namespace StingTools.UI
                 DialogResult = true;
                 Close();
             }
+            catch (OperationCanceledException) { /* window closed mid-download — silent */ }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Download failed: " + ex.Message, "STING", MessageBoxButton.OK, MessageBoxImage.Error);
+                try { MessageBox.Show(this, "Download failed: " + ex.Message, "STING", MessageBoxButton.OK, MessageBoxImage.Error); }
+                catch { /* window already closed */ }
                 _okButton.IsEnabled = true;
                 StingLog.Warn($"DownloadAndCloseAsync: {ex.Message}");
             }

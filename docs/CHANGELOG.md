@@ -5492,3 +5492,53 @@ materials.
    download into `_BIM_COORD/textures/architextures/`. Then either
    `Pbr_BulkApply` or the Inspector's "Apply pack…" picker takes it
    from there.
+
+#### Completed (Phase 190 — Material Hub PBR review fixes)
+
+Closes the eight findings from the Phase 189 Material Hub review on
+branch `claude/epic-galileo-MyB2x`. Brings the new PBR card up to
+parity with the rest of the hub's integration points and removes
+the gridscape staleness, dispatch divergence, decision-fatigue,
+and event-leak smells the review surfaced.
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `Core/Materials/PbrTextureApplier.cs` | After `Apply` + `ClearAllSlots` success: `MaterialNameCache.Invalidate(doc)`, `MaterialUsageIndex.Invalidate(doc)`, `MaterialActivityFeed.Add(...)` so the status-bar chip strip + where-used + name-keyed lookups see the change immediately rather than at next F5 |
+| `Core/Materials/GenericToPrismConverter.cs` | New `MAT_PrismDuplicateCreated` audit entry on the **duplicate** material (with `source` + `sourceId`) so later merges / audit replays preserve which pack came from which original |
+| `UI/MaterialHubPanel.Textures.cs` | (1) `_packStatePerMaterial Dictionary<long,TexturePackManifest>` persists UV/slider/displacement-toggle state per material so it survives `RebuildInspector`. (2) `_lastGenericToPrismChoice` session memory eliminates the "ask every time" pop-up; a "Choose differently…" link on the schema pill resets it. (3) New `InsertOrReloadRowForMaterial` adds DuplicateMaterial results to `_rows` live (no F5 required). (4) New `FindMaterialsSharingAppearance` returns sibling materials so InPlace conversions refresh every grid row that depends on the mutated asset. (5) `DoConvert` now invalidates caches, posts an activity-feed entry, and refreshes the right rows |
+| `UI/MaterialHubPanel.Builders.cs` | New "TEXTURES" action group on the main action bar (Browse Library… · Bulk Apply · Apply Pack… · Reload Providers) — makes `Pbr_BulkApply` discoverable next to FILE/LIBRARY/AUTOMATION/GATES/PIVOT/CONNECT instead of buried only inside the inspector card |
+| `UI/MaterialHubPanel.xaml.cs` | `Unloaded` handler unsubscribes `MaterialActivityFeed.OnAdded` so a dock-then-hide cycle no longer accumulates duplicate handlers |
+| `UI/MaterialHubProviderBrowserDialog.cs` | `DownloadAndCloseAsync` checks `ct.IsCancellationRequested` after `DownloadPackAsync` returns and swallows `OperationCanceledException`, so closing the window mid-download no longer pops a results MessageBox on the dead window |
+
+**Behaviour changes visible to authors**:
+
+1. PBR apply now shows up as a chip in the status-bar activity feed
+   (e.g. `MAT_PbrApply · concrete_grey_2k · 5 maps · Prism · polyhaven`).
+2. Choosing "duplicate to new" for a Generic→Prism conversion adds
+   the new material to the grid immediately — no manual F5.
+3. The "Yes/No/Cancel" Generic→Prism dialog only fires once per
+   session; thereafter STING reuses the choice silently. A "Choose
+   differently…" link on the schema pill resets the memory.
+4. Re-selecting a material in the grid re-loads its persisted PBR
+   settings (UV scale, rotation, bump amount, normal intensity,
+   displacement toggle) so half-finished tuning isn't lost.
+5. Bulk action paths are now reachable directly from the toolbar's
+   new "TEXTURES" group, not just the inspector.
+
+**Caveats (Phase 190)**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `_packStatePerMaterial` is process-lifetime — closing the
+   project loses the UV/slider state. Persisting to a per-material
+   shared parameter (`STING_PBR_UV_SCALE_X_MM`, etc.) is a
+   follow-up if authors want it to survive Revit restarts.
+3. The "Choose differently…" link only appears once the user has
+   made an initial decision, so the first Generic apply still goes
+   through the prompt.
+4. `MaterialBlockerChain` is still not wired for PBR apply (review
+   item 3.6) — every other gate engine (sustainability, coverage,
+   healthcare) has its own veto channel; PBR doesn't yet. Add a
+   `BlockerChain.CheckPbrApply` veto when the first project asks
+   for it.

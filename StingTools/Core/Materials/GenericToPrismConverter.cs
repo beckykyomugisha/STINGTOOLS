@@ -120,6 +120,18 @@ namespace StingTools.Core.Materials
                     ["resultMaterial"] = target.Name,
                 });
 
+                // Separate provenance entry on the new material so later
+                // merges / audit-replays preserve "which pack went onto
+                // which original" without scanning sibling entries.
+                if (mode == ConvertMode.DuplicateMaterial && target != mat)
+                {
+                    MaterialAuditLogger.Log(doc, "MAT_PrismDuplicateCreated", target.Name, new Dictionary<string, object>
+                    {
+                        ["source"] = mat.Name,
+                        ["sourceId"] = mat.Id.Value,
+                    });
+                }
+
                 r.Success = true;
                 r.ResultMaterial = target;
                 r.Note = mode == ConvertMode.DuplicateMaterial

@@ -135,6 +135,13 @@ namespace StingTools.UI
                 ("Enrich Schedules", "MAT_EnrichSchedules"),
                 ("Make Legend",      "MaterialLegend"),
             }));
+            actionBar.Items.Add(MakeActionGroup("TEXTURES",   new[]
+            {
+                ("Browse Library…",  "Pbr_BrowseLibrary"),
+                ("Bulk Apply",       "Pbr_BulkApply"),
+                ("Apply Pack…",      "HUB_PBR_ApplyFolder"),
+                ("Reload Providers", "Pbr_ReloadProviders"),
+            }));
         }
 
         private Border MakeActionGroup(string header, (string label, string tag)[] items)

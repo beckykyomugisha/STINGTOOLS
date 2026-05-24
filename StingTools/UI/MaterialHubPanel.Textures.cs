@@ -38,6 +38,17 @@ namespace StingTools.UI
             ("anisotropy",   "Anisotropy"),
         };
 
+        // Per-material pack state — keyed by ElementId.Value so UV / slider /
+        // displacement toggle edits survive panel rebuilds and material
+        // re-selection. Rebuilt-but-not-applied state lives here too.
+        private static readonly Dictionary<long, TexturePackManifest> _packStatePerMaterial
+            = new Dictionary<long, TexturePackManifest>();
+
+        // Session-scoped memory of the user's last Generic→Prism decision so
+        // we don't ask the same question every apply. Reset on plugin reload.
+        private static System.Windows.MessageBoxResult _lastGenericToPrismChoice
+            = System.Windows.MessageBoxResult.None;
+
         private TexturePackManifest _activePackForInspector;
 
         internal UIElement BuildPbrTexturesCard(MaterialRow row)
@@ -45,6 +56,13 @@ namespace StingTools.UI
             var sp = new StackPanel();
             var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
             var mat = (row != null && doc != null) ? doc.GetElement(row.Id) as Material : null;
+
+            // Hydrate the active pack from per-material state so UV /
+            // sliders / displacement toggle survive RebuildInspector.
+            if (mat != null && _packStatePerMaterial.TryGetValue(mat.Id.Value, out var persisted))
+                _activePackForInspector = persisted;
+            else
+                _activePackForInspector = null;
 
             // ── Header ────────────────────────────────────────────────
             bool isPrism = (doc != null && mat != null) && GenericToPrismConverter.IsPrism(doc, mat);
@@ -73,6 +91,8 @@ namespace StingTools.UI
                 var convertActions = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
                 convertActions.Children.Add(MakeAction("Convert in place", "HUB_PBR_ConvertInPlace"));
                 convertActions.Children.Add(MakeAction("Duplicate → new", "HUB_PBR_DuplicateToPrism"));
+                if (_lastGenericToPrismChoice != MessageBoxResult.None)
+                    convertActions.Children.Add(MakeAction("Choose differently…", "HUB_PBR_ResetDecision"));
                 sp.Children.Add(convertActions);
             }
 
@@ -242,6 +262,10 @@ namespace StingTools.UI
                         if (mat == null) { Toast("Pick a material first.", "warn"); return true; }
                         DoConvert(doc, row, mat, GenericToPrismConverter.ConvertMode.DuplicateMaterial);
                         return true;
+                    case "HUB_PBR_ResetDecision":
+                        ResetGenericToPrismDecision();
+                        if (row != null) RebuildInspector(row);
+                        return true;
                     case "HUB_PBR_Browse":
                         ShowProviderBrowser(doc, mat);
                         return true;
@@ -276,13 +300,34 @@ namespace StingTools.UI
 
         private void DoConvert(Document doc, MaterialRow row, Material mat, GenericToPrismConverter.ConvertMode mode)
         {
+            var siblingIds = (mode == GenericToPrismConverter.ConvertMode.InPlace)
+                ? FindMaterialsSharingAppearance(doc, mat).ToList()
+                : new List<ElementId>();
+
             using (var t = new Transaction(doc, "STING Convert material to Prism"))
             {
                 t.Start();
                 var r = GenericToPrismConverter.Convert(doc, mat, mode);
                 if (r.Success) t.Commit(); else t.RollBack();
                 Toast(r.Note, r.Success ? "ok" : "warn");
-                if (r.Success && row != null) RebuildInspector(row);
+                if (!r.Success) return;
+
+                // Bring cache/feed/grid into sync with the new appearance state.
+                try { MaterialNameCache.Invalidate(doc); } catch { /* non-fatal */ }
+                try { MaterialUsageIndex.Invalidate(doc); } catch { /* non-fatal */ }
+                try { MaterialActivityFeed.Add("MAT_PrismConvert", r.ResultMaterial?.Name ?? mat.Name,
+                    mode == GenericToPrismConverter.ConvertMode.DuplicateMaterial ? "duplicated → Prism" : "converted in place"); }
+                catch { /* non-fatal */ }
+
+                if (mode == GenericToPrismConverter.ConvertMode.DuplicateMaterial && r.ResultMaterial != null)
+                    InsertOrReloadRowForMaterial(r.ResultMaterial);
+                else
+                {
+                    ReloadSingleRow(mat.Id);
+                    foreach (var id in siblingIds) ReloadSingleRow(id);
+                }
+
+                if (row != null) RebuildInspector(row);
             }
         }
 
@@ -339,15 +384,18 @@ namespace StingTools.UI
             {
                 if (!GenericToPrismConverter.IsPrism(doc, mat))
                 {
-                    var dr = MessageBox.Show(Window.GetWindow(this),
-                        $"'{mat.Name}' uses the legacy Generic appearance schema, which can't hold the full PBR pack ({m.Maps.FilledSlotCount} maps). " +
-                        "Yes  → convert in-place (mutates the appearance asset; may affect other materials that share it).\n" +
-                        "No   → duplicate the material to a new Prism copy and apply there.\n" +
-                        "Cancel → abort.",
-                        "Generic → Prism conversion", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                    var dr = ResolveGenericToPrismChoice(mat, m);
                     if (dr == MessageBoxResult.Cancel) return;
 
+                    // Snapshot peer materials sharing this appearance asset so
+                    // we can refresh their grid rows when an InPlace conversion
+                    // mutates the shared asset.
+                    var siblingIds = (dr == MessageBoxResult.Yes)
+                        ? FindMaterialsSharingAppearance(doc, mat).ToList()
+                        : new List<ElementId>();
+
                     Material target = mat;
+                    bool createdNewMaterial = (dr != MessageBoxResult.Yes);
                     using (var t = new Transaction(doc, "STING PBR convert + apply"))
                     {
                         t.Start();
@@ -363,6 +411,13 @@ namespace StingTools.UI
                             ? $"Applied {ar.SlotsWritten} maps ({ar.SchemaUsed}) → {target.Name}"
                             : "Apply failed: " + string.Join("; ", ar.Warnings),
                             ar.Success ? "ok" : "error");
+
+                        if (ar.Success)
+                        {
+                            PersistPackState(target, m);
+                            if (createdNewMaterial) InsertOrReloadRowForMaterial(target);
+                            else                    foreach (var id in siblingIds) ReloadSingleRow(id);
+                        }
                     }
                     return;
                 }
@@ -376,9 +431,86 @@ namespace StingTools.UI
                         ? $"Applied {r.SlotsWritten} maps ({r.SchemaUsed})."
                         : "Apply failed: " + string.Join("; ", r.Warnings),
                         r.Success ? "ok" : "error");
+
+                    if (r.Success)
+                    {
+                        PersistPackState(mat, m);
+                        ReloadSingleRow(mat.Id);
+                    }
                 }
             }
             catch (Exception ex) { Toast($"Apply failed: {ex.Message}", "error"); StingLog.Warn($"ApplyManifest: {ex.Message}"); }
+        }
+
+        /// <summary>Reuse the user's last Generic→Prism decision for this
+        /// session; only prompt when they've never picked. Reset via the
+        /// schema pill's "Choose differently…" button.</summary>
+        private MessageBoxResult ResolveGenericToPrismChoice(Material mat, TexturePackManifest m)
+        {
+            if (_lastGenericToPrismChoice == MessageBoxResult.Yes ||
+                _lastGenericToPrismChoice == MessageBoxResult.No)
+                return _lastGenericToPrismChoice;
+
+            var dr = MessageBox.Show(Window.GetWindow(this) ?? Application.Current?.MainWindow,
+                $"'{mat.Name}' uses the legacy Generic appearance schema, which can't hold the full PBR pack ({m.Maps.FilledSlotCount} maps). " +
+                "Yes  → convert in-place (mutates the appearance asset; may affect other materials that share it).\n" +
+                "No   → duplicate the material to a new Prism copy and apply there.\n" +
+                "Cancel → abort.\n\n" +
+                "(STING remembers your answer for the rest of this session. " +
+                "Use 'Choose differently…' on the schema pill to reset.)",
+                "Generic → Prism conversion", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            if (dr != MessageBoxResult.Cancel) _lastGenericToPrismChoice = dr;
+            return dr;
+        }
+
+        /// <summary>Materials whose <see cref="Material.AppearanceAssetId"/>
+        /// equals <paramref name="mat"/>'s. Empty list when nothing shared.</summary>
+        private static IEnumerable<ElementId> FindMaterialsSharingAppearance(Document doc, Material mat)
+        {
+            if (doc == null || mat?.AppearanceAssetId == null || mat.AppearanceAssetId.Value <= 0) yield break;
+            long targetAsset = mat.AppearanceAssetId.Value;
+            foreach (Material m in new FilteredElementCollector(doc).OfClass(typeof(Material)))
+            {
+                if (m.AppearanceAssetId != null && m.AppearanceAssetId.Value == targetAsset && m.Id.Value != mat.Id.Value)
+                    yield return m.Id;
+            }
+        }
+
+        private static void PersistPackState(Material mat, TexturePackManifest m)
+        {
+            try { if (mat != null && m != null) _packStatePerMaterial[mat.Id.Value] = m; }
+            catch { /* non-fatal */ }
+        }
+
+        /// <summary>Insert a freshly-created Material into the grid (no F5
+        /// required) or refresh its row if it already exists.</summary>
+        private void InsertOrReloadRowForMaterial(Material mat)
+        {
+            try
+            {
+                if (mat == null || _rows == null) return;
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                for (int i = 0; i < _rows.Count; i++)
+                {
+                    if (_rows[i].Id?.Value == mat.Id.Value)
+                    {
+                        _rows[i] = MaterialRowBuilder.BuildOne(doc, mat);
+                        return;
+                    }
+                }
+                // Not present → append; sort key preserved by Refresh later.
+                _rows.Add(MaterialRowBuilder.BuildOne(doc, mat));
+            }
+            catch (Exception ex) { StingLog.Warn($"InsertOrReloadRowForMaterial: {ex.Message}"); }
+        }
+
+        /// <summary>Public reset of the Generic→Prism decision memory — wired
+        /// to the 'Choose differently…' link in the inspector.</summary>
+        internal void ResetGenericToPrismDecision()
+        {
+            _lastGenericToPrismChoice = MessageBoxResult.None;
+            Toast("Will prompt again on the next Generic-material apply.", "info");
         }
 
         private void PickSingleSlot(Document doc, MaterialRow row, Material mat, string slotKey)

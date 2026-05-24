@@ -39,8 +39,15 @@ namespace StingTools.UI
             LastInstance = this;
             this.Loaded += (_, __) => InitialPopulate();
             // Priority 7 — Subscribe to the activity feed so newly-pushed
-            // entries surface in the status bar immediately.
+            // entries surface in the status bar immediately. Unsubscribe on
+            // Unloaded so a docked-then-hidden panel doesn't accumulate
+            // duplicate handlers across multiple show/hide cycles.
             MaterialActivityFeed.OnAdded += RenderActivityFeed;
+            this.Unloaded += (_, __) =>
+            {
+                try { MaterialActivityFeed.OnAdded -= RenderActivityFeed; }
+                catch (Exception ex) { StingLog.WarnRateLimited("HubUnload", $"Unsubscribe ActivityFeed: {ex.Message}"); }
+            };
         }
 
         private void RenderActivityFeed()
