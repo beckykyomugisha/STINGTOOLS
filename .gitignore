@@ -90,3 +90,8 @@ shared/ifc/psd_out/
 # variants are not.
 tests/fixtures/*.ifc
 tests/fixtures/*.roundtrip.ifc
+
+# PBR texture packs downloaded by users at runtime — large binary
+# blobs, per-project, never source-controlled.
+_BIM_COORD/textures/
+**/_BIM_COORD/textures/

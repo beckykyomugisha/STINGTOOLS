@@ -1851,6 +1851,9 @@
                                     <Button Style="{StaticResource BlueBtn}" Content="Make Legend" Tag="MaterialLegend" Click="Cmd_Click" ToolTip="B4 — Cross-link to LegendBuilder.MaterialLegendCommand. Creates a drafting view legend with FilledRegion swatches grouped by class."/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="Create BLE (815)" Tag="CreateBLEMaterials" Click="Cmd_Click" ToolTip="Create 815 building materials from BLE_MATERIALS.csv"/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="Create MEP (464)" Tag="CreateMEPMaterials" Click="Cmd_Click" ToolTip="Create 464 MEP materials from MEP_MATERIALS.csv"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Browse PBR Library…" Tag="Pbr_BrowseLibrary" Click="Cmd_Click" ToolTip="Open the STING PBR texture library — Poly Haven (CC0), ambientCG (CC0), Architextures Pro, and user-supplied folder. Downloads + applies a full 10-map pack to the selected material."/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Bulk Apply PBR" Tag="Pbr_BulkApply" Click="Cmd_Click" ToolTip="Walk every pack folder under _BIM_COORD/textures/ and apply each one to the material whose name matches the pack folder name."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Reload Providers" Tag="Pbr_ReloadProviders" Click="Cmd_Click" ToolTip="Reload STING_TEXTURE_PROVIDERS.json + project override after editing on disk."/>
                                 </WrapPanel>
 
                                 <!-- Live DataGrid -->

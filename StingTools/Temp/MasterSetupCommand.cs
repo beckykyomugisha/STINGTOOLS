@@ -306,6 +306,52 @@ namespace StingTools.Temp
                 StingLog.Error("MasterSetup Step 20 (Healthcare Pack) failed", ex);
             }
 
+            // Step 21: PBR texture pipeline — seed `_BIM_COORD/textures/`
+            // and surface the provider catalogue so authors can drop packs
+            // or use Pbr_BrowseLibrary immediately.
+            try
+            {
+                stepNum++;
+                string tex = StingTools.Core.Materials.Providers.TextureProviderRegistry.ProjectTexturesRoot(doc);
+                if (!string.IsNullOrEmpty(tex))
+                {
+                    string readme = System.IO.Path.Combine(tex, "README.txt");
+                    if (!System.IO.File.Exists(readme))
+                    {
+                        System.IO.File.WriteAllText(readme,
+                            "STING PBR Texture Drop Zone\n" +
+                            "===========================\n\n" +
+                            "Drop pack folders here. Folder name should match the Revit material\n" +
+                            "name for the 'Bulk Apply PBR' command to auto-match. Suffix\n" +
+                            "conventions recognised by the ingester include:\n" +
+                            "  _basecolor / _albedo / _diffuse  → base color\n" +
+                            "  _normal / _norm / _nrm           → normal\n" +
+                            "  _roughness / _rough / _rgh       → roughness\n" +
+                            "  _metalness / _metallic / _metal  → metalness\n" +
+                            "  _ao / _ambientocclusion          → AO\n" +
+                            "  _bump / _bmp / _height           → bump\n" +
+                            "  _displacement / _disp            → displacement\n" +
+                            "  _opacity / _alpha / _mask        → opacity\n" +
+                            "  _emission / _emissive / _emit    → emission\n\n" +
+                            "Use 'Browse PBR library…' in the Material Hub to pull CC0 packs\n" +
+                            "from Poly Haven or ambientCG directly into this folder.\n");
+                    }
+                    report.AppendLine($"  21. PBR textures folder ready — {tex}");
+                    passed++;
+                    StingLog.Info($"MasterSetup Step 21: PBR textures root → {tex}");
+                }
+                else
+                {
+                    report.AppendLine($"  21. PBR textures — SKIPPED (project not saved)");
+                    skipped++;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("MasterSetup Step 21 (PBR textures) failed", ex);
+                report.AppendLine($"  21. PBR textures — FAILED ({ex.Message})");
+            }
+
             // Handle user cancellation
             if (userCancelled)
             {

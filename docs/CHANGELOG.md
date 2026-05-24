@@ -5426,3 +5426,69 @@ no non-comment references to either broken API remain.
 **Caveat**:
 
 1. Built without `dotnet build` verification (Linux sandbox). The user's pull command should now succeed and the resulting build should be clean.
+
+#### Completed (Phase 189 — PBR texture pipeline + 4-provider library)
+
+Lands the corporate-baseline PBR texture management system on branch
+`claude/epic-galileo-MyB2x`. Material Hub now ships with a 10-slot
+PBR inspector card, a 4-provider in-app browser (Poly Haven CC0,
+ambientCG CC0, Architextures Pro $55/yr URL-launch, user-supplied
+folder auto-detect), Generic → Prism appearance-schema conversion,
+and a bulk-apply walker that matches pack folder names to Revit
+materials.
+
+**New folders + files**:
+
+| Path | Role |
+|---|---|
+| `StingTools/Data/STING_TEXTURE_PROVIDERS.json` | Corporate provider catalogue (4 providers) + 10-slot suffix-detection rules + defaults |
+| `StingTools/Core/Materials/TexturePackManifest.cs` | POCO + JSON I/O + `TexturePackIngester` suffix detector + path re-anchor |
+| `StingTools/Core/Materials/PbrTextureApplier.cs` | `AppearanceAssetEditScope`-based apply engine; prefers Prism, falls back to Generic with explicit lossy warnings |
+| `StingTools/Core/Materials/GenericToPrismConverter.cs` | Donor-asset duplication; InPlace vs DuplicateMaterial modes |
+| `StingTools/Core/Materials/Providers/IPbrProviderClient.cs` | Provider-agnostic interface + `PbrAssetSummary` DTO |
+| `StingTools/Core/Materials/Providers/PbrHttp.cs` | Shared HttpClient (UA + decompression) |
+| `StingTools/Core/Materials/Providers/PolyHavenClient.cs` | REST: `/assets?t=textures` + `/files/{id}` |
+| `StingTools/Core/Materials/Providers/AmbientCgClient.cs` | `full_json` listing + zip download + extract |
+| `StingTools/Core/Materials/Providers/UrlLaunchClient.cs` | Browser-launch for paid services (Architextures Pro) |
+| `StingTools/Core/Materials/Providers/UserFolderClient.cs` | Walks `_BIM_COORD/textures/` and surfaces every pack folder |
+| `StingTools/Core/Materials/Providers/TextureProviderRegistry.cs` | JSON loader with project-overlay merge |
+| `StingTools/Core/Materials/Providers/PbrProviderFactory.cs` | Provider-entry → client resolver |
+| `StingTools/Core/Materials/Providers/README.md` | Pipeline narrative + slot map + caveats |
+| `StingTools/UI/MaterialHubPanel.Textures.cs` | Inspector "PBR Textures" card (10 slots + UV + sliders + actions) |
+| `StingTools/UI/MaterialHubProviderBrowserDialog.cs` | Modal provider browser (rail + search + category + thumb grid + Download+Apply) |
+| `StingTools/Commands/Materials/BrowsePbrTexturesCommand.cs` | 3 commands: `Pbr_BrowseLibrary`, `Pbr_BulkApply`, `Pbr_ReloadProviders` |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/UI/MaterialHubPanel.Builders.cs` | RebuildInspector wires the new card; HandleHubLocal routes HUB_PBR_* through HandlePbrTag first |
+| `StingTools/UI/StingCommandHandler.cs` | 3 `case "Pbr_*"` dispatches |
+| `StingTools/UI/StingDockPanel.xaml` | 3 buttons on the MAT toolbar (Browse / Bulk / Reload) |
+| `StingTools/Temp/MasterSetupCommand.cs` | New Step 21 seeds `_BIM_COORD/textures/README.txt` |
+| `.gitignore` | Excludes `_BIM_COORD/textures/` (large binary blobs, per-project) |
+| `docs/CHANGELOG.md` | This entry |
+
+**Caveats (Phase 189)**:
+
+1. Built without `dotnet build` verification (Linux sandbox). Every
+   Revit API call (`AppearanceAssetEditScope`, `Asset.FindByName`,
+   `UnifiedBitmap.*` properties, `AppearanceAssetElement.Duplicate`,
+   `Material.Duplicate`) uses the documented signature for
+   2025/2026/2027 but has not been compile-checked. Verify in Revit
+   before merge.
+2. Realistic view in Revit only approximates PBR — bump +
+   displacement + AO + true metalness only show their full effect in
+   raytraced rendering. The inspector card surfaces this caveat
+   inline so authors aren't surprised.
+3. `BulkApplyPbrTexturesCommand` uses simple name + light-fuzzy
+   matching (alphanumeric-only comparison). Semantic matching
+   (Uniclass / material class) is a follow-up.
+4. `PbrTextureApplier.ClearPbrMaps` currently only blanks the base
+   color path; a full per-slot disconnect requires walking every
+   connected sub-asset and is left for a follow-up.
+5. Architextures Pro (and any future paid services) is URL-launch
+   only — users authenticate in their browser and drop the resulting
+   download into `_BIM_COORD/textures/architextures/`. Then either
+   `Pbr_BulkApply` or the Inspector's "Apply pack…" picker takes it
+   from there.

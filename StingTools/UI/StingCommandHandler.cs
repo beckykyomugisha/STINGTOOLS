@@ -1247,6 +1247,11 @@ namespace StingTools.UI
                         break;
                     case "MaterialManagerFull": RunCommand<Temp.MaterialManagerCommand>(app); break;
 
+                    // ── PBR textures (Day 5) ──
+                    case "Pbr_BrowseLibrary": RunCommand<Commands.Materials.BrowsePbrTexturesCommand>(app); break;
+                    case "Pbr_BulkApply":     RunCommand<Commands.Materials.BulkApplyPbrTexturesCommand>(app); break;
+                    case "Pbr_ReloadProviders": RunCommand<Commands.Materials.ReloadPbrProvidersCommand>(app); break;
+
                     // ── MAT tab — inline command surface (dock-panel buttons) ──
                     case "MAT_WhereUsed":      MatActions.WhereUsed(app, p1); break;
                     case "MAT_Apply":          MatActions.ApplyToSelection(app, p1); break;
