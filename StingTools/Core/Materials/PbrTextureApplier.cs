@@ -4,6 +4,7 @@ using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Visual;
 using StingTools.Core;
+using StingTools.UI;   // MaterialAuditLogger
 
 namespace StingTools.Core.Materials
 {
