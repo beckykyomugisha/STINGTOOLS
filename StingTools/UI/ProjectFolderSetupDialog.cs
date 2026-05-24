@@ -25,8 +25,6 @@ using Visibility = System.Windows.Visibility;
 // System.Windows.Controls equivalents used by this WPF dialog. Alias
 // the WPF types so the form's controls compile without per-call-site
 // full qualification.
-using TextBox    = System.Windows.Controls.TextBox;
-using ComboBox   = System.Windows.Controls.ComboBox;
 
 namespace StingTools.UI
 {

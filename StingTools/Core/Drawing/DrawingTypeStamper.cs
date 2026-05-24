@@ -145,16 +145,6 @@ namespace StingTools.Core.Drawing
         /// any parsing. Used by ManagedTemplateSyncer to detect managed
         /// template stamps that contain "pack=…|cs=…" prefixes.
         /// </summary>
-        public static string ReadRaw(Element el)
-        {
-            if (el == null) return null;
-            try
-            {
-                var p = el.LookupParameter(PARAM_DRAWING_TYPE_ID);
-                return p?.StorageType == StorageType.String ? p.AsString() : null;
-            }
-            catch { return null; }
-        }
 
         /// <summary>
         /// Phase 183 — stamp crop kind + margin onto a view so

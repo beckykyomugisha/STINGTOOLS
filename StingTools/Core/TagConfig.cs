@@ -725,33 +725,6 @@ namespace StingTools.Core
             return null;
         }
 
-        /// <summary>Phase 66b: Validate FUNC→PROD pair consistency.
-        /// Detects contradictory function/product combinations like FUNC=SUP with PROD=WC.</summary>
-        // PERF: Static readonly to avoid per-call Dictionary+HashSet allocation
-        private static readonly Dictionary<string, HashSet<string>> _incompatibleFuncProdPairs =
-            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
-            {
-                // Supply function should not have sanitary/plumbing products
-                { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "URN", "SNK", "SHW", "BTH", "BID", "MOP" } },
-                // Return function should not have electrical products
-                { "RTN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DB", "MCC", "MSB", "SWB", "SKT", "LUM" } },
-                // Lighting function should not have HVAC products
-                { "LTG", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "CHR", "BLR", "RAD", "DAM" } },
-                // Power function should not have plumbing products
-                { "PWR", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "PP", "PFT", "PAC", "FPP", "TRP" } },
-                // Sanitary function should not have HVAC products
-                { "SAN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "FAN", "HRU", "DAM", "CLT" } },
-                // Fire protection function should not have architectural products
-                { "FLS", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DR", "WIN", "WL", "FL", "CLG", "RF", "FUR" } },
-            };
-
-        private static string ValidateFuncProdPair(string func, string prod, string disc)
-        {
-            if (_incompatibleFuncProdPairs.TryGetValue(func, out var badProds) && badProds.Contains(prod))
-                return $"FUNC '{func}' is incompatible with PROD '{prod}' — check discipline assignment";
-
-            return null;
-        }
 
 
         /// <summary>
@@ -1269,25 +1242,15 @@ namespace StingTools.Core
         private static bool _seqSchemeWarned = false;
 
         // Phase 177 — lazy-load guard for valid FUNC CSV data.
-        // EnsureValidFuncsLoaded() is a no-op because _validFuncsForSys is
-        // initialised from a static field initialiser; the flag is retained
-        // so callers (ParameterHelpers) can query IsLoaded without coupling
-        // to internal implementation details.
-        private static bool _validFuncsCsvLoaded = false;
+        // _validFuncsCsvLoaded + EnsureValidFuncsLoaded are declared earlier in
+        // the file; this IsLoaded accessor exposes the flag to external callers.
 
         /// <summary>True once the valid-FUNC lookup table has been populated (always true after first static init).</summary>
         public static bool IsLoaded => _validFuncsCsvLoaded || ISO19650Validator.ValidFuncsForSysCount > 0;
 
-        /// <summary>
-        /// Ensures the valid-FUNC per-SYS lookup table is populated.
-        /// The table is built from a static field initialiser so this is
-        /// effectively a no-op; it exists so callers can guarantee readiness
-        /// without depending on internal implementation details.
-        /// </summary>
-        public static void EnsureValidFuncsLoaded()
+        // Stub retained so external callers that reference an obsolete signature still resolve.
+        internal static void EnsureValidFuncsLoadedStub()
         {
-            if (_validFuncsCsvLoaded) return;
-            _validFuncsCsvLoaded = true;
             // _validFuncsForSys is populated by its field initialiser above;
             // nothing more to load here.
         }
