@@ -2289,39 +2289,5 @@ namespace StingTools.Core.Placement
         // Phase 139.4 — resolve a Document.Settings.Categories entry to its
         // BuiltInCategory enum so FilteredElementCollector.OfCategory can
         // pre-filter family symbols. Cached per document on first hit.
-        private static readonly Dictionary<int, Dictionary<string, BuiltInCategory>> _bicByName
-            = new Dictionary<int, Dictionary<string, BuiltInCategory>>();
-        private static readonly object _bicByNameLock = new object();
-
-        private static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
-        {
-            if (doc == null || string.IsNullOrEmpty(categoryName)) return BuiltInCategory.INVALID;
-            int key = doc.GetHashCode();
-            Dictionary<string, BuiltInCategory> map;
-            lock (_bicByNameLock)
-            {
-                if (!_bicByName.TryGetValue(key, out map))
-                {
-                    map = new Dictionary<string, BuiltInCategory>(StringComparer.OrdinalIgnoreCase);
-                    try
-                    {
-                        foreach (Category c in doc.Settings.Categories)
-                        {
-                            if (c == null || string.IsNullOrEmpty(c.Name)) continue;
-                            try
-                            {
-                                var bic = (BuiltInCategory)c.Id.Value;
-                                if (bic != BuiltInCategory.INVALID)
-                                    map[c.Name] = bic;
-                            }
-                            catch { }
-                        }
-                    }
-                    catch (Exception ex) { StingLog.Warn($"ResolveBuiltInCategoryByName: {ex.Message}"); }
-                    _bicByName[key] = map;
-                }
-            }
-            return map.TryGetValue(categoryName, out var hit) ? hit : BuiltInCategory.INVALID;
-        }
     }
 }
