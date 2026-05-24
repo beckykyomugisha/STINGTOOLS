@@ -3191,12 +3191,18 @@ namespace StingTools.UI
                     }
                     case "TemplateDashboard":
                     {
-                        // Keep-dialog-open loop: re-open after each dispatched command
+                        // Keep-dialog-open loop: re-open after each dispatched command.
+                        // Uses the v2 sidebar+master/detail layout
+                        // (TemplateManagerDashboardV2). The v1 dialog
+                        // (TemplateManagerDashboard) is retained for fallback /
+                        // emergency rollback and can be re-enabled by switching
+                        // the call below.
+                        var docForDash = app?.ActiveUIDocument?.Document;
                         while (true)
                         {
                             try
                             {
-                                var dlgResult = UI.TemplateManagerDashboard.Show();
+                                var dlgResult = UI.TemplateManagerDashboardV2.Show(docForDash);
                                 if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
                                     break;
                                 SetCommand(dlgResult.Operation);
@@ -3204,6 +3210,8 @@ namespace StingTools.UI
                                     foreach (var kv in dlgResult.Options)
                                         SetExtraParam(kv.Key, kv.Value);
                                 Execute(app);
+                                // Refresh the active doc after each op (may have been opened/closed)
+                                docForDash = app?.ActiveUIDocument?.Document;
                             }
                             catch (Exception ex2) { StingLog.Warn("TemplateDashboard loop: " + ex2.Message); break; }
                         }
