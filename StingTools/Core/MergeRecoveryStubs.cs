@@ -243,6 +243,19 @@ namespace StingTools.Core.Drawing
         public Dictionary<string, ByMaterialClassOverride> ByMaterialClass  { get; set; }
     }
 
+    /// <summary>Stub — pack-level appearance settings referenced by ViewStylePack.</summary>
+    public sealed class PackAppearanceDto
+    {
+        public string FillPattern      { get; set; }
+        public string LinePattern      { get; set; }
+        public int?   ProjLineWeight   { get; set; }
+        public int?   CutLineWeight    { get; set; }
+        public string ProjColor        { get; set; }
+        public string CutColor         { get; set; }
+        public int?   Transparency     { get; set; }
+        public bool?  Halftone         { get; set; }
+    }
+
     /// <summary>Stub — per-material-class graphic override used by ApplyMaterialClassOverrides.</summary>
     public sealed class ByMaterialClassOverride
     {
@@ -406,11 +419,6 @@ namespace StingTools.Core.Drawing
             => new FilteredElementCollector(doc).OfClass(typeof(ParameterFilterElement))
                 .Cast<ParameterFilterElement>()
                 .FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))?.Id
-                ?? ElementId.InvalidElementId;
-        internal static ElementId ResolveLinePattern(Document doc, string name)
-            => new FilteredElementCollector(doc).OfClass(typeof(LinePatternElement))
-                .Cast<LinePatternElement>()
-                .FirstOrDefault(l => string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase))?.Id
                 ?? ElementId.InvalidElementId;
         internal static ElementId ResolveFillPattern(Document doc, string name)
             => new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement))

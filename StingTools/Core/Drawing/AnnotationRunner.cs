@@ -460,23 +460,6 @@ namespace StingTools.Core.Drawing
             return result ?? ElementId.InvalidElementId;
         }
 
-        private static BuiltInCategory TagCategoryFor(BuiltInCategory host)
-        {
-            switch (host)
-            {
-                case BuiltInCategory.OST_Rooms:                return BuiltInCategory.OST_RoomTags;
-                case BuiltInCategory.OST_Doors:                return BuiltInCategory.OST_DoorTags;
-                case BuiltInCategory.OST_Windows:              return BuiltInCategory.OST_WindowTags;
-                case BuiltInCategory.OST_MechanicalEquipment:  return BuiltInCategory.OST_MechanicalEquipmentTags;
-                case BuiltInCategory.OST_ElectricalEquipment:  return BuiltInCategory.OST_ElectricalEquipmentTags;
-                case BuiltInCategory.OST_PlumbingFixtures:     return BuiltInCategory.OST_PlumbingFixtureTags;
-                case BuiltInCategory.OST_LightingFixtures:     return BuiltInCategory.OST_LightingFixtureTags;
-                case BuiltInCategory.OST_PipeFitting:          return BuiltInCategory.OST_PipeFittingTags;
-                case BuiltInCategory.OST_StructuralFraming:    return BuiltInCategory.OST_StructuralFramingTags;
-                default:                                       return host;
-            }
-        }
-
         private static FamilySymbol FindFamilySymbolByName(Document doc, string name)
         {
             return new FilteredElementCollector(doc)

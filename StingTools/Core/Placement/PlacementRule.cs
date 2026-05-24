@@ -477,9 +477,6 @@ namespace StingTools.Core.Placement
         /// <summary>Free-text note surfaced in the placement result panel.</summary>
         public string Notes { get; set; } = "";
 
-        /// <summary>Phase 139 — discipline pack of origin (Baseline/Electrical/Windows/...).</summary>
-        public string SourcePack { get; set; } = "";
-
         // ── Phase 139 A1 — Building & Standards Context ─────────────
 
 
