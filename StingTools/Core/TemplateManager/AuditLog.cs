@@ -38,7 +38,8 @@ namespace StingTools.Core.TemplateManager
     public static class AuditLog
     {
         private static readonly object _lock = new();
-        private static string _lastHash = "";
+        // Per-file last-hash cache — multi-project Revit sessions don't cross-contaminate chains.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _lastHashByFile = new();
 
         public static string Append(Document doc, OperationResult result)
         {
@@ -54,8 +55,9 @@ namespace StingTools.Core.TemplateManager
 
                 lock (_lock)
                 {
-                    // On first append per run, seed chain by tailing the file.
-                    if (string.IsNullOrEmpty(_lastHash) && File.Exists(file))
+                    string lastHash = _lastHashByFile.GetValueOrDefault(file, "");
+                    // On first append per file, seed chain by tailing the file.
+                    if (string.IsNullOrEmpty(lastHash) && File.Exists(file))
                     {
                         try
                         {
@@ -63,7 +65,7 @@ namespace StingTools.Core.TemplateManager
                             if (!string.IsNullOrEmpty(tail))
                             {
                                 var prev = JsonConvert.DeserializeObject<TemplateAuditEntry>(tail);
-                                if (prev != null) _lastHash = prev.Hash ?? "";
+                                if (prev != null) lastHash = prev.Hash ?? "";
                             }
                         }
                         catch { }
@@ -79,7 +81,7 @@ namespace StingTools.Core.TemplateManager
                         DurationMs = result.DurationMs,
                         DocumentPath = doc.PathName ?? "",
                         DocumentTitle = doc.Title ?? "",
-                        PrevHash = _lastHash
+                        PrevHash = lastHash
                     };
                     // Counters
                     if (result.Counters != null)
@@ -90,8 +92,8 @@ namespace StingTools.Core.TemplateManager
                     }
                     // Chain hash
                     string body = JsonConvert.SerializeObject(entry);
-                    entry.Hash = Sha256(_lastHash + body);
-                    _lastHash = entry.Hash;
+                    entry.Hash = Sha256(lastHash + body);
+                    _lastHashByFile[file] = entry.Hash;
                     string line = JsonConvert.SerializeObject(entry);
                     File.AppendAllText(file, line + Environment.NewLine);
                     return file;
