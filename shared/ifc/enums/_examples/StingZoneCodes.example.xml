@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  EXAMPLE — not a project-ready file.
+
+  Demonstrates a populated project overlay for StingZoneCodes on the
+  Riverside Acute Hospital ACU block.
+
+  The zone codes here are clinical / functional zones at the campus
+  level. Fire-compartmentation, acoustic, and pressure zones are
+  modelled as separate IfcZones with the same StingZoneCodes value
+  but different Pset_StingSpatialCodes.ZoneCategory.
+-->
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingZoneCodes</Name>
+    <Definition>Project overlay — clinical / functional zones for the Riverside Acute Hospital campus. Each zone semantic is disambiguated via Pset_StingSpatialCodes.ZoneCategory (one of: Fire / Acoustic / HVAC / Clinical / Pressure / Security / Radiation / MRI / Building).</Definition>
+    <IfdGuid>uuid:a1d15c11-9001-4001-9000-000000000003</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>project_template</Scope>
+    <Origin>project</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>Riverside Hospital Project — Information Manager</Maintainer>
+    <StandardsBasis>Riverside Hospital BEP §4.4 (Zone strategy); STING tag grammar v5.0; HTM 03-01 (pressure zones); BS 9999 (fire compartments); cross-bound to IfcZone via Pset_StingSpatialCodes</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="AE" sentinel="false">
+      <Definition>Accident &amp; Emergency Department — majors / minors / resus.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ICU" sentinel="false">
+      <Definition>Adult Intensive Care Unit.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="THE" sentinel="false">
+      <Definition>Theatre Suite — operating theatres + recovery + anaesthetic + scrub rooms.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ENDO" sentinel="false">
+      <Definition>Endoscopy Suite — procedure rooms + endoscope reprocessing.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="IMG" sentinel="false">
+      <Definition>Imaging Department — X-ray + CT + MRI + ultrasound + fluoroscopy.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="WARDS-S" sentinel="false">
+      <Definition>Surgical Wards.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="WARDS-M" sentinel="false">
+      <Definition>Medical Wards.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ONC" sentinel="false">
+      <Definition>Oncology + chemotherapy day unit.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MAT" sentinel="false">
+      <Definition>Maternity — antenatal + labour-delivery + postnatal.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NEO" sentinel="false">
+      <Definition>Neonatal Unit — NICU + special care.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PAED" sentinel="false">
+      <Definition>Paediatrics — children's ward + outpatients.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PHARM" sentinel="false">
+      <Definition>Pharmacy — dispensing + aseptic suite + cytotoxics.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PATH" sentinel="false">
+      <Definition>Pathology — biochemistry + microbiology + histology + blood bank.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MORT" sentinel="false">
+      <Definition>Mortuary + Post-Mortem suite.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HSDU" sentinel="false">
+      <Definition>Hospital Sterile Services Department.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OPD" sentinel="false">
+      <Definition>Outpatients Department — consulting + treatment + diagnostics.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PLANT" sentinel="false">
+      <Definition>Plant zone — energy centre, basement plant, roof plant.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PUB" sentinel="false">
+      <Definition>Public Areas — reception, corridors, retail, cafeteria.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ZZ" sentinel="false">
+      <Definition>Project-wide / multi-zone — for vertical risers crossing every zone.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="*" sentinel="true">
+      <Definition>Wildcard for routing rules.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+</StingPropertyEnumeration>

@@ -68,6 +68,12 @@ namespace StingTools.Core.Drawing
                         warnings.Add($"Unknown crop kind '{crop.Kind}' — no-op.");
                         break;
                 }
+
+                // Phase 183 — stamp crop kind + margin so the drift
+                // detector can spot bbox-derived crops that have fallen
+                // behind the profile. No-op when the params aren't bound.
+                try { DrawingTypeStamper.StampCrop(view, crop.Kind ?? string.Empty, crop.MarginMm); }
+                catch (Exception ex) { warnings.Add($"CropStamp: {ex.Message}"); }
             }
             catch (Exception ex)
             {

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingHVACAirDensities</Name>
+    <Definition>Air-density presets used by the HVAC sizing engine. Each preset selects a project-level kg/m³ assumed for duct pressure-drop and fan calculations. Picked from the STING HVAC Center header dropdown; consumed by FittingLossCalculator / Darcy-Weisbach pipework and MepAutoSizeDuctCommand.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-00000000001c</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>CIBSE Guide C §4.3; ASHRAE Fundamentals 2021 Ch.1</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Standard" sentinel="false">
+      <Definition>Standard — 1.20 kg/m³ at 20 °C, 101.325 kPa. STING default for office / clinical / retail HVAC.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Warm" sentinel="false">
+      <Definition>Warm — 1.15 kg/m³ at ~30 °C. Used for warm climates, plant-room supply at elevated ambient.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Hot" sentinel="false">
+      <Definition>Hot — 1.05 kg/m³ at ~50 °C. Industrial exhaust, kitchen extract, mechanical-room return.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Cold" sentinel="false">
+      <Definition>Cold — 1.27 kg/m³ at 0 °C. Used for cold-climate fresh-air intakes and DOAS sizing.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Tropical" sentinel="false">
+      <Definition>Tropical — 1.10 kg/m³ at ~35 °C, 80% RH. STING default for tropical / equatorial deployments.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HighAltitude" sentinel="false">
+      <Definition>High Altitude — 0.95 kg/m³ at ~1500 m elevation, 20 °C. Engineering review required for mountain sites.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>800bb99a79510051ab3182fa6a9bed827172f3639be17e1080dc3062ccbd3039</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

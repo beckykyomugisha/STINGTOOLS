@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1"
+                          version="1.0.0"
+                          schema_version="1">
+
+  <Identity>
+    <Name>StingLevelCodes</Name>
+    <Definition>Level / storey codes for the fourth segment (LVL) of the STING 8-segment tag. This is a PROJECT-SCOPED TEMPLATE — values are populated per project via &lt;project&gt;/_BIM_COORD/enums/StingLevelCodes.xml. Per-element LVL values must additionally match the LevelCode property of an IfcBuildingStorey (Pset_StingSpatialCodes) that the element is contained in via IfcRelContainedInSpatialStructure (cross-entity IDS rule).</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4001-9000-000000000007</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>project_template</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape) — template only</Maintainer>
+    <StandardsBasis>ISO 19650-2 §5.3 spatial structure; STING ParamHelpers.GetLevelCode taxonomy (L## / GF / B# / RF / XX); cross-bound to IfcBuildingStorey via Pset_StingSpatialCodes</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="B3" sentinel="false">
+      <Definition>Basement 3 (lowest level template). Projects replace if their basement extent differs.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="B2" sentinel="false">
+      <Definition>Basement 2.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="B1" sentinel="false">
+      <Definition>Basement 1.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="GF" sentinel="false">
+      <Definition>Ground Floor. Reserved code — projects do not redefine.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MZ" sentinel="false">
+      <Definition>Mezzanine (above ground floor). Reserved.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L01" sentinel="false">
+      <Definition>Level 01.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L02" sentinel="false">
+      <Definition>Level 02.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L03" sentinel="false">
+      <Definition>Level 03.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L04" sentinel="false">
+      <Definition>Level 04.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L05" sentinel="false">
+      <Definition>Level 05.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L06" sentinel="false">
+      <Definition>Level 06.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L07" sentinel="false">
+      <Definition>Level 07.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L08" sentinel="false">
+      <Definition>Level 08.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L09" sentinel="false">
+      <Definition>Level 09.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L10" sentinel="false">
+      <Definition>Level 10. Projects with more levels add L11..L99 as needed.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RF" sentinel="false">
+      <Definition>Roof level. Reserved code.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PR" sentinel="false">
+      <Definition>Plant Room (when plant levels are intermediate or set above roof). Reserved.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned. IDS fails at Stage 3+.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="*" sentinel="true">
+      <Definition>Wildcard for routing rules. Never tagged on an element.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <!-- No CorporateLock — project-scoped template. -->
+
+</StingPropertyEnumeration>

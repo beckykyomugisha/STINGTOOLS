@@ -76,22 +76,65 @@ namespace StingTools.BIMManager
             }
         }
 
-        /// <summary>Estimate embodied carbon for a material name.</summary>
+        /// <summary>
+        /// Estimate embodied carbon for a material name.
+        ///
+        /// N+7 — Single-source resolution chain. The legacy carbon-factor
+        /// dictionary is now last in line so a MAT-curated value always wins:
+        ///   1) Material element's STING_EMB_CARBON_NR parameter (live MAT
+        ///      panel writes / overrides / on-create auto-fill)
+        ///   2) MaterialLookupCsv corporate library (MATERIAL_LOOKUP.csv)
+        ///   3) Legacy CARBON_FACTORS.csv via _carbonFactors dictionary
+        ///   4) GetDefaultCarbonFactor keyword fallback (existing behaviour)
+        /// </summary>
         internal static double GetCarbonFactor(string materialName)
         {
+            if (string.IsNullOrWhiteSpace(materialName)) return 0;
+
+            // Tier 1 — Material element's parameter (live edits win).
+            // P-2 — Cache lookup; was a per-call collector.
+            try
+            {
+                var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc != null)
+                {
+                    var mat = StingTools.UI.MaterialNameCache.ResolveMaterial(doc, materialName);
+                    if (mat != null)
+                    {
+                        var p = mat.LookupParameter("STING_EMB_CARBON_NR");
+                        if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                        {
+                            double v = p.AsDouble();
+                            if (v > 0) return v;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("GetCarbonFactor.MatParam", $"GetCarbonFactor MAT param: {ex.Message}"); }
+
+            // Tier 2 — Corporate library lookup
+            try
+            {
+                double libVal = StingTools.UI.MaterialLookupCsv.GetCarbon(materialName);
+                if (libVal > 0) return libVal;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("GetCarbonFactor.Lookup", $"GetCarbonFactor lookup: {ex.Message}"); }
+
+            // Tier 3 — Legacy CARBON_FACTORS.csv dictionary
             EnsureLoaded();
-            if (_carbonFactors == null || string.IsNullOrWhiteSpace(materialName)) return 0;
+            if (_carbonFactors != null)
+            {
+                if (_carbonFactors.TryGetValue(materialName, out double exact)) return exact;
+                string lower = materialName.ToLowerInvariant();
+                var match = _carbonFactors.Keys
+                    .Where(k => lower.Contains(k.ToLowerInvariant()) || k.ToLowerInvariant().Contains(lower))
+                    .OrderByDescending(k => k.Length)
+                    .FirstOrDefault();
+                if (match != null) return _carbonFactors[match];
+            }
 
-            // Exact match
-            if (_carbonFactors.TryGetValue(materialName, out double exact)) return exact;
-
-            // Partial match — find best match by keyword
-            string lower = materialName.ToLowerInvariant();
-            var match = _carbonFactors.Keys
-                .Where(k => lower.Contains(k.ToLowerInvariant()) || k.ToLowerInvariant().Contains(lower))
-                .OrderByDescending(k => k.Length)
-                .FirstOrDefault();
-            return match != null ? _carbonFactors[match] : GetDefaultCarbonFactor(materialName);
+            // Tier 4 — Hard-coded keyword fallback
+            return GetDefaultCarbonFactor(materialName);
         }
 
         /// <summary>Default carbon factors by material type keywords.</summary>

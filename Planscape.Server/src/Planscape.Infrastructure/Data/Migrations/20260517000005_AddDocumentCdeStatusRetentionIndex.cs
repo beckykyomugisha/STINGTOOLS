@@ -26,7 +26,7 @@ public partial class AddDocumentCdeStatusRetentionIndex : Migration
             name: "IX_Documents_CdeStatus_RetentionExpiresAt",
             table: "Documents",
             columns: new[] { "CdeStatus", "RetentionExpiresAt" })
-            .Annotate("Npgsql:IndexFilter",
+            .Annotation("Npgsql:IndexFilter",
                 "\"RetentionExpiresAt\" IS NOT NULL AND \"CdeStatus\" = 'PUBLISHED'");
     }
 

@@ -18,23 +18,103 @@
         "hatchPalette": "ISO 13567 monochrome"
       },
       "filterRules": [
-        { "name": "Existing - Halftone", "visible": true,  "halftone": true,  "projColor": "#808080", "projWeight": 1, "cutColor": "#808080", "cutWeight": 1, "transparency": 0 },
-        { "name": "Demolished - Red",    "visible": true,  "halftone": true,  "projColor": "#C00000", "projWeight": 1, "cutColor": "#C00000", "cutWeight": 1, "transparency": 30 },
-        { "name": "New Construction",    "visible": true,  "halftone": false, "projColor": "#000000", "projWeight": 4, "cutColor": "#000000", "cutWeight": 5, "transparency": 0 },
-        { "name": "Temporary Works",     "visible": true,  "halftone": true,  "projColor": "#FF6600", "projWeight": 1, "cutColor": "#FF6600", "cutWeight": 1, "transparency": 0 },
-        { "name": "Out of Scope",        "visible": true,  "halftone": true,  "projColor": "#AAAAAA", "projWeight": 1, "cutColor": "#AAAAAA", "cutWeight": 1, "transparency": 50 }
+        {
+          "name": "STING - Phase: Existing",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1,
+          "cutColor": "#808080",
+          "cutWeight": 1,
+          "transparency": 0
+        },
+        {
+          "name": "STING - Phase: Demolished",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#C00000",
+          "projWeight": 1,
+          "cutColor": "#C00000",
+          "cutWeight": 1,
+          "transparency": 30
+        },
+        {
+          "name": "STING - Phase: New Construction",
+          "visible": true,
+          "halftone": false,
+          "projColor": "#000000",
+          "projWeight": 4,
+          "cutColor": "#000000",
+          "cutWeight": 5,
+          "transparency": 0
+        },
+        {
+          "name": "STING - Phase: Temporary",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#FF6600",
+          "projWeight": 1,
+          "cutColor": "#FF6600",
+          "cutWeight": 1,
+          "transparency": 0
+        },
+        {
+          "name": "Out of Scope",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#AAAAAA",
+          "projWeight": 1,
+          "cutColor": "#AAAAAA",
+          "cutWeight": 1,
+          "transparency": 50
+        }
       ],
       "vgOverrides": {
-        "Grids":                { "visible": true,  "projColor": "#808080", "projWeight": 3 },
-        "Levels":               { "visible": true,  "projColor": "#808080", "projWeight": 3 },
-        "Scope Boxes":          { "visible": true,  "projColor": "#1976D2", "projWeight": 1, "transparency": 50 },
-        "Reference Planes":     { "visible": false },
-        "Reference Lines":      { "visible": false },
-        "Matchline":            { "visible": true,  "projColor": "#000000", "projWeight": 4 },
-        "Section Boxes":        { "visible": false },
-        "Dimensions":           { "visible": true,  "projColor": "#000000", "projWeight": 1 },
-        "Text Notes":           { "visible": true,  "projColor": "#000000", "projWeight": 1 },
-        "Generic Annotations":  { "visible": true,  "projColor": "#000000", "projWeight": 1 }
+        "Grids": {
+          "visible": true,
+          "projColor": "#808080",
+          "projWeight": 3
+        },
+        "Levels": {
+          "visible": true,
+          "projColor": "#808080",
+          "projWeight": 3
+        },
+        "Scope Boxes": {
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 1,
+          "transparency": 50
+        },
+        "Reference Planes": {
+          "visible": false
+        },
+        "Reference Lines": {
+          "visible": false
+        },
+        "Matchline": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 4
+        },
+        "Section Boxes": {
+          "visible": false
+        },
+        "Dimensions": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 1
+        },
+        "Text Notes": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 1
+        },
+        "Generic Annotations": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 1
+        }
       }
     },
     {
@@ -48,26 +128,111 @@
       "scaleHint": "1:100",
       "colorScheme": "Monochrome",
       "vgOverrides": {
-        "Walls":                  { "visible": true, "halftone": false, "projColor": "#000000", "projWeight": 5, "cutColor": "#000000", "cutWeight": 5 },
-        "Doors":                  { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Windows":                { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Floors":                 { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
-        "Ceilings":               { "visible": false },
-        "Structural Columns":     { "visible": true, "projColor": "#000000", "projWeight": 5, "cutColor": "#000000", "cutWeight": 5 },
-        "Structural Framing":     { "visible": true, "projColor": "#000000", "projWeight": 3 },
-        "Rooms":                  { "visible": true, "projColor": "#1976D2", "projWeight": 1, "transparency": 80 },
-        "Furniture":              { "visible": true, "projColor": "#666666", "projWeight": 1 },
-        "Casework":               { "visible": true, "projColor": "#666666", "projWeight": 1 },
-        "Stairs":                 { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Railings":               { "visible": true, "projColor": "#000000", "projWeight": 1 },
-        "Curtain Panels":         { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Curtain Wall Mullions":  { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Grids":                  { "visible": true, "halftone": false, "projColor": "#808080", "projWeight": 3 },
-        "Mechanical Equipment":   { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
-        "Electrical Equipment":   { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
-        "Plumbing Fixtures":      { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
-        "Pipes":                  { "visible": false },
-        "Ducts":                  { "visible": false }
+        "Walls": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#000000",
+          "projWeight": 5,
+          "cutColor": "#000000",
+          "cutWeight": 5
+        },
+        "Doors": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Floors": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Structural Columns": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 5,
+          "cutColor": "#000000",
+          "cutWeight": 5
+        },
+        "Structural Framing": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 3
+        },
+        "Rooms": {
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 1,
+          "transparency": 80
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#666666",
+          "projWeight": 1
+        },
+        "Casework": {
+          "visible": true,
+          "projColor": "#666666",
+          "projWeight": 1
+        },
+        "Stairs": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Railings": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 1
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Grids": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#808080",
+          "projWeight": 3
+        },
+        "Mechanical Equipment": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Electrical Equipment": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Plumbing Fixtures": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Pipes": {
+          "visible": false
+        },
+        "Ducts": {
+          "visible": false
+        }
       }
     },
     {
@@ -81,13 +246,39 @@
       "scaleHint": "1:100",
       "colorScheme": "Monochrome",
       "vgOverrides": {
-        "Walls":                { "halftone": true, "projWeight": 2, "cutWeight": 2 },
-        "Floors":               { "visible": false },
-        "Ceilings":             { "visible": true, "halftone": false, "projColor": "#000000", "projWeight": 3 },
-        "Rooms":                { "visible": false },
-        "Lighting Fixtures":    { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Air Terminals":        { "visible": true, "projColor": "#1976D2", "projWeight": 2 },
-        "Mechanical Equipment": { "visible": true, "halftone": false, "projColor": "#1976D2", "projWeight": 1 }
+        "Walls": {
+          "halftone": true,
+          "projWeight": 2,
+          "cutWeight": 2
+        },
+        "Floors": {
+          "visible": false
+        },
+        "Ceilings": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#000000",
+          "projWeight": 3
+        },
+        "Rooms": {
+          "visible": false
+        },
+        "Lighting Fixtures": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Air Terminals": {
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 2
+        },
+        "Mechanical Equipment": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#1976D2",
+          "projWeight": 1
+        }
       }
     },
     {
@@ -101,14 +292,40 @@
       "scaleHint": "1:50",
       "colorScheme": "Monochrome",
       "vgOverrides": {
-        "Walls":               { "projWeight": 5, "cutWeight": 5, "cutColor": "#000000" },
-        "Floors":              { "projWeight": 4, "cutWeight": 4 },
-        "Structural Columns":  { "projWeight": 5, "cutWeight": 5 },
-        "Structural Framing":  { "projWeight": 4, "cutWeight": 4 },
-        "Ceilings":            { "visible": true, "projWeight": 2, "halftone": true },
-        "Insulation":          { "visible": true, "projColor": "#808080", "projWeight": 1, "halftone": true },
-        "Rooms":               { "visible": false },
-        "Furniture":           { "visible": false }
+        "Walls": {
+          "projWeight": 5,
+          "cutWeight": 5,
+          "cutColor": "#000000"
+        },
+        "Floors": {
+          "projWeight": 4,
+          "cutWeight": 4
+        },
+        "Structural Columns": {
+          "projWeight": 5,
+          "cutWeight": 5
+        },
+        "Structural Framing": {
+          "projWeight": 4,
+          "cutWeight": 4
+        },
+        "Ceilings": {
+          "visible": true,
+          "projWeight": 2,
+          "halftone": true
+        },
+        "Insulation": {
+          "visible": true,
+          "projColor": "#808080",
+          "projWeight": 1,
+          "halftone": true
+        },
+        "Rooms": {
+          "visible": false
+        },
+        "Furniture": {
+          "visible": false
+        }
       }
     },
     {
@@ -122,13 +339,30 @@
       "scaleHint": "1:100",
       "colorScheme": "Monochrome",
       "vgOverrides": {
-        "Walls":                  { "projWeight": 3 },
-        "Structural Columns":     { "projWeight": 4 },
-        "Roofs":                  { "projWeight": 2 },
-        "Curtain Panels":         { "projWeight": 2 },
-        "Curtain Wall Mullions":  { "projWeight": 2 },
-        "Stairs":                 { "projWeight": 2 },
-        "Topography":             { "visible": true, "projColor": "#808080", "projWeight": 1, "halftone": true }
+        "Walls": {
+          "projWeight": 3
+        },
+        "Structural Columns": {
+          "projWeight": 4
+        },
+        "Roofs": {
+          "projWeight": 2
+        },
+        "Curtain Panels": {
+          "projWeight": 2
+        },
+        "Curtain Wall Mullions": {
+          "projWeight": 2
+        },
+        "Stairs": {
+          "projWeight": 2
+        },
+        "Topography": {
+          "visible": true,
+          "projColor": "#808080",
+          "projWeight": 1,
+          "halftone": true
+        }
       }
     },
     {
@@ -146,10 +380,25 @@
         "textStyleName": "STING - 2.0mm"
       },
       "vgOverrides": {
-        "Walls":                       { "projWeight": 6, "cutWeight": 6 },
-        "Structural Framing":          { "projWeight": 5, "cutWeight": 5 },
-        "Structural Rebar":            { "visible": true, "projColor": "#FF0000", "projWeight": 2 },
-        "Insulation":                  { "visible": true, "projColor": "#808080", "halftone": true, "projWeight": 1 }
+        "Walls": {
+          "projWeight": 6,
+          "cutWeight": 6
+        },
+        "Structural Framing": {
+          "projWeight": 5,
+          "cutWeight": 5
+        },
+        "Structural Rebar": {
+          "visible": true,
+          "projColor": "#FF0000",
+          "projWeight": 2
+        },
+        "Insulation": {
+          "visible": true,
+          "projColor": "#808080",
+          "halftone": true,
+          "projWeight": 1
+        }
       }
     },
     {
@@ -166,12 +415,32 @@
         "textStyleName": "STING - 2.5mm"
       },
       "filterRules": [
-        { "name": "RFI Query",     "visible": true, "halftone": false, "projColor": "#FF0000", "projWeight": 3, "transparency": 0 },
-        { "name": "Design Intent", "visible": true, "halftone": false, "projColor": "#0000FF", "projWeight": 2, "transparency": 0 }
+        {
+          "name": "RFI Query",
+          "visible": true,
+          "halftone": false,
+          "projColor": "#FF0000",
+          "projWeight": 3,
+          "transparency": 0
+        },
+        {
+          "name": "Design Intent",
+          "visible": true,
+          "halftone": false,
+          "projColor": "#0000FF",
+          "projWeight": 2,
+          "transparency": 0
+        }
       ],
       "vgOverrides": {
-        "Generic Annotations": { "projColor": "#FF0000", "projWeight": 2 },
-        "Text Notes":          { "projColor": "#FF0000", "projWeight": 2 }
+        "Generic Annotations": {
+          "projColor": "#FF0000",
+          "projWeight": 2
+        },
+        "Text Notes": {
+          "projColor": "#FF0000",
+          "projWeight": 2
+        }
       }
     },
     {
@@ -185,25 +454,89 @@
       "scaleHint": "1:50",
       "colorScheme": "Discipline",
       "vgOverrides": {
-        "Ducts":                  { "projColor": "#1976D2", "projWeight": 3, "transparency": 20 },
-        "Duct Fittings":          { "projColor": "#1976D2", "projWeight": 2, "transparency": 20 },
-        "Duct Accessories":       { "projColor": "#1976D2", "projWeight": 1 },
-        "Air Terminals":          { "projColor": "#1976D2", "projWeight": 2 },
-        "Pipes":                  { "projColor": "#2E7D32", "projWeight": 3, "transparency": 20 },
-        "Pipe Fittings":          { "projColor": "#2E7D32", "projWeight": 2, "transparency": 20 },
-        "Pipe Accessories":       { "projColor": "#2E7D32", "projWeight": 1 },
-        "Plumbing Fixtures":      { "projColor": "#2E7D32", "projWeight": 2 },
-        "Electrical Equipment":   { "projColor": "#F57F17", "projWeight": 3 },
-        "Electrical Fixtures":    { "projColor": "#F57F17", "projWeight": 2 },
-        "Lighting Fixtures":      { "projColor": "#F57F17", "projWeight": 2 },
-        "Conduits":               { "projColor": "#F57F17", "projWeight": 2 },
-        "Cable Trays":            { "projColor": "#F57F17", "projWeight": 2 },
-        "Mechanical Equipment":   { "projColor": "#880E4F", "projWeight": 3 },
-        "Fire Alarm Devices":     { "projColor": "#C00000", "projWeight": 3 },
-        "Sprinklers":             { "projColor": "#C00000", "projWeight": 2 },
-        "Structural Columns":     { "projColor": "#4A148C", "projWeight": 4, "halftone": true },
-        "Structural Framing":     { "projColor": "#4A148C", "projWeight": 3, "halftone": true },
-        "Walls":                  { "halftone": true, "projColor": "#808080", "projWeight": 2 }
+        "Ducts": {
+          "projColor": "#1976D2",
+          "projWeight": 3,
+          "transparency": 20
+        },
+        "Duct Fittings": {
+          "projColor": "#1976D2",
+          "projWeight": 2,
+          "transparency": 20
+        },
+        "Duct Accessories": {
+          "projColor": "#1976D2",
+          "projWeight": 1
+        },
+        "Air Terminals": {
+          "projColor": "#1976D2",
+          "projWeight": 2
+        },
+        "Pipes": {
+          "projColor": "#2E7D32",
+          "projWeight": 3,
+          "transparency": 20
+        },
+        "Pipe Fittings": {
+          "projColor": "#2E7D32",
+          "projWeight": 2,
+          "transparency": 20
+        },
+        "Pipe Accessories": {
+          "projColor": "#2E7D32",
+          "projWeight": 1
+        },
+        "Plumbing Fixtures": {
+          "projColor": "#2E7D32",
+          "projWeight": 2
+        },
+        "Electrical Equipment": {
+          "projColor": "#F57F17",
+          "projWeight": 3
+        },
+        "Electrical Fixtures": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Lighting Fixtures": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Conduits": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Cable Trays": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Mechanical Equipment": {
+          "projColor": "#880E4F",
+          "projWeight": 3
+        },
+        "Fire Alarm Devices": {
+          "projColor": "#C00000",
+          "projWeight": 3
+        },
+        "Sprinklers": {
+          "projColor": "#C00000",
+          "projWeight": 2
+        },
+        "Structural Columns": {
+          "projColor": "#4A148C",
+          "projWeight": 4,
+          "halftone": true
+        },
+        "Structural Framing": {
+          "projColor": "#4A148C",
+          "projWeight": 3,
+          "halftone": true
+        },
+        "Walls": {
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 2
+        }
       }
     },
     {
@@ -222,13 +555,28 @@
         "dimensionStyleName": "STING - Ordinate"
       },
       "vgOverrides": {
-        "Pipes":              { "projWeight": 5 },
-        "Pipe Fittings":      { "projWeight": 4 },
-        "Ducts":              { "projWeight": 5 },
-        "Duct Fittings":      { "projWeight": 4 },
-        "Walls":              { "visible": false },
-        "Structural Framing": { "visible": false },
-        "Dimensions":         { "projColor": "#000000", "projWeight": 2 }
+        "Pipes": {
+          "projWeight": 5
+        },
+        "Pipe Fittings": {
+          "projWeight": 4
+        },
+        "Ducts": {
+          "projWeight": 5
+        },
+        "Duct Fittings": {
+          "projWeight": 4
+        },
+        "Walls": {
+          "visible": false
+        },
+        "Structural Framing": {
+          "visible": false
+        },
+        "Dimensions": {
+          "projColor": "#000000",
+          "projWeight": 2
+        }
       }
     },
     {
@@ -245,16 +593,49 @@
         "textStyleName": "STING - 3.0mm Presentation"
       },
       "vgOverrides": {
-        "Walls":               { "projColor": "#263238", "projWeight": 6, "cutColor": "#263238", "cutWeight": 6 },
-        "Structural Columns":  { "projColor": "#263238", "projWeight": 6 },
-        "Floors":              { "halftone": false, "projColor": "#ECEFF1", "projWeight": 1 },
-        "Ceilings":            { "visible": false },
-        "Rooms":               { "visible": true, "projColor": "#B0BEC5", "transparency": 60 },
-        "Furniture":           { "visible": true, "projColor": "#546E7A", "projWeight": 1 },
-        "Topography":          { "visible": true, "projColor": "#A5D6A7", "projWeight": 1, "transparency": 30 },
-        "Grids":               { "visible": false },
-        "Dimensions":          { "visible": false },
-        "Text Notes":          { "projColor": "#263238" }
+        "Walls": {
+          "projColor": "#263238",
+          "projWeight": 6,
+          "cutColor": "#263238",
+          "cutWeight": 6
+        },
+        "Structural Columns": {
+          "projColor": "#263238",
+          "projWeight": 6
+        },
+        "Floors": {
+          "halftone": false,
+          "projColor": "#ECEFF1",
+          "projWeight": 1
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Rooms": {
+          "visible": true,
+          "projColor": "#B0BEC5",
+          "transparency": 60
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#546E7A",
+          "projWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projColor": "#A5D6A7",
+          "projWeight": 1,
+          "transparency": 30
+        },
+        "Grids": {
+          "visible": false
+        },
+        "Dimensions": {
+          "visible": false
+        },
+        "Text Notes": {
+          "projColor": "#263238"
+        }
       }
     },
     {
@@ -268,27 +649,1112 @@
       "scaleHint": "1:50",
       "colorScheme": "Monochrome",
       "vgOverrides": {
-        "Walls":              { "projColor": "#000000", "cutColor": "#000000" },
-        "Structural Columns": { "projColor": "#000000" },
-        "Floors":             { "projColor": "#E0E0E0" },
-        "Rooms":              { "projColor": "#BDBDBD" },
-        "Furniture":          { "projColor": "#9E9E9E" },
-        "Topography":         { "projColor": "#BDBDBD" }
+        "Walls": {
+          "projColor": "#000000",
+          "cutColor": "#000000"
+        },
+        "Structural Columns": {
+          "projColor": "#000000"
+        },
+        "Floors": {
+          "projColor": "#E0E0E0"
+        },
+        "Rooms": {
+          "projColor": "#BDBDBD"
+        },
+        "Furniture": {
+          "projColor": "#9E9E9E"
+        },
+        "Topography": {
+          "projColor": "#BDBDBD"
+        }
+      }
+    },
+    {
+      "id": "corp-demolition-phase",
+      "name": "Demolition Phase",
+      "description": "Demolition drawings. Existing-to-remain halftoned, demolished elements bold red dashed, new construction hidden.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Demolition Plan",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "Monochrome",
+      "phaseFilter": "Show Demo + New",
+      "filterRules": [
+        {
+          "name": "STING - Phase: Existing",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1,
+          "cutColor": "#808080",
+          "cutWeight": 1,
+          "transparency": 0
+        },
+        {
+          "name": "STING - Phase: Demolished",
+          "visible": true,
+          "halftone": false,
+          "projColor": "#C00000",
+          "projWeight": 4,
+          "cutColor": "#C00000",
+          "cutWeight": 4,
+          "transparency": 0,
+          "projLinePattern": "Dash"
+        },
+        {
+          "name": "STING - Phase: New Construction",
+          "visible": false
+        }
+      ],
+      "vgOverrides": {
+        "Walls": {
+          "halftone": true,
+          "projWeight": 2
+        },
+        "Doors": {
+          "halftone": true,
+          "projWeight": 1
+        },
+        "Windows": {
+          "halftone": true,
+          "projWeight": 1
+        },
+        "Floors": {
+          "halftone": true,
+          "projWeight": 1
+        },
+        "Furniture": {
+          "visible": false
+        },
+        "Casework": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "id": "corp-healthcare-clinical",
+      "name": "Healthcare Clinical",
+      "description": "Generic clinical plan / RCP / equipment. Beds, scrub stations, pendants, medical FF&E and BS 8300 access shown in healthcare blue with NHS room data palette.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Clinical",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "Discipline",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter",
+        "tagColorScheme",
+        "defaultTagStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - CEQ: Clinical Asset",
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 3,
+          "cutColor": "#0066CC",
+          "cutWeight": 3
+        },
+        {
+          "name": "Bedhead Service Units",
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 4
+        },
+        {
+          "name": "Pendants - Ceiling",
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - Lig: LOW Risk",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 3
+        },
+        {
+          "name": "Scrub Stations",
+          "visible": true,
+          "projColor": "#0288D1",
+          "projWeight": 3
+        },
+        {
+          "name": "Accessible Routes",
+          "visible": true,
+          "projColor": "#43A047",
+          "projWeight": 2,
+          "transparency": 50
+        },
+        {
+          "name": "Room Department - Acute",
+          "visible": true,
+          "projColor": "#FFCDD2",
+          "transparency": 70
+        },
+        {
+          "name": "Room Department - Outpatient",
+          "visible": true,
+          "projColor": "#C8E6C9",
+          "transparency": 70
+        },
+        {
+          "name": "Room Department - Diagnostic",
+          "visible": true,
+          "projColor": "#BBDEFB",
+          "transparency": 70
+        }
+      ],
+      "vgOverrides": {
+        "Specialty Equipment": {
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 3
+        },
+        "Medical Equipment": {
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 3
+        },
+        "Rooms": {
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 1,
+          "transparency": 60
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#5E35B1",
+          "projWeight": 1
+        },
+        "Plumbing Fixtures": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#2E7D32",
+          "projWeight": 2
+        },
+        "Casework": {
+          "visible": true,
+          "projColor": "#37474F",
+          "projWeight": 2
+        }
+      },
+      "tagColorScheme": "Discipline",
+      "defaultTagStyle": "2.5NOM_BLACK"
+    },
+    {
+      "id": "corp-healthcare-mgs",
+      "name": "Healthcare Medical Gas",
+      "description": "HTM 02-01 medical gas pipeline distribution. O2 white, N2O blue, AIR-4 black/white, AIR-7 black/white, VAC yellow, AGSS purple/yellow. Manifolds, area valve service units, terminal units highlighted.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare MGPS",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "MedicalGas",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - MGS: O2",
+          "visible": true,
+          "projColor": "#FFFFFF",
+          "projWeight": 4,
+          "cutColor": "#FFFFFF",
+          "cutWeight": 4
+        },
+        {
+          "name": "STING - MGS: N2O",
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - MGS: MA4",
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - MGS: MA7",
+          "visible": true,
+          "projColor": "#404040",
+          "projWeight": 4,
+          "projLinePattern": "Dash"
+        },
+        {
+          "name": "STING - MGS: VAC",
+          "visible": true,
+          "projColor": "#FFD600",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - MGS: AGS",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 4,
+          "projLinePattern": "Dash Dot"
+        },
+        {
+          "name": "MGPS - Entonox",
+          "visible": true,
+          "projColor": "#0288D1",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - MGS: CO2",
+          "visible": true,
+          "projColor": "#2E7D32",
+          "projWeight": 3
+        },
+        {
+          "name": "MGPS - Manifold",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 5
+        },
+        {
+          "name": "STING - MGS: Zone Valve Box",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 4
+        },
+        {
+          "name": "MGPS - Terminal Unit",
+          "visible": true,
+          "projColor": "#FF6600",
+          "projWeight": 3
+        }
+      ],
+      "vgOverrides": {
+        "Pipes": {
+          "projWeight": 4
+        },
+        "Pipe Fittings": {
+          "projWeight": 3
+        },
+        "Pipe Accessories": {
+          "projWeight": 3,
+          "projColor": "#C00000"
+        },
+        "Mechanical Equipment": {
+          "projColor": "#0066CC",
+          "projWeight": 3
+        },
+        "Walls": {
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        }
+      },
+      "tagColorScheme": "MedicalGas",
+      "defaultTagStyle": "2.5BOLD_BLACK"
+    },
+    {
+      "id": "corp-healthcare-pressure",
+      "name": "Healthcare Pressure Regime",
+      "description": "HTM 03-01 / SHTM 03-01 ventilation pressure cascades. Positive zones blue, negative red, neutral grey, with door arrows showing flow direction.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Pressure",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "Pressure",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - Clin: Pressure Positive",
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 1,
+          "transparency": 50
+        },
+        {
+          "name": "STING - Clin: Pressure Positive",
+          "visible": true,
+          "projColor": "#64B5F6",
+          "projWeight": 1,
+          "transparency": 50
+        },
+        {
+          "name": "STING - Clin: Pressure Neutral",
+          "visible": true,
+          "projColor": "#BDBDBD",
+          "projWeight": 1,
+          "transparency": 70
+        },
+        {
+          "name": "STING - Clin: Pressure Negative",
+          "visible": true,
+          "projColor": "#EF5350",
+          "projWeight": 1,
+          "transparency": 50
+        },
+        {
+          "name": "STING - Clin: Pressure Negative",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 1,
+          "transparency": 50
+        },
+        {
+          "name": "STING - Clin: AIIR",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 3
+        }
+      ],
+      "vgOverrides": {
+        "Rooms": {
+          "visible": true,
+          "projWeight": 1,
+          "transparency": 0
+        },
+        "Doors": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 3
+        },
+        "Air Terminals": {
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 2
+        },
+        "Ducts": {
+          "visible": false
+        },
+        "Pipes": {
+          "visible": false
+        }
+      },
+      "tagColorScheme": "Pressure",
+      "defaultTagStyle": "2.5NOM_BLACK"
+    },
+    {
+      "id": "corp-healthcare-ees",
+      "name": "Healthcare Essential Electrical Services",
+      "description": "HTM 06-01 / NFPA 99 / NFPA 110 essential electrical services. Type A (life safety, <0.5s) red, Type B (critical, <15s) orange, Type C (equipment, <40s) yellow, normal supply grey.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare EES",
+      "detailLevel": "Fine",
+      "scaleHint": "1:100",
+      "colorScheme": "ElectricalSupply",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - EES: Life Safety",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 5
+        },
+        {
+          "name": "STING - EES: Critical",
+          "visible": true,
+          "projColor": "#F57F17",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - EES: Equipment",
+          "visible": true,
+          "projColor": "#FFD600",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - EES: Normal",
+          "visible": true,
+          "projColor": "#808080",
+          "projWeight": 2
+        },
+        {
+          "name": "EES - Generator",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 6
+        },
+        {
+          "name": "STING - Elec: UPS",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 5
+        },
+        {
+          "name": "STING - EES: Isolated Power",
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 4
+        },
+        {
+          "name": "EES - Transfer Switch (ATS)",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 4
+        }
+      ],
+      "vgOverrides": {
+        "Electrical Equipment": {
+          "projColor": "#F57F17",
+          "projWeight": 3
+        },
+        "Electrical Fixtures": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Conduits": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Cable Trays": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Walls": {
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        }
+      },
+      "tagColorScheme": "ElectricalSupply",
+      "defaultTagStyle": "2.5BOLD_BLACK"
+    },
+    {
+      "id": "corp-healthcare-fire",
+      "name": "Healthcare Fire Strategy",
+      "description": "HTM 05-02 / BS 9999 fire compartmentation. 30/60/90/120-min fire-rated walls colour-coded; smoke barriers green dashed; sub-compartments solid red.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Fire",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "FireRating",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - Arch: Fire 120 min Walls",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 6,
+          "cutColor": "#7B1FA2",
+          "cutWeight": 6
+        },
+        {
+          "name": "STING - Arch: Fire 90 min Walls",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 5,
+          "cutColor": "#C00000",
+          "cutWeight": 5
+        },
+        {
+          "name": "STING - Arch: Fire 60 min Walls",
+          "visible": true,
+          "projColor": "#F57F17",
+          "projWeight": 4,
+          "cutColor": "#F57F17",
+          "cutWeight": 4
+        },
+        {
+          "name": "STING - Arch: Fire 30 min Walls",
+          "visible": true,
+          "projColor": "#FFD600",
+          "projWeight": 3,
+          "cutColor": "#FFD600",
+          "cutWeight": 3
+        },
+        {
+          "name": "STING - Fire: Smoke Compartments",
+          "visible": true,
+          "projColor": "#43A047",
+          "projWeight": 3,
+          "projLinePattern": "Dash"
+        },
+        {
+          "name": "STING - Fire: Compartment Tagged",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 2,
+          "transparency": 70
+        },
+        {
+          "name": "STING - Fire: Primary Escape Route",
+          "visible": true,
+          "projColor": "#43A047",
+          "projWeight": 2
+        },
+        {
+          "name": "STING - Arch: FD60 Doors",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 4
+        }
+      ],
+      "vgOverrides": {
+        "Walls": {
+          "visible": true,
+          "projWeight": 2
+        },
+        "Doors": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Furniture": {
+          "visible": false
+        },
+        "Casework": {
+          "visible": false
+        },
+        "Fire Alarm Devices": {
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 3
+        },
+        "Sprinklers": {
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 2
+        }
+      },
+      "tagColorScheme": "FireRating",
+      "defaultTagStyle": "2.5BOLD_BLACK"
+    },
+    {
+      "id": "corp-healthcare-shielding",
+      "name": "Healthcare Radiation Shielding",
+      "description": "NCRP 147 / IPEM 75 / IAEA SRS 47 radiation shielding. Lead-equivalent walls bold magenta, controlled/supervised zones colour-banded, dose monitoring positions marked.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Shielding",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "Radiation",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "Shielding - Lead 1.0 mm",
+          "visible": true,
+          "projColor": "#880E4F",
+          "projWeight": 4,
+          "cutColor": "#880E4F",
+          "cutWeight": 4
+        },
+        {
+          "name": "STING - Rad: Primary Barrier",
+          "visible": true,
+          "projColor": "#AD1457",
+          "projWeight": 5,
+          "cutColor": "#AD1457",
+          "cutWeight": 5
+        },
+        {
+          "name": "STING - Rad: Primary Barrier",
+          "visible": true,
+          "projColor": "#C2185B",
+          "projWeight": 6,
+          "cutColor": "#C2185B",
+          "cutWeight": 6
+        },
+        {
+          "name": "STING - Rad: Secondary Barrier",
+          "visible": true,
+          "projColor": "#5D4037",
+          "projWeight": 6,
+          "cutColor": "#5D4037",
+          "cutWeight": 6
+        },
+        {
+          "name": "Shielding - Borated Poly",
+          "visible": true,
+          "projColor": "#00897B",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - Rad: Controlled Area",
+          "visible": true,
+          "projColor": "#FFD600",
+          "projWeight": 1,
+          "transparency": 60
+        },
+        {
+          "name": "STING - Rad: Uncontrolled (1 mGy/yr)",
+          "visible": true,
+          "projColor": "#FFEB3B",
+          "projWeight": 1,
+          "transparency": 75
+        },
+        {
+          "name": "STING - Rad: MRI Zone 4",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - Rad: MRI Zone 3",
+          "visible": true,
+          "projColor": "#9C27B0",
+          "projWeight": 2,
+          "transparency": 50
+        },
+        {
+          "name": "STING - Rad: MRI Zone 2",
+          "visible": true,
+          "projColor": "#CE93D8",
+          "projWeight": 1,
+          "transparency": 70
+        }
+      ],
+      "vgOverrides": {
+        "Walls": {
+          "projWeight": 3
+        },
+        "Doors": {
+          "visible": true,
+          "projColor": "#880E4F",
+          "projWeight": 3
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projColor": "#880E4F",
+          "projWeight": 4
+        },
+        "Furniture": {
+          "visible": false
+        }
+      },
+      "tagColorScheme": "Radiation",
+      "defaultTagStyle": "2.5BOLD_BLACK"
+    },
+    {
+      "id": "corp-healthcare-ligature",
+      "name": "Healthcare Anti-Ligature",
+      "description": "Mental health / dementia / paediatric anti-ligature audit drawings. Ligature-resistant fittings highlighted purple, anti-bind doors magenta, observation lines from staff base shown.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Anti-Ligature",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "AntiLigature",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - Lig: LOW Risk",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - Lig: HIGH Risk",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 5
+        },
+        {
+          "name": "Anti-Bind Door",
+          "visible": true,
+          "projColor": "#AD1457",
+          "projWeight": 4
+        },
+        {
+          "name": "Observation - Direct",
+          "visible": true,
+          "projColor": "#43A047",
+          "projWeight": 2,
+          "transparency": 30
+        },
+        {
+          "name": "Observation - Indirect",
+          "visible": true,
+          "projColor": "#FBC02D",
+          "projWeight": 2,
+          "transparency": 30
+        },
+        {
+          "name": "Observation - None",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 2,
+          "transparency": 30
+        },
+        {
+          "name": "STING - Lig: MED Risk",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - Lig: MED Risk",
+          "visible": true,
+          "projColor": "#9C27B0",
+          "projWeight": 2,
+          "transparency": 60
+        }
+      ],
+      "vgOverrides": {
+        "Doors": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 3
+        },
+        "Plumbing Fixtures": {
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 3
+        },
+        "Lighting Fixtures": {
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 2
+        },
+        "Casework": {
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#9E9E9E",
+          "projWeight": 1
+        },
+        "Windows": {
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 2
+        }
+      },
+      "tagColorScheme": "AntiLigature",
+      "defaultTagStyle": "2.5NOM_BLACK"
+    },
+    {
+      "id": "corp-healthcare-water",
+      "name": "Healthcare Water Safety",
+      "description": "HTM 04-01 water safety / Legionella control. DCW blue, DHW red, DHWR yellow, dead-leg risk magenta, TMV mixed-water green, temp-monitor sensors highlighted.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Water",
+      "detailLevel": "Fine",
+      "scaleHint": "1:100",
+      "colorScheme": "WaterSafety",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - Plumb: Domestic Cold Water (DCW)",
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - Plumb: Domestic Hot Water Supply (DHWS)",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - Plumb: DHW Return",
+          "visible": true,
+          "projColor": "#FFD600",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - PLM: TMV3 (Augmented Care)",
+          "visible": true,
+          "projColor": "#2E7D32",
+          "projWeight": 3
+        },
+        {
+          "name": "Water - Dead Leg (Risk)",
+          "visible": true,
+          "projColor": "#AD1457",
+          "projWeight": 5,
+          "projLinePattern": "Dash"
+        },
+        {
+          "name": "STING - PLM: Augmented Care Outlet",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 4
+        },
+        {
+          "name": "Water - Temperature Sensor",
+          "visible": true,
+          "projColor": "#FF6600",
+          "projWeight": 3
+        },
+        {
+          "name": "Water - Calorifier",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 5
+        }
+      ],
+      "vgOverrides": {
+        "Pipes": {
+          "projWeight": 4
+        },
+        "Pipe Fittings": {
+          "projWeight": 3
+        },
+        "Pipe Accessories": {
+          "projWeight": 3
+        },
+        "Plumbing Fixtures": {
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 3
+        },
+        "Mechanical Equipment": {
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 3
+        },
+        "Walls": {
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        }
+      },
+      "tagColorScheme": "WaterSafety",
+      "defaultTagStyle": "2.5NOM_BLACK"
+    },
+    {
+      "id": "pres-burgund-green",
+      "name": "Presentation — Burgundy / Green",
+      "description": "Client-facing presentation pack. Burgundy walls + dark-green topo on cream paper. Hand-rendered hatch palette.",
+      "extends": "corp-presentation-rich",
+      "origin": "corporate",
+      "viewTemplate": "STING - Presentation Burgundy",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "PresentationRich",
+      "appearance": {
+        "textStyleName": "STING - 3.0mm Presentation",
+        "hatchPalette": "Hand-rendered"
+      },
+      "vgOverrides": {
+        "Walls": {
+          "projColor": "#5D1A2D",
+          "cutColor": "#5D1A2D",
+          "projWeight": 6,
+          "cutWeight": 6
+        },
+        "Structural Columns": {
+          "projColor": "#5D1A2D",
+          "projWeight": 6
+        },
+        "Floors": {
+          "halftone": false,
+          "projColor": "#F5E6D3",
+          "projWeight": 1
+        },
+        "Rooms": {
+          "visible": true,
+          "projColor": "#F5E6D3",
+          "transparency": 40
+        },
+        "Topography": {
+          "visible": true,
+          "projColor": "#2E5D3A",
+          "projWeight": 1,
+          "transparency": 20
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#8D6E63",
+          "projWeight": 1
+        },
+        "Curtain Panels": {
+          "projColor": "#5D1A2D",
+          "projWeight": 2
+        }
+      }
+    },
+    {
+      "id": "pres-interior-sage",
+      "name": "Presentation — Interior Sage",
+      "description": "Interior elevation presentation. Sage walls, warm wood casework, soft ambient palette. Suppressed grids/dimensions.",
+      "extends": "corp-presentation-rich",
+      "origin": "corporate",
+      "viewTemplate": "STING - Presentation Interior",
+      "detailLevel": "Medium",
+      "scaleHint": "1:50",
+      "colorScheme": "PresentationRich",
+      "appearance": {
+        "textStyleName": "STING - 2.5mm Presentation"
+      },
+      "vgOverrides": {
+        "Walls": {
+          "projColor": "#7A8B6E",
+          "cutColor": "#7A8B6E",
+          "projWeight": 4,
+          "cutWeight": 4
+        },
+        "Casework": {
+          "visible": true,
+          "projColor": "#A0826D",
+          "projWeight": 3
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#8B6F47",
+          "projWeight": 2
+        },
+        "Floors": {
+          "projColor": "#E8DCC4",
+          "projWeight": 1
+        },
+        "Lighting Fixtures": {
+          "visible": true,
+          "projColor": "#FFA726",
+          "projWeight": 2
+        },
+        "Plumbing Fixtures": {
+          "visible": true,
+          "projColor": "#90A4AE",
+          "projWeight": 2
+        },
+        "Doors": {
+          "visible": true,
+          "projColor": "#5D4037",
+          "projWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projColor": "#A0826D",
+          "projWeight": 2
+        },
+        "Grids": {
+          "visible": false
+        },
+        "Dimensions": {
+          "visible": false
+        }
       }
     }
   ],
   "routing": [
-    { "purpose": "Spool",      "discipline": "*",    "stylePackId": "corp-fabrication-shop" },
-    { "purpose": "Coord",      "discipline": "*",    "stylePackId": "corp-coordination" },
-    { "purpose": "Plan",       "discipline": "ARCH", "stylePackId": "corp-standard-plan" },
-    { "purpose": "Plan",       "discipline": "MEP",  "stylePackId": "corp-coordination" },
-    { "purpose": "RCP",        "discipline": "*",    "stylePackId": "corp-standard-rcp" },
-    { "purpose": "Section",    "discipline": "*",    "stylePackId": "corp-standard-section" },
-    { "purpose": "Elevation",  "discipline": "*",    "stylePackId": "corp-standard-elevation" },
-    { "purpose": "Detail",     "discipline": "*",    "stylePackId": "corp-standard-detail" },
-    { "purpose": "Clarification","discipline":"*",   "stylePackId": "corp-clarification" },
-    { "purpose": "ClientReview","discipline":"*",    "stylePackId": "corp-presentation-mono" },
-    { "purpose": "DesignReview","discipline":"*",    "stylePackId": "corp-presentation-rich" },
-    { "purpose": "*",          "discipline": "*",    "stylePackId": "corp-base" }
+    {
+      "purpose": "Spool",
+      "discipline": "*",
+      "stylePackId": "corp-fabrication-shop"
+    },
+    {
+      "purpose": "Coord",
+      "discipline": "*",
+      "stylePackId": "corp-coordination"
+    },
+    {
+      "purpose": "Plan",
+      "discipline": "ARCH",
+      "stylePackId": "corp-standard-plan"
+    },
+    {
+      "purpose": "Plan",
+      "discipline": "MEP",
+      "stylePackId": "corp-coordination"
+    },
+    {
+      "purpose": "RCP",
+      "discipline": "*",
+      "stylePackId": "corp-standard-rcp"
+    },
+    {
+      "purpose": "Section",
+      "discipline": "*",
+      "stylePackId": "corp-standard-section"
+    },
+    {
+      "purpose": "Elevation",
+      "discipline": "*",
+      "stylePackId": "corp-standard-elevation"
+    },
+    {
+      "purpose": "Detail",
+      "discipline": "*",
+      "stylePackId": "corp-standard-detail"
+    },
+    {
+      "purpose": "Clarification",
+      "discipline": "*",
+      "stylePackId": "corp-clarification"
+    },
+    {
+      "purpose": "ClientReview",
+      "discipline": "*",
+      "stylePackId": "corp-presentation-mono"
+    },
+    {
+      "purpose": "DesignReview",
+      "discipline": "*",
+      "stylePackId": "corp-presentation-rich"
+    },
+    {
+      "purpose": "*",
+      "discipline": "*",
+      "stylePackId": "corp-base"
+    }
   ]
 }

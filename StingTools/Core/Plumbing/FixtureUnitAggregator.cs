@@ -19,6 +19,7 @@ namespace StingTools.Core.Plumbing
         public Dictionary<ElementId, bool>   PipeIsStack { get; } = new Dictionary<ElementId, bool>();
         public int FixturesScanned { get; set; }
         public int PipesTagged     { get; set; }
+        public int PipesWritten    { get; set; }  // PLM_DFU_COUNT_INT stamped
         public List<string> Warnings { get; } = new List<string>();
     }
 
@@ -93,6 +94,17 @@ namespace StingTools.Core.Plumbing
         public static double GetAccumulatedDfu(Document doc, Pipe pipe)
         {
             if (doc == null || pipe == null) return 0;
+
+            // Direction-aware BFS for drainage: water flows downhill, so
+            // "upstream" (toward fixtures) is at higher elevation than the seed
+            // pipe. We seed from the downstream end Z and only follow neighbours
+            // whose centroid Z is >= the seed minus a small tolerance. Without
+            // this filter the BFS walks both ways from the seed and sums every
+            // fixture in the connected network — every pipe ends up with the
+            // same network-wide DFU total.
+            double seedZFt = SeedDownstreamZ(pipe);
+            const double zTolFt = 0.05; // ~15 mm slack for nearly-flat runs
+
             var visited = new HashSet<long>();
             var queue   = new Queue<Element>();
             visited.Add(pipe.Id.Value);
@@ -115,11 +127,19 @@ namespace StingTools.Core.Plumbing
                             var owner = other.Owner;
                             if (owner == null) continue;
                             if (visited.Contains(owner.Id.Value)) continue;
+
+                            // Drop neighbours that are clearly downstream of the
+                            // seed pipe (lower Z). Fixture nodes are exempt so a
+                            // bath/shower on a near-flat branch still counts.
+                            double ownerZ = OwnerZ(owner);
+                            var bic = (BuiltInCategory)(owner.Category?.Id?.Value ?? 0);
+                            bool isFixture = bic == BuiltInCategory.OST_PlumbingFixtures
+                                          || bic == BuiltInCategory.OST_MechanicalEquipment;
+                            if (!isFixture && ownerZ + zTolFt < seedZFt) continue;
+
                             visited.Add(owner.Id.Value);
 
-                            var bic = (BuiltInCategory)(owner.Category?.Id?.Value ?? 0);
-                            if (bic == BuiltInCategory.OST_PlumbingFixtures
-                             || bic == BuiltInCategory.OST_MechanicalEquipment)
+                            if (isFixture)
                             {
                                 sum += GetFixtureDfu(owner);
                                 continue;
@@ -133,7 +153,48 @@ namespace StingTools.Core.Plumbing
             return sum;
         }
 
-        public static DfuMapResult BuildDfuMap(Document doc)
+        private static double SeedDownstreamZ(Pipe pipe)
+        {
+            try
+            {
+                var lc = pipe.Location as LocationCurve;
+                if (lc?.Curve == null) return 0;
+                var s = lc.Curve.GetEndPoint(0);
+                var e = lc.Curve.GetEndPoint(1);
+                return Math.Min(s.Z, e.Z);
+            }
+            catch { return 0; }
+        }
+
+        private static double OwnerZ(Element el)
+        {
+            try
+            {
+                if (el is MEPCurve mc && mc.Location is LocationCurve lc && lc.Curve != null)
+                {
+                    var s = lc.Curve.GetEndPoint(0);
+                    var e = lc.Curve.GetEndPoint(1);
+                    return (s.Z + e.Z) / 2.0;
+                }
+                if (el.Location is LocationPoint lp) return lp.Point.Z;
+                var bb = el.get_BoundingBox(null);
+                if (bb != null) return (bb.Min.Z + bb.Max.Z) / 2.0;
+            }
+            catch { }
+            return 0;
+        }
+
+        public static DfuMapResult BuildDfuMap(Document doc) => BuildDfuMap(doc, writeBack: false);
+
+        /// <summary>
+        /// Walk drainage pipes, accumulate DFU upstream, and (when
+        /// <paramref name="writeBack"/>=true) stamp PLM_DFU_COUNT_INT on each
+        /// pipe so downstream sizers / schedules / paragraph builders don't
+        /// have to re-traverse the connector graph. Caller owns the
+        /// Transaction when writeBack is on. PLM_DFU_COUNT_INT already
+        /// exists in MR_PARAMETERS.txt (Phase 178b).
+        /// </summary>
+        public static DfuMapResult BuildDfuMap(Document doc, bool writeBack)
         {
             var r = new DfuMapResult();
             if (doc == null) return r;
@@ -160,6 +221,22 @@ namespace StingTools.Core.Plumbing
                     r.PipeDfu[p.Id] = dfu;
                     r.PipeIsStack[p.Id] = IsVerticalStack(p);
                     if (dfu > 0.001) r.PipesTagged++;
+
+                    if (writeBack && dfu > 0.001)
+                    {
+                        try
+                        {
+                            var pp = p.LookupParameter("PLM_DFU_COUNT_INT");
+                            if (pp != null && !pp.IsReadOnly)
+                            {
+                                if (pp.StorageType == StorageType.Integer)      pp.Set((int)Math.Round(dfu));
+                                else if (pp.StorageType == StorageType.Double)  pp.Set(dfu);
+                                else if (pp.StorageType == StorageType.String)  pp.Set($"{dfu:F1}");
+                                r.PipesWritten++;
+                            }
+                        }
+                        catch (Exception exW) { r.Warnings.Add($"DFU writeBack pipe {p.Id}: {exW.Message}"); }
+                    }
                 }
                 catch (Exception ex2)
                 {

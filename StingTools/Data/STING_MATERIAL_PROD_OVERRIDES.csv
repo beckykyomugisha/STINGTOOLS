@@ -1,0 +1,30 @@
+Category,MaterialPattern,Suffix
+# N+2 — Material-driven PROD code suffix.
+# First match wins. Category = "*" applies to every category.
+# MaterialPattern is regex, case-insensitive.
+# Suffix is appended to the base PROD with a "-" separator.
+*,(?i)concrete|cement|grout|mortar,CON
+*,(?i)steel|metal|stainless|galv|UB |UC |^IPE|^HE[ABMR]?,STL
+*,(?i)timber|wood|hardwood|softwood|plywood|MDF|chipboard|OSB,TIM
+*,(?i)brick|masonry|block,MAS
+*,(?i)glass|glazing|laminate.*glass|toughened,GLZ
+*,(?i)plaster|gypsum|drywall,GYP
+*,(?i)copper,CU
+*,(?i)brass,BRZ
+*,(?i)aluminium|aluminum,ALU
+*,(?i)pvc|vinyl|hdpe|abs|polypropylene|polyethylene,PLA
+*,(?i)mineral wool|rockwool|stone wool|glass wool,INS-MW
+*,(?i)pir|polyurethane,INS-PIR
+*,(?i)eps|expanded polystyrene,INS-EPS
+*,(?i)xps|extruded polystyrene,INS-XPS
+*,(?i)cellulose,INS-CEL
+*,(?i)bitumen|asphalt,BIT
+*,(?i)stone|granite|marble|limestone|sandstone,STN
+*,(?i)tile|ceramic|porcelain,TIL
+*,(?i)carpet,CPT
+*,(?i)rubber|EPDM|neoprene,RBR
+*,(?i)fabric|textile|curtain.*material,FAB
+*,(?i)paint|coating,PNT
+*,(?i)resin|epoxy,RSN
+*,(?i)lead,PB
+*,(?i)zinc,ZN

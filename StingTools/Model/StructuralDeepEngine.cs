@@ -167,6 +167,39 @@ namespace StingTools.Model
 
             return cases;
         }
+
+        /// <summary>
+        /// Close the calc → model loop: stamp STR_BEAM_TORSION_KNM and
+        /// STR_ECC_CONN_MM (both new in Phase 187) on every beam where a
+        /// torsion case was detected. Caller owns the Transaction.
+        /// Returns the number of beams written.
+        /// </summary>
+        public static int WriteBack(Document doc, List<TorsionCase> cases)
+        {
+            int written = 0;
+            if (doc == null || cases == null) return written;
+            foreach (var tc in cases)
+            {
+                if (tc?.ElementId == null) continue;
+                var el = doc.GetElement(tc.ElementId);
+                if (el == null) continue;
+                try
+                {
+                    if (tc.TorsionalMomentKNm > 0)
+                        StingTools.Core.ParameterHelpers.SetString(el, "STR_BEAM_TORSION_KNM",
+                            $"{tc.TorsionalMomentKNm:F2}", overwrite: true);
+                    if (tc.EccentricityMm > 0)
+                        StingTools.Core.ParameterHelpers.SetString(el, "STR_ECC_CONN_MM",
+                            $"{tc.EccentricityMm:F0}", overwrite: true);
+                    written++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"AutoTorsionDetector.WriteBack {tc.ElementId.Value}: {ex.Message}");
+                }
+            }
+            return written;
+        }
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -304,6 +337,79 @@ namespace StingTools.Model
         private const double MinPitchRatio = 2.2;         // p1 ≥ 2.2 d0
         private const double MaxPitchRatio = 14.0;        // p1 ≤ min(14t, 200)
         private const double MinGaugeRatio = 2.4;         // p2 ≥ 2.4 d0
+
+        /// <summary>
+        /// Walks every steel beam, picks a connection detail (fin plate for
+        /// simple shear, end plate for moment), and stamps STR_CONN_DETAIL_TXT
+        /// + STR_CONN_RATING_KN (new Phase 187 params). Caller owns the
+        /// Transaction. Conservative: classifies by beam depth — &lt;457mm =
+        /// fin plate (simple), ≥457mm = end plate (moment).
+        /// Returns (inspected, stamped, summary).
+        /// </summary>
+        public static (int Inspected, int Stamped, string Summary) AnalyseModel(
+            Document doc, double defaultShearKN = 100, double defaultMomentKNm = 50)
+        {
+            int inspected = 0, stamped = 0;
+            if (doc == null) return (0, 0, "No document");
+            try
+            {
+                var beams = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .WhereElementIsNotElementType()
+                    .Where(b =>
+                    {
+                        try
+                        {
+                            var mat = b.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM)?.AsValueString() ?? "";
+                            return string.IsNullOrEmpty(mat)
+                                || mat.IndexOf("steel", StringComparison.OrdinalIgnoreCase) >= 0
+                                || mat.IndexOf("S275", StringComparison.OrdinalIgnoreCase) >= 0
+                                || mat.IndexOf("S355", StringComparison.OrdinalIgnoreCase) >= 0;
+                        }
+                        catch { return true; }
+                    })
+                    .ToList();
+
+                foreach (var beam in beams)
+                {
+                    inspected++;
+                    try
+                    {
+                        var bb = beam.get_BoundingBox(null);
+                        if (bb == null) continue;
+                        double beamDepthMm  = (bb.Max.Z - bb.Min.Z) * 304.8;
+                        double beamFlangeMm = (bb.Max.X - bb.Min.X) * 304.8;
+                        if (beamDepthMm < 100) beamDepthMm = 350; // fallback for symbolic members
+
+                        ConnectionDetail detail = beamDepthMm >= 457
+                            ? DesignEndPlate(defaultShearKN, defaultMomentKNm,
+                                  beamDepthMm, beamFlangeMm)
+                            : DesignFinPlate(defaultShearKN, beamDepthMm, beamFlangeMm);
+
+                        string label = $"{detail.ConnectionType} M{detail.BoltDiameterMm:F0} " +
+                                       $"{detail.BoltRows}×{detail.BoltsPerRow} " +
+                                       $"({(detail.Pass ? "OK" : "FAIL")})";
+
+                        StingTools.Core.ParameterHelpers.SetString(beam,
+                            "STR_CONN_DETAIL_TXT", label, overwrite: true);
+                        if (StingTools.Core.ParameterHelpers.SetString(beam,
+                                "STR_CONN_RATING_KN",
+                                $"{detail.CapacityKN:F0}", overwrite: true))
+                            stamped++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"ConnectionDetail beam {beam.Id}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ConnectionDetailing.AnalyseModel", ex);
+            }
+            return (inspected, stamped,
+                $"Walked {inspected} steel beam(s); stamped STR_CONN_* on {stamped}.");
+        }
 
         /// <summary>Design a bolted end-plate connection per EC3/SCI P358.</summary>
         public static ConnectionDetail DesignEndPlate(
@@ -488,6 +594,87 @@ namespace StingTools.Model
 
     internal static class CreepDeflectionAnalysis
     {
+        /// <summary>
+        /// Closes the calc → model loop on creep deflection. Walks every
+        /// concrete beam in the model, estimates the immediate (elastic)
+        /// deflection from span + UDL via 5wL⁴/384EI heuristic, calls
+        /// Calculate, and stamps STRUCT_FRM_DEFLECTION_MM (existing param)
+        /// with the long-term total. Caller owns the Transaction.
+        /// Returns (beamsInspected, beamsStamped, summary).
+        /// </summary>
+        public static (int Inspected, int Stamped, string Summary) AnalyseModel(
+            Document doc, double defaultUdlKNm = 25, double rhPct = 50,
+            int timeYears = 60)
+        {
+            int inspected = 0, stamped = 0;
+            if (doc == null) return (0, 0, "No document");
+            try
+            {
+                // Concrete beams only — steel beams don't creep meaningfully.
+                var beams = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .WhereElementIsNotElementType()
+                    .Where(b =>
+                    {
+                        try
+                        {
+                            var mat = b.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM)?.AsValueString() ?? "";
+                            // Default to "concrete-like" if we can't read material —
+                            // safer to compute and not stamp than to skip everything.
+                            return string.IsNullOrEmpty(mat)
+                                || mat.IndexOf("concrete", StringComparison.OrdinalIgnoreCase) >= 0
+                                || mat.IndexOf("RC", StringComparison.OrdinalIgnoreCase) >= 0;
+                        }
+                        catch { return true; }
+                    })
+                    .ToList();
+
+                foreach (var beam in beams)
+                {
+                    inspected++;
+                    try
+                    {
+                        var loc = beam.Location as LocationCurve;
+                        if (loc?.Curve == null) continue;
+                        double spanMm = loc.Curve.Length * 304.8;
+                        if (spanMm < 500) continue; // ignore stub members
+
+                        // Estimate immediate deflection from 5wL⁴/(384·EI)
+                        // with web-of-thumb sized beam (h ≈ span/20, I = b·h³/12).
+                        double h = spanMm / 20.0;
+                        double b = h * 0.5;
+                        double I = b * Math.Pow(h, 3) / 12.0;                    // mm⁴
+                        double E = 32000.0;                                       // MPa, C32/40
+                        double w = defaultUdlKNm;                                 // kN/m
+                        // δ = 5·w·L⁴ / (384·E·I), units mm: w in N/mm, L in mm
+                        double wNmm = w;                                          // kN/m = N/mm
+                        double immediateMm = (5.0 * wNmm * Math.Pow(spanMm, 4))
+                                           / (384.0 * E * I);
+
+                        var r = Calculate(spanMm, immediateMm,
+                            deadLoadRatio: 0.70, liveLoadRatio: 0.30,
+                            relativeHumidityPct: rhPct, loadingAgeDays: 28,
+                            timeYears: timeYears, memberType: "beam");
+
+                        if (StingTools.Core.ParameterHelpers.SetString(beam,
+                                "STRUCT_FRM_DEFLECTION_MM",
+                                $"{r.TotalLongTermMm:F1}", overwrite: true))
+                            stamped++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"CreepDeflection beam {beam.Id}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CreepDeflection.AnalyseModel", ex);
+            }
+            return (inspected, stamped,
+                $"Walked {inspected} concrete beam(s); stamped STRUCT_FRM_DEFLECTION_MM on {stamped}.");
+        }
+
         /// <summary>Calculate time-dependent deflection per EC2 §7.4.</summary>
         public static CreepResult Calculate(
             double spanMm, double immediateDeflectionMm,
@@ -675,6 +862,27 @@ namespace StingTools.Model
 
             return checks;
         }
+
+        /// <summary>
+        /// Close the calc → model loop: stamp STR_FAB_TOLERANCE_MM (Phase 187)
+        /// with the worst-case tolerance per element. Returns the number of
+        /// elements stamped. Caller owns the Transaction.
+        /// </summary>
+        public static int WriteBack(Document doc, Element el, List<ToleranceCheck> checks)
+        {
+            if (doc == null || el == null || checks == null || checks.Count == 0) return 0;
+            try
+            {
+                double worstMm = 0;
+                foreach (var c in checks) if (c.ToleranceMm > worstMm) worstMm = c.ToleranceMm;
+                if (worstMm <= 0) return 0;
+                if (StingTools.Core.ParameterHelpers.SetString(el, "STR_FAB_TOLERANCE_MM",
+                        $"{worstMm:F1}", overwrite: true))
+                    return 1;
+            }
+            catch (Exception ex) { StingLog.Warn($"FabTolerance.WriteBack {el.Id}: {ex.Message}"); }
+            return 0;
+        }
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -702,9 +910,17 @@ namespace StingTools.Model
                     .WhereElementIsNotElementType()
                     .Take(200));
 
+                // Phase 187 — also collect per-element tolerance so the
+                // caller can stamp STR_FAB_TOLERANCE_MM under its Transaction.
+                _lastPerElementTolerances.Clear();
                 foreach (var el in structElements)
                 {
-                    toleranceChecks.AddRange(FabricationToleranceChecker.CheckElement(el, doc));
+                    var perEl = FabricationToleranceChecker.CheckElement(el, doc);
+                    if (perEl.Count > 0)
+                    {
+                        toleranceChecks.AddRange(perEl);
+                        _lastPerElementTolerances[el.Id] = perEl;
+                    }
                 }
             }
             catch (Exception ex)
@@ -716,5 +932,12 @@ namespace StingTools.Model
             StingLog.Info($"StructuralDeep: {torsionCases.Count} torsion cases, {toleranceChecks.Count} tolerance checks");
             return (torsionCases, toleranceChecks, totalChecks);
         }
+
+        // Per-element tolerance map — populated by AnalyseModel, consumed by
+        // the dispatch wrapper in StingCommandHandler to drive WriteBack.
+        private static readonly Dictionary<ElementId, List<ToleranceCheck>> _lastPerElementTolerances
+            = new Dictionary<ElementId, List<ToleranceCheck>>();
+        public static Dictionary<ElementId, List<ToleranceCheck>> LastPerElementTolerances
+            => _lastPerElementTolerances;
     }
 }

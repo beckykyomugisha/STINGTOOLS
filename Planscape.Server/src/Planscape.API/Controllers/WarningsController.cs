@@ -97,6 +97,7 @@ public class WarningsController : ControllerBase
     /// <summary>
     /// Get warning trend data (warning count + health score over time).
     /// </summary>
+    [HttpGet]
     [HttpGet("trend")]
     public async Task<ActionResult> GetTrend(Guid projectId, [FromQuery] int days = 30)
     {

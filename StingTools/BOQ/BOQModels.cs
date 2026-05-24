@@ -168,6 +168,14 @@ namespace StingTools.BOQ
         public double ParagraphCoveragePct => AllItems.Count > 0 ? 100.0 * ResolvedParagraphCount / AllItems.Count : 0;
 
         /// <summary>
+        /// N+9 — Number of elements whose ASS_CST_STALE_BOOL = "1" flag was
+        /// cleared during the latest BuildBOQDocument run. The BOQ dashboard
+        /// surfaces this as a banner — confirms that material-change → stale
+        /// → re-cost loop closed cleanly for those rows.
+        /// </summary>
+        public int StaleRowsRefreshed { get; set; }
+
+        /// <summary>
         /// The average rate confidence (0-100) across all items. Used by
         /// BOQCostManager.ComputeBOQHealth (Phase 11C).
         /// </summary>

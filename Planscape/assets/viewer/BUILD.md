@@ -40,18 +40,63 @@ Total transfer for a cold open: ~500 KB → ~150 KB.
 - File names in `dist/` match the existing `<script src>` tags in
   `viewer.html` so the deploy step is a single `cp -R dist/ <served-path>/`.
 
-## Deferred / not done
+## Tree-shaken three.js bundle
 
-- **Three.js bundling.** Currently kept as external `three.min.js`
-  loaded via `<script>` per the existing pattern. Pulling it into the
-  bundle would let us tree-shake unused Three.js modules (loaders,
-  postprocessing) and save another ~50 KB, but requires changes to
-  `coordination-viewer.js` to use ES imports instead of `window.THREE`.
-- **CI integration.** Server's `wwwroot/viewer/` is currently served
-  from the in-tree source. A follow-up changes the docker image to
-  `npm run build` + copy `dist/` instead.
-- **Source-map upload.** Build emits `.map` files; uploading them to
-  Sentry / Honeycomb for production stack traces is a separate hook.
+`build.mjs` lists the exact Three.js classes the viewer uses (24 core
++ 4 addons) instead of `export * from 'three'`. esbuild treats the
+re-export entry point as a normal ESM source and drops every
+unreferenced export from `dist/three.min.js`. Refresh the list when
+new `THREE.<symbol>` lookups appear in `viewer.html` /
+`viewer-extras.js` / `coordination-viewer.js`:
+
+```bash
+grep -oh 'THREE\.[A-Z][A-Za-z0-9]*' viewer.html viewer-extras.js \
+  coordination-viewer.js | sort -u
+```
+
+The runtime contract is unchanged: `dist/three.min.js` still defines
+`window.THREE` with the same class shape, so neither `viewer.html`
+nor `viewer-extras.js` needed code changes.
+
+## Docker / CI integration
+
+The `Planscape.Server/docker/Dockerfile` now has a dedicated
+`viewer` stage (Node 20-alpine) that runs `npm ci && npm run build`
+and stages the resulting `dist/` over `wwwroot/` before the dotnet
+publish step. The MSBuild `SyncCoordinationViewer` target is gated on
+`PlanscapeServeDist=true` so the in-tree sources don't overwrite the
+minified bundle inside the container.
+
+Local dev is unchanged — `PlanscapeServeDist` is unset by default, so
+`dotnet build` still syncs source → wwwroot every build. Pass
+`--build-arg PLANSCAPE_SERVE_DIST=false` to `docker build` if you
+need to ship raw sources in the image (e.g. to attach a debugger
+against unminified line numbers).
+
+## Source-map upload
+
+`build.mjs` emits external `.map` files alongside each bundle.
+`upload-sourcemaps.mjs` pushes them to Sentry (default host) so
+production stack traces resolve back to original line numbers.
+
+```bash
+SENTRY_AUTH_TOKEN=<token> \
+SENTRY_ORG=planscape \
+SENTRY_PROJECT=planscape-viewer \
+npm run upload-sourcemaps      # builds dist/ then uploads .map files
+```
+
+When `SENTRY_AUTH_TOKEN` is not set the script no-ops with a friendly
+message so CI pipelines that haven't configured Sentry yet keep
+passing. When the token IS set, missing org/project fails fast.
+
+Release identifier defaults to `viewer-<short git SHA>`; override with
+`SENTRY_RELEASE`. Self-hosted Sentry: set `SENTRY_HOST`. Hard-pin the
+URL prefix (instead of the default `~/` wildcard) with
+`SENTRY_URL_PREFIX=https://planscape.app/`.
+
+Source maps are NOT committed — `dist/` is gitignored. They live only
+in CI artefacts and on Sentry's side.
 
 ## Why opt-in (not enforced)
 

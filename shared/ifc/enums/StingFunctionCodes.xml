@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingFunctionCodes</Name>
+    <Definition>Function codes for the sixth segment (FUNC) of the STING 8-segment tag. FUNC narrows the role of an element within its SYS — e.g. an HVAC duct may FUNC=SUP (supply), RET (return), EXH (exhaust), OA (outside air), REL (relief). Codes are namespace-disambiguated where the same letters appear in multiple services (e.g. PWR is electrical-only, never HVAC).</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4001-9000-000000000003</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/function</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>CIBSE Guide A/B/C; Uniclass 2015; STING tag config v5.0 (data/TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv); HTM 02-01 / 03-01 / 06-01 for healthcare functions</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    
+    <Value code="SUP" sentinel="false">
+      <Definition>Supply — HVAC supply air, plumbing supply, conditioned air to space.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RET" sentinel="false">
+      <Definition>Return — HVAC return air path back to AHU / FCU.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="EXH" sentinel="false">
+      <Definition>Exhaust — HVAC exhaust to atmosphere; toilet / kitchen / lab extract.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OA" sentinel="false">
+      <Definition>Outside Air — fresh-air intake to AHU.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="REL" sentinel="false">
+      <Definition>Relief — pressure-relief air path (e.g. for positive-pressure rooms shedding excess air).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="VEN" sentinel="false">
+      <Definition>Ventilation general — natural / mixed-mode ventilation not classified as SUP/RET/EXH/OA.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="HTG" sentinel="false">
+      <Definition>Heating — generic heating function (water, steam, electric).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HHW" sentinel="false">
+      <Definition>Heating Hot Water — primary heating water flow (LPHW/MTHW/HTHW).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CHW" sentinel="false">
+      <Definition>Chilled Water — primary cooling water flow.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CLG" sentinel="false">
+      <Definition>Cooling — generic cooling function.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RFG" sentinel="false">
+      <Definition>Refrigerant — VRF / direct expansion refrigerant lines.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="DCW" sentinel="false">
+      <Definition>Domestic Cold Water function — distribution to outlets.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DHW" sentinel="false">
+      <Definition>Domestic Hot Water flow function.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DHR" sentinel="false">
+      <Definition>Domestic Hot Water Return / recirculation per HTM 04-01.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SAN" sentinel="false">
+      <Definition>Sanitary — soil and waste discharge.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="STM" sentinel="false">
+      <Definition>Storm / rainwater drainage function.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="GAS" sentinel="false">
+      <Definition>Fuel gas distribution function.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CON" sentinel="false">
+      <Definition>Condensate drainage — from AHUs / FCUs / steam systems.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="PWR" sentinel="false">
+      <Definition>Power — small-power / final-circuit / sub-main electrical distribution.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="LTG" sentinel="false">
+      <Definition>Lighting — luminaires, lighting controls, lighting circuits.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="EMG" sentinel="false">
+      <Definition>Emergency lighting / emergency power circuits.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="UPS" sentinel="false">
+      <Definition>Uninterruptible Power Supply circuits — instrument loads.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ESS" sentinel="false">
+      <Definition>Essential / standby power (generator-backed). HTM 06-01 EES Type B/C use cases.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="FIR" sentinel="false">
+      <Definition>Fire detection / alarm function — including beacons, sounders, MCPs.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FSP" sentinel="false">
+      <Definition>Fire Suppression — sprinkler / mist / gaseous suppression. Distinct from SUP (HVAC supply).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SMK" sentinel="false">
+      <Definition>Smoke control — AOV, dampers, pressurisation fans, smoke shaft ventilation.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="DAT" sentinel="false">
+      <Definition>Data — structured cabling, network outlets.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="VOI" sentinel="false">
+      <Definition>Voice — telephony / VoIP cabling and handsets.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="AV" sentinel="false">
+      <Definition>Audio Visual — AV racks, displays, ceiling speakers (non-PA).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NUR" sentinel="false">
+      <Definition>Nurse Call — patient call points, staff response devices, dome lights.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CCT" sentinel="false">
+      <Definition>CCTV — video surveillance cameras, recorders, displays.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ACS" sentinel="false">
+      <Definition>Access Control — readers, locks, magnetic strikes, intercom doorbells.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="MGF" sentinel="false">
+      <Definition>Medical Gas Flow — distribution side of piped medical gas (after manifold / VIE).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MGR" sentinel="false">
+      <Definition>Medical Gas Reserve — manifold / VIE / cylinder bank upstream of distribution.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MGE" sentinel="false">
+      <Definition>Medical Gas Exhaust — AGSS (Anaesthetic Gas Scavenging System) exhaust.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="LDB" sentinel="false">
+      <Definition>Load-Bearing structural element.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NLB" sentinel="false">
+      <Definition>Non-Load-Bearing architectural partition.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FAB" sentinel="false">
+      <Definition>Fabric / envelope element (external wall, roof, glazing).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="GEN" sentinel="false">
+      <Definition>Generic / unclassified function — fallback only.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="*" sentinel="true">
+      <Definition>Wildcard for routing rules. Never tagged on an element.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>622e5905155e5b2e351781f4be2b68fe18f0812278d877b6ccb9e960bc2f8317</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

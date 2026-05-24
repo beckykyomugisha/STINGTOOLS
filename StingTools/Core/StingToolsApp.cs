@@ -81,6 +81,23 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // Register the Material Updater (IUpdater) — auto-apply OFF,
+                // auto-fill ON. Both behaviours share one trigger budget so
+                // the cost when fully idle is the same as one disabled updater.
+                StingTools.UI.StingMaterialUpdater.Register(application);
+
+                // STING Material Hub — modeless dockable pane (separate
+                // from the main STING dock panel). Three-pane material
+                // dashboard, floats independently.
+                try
+                {
+                    var hubProvider = new StingTools.UI.MaterialHubProvider();
+                    application.RegisterDockablePane(StingTools.UI.MaterialHubProvider.PaneId,
+                        "STING Material Hub", hubProvider);
+                    StingLog.Info("Material Hub: dockable pane registered.");
+                }
+                catch (Exception hubEx) { StingLog.Warn($"Material Hub register: {hubEx.Message}"); }
+
                 // Register the cost stale marker (IUpdater) — starts disabled.
                 // Toggled via Cost_ToggleStaleMarker. Marks ASS_CST_STALE_BOOL
                 // when geometry / material / type changes invalidate a costed
@@ -171,6 +188,15 @@ namespace StingTools.Core
 
                 // AUTO-SYNC: Queue lightweight compliance sync on document save
                 application.ControlledApplication.DocumentSaved += OnDocumentSaved;
+
+                // Phase 184c — migrate the LiveProfileSync disk snapshot on
+                // File > Save As so cross-session profile-drift detection
+                // keeps working in the copied project. The Saving event
+                // captures the (old, new) path pair before the .rvt moves;
+                // the SavedAs event copies the snapshot once the save
+                // succeeds.
+                application.ControlledApplication.DocumentSavingAs += OnDocumentSavingAs;
+                application.ControlledApplication.DocumentSavedAs += OnDocumentSavedAs;
 
                 // S03b / Phase 91 — Start the Planscape sync scheduler if the plugin has
                 // already authenticated with the server (persisted from a previous session).
@@ -294,6 +320,10 @@ namespace StingTools.Core
                 // element in the next.
                 try { Drawing.DrawingTypeRegistry.Reload(e.Document); }
                 catch (Exception ex) { StingLog.Warn($"DocumentClosing DrawingTypeRegistry.Reload: {ex.Message}"); }
+                // Phase 183 — drop the LiveProfileSync snapshot + staged
+                // diff for this document so the next session starts clean.
+                try { Drawing.LiveProfileSync.InvalidateCache(e.Document); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing LiveProfileSync.InvalidateCache: {ex.Message}"); }
                 StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, level, and drawing-type caches");
             }
             catch (Exception ex)
@@ -437,6 +467,34 @@ namespace StingTools.Core
             }
         }
 
+        // Force-show guard: ensures every STING dockable panel is surfaced
+        // exactly once per Revit session, even when Revit ignored
+        // VisibleByDefault (typically because the previous session's
+        // UIState.dat had it hidden and the cached state survived).
+        private static bool _mainPaneForceShown;
+
+        /// <summary>Helper for the OnDocumentOpened force-show pass. Safe to call
+        /// for a pane that doesn't exist or is already shown — logs and returns.</summary>
+        private static void ForceShowPane(UIApplication uiApp, DockablePaneId paneId, string label)
+        {
+            try
+            {
+                var pane = uiApp.GetDockablePane(paneId);
+                if (pane == null) { StingLog.Info($"ForceShowPane {label}: pane not registered"); return; }
+                if (pane.IsShown())
+                {
+                    StingLog.Info($"ForceShowPane {label}: already visible — left alone");
+                    return;
+                }
+                pane.Show();
+                StingLog.Info($"ForceShowPane {label}: pane was hidden — forced visible");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ForceShowPane {label}: {ex.Message}");
+            }
+        }
+
         /// <summary>BUG-05: Clear param cache on document open to prevent cross-document collisions.</summary>
         private static void OnDocumentOpened(object sender,
             Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
@@ -447,6 +505,27 @@ namespace StingTools.Core
                 ParameterHelpers.ClearParamCache();
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+
+                // Force-show every STING dock panel on first document open per
+                // Revit session. RegisterDockablePane + VisibleByDefault is meant
+                // to handle this, but Revit silently honours the cached
+                // UIState.dat visibility in some upgrade scenarios — panes end
+                // up registered-but-hidden with no on-screen affordance. Show()
+                // can only be called when a document is open, so we defer it
+                // from OnStartup to here.
+                if (!_mainPaneForceShown)
+                {
+                    _mainPaneForceShown = true;
+                    try
+                    {
+                        var uiApp = new UIApplication(e.Document.Application);
+                        ForceShowPane(uiApp, StingTools.UI.StingDockPanelProvider.PaneId, "Main");
+                        ForceShowPane(uiApp, StingTools.UI.StingElectricalPanelProvider.PaneId, "Electrical");
+                        ForceShowPane(uiApp, StingTools.UI.StingHvacPanelProvider.PaneId, "HVAC");
+                        ForceShowPane(uiApp, StingTools.UI.Plumbing.StingPlumbingPanelProvider.PaneId, "Plumbing");
+                    }
+                    catch (Exception showEx) { StingLog.Warn($"Panel force-show: {showEx.Message}"); }
+                }
 
                 // FIX-C01: Reset selection scope to view-only on document switch
                 // Prevents stale project-wide scope from carrying over between projects
@@ -972,6 +1051,73 @@ namespace StingTools.Core
         /// handlers (S03c/d: replaced the old _pendingSyncDoc / _pendingSyncTime
         /// dead-code fields with a proper enqueue).
         /// </summary>
+        // Phase 184c — capture (old path → new path) on Save As so the
+        // LiveProfileSync snapshot can be migrated alongside the .rvt.
+        // Keyed by Document identity so concurrent Save As of multiple
+        // open projects doesn't cross-pollute.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, (string OldPath, string NewPath)>
+            _savingAsPaths = new System.Collections.Concurrent.ConcurrentDictionary<int, (string, string)>();
+
+        private static void OnDocumentSavingAs(object sender,
+            Autodesk.Revit.DB.Events.DocumentSavingAsEventArgs e)
+        {
+            try
+            {
+                var doc = e.Document;
+                if (doc == null) return;
+                var oldPath = doc.PathName;
+                var newPath = e.PathName;
+                if (string.IsNullOrEmpty(newPath)) return;
+                if (string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase)) return;
+                _savingAsPaths[doc.GetHashCode()] = (oldPath, newPath);
+            }
+            catch (Exception ex) { StingLog.Warn($"OnDocumentSavingAs: {ex.Message}"); }
+        }
+
+        private static void OnDocumentSavedAs(object sender,
+            Autodesk.Revit.DB.Events.DocumentSavedAsEventArgs e)
+        {
+            try
+            {
+                var doc = e.Document;
+                if (doc == null) return;
+                if (!_savingAsPaths.TryRemove(doc.GetHashCode(), out var paths)) return;
+                if (string.IsNullOrEmpty(paths.OldPath) || string.IsNullOrEmpty(paths.NewPath)) return;
+                MigrateLiveProfileSyncSnapshot(paths.OldPath, paths.NewPath);
+
+                // A-3 — Invalidate material caches keyed by old path so a
+                // Save As doesn't leave stale name + usage indexes behind.
+                try
+                {
+                    StingTools.UI.MaterialNameCache.InvalidateAll();
+                    StingTools.UI.MaterialUsageIndex.InvalidateAll();
+                    StingTools.UI.MaterialOverrideRegistry.Reload(doc);
+                }
+                catch (Exception cacheEx) { StingLog.Warn($"OnDocumentSavedAs cache invalidate: {cacheEx.Message}"); }
+            }
+            catch (Exception ex) { StingLog.Warn($"OnDocumentSavedAs: {ex.Message}"); }
+        }
+
+        private static void MigrateLiveProfileSyncSnapshot(string oldRvt, string newRvt)
+        {
+            try
+            {
+                const string FileName = ".sting_live_profile_sync.json";
+                var oldDir = System.IO.Path.GetDirectoryName(oldRvt);
+                var newDir = System.IO.Path.GetDirectoryName(newRvt);
+                if (string.IsNullOrEmpty(oldDir) || string.IsNullOrEmpty(newDir)) return;
+                var oldFile = System.IO.Path.Combine(oldDir, "_BIM_COORD", FileName);
+                if (!System.IO.File.Exists(oldFile)) return;
+                var newCoord = System.IO.Path.Combine(newDir, "_BIM_COORD");
+                if (!System.IO.Directory.Exists(newCoord)) System.IO.Directory.CreateDirectory(newCoord);
+                var newFile = System.IO.Path.Combine(newCoord, FileName);
+                if (System.IO.File.Exists(newFile)) return; // don't clobber an existing snapshot
+                System.IO.File.Copy(oldFile, newFile, overwrite: false);
+                StingLog.Info($"LiveProfileSync: migrated snapshot from '{oldFile}' to '{newFile}'");
+            }
+            catch (Exception ex) { StingLog.Warn($"MigrateLiveProfileSyncSnapshot: {ex.Message}"); }
+        }
+
         private static void OnDocumentSaved(object sender,
             Autodesk.Revit.DB.Events.DocumentSavedEventArgs e)
         {
@@ -1312,6 +1458,34 @@ namespace StingTools.Core
             else
             {
                 StingLog.Info($"Data validation passed: all {criticalFiles.Length} critical files found in {DataPath}");
+            }
+
+            // Phase 187: Tag-family catalogue drift check — verify TagFamilyCreator output
+            // matches LABEL_DEFINITIONS.json category_labels keys. Any mismatch is a logged
+            // warning; legend/display lookups would fail silently otherwise.
+            try
+            {
+                var (missingFromCreator, extraInCreator) =
+                    StingTools.Tags.TagFamilyConfig.AuditAgainstLabelDefinitions(DataPath);
+                if (missingFromCreator.Count == 0 && extraInCreator.Count == 0)
+                {
+                    StingLog.Info(
+                        $"Tag-family catalogue aligned: {StingTools.Tags.TagFamilyConfig.TotalFamilyCount} families " +
+                        "match LABEL_DEFINITIONS.json category_labels 1:1.");
+                }
+                else
+                {
+                    if (missingFromCreator.Count > 0)
+                        StingLog.Warn($"Tag-family drift — {missingFromCreator.Count} LABEL_DEFINITIONS keys " +
+                                      $"have no TagFamilyCreator backing: {string.Join(", ", missingFromCreator)}");
+                    if (extraInCreator.Count > 0)
+                        StingLog.Warn($"Tag-family drift — {extraInCreator.Count} TagFamilyCreator outputs have " +
+                                      $"no LABEL_DEFINITIONS entry: {string.Join(", ", extraInCreator)}");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                StingLog.Warn($"Tag-family catalogue drift check failed: {ex.Message}");
             }
 
             // IG-04: Verify pyRevit manifest
@@ -1724,9 +1898,16 @@ namespace StingTools.Core
                 ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
                 ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
                 ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,    typeof(HubAutoTagCommand).FullName),
+                ("ExportCenter",         "Export Center", "EX", DrawingColor.DarkSlateBlue, typeof(HubExportCenterCommand).FullName),
+                ("DocWizard",            "Doc Auto",      "DA", DrawingColor.DarkOrchid,   typeof(HubDocAutomationCommand).FullName),
+                ("CreateFolders",        "Folders",       "FD", DrawingColor.SaddleBrown,  typeof(HubFolderManagerCommand).FullName),
+                ("MaterialManager",      "Materials",     "MM", DrawingColor.DarkOliveGreen,typeof(HubMaterialManagerCommand).FullName),
+                ("MaterialHub",          "Mat Hub",       "MH", DrawingColor.DarkSlateBlue, typeof(HubMaterialHubCommand).FullName),
+                ("ClashManager",         "Clash Mgr",     "CM", DrawingColor.IndianRed,    typeof(HubClashManagerCommand).FullName),
+                ("TemplateDashboard",    "Template Mgr",  "TM", DrawingColor.DarkTurquoise,typeof(HubTemplateManagerCommand).FullName),
             };
 
-            var buttons = new List<PushButtonData>(12);
+            var buttons = new List<PushButtonData>(19);
             foreach (var s in specs)
             {
                 var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
@@ -1747,10 +1928,14 @@ namespace StingTools.Core
 
             try
             {
-                panel.AddStackedItems(buttons[0], buttons[1], buttons[2]);
-                panel.AddStackedItems(buttons[3], buttons[4], buttons[5]);
-                panel.AddStackedItems(buttons[6], buttons[7], buttons[8]);
-                panel.AddStackedItems(buttons[9], buttons[10], buttons[11]);
+                panel.AddStackedItems(buttons[0],  buttons[1],  buttons[2]);
+                panel.AddStackedItems(buttons[3],  buttons[4],  buttons[5]);
+                panel.AddStackedItems(buttons[6],  buttons[7],  buttons[8]);
+                panel.AddStackedItems(buttons[9],  buttons[10], buttons[11]);
+                panel.AddStackedItems(buttons[12], buttons[13], buttons[14]);
+                panel.AddStackedItems(buttons[15], buttons[16], buttons[17]);
+                // 19th button (Mat Hub) sits as its own single item.
+                if (buttons.Count > 18) panel.AddItem(buttons[18]);
             }
             catch (Exception ex)
             {
@@ -1912,7 +2097,34 @@ namespace StingTools.Core
         {
             try
             {
-                StingTools.UI.StingDockPanel.DispatchCommand(tag);
+                // If the main dock-panel handler hasn't been primed (the
+                // panel has never been opened in this session), DispatchCommand
+                // returns false silently. Surface that to the user by opening
+                // the dock panel first, then retrying once on the WPF
+                // dispatcher so the button actually does something.
+                if (!StingTools.UI.StingDockPanel.DispatchCommand(tag))
+                {
+                    // Fall back to surfacing the dock panel via the UIApp —
+                    // Show() forces Revit to construct the page and prime
+                    // the ExternalEvent handler.
+                    var uiApp = StingTools.UI.StingCommandHandler.CurrentApp;
+                    if (uiApp != null)
+                    {
+                        try
+                        {
+                            var pane = uiApp.GetDockablePane(StingTools.UI.StingDockPanelProvider.PaneId);
+                            if (pane != null && !pane.IsShown()) pane.Show();
+                        }
+                        catch (Exception exShow) { StingLog.Warn($"Hub dispatch show: {exShow.Message}"); }
+                    }
+                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                        new Action(() =>
+                        {
+                            try { StingTools.UI.StingDockPanel.DispatchCommand(tag); }
+                            catch (Exception exRetry) { StingLog.Warn($"Hub dispatch retry '{tag}': {exRetry.Message}"); }
+                        }),
+                        System.Windows.Threading.DispatcherPriority.Background);
+                }
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -2018,5 +2230,109 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run("AutoTag", ref message);
+    }
+
+    /// <summary>Surfaces the STING Material Hub dockable pane.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubMaterialHubCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var app = data?.Application;
+                if (app == null) return Result.Failed;
+                var pane = app.GetDockablePane(StingTools.UI.MaterialHubProvider.PaneId);
+                if (pane == null) { message = "Material Hub not registered."; return Result.Failed; }
+                if (!pane.IsShown()) pane.Show(); else pane.Hide();
+                StingTools.UI.MaterialHubPanel.LastInstance?.Surface();
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("HubMaterialHubCommand", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubExportCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("ExportCenter", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubDocAutomationCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("DocWizard", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubFolderManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("CreateFolders", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubMaterialManagerCommand : IExternalCommand
+    {
+        // Direct path — surfacing the dock panel + MAT tab can't depend on
+        // StingDockPanel's ExternalEvent handler being primed (it isn't
+        // until the panel has been opened once), and the previous
+        // HubDispatcher.Run route silently swallowed that early-session
+        // failure as Result.Succeeded — making the Hub tile look dead.
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var app = data?.Application;
+                if (app == null) return Result.Failed;
+                var pane = app.GetDockablePane(StingTools.UI.StingDockPanelProvider.PaneId);
+                if (pane == null)
+                {
+                    message = "STING dock panel not registered.";
+                    return Result.Failed;
+                }
+                if (!pane.IsShown()) pane.Show();
+                // The panel instance only exists after Revit constructs the
+                // page — Show() may have just kicked that off, so defer the
+                // tab switch onto the WPF dispatcher.
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                    new Action(() =>
+                    {
+                        try { StingTools.UI.StingDockPanel.LastInstance?.ShowMaterialsTab(); }
+                        catch (Exception exMat) { StingLog.Warn($"ShowMaterialsTab: {exMat.Message}"); }
+                    }),
+                    System.Windows.Threading.DispatcherPriority.Background);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HubMaterialManagerCommand", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubClashManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("ClashManager", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubTemplateManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("TemplateDashboard", ref message);
     }
 }

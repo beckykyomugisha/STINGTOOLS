@@ -82,6 +82,23 @@ namespace StingTools.Core.Drawing
         [JsonProperty("tagFamilies")] public Dictionary<string, string> TagFamilies { get; set; }
             = new Dictionary<string, string>();
 
+        /// <summary>
+        /// C4 — Material-class → graphic override. Keys match
+        /// <see cref="Material.MaterialClass"/> (case-insensitive); values
+        /// reuse the same <see cref="StyleVgOverride"/> POCO as the
+        /// category overrides. Applied AFTER per-category VG so a
+        /// class-level override beats a category-level one for elements
+        /// whose primary material matches the class.
+        ///
+        /// Driven through Revit ParameterFilterElement keyed on the
+        /// host element's Material parameter; see
+        /// ViewStylePackApplier.ApplyMaterialClassOverrides for the
+        /// concrete projection. Empty / missing → no class overrides
+        /// (existing pack behaviour preserved).
+        /// </summary>
+        [JsonProperty("byMaterialClass", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, StyleVgOverride> ByMaterialClass { get; set; }
+
         [JsonProperty("checksum", NullValueHandling = NullValueHandling.Ignore)]
         public string Checksum { get; set; }
 

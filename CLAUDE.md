@@ -28,6 +28,94 @@ cleanly; eleven required `ours` conflict resolution. After consolidation
 `git branch -r --no-merged HEAD` reports zero remote branches with
 unique commits not in HEAD. Verify in Revit before merging to `main`.
 
+### Phase 185 — Family library readiness (placeholder review)
+
+The family authoring surface received a four-part hardening pass on
+branch `claude/family-authoring-review-1ZmAG` after a review that
+clarified a common misconception:
+
+**The placeholders are not 3D — they are 2D symbolic curves.** When a
+real 3D family is missing, `FixturePlacementEngine.ResolveSymbol`
+returns null and the placement is **silently skipped** (`SkippedNoSymbol++`).
+No synthetic 3D placeholder geometry is created. The "draft" 164
+ISO 6412 symbol set is intentionally schematic — see the
+authoring-rule note at the top of
+`StingTools/Data/Symbols/STING_ISO6412_SYMBOLS.json`.
+
+The four changes:
+
+1. **`Families/README.md`** — new root README laying out the two
+   authoring tracks (Track A: 3D model families with real product
+   geometry; Track B: 2D schematic symbols), the family resolution
+   tier order, and the vendor-intake SOP (Conformance check → stamp
+   with `FamilyParamCreator` `PurgeMode.None` → drop in the right
+   folder → tune the placement rule). Codifies the priority
+   acquisition list (MGS → luminaires → AHU/FCU → panel boards →
+   bedhead trunks → fire devices).
+2. **Footprint-aware placement spacing**
+   (`Core/Placement/PlacementRule.cs` + `FixturePlacementEngine.cs`).
+   New fields: `FamilyBboxAware`, `ReferenceFootprintMm` (default
+   150 mm), `MinSymbolFootprintMm` (100 mm floor), `MaxFootprintScale`
+   (8× cap). When enabled, the engine pre-resolves the family symbol,
+   measures `BoundingBoxXYZ.Max - Min` in plan, and scales
+   `MinSpacingMm` / `CoverageRadiusMm` / `ObstructionClearanceMm` /
+   `WallClearanceMm` / `OffsetXMm` / `OffsetYMm` by
+   `clamp(max(footprintMm, floor) / reference, 1.0, cap)`. One rule
+   now serves 150 mm switches and 1200 mm AHUs without per-vendor
+   JSON edits. `OffsetZMm` is intentionally not scaled — mounting
+   height comes from `MountingHeightMm` and `MountingReference`.
+   Default `false` ⇒ legacy behaviour preserved.
+3. **Type-catalog (`.txt` sidecar) loader**. New
+   `PlacementRule.TypeCatalogKey` field. When set and a `.txt`
+   sidecar exists next to the `.rfa`, the engine routes through
+   `Document.LoadFamilySymbol(path, typeName)` instead of bulk
+   `LoadFamily` — only the matching type is loaded. Avoids bloating
+   the project with 200-type valve / fitting libraries. Catalog
+   format follows the Revit standard (first column = type name; rows
+   starting with `,` treated as headers). Key may be an exact type
+   name or a regex (`^DN20-PN1[06]$`). Empty key (default) ⇒ legacy
+   bulk-load behaviour.
+4. **Family Conformance Checker** —
+   `StingTools/Tags/FamilyConformanceCheckCommand.cs` +
+   `FamilyConformanceInspector`. New read-only command tag
+   `FamilyConformanceCheck` (Dock-panel button next to "Tag Family
+   Params"). Audits a user-picked folder of `.rfa` files against the
+   STING contract: 4 placement params bound by GUID + tag style
+   matrix (when tag-like) + tag visibility tiers + Ring 1/2 position
+   types + placement type vs category sanity + loads-cleanly bonus.
+   100-point scale ⇒ PASS ≥85 / WARN 70-84 / BLOCK <70. CSV report
+   to `<project>/_BIM_COORD/` + summary TaskDialog with the 10
+   lowest-scoring families. **Run this BEFORE bulk-stamping any
+   vendor library** — catches the "manufacturer family uses
+   'Mounting Height' instead of `MNT_HGT_MM`" class of failure
+   before it costs a transaction.
+
+The 46 fabrication / LPS / pricing constants in `AssyParams /
+LpsParams / CostParams` are NOT touched — Phase 169 already replaced
+the `v4-YYYY-xxxx` placeholders with deterministic UUIDv5 hashes
+under namespace `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`, so the
+"freeze GUIDs first" step from the review is already done.
+
+#### Caveats (Phase 185)
+
+1. Built without `dotnet build` verification (Linux sandbox). Every
+   Revit API call uses the documented signature (`Document.LoadFamilySymbol`,
+   `FamilySymbol.get_BoundingBox`, `FamilyParameter.IsShared`,
+   `FamilyManager.Types`) but has not been compile-checked. Verify in
+   Revit before merge.
+2. The Conformance Checker uses `OpenDocumentFile` to open each `.rfa`
+   read-only — slow on large libraries (1-2 s per file). For a 500-family
+   vendor drop, expect ~15 minutes. The CSV is the artefact; the
+   TaskDialog is a 10-row summary.
+3. Footprint scaling reads the symbol's bounding box, which for some
+   hosted families returns a degenerate box (Min == Max) until a real
+   instance exists. The `MinSymbolFootprintMm = 100 mm` floor + the
+   `scale < 1.0 → 1.0` clamp protect against silently zero'd spacings.
+4. Type-catalog loading requires the `.txt` sidecar to follow Revit's
+   exact format. Malformed catalogs cause the engine to fall through
+   to bulk `LoadFamily` (the legacy path) with a warning — never
+   abort.
+
 ## Documentation Map
 
 This repository's AI-assistant documentation is split across three files to keep each one small and easy to update:
@@ -410,6 +498,781 @@ clash + insulation), `corp-standard-plan` (19 — phase + fire-rated walls
 3. Shared parameters referenced by `kind: "shared"` must be bound on the
    project before the filter can be created — the factory warns + skips
    gracefully rather than failing the whole batch.
+
+### Phase 182 — Drawing Type / Style Pack alignment audit
+
+Closed the alignment gaps surfaced by the drawing-types/style-packs
+consistency audit on branch `claude/review-drawing-types-styles-WKpW1`.
+
+**STING_VIEW_STYLE_PACKS.json — 11 packs added** (11 → 22 total):
+
+| Pack | Extends | Purpose |
+|---|---|---|
+| `corp-demolition-phase` | `corp-standard-plan` | Demolition drawings — existing halftoned, demolished bold red dashed, new construction hidden. Phase filter `Show Demo + New`. |
+| `corp-healthcare-clinical` | `corp-standard-plan` | Generic clinical plan / RCP / equipment. Bedhead/pendant/scrub/anti-lig fittings + BS 8300 access in NHS-blue palette. `templateMode=managed`. |
+| `corp-healthcare-mgs` | `corp-coordination` | HTM 02-01 medical gas. O2 white, N2O blue, AIR-4/7, VAC yellow, AGSS purple. Manifolds + AVSUs + terminal units. |
+| `corp-healthcare-pressure` | `corp-standard-plan` | HTM 03-01 ventilation pressure cascade. Positive blue, negative red, neutral grey, isolation cubicle purple. |
+| `corp-healthcare-ees` | `corp-coordination` | HTM 06-01 / NFPA 99 essential services. Type A red, Type B orange, Type C yellow, generator/UPS/IPS/ATS highlighted. |
+| `corp-healthcare-fire` | `corp-standard-plan` | HTM 05-02 / BS 9999 fire compartmentation. 30/60/90/120-min walls colour-coded, smoke barriers green dashed. |
+| `corp-healthcare-shielding` | `corp-standard-plan` | NCRP 147 / IPEM 75 radiation shielding. Lead-mm walls magenta, controlled/supervised zones, MRI Zone II/III/IV (5G line). |
+| `corp-healthcare-ligature` | `corp-standard-plan` | Mental health anti-ligature. Compliant fittings purple, non-compliant red, observation lines from staff base. |
+| `corp-healthcare-water` | `corp-coordination` | HTM 04-01 water safety / Legionella. DCW/DHW/DHWR, TMV, dead-leg risk, augmented-care outlets, temperature sensors. |
+| `pres-burgund-green` | `corp-presentation-rich` | Client-facing presentation — burgundy walls + dark-green topo on cream, hand-rendered hatch. |
+| `pres-interior-sage` | `corp-presentation-rich` | Interior elevation presentation — sage walls, warm-wood casework, soft ambient palette, suppressed grids/dimensions. |
+
+All 8 healthcare packs ship with `templateMode: "managed"` and explicit
+`managedFields` whitelists (scale / detailLevel / discipline / visualStyle /
+phaseFilter / vgOverrides / filters — clinical also adds tagColorScheme /
+defaultTagStyle) so Phase 137's `ManagedTemplateSyncer` mints + maintains
+matching `STING:{packId}:{ViewType}` templates and pack-level
+filterRules / vgOverrides drift gets surfaced + healed automatically.
+
+**STING_DRAWING_TYPES.json fixes**:
+
+- `arch-screed-buildup-A3-1to10` — `titleBlockFamily` corrected from
+  `STING_TB_SHEET_A1` to `STING_TB_SHEET_A3` (paper-size / family
+  mismatch).
+- `elec-riser-A2-1to100` — `purpose` corrected from `Plan` to `Section`
+  (slot viewType was already `Section`; purpose intent now matches).
+- `clar-markup-A1` + `clar-rfi-A3` — `purpose` aligned to
+  `Clarification` and explicitly bound to `corp-clarification` (was
+  falling through purpose-based routing without an own pack id).
+- All 22 healthcare drawing types — `titleBlockParams` populated with
+  the corporate 11-cell set (`Client Name`, `Project Code`,
+  `Originator`, `Company Name`, `Company Address`, `Appointing Party`,
+  `Lead Appointed Party`, `Discipline=Healthcare`, `Suitability=S2`,
+  `Sheet Status=WIP`, `Revision=P01`). Previously all empty, so
+  healthcare sheets shipped without corporate metadata stamping.
+
+**DrawingDriftDetector — CROP_DRIFT detection added**
+(`StingTools/Core/Drawing/DrawingDriftDetector.cs`):
+
+- New `AppendCropDrift` method fires when a profile's
+  `crop.scopeBoxName` is set (kind=`ScopeBox` or `ScopeBoxOrBbox`) and
+  the view's bound `VIEWER_VOLUME_OF_INTEREST_CROP` doesn't match.
+- ScopeBox kind reports drift even when scope box missing from
+  document (view will fail to crop); ScopeBoxOrBbox demotes to
+  Suppressed (bbox fallback) when scope box absent.
+- TightBbox / RoomBoundary / None are not comparable post-hoc and are
+  left alone.
+
+**Final state**: 0 missing pack references, 0 orphaned packs (every
+pack now reachable via either an explicit `viewStylePackId` binding or
+the `STING_VIEW_STYLE_PACKS.json` `routing[]` purpose-based fallback),
+0 healthcare types with empty `titleBlockParams`. 50 of 90 drawing
+types now carry an explicit pack id; the remaining 40 rely on
+purpose-based routing fallback (intentional — keeps the JSON DRY).
+
+### Caveats (Phase 182)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The 11 new packs reference view templates and filter names that
+   projects must supply (e.g. `STING - Healthcare Clinical`, `Fire
+   Wall - 60 min`). The validator surfaces missing assets as Warnings,
+   not Errors, so the JSON ships usable on a stock project.
+3. Filter rule inheritance through pack `extends` chains is NOT
+   cascaded — only the root `corp-base` and `corp-clarification`
+   define filterRules in the corporate baseline; child packs either
+   redeclare or inherit nothing. Phase 166 wires `inheritDefaults:
+   true` for individual rules but full pack-chain inheritance of the
+   filter list itself stays an explicit per-pack opt-in.
+
+### Phase 183 — Closing the Phase 182 deferred items
+
+Three gaps the Phase 182 caveats flagged are now closed.
+
+**LiveProfileSync — registry-reload diff**
+(`StingTools/Core/Drawing/LiveProfileSync.cs`):
+
+- Per-document snapshot of SHA-256 hashes for every DrawingType +
+  ViewStylePack id. `OnRegistryReloaded(doc)` (called automatically
+  by `DrawingTypeRegistry.Reload` and `ViewStylePackRegistry.Reload`)
+  computes the new snapshot, diffs against the prior, and stages the
+  changed id set for the document.
+- `GetChangedProfileIds(doc)` / `GetChangedPackIds(doc)` /
+  `GetAffectedViewIds(doc)` — read-only accessors used by the
+  Inspect + SyncStyles commands. Pack-change set is expanded to the
+  profile ids that reference each changed pack, so editing
+  `corp-coordination` flags every profile bound to it.
+- `ConsumeStagedDiff(doc)` clears the staged set after SyncStyles
+  has re-applied every affected view. Document close invalidates the
+  cache via `LiveProfileSync.InvalidateCache(doc)` wired into
+  `StingToolsApp.OnDocumentClosing`.
+- `DrawingSyncStylesCommand` merges `LiveProfileSync.GetAffectedViewIds`
+  into the drift-report set so an on-disk pack/profile edit
+  re-applies even when the live view VG state hasn't drifted yet.
+- `DrawingTypesInspectCommand` surfaces "X profile(s) + Y pack(s)
+  edited since last load — Z view(s) affected" as a one-liner in the
+  Inspect dialog.
+
+**VG + filter drift detection**
+(`StingTools/Core/Drawing/DrawingDriftDetector.cs`):
+
+- New `AppendVgAndFilterDrift` compares the live view's per-category
+  `OverrideGraphicSettings` (halftone / projection line weight / cut
+  line weight / transparency) and per-filter attachment + visibility +
+  overrides against the resolved pack's `VgOverrides` + `Filters`.
+- Guarded to non-managed packs only — managed packs already get
+  template-level checksum drift via `AppendManagedTemplateDrift`, and
+  double-detecting would surface every view that uses the managed
+  template as drifted on every pack edit.
+- Output is intentionally coarse: one drift entry per category /
+  filter, listing the first mismatching attribute. SyncStyles
+  re-applies the pack and heals.
+
+**Bbox-derived crop drift via stamp + diff**
+(`DrawingTypeStamper.cs` + `DrawingCropApplier.cs` +
+`DrawingDriftDetector.cs`):
+
+- Two new shared parameters: `STING_CROP_KIND_TXT` (text) +
+  `STING_CROP_MARGIN_MM_TXT` (text — decimal as string, no new
+  storage-type handling needed). Both declared in `MR_PARAMETERS.txt`
+  with stable GUIDs and mirrored in `MR_PARAMETERS.csv`.
+- `DrawingTypeStamper.StampCrop(el, kind, marginMm)` /
+  `ReadCrop(el)` — symmetric write + read helpers; no-op when the
+  shared parameters aren't bound on the project (graceful
+  degradation, no functional regression on unmigrated projects).
+- `DrawingCropApplier.Apply` calls `StampCrop` after every successful
+  crop write so the view carries its as-of-apply kind + margin.
+- `AppendCropDrift` extended: for `TightBbox` / `RoomBoundary` /
+  `ScopeBoxOrBbox` profiles, compares the stamped kind + margin to
+  the profile's current values. Margin tolerance is 1 mm. Catches
+  profile edits like "marginMm: 150 → 300" that the view hasn't
+  been re-cropped to honour.
+
+**Final state**: the Phase 182 caveats 1 (IUpdater for live profile
+changes — closed by LiveProfileSync), 3 (bbox-derived crop drift —
+closed by stamp + diff), and the VG/filter drift gap implicit in the
+Phase 137 caveats are all closed. The Inspect command's headline
+now reports both live-disk edits and live-view drift in one summary.
+
+### Caveats (Phase 183)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
+### Phase 184 — Closing the Phase 183 caveats
+
+The three Phase 183 caveats (in-memory-only LiveProfileSync, shared-
+param dependency on crop stamps, single-mismatch VG drift reporting)
+are now all closed.
+
+**LiveProfileSync disk persistence** (`Core/Drawing/LiveProfileSync.cs`):
+
+- Snapshot file at `<project>/_BIM_COORD/.sting_live_profile_sync.json`
+  (hidden filename so it doesn't clutter pickers) carries the SHA-256
+  hashes of every DrawingType + ViewStylePack id between sessions.
+- On the first `OnRegistryReloaded(doc)` of a new session, the
+  in-memory prior is empty, so `LoadDiskSnapshot(doc)` hydrates the
+  pre-edit baseline from disk. The diff then correctly surfaces every
+  on-disk edit the user made while Revit was closed.
+- After every diff computation the new snapshot is written back to
+  disk via `SaveDiskSnapshot`, so the chain stays unbroken across
+  arbitrary numbers of sessions / edits.
+- File I/O is performed outside the dictionary lock so a slow disk
+  doesn't block the registry-reload pipeline.
+
+**Crop stamp via Extensible Storage** (`Core/Storage/StingViewCropSchema.cs`):
+
+- New ES schema `StingViewCropSchema` (`E1A7B2C4-1011-1244-8411-F6E5D4C3B2CC`)
+  with three fields: `Kind` (string), `MarginMm` (double),
+  `StampedUtcTicks` (long).
+- `DrawingTypeStamper.StampCrop` now writes to ES as the primary
+  surface; the shared parameters (`STING_CROP_KIND_TXT`,
+  `STING_CROP_MARGIN_MM_TXT`) are still written as a secondary surface
+  when bound so schedules / filters / Dynamo consumers keep working.
+- `DrawingTypeStamper.ReadCrop` prefers ES; falls back to the shared
+  params for legacy stamped views.
+- Removes the `LoadSharedParams` dependency — pre-Phase-183 projects
+  now get full crop-drift coverage with no migration step.
+
+**VG drift — all mismatches per category** (`DrawingDriftDetector.AppendVgAndFilterDrift`):
+
+- The Phase 183 implementation walked the field list with `if/else if`
+  and stopped at the first mismatch, hiding the rest until SyncStyles
+  re-applied. Refactored to collect every mismatch into a list and
+  emit one drift entry per category / filter joining all of them with
+  `; ` — e.g.
+  `VG_OVERRIDE: 'Walls' halftone False vs True; projWeight 5 vs 6; transparency 0 vs 50`.
+- Filter-rule drift gets the same treatment (visibility + halftone +
+  projection weight + cut weight + transparency all rolled into one
+  entry per filter).
+- SyncStyles still heals everything in a single pack re-apply —
+  Phase 184 is purely a reporting fix.
+
+### Phase 184c — Save-As snapshot migration + transaction guard
+
+The Phase 184 caveats covering Save-As snapshot loss and the implicit
+transaction requirement on `StampCrop` are now closed.
+
+**Save-As snapshot migration** (`Core/StingToolsApp.cs`):
+
+- New event subscriptions: `DocumentSavingAs` (captures the
+  destination path before save) and `DocumentSavedAs` (copies the
+  snapshot once the save succeeds).
+- `_savingAsPaths` ConcurrentDictionary keyed by document hash holds
+  the `(oldPath, newPath)` pair between the two events, so concurrent
+  Save As of multiple open projects can't cross-pollute.
+- `MigrateLiveProfileSyncSnapshot(oldRvt, newRvt)` copies
+  `<oldDir>/_BIM_COORD/.sting_live_profile_sync.json` to the new
+  `_BIM_COORD/` directory beside the saved-as path. Won't clobber an
+  existing snapshot in the destination (treats Save As over an
+  existing STING-touched project as "destination wins").
+- Cross-session profile-drift detection now keeps working after Save
+  As without the user having to repeat a registry reload.
+
+**Transaction-state guard on `StampCrop`**
+(`Core/Drawing/DrawingTypeStamper.cs`):
+
+- Early check on `el.Document.IsModifiable` — when no Revit
+  transaction is active, log a warning and return `false` instead of
+  letting the ES `SetEntity` / shared-param `Set` throw. Makes the
+  caller contract explicit and eliminates the throw-and-catch
+  overhead on the (currently-impossible) path where a caller forgets
+  to wrap.
+- All in-tree callers (`DrawingCropApplier.Apply` →
+  `DrawingTypePresentation.Apply`) already run inside a transaction,
+  so this is a defensive guard, not a behavioural change.
+
+### Caveats (Phase 184c)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `DocumentSavingAs` requires the Revit API to expose
+   `DocumentSavingAsEventArgs.PathName` — true for Revit 2025/2026/2027
+   per the addin manifest. Older Revit versions would need a different
+   pattern; STING's `net8.0-windows` target rules them out anyway.
+
+### Phase 184d — Final alignment + completeness sweep
+
+Post-Phase-184c audit surfaced four remaining configuration gaps;
+all are now closed in `STING_DRAWING_TYPES.json`.
+
+**Schema fix — `crop.mode` → `crop.kind` (23 entries)**
+
+The 22 healthcare profiles (plus `plumb-drainage-schematic-A1`) declared
+`"crop": { "mode": "ScopeBoxOrBbox", ... }`. The `DrawingCropStrategy`
+POCO marks the JSON field as `[JsonProperty("kind")]`, so the `mode`
+key was silently ignored and the deserialiser fell back to the
+default value (`"ScopeBoxOrBbox"`). Result: functionally correct but
+inconsistent with the schema, and any author writing `"mode":
+"TightBbox"` would have been silently overridden. Renamed all 23 to
+`"kind"`.
+
+**Slot defaults on 18 view-purpose profiles**
+
+Every healthcare drawing type (`health-eqp-pln-*`, `health-medgas-pln-*`,
+`health-pressure-pln-*`, etc.) plus `health-mep-coord-A1-1to50` shipped
+with `"slots": []`. View-creation pipelines (`DrawingProducer`,
+`SheetManager.PlaceFromProfile`) iterate slot definitions to place
+views; empty slots mean no view ever lands on the sheet. Added a
+single full-bleed slot per profile (label `Main {Purpose}`, viewType
+matching the profile purpose, `normX=0.03 normY=0.05 normW=0.94
+normH=0.90`, `required=true`). Profiles that want multi-view layouts
+(key plan inset, legend, notes) override the default in their JSON.
+
+**titleBlockParams on 54 non-Schedule profiles**
+
+`arch-rcp-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`,
+`struct-plan-A1-1to100`, `mep-plan-A1-1to100`, `mep-coord-A1-1to50`,
+`elec-riser-A2-1to100`, `handover-A1`, all `arch-site-A1-1to500` …
+through every Plan / RCP / Section / Elevation / Coordination / 3D /
+Clarification profile that lacked the corporate metadata binding. All
+54 now carry the 11-cell corporate set (Client Name / Project Code /
+Originator / Company Name / Company Address / Appointing Party / Lead
+Appointed Party / Discipline / Suitability=S2 / Sheet Status=WIP /
+Revision=P01) with the `Discipline` value mapped from the profile's
+discipline code (A → Architectural, S → Structural, M → Mechanical,
+E → Electrical, P/Plumbing → Plumbing, H/Healthcare → Healthcare,
+MG → Medical Gas, RP → Radiation Protection, FP → Fire Protection,
+LV → Comms / LV, G → Civil, `*` → Multi-Discipline). Spool / Schedule
+/ Legend / Detail profiles are intentionally excluded — they have
+their own metadata conventions.
+
+**Discipline value normalised (1 entry)**
+
+`plumb-drainage-schematic-A1` declared `"discipline": "Public Health"`
+which isn't in the canonical list (A / S / M / E / P / Plumbing / FP /
+LV / G / H / MG / RP / Healthcare / *). Normalised to `"Plumbing"` to
+match every other plumb-* profile and the routing-table convention.
+
+**Final tally** (programmatically verified): 0 missing `crop.kind`,
+0 stray `crop.mode`, 0 empty-slot view-purpose profiles, 0 missing
+`titleBlockParams` on view-purpose profiles, 0 non-canonical
+discipline values, 0 missing pack references, 0 orphaned packs.
+
+### Caveats (Phase 184d)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The default slot layout added to the 18 healthcare profiles is a
+   single full-bleed view. Projects that want multi-view healthcare
+   sheets (e.g. RDS-style "plan + elev + equipment list + signatures"
+   panels) need to override the slot array via project-scoped
+   `_BIM_COORD/drawing_types.json`. The shipped layout is correct
+   for the dominant "one plan per sheet" use case.
+3. The 4 healthcare A2 drawing types (`health-rds-A2`,
+   `health-mortuary-pln-A2-1to50`, `health-bedhead-elev-A2-1to20`,
+   `health-or-ceiling-A2-1to20`) use `STING - Healthcare Title Block`
+   which is a non-size-specific name. The family is assumed to ship
+   in both A1 and A2 flavours; verify before merge if not.
+
+### Phase 184e — 100% field-level completeness sweep
+
+Audit pass surfaced six secondary fields with low population (e.g.
+`description` at 14%, `viewportTypeName` at 28%, `sectionMarker` on
+only 8/90 profiles). Each gap traced to omitted defaults rather than
+broken schema. Every drawing type in `STING_DRAWING_TYPES.json` now
+has all 19 audit fields populated.
+
+**Fields synthesised/defaulted across the 90 profiles**:
+
+| Field | Filled | Default applied |
+|---|---|---|
+| `description` | 77 | `"{Discipline} {purpose} on {paperSize} at 1:{scale}"` |
+| `viewportTypeName` | 65 | `"STING - Standard Viewport"` |
+| `isoNaming` | 59 | `{ volume:"01", type:"DR", role:<by discipline>, suitability:"S2", revision:"P01" }` |
+| `phase` | 50 | `"*"` (wildcard, per POCO default) |
+| `orientation` | 43 | `"Landscape"` (Portrait for Schedule purposes + A4) |
+| `viewTemplateName` | 36 | `"STING - {Discipline} {purpose}"` |
+| `titleBlockParams` | 11 | Corporate 11-cell set on remaining Detail/Spool/Schedule/Legend profiles |
+| `slots` | 4 | Single full-bleed slot for Schedule / Schematic profiles |
+| `scale` | 3 | `"NA"` sentinel for 3D presentation views |
+| `detailLevel` | 3 | `"Medium"` for Schedule / Legend |
+| `sectionMarker` | 2 | `{ family:"STING_ELEV_MARK"\|"STING_SECTION_MARK", markPrefix:"E"\|"S", bubbleStyle:"Filled", farClipMm:3000 }` for the 2 Section/Elevation profiles that were missing markers (`elec-riser-A2-1to100`, `health-bedhead-elev-A2-1to20`) |
+| `annotation` | 1 | Empty rules + tagFamilies (`plumb-drainage-schematic-A1`) |
+
+**Final tally (programmatically verified)**:
+
+| Check | 90 / 90 |
+|---|---|
+| id / name / origin / purpose | ✓ 100% |
+| description | ✓ 100% |
+| discipline / phase / paperSize / orientation | ✓ 100% |
+| titleBlockFamily / scale / detailLevel | ✓ 100% |
+| viewTemplateName / viewportTypeName | ✓ 100% |
+| sheetNumberPattern / sheetNamePattern | ✓ 100% |
+| crop.kind / slots / annotation / titleBlockParams | ✓ 100% |
+| isoNaming | ✓ 100% |
+| sectionMarker (where required) | ✓ 100% |
+
+And the 22 packs:
+
+| Check | 22 / 22 |
+|---|---|
+| id / name / description / extends / origin | ✓ 100% |
+| vgOverrides | ✓ 100% |
+| managed packs declare vgOverrides + filters | ✓ 100% |
+| pack references resolve | ✓ 100% |
+| no orphaned packs | ✓ 100% |
+
+### Caveats (Phase 184e)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The defaults are corporate baseline values; project teams will
+   override `viewTemplateName` (to match their actual `.rvt` template
+   names), `viewportTypeName` (to match their loaded viewport
+   types), and `isoNaming.volume` / `revision` per project. The
+   validator surfaces missing assets as Warnings (not Errors) so the
+   JSON ships usable on a stock project.
+
+### Phase 184f — Filter refs resolve + healthcare TB naming aligned
+
+Closed the last two deployment caveats from Phase 184d/e.
+
+**70/70 pack filter references now resolve** (`STING_AEC_FILTERS.json`):
+
+The 8 healthcare packs + `corp-base` + `corp-demolition-phase` + 
+`corp-clarification` referenced 75 filter names by pretty-name 
+convention (`MGPS - Oxygen (O2)`, `Fire Wall - 60 min`, 
+`Anti-Ligature - Compliant`). The AEC filter library uses the 
+`STING - <Domain>: <Type>` naming convention. Two changes:
+
+- **54 references remapped** to existing library entries (e.g.
+  `MGPS - Oxygen (O2)` → `STING - MGS: O2`, `Fire Wall - 60 min` →
+  `STING - Arch: Fire 60 min Walls`, `Pressure - Negative (-5 Pa)` →
+  `STING - Clin: Pressure Negative`, `EES - Type A (Life Safety)` →
+  `STING - EES: Life Safety`).
+- **24 new filter definitions added** to `STING_AEC_FILTERS.json`
+  (filter count 265 → 289) covering: Out of Scope, RFI Query, Design
+  Intent, Bedhead/Pendant/Scrub/Accessible Routes, Room Department ×
+  3, MGPS Manifold/Terminal Unit/Entonox, EES Generator/ATS,
+  Shielding Lead 1mm/Borated Poly, Water Dead Leg/Temp
+  Sensor/Calorifier, Anti-Bind Door, Observation Direct/Indirect/None.
+  Each new filter keys off documented healthcare shared parameters
+  (`MGS_GAS_TYPE_TXT`, `LIG_AREA_OBS_LOS_TXT`, `RAD_LEAD_MM_NR`,
+  `CLN_ROOM_CLASS_TXT`, etc.) with sensible categories + inline
+  override defaults that the pack's per-rule overrides layer on top
+  of (Phase 166 `inheritDefaults` pattern).
+
+The pack inline-override styling is preserved verbatim — only the
+filter-name LOOKUP key changed. Visual identity is intact; the
+`ViewStylePackApplier` now finds a real `ParameterFilterElement`
+to attach to the view (via `AecFilterRegistry.LazyCreate`) instead
+of warning "filter not in document".
+
+**Healthcare title block naming standardised** (`STING_DRAWING_TYPES.json`):
+
+All 22 healthcare drawing types now use size-suffixed title-block
+family names matching the corporate convention:
+
+- A1 profiles (18) → `"STING - Healthcare Title Block A1"`
+- A2 profiles (4)  → `"STING - Healthcare Title Block A2"`
+
+Previously all 22 referenced the non-size-specific
+`"STING - Healthcare Title Block"`, which forced the
+`TitleBlockRouter` to fall back to "first available" matching on a
+stock project. The split mirrors the `STING_TB_SHEET_A1` /
+`STING_TB_SHEET_A2` corporate baseline; projects with a single
+multi-size healthcare family can override via project-scoped
+`drawing_types.json`.
+
+**Final integrity** (programmatically verified):
+
+| Check | Result |
+|---|---|
+| Drawing types | 90 |
+| Routing rules | 101 |
+| Style packs | 22 |
+| AEC filters | 289 |
+| Pack filter refs resolved | ✓ 70/70 |
+| Healthcare TB ↔ paper size aligned | ✓ |
+| All other Phase 184e checks (17 fields) | ✓ 90/90 |
+
+### Caveats (Phase 184f)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The 24 new filter definitions use sensible category + rule
+   defaults but assume the documented healthcare shared parameters
+   (`MGS_GAS_TYPE_TXT`, `LIG_AREA_OBS_LOS_TXT`, `RAD_LEAD_MM_NR`,
+   `CLN_ROOM_CLASS_TXT`, `MGS_TU_BS5682_BOOL`, `RAD_BARRIER_TYPE_TXT`,
+   `PLM_DEAD_LEG_BOOL`, `LIG_PRODUCT_RATING_TXT`) are bound on the
+   project. The `AecFilterFactory` warns + skips gracefully when a
+   referenced shared param isn't bound, so the JSON ships usable on
+   a stock project — projects bind the params via `LoadSharedParams`
+   on first use.
+3. Some pack→library remappings collapse fine-grained pack categories
+   to coarser library entries (e.g. `Pressure - Positive (+15 Pa)` and
+   `Pressure - Positive (+5 Pa)` both map to `STING - Clin: Pressure
+   Positive`; `Fire Door` maps to `STING - Arch: FD60 Doors`).
+   Pack-side `transparency` / `projColor` overrides still differentiate
+   the visual outcome on the view; projects that need separate filters
+   per band can fork the library entry.
+
+### Phase 184g — A2 paper-size consolidation to A3
+
+The A2 paper size is no longer part of STING's corporate baseline.
+All 10 drawing types that previously used A2 have been migrated to
+A3 with their IDs, names, descriptions, title-block families, and
+routing references updated in lockstep.
+
+**Drawing-type ID renames** (10 total):
+
+| Before | After |
+|---|---|
+| `elec-riser-A2-1to100` | `elec-riser-A3-1to100` |
+| `door-schedule-A2` | `door-schedule-A3` |
+| `legend-A2` | `legend-A3` |
+| `arch-window-schedule-A2` | `arch-window-schedule-A3` |
+| `health-rds-A2` | `health-rds-A3` |
+| `health-mortuary-pln-A2-1to50` | `health-mortuary-pln-A3-1to50` |
+| `health-bedhead-elev-A2-1to20` | `health-bedhead-elev-A3-1to20` |
+| `health-or-ceiling-A2-1to20` | `health-or-ceiling-A3-1to20` |
+| `plumb-vent-riser-A2-NTS` | `plumb-vent-riser-A3-NTS` |
+| `plumb-pressure-schedule-A2` | `plumb-pressure-schedule-A3` |
+
+**Field updates per profile** (across all 10):
+
+- `paperSize`: `"A2"` → `"A3"`
+- `titleBlockFamily`: `STING_TB_SHEET_A2` → `STING_TB_SHEET_A3` (6 corporate); `STING - Healthcare Title Block A2` → `STING - Healthcare Title Block A3` (4 healthcare)
+- `name` / `description` / `sheetNamePattern` text occurrences of "A2" rewritten to "A3"
+
+**Cross-reference updates**:
+
+- `STING_DRAWING_TYPES.json`: 15 routing rules referencing the renamed IDs updated
+- `HEALTHCARE_PACK_PROFILES.json`: 3 healthcare-pack profile references to `health-rds-A2` updated to `health-rds-A3`
+- `StingTools/Core/Drawing/DrawingTypeRegistry.cs`: 3 fallback built-in entries (`elec-riser`, `door-schedule`, `legend`) + 3 fallback routing rules updated
+- `StingTools/Commands/SLD/SLDRiserDiagramCommand.cs`: `RiserDrawingTypeId` constant updated
+
+**Final paper-size distribution** (programmatically verified):
+
+| Size | Count |
+|---|---|
+| A1 | 76 |
+| A3 | 14 |
+| **A2** | **0** ✓ |
+
+A2 remains a valid Revit paper-size string elsewhere in the codebase
+(sheet-size dictionaries, paper-size dropdowns in editors, CDE
+acceptance codes like `A2 — Approved with Comments`) — only the
+drawing-type corporate baseline has dropped it. Projects that need
+A2 profiles can override via project-scoped `drawing_types.json`.
+
+### Caveats (Phase 184g)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
+### Phase 184h — A3 scale rebalancing
+
+A3 has roughly half the printable area of A2, so the 4 model-view
+profiles migrated in Phase 184g had their scales halved (denominator
+doubled) to keep their content fitting on the smaller sheet. IDs and
+names updated in lockstep so the convention "id encodes scale" stays
+true.
+
+| Phase 184g (A2 scale on A3 paper) | Phase 184h (A3 scale on A3 paper) |
+|---|---|
+| `elec-riser-A3-1to100` | `elec-riser-A3-1to200` |
+| `health-mortuary-pln-A3-1to50` | `health-mortuary-pln-A3-1to100` |
+| `health-bedhead-elev-A3-1to20` | `health-bedhead-elev-A3-1to50` |
+| `health-or-ceiling-A3-1to20` | `health-or-ceiling-A3-1to50` |
+
+Profiles unchanged: schedules (`door-schedule-A3`,
+`arch-window-schedule-A3`, `plumb-pressure-schedule-A3`,
+`health-rds-A3`), legends (`legend-A3`), schematics
+(`plumb-vent-riser-A3-NTS`) — none rely on a model-view scale.
+
+**Per-profile field updates** (4 profiles):
+
+- `id`: scale suffix renamed (e.g. `-1to20` → `-1to50`)
+- `scale`: numeric value doubled (e.g. 20 → 50)
+- `name` / `description`: scale text rewritten (e.g. "A3 @ 1:100" → "A3 @ 1:200")
+
+**Cross-reference updates**:
+
+- `STING_DRAWING_TYPES.json`: 8 routing rules pointing at the renamed IDs updated
+- `DrawingTypeRegistry.cs`: built-in `elec-riser` fallback entry +
+  2 routing rules updated; name and scale corrected to "1:200" / 200
+- `SLDRiserDiagramCommand.cs`: `RiserDrawingTypeId` constant updated
+  to `elec-riser-A3-1to200`
+
+**Final A3 scale distribution** (14 A3 profiles):
+
+| Scale | Count | Profiles |
+|---|---|---|
+| 1:10  | 1 | screed build-up detail |
+| 1:20  | 2 | arch detail, struct rebar detail |
+| 1:50  | 4 | RFI, bedhead, OR ceiling, struct rebar |
+| 1:100 | 4 | door / window schedule, legend, mortuary plan |
+| 1:200 | 1 | elec riser |
+| NA / NTS | 2 | RDS, vent riser |
+
+### Caveats (Phase 184h)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
+### Phase 184i — discipline-code normalisation (`Plumbing` → `P`)
+
+Post-184h audit caught one real string-equality bug. The
+`DrawingDispatcher.MatchesWildcard` matches discipline values via
+`string.Equals(..., OrdinalIgnoreCase)`, so `"P"` and `"Plumbing"`
+do NOT match. After Phase 184d's `"Public Health"` → `"Plumbing"`
+fix and Phase 184e's routing `"P"` → `"Plumbing"` sweep, every
+plumb-* routing rule used the long form `"Plumbing"` while every
+plumb-* drawing-type declared the short form `"P"` (matching the
+A / S / M / E / H / MG / RP convention). The result: 14 plumb
+routing rules silently couldn't resolve any plumb drawing type.
+
+Normalised everything to the short code `"P"`:
+- 14 routing rules: `"Plumbing"` → `"P"`
+- 1 drawing type (`plumb-drainage-schematic-A1`): `"Plumbing"` → `"P"`
+
+`titleBlockParams.Discipline` cell still reads `"Plumbing"` —
+that's the human-readable display value on the sheet, not a
+routing key, so it stays the long form.
+
+**Omnibus alignment check (programmatically verified, 8/8 pass)**:
+
+| Check | Result |
+|---|---|
+| Discipline values DT ↔ routing | ✓ 0 orphans |
+| Routing target ids resolve | ✓ 101/101 |
+| Pack references resolve | ✓ 22/22 |
+| Pack filter references resolve | ✓ 70/70 |
+| A2 paper-size residue | ✓ 0 |
+| `tokenProfile` as string | ✓ 0 |
+| Scale ↔ ID encoding match | ✓ 90/90 |
+| Paper size ↔ title-block family match | ✓ 90/90 |
+
+Final counts: **90 drawing types · 22 style packs · 101 routing
+rules · 289 AEC filters · 70 pack filter references — all
+references resolve**.
+
+### Caveats (Phase 184i)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
+### Phase 184j — `isoNaming` shape + role normalisation
+
+Deep-probe audit caught two more real bugs:
+
+**`isoNaming: true` (boolean) → object on 22 healthcare profiles**
+
+The 22 healthcare profiles shipped from the original healthcare pack
+author carried `"isoNaming": true` — a bool that originally meant
+"use ISO 19650 naming yes/no". But `DrawingType.IsoNaming` is typed
+as the `IsoNaming` POCO class (`Volume` / `Type` / `Role` /
+`Suitability` / `Revision` strings), so Newtonsoft silently set the
+field to null on deserialisation. Phase 184e's synthesis-defaults
+pass also skipped them because `not dt.get('isoNaming')` evaluates
+False against truthy `True`.
+
+Converted all 22 to proper objects with discipline-aware role:
+`{ volume:"01", type:"DR", role:<H/MG/RP from discipline>,
+suitability:"S2", revision:"P01" }`.
+
+**`isoNaming.role` ↔ discipline alignment**
+
+`pres-3d-axon-A1` had `discipline:"*"` but `role:"A"`. For wildcard
+discipline, the canonical ISO 19650-2 role is `"Z"` (multi /
+undefined). Normalised across every profile so `role` always
+matches the discipline-code map (A/S/M/E/P/H/MG/RP/Z).
+
+**Final omnibus (programmatically verified, 11/11 pass)**:
+
+| Check | Result |
+|---|---|
+| Discipline DT ↔ routing orphans | ✓ |
+| Routing target ids resolve | ✓ 101/101 |
+| Pack references resolve | ✓ 22/22 |
+| Pack filter references resolve | ✓ 70/70 |
+| A2 paper-size residue | ✓ 0 |
+| `tokenProfile` as string | ✓ 0 |
+| `isoNaming` shape (dict only) | ✓ 90/90 |
+| `isoNaming.role` ↔ discipline | ✓ 90/90 |
+| Scale ↔ ID encoding | ✓ 90/90 |
+| Paper size ↔ TB family | ✓ 90/90 |
+| Slot bbox geometric sanity | ✓ |
+
+### Caveats (Phase 184j)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+### Phase 186 — Bonsai integration foundation (multi-host substrate)
+
+**Status**: Landed on `claude/stingtools-bim-research-8Kkwv` across
+six commits. Substrate is verified drift-free; Day-1 Bonsai scaffold
++ Planscape server endpoint are unit-verified but not end-to-end
+tested. See [`docs/PHASE_186_BONSAI_INTEGRATION.md`](docs/PHASE_186_BONSAI_INTEGRATION.md)
+for the full architectural narrative + decisions log + verification
+matrix + forward roadmap.
+
+This phase turns STING from a Revit-only plugin into the data-layer
+spine of a multi-host BIM coordination platform. The IFC substrate
+becomes the contract every host plugin reads from; the Planscape
+Server federates across hosts via cross-host element-identity
+mapping.
+
+**Net-new top-level folders**:
+- `shared/ifc/` — IFC substrate: 52 enums, 2 psets, 2 IDS files,
+  bSDD publication plan. SHA-256 corporate locks; project-overlay
+  resolver for the 3 project-scoped enums (`StingLocationCodes`,
+  `StingZoneCodes`, `StingLevelCodes`).
+- `stingtools-core/python/` — Python package re-packaging the
+  substrate as a programmatic API (`EnumRegistry`, `PsetRegistry`,
+  `TagGrammar`, `SpatialChecker`, `PlanscapeClient`, `AuditLog`,
+  `IdsRunner`). 7/7 smoke tests pass against the live `shared/ifc/`.
+  Eventually paired with a `dotnet/` half for Revit/Tekla consumption.
+- `stingtools-bonsai/` — Bonsai (formerly BlenderBIM) extension.
+  Day-1 scaffold: blender_manifest.toml (Blender 4.2+ extension
+  schema 1.0.0), `BonsaiBridge` coexistence layer (`core/bonsai.py`),
+  3 diagnostic operators (`sting.about`, `sting.reload_substrate`,
+  `sting.bonsai_probe`), `STING_PT_main` N-panel. MVP operators
+  (16 commands) deferred to Path B of the recommendation —
+  estimated 8 weeks single-dev.
+- `tools/enums/` — `compute_checksums.py` (drift detection +
+  manifest generator), `audit_bsdd.py` (publication-plan summary
+  check).
+- `tools/converters/` — `sting_to_psd.py` (STING XML → buildingSMART
+  PropertySetDef format), `sting_to_revit_params.py` (STING psets →
+  Revit shared-parameter file fragment with deterministic UUID v5
+  GUIDs).
+- `tools/tests/round_trip.py` — IDS + Pset round-trip test harness
+  scaffold. `--generate-fixture` documents the ifcopenshell.api
+  call sequence; implementation deferred.
+- `.github/workflows/ifc-substrate.yml` — CI: checksum drift +
+  bSDD audit + XSD validation + IDS well-formedness + Pset reference
+  integrity + IfdGuid uniqueness on every PR.
+
+**Net-new server entities + endpoints**:
+- `Planscape.Server/src/Planscape.Core/Entities/ExternalElementMapping.cs`
+  — cross-host element identity table. Composite-unique on
+  `(ProjectId, IfcGlobalId, Host, HostDocumentGuid)`.
+- `Planscape.Server/src/Planscape.Core/DTOs/IfcIngestDtos.cs` —
+  `IfcIngestRequest` + `IfcElementDto` + `IfcIngestResponse`.
+- `Planscape.Server/src/Planscape.API/Controllers/IfcController.cs`:
+    - `POST /api/projects/{projectId}/ifc/data` — host-agnostic IFC
+      element ingest. Upserts mappings + TaggedElement projection in
+      500-element batches with stale-write protection.
+    - `GET /api/projects/{projectId}/ifc/mappings?ifc_guid=...` —
+      cross-host lookup (issue raised in Bonsai on IFC GUID X →
+      Revit ElementId).
+- `PlanscapeDbContext`: `+ DbSet<ExternalElementMapping>` with 3
+  indexes; `Entity<TaggedElement>` unique constraints converted to
+  filtered uniques to support both Revit (`RevitElementId > 0`) and
+  non-Revit (`UniqueId <> ''`) ingest paths.
+
+**Substrate inventory at Phase 186 close** (programmatically verified):
+
+| Layer | Count | Detail |
+|---|---|---|
+| Enum XMLs | 52 | 49 corporate-locked + 3 project-template |
+| Pset XMLs | 5 | `Pset_StingTags` (12 props, 9 rules), `Pset_StingSpatialCodes` (6 props, 5 rules), `Pset_StingTag7` (10 props, 3 rules), `Pset_StingDrawing` (12 props, 3 rules), `Pset_StingProjectOrg` (13 props, 3 rules) |
+| SpatialChecker static rules | 12 | LOC/LVL/ZONE/SYS/SEQ/FullTag (Tier-1) + DISC_NOT_EMPTY + DRAWING_TYPE_RESOLVABLE + 2 PROJECTORG_* + BUILDING_LOC_UNIQUE + STOREY_LVL_UNIQUE_WITHIN_BUILDING (Phase 186b) — 100% of declared statically-enforceable rules |
+| SpatialChecker behavioural rules | 8 | `enforced-by="host"` — TOKEN_LOCK / TAG_HISTORY / PROJECTORG_SINGLETON / CROP_KIND_MATCHES_PROFILE / PACK_CHECKSUM_MATCHES / TAG7_NARRATIVE_CONSISTENT / TAG7_PARAGRAPH_STATE_EXCLUSIVE / TAG7_TECHNICAL_SPECS_BY_DISCIPLINE |
+| IDS files | 2 | `sting-tag-grammar.ids` (11 specs), `sting-spatial-codes.ids` (7 specs) |
+| Project-overlay examples | 3 | LOC / LVL / ZONE worked examples |
+| bSDD publication entries | 52 | 24 ready · 1 draft · 6 external_already · 2 skip_external · 16 private · 3 project_scoped |
+| Python core modules | 13 | enums + psets + tag_grammar + spatial + ids + planscape |
+| Bonsai add-on Python files | 9 | manifest + bl_info + core/bonsai + 3 ops + 1 panel + 2 __init__ |
+| Server entities (new) | 1 | `ExternalElementMapping` |
+| Server controllers (new) | 1 | `IfcController` (2 endpoints) |
+| Tooling scripts (new) | 5 | checksums, bsdd_audit, sting_to_psd, sting_to_revit_params, round_trip |
+| CI workflows (new) | 1 | `ifc-substrate.yml` (6 validation steps) |
+| Top-level READMEs (new) | 7 | enums, psets, ids, bsdd, examples, bonsai, core |
+
+**5 enum tiers** covering: tag grammar (DISC/SYS/FUNC/PROD + spatial
++ status/suitability/CDE/revision); drawing engine (purpose/tier/
+paper/orientation/detail/colour/crop); workflow (issue/RIBA/workflow/
+signoff/maintenance/asset); engineering (HVAC pressure/sizing/density
++ acoustic NC + pipe services/materials + duct + fire + cable + steel
++ concrete + insulation + hangers + welds); healthcare pack (facility
+profiles + MGS gases + pressure regimes + EES + MRI + radiation +
+ligature + observation + HTM water + HBN departments + theatres).
+
+### Caveats (Phase 186)
+
+1. **Path-A verification not run** in dev sandbox. The C# IfcController
+   compiles in theory (follows existing controller conventions) but
+   has never seen `dotnet build`. The Bonsai add-on syntax-checks
+   clean but has never been loaded in actual Blender. The 2 IDS
+   files parse as well-formed XML but have never been run through
+   `ifctester`. Five working days of local verification (see
+   `docs/PHASE_186_BONSAI_INTEGRATION.md § Forward roadmap → Path A`)
+   flip every ❌ in the verification matrix to ✅.
+2. **EF migration not generated.** `dotnet ef migrations add
+   IfcIngestSubstrate` against `Planscape.Server` is the next
+   deployment step. Schema diff: 1 new table + 2 new filtered
+   uniques on `TaggedElements`.
+3. **Round-trip test harness is a scaffold.** `tools/tests/round_trip.py
+   --generate-fixture` documents the ifcopenshell.api call sequence
+   but doesn't yet mint a real IFC. Real fixture generation is
+   estimated 1 day once ifcopenshell is installed locally.
+4. **bSDD entries all carry `proposed: true`.** No actual publication
+   to bSDD has happened. The 22 "ready" entries carry proposed IRIs
+   that DO NOT resolve in bSDD until status flips to `posted` /
+   `verified` via `tools/bsdd/publish.py` (also future).
+5. **MVP operators not built.** Day-1 ships diagnostic ops only
+   (`sting.about`, `sting.reload_substrate`, `sting.bonsai_probe`).
+   The 16 production operators from the MVP scope are estimated
+   8 weeks single-dev. Scope doc lives in commit history of this
+   branch.
+6. **Healthcare Pset bundle not yet authored.** The 5 healthcare
+   Psets (`Pset_StingHealthcareClinical/MGS/Radiation/
+   ClinicalEquipment/Ligature`) referenced in the bSDD plan are
+   Phase 186 work. Healthcare enumerations (Tier 5) shipped this
+   phase; the consuming Psets did not.
+7. **ArchiCAD + Tekla plugins are forward roadmap.** The
+   substrate is host-agnostic so the work is incremental, but
+   neither plugin folder exists yet. Phase 187 (ArchiCAD, ~12 weeks)
+   and Phase 188 (Tekla server-side connector, ~2 weeks) per the
+   architecture doc.
 
 ## Template Engine v1.1 (Phase 112)
 
@@ -1138,8 +2001,8 @@ STINGTOOLS/
     └── Data/                           # Runtime data files (49 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
-        ├── MR_PARAMETERS.txt           # Shared parameter file (2,555 params, 26 groups, all data files cross-referenced — Phase 129 alignment)
-        ├── MR_PARAMETERS.csv           # Parameter definitions (CSV mirror of TXT, v5.7 — 2,555 rows, identical param set as TXT)
+        ├── MR_PARAMETERS.txt           # Shared parameter file (3,236 params, 34 groups, all data files cross-referenced — Phase 187-190 alignment incl. EC1-1-4 wind + EC8 seismic regional defaults + black-cotton drawing warning)
+        ├── MR_PARAMETERS.csv           # Parameter definitions (CSV mirror of TXT, v6.6 — 3,236 rows, identical param set as TXT)
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
         ├── MATERIAL_LOOKUP.csv         # 237-row material reference database (density, thermal, fire rating, acoustic, embodied carbon, cost)
@@ -1151,7 +2014,7 @@ STINGTOOLS/
         ├── FAMILY_PARAMETER_BINDINGS.csv   # 4,686 family bindings
         ├── PARAMETER_CATEGORIES.csv    # Parameter-category cross-reference
         ├── PARAMETER_REGISTRY.json     # Master parameter registry — single source of truth for ParamRegistry.cs
-        ├── LABEL_DEFINITIONS.json      # 10,775-line label/legend definition specs (v5.5, 126 categories, warnings aligned to TAG7)
+        ├── LABEL_DEFINITIONS.json      # Label/legend definition specs (v5.6, 149 categories, 1:1 aligned with TagFamilyCreator — Phase 187)
         ├── TAG_CONFIG_v5_0_CONTAINERS.csv    # 122+ tag container definitions (v5.0) + Section 13: tie-in point containers (10 params + 4 TAG7 containers + 6 tag families)
         ├── TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv # 179+ discipline/system/function code mappings (v5.0) + Section 7: 14 tie-in system mappings
         ├── TAG_CONFIG_v5_0_VALIDATION.csv    # 180+ validation rules for tag tokens (v5.0) + Section 13: 13 tie-in validation rules
@@ -1970,6 +2833,72 @@ Edit either JSON in a text editor and click **RPRT → Reload rules** to pick up
 3. `Hvac_RunLoads` (`Commands/Hvac/HvacRunLoadsCommand`) posts `PostableCommand.AnalyzeHeatingAndCoolingLoads` after an MEP-Spaces pre-flight. `Hvac_ExportGbxml` (`Commands/Hvac/HvacExportGbxmlCommand`) calls `Document.Export` with `GBXMLExportOptions` after a 3D-view check. Both are real, no TaskDialog stubs.
 4. The EQPT / SYS / SpoolGrid / DriftGrid / WorkflowGrid `ObservableCollection`s start empty — commands push rows back into the panel singleton (`StingHvacPanel.Instance`) on completion (same pattern `StingElectricalPanel` uses).
 5. PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F` is stable from this point so users' Revit `UIState.dat` re-locates the panel between sessions.
+
+## HVAC design engines (Phase 187 — competitive parity)
+
+Built in response to the "what can we borrow from MagiCAD / TRACE /
+HAP / IES VE / cove.tool / Daikin VRV tools" review. Adds five
+calculation kernels that move STING from "Revit organiser" toward
+"design engine":
+
+### New folders + files
+
+| Path | Purpose | LoC |
+|---|---|---|
+| `StingTools/Core/Climate/ClimateRegistry.cs` | ASHRAE 2021 / CIBSE Guide A design-day site registry, NASA ISA elevation-corrected air density, per-doc cache, project override at `<project>/_BIM_COORD/climate_data.json` | ~200 |
+| `StingTools/Data/STING_CLIMATE_DATA.json` | 41 cities (UK + EU + US + AU + Asia + Africa) with cooling 0.4 % DB + MCWB, heating 99.6 % DB, HDD18, CDD10, elevation | — |
+| `StingTools/Core/Hvac/Loads/LoadInputs.cs` | `LoadZone` / `EnvelopeSegment` / `ZoneLoadResult` / `BlockLoadResult` POCOs + ASHRAE 90.1 default schedules | ~120 |
+| `StingTools/Core/Hvac/Loads/BlockLoadEngine.cs` | Hour-by-hour 24-h design-day load calc with peak-pick at the SYSTEM level (not Σ zone peaks). Conduction + solar (ASHRAE Clear Sky) + occupants + lighting + equipment + vent + infiltration. Reports diversity = block / Σpeaks. | ~250 |
+| `StingTools/Core/Acoustic/OctaveBand.cs` | 8-band Lw / Lp container + NC curve evaluator (NC-15 → NC-65) | ~140 |
+| `StingTools/Core/Acoustic/NcPredictionEngine.cs` | VDI 2081 / ASHRAE A48 attenuation tables (straight, lined, elbow, tee, end-reflection) + Bullock regenerated-noise correlations + direct + reverberant room model | ~250 |
+| `StingTools/Core/Refrigerant/RefrigerantProperties.cs` | R410A / R32 / R134a / CO₂ saturation densities + viscosities + Hfg + oil-return velocity floors + Daikin VRV envelope limits | ~120 |
+| `StingTools/Core/Refrigerant/RefrigerantPipeSolver.cs` | Darcy-Weisbach + Blasius f smooth-copper pipe sweep over ACR size list with oil-return velocity floor + ΔP budget + liquid-leg static head | ~140 |
+| `StingTools/UI/RefrigerantSizingDialog.cs` | Minimal WPF input dialog: refrigerant + leg + capacity + length + lift + ΔP budget + riser flag | ~150 |
+
+### Manufacturer + valve pack
+
+Extended `STING_MEP_SIZING_RULES.json` with two new sections:
+`duct.manufacturerFittings` (Lindab / Trox / Halton catalogue C
+values keyed by product code) and `pipe.valveCv` (Belimo / Siemens
+/ Danfoss Kvs values, m³/h at 1 bar). `MepSizingRules.GetManufacturerC`
+and `GetValveKvs` give callers a typed lookup; fittings fall back to
+the generic SMACNA C table from `DuctFrictionSolver.SmacnaCoefficients`
+when no manufacturer match.
+
+### New commands (7)
+
+| Tag | Class | Description |
+|---|---|---|
+| `Hvac_BlockLoad` | `HvacBlockLoadCommand` | Runs `BlockLoadEngine` against Revit Spaces (or Rooms), stamps per-space `HVC_PEAK_SENS_W` / `HVC_PEAK_LAT_W` / `HVC_PEAK_HOUR` / `HVC_OA_LS`, reports building block, Σ peaks, diversity, per-system table, top-10 zones |
+| `Hvac_NcPredict` | `HvacNcPredictionCommand` | Walks user duct selection, treats the upstream-most member as fan source (synthetic Lw from Q + ΔP), runs `NcPredictionEngine`, reports predicted NC + per-element attenuation/regen breakdown |
+| `Hvac_RefrigSize` | `HvacRefrigerantSizeCommand` | Pops `RefrigerantSizingDialog`, runs `RefrigerantPipeSolver`, reports chosen OD + velocity + ΔP + vendor compliance with full size-sweep trace |
+| `Hvac_ClimateInspect` | `HvacClimateInspectCommand` | Shows active climate site (resolved via `PRJ_CLIMATE_SITE_ID` or address fuzzy-match) + corporate catalogue |
+| `Hvac_ClimateReload` | `HvacClimateReloadCommand` | Drops `ClimateRegistry` cache for all docs so an edit to the baseline / project override is picked up without restarting Revit |
+| (existing) `Hvac_PressureClassAudit` | now reads air density from the climate registry (location-aware) instead of the hardcoded 1.20 kg/m³ |
+| (existing) `Hvac_ReloadRules` | unchanged — flushes `MepSizingRegistry` |
+
+LOADS tab gains a "Block load" primary button; CALCS tab gains "NC
+predict" and "Refrigerant size" buttons; RPRT tab gains "Climate
+inspect" + "Reload climate" buttons.
+
+### Climate site resolution
+
+Priority order: `PRJ_CLIMATE_SITE_ID` parameter on
+`ProjectInformation` → fuzzy match of `ProjectInformation.Address`
+against site labels → first site in the project override file → hard
+fallback to `london`. Air density at the cooling design dry-bulb is
+elevation-corrected via the standard atmosphere model and replaces
+the previous hardcoded 1.20 kg/m³ in the pressure-class audit.
+
+### Caveats (Phase 187)
+
+1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
+2. **`BlockLoadEngine` is sensible-load focused.** Latent is calculated but the design-day model is simplified (single sinusoid for outdoor temp, ASHRAE Clear Sky for solar, no thermal-mass storage / RTS lag). For comparison-grade results against TRACE / HAP, fold in a per-orientation Radiant Time Series — the input data structures already support per-segment orientation.
+3. **`NcPredictionEngine` uses a *synthetic* fan source** derived from path Q + ΔP. Until a manufacturer Lw spectrum sidecar lands, NC predictions are indicative not certifiable. Silencer insertion-loss spectra are also defaults (12 dB midband) until the same sidecar pattern is wired for attenuators.
+4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The two-phase suction multiplier is a flat 10 % rather than a Lockhart-Martinelli calc.
+5. **Climate site list ships 41 cities.** Add more by appending to the corporate `STING_CLIMATE_DATA.json` (PR encouraged) or via a project override at `<project>/_BIM_COORD/climate_data.json` (additive, by `id`).
+6. **Manufacturer fitting + valve packs are seed.** ~20 entries each across Lindab / Trox / Halton / Belimo / Siemens / Danfoss. Production deployments should add their actual catalogue via the project override.
+7. Per-element pipe-fitting lookup of manufacturer C / Kvs values (via `MepSizingRules.GetManufacturerC` / `GetValveKvs`) is in place but not yet wired into the friction / static-regain commands — they still use the generic SMACNA table.
 
 ## Template Manager Intelligence Engine
 

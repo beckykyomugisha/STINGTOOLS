@@ -32,7 +32,6 @@ namespace StingTools.Commands.Hvac
     [Regeneration(RegenerationOption.Manual)]
     public class HvacDetectStaleSizesCommand : IExternalCommand
     {
-        private const double MmToFt = 1.0 / 304.8;
         private const double DefaultTolerancePct = 20.0;
 
         public Result Execute(ExternalCommandData commandData,
@@ -69,19 +68,22 @@ namespace StingTools.Commands.Hvac
                 using (var tx = new Transaction(doc, "STING Flag stale duct sizes"))
                 {
                     tx.Start();
+                    // Batch-detect roles once instead of walking the connector
+                    // graph per duct — turns O(n·c) into O(n+c) for a view
+                    // sharing a small number of equipment trees.
+                    var roleMap = HvacSegmentRoleDetector.DetectRolesBatch(doc, ducts);
+
                     foreach (var d in ducts)
                     {
                         try
                         {
-                            double flowLs = ReadDouble(d, "HVC_FLOW_LS");
+                            double flowLs = MepUnits.ReadAirFlowLs(d, "HVC_FLOW_LS");
                             if (flowLs <= 0)
-                            {
-                                double flowCfm = ReadBuiltInFlowCfm(d);
-                                flowLs = flowCfm * 0.4719;
-                            }
+                                flowLs = MepUnits.ReadBuiltInFlowLs(d, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
                             if (flowLs <= 0) { skipped++; continue; }
 
-                            string roleId = HvacSegmentRoleDetector.DetectRole(doc, d);
+                            string roleId = roleMap.TryGetValue(d.Id, out var rid)
+                                ? rid : HvacSegmentRoleDetector.DetectRole(doc, d);
                             var role = rules.GetDuctRole(roleId);
                             double maxVelMs = role?.MaxVelocityMs ?? 6.0;
                             double maxAspect = role?.AspectMax > 0 ? role.AspectMax : 3.0;
@@ -94,10 +96,12 @@ namespace StingTools.Commands.Hvac
                             targetWidth  = MepSizeTables.RoundUpTo(targetWidth,  sizeTable);
                             targetHeight = MepSizeTables.RoundUpTo(targetHeight, sizeTable);
 
-                            // Actual size
-                            double w = ReadDouble(d, "Width")  * 304.8;
-                            double h = ReadDouble(d, "Height") * 304.8;
-                            double dia = ReadDouble(d, "Diameter") * 304.8;
+                            // Actual size — convert internal feet → mm via UnitUtils
+                            // rather than hardcoding 304.8 so units stay correct if the
+                            // parameter's spec ever changes.
+                            double w = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Width"),    UnitTypeId.Millimeters);
+                            double h = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Height"),   UnitTypeId.Millimeters);
+                            double dia = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Diameter"), UnitTypeId.Millimeters);
 
                             double actualArea, targetAreaMm2;
                             if (w > 0 && h > 0)
@@ -123,7 +127,7 @@ namespace StingTools.Commands.Hvac
                             {
                                 // Overwrite=true so the flag can flip both ways
                                 // (stale↔fresh) across successive scans.
-                                ParameterHelpers.SetInt(d, "HVC_SIZE_STALE_BOOL", isStale ? 1 : 0, overwrite: true);
+                                ParameterHelpers.SetInt(d, ParamRegistry.HVC_SIZE_STALE_BOOL, isStale ? 1 : 0, overwrite: true);
                             }
                             catch (Exception exP) { StingLog.Warn($"Stale stamp {d.Id}: {exP.Message}"); }
 
@@ -242,15 +246,5 @@ namespace StingTools.Commands.Hvac
             return 0;
         }
 
-        private static double ReadBuiltInFlowCfm(Element d)
-        {
-            try
-            {
-                var p = d?.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                if (p != null && p.StorageType == StorageType.Double) return p.AsDouble();
-            }
-            catch { }
-            return 0;
-        }
     }
 }

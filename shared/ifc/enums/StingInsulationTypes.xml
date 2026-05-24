@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingInsulationTypes</Name>
+    <Definition>Insulation type codes per BS 5422 — selects the K-value, surface emissivity, fire performance, and embodied-carbon defaults for pipe/duct insulation. Drives thickness sizing in IceCarbonCalculator and pipe-loss models, plus fire-rating verification on penetration seals.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-000000000024</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BS 5422:2009; BS EN ISO 13787; ICE Database v3.0 (embodied carbon)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Phenolic" sentinel="false">
+      <Definition>Phenolic Foam — closed-cell, k=0.020 W/m·K. Low fire risk, BS EN 13501 Class A2. STING default for cold pipework.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MineralWool" sentinel="false">
+      <Definition>Mineral (Rock) Wool — k=0.035 W/m·K. Non-combustible A1. Standard for hot pipework, ducting acoustic lining.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="GlassWool" sentinel="false">
+      <Definition>Glass Wool — k=0.034 W/m·K. Non-combustible A1. Duct lining + thermal lagging.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Polyurethane" sentinel="false">
+      <Definition>Polyurethane (PUR) — k=0.022 W/m·K. Used for pre-insulated pipework. Reaction-to-fire grade varies.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Polyisocyanurate" sentinel="false">
+      <Definition>Polyisocyanurate (PIR) — k=0.021 W/m·K. Improved fire performance over PUR.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Armaflex" sentinel="false">
+      <Definition>Closed-cell Elastomeric (Armaflex / equivalent) — k=0.033 W/m·K. Anti-condensation, flexible.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CalciumSilicate" sentinel="false">
+      <Definition>Calcium Silicate — k=0.06 W/m·K. High-temperature steam / HTHW; non-combustible A1.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="AerogelBlanket" sentinel="false">
+      <Definition>Aerogel Blanket — k=0.014 W/m·K. Ultra-low-conductivity, used where space-constrained.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="VacuumInsulatedPanel" sentinel="false">
+      <Definition>Vacuum Insulated Panel (VIP) — k=0.004 W/m·K. Specialist; cold-store + ultra-low-energy details.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="None" sentinel="false">
+      <Definition>No insulation — bare-pipe or exposed-duct sections. Carry for completeness in BOQ.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>4f3fd458ae102687b3b995deac46dffcf6756006c1cf3e93d30ef2184f591223</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

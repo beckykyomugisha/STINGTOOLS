@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.5,CREATED=2026-03-16,UPDATED=2026-05-17,FAMILIES=142,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_v5.9_phase179(+28_params),VARIANT=DesignConstruction
+#SCHEMA_VERSION=5.6,CREATED=2026-03-16,UPDATED=2026-05-20,FAMILIES=22,DISCIPLINE=STR,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.12(204_categories)+PARAMETER_REGISTRY.json_phase187(3163_params)+TagFamilyConfig.TotalFamilyCount=204,VARIANT=DesignConstruction
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -403,6 +403,7 @@ TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
 2,HIGH,WARN_STR_FDN_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N / EC2,Common,Text,⚠ Warning: Concrete Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_COVER_MM, """")"
 3,HIGH,WARN_STR_FDN_DEPTH_MM_FROST,Depth < 450mm (frost susceptible),BS EN 1997-1 / NHBC Standards Ch4.2,Common,Text,⚠ Warning: Foundation Depth,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_DEPTH_MM_FROST, """")"
 4,HIGH,WARN_STR_FDN_SETTLEMENT_MM,Settlement > 25mm,BS EN 1997-1 / EC7,Common,Text,⚠ Warning: Foundation Settlement,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_SETTLEMENT_MM, """")"
+5,HIGH,WARN_STR_FND_BLACK_COTTON,STR_BLACK_COTTON_RISK_BOOL = 1 — expansive subgrade flagged,BS 1377-2 / EC7,Common,Text,⚠ Warning: Black-cotton Soil,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FND_BLACK_COTTON, """")"
 
 Tag Family #4: STING - Structural Slab Tag
 TAG7: STR_TAG_7_PARA_SLAB_TXT  •  Category: Floors (Structural)

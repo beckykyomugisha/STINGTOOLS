@@ -18,6 +18,7 @@
 //   - SMACNA-only standard size table
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -107,6 +108,43 @@ namespace StingTools.Core.Mep
         public List<DuctPressureClass> DuctPressureClasses { get; set; } = new();
         public Dictionary<string, double[]> DuctStandardSizesMm { get; set; } = new();
         public List<DuctGaugeBreakpoint> DuctGaugeBreakpoints { get; set; } = new();
+        public Dictionary<string, double> DuctFittingLossK { get; set; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+        /// Manufacturer-specific fitting C values. Outer key is the brand
+        /// (e.g. "lindab", "trox"), inner key is the product code (case
+        /// insensitive). Resolved via <see cref="GetManufacturerC"/>.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, double>> ManufacturerFittings { get; set; }
+            = new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+        /// Manufacturer valve flow coefficients (Kvs, m³/h at 1 bar).
+        /// Outer key is the brand, inner key is the product code.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, double>> ValveCv { get; set; }
+            = new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Resolve a manufacturer fitting loss coefficient C. Returns 0
+        /// when no match — caller falls back to the generic SMACNA table.
+        /// </summary>
+        public double GetManufacturerC(string brand, string productCode)
+        {
+            if (string.IsNullOrWhiteSpace(brand) || string.IsNullOrWhiteSpace(productCode)) return 0;
+            if (!ManufacturerFittings.TryGetValue(brand, out var dict) || dict == null) return 0;
+            return dict.TryGetValue(productCode, out double c) ? c : 0;
+        }
+
+        /// <summary>
+        /// Resolve a valve Kvs (m³/h at 1 bar). Returns 0 when no match.
+        /// Caller computes ΔP_Pa = 1e5 · (Q_m3h / Kvs)².
+        /// </summary>
+        public double GetValveKvs(string brand, string productCode)
+        {
+            if (string.IsNullOrWhiteSpace(brand) || string.IsNullOrWhiteSpace(productCode)) return 0;
+            if (!ValveCv.TryGetValue(brand, out var dict) || dict == null) return 0;
+            return dict.TryGetValue(productCode, out double k) ? k : 0;
+        }
 
         // Pipe
         public string PipeDefaultRegion { get; set; } = "UK_SI";
@@ -149,8 +187,15 @@ namespace StingTools.Core.Mep
         {
             foreach (var g in DuctGaugeBreakpoints.OrderBy(b => b.UptoWidthMm))
                 if (widthMm <= g.UptoWidthMm) return g;
-            return DuctGaugeBreakpoints.LastOrDefault()
+            // Past the largest breakpoint: log once per width-bucket so the project
+            // owner sees that the SMACNA table doesn't cover this duct, rather than
+            // silently shipping the heaviest gauge as if it were authoritative.
+            var fallback = DuctGaugeBreakpoints.LastOrDefault()
                 ?? new DuctGaugeBreakpoint { UptoWidthMm = 9999, ThicknessMm = 1.2, Seam = "D" };
+            StingTools.Core.StingLog.Warn(
+                $"MepSizingRegistry: duct width {widthMm:F0} mm exceeds largest gauge breakpoint " +
+                $"({fallback.UptoWidthMm:F0} mm); using fallback gauge {fallback.ThicknessMm} mm / seam {fallback.Seam}.");
+            return fallback;
         }
     }
 
@@ -160,9 +205,11 @@ namespace StingTools.Core.Mep
     /// </summary>
     public static class MepSizingRegistry
     {
-        private static readonly object _lock = new();
-        private static MepSizingRules _cached;
-        private static string _cacheKey;
+        // Per-document cache. Keying by doc.PathName so multiple open RVTs each
+        // keep their own merged baseline+override rather than thrashing a
+        // single-slot cache on every focus switch.
+        private static readonly ConcurrentDictionary<string, MepSizingRules> _cache
+            = new ConcurrentDictionary<string, MepSizingRules>(StringComparer.OrdinalIgnoreCase);
 
         public const string DataFileName = "STING_MEP_SIZING_RULES.json";
         public const string ProjectOverrideRelPath = "_BIM_COORD/mep_sizing_rules.json";
@@ -170,25 +217,21 @@ namespace StingTools.Core.Mep
         /// <summary>Resolve the active rule set for a Revit document (cached by project file path).</summary>
         public static MepSizingRules Get(Document doc)
         {
-            lock (_lock)
-            {
-                string key = doc?.PathName ?? "<no-doc>";
-                if (_cached != null && _cacheKey == key) return _cached;
-
-                _cached = Load(doc);
-                _cacheKey = key;
-                return _cached;
-            }
+            string key = doc?.PathName ?? "<no-doc>";
+            return _cache.GetOrAdd(key, _ => Load(doc));
         }
 
-        /// <summary>Force a reload from disk.</summary>
+        /// <summary>Force a reload from disk for every cached project.</summary>
         public static void Reload()
         {
-            lock (_lock)
-            {
-                _cached = null;
-                _cacheKey = null;
-            }
+            _cache.Clear();
+        }
+
+        /// <summary>Force a reload for a single document (e.g. after Save As).</summary>
+        public static void Reload(Document doc)
+        {
+            string key = doc?.PathName ?? "<no-doc>";
+            _cache.TryRemove(key, out _);
         }
 
         private static MepSizingRules Load(Document doc)
@@ -313,6 +356,48 @@ namespace StingTools.Core.Mep
                         });
                     }
                 }
+
+                // Fitting loss coefficients (project-overrideable subset of the
+                // SMACNA table baked into DuctFrictionSolver.SmacnaCoefficients).
+                var fits = duct["fittingLossCoefficients"] as JObject;
+                if (fits != null)
+                {
+                    foreach (var kv in fits)
+                    {
+                        if (kv.Key.StartsWith("_")) continue; // _notes etc.
+                        if (kv.Value is JValue jv &&
+                            (jv.Type == JTokenType.Float || jv.Type == JTokenType.Integer))
+                        {
+                            try { rules.DuctFittingLossK[kv.Key] = (double)kv.Value; }
+                            catch { /* skip malformed entry */ }
+                        }
+                    }
+                }
+
+                // Manufacturer-specific fittings (brand → product → C).
+                var mfg = duct["manufacturerFittings"] as JObject;
+                if (mfg != null)
+                {
+                    foreach (var brand in mfg)
+                    {
+                        if (brand.Key.StartsWith("_")) continue;
+                        if (!(brand.Value is JObject products)) continue;
+                        if (!rules.ManufacturerFittings.TryGetValue(brand.Key, out var inner))
+                        {
+                            inner = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                            rules.ManufacturerFittings[brand.Key] = inner;
+                        }
+                        foreach (var p in products)
+                        {
+                            if (p.Key.StartsWith("_")) continue;
+                            if (p.Value is JValue jv2 &&
+                                (jv2.Type == JTokenType.Float || jv2.Type == JTokenType.Integer))
+                            {
+                                try { inner[p.Key] = (double)p.Value; } catch { }
+                            }
+                        }
+                    }
+                }
             }
 
             // Pipe
@@ -344,6 +429,31 @@ namespace StingTools.Core.Mep
                     {
                         var arr = kv.Value as JArray; if (arr == null) continue;
                         rules.PipeStandardBoreMm[kv.Key] = arr.Select(v => (double)v).ToArray();
+                    }
+                }
+
+                // Manufacturer valve Kvs (brand → product → Kvs in m³/h@1bar).
+                var valves = pipe["valveCv"] as JObject;
+                if (valves != null)
+                {
+                    foreach (var brand in valves)
+                    {
+                        if (brand.Key.StartsWith("_")) continue;
+                        if (!(brand.Value is JObject products)) continue;
+                        if (!rules.ValveCv.TryGetValue(brand.Key, out var inner))
+                        {
+                            inner = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                            rules.ValveCv[brand.Key] = inner;
+                        }
+                        foreach (var p in products)
+                        {
+                            if (p.Key.StartsWith("_")) continue;
+                            if (p.Value is JValue jv3 &&
+                                (jv3.Type == JTokenType.Float || jv3.Type == JTokenType.Integer))
+                            {
+                                try { inner[p.Key] = (double)p.Value; } catch { }
+                            }
+                        }
                     }
                 }
             }

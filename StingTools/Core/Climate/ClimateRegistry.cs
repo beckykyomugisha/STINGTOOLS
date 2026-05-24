@@ -1,0 +1,217 @@
+// StingTools — Climate Registry.
+//
+// Single source of truth for design-day climate data: cooling 0.4%/1%
+// dry-bulb + coincident wet-bulb, heating 99.6%/99% dry-bulb, HDD,
+// CDD and elevation. Replaces the hardcoded `airDensity = 1.20 kg/m³`
+// assumption baked into earlier HVAC commands with a location-aware
+// value derived from elevation + design temperature.
+//
+// Layered:
+//   corporate baseline → Data/STING_CLIMATE_DATA.json
+//   project override   → <project>/_BIM_COORD/climate_data.json
+//
+// Active site resolution priority:
+//   1. PRJ_CLIMATE_SITE_ID set on ProjectInformation
+//   2. ProjectInformation.Address fuzzy match against site labels
+//   3. The single site in the override file (if present)
+//   4. Hard fallback to "london"
+//
+// Sources:
+//   ASHRAE Climate Data Center 2021, CIBSE Guide A 2015.
+//   Air-density formula: ρ = (p₀ / (R · T)) · (1 - 0.0065·h/T)^5.2561
+//   where p₀ = 101325 Pa, R = 287.05 J/(kg·K), T = design absolute
+//   temperature (K), h = elevation (m). Yields the international
+//   standard atmosphere correction (NASA ISA model).
+
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Newtonsoft.Json.Linq;
+using Autodesk.Revit.DB;
+
+namespace StingTools.Core.Climate
+{
+    /// <summary>One climate design-data record per location.</summary>
+    public class ClimateSite
+    {
+        public string Id            { get; set; } = "";
+        public string Label         { get; set; } = "";
+        public string Country       { get; set; } = "";
+        public double Lat           { get; set; }
+        public double Lon           { get; set; }
+        public double ElevationM    { get; set; }
+        /// <summary>Cooling design dry-bulb at 0.4% annual exceedance, °C.</summary>
+        public double Cooling996DbC { get; set; }
+        /// <summary>Mean coincident wet-bulb at the cooling design hour, °C.</summary>
+        public double Cooling996McwbC { get; set; }
+        /// <summary>Heating design dry-bulb at 99.6% annual exceedance, °C.</summary>
+        public double Heating996DbC { get; set; }
+        /// <summary>Annual heating degree-days, 18 °C base.</summary>
+        public double Hdd18         { get; set; }
+        /// <summary>Annual cooling degree-days, 10 °C base.</summary>
+        public double Cdd10         { get; set; }
+        public string Source        { get; set; } = "";
+
+        /// <summary>
+        /// Air density at the cooling design dry-bulb, corrected for
+        /// elevation per the NASA ISA model. Returns kg/m³.
+        /// </summary>
+        public double AirDensityCoolingKgM3()
+        {
+            double pa = StandardPressurePa(ElevationM);
+            double t = Cooling996DbC + 273.15;
+            return pa / (287.05 * t);
+        }
+
+        /// <summary>Air density at the heating design dry-bulb (kg/m³).</summary>
+        public double AirDensityHeatingKgM3()
+        {
+            double pa = StandardPressurePa(ElevationM);
+            double t = Heating996DbC + 273.15;
+            return pa / (287.05 * t);
+        }
+
+        /// <summary>Standard pressure at elevation (Pa) per ISA.</summary>
+        public static double StandardPressurePa(double elevationM)
+        {
+            double t0 = 288.15; // sea-level standard temperature K
+            double l  = 0.0065; // troposphere lapse rate K/m
+            double exp = 9.80665 * 0.0289644 / (8.31447 * l);
+            return 101325.0 * Math.Pow(1.0 - l * elevationM / t0, exp);
+        }
+    }
+
+    public class ClimateData
+    {
+        public List<ClimateSite> Sites { get; set; } = new();
+
+        public ClimateSite ById(string id)
+            => Sites.FirstOrDefault(s => string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase));
+
+        public ClimateSite ByLabelContains(string fragment)
+        {
+            if (string.IsNullOrWhiteSpace(fragment)) return null;
+            string f = fragment.Trim().ToLowerInvariant();
+            return Sites.FirstOrDefault(s =>
+                s.Label.ToLowerInvariant().Contains(f) ||
+                s.Id.ToLowerInvariant().Contains(f));
+        }
+    }
+
+    /// <summary>
+    /// Loader / cache for climate data. Mirrors MepSizingRegistry
+    /// (corporate baseline + project override + per-doc cache).
+    /// </summary>
+    public static class ClimateRegistry
+    {
+        public const string DataFileName = "STING_CLIMATE_DATA.json";
+        public const string ProjectOverrideRelPath = "_BIM_COORD/climate_data.json";
+        public const string ProjectInfoSiteParam = "PRJ_CLIMATE_SITE_ID";
+
+        private static readonly ConcurrentDictionary<string, ClimateData> _cache
+            = new ConcurrentDictionary<string, ClimateData>(StringComparer.OrdinalIgnoreCase);
+
+        public static ClimateData Get(Document doc)
+        {
+            string key = doc?.PathName ?? "<no-doc>";
+            return _cache.GetOrAdd(key, _ => Load(doc));
+        }
+
+        public static void Reload()              => _cache.Clear();
+        public static void Reload(Document doc)  => _cache.TryRemove(doc?.PathName ?? "<no-doc>", out _);
+
+        /// <summary>
+        /// Resolve the active site for a document via (in order):
+        ///   1. PRJ_CLIMATE_SITE_ID on ProjectInformation
+        ///   2. ProjectInformation.Address contains a site label
+        ///   3. First site in the project override
+        ///   4. "london" hard fallback.
+        /// </summary>
+        public static ClimateSite ActiveSite(Document doc)
+        {
+            var data = Get(doc);
+            ClimateSite site = null;
+            try
+            {
+                if (doc?.ProjectInformation != null)
+                {
+                    string sid = ReadParam(doc.ProjectInformation, ProjectInfoSiteParam);
+                    if (!string.IsNullOrWhiteSpace(sid))
+                        site = data.ById(sid);
+                    if (site == null)
+                    {
+                        string addr = doc.ProjectInformation.Address;
+                        if (!string.IsNullOrWhiteSpace(addr))
+                            site = data.ByLabelContains(addr);
+                    }
+                }
+            }
+            catch { /* fall through */ }
+
+            return site
+                ?? data.ById("london")
+                ?? data.Sites.FirstOrDefault()
+                ?? new ClimateSite { Id = "fallback", Label = "Fallback", Cooling996DbC = 28, Heating996DbC = -3, ElevationM = 0 };
+        }
+
+        private static string ReadParam(Element el, string name)
+        {
+            try { return el.LookupParameter(name)?.AsString() ?? ""; }
+            catch { return ""; }
+        }
+
+        private static ClimateData Load(Document doc)
+        {
+            var data = new ClimateData();
+            try
+            {
+                string basePath = StingTools.Core.StingToolsApp.FindDataFile(DataFileName);
+                if (!string.IsNullOrEmpty(basePath) && File.Exists(basePath))
+                    Apply(JObject.Parse(File.ReadAllText(basePath)), data);
+
+                if (doc != null && !string.IsNullOrEmpty(doc.PathName))
+                {
+                    string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                    string projPath = Path.Combine(projDir, ProjectOverrideRelPath);
+                    if (File.Exists(projPath))
+                        Apply(JObject.Parse(File.ReadAllText(projPath)), data);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Error("ClimateRegistry.Load", ex);
+            }
+            return data;
+        }
+
+        private static void Apply(JObject j, ClimateData data)
+        {
+            var sites = j["sites"] as JArray;
+            if (sites == null) return;
+            foreach (var s in sites.OfType<JObject>())
+            {
+                var site = new ClimateSite
+                {
+                    Id              = (string)s["id"] ?? "",
+                    Label           = (string)s["label"] ?? "",
+                    Country         = (string)s["country"] ?? "",
+                    Lat             = (double?)s["lat"] ?? 0,
+                    Lon             = (double?)s["lon"] ?? 0,
+                    ElevationM      = (double?)s["elevationM"] ?? 0,
+                    Cooling996DbC   = (double?)s["cooling996DbC"] ?? 28,
+                    Cooling996McwbC = (double?)s["cooling996McwbC"] ?? 20,
+                    Heating996DbC   = (double?)s["heating996DbC"] ?? -3,
+                    Hdd18           = (double?)s["hdd18"] ?? 0,
+                    Cdd10           = (double?)s["cdd10"] ?? 0,
+                    Source          = (string)s["source"] ?? ""
+                };
+                // Project override replaces an existing entry with the same id
+                int existing = data.Sites.FindIndex(x => string.Equals(x.Id, site.Id, StringComparison.OrdinalIgnoreCase));
+                if (existing >= 0) data.Sites[existing] = site;
+                else data.Sites.Add(site);
+            }
+        }
+    }
+}

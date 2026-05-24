@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingSignoffRoles</Name>
+    <Definition>Sign-off / approval roles used across STING workflows, deliverables, and healthcare-pack validators. Each role carries a Planscape user attribute and drives the "must be signed by" requirement in IDS specs. QE_Radiation in particular gates the radiation-shielding calculators.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4003-9000-000000000018</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/buildingsmart/ifcactor/4.0/class/role</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>IFC4 IfcActorRole enum (extended for healthcare); ISO 19650 appointed-party roles; UK CDM 2015 roles</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Designer" sentinel="false">
+      <Definition>Designer — originator of design content; first signature in any sign-off chain.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Reviewer" sentinel="false">
+      <Definition>Reviewer — peer / line-manager technical review before formal approval.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Approver" sentinel="false">
+      <Definition>Approver — discipline lead with authority to issue.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Verifier" sentinel="false">
+      <Definition>Verifier — independent technical verification (third-party / specialist).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="QE_Radiation" sentinel="false">
+      <Definition>Qualified Expert (Radiation) — IPEM-registered medical physicist or equivalent. Required signoff before RAD_* calculators are treated as authoritative.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CommissioningEngineer" sentinel="false">
+      <Definition>Commissioning Engineer — signs off MGS verification, pressure regime, water flush, EES tests.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Architect" sentinel="false">
+      <Definition>Architect — RIBA-registered lead architectural designer.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Engineer" sentinel="false">
+      <Definition>Engineer — discipline engineer (structural / MEP / fire / acoustic).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ProjectManager" sentinel="false">
+      <Definition>Project Manager — commercial / programme sign-off authority.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="BIMCoordinator" sentinel="false">
+      <Definition>BIM Coordinator — Information Manager / BIM lead per ISO 19650.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Contractor" sentinel="false">
+      <Definition>Contractor / principal contractor — site sign-off.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ClientApprover" sentinel="false">
+      <Definition>Client Approver — appointing party with authority to authorise published deliverables (A1..A5 transitions).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>0e96a4d0ec5212e787f12c687beb8fd660ae9ddb4950402315402d153a86ce31</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

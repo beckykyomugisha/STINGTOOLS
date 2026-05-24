@@ -36,7 +36,7 @@ namespace StingTools.Core.Mep
         public const string RoleBranch = "branch";
         public const string RoleRunout = "runout";
 
-        private const string SegmentRoleParam = "HVC_SEGMENT_ROLE_TXT";
+        private const string SegmentRoleParam = ParamRegistry.HVC_SEGMENT_ROLE_TXT;
         private const int MaxTraversal = 12;     // safety guard for cyclic graphs
 
         /// <summary>
@@ -67,6 +67,120 @@ namespace StingTools.Core.Mep
                 StingLog.Warn($"HvacSegmentRoleDetector.DetectRole: {ex.Message}");
                 return RoleBranch;
             }
+        }
+
+        /// <summary>
+        /// Batch path: detect roles for every duct in one walk so a 500-duct
+        /// view doesn't pay 500 separate upstream traversals. Reuses a
+        /// shared "seen-equipment-depth" memo so duct C downstream of duct
+        /// B downstream of AHU A only walks once.
+        ///
+        /// Caller is responsible for the surrounding Transaction so the
+        /// HVC_SEGMENT_ROLE_TXT cache writes commit.
+        /// </summary>
+        public static Dictionary<ElementId, string> DetectRolesBatch(Document doc, IEnumerable<Element> ducts)
+        {
+            var result = new Dictionary<ElementId, string>();
+            if (doc == null || ducts == null) return result;
+
+            // Memo from connector-owner id → minimum depth to a piece of
+            // mechanical equipment. Computed lazily on first request and
+            // shared across the whole batch.
+            var depthCache = new Dictionary<ElementId, int>();
+
+            foreach (var d in ducts)
+            {
+                if (d == null) continue;
+                try
+                {
+                    string existing = ParameterHelpers.GetString(d, SegmentRoleParam);
+                    if (!string.IsNullOrEmpty(existing))
+                    {
+                        result[d.Id] = Normalise(existing);
+                        continue;
+                    }
+
+                    var connectors = TryGetConnectors(d);
+                    if (connectors == null || connectors.Count == 0)
+                    {
+                        result[d.Id] = RoleBranch;
+                        continue;
+                    }
+
+                    if (TouchesAirTerminal(doc, connectors)) { result[d.Id] = RoleRunout; goto Cache; }
+
+                    int minDepth = int.MaxValue;
+                    foreach (Connector c in connectors)
+                    {
+                        int dp = WalkUpstreamCached(c, depthCache, new HashSet<ElementId>(), 0);
+                        if (dp >= 0 && dp < minDepth) minDepth = dp;
+                    }
+                    string role = minDepth == int.MaxValue ? RoleBranch
+                                : minDepth == 0            ? RoleMain
+                                : minDepth == 1            ? RoleBranch
+                                :                            RoleRunout;
+                    result[d.Id] = role;
+
+                Cache:
+                    try { ParameterHelpers.SetString(d, SegmentRoleParam, result[d.Id], overwrite: false); }
+                    catch (Exception ex) { StingLog.Warn($"SegmentRole batch cache write {d.Id}: {ex.Message}"); }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DetectRolesBatch {d.Id}: {ex.Message}");
+                    result[d.Id] = RoleBranch;
+                }
+            }
+            return result;
+        }
+
+        private static int WalkUpstreamCached(Connector startC, Dictionary<ElementId, int> memo,
+            HashSet<ElementId> seen, int depth)
+        {
+            if (startC == null || depth > MaxTraversal) return -1;
+            try
+            {
+                var refs = startC.AllRefs;
+                if (refs == null) return -1;
+                foreach (Connector other in refs)
+                {
+                    if (other == null || other.Owner == null) continue;
+                    var owner = other.Owner;
+                    if (!seen.Add(owner.Id)) continue;
+
+                    if (memo.TryGetValue(owner.Id, out int cached))
+                    {
+                        if (cached >= 0) return depth + cached;
+                        continue;
+                    }
+                    if (IsMechanicalEquipment(owner))
+                    {
+                        memo[owner.Id] = 0;
+                        return depth;
+                    }
+
+                    var ownerCm = ConnectorsOf(owner);
+                    if (ownerCm == null) continue;
+                    int best = -1;
+                    foreach (Connector cm in ownerCm)
+                    {
+                        if (cm == null || cm.Id == other.Id) continue;
+                        int dp = WalkUpstreamCached(cm, memo, seen, depth + 1);
+                        if (dp >= 0)
+                        {
+                            int local = dp - depth;
+                            if (best < 0 || local < best) best = local;
+                        }
+                    }
+                    if (best >= 0)
+                    {
+                        memo[owner.Id] = best;
+                        return depth + best;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"WalkUpstreamCached: {ex.Message}"); }
+            return -1;
         }
 
         private static string Normalise(string roleId)

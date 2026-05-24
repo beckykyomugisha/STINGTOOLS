@@ -224,6 +224,37 @@ namespace StingTools.Core.Drawing
             // ── GAP-M: detect overlapping slot bounding boxes ──
             ValidateSlotOverlaps(dt, r);
 
+            // A-4 — materialOriginAllowed: warn when the project carries
+            // materials whose Origin isn't in the allowed set. The
+            // validator is project-aware so this only runs when a doc
+            // is provided.
+            if (doc != null && dt.MaterialOriginAllowed != null && dt.MaterialOriginAllowed.Count > 0)
+            {
+                try
+                {
+                    var allowed = new HashSet<string>(dt.MaterialOriginAllowed, StringComparer.OrdinalIgnoreCase);
+                    int violators = 0;
+                    string firstName = "";
+                    foreach (var m in new FilteredElementCollector(doc).OfClass(typeof(Material)))
+                    {
+                        string n = m.Name ?? "";
+                        string origin =
+                            n.StartsWith("STING", StringComparison.OrdinalIgnoreCase) ? "STING" :
+                            n.StartsWith("BLE_",  StringComparison.OrdinalIgnoreCase) ? "BLE" :
+                            n.StartsWith("MEP_",  StringComparison.OrdinalIgnoreCase) ? "MEP" : "Other";
+                        if (!allowed.Contains(origin))
+                        {
+                            violators++;
+                            if (string.IsNullOrEmpty(firstName)) firstName = n;
+                        }
+                    }
+                    if (violators > 0)
+                        r.Add(ValidationSeverity.Warning, "DT-MAT-001",
+                            $"{violators} material(s) outside materialOriginAllowed [{string.Join(",", dt.MaterialOriginAllowed)}] — first: '{firstName}'.");
+                }
+                catch (Exception ex) { r.Add(ValidationSeverity.Info, "DT-MAT-001", $"materialOriginAllowed scan failed: {ex.Message}"); }
+            }
+
             return r;
         }
 

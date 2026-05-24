@@ -1969,6 +1969,14 @@ namespace StingTools.Core
                 case "Placement_EVCharger":    return new Commands.Placement.EVChargerLayoutCommand();
                 case "Placement_MedGasOutlets": return new Commands.Placement.MedGasOutletPlacementCommand();
 
+                // I-3 — Material gates as workflow steps. Workflow JSON can
+                // declare commandTag = "MaterialGate_Coverage" etc. so a
+                // commissioning preset includes a material-spec gate.
+                case "MaterialGate_Coverage":      return new MaterialGateCommands.CoverageGateCommand();
+                case "MaterialGate_Sustainability": return new MaterialGateCommands.SustainabilityGateCommand();
+                case "MaterialGate_Healthcare":    return new MaterialGateCommands.HealthcareGateCommand();
+                case "MaterialGate_FireWall":      return new MaterialGateCommands.FireWallGateCommand();
+
                 default: return null;
             }
         }

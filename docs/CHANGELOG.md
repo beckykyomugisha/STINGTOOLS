@@ -2,6 +2,317 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 186b — Pset expansion + Path-2 static rule closeout)
+
+Two follow-ups to Phase 186 that turn the substrate from "Tier-1 only,
+60% of declared rules statically enforced" into "Tier-1 + drawing +
+project-org coverage, 100% of declared statically-enforceable rules
+enforced".
+
+**3 new Pset templates** under `shared/ifc/psets/` (raises Pset count
+from 2 → 5):
+
+- `Pset_StingTag7.xml` — 10 properties (`NarrativeFull` + 6 sub-sections
+  A–F + 3 paragraph-state booleans) covering the TAG7 rich narrative
+  surface. 3 rules, all marked `enforced-by="host"` because they're
+  presentation-time contracts (TAG7Builder territory).
+- `Pset_StingDrawing.xml` — 12 properties (`DrawingTypeId`,
+  `StyleLocked`, `CropKind`, `CropMarginMm`, `PackId`, `PackChecksum`,
+  `TokenProfileId`, `TagDepth`, `SegmentMask`, `ColourScheme`,
+  `SheetNumber`, `SheetName`) mirroring the Drawing Template Manager
+  fields STING stamps on every Revit view/sheet. 3 rules
+  (`DRAWING_TYPE_RESOLVABLE` static, two `enforced-by="host"`).
+- `Pset_StingProjectOrg.xml` — 13 properties mirroring the
+  `PRJ_ORG_*` corporate metadata cells (`ProjectCode`, `Phase`,
+  `ClientName`, `CompanyName`, `OriginatorCode`, …). 3 rules
+  (2 static + 1 `enforced-by="host"`).
+
+**6 newly-enforced static rules** in `SpatialChecker`
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+| Rule | Pset | What it catches |
+|---|---|---|
+| `DISC_NOT_EMPTY` | `Pset_StingTags` | Discipline missing or sentinel "XX" at Stage_3+; enum-membership check when EnumRegistry available |
+| `DRAWING_TYPE_RESOLVABLE` | `Pset_StingDrawing` | DrawingTypeId format (`^[a-zA-Z][a-zA-Z0-9\-]+$`) + optional registry-lookup via new `DrawingTypeRegistry` class |
+| `PROJECTORG_PROJECT_CODE_REQUIRED` | `Pset_StingProjectOrg` | ProjectCode missing or not matching `^[A-Z][A-Z0-9\-]{2,5}$` |
+| `PROJECTORG_PHASE_VALID` | `Pset_StingProjectOrg` | Phase value not in `StingRibaStages` enum (when EnumRegistry available) |
+| `BUILDING_LOC_UNIQUE` | `Pset_StingSpatialCodes` | Two or more `IfcBuilding` entities sharing a LocationCode |
+| `STOREY_LVL_UNIQUE_WITHIN_BUILDING` | `Pset_StingSpatialCodes` | Two or more `IfcBuildingStorey` entities sharing a LevelCode within the same `IfcBuilding` |
+
+**Static rule coverage**: 6 → 12 (100% of declared statically-
+enforceable rules; the remaining 8 rules are marked
+`enforced-by="host"` because they are write-time / presentation-time
+contracts a static IFC snapshot can't verify).
+
+**SpatialChecker API additions**:
+
+- `SpatialChecker.__init__(model, stage="Stage_3", enum_registry=None,
+  drawing_type_registry=None)` — gains 3 optional kwargs (stage gating,
+  enum-membership checks, drawing-type registry lookup).
+- `SpatialChecker.check_project_org()` — model-level method for the 2
+  Pset_StingProjectOrg rules.
+- `SpatialChecker.check_spatial_uniqueness()` — model-level method for
+  the 2 spatial-code uniqueness rules.
+- `SpatialChecker.check_all_elements()` — now also walks
+  `IfcAnnotation` entities (so Pset_StingDrawing checks fire) and
+  invokes the new model-level methods.
+- New `DrawingTypeRegistry` class exported from
+  `stingtools_core.spatial` — wraps a set of known DrawingType ids
+  for `DRAWING_TYPE_RESOLVABLE` lookup.
+
+**Tests** (`stingtools-core/python/tests/test_smoke.py`): +8 new tests
+(23 standalone, 27 pytest including tmp_path) covering every newly-
+enforced rule with both positive and negative fixtures, plus a
+stage-gating test (Stage_1 must not fire DISC_NOT_EMPTY even when
+Discipline is "XX").
+
+**Verification status at Phase 186b close**:
+
+| Layer | Status |
+|---|---|
+| 5 Pset XMLs lock-consistent | ✅ `compute_checksums.py --check` exit 0 |
+| 52 enum XMLs SHA-256-locked | ✅ verified drift-free |
+| `stingtools-core` smoke tests | ✅ 23/23 standalone pass, 27/27 pytest pass |
+| 6 new static rules verified | ✅ all 6 fire on negative fixtures, pass on positive |
+| Pset_StingDrawing fires on IfcAnnotation | ✅ verified via new test |
+| Stage gating verified | ✅ DISC_NOT_EMPTY skips at Stage_1, fires at Stage_3 |
+
+**Caveats (Phase 186b)**:
+
+1. The 3 new Psets do NOT yet have matching IDS specs. The 2 IDS
+   files shipped in Phase 186 (`sting-tag-grammar.ids`,
+   `sting-spatial-codes.ids`) cover Pset_StingTags + Pset_StingSpatialCodes
+   only. IDS coverage for Pset_StingDrawing / Tag7 / ProjectOrg is
+   Phase 186c work (estimated 1 day with the IDS-authoring guide).
+2. `DrawingTypeRegistry` is a thin wrapper around a `frozenset[str]`;
+   it doesn't yet load from the shipped `STING_DRAWING_TYPES.json`
+   (which lives in `StingTools/Data/` — different folder tree).
+   Callers building the registry from the Revit-side JSON do so
+   explicitly. A future helper at the python-core level can close
+   this once the JSON is moved to `shared/`.
+3. Built without `dotnet build` verification — these are pure Python
+   substrate changes, no C# affected.
+
+#### Completed (Phase 186 — Bonsai integration foundation; multi-host substrate)
+
+**Scope**: turns STING from a Revit-only plugin into the data-layer
+spine of a multi-host BIM coordination platform. Establishes the IFC4
+substrate (52 enums, 2 psets, 2 IDS files, bSDD plan), a dual-language
+Python core, the first non-Revit host plugin (Bonsai add-on), and the
+Planscape Server IFC-ingest endpoint with cross-host element-identity
+mapping.
+
+Substrate (`shared/ifc/`): 52 enum XMLs across 5 tiers (tag grammar /
+drawing engine / workflow / engineering domains / healthcare pack);
+49 corporate-locked with SHA-256 fingerprints + 3 project-template
+overlays for `StingLocationCodes/ZoneCodes/LevelCodes`. 2 Pset
+templates — `Pset_StingTags` (12 properties, 9 cross-entity rules) +
+`Pset_StingSpatialCodes` (6 properties, 5 cross-entity rules). 2 IDS
+files — `sting-tag-grammar.ids` (11 specs) + `sting-spatial-codes.ids`
+(8 specs) — both pass official ifctester XSD validation. bSDD
+publication plan triages all 52 enums across 6 status categories
+(`ready` × 24, `external_already` × 6, `private` × 16,
+`project_scoped` × 3, `skip_external` × 2, `draft` × 1).
+
+Python core (`stingtools-core/python/`): public API
+`EnumRegistry / PsetRegistry / TagGrammar / Tag / SpatialChecker /
+PlanscapeClient / AuditLog / IdsRunner`. Reads the substrate
+programmatically; SHA-256 verification on load; project-overlay
+merge with reserved-sentinel preservation. SpatialChecker enforces
+6 cross-entity rules statically (`LOC_MATCHES_BUILDING`,
+`LVL_MATCHES_STOREY`, `ZONE_MATCHES_ASSIGNEDZONE`,
+`SYS_MATCHES_IFCSYSTEM`, `SEQ_UNIQUE_WITHIN_GROUP`,
+`FULLTAG_CONSISTENT`); 2 behavioural rules (`TOKEN_LOCK_HONORED`,
+`TAG_HISTORY_PROVIDED`) marked `enforced-by="host"` in Pset XML
+since they can't be checked from a static IFC snapshot.
+
+Bonsai add-on (`stingtools-bonsai/`): Blender 4.2+ extension. Day-1
+scaffold ships diagnostic operators (`sting.about`,
+`sting.reload_substrate`, `sting.bonsai_probe`) + `STING_PT_main`
+N-panel + `BonsaiBridge` coexistence layer that delegates IFC
+writes through `ifcopenshell.api.run()` so Bonsai's undo + UI
+refresh hook in. MVP operators (16, ≈8 weeks) deferred to a
+follow-up phase.
+
+Planscape Server: new `IfcController` with
+`POST /api/projects/{id}/ifc/data` (host-agnostic element ingest)
+and `GET /api/projects/{id}/ifc/mappings` (cross-host GUID
+lookup). New `ExternalElementMapping` entity composite-keyed on
+`(ProjectId, IfcGlobalId, Host, HostDocumentGuid)`. `TaggedElement`
+unique constraints converted to filtered uniques (Revit path
+unchanged; non-Revit hosts now path-through). EF migration not yet
+generated — see `docs/PHASE_186_VERIFICATION_CHECKLIST.md § Day 1`.
+
+Tooling: `tools/enums/compute_checksums.py` (SHA-256 drift detector
++ manifest generator, handles both enums and psets),
+`tools/enums/audit_bsdd.py` (publication-plan summary check),
+`tools/converters/sting_to_psd.py` (STING XML → buildingSMART PSD),
+`tools/converters/sting_to_revit_params.py` (STING psets → Revit
+shared-parameter file fragment with deterministic UUID v5 GUIDs),
+`tools/tests/round_trip.py` (IDS round-trip harness with
+`--generate-fixture` producing both positive + negative test
+fixtures via `ifcopenshell.api`).
+
+CI: `.github/workflows/ifc-substrate.yml` — 8 validation steps
+(checksum drift, bSDD audit, XSD validation per enum, IDS XML
+well-formedness, Pset enum references resolve, IfdGuid uniqueness,
+stingtools-core smoke tests, Bonsai add-on py_compile). Triggers
+on push / PR touching `shared/ifc/**` or `tools/enums/**`.
+
+Documentation (`docs/`):
+- `PHASE_186_BONSAI_INTEGRATION.md` — architectural narrative,
+  19 named design decisions, cross-host federation diagram,
+  verification matrix, forward roadmap through Phase 190.
+- `PHASE_186_VERIFICATION_CHECKLIST.md` — Path A as a
+  step-by-step run-book (Days 1–5 with copy-paste commands).
+- `MVP_SCOPE_BONSAI.md` — the 8-week MVP scope captured to disk
+  (success demo, 16 operators, module structure, timeline).
+- `VERIFIED.md` — evidence log: every ❌ → ✅ flip with the
+  command + outcome that proved it.
+- `IDS_AUTHORING_GUIDE.md` — 3 IDS-v1.0 gotchas + authoring
+  conventions surfaced during Phase 186 verification.
+
+**Verification status at Phase 186 close**:
+
+| Layer | Status |
+|---|---|
+| 52 enum XMLs SHA-256-locked | ✅ verified drift-free |
+| 2 Pset XMLs lock-consistent | ✅ verified |
+| bSDD plan summary matches entries | ✅ `audit_bsdd.py` OK |
+| `stingtools-core` smoke tests | ✅ 15/15 pass (8 happy + 7 negative/integrity) |
+| Both IDS files pass official XSD | ✅ verified with ifctester schema |
+| Both IDS files run via ifctester | ✅ 19/19 specs pass on both fixtures |
+| `SpatialChecker` fires on negative fixture | ✅ `LOC_MATCHES_BUILDING` mismatch detected |
+| Bonsai add-on Python compiles | ✅ py_compile clean |
+| `dotnet build Planscape.Server` | ⚠️ pending human run |
+| EF migration generated | ⚠️ pending human run |
+| Bonsai add-on loads in real Blender | ⚠️ pending human run |
+| GitHub Actions runs green | ⚠️ pending push |
+
+**Caveats**:
+
+1. C# IfcController follows existing controller conventions but has
+   never seen `dotnet build`. Most likely place to find a real bug.
+2. EF migration: `dotnet ef migrations add IfcIngestSubstrate` is the
+   next deployment step. Schema diff: 1 new table + 2 new filtered
+   uniques on `TaggedElements`.
+3. bSDD entries all carry `proposed: true`. No actual publication
+   has happened. The 22 "ready" entries carry proposed IRIs that DO
+   NOT resolve in bSDD until status flips to `posted` / `verified`
+   via the future `tools/bsdd/publish.py`.
+4. MVP operators not built. Day-1 ships diagnostic ops only. The 16
+   production operators from `docs/MVP_SCOPE_BONSAI.md` are
+   estimated 8 weeks single-dev.
+5. Healthcare Pset bundle (5 psets) is Phase 187 work; the 11 Tier-5
+   healthcare enumerations shipped this phase but the consuming
+   psets did not.
+6. ArchiCAD (Phase 188) + Tekla connector (Phase 189) are forward
+   roadmap; substrate is host-agnostic so the work is incremental.
+7. CI workflow file exists but only triggers on push. First green
+   run happens once the branch is pushed past the verification
+   checkpoint.
+
+This phase's CLAUDE.md entry is the "Phase 186 — Bonsai integration
+foundation" section; full architectural detail lives in
+`docs/PHASE_186_BONSAI_INTEGRATION.md`.
+
+#### Completed (Phase 184m — Cost management UI surfacing)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Surfaces every command added in P0 → P8 + caveat-closure commits as clickable buttons / tiles. Previously the commands were dispatch-wired but had no UI affordances — a user opening the dock panel or mobile app saw no new buttons.
+
+**Dock panel (`UI/StingDockPanel.xaml`)** — 7 new sub-sections appended after the existing 5D COST ESTIMATION WrapPanel:
+
+- **COST — AUTOMATION (P2)** — 7 buttons: Run Cost Workflow, Validate Cost, Clear Stale, Stale Marker Toggle, Reload Rules, Migrate UGX → Neutral, Migrate ES v1 → v2.
+- **COST PLAN — NRM1 (P4)** — 3 buttons: New Cost Plan, Compare vs BOQ, Export Cost Plan.
+- **PAYMENT CERTS (P5.1)** — 3 buttons: Issue Cert, Approve Cert, Cert Register.
+- **VARIATIONS + STAR RATES (P5.2)** — 3 buttons: Variation from Diff, Star Rate Build-Up, VO Register.
+- **EVM (P5.3)** — 3 buttons: Calculate EVM, Import Actuals, EVM S-Curve.
+- **MEASUREMENT STANDARD (P6)** — 2 buttons: Set Standard, Standard Preview.
+- **IFC + ICMS3 (P8)** — 2 buttons: Stamp IFC Qto, ICMS3 Report.
+
+23 buttons total. ★-marked headline buttons get the GreenBtn style with bold weight to lead the eye. All `Tag` values match the dispatch cases already wired into `StingCommandHandler`, so no code-behind changes needed.
+
+**Mobile cost-dashboard (`Planscape/app/(tabs)/cost-dashboard.tsx`)** — new `CostQuickNav` block above the summary cards. Two tiles route to `/variations` and `/payment-certs` via Expo Router. Closes the previous gap where the variation / payment-cert screens existed but couldn't be reached from the tab bar.
+
+##### Caveats
+
+1. Built without Revit / Expo runtime verification (Linux sandbox).
+2. The dock panel layout puts the new sections inside the same `Border` as the existing 5D COST ESTIMATION group. On very narrow panel widths the WrapPanels will wrap aggressively — visually acceptable but may need a future restructuring into its own collapsible `Border` per phase. Deferred.
+3. Mobile quick-nav tiles use emojis as icons (📃 📝). A follow-up commit can swap to `@expo/vector-icons` Feather / MaterialCommunityIcons glyphs for consistency with the rest of the app.
+
+---
+
+#### Completed (Phase 184l — Cost management Phase 184k caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three caveats from Phase 184k.
+
+**S3 / persistent-volume signature storage.** The signature persistence in `BoqController.SignPaymentCert` now goes through the existing `Planscape.Core.Interfaces.IFileStorageService` (injected via DI) rather than `System.IO.File.WriteAllBytesAsync` to a hard-coded relative path. The same call works against `LocalFileStorageService` in dev and `S3FileStorageService` in production (MinIO / S3) without controller-level branching — production deployments just toggle the storage provider in `appsettings.json`. `SaveScopedAsync` returns a tenant-prefixed `t_{tenantId}/{projectId}/signatures/cert_{certId}_{action}_{ts}.png` path which is what the existing download / presign endpoints expect.
+
+**Config-driven ICMS3 phase → group map.** New file `Data/STING_ICMS3_PHASE_MAP.json` carries an 11-language keyword dictionary (EN / DE / FR / ES / IT / PT / NL / SV / DA / ZH / JA) mapping phase-name substrings to ICMS3 group codes 01 / 02 / 03 / 04. New loader `BOQ/MeasurementStandard/Icms3PhaseMap.cs` reads the corporate baseline + `<project>/_BIM_COORD/icms3_phase_map.json` override. `Icms3Standard.ClassifyRow` now consults the map; cache invalidated by `Cost_ReloadRules`. Replaces the previous English-only hard-coded keyword chain. Project overrides win by group code (`code` field) and entries are evaluated in JSON order so 04 End-of-life always beats a generic "operation" keyword on a demolition phase name.
+
+**npm install automation.** `Planscape/package.json` gains an `ensure-deps` script that checks whether `node_modules/.package-lock.json` is older than `package.json` and runs `npm install --no-audit --prefer-offline` if so. Wired as `prestart` / `preandroid` / `preios` / `preweb` so `npm start` (or any platform target) automatically picks up missing deps. No-op when deps are already in sync. Closes the "forgot to npm install after pulling" trap for the `react-native-signature-canvas` dep landed in Phase 184k.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `IFileStorageService` is registered in `Program.cs` already (existing wiring used by ModelDerivativeJob, IfcTessellationJob etc.) — no additional DI registration needed.
+3. The 11-language ICMS3 keyword set is a reasonable baseline but unlikely exhaustive — project overrides handle the long tail. Add languages by extending the `keywords` object in the project override JSON.
+4. `ensure-deps` uses `--prefer-offline` so a clean clone with a populated `~/.npm` cache stays fast (~1s no-op). First-ever install on a cold machine still takes the usual ~30-60s.
+
+---
+
+#### Completed (Phase 184k — Cost management P4–P8 caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the four caveats from Phase 184f-j: server endpoints, IFC Qto shared params, ICMS3 phase refinement, and the signature pad. Built without `dotnet build` verification (Linux sandbox).
+
+##### Server-side BoqController endpoints
+
+New entity + table:
+- `Planscape.Core/Entities/PaymentCertificate.cs` — server twin of the plugin `Core/PaymentCert.PaymentCertificate`. Carries `CertNumber` / `ContractRef` / `Form` / `Status` / `ValuationDate` / retention bands / VAT / `TotalPayable` / SOV JSON / signer fields.
+- `Planscape.Infrastructure/Data/PlanscapeDbContext.cs` — `PaymentCertificates` `DbSet` + entity config with `(ProjectId, ContractRef, CertNumber)` unique index + project FK.
+- `Migrations/20260518000000_AddPaymentCertificates.cs` — hand-written migration creating the table with the right decimal types (`numeric(18,2)` for money, `numeric(6,3)` for percentages).
+
+New controller routes on `BoqController`:
+- `GET  /boq/variations/{id}` — variation detail with deserialised `items[]` from `LineDeltaJson`. Matches the mobile detail screen's expected shape.
+- `GET  /boq/payment-certs` — list per project.
+- `GET  /boq/payment-certs/{id}` — full cert with deserialised SOV lines.
+- `POST /boq/payment-certs` — plugin push from `PaymentCert_Issue`.
+- `PUT  /boq/payment-certs/{id}/sign` — mobile signature flow. State machine: `Draft → Issued → Agreed | Disputed → Paid`. Validates the transition (e.g. cert must be `Issued` to be `Agreed`).
+
+The mobile screens from Phase 184i now work end-to-end against this server.
+
+##### IFC4 Qto + Pset_StingCost shared params (65 entries)
+
+- `Data/MR_PARAMETERS.txt` — appended 65 PARAM rows: 10 Qto sets covering walls / beams / columns / slabs / doors / windows / spaces / coverings / pipes / ducts (~59 fields) + the 6-field `Pset_StingCost` property set. GUIDs are deterministic UUIDv5-shaped from the param name so re-runs are stable. UTF-16 LE + BOM encoding preserved via Python helper.
+- `Data/PARAMETER_REGISTRY.json` — same 65 entries appended to `support_params` with `data_type` matching the storage (`Number` / `Text` / `YesNo`).
+- Once bound to elements via `LoadSharedParams`, Revit's IFC exporter will surface the values in IFC4 `IfcElementQuantity` / `IfcPropertySet` so external cost tools (Cost-X, CostOS, Candy, Bluebeam Revu) can ingest cost data without re-measuring.
+
+##### ICMS3 lifecycle phase refinement
+
+- `BOQ/MeasurementStandard/MeasurementStandards.cs` — `Icms3Standard.ClassifyRow` now reads `PHASE_DEMOLISHED` and `PHASE_CREATED` on the element to bucket into ICMS3 groups:
+  - `PHASE_DEMOLISHED` set + phase name contains "demolition"/"end-of-life"/"decommission" → `04 End-of-life`
+  - `PHASE_DEMOLISHED` set (any other phase) → `03 Operation`
+  - `PHASE_CREATED` phase name contains "existing"/"acquisition"/"site preparation"/"enabling" → `01 Acquisition`
+  - `PHASE_CREATED` phase name contains "operation"/"maintenance" → `03 Operation`
+  - Default → `02 Construction`
+- Lets the ICMS3 report break cost + carbon down across the whole lifecycle rather than collapsing everything to construction.
+
+##### react-native-signature-canvas integration
+
+- `Planscape/package.json` — adds `react-native-signature-canvas ^4.7.2` (built on top of `react-native-webview`, which is already a dep).
+- `Planscape/app/payment-certs/[id].tsx` — Agree / Dispute now opens a `Modal` containing the signature pad. Captured signature is a base64 PNG; submission POSTs the bytes alongside the signer name + rationale. Cancellation closes the modal without submitting.
+- `Planscape.API/Controllers/BoqController.cs` — `SignPaymentCertRequest` gains `SignaturePngBase64`. The handler decodes the base64, writes the PNG to `storage/signatures/{tenantId}/{certId}/{action}_{timestamp}.png`, and stores the relative path in the `Note` column alongside any rationale.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. EF migration is hand-written — run `dotnet ef database update` against the dev DB before deploying. Add to `Planscape.Server/docs/PLANSCAPE_DEPLOYMENT.md` deployment checklist.
+3. Signature storage uses a relative `storage/signatures/...` path. Production deployments using a stateless container need to remap this to S3 or persistent volume; current MVP assumes the existing file-system convention used by other Planscape attachments.
+4. `react-native-signature-canvas` requires running `npm install` after pulling the branch. The package is widely used (1M+ weekly downloads) and works on iOS + Android out of the box; web targets need additional Expo Web configuration which isn't shipped.
+5. ICMS3 phase detection assumes English phase names ("existing", "demolition" etc.). Non-English Revit installs need a config-driven phase-name → group code map, deferred.
+
+---
+
 #### Completed (Phase 184f-j — Cost management P4 → P8 — full plan complete)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Implements the remaining five phases of `docs/COST_MANAGEMENT_IMPLEMENTATION_PLAN.md` (P4 → P8). Each phase landed as a separate commit; this entry summarises the whole arc. Built without `dotnet build` verification (Linux sandbox).

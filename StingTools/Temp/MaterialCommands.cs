@@ -844,6 +844,77 @@ namespace StingTools.Temp
         }
 
         /// <summary>
+        /// Export every supplied material to CSV with identity / appearance /
+        /// thermal / structural columns. Used by the Material Manager dialog
+        /// and previously inlined in StingMaterialManagerCommand.
+        /// </summary>
+        internal static void ExportMaterialsCsv(Document doc, IReadOnlyList<Material> materials, string filePath)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Name,Class,Color,Transparency,Smoothness,Shininess,Description,Manufacturer,Model,Cost,Keynote,Mark,URL,Density_kg_m3,ThermalCond_W_mK,SpecificHeat_J_kgK,CompStrength_MPa,TensStrength_MPa");
+            foreach (var mat in materials)
+            {
+                string name = (mat.Name ?? "").Replace(",", ";");
+                string matClass = (mat.MaterialClass ?? "").Replace(",", ";");
+                string color = "";
+                int transparency = 0, smoothness = 0, shininess = 0;
+                try { var c = mat.Color; if (c != null && c.IsValid) color = $"RGB({c.Red},{c.Green},{c.Blue})"; }
+                catch (Exception ex) { StingLog.Warn($"ExportMaterials color '{name}': {ex.Message}"); }
+                try { transparency = mat.Transparency; } catch (Exception ex) { StingLog.Warn($"Read mat transparency: {ex.Message}"); }
+                try { smoothness = mat.Smoothness; }       catch (Exception ex) { StingLog.Warn($"Read mat smoothness: {ex.Message}"); }
+                try { shininess = mat.Shininess; }         catch (Exception ex) { StingLog.Warn($"Read mat shininess: {ex.Message}"); }
+
+                string desc    = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_DESCRIPTION);
+                string mfr     = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MANUFACTURER);
+                string model   = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MODEL);
+                string cost    = ReadMatParamDouble(mat, BuiltInParameter.ALL_MODEL_COST);
+                string keynote = ReadMatParam(mat, BuiltInParameter.KEYNOTE_PARAM);
+                string mark    = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MARK);
+                string url     = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_URL);
+
+                string density = "", thermalCond = "", specificHeat = "";
+                try
+                {
+                    if (mat.ThermalAssetId != ElementId.InvalidElementId &&
+                        doc.GetElement(mat.ThermalAssetId) is PropertySetElement tPse)
+                    {
+                        density      = ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
+                        thermalCond  = ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_THERMAL_CONDUCTIVITY);
+                        specificHeat = ReadAssetParamByName(tPse, "Specific Heat");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ExportMaterials thermal '{name}': {ex.Message}"); }
+
+                string compStr = "", tensStr = "";
+                try
+                {
+                    if (mat.StructuralAssetId != ElementId.InvalidElementId &&
+                        doc.GetElement(mat.StructuralAssetId) is PropertySetElement sPse)
+                    {
+                        if (string.IsNullOrEmpty(density))
+                            density = ReadAssetParam(sPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
+                        compStr = ReadAssetParamByName(sPse, "Minimum Yield Stress");
+                        if (!string.IsNullOrEmpty(compStr) && double.TryParse(compStr,
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double cVal))
+                            compStr = (cVal / 1e6).ToString("F1"); // Pa → MPa
+                        tensStr = ReadAssetParamByName(sPse, "Minimum Tensile Strength");
+                        if (!string.IsNullOrEmpty(tensStr) && double.TryParse(tensStr,
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double tVal))
+                            tensStr = (tVal / 1e6).ToString("F1");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ExportMaterials structural '{name}': {ex.Message}"); }
+
+                sb.AppendLine($"\"{name}\",\"{matClass}\",\"{color}\",{transparency},{smoothness},{shininess},\"{desc}\",\"{mfr}\",\"{model}\",{cost},\"{keynote}\",\"{mark}\",\"{url}\",{density},{thermalCond},{specificHeat},{compStr},{tensStr}");
+            }
+
+            System.IO.File.WriteAllText(filePath, sb.ToString());
+            StingLog.Info($"ExportMaterialsCsv: {materials.Count} materials → {filePath}");
+        }
+
+        /// <summary>
         /// Apply surface and cut fill patterns with their colors.
         /// Uses columns 64-66 for pattern names, 40/42/48/50 for colors.
         /// Falls back to columns 41/43 if 64/65 are empty.
@@ -1295,8 +1366,10 @@ namespace StingTools.Temp
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Unified material management: browse project materials, create BLE/MEP
-    /// materials from CSV, and export material list to CSV.
+    /// Unified material management: browse project materials in a proper WPF
+    /// dialog (with search + filter + colour swatches), create BLE/MEP
+    /// materials from CSV, and export material list to CSV. Replaces the
+    /// legacy 4-option TaskDialog with <see cref="UI.MaterialManagerDialog"/>.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -1309,166 +1382,31 @@ namespace StingTools.Temp
             {
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
-                Document doc = ctx.Doc;
 
-                var dlg = new TaskDialog("STING Material Manager");
-                dlg.MainInstruction = "Material Management";
-                dlg.MainContent = "Choose an action for material management.";
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Browse Materials",
-                    "View all materials currently in this project.");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Create BLE Materials",
-                    "Create building element materials from BLE_MATERIALS.csv.");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Create MEP Materials",
-                    "Create MEP materials from MEP_MATERIALS.csv.");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Export Material List",
-                    "Export all project material names to CSV.");
-                dlg.CommonButtons = TaskDialogCommonButtons.Close;
-
-                // PERF: Collect materials once — reused by browse and export branches
-                var materials = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Material))
-                    .Cast<Material>()
-                    .OrderBy(m => m.Name)
-                    .ToList();
-
-                var result = dlg.Show();
-
-                if (result == TaskDialogResult.CommandLink1)
+                var res = StingTools.UI.MaterialManagerDialog.Show(ctx.UIDoc);
+                if (res != null && res.Confirmed)
                 {
-                    // Browse materials
-
-                    var sb = new StringBuilder();
-                    sb.AppendLine($"Total materials: {materials.Count}\n");
-
-                    int stingCount = 0;
-                    foreach (var mat in materials)
+                    // Browse / Apply / Export are handled inline by the dialog.
+                    // Create paths return through here so they can run under the
+                    // transaction model their own command provides.
+                    if (res.Operation == "CreateBLEMaterials")
                     {
-                        string name = mat.Name ?? "(unnamed)";
-                        if (name.StartsWith("STING", StringComparison.OrdinalIgnoreCase) ||
-                            name.StartsWith("BLE_", StringComparison.OrdinalIgnoreCase) ||
-                            name.StartsWith("MEP_", StringComparison.OrdinalIgnoreCase))
-                            stingCount++;
+                        string msg = "";
+                        new CreateBLEMaterialsCommand().Execute(commandData, ref msg, elements);
                     }
-
-                    sb.AppendLine($"STING/BLE/MEP materials: {stingCount}");
-                    sb.AppendLine($"Other materials: {materials.Count - stingCount}");
-                    sb.AppendLine();
-
-                    int shown = 0;
-                    foreach (var mat in materials)
+                    else if (res.Operation == "CreateMEPMaterials")
                     {
-                        sb.AppendLine($"  {mat.Name}");
-                        if (++shown >= 200)
-                        {
-                            sb.AppendLine($"  ... and {materials.Count - shown} more");
-                            break;
-                        }
+                        string msg = "";
+                        new CreateMEPMaterialsCommand().Execute(commandData, ref msg, elements);
                     }
-
-                    TaskDialog.Show("Project Materials", sb.ToString());
-                    StingLog.Info($"MaterialManager: browsed {materials.Count} materials");
                 }
-                else if (result == TaskDialogResult.CommandLink2)
-                {
-                    // Delegate to CreateBLEMaterialsCommand
-                    string msg = "";
-                    var cmd = new CreateBLEMaterialsCommand();
-                    cmd.Execute(commandData, ref msg, elements);
-                }
-                else if (result == TaskDialogResult.CommandLink3)
-                {
-                    // Delegate to CreateMEPMaterialsCommand
-                    string msg = "";
-                    var cmd = new CreateMEPMaterialsCommand();
-                    cmd.Execute(commandData, ref msg, elements);
-                }
-                else if (result == TaskDialogResult.CommandLink4)
-                {
-                    // Export material list to CSV (reuses materials collected above)
-                    string outputDir = OutputLocationHelper.GetOutputDirectory(doc);
-                    string filePath = Path.Combine(outputDir, "STING_MATERIALS_EXPORT.csv");
-
-                    var sb = new StringBuilder();
-                    sb.AppendLine("Name,Class,Color,Transparency,Smoothness,Shininess,Description,Manufacturer,Model,Cost,Keynote,Mark,URL,Density_kg_m3,ThermalCond_W_mK,SpecificHeat_J_kgK,CompStrength_MPa,TensStrength_MPa");
-                    foreach (var mat in materials)
-                    {
-                        string name = (mat.Name ?? "").Replace(",", ";");
-                        string matClass = (mat.MaterialClass ?? "").Replace(",", ";");
-                        string color = "";
-                        int transparency = 0, smoothness = 0, shininess = 0;
-                        try { var c = mat.Color; if (c != null && c.IsValid) color = $"RGB({c.Red},{c.Green},{c.Blue})"; }
-                        catch (Exception ex) { StingLog.Warn($"Read material color for '{name}': {ex.Message}"); }
-                        try { transparency = mat.Transparency; } catch (Exception ex) { StingLog.Warn($"Read material transparency: {ex.Message}"); }
-                        try { smoothness = mat.Smoothness; } catch (Exception ex) { StingLog.Warn($"Read material smoothness: {ex.Message}"); }
-                        try { shininess = mat.Shininess; } catch (Exception ex) { StingLog.Warn($"Read material shininess: {ex.Message}"); }
-
-                        // Read BuiltInParameters (Identity tab)
-                        string desc = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_DESCRIPTION);
-                        string mfr = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MANUFACTURER);
-                        string model = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MODEL);
-                        string cost = MaterialPropertyHelper.ReadMatParamDouble(mat, BuiltInParameter.ALL_MODEL_COST);
-                        string keynote = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.KEYNOTE_PARAM);
-                        string mark = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MARK);
-                        string url = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_URL);
-
-                        // Read ThermalAsset properties
-                        string density = "", thermalCond = "", specificHeat = "";
-                        try
-                        {
-                            if (mat.ThermalAssetId != ElementId.InvalidElementId)
-                            {
-                                var tPse = doc.GetElement(mat.ThermalAssetId) as PropertySetElement;
-                                if (tPse != null)
-                                {
-                                    density = MaterialPropertyHelper.ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
-                                    thermalCond = MaterialPropertyHelper.ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_THERMAL_CONDUCTIVITY);
-                                    specificHeat = MaterialPropertyHelper.ReadAssetParamByName(tPse, "Specific Heat");
-                                }
-                            }
-                        }
-                        catch (Exception ex) { StingLog.Warn($"Read thermal '{name}': {ex.Message}"); }
-
-                        // Read StructuralAsset properties
-                        string compStr = "", tensStr = "";
-                        try
-                        {
-                            if (mat.StructuralAssetId != ElementId.InvalidElementId)
-                            {
-                                var sPse = doc.GetElement(mat.StructuralAssetId) as PropertySetElement;
-                                if (sPse != null)
-                                {
-                                    if (string.IsNullOrEmpty(density))
-                                        density = MaterialPropertyHelper.ReadAssetParam(sPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
-                                    compStr = MaterialPropertyHelper.ReadAssetParamByName(sPse, "Minimum Yield Stress");
-                                    if (!string.IsNullOrEmpty(compStr) && double.TryParse(compStr,
-                                        System.Globalization.NumberStyles.Any,
-                                        System.Globalization.CultureInfo.InvariantCulture, out double cVal))
-                                        compStr = (cVal / 1e6).ToString("F1"); // Pa → MPa
-                                    tensStr = MaterialPropertyHelper.ReadAssetParamByName(sPse, "Minimum Tensile Strength");
-                                    if (!string.IsNullOrEmpty(tensStr) && double.TryParse(tensStr,
-                                        System.Globalization.NumberStyles.Any,
-                                        System.Globalization.CultureInfo.InvariantCulture, out double tVal))
-                                        tensStr = (tVal / 1e6).ToString("F1"); // Pa → MPa
-                                }
-                            }
-                        }
-                        catch (Exception ex) { StingLog.Warn($"Read structural '{name}': {ex.Message}"); }
-
-                        sb.AppendLine($"\"{name}\",\"{matClass}\",\"{color}\",{transparency},{smoothness},{shininess},\"{desc}\",\"{mfr}\",\"{model}\",{cost},\"{keynote}\",\"{mark}\",\"{url}\",{density},{thermalCond},{specificHeat},{compStr},{tensStr}");
-                    }
-
-                    File.WriteAllText(filePath, sb.ToString());
-                    TaskDialog.Show("Export Materials",
-                        $"Exported {materials.Count} materials to:\n{filePath}");
-                    StingLog.Info($"MaterialManager: exported {materials.Count} materials to {filePath}");
-                }
-
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
                 StingLog.Error("StingMaterialManagerCommand failed", ex);
-                try { TaskDialog.Show("STING", $"Material Manager failed:\n{ex.Message}"); } catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
+                try { TaskDialog.Show("STING", $"Material Manager failed:\n{ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
                 return Result.Failed;
             }
         }

@@ -24,12 +24,13 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Calc;
 using StingTools.Core.Mep;
 using StingTools.UI;
 
 namespace StingTools.Commands.Hvac
 {
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HvacPressureClassAuditCommand : IExternalCommand
     {
@@ -56,8 +57,20 @@ namespace StingTools.Commands.Hvac
                     return Result.Cancelled;
                 }
                 double maxPa = pclass.MaxPa > 0 ? pclass.MaxPa : 500.0;
-                double airDensity = 1.20;
-                try { airDensity = StingHvacCommandHandler.CurrentAirDensityKgM3; } catch { }
+                // Air density: prefer the climate-registry value for the
+                // project's location (elevation + cooling design temp), fall
+                // back to the header radio, fall back to 1.20 kg/m³.
+                double airDensity = 0;
+                try
+                {
+                    var site = StingTools.Core.Climate.ClimateRegistry.ActiveSite(doc);
+                    if (site != null) airDensity = site.AirDensityCoolingKgM3();
+                }
+                catch { }
+                if (airDensity <= 0)
+                {
+                    try { airDensity = StingHvacCommandHandler.CurrentAirDensityKgM3; } catch { }
+                }
                 if (airDensity <= 0) airDensity = 1.20;
 
                 // Honour the same scope radio as the sizing commands.
@@ -72,28 +85,26 @@ namespace StingTools.Commands.Hvac
                     return Result.Cancelled;
                 }
 
-                int pass = 0, fail = 0, skipped = 0;
+                int pass = 0, fail = 0, skipped = 0, stamped = 0;
                 double worstPa = 0;
                 ElementId worstId = null;
                 var details = new List<string>();
 
+                using var tx = new Transaction(doc, "STING HVAC Pressure-class Audit");
+                tx.Start();
                 foreach (var d in ducts)
                 {
                     try
                     {
-                        double flowLs = ReadDouble(d, "HVC_FLOW_LS");
+                        double flowLs = MepUnits.ReadAirFlowLs(d, "HVC_FLOW_LS");
                         if (flowLs <= 0)
-                        {
-                            var bip = d?.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                            if (bip != null && bip.StorageType == StorageType.Double)
-                                flowLs = bip.AsDouble() * 0.4719;
-                        }
+                            flowLs = MepUnits.ReadBuiltInFlowLs(d, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
                         if (flowLs <= 0) { skipped++; continue; }
 
                         // Get actual size → velocity → dynamic pressure (Pa).
-                        double w = ReadDouble(d, "Width")  * 304.8;
-                        double h = ReadDouble(d, "Height") * 304.8;
-                        double dia = ReadDouble(d, "Diameter") * 304.8;
+                        double w = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Width"),    UnitTypeId.Millimeters);
+                        double h = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Height"),   UnitTypeId.Millimeters);
+                        double dia = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Diameter"), UnitTypeId.Millimeters);
                         double areaMm2 = (w > 0 && h > 0) ? w * h
                                        : (dia > 0)         ? Math.PI * dia * dia * 0.25
                                        : 0;
@@ -102,24 +113,43 @@ namespace StingTools.Commands.Hvac
                         double velMs = (flowLs * 1e-3) / (areaMm2 * 1e-6);  // m/s
                         double dynamicPa = 0.5 * airDensity * velMs * velMs;
 
-                        // Length-based friction estimate (very rough, but
-                        // gives us something to bound the system drop).
-                        // MEPCurve inherits Location from Element; cast to
-                        // LocationCurve to get the curve length.
+                        // Length-based friction estimate. Use DuctFrictionSolver
+                        // (Darcy-Weisbach + Swamee-Jain) instead of a flat f=0.02
+                        // so an audit on a long high-velocity run isn't quietly
+                        // under-reporting friction by ~40%.
                         double lengthM = 0;
                         if (d is MEPCurve mc && mc.Location is LocationCurve lc && lc.Curve != null)
-                            lengthM = lc.Curve.Length * 0.3048;
-                        // Hydraulic diameter for friction:
-                        double dh = (w > 0 && h > 0)
-                            ? 2.0 * w * h / (w + h) * 1e-3
-                            : dia * 1e-3;
-                        double friction = 0.02; // generic galvanised steel friction factor
-                        double frictionPa = dh > 0
-                            ? friction * (lengthM / dh) * 0.5 * airDensity * velMs * velMs
-                            : 0;
+                            lengthM = UnitUtils.ConvertFromInternalUnits(lc.Curve.Length, UnitTypeId.Meters);
+
+                        double frictionPa = 0;
+                        if (lengthM > 0)
+                        {
+                            var shape = (w > 0 && h > 0) ? DuctShape.Rectangular : DuctShape.Round;
+                            double a = shape == DuctShape.Round ? dia : w;
+                            double b = shape == DuctShape.Round ? 0   : h;
+                            var fr = DuctFrictionSolver.Solve(
+                                shape, a, b, lengthM, flowLs * 1e-3, null,
+                                DuctFrictionSolver.GalvRoughnessM);
+                            frictionPa = fr.StraightDropPa;
+                        }
 
                         double estimatedPa = dynamicPa + frictionPa;
                         if (estimatedPa > worstPa) { worstPa = estimatedPa; worstId = d.Id; }
+
+                        // Close the calc → model loop: stamp HVC_PRESSURE_DROP_PA
+                        // with the estimated ΔP, and HVC_PRESSURE_CLASS_TXT with
+                        // the active class on ducts that haven't been sized yet
+                        // (sized ducts keep their original class).
+                        try
+                        {
+                            if (ParameterHelpers.SetString(d, "HVC_PRESSURE_DROP_PA",
+                                    $"{estimatedPa:F0}", overwrite: true)) stamped++;
+                            string existingClass = ParameterHelpers.GetString(d, "HVC_PRESSURE_CLASS_TXT");
+                            if (string.IsNullOrEmpty(existingClass))
+                                ParameterHelpers.SetString(d, "HVC_PRESSURE_CLASS_TXT",
+                                    pclass.Id ?? "low", overwrite: true);
+                        }
+                        catch (Exception exS) { StingLog.Warn($"PressureAudit stamp {d.Id}: {exS.Message}"); }
 
                         if (estimatedPa > maxPa)
                         {
@@ -131,22 +161,25 @@ namespace StingTools.Commands.Hvac
                     }
                     catch (Exception ex) { skipped++; StingLog.Warn($"PressureAudit {d.Id}: {ex.Message}"); }
                 }
+                tx.Commit();
 
                 var panel = StingResultPanel.Create("HVAC — Pressure-class Audit");
                 panel.SetSubtitle($"class={pclass.Label} (≤ {maxPa:F0} Pa) · ρ={airDensity:F2} kg/m³ · scope={scope}");
                 panel.AddSection("SUMMARY")
-                     .Metric("Within class", pass.ToString())
-                     .Metric("Over class",   fail.ToString())
-                     .Metric("Skipped",      skipped.ToString())
-                     .Metric("Worst ΔP",     $"{worstPa:F0} Pa" + (worstId != null ? $" (#{worstId.Value})" : ""));
+                     .Metric("Within class",        pass.ToString())
+                     .Metric("Over class",          fail.ToString())
+                     .Metric("Skipped",             skipped.ToString())
+                     .Metric("HVC_PRESSURE_DROP_PA stamped", stamped.ToString())
+                     .Metric("Worst ΔP",            $"{worstPa:F0} Pa" + (worstId != null ? $" (#{worstId.Value})" : ""));
 
                 if (details.Count > 0)
                 {
                     panel.AddSection("OVER CLASS (first 40)");
                     foreach (var s in details) panel.Text(s);
                 }
-                panel.Text("Estimate = dynamic pressure (½ρv²) + Darcy friction over duct length. " +
-                           "Coupled fitting losses are not included; use Mep_PressureDrop for the full report.");
+                panel.Text("Estimate = dynamic pressure (½ρv²) + Darcy-Weisbach friction (Swamee-Jain f) " +
+                           "over each duct's individual length. Coupled fitting losses are not included; " +
+                           "use Mep_PressureDrop for the full system report.");
                 panel.Show();
 
                 try

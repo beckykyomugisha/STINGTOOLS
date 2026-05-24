@@ -1,0 +1,76 @@
+{
+  "_comment": "STING corporate material packs — bound to Drawing Types via DrawingType.materialPack.",
+  "packs": {
+    "arch-baseline": {
+      "name": "Architectural baseline",
+      "description": "Default concrete / steel / glass / partition set for architectural sheets.",
+      "materials": [
+        "BLE_Concrete_C40",
+        "BLE_Concrete_C30",
+        "BLE_Steel_S355",
+        "BLE_Glass_Glazing",
+        "BLE_Brick_Standard",
+        "BLE_Block_Heavy",
+        "BLE_Plasterboard_Standard",
+        "BLE_Timber_Hardwood",
+        "BLE_Timber_Softwood"
+      ]
+    },
+    "struct-baseline": {
+      "name": "Structural baseline",
+      "description": "Concrete grades + steel sections + foundations + rebar.",
+      "materials": [
+        "BLE_Concrete_C20",
+        "BLE_Concrete_C30",
+        "BLE_Concrete_C40",
+        "BLE_Concrete_C50",
+        "BLE_Steel_S275",
+        "BLE_Steel_S355",
+        "BLE_Steel_Galvanised",
+        "BLE_Rebar_B500B"
+      ]
+    },
+    "mep-coord-baseline": {
+      "name": "MEP coordination baseline",
+      "description": "Duct + pipe + tray + conduit materials + matching MEP systems for coordination sheets.",
+      "materials": [
+        "MEP_Duct_Galvanised_Steel",
+        "MEP_Duct_Stainless_Steel",
+        "MEP_Pipe_Copper_TypeL",
+        "MEP_Pipe_Steel_BlackPipe",
+        "MEP_Pipe_PVC_Pressure",
+        "MEP_Pipe_HDPE",
+        "MEP_Conduit_PVC_Rigid",
+        "MEP_Conduit_EMT",
+        "MEP_CableTray_Galv_Steel",
+        "MEP_Insulation_Mineral_Wool"
+      ],
+      "systems": ["HVAC-SUP","HVAC-RET","HVAC-EXH","DCW","DHW","HWS","SAN","RWD","GAS","FP","LV","ICT"]
+    },
+    "healthcare-baseline": {
+      "name": "Healthcare baseline",
+      "description": "Antimicrobial finishes + radiation shielding + MGPS pipework.",
+      "materials": [
+        "BLE_Concrete_C40",
+        "BLE_Plasterboard_Standard",
+        "BLE_Lead_RadShield_2mm",
+        "MEP_Pipe_Medical_Copper",
+        "MEP_Pipe_Stainless_Pharma",
+        "BLE_Antimicrobial_Resin",
+        "BLE_Vinyl_Sheet_Hygienic"
+      ]
+    },
+    "fabrication-baseline": {
+      "name": "Fabrication baseline",
+      "description": "Spool / shop-drawing materials — gaskets, bolts, valve trim.",
+      "materials": [
+        "MEP_Gasket_EPDM",
+        "MEP_Gasket_PTFE",
+        "MEP_Bolt_Galvanised_M16",
+        "MEP_Bolt_Stainless_M16",
+        "MEP_ValveTrim_Bronze",
+        "MEP_ValveTrim_Stainless"
+      ]
+    }
+  }
+}

@@ -26,14 +26,14 @@
     <!-- IHostEnvironment used by EmailTemplateRenderer + I18nService (FLEX-03/15) -->
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
     <PackageReference Include="ClosedXML" Version="0.104.2" />
-    <PackageReference Include="MailKit" Version="4.8.0" />
+    <PackageReference Include="MailKit" Version="4.13.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <!-- STORAGE-01 — S3-compatible object storage (AWS S3, MinIO, R2, Spaces) -->
     <PackageReference Include="AWSSDK.S3" Version="3.7.412" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.301" />
     <!-- P8 — used by GltfBoundsThumbnailGenerator to render placeholder previews. -->
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />
-    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.5" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.6" />
     <!-- Phase 178 — site-photo redaction pipeline (face / plate blur +
          watermark composition). SkiaSharp's blur ImageFilter is faster
          and easier than ImageSharp's region pipeline; the native binary

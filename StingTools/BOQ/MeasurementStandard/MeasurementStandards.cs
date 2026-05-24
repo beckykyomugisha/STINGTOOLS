@@ -23,6 +23,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
+using StingTools.Core;
 
 namespace StingTools.BOQ.MeasurementStandard
 {
@@ -187,11 +188,40 @@ namespace StingTools.BOQ.MeasurementStandard
 
         public string ClassifyRow(BOQLineItem line, Element el)
         {
-            // ICMS3 group codes 01-04 — lifecycle phases.
-            // Without lifecycle phase data on the row we default to 02
-            // Construction. Carbon factors live on the BOQLineItem
-            // (EmbodiedCarbonKg) and surface in the description.
-            return "02";  // Construction phase
+            // ICMS3 group codes (lifecycle phases):
+            //   01  Acquisition   02  Construction   03  Operation   04  End-of-life
+            //
+            // Phase 184l: classification is driven by
+            // Data/STING_ICMS3_PHASE_MAP.json (multi-language keyword
+            // dictionary) loaded via Icms3PhaseMap.Get(doc). Falls back
+            // to "02 Construction" when no group matches.
+            if (el == null || el.Document == null) return "02";
+            try
+            {
+                string createdName = ResolvePhaseName(el, BuiltInParameter.PHASE_CREATED);
+                string demoName = ResolvePhaseName(el, BuiltInParameter.PHASE_DEMOLISHED);
+                bool isDemolished = !string.IsNullOrEmpty(demoName);
+                var map = Icms3PhaseMap.Get(el.Document);
+                return map.Classify(createdName, demoName, isDemolished);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Icms3Standard.ClassifyRow: {ex.Message}");
+                return "02";
+            }
+        }
+
+        private static string ResolvePhaseName(Element el, BuiltInParameter bip)
+        {
+            try
+            {
+                var p = el.get_Parameter(bip);
+                if (p == null || !p.HasValue) return "";
+                var pid = p.AsElementId();
+                if (pid == null || pid.Value <= 0) return "";
+                return (el.Document?.GetElement(pid) as Phase)?.Name ?? "";
+            }
+            catch { return ""; }
         }
 
         public string BuildDescription(BOQLineItem line, Element el)

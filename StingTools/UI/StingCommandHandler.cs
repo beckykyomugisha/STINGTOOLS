@@ -79,6 +79,12 @@ namespace StingTools.UI
             // StingCommandHandler.CurrentApp when ExternalCommandData is null
             CurrentApp = app;
 
+            // N1 — Wire the Material Manager's live selection-sync once we
+            // have a real UIApplication. The hook is idempotent so calling
+            // every Execute is safe; the field-level guard means it's free
+            // after the first hit.
+            UI.StingDockPanel.SubscribeSelectionSync(app);
+
             // Snapshot command state under lock to prevent race with WPF UI thread
             string tag, p1, p2;
             lock (_lock)
@@ -1224,8 +1230,62 @@ namespace StingTools.UI
                     // ── Materials ──
                     case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;
                     case "CreateMEPMaterials": RunCommand<Temp.CreateMEPMaterialsCommand>(app); break;
-                    case "MaterialManager":     RunCommand<Temp.StingMaterialManagerCommand>(app); break;
+                    case "MaterialManager":
+                        // Surface the dock panel and activate the MAT tab —
+                        // the inline workspace replaces the legacy TaskDialog.
+                        try
+                        {
+                            var pane = app.GetDockablePane(UI.StingDockPanelProvider.PaneId);
+                            if (pane != null && !pane.IsShown()) pane.Show();
+                            UI.StingDockPanel.LastInstance?.ShowMaterialsTab();
+                        }
+                        catch (Exception exMat)
+                        {
+                            Core.StingLog.Warn($"MaterialManager focus: {exMat.Message}");
+                            RunCommand<Temp.StingMaterialManagerCommand>(app); // safety net
+                        }
+                        break;
                     case "MaterialManagerFull": RunCommand<Temp.MaterialManagerCommand>(app); break;
+
+                    // ── MAT tab — inline command surface (dock-panel buttons) ──
+                    case "MAT_WhereUsed":      MatActions.WhereUsed(app, p1); break;
+                    case "MAT_Apply":          MatActions.ApplyToSelection(app, p1); break;
+                    case "MAT_Eyedropper":     MatActions.Eyedropper(app); break;
+                    case "MAT_EditIdentity":   MatActions.EditIdentity(app, p1); break;
+                    case "MAT_ReadLayers":     MatActions.ReadLayers(app); break;
+                    case "MAT_LayerTag":       MatActions.GenerateLayerTag(app); break;
+                    case "MAT_FindDups":       MatActions.FindDuplicates(app); break;
+                    case "MAT_MergeDups":      MatActions.MergeDuplicates(app); break;
+                    case "MAT_EditOverrides":  MatActions.EditProjectOverrides(app); break;
+                    case "MAT_ReloadLib":      MatActions.ReloadLibrary(app); break;
+                    case "MAT_PushCorp":       MatActions.PushToCorporate(app, p1); break;
+                    case "MAT_ExportCsv":      MatActions.ExportCsv(app); break;
+                    case "MAT_ImportCsv":      MatActions.ImportCsv(app); break;
+                    case "MAT_TemplateCsv":    MatActions.OpenTemplate(app); break;
+                    case "MAT_EditRules":      MatActions.EditRules(app); break;
+                    case "MAT_LoadPack":       MatActions.LoadMaterialPack(app); break;
+                    case "MAT_FamilyAudit":    MatActions.FamilyFolderAudit(app); break;
+                    case "MAT_DetachAsset":    MatActions.DetachAsset(app, p1); break;
+                    case "MAT_RepointAsset":   MatActions.RepointAsset(app, p1); break;
+                    case "MAT_FamilyMaterials":MatActions.ShowFamilyMaterials(app); break;
+                    case "MAT_SustainabilityGate": MatActions.RunSustainabilityGate(app); break;
+                    case "MAT_SustainabilityEdit": MatActions.EditSustainabilityGate(app); break;
+                    case "MAT_ClearFilters":   UI.StingDockPanel.LastInstance?.ClearMatFilters(); break;
+                    case "MAT_GenerateRfq":    MatActions.GenerateRfq(app); break;
+                    case "MAT_CoverageCheck":  MatActions.RunCoverageCheck(app); break;
+                    case "MAT_SyncCobie":      MatActions.SyncCobie(app); break;
+                    case "MAT_HealthcareGate": MatActions.RunHealthcareGate(app); break;
+                    case "MAT_HealthcareEdit": MatActions.EditHealthcareGate(app); break;
+                    case "MAT_BoqByMaterial":  MatActions.BoqByMaterial(app); break;
+                    case "MAT_WhatIfSwap":     MatActions.WhatIfSwap(app); break;
+                    case "MAT_EnrichSchedules":MatActions.EnrichMaterialSchedules(app); break;
+                    case "MAT_LinkedScan":     MatActions.ScanLinkedMaterials(app); break;
+                    case "MAT_CarbonPivot":    MatActions.CarbonByPhaseLevel(app); break;
+                    case "MAT_EpdFormatCheck": MatActions.RunEpdFormatCheck(app); break;
+                    case "MAT_FireWallGate":   MatActions.RunFireWallGate(app); break;
+                    case "MAT_NormaliseClasses": MatActions.NormaliseMaterialClasses(app); break;
+                    case "MAT_ToggleAutoApply":MatActions.ToggleAutoApply(app); break;
+                    case "MAT_ToggleAutoFill": MatActions.ToggleAutoFill(app); break;
 
                     // ── Family types ──
                     case "CreateWalls": RunCommand<Temp.CreateWallsCommand>(app); break;
@@ -1389,6 +1449,7 @@ namespace StingTools.UI
                     case "AuditTagFamilies": RunCommand<Tags.AuditTagFamiliesCommand>(app); break;
                     case "RetrofitProject": RunCommand<Temp.RetrofitProjectCommand>(app); break;
                     case "MigrateTagFamilies": RunCommand<Commands.TagStudio.MigrateTagFamiliesCommand>(app); break;
+                    case "MigrateTagLabelRefs": RunCommand<Commands.TagStudio.MigrateTagLabelReferencesCommand>(app); break;
                     case "StyleAudit": RunCommand<Commands.TagStudio.StyleAuditCommand>(app); break;
 
                     // ── Populate tokens ──
@@ -1822,6 +1883,7 @@ namespace StingTools.UI
 
                     // ── Enhanced Structural Algorithms ──
                     case "StrAutoSizeAll": RunCommand<Model.StrAutoSizeAllCommand>(app); break;
+                    case "StrAutoSizeApply": RunCommand<Model.StrAutoSizeApplyCommand>(app); break;
                     case "StrGridOptimize": RunCommand<Model.StrGridOptimizeCommand>(app); break;
                     case "StrCarbonOptimize": RunCommand<Model.StrCarbonOptimizeCommand>(app); break;
                     case "StrBarBending": RunCommand<Model.StrGenerateBarBendingCommand>(app); break;
@@ -2048,9 +2110,26 @@ namespace StingTools.UI
                         var aaDoc = app.ActiveUIDocument?.Document;
                         if (aaDoc != null)
                         {
-                            var results = Model.AcousticAnalysisOrchestrator.AnalyseModel(aaDoc);
+                            // Phase 187 — AnalyseModel now stamps ACO_RW_DB on
+                            // every analysed wall, so the dispatch needs to own
+                            // a transaction (the engine writes via SetString).
+                            List<Model.AcousticResult> results;
+                            try
+                            {
+                                using (var tx = new Transaction(aaDoc, "STING Acoustic Analysis"))
+                                {
+                                    tx.Start();
+                                    results = Model.AcousticAnalysisOrchestrator.AnalyseModel(aaDoc);
+                                    tx.Commit();
+                                }
+                            }
+                            catch (Exception exA)
+                            {
+                                Core.StingLog.Warn($"Acoustic txn fallback: {exA.Message}");
+                                results = Model.AcousticAnalysisOrchestrator.AnalyseModel(aaDoc);
+                            }
                             int fails = results.Count(r => !r.Pass);
-                            var sb = new System.Text.StringBuilder($"Acoustic Analysis: {results.Count} checks ({fails} failures)\n\n");
+                            var sb = new System.Text.StringBuilder($"Acoustic Analysis: {results.Count} checks ({fails} failures)\nACO_RW_DB stamped on every analysed wall.\n\n");
                             foreach (var r in results.Take(30)) sb.AppendLine(r.ToString());
                             TaskDialog.Show("Acoustic Analysis", sb.ToString());
                         }
@@ -2117,9 +2196,38 @@ namespace StingTools.UI
                         if (sdDoc != null)
                         {
                             var (torsion, tolerances, total) = Model.StructuralDeepOrchestrator.AnalyseModel(sdDoc);
+                            // Phase 187 — close the calc → model loop on torsion +
+                            // tolerance + creep + connection by stamping the new
+                            // STR_* params on each affected beam / column.
+                            int torsionStamped = 0, tolStamped = 0;
+                            (int creepInsp, int creepStamped, string creepSum) = (0, 0, "");
+                            (int connInsp,  int connStamped,  string connSum)  = (0, 0, "");
+                            try
+                            {
+                                using (var tx = new Transaction(sdDoc, "STING Stamp Structural Deep"))
+                                {
+                                    tx.Start();
+                                    torsionStamped = Model.AutoTorsionDetector.WriteBack(sdDoc, torsion);
+                                    foreach (var kv in Model.StructuralDeepOrchestrator.LastPerElementTolerances)
+                                    {
+                                        var el = sdDoc.GetElement(kv.Key);
+                                        if (el == null) continue;
+                                        tolStamped += Model.FabricationToleranceChecker.WriteBack(sdDoc, el, kv.Value);
+                                    }
+                                    // Drive the two newly-orchestrated engines under
+                                    // the same transaction so the whole deep-analysis
+                                    // run is atomic.
+                                    (creepInsp, creepStamped, creepSum) = Model.CreepDeflectionAnalysis.AnalyseModel(sdDoc);
+                                    (connInsp,  connStamped,  connSum)  = Model.ConnectionDetailingEngine.AnalyseModel(sdDoc);
+                                    tx.Commit();
+                                }
+                            }
+                            catch (Exception exTx) { Core.StingLog.Warn($"Structural-deep writeback: {exTx.Message}"); }
                             TaskDialog.Show("Structural Deep Analysis",
-                                $"Torsion Cases: {torsion.Count}\n" +
-                                $"Tolerance Checks: {tolerances.Count}\n\n" +
+                                $"Torsion Cases: {torsion.Count}  (STR_BEAM_TORSION_KNM stamped: {torsionStamped})\n" +
+                                $"Tolerance Checks: {tolerances.Count}  (STR_FAB_TOLERANCE_MM stamped: {tolStamped})\n" +
+                                $"Creep Deflection: {creepInsp} concrete beams  (STRUCT_FRM_DEFLECTION_MM stamped: {creepStamped})\n" +
+                                $"Connection Detail: {connInsp} steel beams  (STR_CONN_* stamped: {connStamped})\n\n" +
                                 (torsion.Count > 0 ? "Torsion:\n" + string.Join("\n", torsion.Take(10).Select(t => $"  {t.Description}")) : "") +
                                 (tolerances.Count > 0 ? "\nTolerances:\n" + string.Join("\n", tolerances.Take(10).Select(t => $"  {t.CheckName}: ±{t.ToleranceMm:F1}mm")) : ""));
                         }
@@ -2767,6 +2875,10 @@ namespace StingTools.UI
 
                     // Family tooling (FamilyParamCreatorCommand.cs, StingTools.Tags)
                     case "FamilyParamCreator": RunCommand<Tags.FamilyParamCreatorCommand>(app); break;
+                    // Family conformance audit (FamilyConformanceCheckCommand.cs, Phase 185) —
+                    // read-only audit of a folder of .rfa families against the STING contract.
+                    // Use BEFORE bulk-stamping a manufacturer library.
+                    case "FamilyConformanceCheck": RunCommand<Tags.FamilyConformanceCheckCommand>(app); break;
 
                     // Family quick-edit (FamilyQuickEditCommands.cs, StingTools.Tags) —
                     // rehost, swap category, inject automation pack, quick-edit dialog
@@ -3680,7 +3792,8 @@ namespace StingTools.UI
                     case "PlanscapeTestConnection": RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
                     case "PlanscapeClearCredentials": BIMManager.PlanscapeServerClient.Instance.Disconnect(); break;
                     case "PlanscapeExportConfig":   RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "PlanscapeOpenBrowser":    BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
+                    case "PlanscapeOpenBrowser":    PlanscapeOpenWebDashboard(app); break;
+                    case "PlanscapeOpenWebDashboard": PlanscapeOpenWebDashboard(app); break;
                     // Phase 78 Section 6.1: TeamReport
                     case "TeamReport":             RunCommand<BIMManager.ExportPermissionMatrixCommand>(app); break;
                     // Phase 78 Section 6.1: MeetingTemplates
@@ -8660,6 +8773,39 @@ namespace StingTools.UI
             string link = $"planscape://dashboard/{projectName}/{timestamp}";
             System.Windows.Clipboard.SetText(link);
             TaskDialog.Show("STING — Planscape", $"Dashboard link copied to clipboard:\n{link}\n\nShare this link with your team or embed it in a QR code.");
+        }
+
+        // BCC → Planscape platform → "🌐 Open Web Dashboard" button.
+        // Opens the current Planscape server's dashboard (wwwroot/index.html —
+        // the latest panel design with sidebar + project picker) in the OS
+        // default browser. Uses PlanscapeServerClient.ServerUrl when the user
+        // is signed in; falls back to the docker-compose default so the
+        // button still works before login. If a project is active on the
+        // client we deep-link straight into its dashboard view.
+        private static void PlanscapeOpenWebDashboard(UIApplication app)
+        {
+            var client = BIMManager.PlanscapeServerClient.Instance;
+            string baseUrl = client.ServerUrl;
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                baseUrl = "http://localhost:5000";
+            }
+            string url = baseUrl.TrimEnd('/') + "/index.html";
+            if (client.IsConnected && client.CurrentProjectId != Guid.Empty)
+            {
+                url += $"#project-dashboard?project={client.CurrentProjectId}";
+            }
+            try
+            {
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlanscapeOpenWebDashboard: failed to launch '{url}': {ex.Message}");
+                TaskDialog.Show("STING — Planscape",
+                    $"Could not open the dashboard in your default browser.\n\nURL: {url}\nError: {ex.Message}");
+            }
         }
 
         private static void PlanscapeGenerateTeamsMessage(UIApplication app)

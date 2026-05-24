@@ -103,7 +103,8 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Velocity exceedances",r.PipesVelocityFailed.ToString())
                  .Metric("Pressure-drop failed",r.PipesDpFailed.ToString())
                  .Metric("Upsize required",    r.PipesUpsized.ToString())
-                 .Metric("Pipes written",      r.PipesWritten.ToString());
+                 .Metric("Shared-params written", r.PipesWritten.ToString())
+                 .Metric("Pipes resized in model", r.PipesResized.ToString());
 
             if (r.Results.Any())
             {
@@ -136,7 +137,8 @@ namespace StingTools.Commands.Plumbing
             using (var tx = new Transaction(ctx.Doc, "STING Plumbing Size Drainage"))
             {
                 tx.Start();
-                dfuMap = FixtureUnitAggregator.BuildDfuMap(ctx.Doc);
+                // writeBack=true stamps PLM_DFU_COUNT_INT per pipe.
+                dfuMap = FixtureUnitAggregator.BuildDfuMap(ctx.Doc, writeBack: true);
                 sizing = DrainageSizer.AnalyseAndSize(ctx.Doc, dfuMap.PipeDfu, writeBack: true, dryRun: false);
                 tx.Commit();
             }
@@ -148,7 +150,8 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Upsize required",   sizing.PipesUpsized.ToString())
                  .Metric("Slope insufficient",sizing.PipesSlopeInsufficient.ToString())
                  .Metric("Self-cleansing fail",sizing.PipesSelfCleansingFailed.ToString())
-                 .Metric("Pipes written",     sizing.PipesWritten.ToString());
+                 .Metric("Shared-params written",  sizing.PipesWritten.ToString())
+                 .Metric("Pipes resized in model", sizing.PipesResized.ToString());
             if (sizing.Results.Any())
             {
                 panel.AddSection("PIPE SIZING (first 30)");
@@ -204,7 +207,7 @@ namespace StingTools.Commands.Plumbing
         }
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class PlumbExpVesselCommand : IExternalCommand
     {
@@ -213,9 +216,43 @@ namespace StingTools.Commands.Plumbing
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
 
-            // Phase 179b ships a calculator with sane defaults — UI input dialog is layered later.
+            // System volume + temperatures are project-specific. Read them from
+            // ProjectInformation when bound (PLM_EXPVSL_SYS_VOL_L /
+            // PLM_EXPVSL_TCOLD_C / PLM_EXPVSL_THOT_C), otherwise fall back to
+            // BS 7074-1 defaults for an indirect DHW system (200 L, 10→60°C)
+            // and prompt the user so they know the values are defaults.
             double vsysL = 200.0;
             double tCold = 10, tHot = 60;
+            try
+            {
+                var pi = ctx.Doc?.ProjectInformation;
+                if (pi != null)
+                {
+                    double v = ReadProjDouble(pi, "PLM_EXPVSL_SYS_VOL_L");
+                    if (v > 0) vsysL = v;
+                    double tc = ReadProjDouble(pi, "PLM_EXPVSL_TCOLD_C");
+                    if (tc > 0) tCold = tc;
+                    double th = ReadProjDouble(pi, "PLM_EXPVSL_THOT_C");
+                    if (th > 0) tHot = th;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ExpVessel input read: {ex.Message}"); }
+
+            var confirm = new TaskDialog("STING Expansion Vessel — Inputs")
+            {
+                MainInstruction = "Confirm sizing inputs",
+                MainContent = $"System volume: {vsysL:F0} L\n" +
+                              $"Cold fill temperature: {tCold:F0} °C\n" +
+                              $"Hot operating temperature: {tHot:F0} °C\n\n" +
+                              "These come from ProjectInformation when " +
+                              "PLM_EXPVSL_SYS_VOL_L / PLM_EXPVSL_TCOLD_C / " +
+                              "PLM_EXPVSL_THOT_C are bound, otherwise from BS 7074-1 " +
+                              "defaults. Set those parameters on the project to override.",
+                CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
+                DefaultButton = TaskDialogResult.Ok
+            };
+            if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+
             var r = ExpansionVesselSizer.Size(vsysL, tCold, tHot);
 
             var panel = StingResultPanel.Create("Expansion Vessel (BS 7074-1)");
@@ -227,7 +264,120 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Vessel volume",          r.VTankL.ToString("F0") + " L")
                  .Metric("Recommended family",     r.RecommendedFamily);
             panel.Show();
+
+            // Close the calc → model loop: offer to place the recommended
+            // vessel FamilyInstance. Mirrors the VentCreationEngine.TryPlaceAav
+            // pattern — looks for a loaded family containing "Expansion Vessel"
+            // or "EV-" in its name and lets the user pick the placement point.
+            var place = new TaskDialog("STING Expansion Vessel — Place?")
+            {
+                MainInstruction = $"Place {r.RecommendedFamily} now?",
+                MainContent = "Pick a point in the active view to place the recommended " +
+                              "expansion vessel FamilyInstance, or cancel to keep the " +
+                              "sizing report only.",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                DefaultButton = TaskDialogResult.Cancel
+            };
+            place.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                $"Place {r.RecommendedFamily}");
+            if (place.Show() != TaskDialogResult.CommandLink1)
+                return Result.Succeeded;
+
+            try
+            {
+                var sym = FindExpansionVesselSymbol(ctx.Doc, r.VTankL);
+                if (sym == null)
+                {
+                    TaskDialog.Show("STING Expansion Vessel",
+                        "No expansion vessel family found in the project. " +
+                        "Load a family whose name contains 'Expansion Vessel' or 'EV' and retry.");
+                    return Result.Succeeded;
+                }
+                XYZ pt;
+                try { pt = ctx.UIDoc.Selection.PickPoint("Pick expansion-vessel location"); }
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+
+                Level level = ResolveNearestLevel(ctx.Doc, pt.Z);
+                using (var tx = new Transaction(ctx.Doc, "STING Place Expansion Vessel"))
+                {
+                    tx.Start();
+                    if (!sym.IsActive) sym.Activate();
+                    var fi = ctx.Doc.Create.NewFamilyInstance(pt, sym, level,
+                        Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                    // Stamp the sized vessel volume + a design-intent note onto
+                    // the placed instance so a schedule can render the sizing
+                    // outcome alongside the placement.
+                    ParameterHelpers.SetString(fi, ParamRegistry.PLM_EXPVSL_SZ,
+                        ((int)Math.Round(r.VTankL)).ToString(), overwrite: false);
+                    ParameterHelpers.SetString(fi, "Comments",
+                        $"STING auto-placed · {r.RecommendedFamily} · sized for {r.SystemVolumeL:F0} L sys @ ΔT {r.DeltaTC:F0}°C", overwrite: false);
+                    tx.Commit();
+                }
+                TaskDialog.Show("STING Expansion Vessel",
+                    $"Placed {sym.Family.Name} : {sym.Name} at {pt.X:F1},{pt.Y:F1},{pt.Z:F1}.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ExpVessel place: {ex.Message}");
+                message = ex.Message;
+                return Result.Failed;
+            }
             return Result.Succeeded;
+        }
+
+        private static FamilySymbol FindExpansionVesselSymbol(Document doc, double vTankL)
+        {
+            // Prefer a symbol whose name includes the recommended litre size;
+            // otherwise pick the first matching expansion-vessel family.
+            string targetSize = $"EV-{(int)vTankL}L";
+            FamilySymbol exact = null, partial = null;
+            foreach (var fs in new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>())
+            {
+                string n = ((fs.Family?.Name ?? "") + " " + (fs.Name ?? "")).ToUpperInvariant();
+                bool isVessel = n.Contains("EXPANSION VESSEL") || n.Contains("EV-")
+                             || (n.StartsWith("EV") && n.Contains("L"));
+                if (!isVessel) continue;
+                if (n.Contains(targetSize.ToUpperInvariant())) { exact = fs; break; }
+                partial = partial ?? fs;
+            }
+            return exact ?? partial;
+        }
+
+        private static Level ResolveNearestLevel(Document doc, double zFt)
+        {
+            try
+            {
+                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level))
+                    .Cast<Level>().OrderBy(l => l.Elevation).ToList();
+                Level best = levels.FirstOrDefault();
+                foreach (var l in levels)
+                {
+                    if (l.Elevation <= zFt) best = l;
+                    else break;
+                }
+                return best;
+            }
+            catch { return null; }
+        }
+
+        private static double ReadProjDouble(Element pi, string paramName)
+        {
+            try
+            {
+                var p = pi.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return 0;
+                if (p.StorageType == StorageType.Double)  return p.AsDouble();
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                if (p.StorageType == StorageType.String
+                    && double.TryParse(p.AsString(),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out var v)) return v;
+            }
+            catch { }
+            return 0;
         }
     }
 

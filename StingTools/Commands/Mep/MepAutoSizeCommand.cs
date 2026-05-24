@@ -189,7 +189,7 @@ namespace StingTools.Commands.Mep
                             // the panel + drift detector can see what rule fired.
                             try
                             {
-                                ParameterHelpers.SetString(p, "HVC_PIPE_SERVICE_TXT",
+                                ParameterHelpers.SetString(p, ParamRegistry.HVC_PIPE_SERVICE_TXT,
                                     serviceId, overwrite: true);
                             }
                             catch (Exception exP) { StingLog.Warn($"HVC_PIPE_SERVICE stamp {p.Id}: {exP.Message}"); }
@@ -356,6 +356,13 @@ namespace StingTools.Commands.Mep
             using (var tx = new Transaction(doc, "STING Auto-size ducts"))
             {
                 try { tx.Start(); } catch (Exception ex) { res.Warnings.Add($"tx: {ex.Message}"); goto Done; }
+                // Pre-walk every duct's role in one pass (Phase 182 gap D5 batch
+                // path). On a 500-duct view fed by ~10 AHUs this collapses
+                // 500 connector-graph traversals down to ~10 walks.
+                Dictionary<ElementId, string> roleMap = null;
+                try { roleMap = StingTools.Core.Mep.HvacSegmentRoleDetector.DetectRolesBatch(doc, ducts); }
+                catch (Exception ex) { StingLog.Warn($"DetectRolesBatch: {ex.Message}"); }
+
                 try
                 {
                     foreach (var d in ducts)
@@ -363,7 +370,9 @@ namespace StingTools.Commands.Mep
                         try
                         {
                             // Per-element role lookup (Phase 182, gap D5).
-                            string roleId = StingTools.Core.Mep.HvacSegmentRoleDetector.DetectRole(doc, d);
+                            string roleId = roleMap != null && roleMap.TryGetValue(d.Id, out var rid)
+                                ? rid
+                                : StingTools.Core.Mep.HvacSegmentRoleDetector.DetectRole(doc, d);
                             double maxVelMs  = DuctMaxVelMsFallback;
                             double maxAspect = MaxAspectFallback;
                             string roleSrc   = "fallback";
@@ -380,15 +389,12 @@ namespace StingTools.Commands.Mep
                             lastRoleId = roleId; lastRoleSrc = roleSrc;
                             lastMaxVel = maxVelMs; lastMaxAsp = maxAspect;
 
-                            // Flow in CFM or L/s depending on doc units;
-                            // HVC_FLOW_LS preferred v4 param.
-                            double flowLs = ReadDouble(d, "HVC_FLOW_LS");
+                            // HVC_FLOW_LS preferred v4 param; both readers below
+                            // honour the parameter's actual spec (AirFlow vs
+                            // Number) via MepUnits.ReadAirFlowLs.
+                            double flowLs = MepUnits.ReadAirFlowLs(d, "HVC_FLOW_LS");
                             if (flowLs <= 0)
-                            {
-                                // Revit built-in fallback
-                                double flowCfm = ReadBuiltInFlowCfm(d);
-                                flowLs = flowCfm * 0.4719; // CFM → L/s
-                            }
+                                flowLs = MepUnits.ReadBuiltInFlowLs(d, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
                             if (flowLs <= 0) { res.Skipped++; continue; }
                             double flowM3s = flowLs * 1e-3;
 
@@ -430,7 +436,7 @@ namespace StingTools.Commands.Mep
                                 {
                                     string pclass = StingTools.UI.StingHvacCommandHandler.CurrentPressureClassId
                                                     ?? "low";
-                                    ParameterHelpers.SetString(d, "HVC_PRESSURE_CLASS_TXT",
+                                    ParameterHelpers.SetString(d, ParamRegistry.HVC_PRESSURE_CLASS_TXT,
                                         pclass, overwrite: true);
                                 }
                                 catch (Exception exPc) { StingLog.Warn($"PressureClass stamp {d.Id}: {exPc.Message}"); }
@@ -473,9 +479,9 @@ namespace StingTools.Commands.Mep
         {
             try
             {
-                double w = ReadDouble(d, "Width")  * 304.8;
-                double h = ReadDouble(d, "Height") * 304.8;
-                double dia = ReadDouble(d, "Diameter") * 304.8;
+                double w   = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Width"),    UnitTypeId.Millimeters);
+                double h   = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Height"),   UnitTypeId.Millimeters);
+                double dia = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Diameter"), UnitTypeId.Millimeters);
                 if (w > 0 && h > 0) return $"{w:F0}x{h:F0}";
                 if (dia > 0)        return $"Ø{dia:F0}";
             }
@@ -488,10 +494,10 @@ namespace StingTools.Commands.Mep
             try
             {
                 if (!string.IsNullOrEmpty(previous))
-                    ParameterHelpers.SetString(el, "HVC_SIZE_PREV_TXT", previous, overwrite: true);
-                ParameterHelpers.SetString(el, "HVC_SIZE_MODIFIED_DT",
+                    ParameterHelpers.SetString(el, ParamRegistry.HVC_SIZE_PREV_TXT, previous, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.HVC_SIZE_MODIFIED_DT,
                     DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"), overwrite: true);
-                ParameterHelpers.SetString(el, "HVC_SIZE_RULE_ID_TXT",
+                ParameterHelpers.SetString(el, ParamRegistry.HVC_SIZE_RULE_ID_TXT,
                     string.IsNullOrEmpty(roleId) ? ruleSrc : $"{roleId}|{ruleSrc}", overwrite: true);
             }
             catch (Exception ex) { StingLog.Warn($"StampSizingAudit {el.Id}: {ex.Message}"); }
@@ -509,16 +515,6 @@ namespace StingTools.Commands.Mep
                         System.Globalization.CultureInfo.InvariantCulture,
                         out double v)) return v; }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return 0;
-        }
-        private static double ReadBuiltInFlowCfm(Element el)
-        {
-            try
-            {
-                var p = el.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                if (p != null && p.StorageType == StorageType.Double) return p.AsDouble() * 60.0;
-            }
-            catch (Exception ex) { StingLog.Warn($"RBS_DUCT_FLOW_PARAM read: {ex.Message}"); }
             return 0;
         }
         private static bool WriteSize(Element el, string param, double mm)
@@ -621,7 +617,25 @@ namespace StingTools.Commands.Mep
                             // Required bore = sqrt(4 * A / (π * fill))
                             double diaMm = Math.Sqrt(4.0 * totalCableAreaMm2 / (Math.PI * maxFillPct / 100.0));
                             double std = MepSizeTables.RoundUpTo(diaMm, MepSizeTables.ConduitStandardMm);
-                            if (WriteDouble(c, "Diameter", std * MmToFt)) res.Resized++;
+                            if (WriteDouble(c, "Diameter", std * MmToFt))
+                            {
+                                res.Resized++;
+                                // Close the calc → model loop: stamp the
+                                // resulting fill % to ELC_CDT_CBL_FILL_PCT
+                                // (existing param) so schedules / warning
+                                // checkers and downstream conduit-bend audits
+                                // can read it without re-running this command.
+                                double conduitAreaMm2 = Math.PI * std * std * 0.25;
+                                double actualFillPct  = conduitAreaMm2 > 0
+                                    ? totalCableAreaMm2 / conduitAreaMm2 * 100.0 : 0;
+                                try
+                                {
+                                    StingTools.Core.ParameterHelpers.SetString(c,
+                                        "ELC_CDT_CBL_FILL_PCT",
+                                        $"{actualFillPct:F1}", overwrite: true);
+                                }
+                                catch (Exception exF) { StingLog.Warn($"Conduit fill stamp {c.Id}: {exF.Message}"); }
+                            }
                             else res.Skipped++;
                         }
                         catch (Exception ex2)

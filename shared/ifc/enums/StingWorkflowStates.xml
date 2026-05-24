@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingWorkflowStates</Name>
+    <Definition>Workflow instance states for the Template Engine v1.1 WorkflowEngine. Generic across all workflow definitions (transmittal_default, deliverable_issue_default, rfi_default, mr_default, tq_default, plus per-project presets). Drives "My Queue" lookups, SLA escalation, audit history.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4003-9000-000000000017</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING Docs.Workflow.WorkflowEngine; Template Engine v1.1 (Phase 112)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Draft" sentinel="false">
+      <Definition>Draft — workflow instance created, not yet issued.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="InReview" sentinel="false">
+      <Definition>In Review — issued, awaiting reviewer action.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Approved" sentinel="false">
+      <Definition>Approved — reviewer / approver has signed off. Next transition typically: Issued.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Issued" sentinel="false">
+      <Definition>Issued — transmittal / deliverable / RFI dispatched to recipients.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Acknowledged" sentinel="false">
+      <Definition>Acknowledged — recipient has confirmed receipt. Terminal for transmittals; intermediate for RFIs.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Superseded" sentinel="false">
+      <Definition>Superseded — replaced by a later revision. Retained for audit; read-only.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Cancelled" sentinel="false">
+      <Definition>Cancelled — instance withdrawn before issue. Retained for audit.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Rejected" sentinel="false">
+      <Definition>Rejected — reviewer / approver has rejected. Returns to Draft with rejection reason.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OnHold" sentinel="false">
+      <Definition>On Hold — paused pending external input. SLA timer suspended.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>7b6d1a70cd85331b6e72b938971a747827b8f0f00c9ad2801b9895c493f917fb</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

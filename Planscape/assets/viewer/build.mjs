@@ -6,11 +6,24 @@ import { mkdirSync, copyFileSync, writeFileSync } from 'fs';
 
 mkdirSync('dist', { recursive: true });
 
-// ── 1. Bundle three.js + all required addons into a single global ──────
-// Use re-export pattern + globalName=THREE so esbuild sets window.THREE
-// to an object containing all Three.js exports plus the addon classes.
+// ── 1. Bundle three.js + only the required addons into a single global ──
+// Earlier revisions used `export * from 'three'` which forced esbuild to
+// keep every Three.js export in the bundle. The coordination viewer
+// only touches 24 core classes (Scene, Mesh, Vector3, etc.) plus the
+// four addons. Listing them explicitly lets esbuild tree-shake the
+// rest of the library (~50 KB saving on a typical 720 KB three.min.js).
+// Keep this list in sync with viewer.html / viewer-extras.js — run
+//   grep -oh 'THREE\.[A-Z][A-Za-z0-9]*' viewer.html viewer-extras.js \
+//     coordination-viewer.js | sort -u
+// to refresh.
 const threeEntry = `
-export * from 'three';
+export {
+  AmbientLight, Box3, BufferGeometry, Clock, Color, DirectionalLight,
+  Euler, Group, HemisphereLight, Line, LineBasicMaterial, Mesh,
+  MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
+  PerspectiveCamera, Plane, Raycaster, Scene, SphereGeometry, Sprite,
+  SpriteMaterial, Vector2, Vector3, WebGLRenderer,
+} from 'three';
 export { GLTFLoader }    from 'three/examples/jsm/loaders/GLTFLoader.js';
 export { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 export { DRACOLoader }   from 'three/examples/jsm/loaders/DRACOLoader.js';
@@ -24,18 +37,22 @@ await esbuild.build({
   globalName: 'THREE',
   outfile:    'dist/three.min.js',
   minify:     true,
+  sourcemap:  true,
   target:     'es2020',
-}).then(() => console.log('✓ dist/three.min.js'));
+}).then(() => console.log('✓ dist/three.min.js (+ .map)'));
 
 // ── 2. Minify the three IIFE viewer files (no bundling — they have no imports) ──
+// External source maps so prod stack traces map back to the original
+// line numbers when uploaded to Sentry. See upload-sourcemaps.mjs.
 for (const name of ['coordination-viewer', 'signalr-shim', 'viewer-extras']) {
   await esbuild.build({
     entryPoints: [`${name}.js`],
-    bundle:  false,
-    outfile: `dist/${name}.js`,
-    minify:  true,
-    target:  'es2020',
-  }).then(() => console.log(`✓ dist/${name}.js`));
+    bundle:    false,
+    outfile:   `dist/${name}.js`,
+    minify:    true,
+    sourcemap: true,
+    target:    'es2020',
+  }).then(() => console.log(`✓ dist/${name}.js (+ .map)`));
 }
 
 // ── 3. Copy CSS ────────────────────────────────────────────────────────

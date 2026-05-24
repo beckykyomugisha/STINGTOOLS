@@ -1094,8 +1094,10 @@ namespace StingTools.Core
         /// <summary>Build a multi-category filter covering all tagged categories.</summary>
         private static ElementMulticategoryFilter CreateMultiCategoryFilter()
         {
-            // Built-in default list. Mutated in place when the Categories sub-tab
-            // has pushed TagCategoryFilter / TagCategoryExclusions ExtraParams.
+            // Built-in default list. Mutated in place when the consolidated
+            // TAGS › Categories sub-tab has pushed TagCategoryFilter /
+            // TagCategoryExclusions ExtraParams. The sub-tab is now a single
+            // tab (was previously two — see StingDockPanel.xaml comment).
             var cats = new List<BuiltInCategory>
             {
                 BuiltInCategory.OST_MechanicalEquipment,
@@ -1123,8 +1125,8 @@ namespace StingTools.Core
                 BuiltInCategory.OST_Conduit,
             };
 
-            // ORPHAN-FIX: honour the Categories sub-tab selection. Include list
-            // replaces the default set; exclude list is subtracted from whatever
+            // Honour the Categories sub-tab selection. Include list replaces
+            // the default set; exclude list is subtracted from whatever
             // remains. Unknown tokens are logged once and skipped.
             try
             {
@@ -1348,10 +1350,22 @@ namespace StingTools.Core
                 if (enabled && !_enabled)
                 {
                     var filter = StingAutoTagger.CreateMultiCategoryFilterStatic();
+                    // Geometry change → existing behaviour
                     UpdaterRegistry.AddTrigger(_updaterId, filter,
                         Element.GetChangeTypeGeometry());
+                    // N+3 — Material change → also stale. The element's
+                    // material drives PROD code (via MaterialProdOverrideRegistry)
+                    // AND the BOQ row's cost / carbon factors, so a material
+                    // swap must invalidate the existing tag + cost data.
+                    try
+                    {
+                        UpdaterRegistry.AddTrigger(_updaterId, filter,
+                            Element.GetChangeTypeParameter(new ElementId(BuiltInParameter.MATERIAL_ID_PARAM)));
+                    }
+                    catch (Exception matEx)
+                    { StingLog.Warn($"StingStaleMarker MATERIAL_ID_PARAM trigger: {matEx.Message}"); }
                     _enabled = true;
-                    StingLog.Info("StingStaleMarker enabled.");
+                    StingLog.Info("StingStaleMarker enabled (geometry + material change).");
                 }
                 else if (!enabled && _enabled)
                 {
@@ -1380,6 +1394,55 @@ namespace StingTools.Core
         }
 
         private const int MaxElementsPerTrigger = 20;
+
+        // N+3 — Material snapshot cache. Detects material reassignment by
+        // comparing current primary material id against the last-seen value.
+        // LRU-capped at 5000 entries to bound memory on huge models.
+        private static readonly Dictionary<long, long> _matIdSnapshot = new Dictionary<long, long>();
+        private static readonly LinkedList<long> _matIdLru = new LinkedList<long>();
+        private static readonly object _matIdLock = new object();
+        private const int MatIdSnapshotCap = 5000;
+
+        private static long GetCachedMaterialId(long elementId)
+        {
+            lock (_matIdLock)
+                return _matIdSnapshot.TryGetValue(elementId, out long v) ? v : 0;
+        }
+
+        private static void SetCachedMaterialId(long elementId, long materialId)
+        {
+            lock (_matIdLock)
+            {
+                if (_matIdSnapshot.ContainsKey(elementId))
+                    _matIdLru.Remove(elementId); // O(N) acceptable for 5k cap
+                else if (_matIdSnapshot.Count >= MatIdSnapshotCap)
+                {
+                    var oldest = _matIdLru.First?.Value ?? 0;
+                    if (oldest > 0) { _matIdSnapshot.Remove(oldest); _matIdLru.RemoveFirst(); }
+                }
+                _matIdSnapshot[elementId] = materialId;
+                _matIdLru.AddLast(elementId);
+            }
+        }
+
+        private static long ReadPrimaryMaterialId(Element el)
+        {
+            try
+            {
+                Parameter p = el?.LookupParameter("Material") ?? el?.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
+                if (p != null && p.StorageType == StorageType.ElementId)
+                {
+                    var mid = p.AsElementId();
+                    if (mid != null && mid.Value > 0) return mid.Value;
+                }
+                var mats = el?.GetMaterialIds(false);
+                if (mats != null)
+                    foreach (var mid in mats)
+                        if (mid != null && mid.Value > 0) return mid.Value;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("ReadPrimaryMaterialId", $"ReadPrimaryMaterialId: {ex.Message}"); }
+            return 0;
+        }
 
         // A-2: Per-document project-LOC cache, complementary to
         // SpatialAutoDetect.BuildRoomIndex (which already caches the room index
@@ -1541,12 +1604,47 @@ namespace StingTools.Core
                             catch (Exception mepEx) { StingLog.WarnRateLimited("StaleMarker.MepDetect", $"StaleMarker MEP detection: {mepEx.Message}"); }
                         }
 
+                        // N+3 — Material-change detection. Compare current primary material
+                        // id against the last-seen snapshot (per-element static cache). First
+                        // encounter populates; subsequent encounters with a different id flip
+                        // stale. Closes D2 — material swap invalidates the existing tag's
+                        // PROD code (now material-aware via MaterialProdOverrideRegistry).
+                        bool materialChanged = false;
+                        try
+                        {
+                            long current = ReadPrimaryMaterialId(el);
+                            long prev    = GetCachedMaterialId(id.Value);
+                            if (prev > 0 && current != prev)
+                            {
+                                materialChanged = true;
+                                isStale = true;
+                                StingLog.Info($"StaleMarker: material change on {id.Value} — was {prev}, now {current}");
+                            }
+                            SetCachedMaterialId(id.Value, current);
+                        }
+                        catch (Exception matEx)
+                        { StingLog.WarnRateLimited("StaleMarker.MaterialDetect", $"StaleMarker material detection: {matEx.Message}"); }
+
                         if (isStale)
                         {
                             Parameter p = el.LookupParameter(ParamRegistry.STALE);
                             if (p != null && !p.IsReadOnly)
                                 p.Set(1);
+                            // N+3 — Also flip the BOQ stale marker so the cost manager
+                            // picks up the change on the next dashboard load. Material swap
+                            // directly affects the row's cost / carbon (factors come from
+                            // MaterialLookupCsv). ASS_CST_STALE_BOOL is TEXT storage per
+                            // MR_PARAMETERS — "1" / "0" written as strings.
+                            try
+                            {
+                                Parameter cstP = el.LookupParameter("ASS_CST_STALE_BOOL");
+                                if (cstP != null && !cstP.IsReadOnly && cstP.StorageType == StorageType.String)
+                                    cstP.Set("1");
+                            }
+                            catch (Exception csEx)
+                            { StingLog.WarnRateLimited("StaleMarker.BoqStale", $"StaleMarker BOQ stale: {csEx.Message}"); }
                             staleMarkedThisBatch++;
+                            if (materialChanged) StingMaterialUpdaterStaleHook.OnMaterialChanged(doc, id);
                         }
                     }
                     catch (Exception ex)

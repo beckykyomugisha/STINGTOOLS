@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingStatusCodes</Name>
+    <Definition>Phase status codes that describe an element's lifecycle state — existing, new, demolished, temporary, future, relocated, retained. Maps to Revit phase data and to IFC IfcOwnerHistory.State plus phase-filter constructs. Used by STING's PhaseAutoDetect and by drawing-type phase routing.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4001-9000-000000000008</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/status</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING PhaseAutoDetect taxonomy; IFC4 IfcOwnerHistory.State; UK BS 1192 phase conventions</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="EXISTING" sentinel="false">
+      <Definition>Existing — present before this project; remains.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NEW" sentinel="false">
+      <Definition>New — installed by this project. Default for newly placed elements.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DEMOLISHED" sentinel="false">
+      <Definition>Demolished — removed by this project. Element retained in the model for demolition phase but excluded from new / handover phases.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="TEMPORARY" sentinel="false">
+      <Definition>Temporary — installed for the construction phase only; removed before handover (hoarding, temp lighting, site cabin, sequencing prop).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FUTURE" sentinel="false">
+      <Definition>Future — provisioned in this project for a later phase. Capped pipework, marked-out plant area, future-fit cable container.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RELOCATED" sentinel="false">
+      <Definition>Relocated — existing element moved to a new position during this project. Carry through demolition + new phases together.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RETAINED" sentinel="false">
+      <Definition>Retained — existing element explicitly preserved (heritage / structural retention) and protected during works.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned. PhaseAutoDetect should populate this; XX at Stage 4+ indicates a missed automation.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>97612e07522bef77b047508a7cd9c9c33c988a0cd939782de3f693e5feef8399</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

@@ -4,14 +4,19 @@
 //  date stamp in this MVP — react-native-signature-canvas integration
 //  is a follow-on commit.
 // ══════════════════════════════════════════════════════════════════════════
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, TextInput,
+  ActivityIndicator, Alert, TextInput, Modal,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { apiFetch } from "@/api/client";
 import { useAuthStore } from "@/stores/auth";
+// Phase 184k caveat #4 — signature pad via react-native-signature-canvas
+// (built on react-native-webview which is already a dep). The signature is
+// captured as a base64 PNG and uploaded as an attachment via the
+// payment-cert sign endpoint.
+import SignatureScreen, { SignatureViewRef } from "react-native-signature-canvas";
 
 interface SovLine {
   section: string;
@@ -58,6 +63,10 @@ export default function PaymentCertDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [signerName, setSignerName] = useState("");
   const [disputeNote, setDisputeNote] = useState("");
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"agree" | "dispute" | null>(null);
+  const [signaturePngBase64, setSignaturePngBase64] = useState<string | null>(null);
+  const sigRef = useRef<SignatureViewRef>(null);
 
   const load = useCallback(async () => {
     if (!projectId || !id) return;
@@ -77,25 +86,51 @@ export default function PaymentCertDetail() {
   const sign = async (kind: "agree" | "dispute") => {
     if (!c) return;
     if (!signerName.trim()) {
-      Alert.alert("Signature required", "Type your full name to sign.");
+      Alert.alert("Signature required", "Type your full name first.");
       return;
     }
+    // Open the signature pad; actual submit happens in submitSignature.
+    setPendingAction(kind);
+    setShowSignaturePad(true);
+  };
+
+  // Called by SignatureScreen when the user taps "Confirm" inside the pad.
+  const onSignatureCaptured = (base64Png: string) => {
+    setSignaturePngBase64(base64Png);
+    setShowSignaturePad(false);
+    submitSignature(base64Png);
+  };
+
+  const onSignatureCancelled = () => {
+    setShowSignaturePad(false);
+    setPendingAction(null);
+  };
+
+  const submitSignature = async (signaturePng: string) => {
+    if (!c || !pendingAction) return;
     setSubmitting(true);
     try {
+      // signaturePng is a data URI: "data:image/png;base64,iVBOR..."
+      // Strip the prefix; server attaches it as a DocumentRecord image.
+      const base64Payload = signaturePng.includes(",")
+        ? signaturePng.split(",")[1]
+        : signaturePng;
       await apiFetch(`/api/projects/${projectId}/boq/payment-certs/${c.id}/sign`, {
         method: "PUT",
         body: JSON.stringify({
-          action: kind,
+          action: pendingAction,
           signerName: signerName.trim(),
-          rationale: kind === "dispute" ? disputeNote.trim() : "",
+          rationale: pendingAction === "dispute" ? disputeNote.trim() : "",
+          signaturePngBase64: base64Payload,
         }),
       });
-      Alert.alert("Done", `Certificate ${c.certNumber} ${kind === "agree" ? "agreed" : "disputed"}.`);
+      Alert.alert("Done", `Certificate ${c.certNumber} ${pendingAction === "agree" ? "agreed" : "disputed"}.`);
       router.back();
     } catch (e: any) {
       Alert.alert("Sign failed", e?.message ?? "Could not submit signature");
     } finally {
       setSubmitting(false);
+      setPendingAction(null);
     }
   };
 
@@ -197,9 +232,57 @@ export default function PaymentCertDetail() {
           )}
         </View>
       )}
+
+      {/*
+        Signature pad modal — opens on Agree / Dispute. SignatureScreen
+        renders an HTML canvas inside a WebView and returns the captured
+        signature as a base64 PNG data-URI when the user taps OK.
+        Cancellation closes the modal without submitting.
+      */}
+      <Modal
+        visible={showSignaturePad}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={onSignatureCancelled}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              Sign {pendingAction === "agree" ? "(Agree)" : "(Dispute)"}
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              {signerName} — Cert #{c.certNumber}
+            </Text>
+          </View>
+          <SignatureScreen
+            ref={sigRef}
+            onOK={onSignatureCaptured}
+            onEmpty={() => Alert.alert("Empty signature",
+              "Please sign with your finger or stylus before confirming.")}
+            descriptionText="Sign with your finger or stylus, then tap Confirm."
+            confirmText="Confirm"
+            clearText="Clear"
+            imageType="image/png"
+            webStyle={signatureWebStyle}
+          />
+          <TouchableOpacity style={styles.cancelBtn} onPress={onSignatureCancelled}>
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
+
+// Inline CSS injected into the SignatureScreen WebView. Keeps the look
+// consistent with the rest of the cert UI.
+const signatureWebStyle = `
+  .m-signature-pad { box-shadow: none; border: none; }
+  .m-signature-pad--body { border: 1px dashed #c7c7c7; border-radius: 8px; }
+  .m-signature-pad--footer .description { color: #5a5a5a; font-size: 13px; }
+  .m-signature-pad--footer .button.clear { background-color: #b3261e; color: white; }
+  .m-signature-pad--footer .button.save { background-color: #0a7d2e; color: white; }
+`;
 
 function Row({ label, value, currency, bold, large }:
   { label: string; value: number; currency: string; bold?: boolean; large?: boolean }) {
@@ -255,4 +338,14 @@ const styles = StyleSheet.create({
   btnAgree:   { backgroundColor: "#0a7d2e" },
   btnDispute: { backgroundColor: "#b3261e" },
   btnText: { color: "white", fontWeight: "600", fontSize: 15 },
+
+  // Signature pad modal
+  modalContainer: { flex: 1, backgroundColor: "white" },
+  modalHeader: { padding: 14, borderBottomWidth: 1, borderBottomColor: "#e0e0e0" },
+  modalTitle: { fontSize: 18, fontWeight: "700" },
+  modalSubtitle: { fontSize: 13, color: "#5a5a5a", marginTop: 2 },
+  cancelBtn: {
+    padding: 14, alignItems: "center", borderTopWidth: 1, borderTopColor: "#e0e0e0",
+  },
+  cancelBtnText: { color: "#5a5a5a", fontSize: 15 },
 });

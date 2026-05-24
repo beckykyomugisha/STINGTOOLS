@@ -120,7 +120,60 @@ namespace StingTools.BOQ
             // ── STEP 8: Assign BOQ line refs across the whole document ───
             AssignBoqLineRefs(boq);
 
+            // ── STEP 9 (N+9): Clear ASS_CST_STALE_BOOL on elements that
+            //                  have just been re-costed. The flag was set by
+            //                  StingStaleMarker on material change; now that
+            //                  this row has its fresh rate + carbon, the
+            //                  flag stops being true. Count the refresh so
+            //                  the BOQ dashboard can surface it.
+            boq.StaleRowsRefreshed = ClearStaleFlagsForCostedRows(doc, boq);
+
             return boq;
+        }
+
+        /// <summary>
+        /// N+9 — On every BOQ build, any element whose row has now been
+        /// re-costed clears its ASS_CST_STALE_BOOL = "1" flag (set by
+        /// StingStaleMarker on a previous material change). Returns the
+        /// number of elements whose flag was cleared so the BOQ
+        /// dashboard can colour-banner the refresh.
+        ///
+        /// Caller owns the transaction. Falls back gracefully when the
+        /// parameter isn't bound on the project.
+        /// </summary>
+        private static int ClearStaleFlagsForCostedRows(Document doc, BOQDocument boq)
+        {
+            if (doc == null || boq == null) return 0;
+            int cleared = 0;
+            try
+            {
+                using (var t = new Transaction(doc, "STING BOQ Clear Stale Flags"))
+                {
+                    t.Start();
+                    foreach (var item in boq.AllItems)
+                    {
+                        if (item.RevitElementId < 0) continue;
+                        try
+                        {
+                            var el = doc.GetElement(new ElementId(item.RevitElementId));
+                            if (el == null) continue;
+                            var p = el.LookupParameter("ASS_CST_STALE_BOOL");
+                            if (p == null || p.IsReadOnly || p.StorageType != StorageType.String) continue;
+                            string cur = p.AsString();
+                            if (string.Equals(cur, "1", StringComparison.Ordinal))
+                            {
+                                p.Set("0");
+                                cleared++;
+                            }
+                        }
+                        catch (Exception ex) { StingLog.WarnRateLimited("ClearStale", $"ClearStale {item.RevitElementId}: {ex.Message}"); }
+                    }
+                    t.Commit();
+                }
+                if (cleared > 0) StingLog.Info($"BOQ build: refreshed {cleared} stale element row(s).");
+            }
+            catch (Exception ex) { StingLog.Warn($"ClearStaleFlagsForCostedRows: {ex.Message}"); }
+            return cleared;
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -373,7 +426,25 @@ namespace StingTools.BOQ
             string stored = ParameterHelpers.GetString(el, "ASS_NRM2_PARA_TXT");
             if (!string.IsNullOrEmpty(stored) && !_tokenRx.IsMatch(stored)) return stored;
 
-            // (ii) Use BOQTemplateLibrary to pick + resolve the best template for this element
+            // (ii) BOQ-12 — Material-aware template selection. The template
+            // library is queried with the element + category as before; the
+            // material name + class are then folded into the resolved
+            // paragraph so a "Generic" family doesn't end up with a
+            // category-only description.
+            string matName = null, matClass = null;
+            try
+            {
+                matName = GetPrimaryMaterialName(el);
+                if (!string.IsNullOrEmpty(matName) && doc != null)
+                {
+                    var mat = new FilteredElementCollector(doc).OfClass(typeof(Material))
+                        .Cast<Material>()
+                        .FirstOrDefault(m => string.Equals(m.Name, matName, StringComparison.OrdinalIgnoreCase));
+                    matClass = mat?.MaterialClass;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveNrm2Paragraph material: {ex.Message}"); }
+
             try
             {
                 var all = BOQTemplateLibrary.LoadAll(doc, StingToolsApp.DataPath);
@@ -381,13 +452,32 @@ namespace StingTools.BOQ
                 if (tpl != null)
                 {
                     string resolved = BOQTemplateLibraryExtensions.ResolveForElement(tpl, el, doc);
-                    if (!string.IsNullOrEmpty(resolved)) return resolved;
+                    if (!string.IsNullOrEmpty(resolved))
+                    {
+                        // Prepend material qualifier when we have one and the
+                        // template doesn't already mention it.
+                        if (!string.IsNullOrEmpty(matClass) &&
+                            !resolved.IndexOf(matClass, StringComparison.OrdinalIgnoreCase).Equals(-1) is false)
+                        {
+                            // resolved already mentions the class — leave as-is
+                        }
+                        else if (!string.IsNullOrEmpty(matClass) &&
+                                 resolved.IndexOf(matClass, StringComparison.OrdinalIgnoreCase) < 0)
+                        {
+                            resolved = $"{matClass}: {resolved}";
+                        }
+                        return resolved;
+                    }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ResolveNrm2Paragraph template: {ex.Message}"); }
 
-            // (iii) Safe fallback — a QS can override this later in the Excel roundtrip.
-            return $"Supply and fix {catName?.ToLower()}.";
+            // (iii) Safe fallback — material-qualified when known, category-
+            // only otherwise. QS can override later in the Excel roundtrip.
+            string qualifier = !string.IsNullOrEmpty(matClass) ? matClass.ToLower() + " "
+                              : !string.IsNullOrEmpty(matName) ? matName.ToLower() + " "
+                              : "";
+            return $"Supply and fix {qualifier}{catName?.ToLower()}.";
         }
 
         // ── Carbon + lifecycle ─────────────────────────────────────────────
@@ -396,21 +486,116 @@ namespace StingTools.BOQ
         {
             try
             {
-                // Preferred source: MAT_CARBON_FACTOR on the element's primary material (kgCO2e/kg).
-                double carbonFactor = 0;
+                // R-1 — Carbon factor source-aware unit treatment.
+                // STING_EMB_CARBON_NR + MaterialLookupCsv ship kgCO₂e PER m³ (volumetric);
+                // the legacy CARBON_FACTORS.csv dictionary ships kgCO₂e PER kg.
+                // Multiplying a volumetric factor by element MASS is the 1000× wrong-answer
+                // bug the LCA audit flagged. Route through CarbonFactorResolver so the
+                // calling convention is explicit.
                 string material = GetPrimaryMaterialName(el);
-                if (!string.IsNullOrEmpty(material))
-                    carbonFactor = CarbonTrackingEngine.GetCarbonFactor(material);
+                if (string.IsNullOrEmpty(material)) return 0;
 
-                if (carbonFactor <= 0) return 0;
+                var resolved = CarbonFactorResolver.Resolve(el.Document, material);
+                if (resolved.Factor <= 0) return 0;
 
-                // Convert quantity to kg using a density estimate. For per-each items we can't
-                // derive a meaningful weight without a family-level property, so carbon stays zero
-                // unless the element exposes a Weight parameter.
-                double kg = EstimateMassKg(el, quantity, unit);
-                return Math.Round(kg * carbonFactor, 2);
+                if (resolved.PerUnit == CarbonFactorUnit.KgCo2ePerKg)
+                {
+                    // Legacy mass-based factor — multiply by mass.
+                    double kg = EstimateMassKg(el, quantity, unit);
+                    return Math.Round(kg * resolved.Factor, 2);
+                }
+                // Default + STING / lookup tiers are kgCO₂e per m³ — multiply by volume.
+                // R-4 — Surface elements use area × thickness; linear use length × cross-section.
+                double volM3 = EstimateVolumeM3(el, quantity, unit, material);
+                return Math.Round(volM3 * resolved.Factor, 2);
             }
             catch (Exception ex) { StingLog.Warn($"ComputeElementCarbon: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>
+        /// R-4 — Volume estimator that works for volumetric, surface, AND
+        /// linear elements. Returns 0 only when no volume / area / length
+        /// is exposed (i.e. point-instance families with no geometry).
+        /// </summary>
+        private static double EstimateVolumeM3(Element el, double quantity, string unit, string material)
+        {
+            if (string.IsNullOrEmpty(unit)) unit = "each";
+            try
+            {
+                // Volumetric — direct.
+                if (unit == "m³" || unit == "m3") return quantity;
+
+                // Surface — area × default layer thickness (read from material lookup
+                // when not exposed on the element).
+                if (unit == "m²" || unit == "m2")
+                {
+                    double thicknessMm = ReadLayerThicknessMm(el);
+                    if (thicknessMm <= 0)
+                    {
+                        // Sensible defaults so we don't return zero for paint / membrane.
+                        string lc = (material ?? "").ToLowerInvariant();
+                        thicknessMm = lc.Contains("paint") || lc.Contains("coating") ? 0.15
+                                    : lc.Contains("membrane") || lc.Contains("dpm") ? 1.5
+                                    : lc.Contains("plaster") || lc.Contains("gypsum") ? 12.5
+                                    : lc.Contains("insulation") ? 50.0
+                                    : 10.0;
+                    }
+                    return quantity * (thicknessMm / 1000.0);
+                }
+
+                // Linear — length × cross-section read from element when present.
+                if (unit == "m")
+                {
+                    double areaMm2 = ReadCrossSectionMm2(el);
+                    if (areaMm2 <= 0) areaMm2 = 1000.0; // default ~32 mm circular equiv — caller can override via param
+                    return quantity * (areaMm2 / 1_000_000.0);
+                }
+
+                // kg → mass-only paths; carbon for these comes via the
+                // legacy mass-based factor in the other branch.
+                return 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"EstimateVolumeM3 ({unit}): {ex.Message}"); return 0; }
+        }
+
+        private static double ReadLayerThicknessMm(Element el)
+        {
+            try
+            {
+                var p = el.LookupParameter("Thickness") ?? el.LookupParameter("Width");
+                if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                {
+                    // Internal feet → millimetres.
+                    return UnitUtils.ConvertFromInternalUnits(p.AsDouble(), UnitTypeId.Millimeters);
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("VolEst.Layer", $"ReadLayerThicknessMm: {ex.Message}"); }
+            return 0;
+        }
+
+        private static double ReadCrossSectionMm2(Element el)
+        {
+            try
+            {
+                // Pipes / conduits expose Outside Diameter; cable trays expose Width × Height.
+                var od = el.LookupParameter("Outside Diameter");
+                if (od != null && od.HasValue && od.StorageType == StorageType.Double)
+                {
+                    double dMm = UnitUtils.ConvertFromInternalUnits(od.AsDouble(), UnitTypeId.Millimeters);
+                    return Math.PI * (dMm / 2.0) * (dMm / 2.0);
+                }
+                var w = el.LookupParameter("Width");
+                var h = el.LookupParameter("Height");
+                if (w != null && w.HasValue && h != null && h.HasValue &&
+                    w.StorageType == StorageType.Double && h.StorageType == StorageType.Double)
+                {
+                    double wMm = UnitUtils.ConvertFromInternalUnits(w.AsDouble(), UnitTypeId.Millimeters);
+                    double hMm = UnitUtils.ConvertFromInternalUnits(h.AsDouble(), UnitTypeId.Millimeters);
+                    return wMm * hMm;
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("VolEst.Xs", $"ReadCrossSectionMm2: {ex.Message}"); }
+            return 0;
         }
 
         /// <summary>
@@ -461,7 +646,19 @@ namespace StingTools.BOQ
 
         private static double EstimateDensityKgPerM3(string material)
         {
-            string lower = (material ?? "").ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(material)) return 1000;
+
+            // N+7 — Single-source resolution. MaterialLookupCsv corporate
+            // library wins; the legacy hard-coded keyword switch is now
+            // last-resort fallback only.
+            try
+            {
+                double libVal = StingTools.UI.MaterialLookupCsv.GetDensity(material);
+                if (libVal > 0) return libVal;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("EstimateDensity.Lookup", $"EstimateDensity lookup: {ex.Message}"); }
+
+            string lower = material.ToLowerInvariant();
             if (lower.Contains("concrete")) return 2400;
             if (lower.Contains("steel")) return 7850;
             if (lower.Contains("timber") || lower.Contains("wood")) return 550;

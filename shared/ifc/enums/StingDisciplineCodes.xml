@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingDisciplineCodes</Name>
+    <Definition>Discipline codes for the first segment (DISC) of the STING 8-segment ISO 19650 tag. Based on the CIBSE / Uniclass 2015 discipline taxonomy extended with healthcare-domain disciplines (Healthcare, Medical Gas, Radiation Protection) introduced in the STING Healthcare Pack.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4001-9000-000000000001</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/discipline</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>CIBSE Building Services Discipline Taxonomy; Uniclass 2015 (table Co); ISO 19650-2; STING Healthcare Pack (Phases H-1..H-30)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="A" sentinel="false">
+      <Definition>Architectural — building fabric, finishes, fenestration, internal walls, doors, windows. Uniclass Co disciplines: Architectural design.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="E" sentinel="false">
+      <Definition>Electrical — power distribution, lighting, low voltage. Excludes communications / fire alarm / security (see LV).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FP" sentinel="false">
+      <Definition>Fire Protection — sprinklers, suppression, alarm panels, AOV, smoke control, fire-fighting water supply.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="G" sentinel="false">
+      <Definition>Civil / Geotechnical — site, drainage, external works, ground engineering. Maps to Uniclass G classification.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="H" sentinel="false">
+      <Definition>Healthcare — clinical equipment, clinical-room design, healthcare planning. Introduced in STING Healthcare Pack. Used for elements that don't fall cleanly into M/E/P but are clinical in nature (bedheads, anti-ligature fittings, observation lines, clinical sinks).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="LV" sentinel="false">
+      <Definition>Low Voltage / Communications — data, voice, AV, nurse call, CCTV, access control, building management telemetry. Includes ELV / Cat 5/6/7/8 + fibre.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="M" sentinel="false">
+      <Definition>Mechanical — HVAC, ventilation, heating, cooling, mechanical plant. Uniclass Ss systems: Ss_55 HVAC.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MG" sentinel="false">
+      <Definition>Medical Gas — HTM 02-01 piped medical gas + vacuum systems: O2, N2O, air, vacuum, AGSS, entonox. Introduced in STING Healthcare Pack. Distinct from M (mechanical air) because of separate regulatory regime + verification protocols (NFPA 99 / HTM 02-01).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="P" sentinel="false">
+      <Definition>Plumbing / Public Health — domestic water, soil and waste, gas, rainwater. Uniclass Ss systems: Ss_50 hot/cold water; Ss_55 sanitary.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RP" sentinel="false">
+      <Definition>Radiation Protection — NCRP 147 / IPEM 75 shielding, MRI Faraday cages, controlled / supervised zone boundaries, lead-equivalent walls and viewing windows. Introduced in STING Healthcare Pack. Requires QE_Radiation signoff (see StingSignoffRoles).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="S" sentinel="false">
+      <Definition>Structural — load-bearing walls, columns, beams, slabs, foundations, bracing, rebar.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned — sentinel value for tags whose discipline cannot be derived (typically Stage 1-2 work; IDS fails this value at Stage 4+).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="*" sentinel="true">
+      <Definition>Wildcard — used ONLY in DrawingRoutingRule predicates (disciplineMatches) and workflow conditions. Never written onto a tagged element. IDS skips this value during element-level validation.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>d7ff129a18e2778d8b8e4de61910dcda8d6f1b89db7bda965865ed0d355dc79c</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

@@ -1,3 +1,21 @@
+# ── Viewer-build stage ──
+# Phase 186C — produce the minified `dist/` viewer bundles (tree-shaken
+# three.min.js + coordination-viewer.js + viewer-extras.js + signalr-shim
+# .js + the four addon stubs + CSS) so the runtime image serves
+# minified artefacts instead of the un-minified in-tree sources.
+# Skip-able by passing `--build-arg PLANSCAPE_SERVE_DIST=false` for
+# local debugging if a release needs to ship the raw sources.
+FROM node:20-alpine AS viewer
+WORKDIR /viewer
+COPY Planscape/assets/viewer/package.json Planscape/assets/viewer/package-lock.json* ./
+# Prefer `npm ci` for reproducibility when the lockfile is committed,
+# fall back to `npm install` otherwise so the build still works on
+# branches that updated package.json without re-running the lock.
+RUN if [ -f package-lock.json ]; then npm ci --no-audit --no-fund ; \
+    else npm install --no-audit --no-fund ; fi
+COPY Planscape/assets/viewer/ ./
+RUN npm run build && ls -la dist/
+
 # ── Build stage ──
 # Build context is the STINGTOOLS repo root (set in docker-compose.yml).
 # That's required because Planscape.Shared.csproj links a source file from
@@ -21,7 +39,18 @@ RUN dotnet restore Planscape.Server/src/Planscape.API/Planscape.API.csproj
 # of the build context — only StingTools/BIMManager/BcfEngine.cs is
 # whitelisted because Planscape.Shared.csproj links it.
 COPY . .
-RUN dotnet publish Planscape.Server/src/Planscape.API/Planscape.API.csproj -c Release -o /app --no-restore
+
+# Phase 186C — overlay the minified viewer bundles from the viewer stage
+# onto wwwroot/. Passing PlanscapeServeDist=true to dotnet publish gates
+# the SyncCoordinationViewer MSBuild target so the in-tree sources can't
+# re-overwrite what we just copied. The default is to ship dist/; set
+# `--build-arg PLANSCAPE_SERVE_DIST=false` to fall back to the raw
+# sources (e.g. for in-image debugging).
+ARG PLANSCAPE_SERVE_DIST=true
+COPY --from=viewer /viewer/dist/ Planscape.Server/src/Planscape.API/wwwroot/
+RUN dotnet publish Planscape.Server/src/Planscape.API/Planscape.API.csproj \
+        -c Release -o /app --no-restore \
+        -p:PlanscapeServeDist=$PLANSCAPE_SERVE_DIST
 
 # ── Runtime stage ──
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime

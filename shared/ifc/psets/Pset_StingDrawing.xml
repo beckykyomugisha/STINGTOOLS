@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>Pset_StingDrawing</Name>
+    <Definition>Drawing-engine stamp for sheets, views, and document references. Attached by DrawingTypeStamper (Phase 113) so each STING-managed view / sheet / annotation carries the DrawingType id + crop strategy + style-pack reference + token profile that produced it. Drives drift detection (Phase 183 DrawingDriftDetector), SyncStyles re-apply, and BrowserOrganizer grouping.</Definition>
+    <IfdGuid>uuid:a1d15c11-0002-4001-9000-000000000004</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING Drawing Template Manager (Phase 113); Drawing Type registry; STING TokenProfile (Phase 135); Phase 183 LiveProfileSync; Phase 184c crop stamp via Extensible Storage</StandardsBasis>
+  </Governance>
+
+  <TemplateType>PSET_OCCURRENCEDRIVEN</TemplateType>
+
+  <Applicability>
+    <ApplicableEntity>IfcAnnotation</ApplicableEntity>
+    <ApplicableEntity>IfcDocumentInformation</ApplicableEntity>
+    <ApplicableEntity>IfcDocumentReference</ApplicableEntity>
+  </Applicability>
+
+  <Properties>
+
+    <Property name="DrawingTypeId" cardinality="required">
+      <Definition>Drawing Type id from the active STING_DRAWING_TYPES.json registry — e.g. "arch-plan-A1-1to100", "mep-coord-A1-1to50", "pres-3d-axon-A1". Anchors the view/sheet to its profile so SyncStyles + drift detection can find it. Cross-bound to PARAM_REGISTRY.STING_DRAWING_TYPE_ID_TXT on the Revit side.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcAnnotation IfcDocumentInformation IfcDocumentReference</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="StyleLocked" cardinality="optional">
+      <Definition>When true, SyncStyles + DriftDetector skip this view/sheet. Used for one-off stylings the user wants protected from registry-driven updates. Cross-bound to STING_STYLE_LOCKED_BOOL on Revit.</Definition>
+      <DataType>IfcBoolean</DataType>
+      <AppliesTo>IfcAnnotation</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="CropKind" cardinality="optional">
+      <Definition>Crop strategy applied at view-creation time. References StingCropKinds. Captured at the time DrawingCropApplier ran so drift detection can flag profile crop-margin changes. Cross-bound to STING_CROP_KIND_TXT (Phase 184c).</Definition>
+      <DataType>IfcLabel</DataType>
+      <Enumeration>StingCropKinds</Enumeration>
+      <AppliesTo>IfcAnnotation</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="CropMarginMm" cardinality="optional">
+      <Definition>Crop margin in millimetres at the time the crop was applied. Drift detection compares this to the profile's current value (1mm tolerance). Cross-bound to STING_CROP_MARGIN_MM_TXT (Phase 184c).</Definition>
+      <DataType>IfcReal</DataType>
+      <AppliesTo>IfcAnnotation</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="PackId" cardinality="optional">
+      <Definition>View Style Pack id from STING_VIEW_STYLE_PACKS.json (e.g. "corp-standard-plan", "corp-coordination", "corp-healthcare-clinical"). For managed-template packs (Phase 137), this is the pack that minted the template. Cross-bound to STING_PACK_ID_TXT.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcAnnotation</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="PackChecksum" cardinality="optional">
+      <Definition>SHA-256 of the View Style Pack at apply time. Lets ManagedTemplateSyncer detect that the pack has drifted on disk vs the template's last-sync state. Cross-bound to STING_PACK_CHECKSUM_TXT.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcAnnotation</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="TokenProfileId" cardinality="optional">
+      <Definition>Phase 135 TokenProfile id — bundles tag-depth + style preset + segment mask + colour scheme into a named profile. References STING_DRAWING_TYPES.json TokenProfile binding. Cross-bound to STING_VIEW_TAG_STYLE.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcAnnotation</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="TagDepth" cardinality="optional">
+      <Definition>Paragraph depth tier (1..10). Controls how much of the TAG7 narrative is shown on this view. Higher = more sections visible.</Definition>
+      <DataType>IfcInteger</DataType>
+      <AppliesTo>IfcAnnotation</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="SegmentMask" cardinality="optional">
+      <Definition>Bitmask string indicating which of the 8 tag segments are displayed on tags in this view. "11111111" = all 8 visible. "10110000" = only DISC, ZONE, LVL visible. Cross-bound to TAG_SEG_MASK_TXT.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcAnnotation</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="ColourScheme" cardinality="optional">
+      <Definition>Active colour scheme on this view. References StingColorSchemes. Drives view-template overrides + tag-text colour switching.</Definition>
+      <DataType>IfcLabel</DataType>
+      <Enumeration>StingColorSchemes</Enumeration>
+      <AppliesTo>IfcAnnotation</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="SheetNumber" cardinality="optional">
+      <Definition>Substituted sheet number from the DrawingType.sheetNumberPattern (e.g. "M-101", "A-201"). Carried on the IfcDocumentInformation; mirrors the title-block sheet number.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcDocumentInformation</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="SheetName" cardinality="optional">
+      <Definition>Substituted sheet name from the DrawingType.sheetNamePattern. Mirrors the title-block sheet name.</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcDocumentInformation</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+  </Properties>
+
+  <CrossEntityValidationRules>
+
+    <Rule id="DRAWING_TYPE_RESOLVABLE">
+      <Description>DrawingTypeId must resolve to a known profile in the active STING_DRAWING_TYPES.json (corporate baseline + project overlay merge). Unknown ids indicate the project was opened after a drawing-type registry edit removed the profile.</Description>
+      <ActiveFrom>Stage_3</ActiveFrom>
+      <FailMessage>DrawingTypeId references a profile not in the active registry.</FailMessage>
+      <RemediationInstruction>Re-apply the profile via DrawingTypeApplier, or update the registry to retain the profile.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="CROP_KIND_MATCHES_PROFILE" enforced-by="host">
+      <Description>Phase 184c stamp — when CropKind / CropMarginMm are set, they should match the profile's current values within 1mm tolerance. BEHAVIOURAL ASSERTION: drift is reported by DrawingDriftDetector.AppendCropDrift; SpatialChecker has no equivalent. STING-side enforcement only.</Description>
+      <ActiveFrom>Stage_3</ActiveFrom>
+      <FailMessage>CropKind / CropMarginMm drift from active profile.</FailMessage>
+      <RemediationInstruction>Run DrawingTypes_SyncStyles to re-apply the profile crop strategy.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="PACK_CHECKSUM_MATCHES" enforced-by="host">
+      <Description>PackChecksum (when set) should equal the SHA-256 of the View Style Pack's current state. Mismatch means the pack has drifted on disk since this view was last synced. BEHAVIOURAL ASSERTION: tested by ManagedTemplateSyncer.</Description>
+      <ActiveFrom>Stage_4</ActiveFrom>
+      <FailMessage>Pack checksum drift detected.</FailMessage>
+      <RemediationInstruction>Run DrawingTypes_SyncStyles to re-apply pack settings + update the checksum.</RemediationInstruction>
+    </Rule>
+
+  </CrossEntityValidationRules>
+
+  <CorporateLock>
+    <Sha256>d996df06a5c9fcfccb86fe0d4b95a67d394018801370471f98265d0e9082a0d1</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
+</StingPropertySetTemplate>
