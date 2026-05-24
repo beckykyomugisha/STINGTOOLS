@@ -9,6 +9,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Tags;
+using StingTools.Core.TemplateManager;
 
 namespace StingTools.Temp
 {
@@ -1362,7 +1363,7 @@ namespace StingTools.Temp
                 foreach (string a in assignments.Take(40)) report.AppendLine(a);
             }
 
-            TaskDialog.Show("Auto-Assign Templates", report.ToString());
+            LegacyResultAdapter.Publish("AutoAssignTemplates", "Auto-Assign Templates", doc, report.ToString(), created: assigned, skipped: skipped, failed: 0);
             StingLog.Info($"Auto-Assign: {assigned} assigned, {alreadyAssigned} existing, " +
                 $"{noMatch} no match, {skipped} skipped");
 
@@ -1541,7 +1542,7 @@ namespace StingTools.Temp
                     report.AppendLine($"  [{v.ViewType}] {v.Name}");
             }
 
-            TaskDialog.Show("Template Audit", report.ToString());
+            LegacyResultAdapter.Publish("TemplateAudit", "Template Audit", doc, report.ToString(), created: 0, skipped: 0, failed: 0, severity: ResultSeverity.Info);
             StingLog.Info($"Template Audit: {stingTemplates.Count} templates, " +
                 $"{viewsWithTemplate.Count}/{allViews.Count} covered, " +
                 $"score={avgScore:F1}/{avgMax:F1}, orphans={totalOrphans}");
@@ -1620,7 +1621,7 @@ namespace StingTools.Temp
             report.AppendLine($"Compared {baseName} against {sortedNames.Count - 1} templates");
             report.AppendLine($"Total differences found: {totalDiffs}");
 
-            TaskDialog.Show("Template Diff", report.ToString());
+            LegacyResultAdapter.Publish("TemplateDiff", "Template Diff", doc, report.ToString(), severity: ResultSeverity.Info);
             return Result.Succeeded;
         }
     }
@@ -1695,7 +1696,7 @@ namespace StingTools.Temp
                 foreach (string e in excellent) report.AppendLine(e);
             }
 
-            TaskDialog.Show("Compliance Scores", report.ToString());
+            LegacyResultAdapter.Publish("TemplateComplianceScore", "Compliance Scores", doc, report.ToString(), severity: ResultSeverity.Info);
             StingLog.Info($"Compliance Scores: avg={avgScore:F1}/10, " +
                 $"excellent={excellent.Count}, good={good.Count}, " +
                 $"fair={fair.Count}, poor={poor.Count}");
@@ -1826,7 +1827,7 @@ namespace StingTools.Temp
             report.AppendLine($"Auto-fixed: {totalFixed}");
             report.AppendLine($"Remaining: {totalIssues - totalFixed}");
 
-            TaskDialog.Show("Auto-Fix Templates", report.ToString());
+            LegacyResultAdapter.Publish("AutoFixTemplate", "Auto-Fix Templates", doc, report.ToString(), created: totalFixed, skipped: 0, failed: 0);
             StingLog.Info($"Auto-Fix: {totalIssues} issues, {totalFixed} fixed{(cancelled ? " (cancelled)" : "")}");
 
             return Result.Succeeded;
@@ -1913,7 +1914,7 @@ namespace StingTools.Temp
 
             string syncMsg = cancelled ? $"CANCELLED — changes rolled back" :
                 $"Synced VG on {synced} STING templates.";
-            TaskDialog.Show("Sync Template Overrides", $"{syncMsg}\nFailed: {failed}");
+            LegacyResultAdapter.Publish("SyncTemplateOverrides", "Sync Template Overrides", doc, $"{syncMsg}\nFailed: {failed}", created: synced, skipped: 0, failed: failed);
             StingLog.Info($"Sync VG: {synced} synced, {failed} failed{(cancelled ? " (cancelled)" : "")}");
 
             return Result.Succeeded;
@@ -1984,9 +1985,7 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
-            TaskDialog.Show("Create Fill Patterns",
-                $"Created {created} fill patterns.\nSkipped {skipped}.\n" +
-                $"Total defined: {TemplateManager.FillPatternDefs.Length}");
+            LegacyResultAdapter.Publish("CreateFillPatterns", "Create Fill Patterns", doc, $"Created {created} fill patterns.\nSkipped {skipped}.\nTotal defined: {TemplateManager.FillPatternDefs.Length}", created: created, skipped: skipped, failed: 0);
             return Result.Succeeded;
         }
     }
@@ -2049,9 +2048,9 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
-            TaskDialog.Show("Create Line Styles",
-                $"Created {created} line styles ({source}).\nSkipped {skipped}.\n" +
-                $"Total defined: {styleDefs.Count}");
+            LegacyResultAdapter.Publish("CreateLineStyles", "Create Line Styles", doc,
+                $"Created {created} line styles ({source}).\nSkipped {skipped}.\nTotal defined: {styleDefs.Count}",
+                created: created, skipped: skipped, failed: 0);
             return Result.Succeeded;
         }
     }
@@ -2099,11 +2098,9 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
-            TaskDialog.Show("Configure Object Styles",
-                $"Configured {configured} categories ({source}).\nSkipped {skipped}.\n" +
-                $"Total: {styleDefs.Count}\n\n" +
-                "Discipline colours: M=Blue, E=Yellow, P=Green, A=Black,\n" +
-                "S=Red, FP=Orange, LV=Purple, Conduit=Olive");
+            LegacyResultAdapter.Publish("CreateObjectStyles", "Configure Object Styles", doc,
+                $"Configured {configured} categories ({source}).\nSkipped {skipped}.\nTotal: {styleDefs.Count}\n\nDiscipline colours: M=Blue, E=Yellow, P=Green, A=Black, S=Red, FP=Orange, LV=Purple, Conduit=Olive",
+                created: configured, skipped: skipped, failed: 0);
             return Result.Succeeded;
         }
     }
@@ -2169,9 +2166,9 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
-            TaskDialog.Show("Create Text Styles",
-                $"Created {created} text types.\nSkipped {skipped}.\n" +
-                $"Total: {TemplateManager.TextStyleDefs.Length}");
+            LegacyResultAdapter.Publish("CreateTextStyles", "Create Text Styles", doc,
+                $"Created {created} text types.\nSkipped {skipped}.\nTotal: {TemplateManager.TextStyleDefs.Length}",
+                created: created, skipped: skipped, failed: 0);
             return Result.Succeeded;
         }
     }
@@ -2233,9 +2230,7 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
-            TaskDialog.Show("Create Dimension Styles",
-                $"Created {created} dimension types.\nSkipped {skipped}.\n" +
-                $"Total: {TemplateManager.DimensionStyleDefs.Length}");
+            LegacyResultAdapter.Publish("CreateDimensionStyles", "Create Dimension Styles", doc, $"Created {created} dimension types.\nSkipped {skipped}.\nTotal: {TemplateManager.DimensionStyleDefs.Length}", created: created, skipped: skipped, failed: 0);
             return Result.Succeeded;
         }
     }
@@ -2602,17 +2597,17 @@ namespace StingTools.Temp
                 ? $"active view '{targets[0].Name}'"
                 : $"{viewsConfigured} STING view templates";
 
-            TaskDialog.Show("VG Overrides",
-                $"Applied VG overrides to {scope}.\n" +
-                $"Filters configured: {filtersApplied}\n" +
+            LegacyResultAdapter.Publish("CreateVGOverrides", "VG Overrides", doc,
+                $"Applied VG overrides to {scope}.\nFilters configured: {filtersApplied}\n" +
                 (schemesApplied > 0 ? $"VG scheme overrides: {schemesApplied}\n" : "") +
-                $"\nIntelligence layers applied:\n" +
+                "\nIntelligence layers applied:\n" +
                 "  1. Discipline colour coding (10 colours)\n" +
                 "  2. QA highlighting (red=missing, orange=incomplete)\n" +
                 "  3. Status styling (halftone existing, crosshatch demolished)\n" +
                 "  4. Phase-aware overrides (temporary=dashed yellow)\n" +
                 "  5. Workset visibility (hide linked models)\n" +
-                (schemesApplied > 0 ? "  6. CSV-driven VG schemes (per-category overrides)\n" : ""));
+                (schemesApplied > 0 ? "  6. CSV-driven VG schemes (per-category overrides)\n" : ""),
+                created: filtersApplied + schemesApplied, skipped: 0, failed: 0);
 
             return Result.Succeeded;
         }
@@ -2874,7 +2869,8 @@ namespace StingTools.Temp
             try { ctx.App.Application.SharedParametersFilename = originalSpfPath ?? ""; }
             catch (Exception ex) { StingLog.Warn($"Restore SharedParametersFilename: {ex.Message}"); }
 
-            TaskDialog.Show("Batch Add Family Params", report.ToString());
+            LegacyResultAdapter.Publish("BatchFamilyParams", "Batch Add Family Params", doc, report.ToString(),
+                created: totalBound, skipped: totalSkipped, failed: totalFailed);
             StingLog.Info($"Batch Family Params: {totalBound} bound, " +
                 $"{totalSkipped} skipped, {totalFailed} failed");
 
@@ -3327,7 +3323,9 @@ namespace StingTools.Temp
             foreach (string r in perFamilyResults)
                 report.AppendLine($"  {r}");
 
-            TaskDialog.Show("Family Parameter Processor", report.ToString());
+            LegacyResultAdapter.Publish("FamilyParameterProcessor", "Family Parameter Processor",
+                uiApp.ActiveUIDocument?.Document, report.ToString(),
+                created: paramsAdded, skipped: 0, failed: 0);
             StingLog.Info($"Family Processor: {processed} families, {paramsAdded} params, {formulasApplied} formulas");
 
             return processed > 0 ? Result.Succeeded : Result.Failed;
@@ -3998,12 +3996,9 @@ namespace StingTools.Temp
                 tplNote = "\nTPL_SCHEDULE_METADATA.csv not found in Data folder.";
             }
 
-            TaskDialog.Show("Template Schedules",
-                $"Created {created} template metadata schedules.\n" +
-                $"Skipped {skipped} (already exist).\n" +
-                $"Fields remapped: {remapped}.\n" +
-                $"Formatted (headers/sort/group/filter/totals): {formatted}.\n" +
-                $"TPL entries in CSV: {tplEntries.Count}{tplNote}");
+            LegacyResultAdapter.Publish("CreateTemplateSchedules", "Template Schedules", doc,
+                $"Created {created} template metadata schedules.\nSkipped {skipped} (already exist).\nFields remapped: {remapped}.\nFormatted (headers/sort/group/filter/totals): {formatted}.\nTPL entries in CSV: {tplEntries.Count}{tplNote}",
+                created: created, skipped: skipped, failed: 0);
             return Result.Succeeded;
         }
 
@@ -4206,10 +4201,19 @@ namespace StingTools.Temp
                     report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
                 }
 
-            TaskDialog td = new TaskDialog("STING Template Setup Wizard");
-            td.MainInstruction = $"Template Setup: {passed}/{stepNum} steps complete";
-            td.MainContent = report.ToString();
-            td.Show();
+            // Publish to v2 dashboard if listening, otherwise show TaskDialog
+            var setupResult = new OperationResult
+            {
+                Operation = "TemplateSetupWizard",
+                OperationLabel = "Template Setup Wizard",
+                Severity = passed == stepNum ? ResultSeverity.Success : ResultSeverity.Warning,
+                Headline = $"Template Setup: {passed}/{stepNum} steps complete",
+                DurationMs = totalSw.Elapsed.TotalMilliseconds
+            };
+            setupResult.Counters["created"] = passed.ToString();
+            setupResult.Counters["failed"] = (stepNum - passed).ToString();
+            LegacyResultAdapter.PublishResult("TemplateSetupWizard", "STING Template Setup Wizard",
+                doc, setupResult, report.ToString());
 
             StingLog.Info($"Template Wizard complete: {passed}/{stepNum} passed, " +
                 $"elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
@@ -4465,14 +4469,9 @@ namespace StingTools.Temp
 
                     tx.Commit();
 
-                    TaskDialog.Show("Clone Template",
-                        $"Template cloned successfully.\n\n" +
-                        $"Source: {sourceTemplate.Name}\n" +
-                        $"Clone: {cloneName}\n" +
-                        $"Discipline: {targetLabel} ({targetDisc})\n" +
-                        $"Detail level: {dl}\n\n" +
-                        "VG overrides re-configured for target discipline.\n" +
-                        "Use 'Auto-Assign Templates' to apply to views.");
+                    LegacyResultAdapter.Publish("CloneTemplate", "Clone Template", doc,
+                        $"Template cloned successfully.\n\nSource: {sourceTemplate.Name}\nClone: {cloneName}\nDiscipline: {targetLabel} ({targetDisc})\nDetail level: {dl}\n\nVG overrides re-configured for target discipline.\nUse 'Auto-Assign Templates' to apply to views.",
+                        created: 1, skipped: 0, failed: 0);
 
                     StingLog.Info($"Clone Template: '{sourceTemplate.Name}' → " +
                         $"'{cloneName}' (disc={targetDisc})");
@@ -4730,7 +4729,7 @@ namespace StingTools.Temp
                 report.AppendLine($"  Element overrides cleared: {elementsCleared}");
             }
 
-            TaskDialog.Show("Batch VG Reset", report.ToString());
+            LegacyResultAdapter.Publish("BatchVGReset", "Batch VG Reset", doc, report.ToString(), created: 0, skipped: 0, failed: 0, severity: ResultSeverity.Warning);
             StingLog.Info($"Batch VG Reset: {templatesSynced} templates synced, " +
                 $"{viewsReset} views reset, {elementsCleared} overrides cleared");
 
