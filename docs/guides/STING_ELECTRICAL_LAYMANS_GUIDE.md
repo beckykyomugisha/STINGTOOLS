@@ -30,6 +30,9 @@ and **how** STING does the heavy lifting for you.
 10. [Validation — letting STING grade your homework](#10-validation)
 11. [Drawings — turning the model into a contract](#11-drawings)
 12. [Fabrication, BOQs and handover](#12-fabrication-boqs-and-handover)
+12a. [STING Electrical Panel — sub-system map](#12a-sting-electrical-panel--sub-system-map)
+12b. [Cross-discipline integration (HVAC + plumbing)](#12b-cross-discipline-integration--what-the-other-panels-give-you)
+12c. [Recent commands worth knowing about](#12c-recent-commands-worth-knowing-about-post-v10-additions)
 13. [Common first-timer mistakes (and how STING catches them)](#13-common-first-timer-mistakes)
 14. [Glossary of acronyms](#14-glossary)
 
@@ -135,8 +138,12 @@ That's why §6 (tagging) is the single most important section of this guide.
 
 ## 4. Anatomy of the STING dock panel
 
-When you load STING into Revit, a panel appears on the right of the screen
-with **9 tabs**. For electrical work you'll mostly use four of them:
+When you load STING into Revit, **three dockable panels** become available:
+the main 9-tab panel, the dedicated **STING Electrical Panel**, and (when
+you need cross-discipline coordination) the **STING HVAC Panel** and
+**STING Plumbing Panel**.
+
+For electrical work you'll mostly use four tabs on the main panel:
 
 | Tab       | What's in it                                                          | When to use                                  |
 |-----------|------------------------------------------------------------------------|----------------------------------------------|
@@ -148,6 +155,20 @@ with **9 tabs**. For electrical work you'll mostly use four of them:
 There's also a **BIM** tab (issues, documents, transmittals — mostly for the
 BIM coordinator, not you) and a **TEMP** tab (project setup — you'll use it
 once at the start).
+
+The **STING Electrical Panel** is a second dockable panel dedicated to
+MEP electrical engineering. Toggle it from the ribbon's "Electrical"
+button. It hosts the dedicated calculation kernels (cable sizer, voltage
+drop, fault current, arc flash, busbar, photometrics, SLD, lightning
+protection) that would otherwise crowd the main panel. See §15 for the
+sub-system map.
+
+If your project also has HVAC and plumbing teams, open the **STING HVAC
+Panel** and **STING Plumbing Panel** for visibility on cross-discipline
+loads, ventilation OA quantities, and DHW recirculation pumps that show
+up on your electrical schedules. Detailed user guides for those panels
+live alongside this one at `docs/guides/STING_HVAC_LAYMANS_GUIDE.md` and
+`docs/guides/STING_PLUMBING_LAYMANS_GUIDE.md`.
 
 > **Tip.** Every button on the panel is also accessible by typing its command
 > tag. The handler `UI/StingCommandHandler.cs` maps ~590 button tags to the
@@ -1453,6 +1474,148 @@ lives in the building owner's CAFM software for the next 30 years.
 
 ---
 
+## 12a. STING Electrical Panel — sub-system map
+
+The dedicated **STING Electrical Panel** hosts the discipline's calculation
+kernels. Every sub-system below is reached from a button on that panel and
+backed by 54 command files (~10,676 lines) under `Commands/Electrical/`
+plus the support engines under `Core/Electrical/`, `Core/Calc/` and
+`Core/SLD/`.
+
+| Sub-system            | Headline commands                                          | Standards           |
+|-----------------------|------------------------------------------------------------|---------------------|
+| **Cable Sizing**      | `CableSizerCommand` — picks the smallest size that passes the 4-test rule | BS 7671 / IEC 60364 |
+| **Voltage Drop**      | `VoltageDropCommand`, `VoltageDropScheduleCommand`, `VoltageDropFlagCommand` | BS 7671 App 4       |
+| **Feeder Sizing**     | `FeederSizerCommand` — feeder cables with diversity        | BS 7671 / NEC       |
+| **Fault Current**     | `FaultCurrentCommand`, `FaultCurrentScheduleCommand`, `AicRatingCommand` | IEC 60909        |
+| **Arc Flash**         | `ArcFlashCommand`, `ArcFlashLabelSheetCommand`, `ArcFlashScheduleCommand` | IEEE 1584 / NFPA 70E |
+| **Busbar**            | `BusbarModelingCommand` + `BusbarSizerEngine`              | IEC 60947           |
+| **Conduit Routing**   | `ConduitAutoRouteCommand`, `ConduitConsolidatorCommand` (A* + ACO + tray merge) | BS 7671 §522 |
+| **Cable Schedule**    | `CableScheduleBuilderCommand` (cable + conduit + box BOMs) | ISO 19650            |
+| **Circuit Wizard**    | `CircuitWizardCommand` + WPF dialog                        | —                   |
+| **Selective Coord**   | `SelectiveCoordCommand` + TCC database                     | NEC 240.87           |
+| **Tray Fill**         | `ShowTrayFillCommand` + `TrayFillCalculator`               | NEC 392 / BS EN 61537 |
+| **Conduit Fill**      | `ConduitFillValidateCommand` + `ConduitFillSolver`         | BS 7671 / NEC App C |
+| **Phase Balance**     | `PhaseBalanceCommand`                                      | BS 7671 §312        |
+| **Demand Factor**     | `DemandFactorReportCommand`                                | NEC 220 / BS 7671 App 16 |
+| **Lighting**          | `LightingPowerDensityCommand`, `EmergencyLightingAuditCommand`, `LpdColorCommand`, `EmergencyLightingMarkCommand` | ASHRAE 90.1 / Part L / BS 5266 |
+| **Photometrics**      | `AssignPhotometricCommand`, `PhotometricLibraryCommand`, `PhotometricDesignReviewCommand`, `DialuxRoundTripCommand`, `PhotometricPreflightCommand` | IES LM-83 / EN 13032 |
+| **SLD**               | `SLD_Generate`, `SLD_ExportDXF`, `SLD_Riser` + IUpdater live sync | IEC 60617 |
+| **Standards**         | `ElectricalStandardsValidatorCommand`                      | BS 7671 / NEC       |
+| **External Exports**  | `DIALuxExportCommand`, `EtapExportCommand`, `EasyPowerExportCommand` | IFC 4 / CSV |
+| **Lightning (LPS)**   | 18 LPS commands — `LpsComplianceCheckCommand` to `LpsRollingSphere3DCommand` | BS EN 62305 |
+| **IFC Results**       | `IfcResultsImportCommand`, `MultiEngineAggregatorCommand`  | IFC 4 + Pset_StingLighting |
+
+> **The sub-systems aren't optional add-ons.** Each one is a kernel that
+> reads from the same STING parameter pack. Output from the **Cable Sizer**
+> (cable size, derated `Iz`) becomes input for the **Voltage Drop**
+> calculator; output from the **Fault Current** engine becomes input for
+> **Arc Flash**; output from **Demand Factor** becomes the design current
+> the cable sizer needs. Run them in this order and the chain coheres.
+
+---
+
+## 12b. Cross-discipline integration — what the other panels give you
+
+A real electrical design lives downstream of architecture, plumbing
+and (especially) HVAC. The STING HVAC Panel and STING Plumbing Panel
+each push data into the model that your electrical schedules then
+consume. Here's the contract.
+
+### 12b.1 HVAC equipment as electrical loads
+
+When the HVAC team runs **Hvac_BlockLoad** + **Hvac_SelectIdus**
+(detailed in `STING_HVAC_LAYMANS_GUIDE.md`), every AHU / FCU / VRF
+indoor unit / chiller / pump / cooling tower / heat pump in the
+project gets a sized capacity stamped as a Revit parameter. That
+capacity drives the electrical load on your panels:
+
+| HVAC parameter           | What it carries                            | Where electrical reads it           |
+|--------------------------|--------------------------------------------|-------------------------------------|
+| `HVC_PEAK_SENS_W`        | Per-space peak sensible cooling load (W)   | Drives FCU connected-load lookup    |
+| `HVC_FLOW_LS`            | Design supply airflow (L/s)                | Drives fan kW estimation            |
+| `HVC_SELECTED_IDU_ID_TXT`| Catalogue id of the chosen IDU             | Resolves vendor kW from the catalogue|
+| `HVC_LOAD_SOURCE_TXT`    | Provenance: BlockLoad / gbXML / TRACE      | Confidence flag on cable sizing     |
+
+In the EQPT and SYS tabs of the HVAC panel, every row shows the device's
+nameplate `Apparent Power kVA`, `Voltage`, `Number of Poles` and
+`Distribution System`. Wire those to your panels exactly as you would a
+manually-placed luminaire — `Modify → Power → pick the panel`.
+
+When the HVAC team re-runs **Hvac_PropagateLoads** after a layout change
+(very common — they nudge a duct, the load shifts, the AHU resizes), your
+panel schedule on the affected panel **changes**. Two ways to find out:
+
+1. **Real-time auto-tagger.** Subscribe `StingAutoTagger` (CREATE → Auto
+   Tagger Toggle); when an HVAC fixture changes geometry, you get a
+   notification + the panel schedule updates on the next tag run.
+2. **Run the connectivity validator weekly.** If a chiller's connected
+   load grew from 75 kW to 95 kW and your feeder is still sized for
+   75 kW, the Spec validator flags it red.
+
+### 12b.2 Plumbing equipment as electrical loads
+
+Pumps (booster sets, recirculation pumps, sump pumps), TMVs with
+electronic actuators, immersion heaters in calorifiers, UV-water
+treatment, and rainwater-harvesting pump sets all draw electrical power.
+The STING Plumbing Panel writes:
+
+| Plumbing parameter       | What it carries                            |
+|--------------------------|--------------------------------------------|
+| `PLM_RECIRC_FLOW_LS`     | DHW recirc flow (sizes the recirc pump)    |
+| `PLM_EXP_VESSEL_L`       | Expansion vessel size (informs cabinet sizing) |
+| `PLM_TMV_SET_TEMP_C`     | TMV setpoint (controls input)              |
+
+For every pump / heater family the plumbing team places, **CREATE →
+Tag & Combine** stamps a `PROD = PMP` or `PROD = WHT` tag. Filter your
+electrical schedule by `ASS_PROD_COD_TXT in (PMP, WHT, ACT)` to capture
+plumbing-side loads in one query.
+
+### 12b.3 Coordinated cable + duct + pipe routing
+
+`ConduitAutoRouteCommand` (electrical) and `Plumb_AutoRoute` (plumbing)
+share the same A* router with a voxel-grid clash check. When both run on
+the same level they negotiate via the `Core/Routing/` voxel grid — your
+conduit doesn't drop into a 200 mm soil stack. If the plumbing team
+hasn't routed yet, run the electrical auto-route, then re-run after
+their routing pass; the second pass adds your conduits at a different
+elevation band.
+
+### 12b.4 Penetration coordination
+
+Cable trays, conduits and busbar trunking all penetrate fire-rated
+walls. The penetration engine (Phase 184 + 185) detects each crossing
+and inserts a sleeve / firestop family with the correct UL system.
+
+Workflow: place containment → **TAGS → Routing → Penetrations Detect
+And Place** → the engine walks every electrical containment element,
+finds the wall/floor it crosses, picks a sleeve from
+`STING_FAMILY_SWAP_REGISTRY.json`, stamps `PEN_CERTIFICATION_TXT` with
+the UL system reference. The penetration coverage validator flags any
+crossing that the auto-pass missed.
+
+---
+
+## 12c. Recent commands worth knowing about (post-v1.0 additions)
+
+These shipped in the last few phases. They aren't strictly *new*
+concepts but they remove pain points first-timers hit constantly.
+
+| Command                            | Tab       | What it does                                              |
+|------------------------------------|-----------|-----------------------------------------------------------|
+| `FamilyConformanceCheck`            | CREATE    | Audits a folder of `.rfa` against the STING contract (4 placement params + tag style matrix + Ring 1/2 position types). Use BEFORE bulk-stamping a vendor library. 100-point score → PASS ≥ 85, WARN 70-84, BLOCK < 70. |
+| `Hvac_PublishToServer`              | HVAC RPRT | Bundles HVAC panel grids and pushes them to Planscape Server `/hvac/*` endpoints — your electrical dashboard then reads the canonical loads from the same source. |
+| `Hvac_ImportGbxmlLoads`             | HVAC LOADS| Reads a TRACE / HAP / IES gbXML and overwrites STING block-load stamps with the simulator's numbers. Your cable sizer then sizes against the authoritative loads. |
+| `Hvac_GenerateCxChecklist`          | HVAC FAB  | Emits a CSV under `_BIM_COORD/cx/` with per-class commissioning tasks. Electrical equipment (panels / switchgear / luminaires / fire alarm) gets matching rows you witness alongside HVAC. |
+| `Symbols_BuildSeeds`                | TAGS      | Builds all 16 seed families from JSON. Includes `STING_SEED_ElectricalEquipment` (MDB / DB / SDB / MCB / MCCB / ACB / RCD), `STING_SEED_LightingFixture` (5 variants), `STING_SEED_ElectricalFixture` (4 variants), `STING_SEED_FireAlarmDevice` (5 variants), `STING_SEED_JunctionBox` (4 variants), `STING_SEED_CommunicationDevice` (5 variants). |
+| `Symbols_SwapToManufacturer`        | TAGS      | Swaps a seed family for a manufacturer family via `STING_FAMILY_SWAP_REGISTRY.json`; stamps `PEN_CERTIFICATION_TXT` with the UL system. |
+| `Symbols_DriftDetect`               | TAGS      | Detects symbols whose geometry / parameters have drifted from the JSON spec — catches the "manufacturer family lost a connector" failure mode. |
+| `DesignOptions_Audit`                | DOCS      | Read-only audit of cost/carbon implications per design option. Use when the architect provides "option A vs option B" — STING reports the electrical containment delta. |
+| `DesignOptions_ClashView`            | DOCS      | Creates a view isolating the primary option only so your clash detection doesn't false-flag option-B containment against option-A architecture. |
+| `Hvac_EnvelopeStaleToggle`           | HVAC LOADS| Subscribes the envelope-stale IUpdater. After it's on, any wall / window geometry change marks affected Spaces with `HVC_LOAD_STALE_BOOL = 1`. Run `Hvac_BlockLoad` to re-stamp and the flag clears. Coordinate with your panel schedule re-run. |
+
+---
+
 ## 13. Common first-timer mistakes
 
 | Mistake                                                                | What goes wrong                                              | How STING catches it                                    |
@@ -1562,6 +1725,21 @@ electrical BIM than 80 % of grads. Welcome to the discipline.
 
 ---
 
-*Document version 1.0 — May 2026. Maintained alongside `CLAUDE.md`. For
-deeper dives see `docs/MEP_SYMBOL_GUIDE.md`, `docs/AEC_FILTER_LIBRARY.md`
-and the CIBSE / BS 7671 references.*
+*Document version 1.1 — May 2026. Maintained alongside `CLAUDE.md`.
+Companions in this series: `STING_HVAC_LAYMANS_GUIDE.md`,
+`STING_PLUMBING_LAYMANS_GUIDE.md`, `HEALTHCARE_WORKFLOW_LAYMANS_GUIDE.md`,
+`SLD_SYMBOLS_LAYMANS_GUIDE.md`. For deeper dives see
+`docs/MEP_SYMBOL_GUIDE.md`, `docs/AEC_FILTER_LIBRARY.md` and the
+CIBSE / BS 7671 references.
+
+**Changelog:**
+- v1.1 — Added §4 cross-panel discovery (Electrical / HVAC / Plumbing
+  panels), §12a sub-system map for the dedicated Electrical Panel,
+  §12b cross-discipline integration (HVAC + plumbing equipment as
+  electrical loads, coordinated routing, penetration coordination),
+  §12c recent commands (FamilyConformanceCheck, Symbols_BuildSeeds /
+  SwapToManufacturer / DriftDetect, DesignOptions_Audit / ClashView,
+  Hvac_PublishToServer, Hvac_ImportGbxmlLoads, Hvac_GenerateCxChecklist,
+  Hvac_EnvelopeStaleToggle).
+- v1.0 — Initial release covering placement, tagging, routing, panel
+  schedules, validation, drawings, fabrication.*
