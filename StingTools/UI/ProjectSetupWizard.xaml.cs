@@ -1614,6 +1614,8 @@ namespace StingTools.UI
     /// <summary>Row bound to the Scope-Box DataGrid.</summary>
     public class ScopeBoxRow : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void Raise(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
         private string _newName; public string NewName { get => _newName; set { _newName = value; Raise(nameof(NewName)); } }
         public double RotationDegrees { get; set; }
         public string RotationText => RotationDegrees == 0 ? "0°" : $"{RotationDegrees:F1}°";
