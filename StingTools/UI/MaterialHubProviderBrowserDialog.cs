@@ -13,6 +13,7 @@ using Autodesk.Revit.DB;
 using StingTools.Core;
 using StingTools.Core.Materials;
 using StingTools.Core.Materials.Providers;
+using Grid = System.Windows.Controls.Grid;     // disambiguate vs Autodesk.Revit.DB.Grid
 
 namespace StingTools.UI
 {
