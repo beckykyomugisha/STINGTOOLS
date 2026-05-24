@@ -593,6 +593,18 @@ namespace StingTools.UI
             s.SelectedOp = op;
             var stack = new StackPanel();
 
+            // Suggestion strip (top of detail pane)
+            try
+            {
+                if (s.Doc != null)
+                {
+                    var sugg = StingTools.Core.TemplateManager.SuggestionEngine.Compute(s.Doc, s.Snapshot, 3);
+                    if (sugg != null && sugg.Count > 0)
+                        stack.Children.Add(BuildSuggestionStrip(sugg, s));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SuggestionStrip: {ex.Message}"); }
+
             // Title bar
             var titleBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
             titleBar.Children.Add(new TextBlock
@@ -741,6 +753,84 @@ namespace StingTools.UI
 
             s.DetailHost.Child = stack;
             s.StatusText.Text = $"Selected: {op.Title}";
+        }
+
+        private static UIElement BuildSuggestionStrip(System.Collections.Generic.List<Suggestion> sugg, DashboardState s)
+        {
+            var border = new Border
+            {
+                Background = BrCard,
+                BorderBrush = BrBorder,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(2),
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            var stk = new StackPanel();
+            stk.Children.Add(new TextBlock
+            {
+                Text = "★ Suggestions",
+                FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Foreground = BrFgDim, Margin = new Thickness(0, 0, 0, 4)
+            });
+            foreach (var sug in sugg)
+            {
+                var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                Color c = sug.Severity == "critical" ? Color.FromRgb(0xE5, 0x39, 0x35)
+                       : sug.Severity == "warning"  ? Color.FromRgb(0xFB, 0x8C, 0x00)
+                                                    : Color.FromRgb(0x43, 0xA0, 0x47);
+                var d = new SolidColorBrush(c); d.Freeze();
+                var dot = new Border
+                {
+                    Width = 8, Height = 8, CornerRadius = new CornerRadius(4),
+                    Background = d, VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 4, 0)
+                };
+                Grid.SetColumn(dot, 0);
+                row.Children.Add(dot);
+                var ts = new StackPanel();
+                ts.Children.Add(new TextBlock
+                {
+                    Text = sug.Title, FontSize = 12, FontWeight = FontWeights.SemiBold,
+                    TextWrapping = TextWrapping.Wrap
+                });
+                ts.Children.Add(new TextBlock
+                {
+                    Text = sug.Detail, FontSize = 11, Foreground = BrFgDim,
+                    TextWrapping = TextWrapping.Wrap
+                });
+                Grid.SetColumn(ts, 1);
+                row.Children.Add(ts);
+                if (!string.IsNullOrEmpty(sug.OpTag))
+                {
+                    var jumpBtn = new Button
+                    {
+                        Content = "→ Open",
+                        Padding = new Thickness(8, 2, 8, 2),
+                        FontSize = 11,
+                        Background = BrAccent,
+                        Foreground = Brushes.White,
+                        BorderBrush = BrAccent,
+                        Cursor = Cursors.Hand,
+                        Margin = new Thickness(8, 0, 0, 0),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    string tag = sug.OpTag;
+                    jumpBtn.Click += (_, __) =>
+                    {
+                        var jump = OperationRegistry.Get(tag);
+                        if (jump != null) SelectOp(s, jump);
+                    };
+                    Grid.SetColumn(jumpBtn, 2);
+                    row.Children.Add(jumpBtn);
+                }
+                stk.Children.Add(row);
+            }
+            border.Child = stk;
+            return border;
         }
 
         private static UIElement BuildBadgeRow(OpBadge b)
@@ -1279,6 +1369,11 @@ namespace StingTools.UI
                 {
                     // Capture for later — used when the dashboard is re-shown
                     s.SessionResults.Add(r);
+                    // Audit log + server publish (best-effort, never blocks)
+                    try { StingTools.Core.TemplateManager.AuditLog.Append(s.Doc, r); }
+                    catch (Exception ex) { StingLog.Warn($"AuditLog.Append: {ex.Message}"); }
+                    try { StingTools.Core.TemplateManager.ServerPublisher.Publish(s.Doc, r); }
+                    catch (Exception ex) { StingLog.Warn($"ServerPublisher.Publish: {ex.Message}"); }
                 });
             }
             catch (Exception ex) { StingLog.Warn($"OperationResultBus subscribe: {ex.Message}"); }

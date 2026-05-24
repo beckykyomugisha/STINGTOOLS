@@ -47,6 +47,129 @@ namespace StingTools.Core.TemplateManager
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"Register ApplyFilters preview: {ex.Message}"); }
             try { OperationRegistry.RegisterPreview("CreatePhases",         doc => PhasesPreview(doc as Document)); }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"Register Phases preview: {ex.Message}"); }
+
+            // CROSS-ENGINE
+            try { OperationRegistry.RegisterPreview("AecFiltersBrowse",      doc => CrossEngineFacade.AecFiltersPreview(doc as Document)); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Register AecFiltersBrowse: {ex.Message}"); }
+            try { OperationRegistry.RegisterPreview("DrawingTypesBrowse",    doc => CrossEngineFacade.DrawingTypesPreview(doc as Document)); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Register DrawingTypesBrowse: {ex.Message}"); }
+            try { OperationRegistry.RegisterPreview("ViewStylePacksBrowse",  doc => CrossEngineFacade.ViewStylePacksPreview(doc as Document)); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Register ViewStylePacksBrowse: {ex.Message}"); }
+
+            // GOVERNANCE
+            try { OperationRegistry.RegisterPreview("DriftScan",             doc => DriftScanPreview(doc as Document)); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Register DriftScan: {ex.Message}"); }
+            try { OperationRegistry.RegisterPreview("SnapshotCapture",       doc => SnapshotsPreview(doc as Document)); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Register SnapshotCapture: {ex.Message}"); }
+            try { OperationRegistry.RegisterPreview("LibraryConfigure",      doc => LibraryConfigurePreview(doc as Document)); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Register LibraryConfigure: {ex.Message}"); }
+        }
+
+        // ── Governance previews ────────────────────────────────────────
+        private static OperationPreview DriftScanPreview(Document doc)
+        {
+            var p = NewPreview("DriftScan", "Drift scan (read-only)");
+            if (doc == null) return p;
+            try
+            {
+                var drift = DriftDetector.Scan(doc);
+                foreach (var d in drift)
+                {
+                    p.Rows.Add(new PreviewRow
+                    {
+                        Key = d.TemplateId.ToString(),
+                        Name = d.TemplateName,
+                        Category = "Template",
+                        Discipline = GuessDisciplineFromName(d.TemplateName),
+                        Exists = true,
+                        Action = d.Kind,
+                        Source = "drift",
+                        Detail = d.Detail,
+                        RevitElementId = d.TemplateId
+                    });
+                }
+                p.Notes = drift.Count == 0 ? "No drift detected." : $"{drift.Count} drift entries.";
+            }
+            catch (Exception ex) { p.Notes = "Drift scan failed: " + ex.Message; }
+            FillAvailable(p);
+            return p;
+        }
+
+        private static OperationPreview SnapshotsPreview(Document doc)
+        {
+            var p = NewPreview("SnapshotCapture", "Snapshots");
+            if (doc == null) return p;
+            try
+            {
+                var snaps = SnapshotEngine.ListSnapshots(doc);
+                foreach (var path in snaps)
+                {
+                    var name = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(path) ?? path);
+                    p.Rows.Add(new PreviewRow
+                    {
+                        Key = path,
+                        Name = name,
+                        Category = "Snapshot",
+                        Discipline = "*",
+                        Exists = true,
+                        Action = "View",
+                        Source = "snapshot",
+                        Detail = path
+                    });
+                }
+                if (snaps.Count == 0) p.Notes = "No snapshots yet — capture one before a destructive op.";
+            }
+            catch (Exception ex) { p.Notes = "List snapshots: " + ex.Message; }
+            FillAvailable(p);
+            return p;
+        }
+
+        private static OperationPreview LibraryConfigurePreview(Document doc)
+        {
+            var p = NewPreview("LibraryConfigure", "Corporate library");
+            if (doc == null) return p;
+            try
+            {
+                string path = CorporateLibrary.ResolveLibraryPath(doc);
+                string ver = CorporateLibrary.ResolveVersionStamp(doc);
+                var cfg = CorporateLibrary.LoadGlobal();
+                p.Rows.Add(new PreviewRow
+                {
+                    Key = "library_path",
+                    Name = "Library path",
+                    Category = "Config",
+                    Discipline = "*",
+                    Exists = !string.IsNullOrEmpty(path),
+                    Action = "Inspect",
+                    Source = "config",
+                    Detail = path ?? "(none)"
+                });
+                p.Rows.Add(new PreviewRow
+                {
+                    Key = "version_stamp",
+                    Name = "Stamped version",
+                    Category = "Config",
+                    Discipline = "*",
+                    Exists = !string.IsNullOrEmpty(ver),
+                    Action = "Inspect",
+                    Source = "config",
+                    Detail = ver ?? "(none)"
+                });
+                p.Rows.Add(new PreviewRow
+                {
+                    Key = "channel",
+                    Name = "Channel",
+                    Category = "Config",
+                    Discipline = "*",
+                    Exists = true,
+                    Action = "Inspect",
+                    Source = "config",
+                    Detail = cfg.Channel
+                });
+            }
+            catch (Exception ex) { p.Notes = "Read library config: " + ex.Message; }
+            FillAvailable(p);
+            return p;
         }
 
         // ── STYLES ─────────────────────────────────────────────────────

@@ -36,6 +36,8 @@ namespace StingTools.Core.TemplateManager
         public const string GroupStyles = "STYLES";
         public const string GroupSchedules = "SCHEDULES & DATA";
         public const string GroupAutomation = "AUTOMATION";
+        public const string GroupCorporate = "CORPORATE LIBRARY";
+        public const string GroupCrossEngine = "CROSS-ENGINE";
 
         private static readonly List<OpDefinition> _ops = Build();
 
@@ -49,7 +51,8 @@ namespace StingTools.Core.TemplateManager
 
         public static IEnumerable<string> Groups => new[]
         {
-            GroupSetup, GroupTemplates, GroupStyles, GroupSchedules, GroupAutomation
+            GroupSetup, GroupTemplates, GroupStyles, GroupSchedules,
+            GroupAutomation, GroupCorporate, GroupCrossEngine
         };
 
         /// <summary>Register a preview provider for an op (called by the dashboard wiring).</summary>
@@ -270,6 +273,72 @@ namespace StingTools.Core.TemplateManager
                     Tag = "TemplateVGAudit", Group = GroupAutomation,
                     Title = "Template VG Audit",
                     Description = "Visual Graphics override analysis",
+                    IsReadOnly = true
+                },
+
+                // CORPORATE LIBRARY ─────────────────────────────────────
+                new OpDefinition {
+                    Tag = "LibraryPull", Group = GroupCorporate,
+                    Title = "Pull from corporate library",
+                    Description = "Copy *.json overlays from the configured corporate library into _BIM_COORD/.",
+                    IsReadOnly = false
+                },
+                new OpDefinition {
+                    Tag = "LibraryPush", Group = GroupCorporate,
+                    Title = "Push to corporate library",
+                    Description = "Push project _BIM_COORD/*.json back to the corporate library with timestamped backup.",
+                    IsDestructive = true
+                },
+                new OpDefinition {
+                    Tag = "LibraryConfigure", Group = GroupCorporate,
+                    Title = "Configure library",
+                    Description = "Set the corporate library path + channel.",
+                    IsReadOnly = true
+                },
+
+                // CROSS-ENGINE ──────────────────────────────────────────
+                new OpDefinition {
+                    Tag = "AecFiltersBrowse", Group = GroupCrossEngine,
+                    Title = "AEC Filter Library (289)",
+                    Description = "Browse + lazy-create from the Phase 166 corporate filter library.",
+                    IsReadOnly = true
+                },
+                new OpDefinition {
+                    Tag = "DrawingTypesBrowse", Group = GroupCrossEngine,
+                    Title = "Drawing Types catalogue (90)",
+                    Description = "Browse the Phase 113 drawing-type catalogue.",
+                    IsReadOnly = true
+                },
+                new OpDefinition {
+                    Tag = "ViewStylePacksBrowse", Group = GroupCrossEngine,
+                    Title = "View Style Packs (22)",
+                    Description = "Browse the Phase 137 view-style packs (managed + external).",
+                    IsReadOnly = true
+                },
+
+                // GOVERNANCE ────────────────────────────────────────────
+                new OpDefinition {
+                    Tag = "DriftScan", Group = GroupAutomation,
+                    Title = "Template drift scan",
+                    Description = "SHA-256 checksum diff against last stamped state. Surfaces user-edited STING templates.",
+                    IsReadOnly = true
+                },
+                new OpDefinition {
+                    Tag = "DriftStamp", Group = GroupAutomation,
+                    Title = "Stamp template checksums",
+                    Description = "Refresh STING_TEMPLATE_CHECKSUM_TXT on every STING template (drift baseline).",
+                    IsReadOnly = false
+                },
+                new OpDefinition {
+                    Tag = "SnapshotCapture", Group = GroupAutomation,
+                    Title = "Capture state snapshot",
+                    Description = "Write _BIM_COORD/snapshots/<ts>/state.json before a destructive op.",
+                    IsReadOnly = true
+                },
+                new OpDefinition {
+                    Tag = "AuditVerify", Group = GroupAutomation,
+                    Title = "Verify audit log chain",
+                    Description = "Recompute the SHA-256 chain on the template_audit_log file; reports tampering.",
                     IsReadOnly = true
                 },
             };
