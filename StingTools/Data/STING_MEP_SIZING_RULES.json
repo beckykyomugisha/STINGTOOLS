@@ -153,6 +153,33 @@
         "AB-QM-DN20":   1.5,
         "AB-QM-DN32":   4.0
       }
+    },
+    "picvCurves": {
+      "_notes": [
+        "Pressure-Independent Control Valve characteristic curves.",
+        "Each PICV holds flow constant across a published authority window",
+        "(ΔP_min .. ΔP_max) — outside that window, behaviour reverts to a",
+        "standard equal-percentage Kvs. Values per vendor data sheets.",
+        "",
+        "Lookup via valveBrand:picvCode. Used by hydronic balancing to",
+        "(a) check that the system pressure budget stays within the PICV's",
+        "authority window, (b) substitute the constant Q for the standard",
+        "Kvs ΔP relationship where applicable."
+      ],
+      "belimo": {
+        "PICV-DN20":  { "qMaxLs": 1.50, "dpMinKpa": 16, "dpMaxKpa": 400 },
+        "PICV-DN25":  { "qMaxLs": 3.00, "dpMinKpa": 16, "dpMaxKpa": 400 },
+        "PICV-DN32":  { "qMaxLs": 6.00, "dpMinKpa": 16, "dpMaxKpa": 400 },
+        "PICV-DN40":  { "qMaxLs": 10.0, "dpMinKpa": 16, "dpMaxKpa": 400 }
+      },
+      "danfoss": {
+        "AB-QM-DN20": { "qMaxLs": 1.30, "dpMinKpa": 16, "dpMaxKpa": 400 },
+        "AB-QM-DN32": { "qMaxLs": 4.20, "dpMinKpa": 16, "dpMaxKpa": 400 }
+      },
+      "ifc": {
+        "PICV-DN15":  { "qMaxLs": 0.50, "dpMinKpa": 20, "dpMaxKpa": 350 },
+        "PICV-DN25":  { "qMaxLs": 2.80, "dpMinKpa": 20, "dpMaxKpa": 350 }
+      }
     }
   },
 

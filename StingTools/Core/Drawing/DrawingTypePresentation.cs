@@ -146,6 +146,24 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// Phase 183 — parses a pack <c>ScaleHint</c> string ("1:50", "50",
+        /// or "1 : 100" with whitespace) into a positive integer ratio.
+        /// Returns false on empty / non-numeric input so the caller can
+        /// silently skip the fallback. Mirrors the editor's parser so the
+        /// runtime accepts every form the editor writes.
+        /// </summary>
+        private static bool TryParseScaleHint(string hint, out int scale)
+        {
+            scale = 0;
+            if (string.IsNullOrWhiteSpace(hint)) return false;
+            var s = hint.Trim();
+            int colon = s.IndexOf(':');
+            if (colon >= 0) s = s.Substring(colon + 1).Trim();
+            return int.TryParse(s, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out scale) && scale > 0;
+        }
+
+        /// <summary>
         /// D-1: pre-warm the per-document caches for a batch run.
         /// Builds the (template name → ElementId) and (packId → pack) maps in
         /// one pass so subsequent <see cref="Apply"/> calls all hit the cache
@@ -271,6 +289,20 @@ namespace StingTools.Core.Drawing
             return r;
         }
 
+        /// <summary>
+        /// INT-05: sheet-aware apply. Sheets have no scale / detail-level /
+        /// view-template / crop / view-style-pack — running the full view
+        /// pipeline on a sheet would no-op those steps but still spend time
+        /// looking up missing assets. Instead this routes the steps that
+        /// matter for sheets:
+        ///   1. style-lock check
+        ///   2. DrawingType id stamp
+        ///   3. PackageId stamp (if profile carries one)
+        ///   4. title-block parameter binding
+        /// Returns the same <see cref="ApplyResult"/> shape so SheetManager
+        /// / ShopDrawingComposer / ProductionRule consume one type.
+        /// </summary>
+
         public static ApplyResult Apply(Document doc, View view, DrawingType dt, bool runAnnotation = true)
             => Apply(doc, view, dt, runAnnotation ? null : new ApplyOptions {
                 AnnotationOptions = new AnnotationRunOptions {
@@ -374,34 +406,69 @@ namespace StingTools.Core.Drawing
             }
             DrawingTypeStamper.Stamp(view, dt.Id);
 
+            // Phase 183 — pack-fallback resolution. Resolve the bound pack
+            // up-front so Scale / DetailLevel / ViewTemplate steps below can
+            // fall back to pack defaults whenever the DrawingType leaves the
+            // slot empty. Phase 136 introduced the pack fields but the
+            // fallback chain was never wired into Apply — only managed mode
+            // (Phase 137) consumed the pack template. Profiles that opt out
+            // of templating ended up with no template at all.
+            //
+            // DrawingType always wins when both set the same field. Managed
+            // packs still mint their own template after this block, so the
+            // managed-mode override below takes precedence over the external
+            // fallback.
+            ViewStylePack fallbackPack = null;
+            if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+            {
+                fallbackPack = ResolvePackCached(doc, dt.ViewStylePackId);
+            }
+            int effectiveScale = dt.Scale;
+            string effectiveDetailLevel = dt.DetailLevel;
+            string effectiveTemplateName = dt.ViewTemplateName;
+            bool scaleFromPack = false, detailFromPack = false;
+            if (fallbackPack != null && !fallbackPack.IsManaged)
+            {
+                if (effectiveScale <= 0 && !string.IsNullOrWhiteSpace(fallbackPack.ScaleHint)
+                    && TryParseScaleHint(fallbackPack.ScaleHint, out var packScale))
+                { effectiveScale = packScale; scaleFromPack = true; }
+                if (string.IsNullOrWhiteSpace(effectiveDetailLevel) && !string.IsNullOrWhiteSpace(fallbackPack.DetailLevel))
+                { effectiveDetailLevel = fallbackPack.DetailLevel; detailFromPack = true; }
+                if (string.IsNullOrWhiteSpace(effectiveTemplateName) && !string.IsNullOrWhiteSpace(fallbackPack.ViewTemplate))
+                { effectiveTemplateName = fallbackPack.ViewTemplate; }
+            }
+
             // Scale -------------------------------------------------------
-            if (dt.Scale > 0)
+            if (effectiveScale > 0)
             {
                 try
                 {
                     // Only views that expose Scale (plans, sections,
                     // elevations, drafting, 3D) accept an int; schedules
                     // and legends throw.
-                    view.Scale = dt.Scale;
+                    view.Scale = effectiveScale;
                     r.ScaleApplied = true;
+                    if (scaleFromPack)
+                        StingTools.Core.StingLog.Info(
+                            $"DrawingType '{dt.Id}' inherited scale 1:{effectiveScale} from pack '{fallbackPack.Id}'.");
                 }
-                catch (Exception ex) { r.Warnings.Add($"Scale 1:{dt.Scale}: {ex.Message}"); }
+                catch (Exception ex) { r.Warnings.Add($"Scale 1:{effectiveScale}: {ex.Message}"); }
             }
             else
             {
                 // 3D / perspective profiles legitimately ship without a fixed
                 // scale; assigning view.Scale = 0 throws InvalidOperationException.
                 StingTools.Core.StingLog.Info(
-                    $"DrawingType '{dt.Id}' has scale <= 0; skipping view scale assignment.");
+                    $"DrawingType '{dt.Id}' has scale <= 0 and no pack fallback; skipping view scale assignment.");
             }
 
             // Detail level -----------------------------------------------
-            if (!string.IsNullOrWhiteSpace(dt.DetailLevel))
+            if (!string.IsNullOrWhiteSpace(effectiveDetailLevel))
             {
                 try
                 {
                     ViewDetailLevel parsed;
-                    switch (dt.DetailLevel.Trim().ToLowerInvariant())
+                    switch (effectiveDetailLevel.Trim().ToLowerInvariant())
                     {
                         case "coarse": parsed = ViewDetailLevel.Coarse; break;
                         case "fine":   parsed = ViewDetailLevel.Fine;   break;
@@ -409,8 +476,11 @@ namespace StingTools.Core.Drawing
                     }
                     view.DetailLevel = parsed;
                     r.DetailLevelApplied = true;
+                    if (detailFromPack)
+                        StingTools.Core.StingLog.Info(
+                            $"DrawingType '{dt.Id}' inherited DetailLevel '{effectiveDetailLevel}' from pack '{fallbackPack.Id}'.");
                 }
-                catch (Exception ex) { r.Warnings.Add($"DetailLevel {dt.DetailLevel}: {ex.Message}"); }
+                catch (Exception ex) { r.Warnings.Add($"DetailLevel {effectiveDetailLevel}: {ex.Message}"); }
             }
 
             // Template Priority (highest to lowest):
@@ -464,14 +534,16 @@ namespace StingTools.Core.Drawing
             // which mints (or updates) a "STING:{packId}:{ViewType}"
             // template and assigns it to the view; non-managed packs apply
             // their VG / filter / etc. payload directly to the view.
-            ViewStylePack resolvedPack = null;
+            ViewStylePack resolvedPack = fallbackPack;
             if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
             {
                 try
                 {
                     // C-2: cached lookup so batch producers resolve a given
-                    // pack only once per session.
-                    resolvedPack = ResolvePackCached(doc, dt.ViewStylePackId);
+                    // pack only once per session. Reuses the fallback resolution
+                    // performed up-front when it succeeded.
+                    if (resolvedPack == null)
+                        resolvedPack = ResolvePackCached(doc, dt.ViewStylePackId);
                     if (resolvedPack == null)
                     {
                         r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
@@ -516,6 +588,31 @@ namespace StingTools.Core.Drawing
                     }
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewStylePack: {ex.Message}"); }
+            }
+            else if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+            {
+                r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
+            }
+
+            // Token Profile (Phase 135) — Step 7.5 -----------------------
+            // Runs between the pack apply and the annotation pass so any
+            // auto-tags AnnotationRunner emits inherit the active style
+            // preset, paragraph depth, section visibility, and segment
+            // mask. No-op when neither the profile nor the pack supplies
+            // any tag-appearance value.
+            if (dt.TokenProfile != null
+                || resolvedPack?.TagColorScheme != null
+                || resolvedPack?.DefaultTagStyle != null
+                || (resolvedPack?.CategoryTagStyles != null && resolvedPack.CategoryTagStyles.Count > 0))
+            {
+                try
+                {
+                    var tpRes = TokenProfileApplier.Apply(doc, view, dt, resolvedPack);
+                    r.TokenProfileApplied = tpRes.ViewParamWrites + tpRes.ElementWrites
+                                          + tpRes.TypeWrites > 0 || tpRes.PresentationApplied;
+                    r.Warnings.AddRange(tpRes.Warnings);
+                }
+                catch (Exception ex) { r.Warnings.Add($"TokenProfileApplier: {ex.Message}"); }
             }
 
             // Token Profile (Phase 135) — Step 7.5 -----------------------

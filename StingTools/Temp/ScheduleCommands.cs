@@ -1266,6 +1266,7 @@ namespace StingTools.Temp
             {
                 progress?.Close(); // AUTO-R4: Close progress dialog
             }
+            progress?.Close(); // AUTO-R4: Close progress dialog
             sw.Stop();
             // Save SEQ sidecar + invalidate caches after full auto-populate
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }

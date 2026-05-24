@@ -1,6 +1,145 @@
+StructuralAnalysisEngine general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. That's the genuinely-deferred remainder of the integration audit.
 # CHANGELOG — STINGTOOLS
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
+
+#### Completed (Template Manager v2 — Phases 1-20)
+
+Full rebuild of the Template Manager Dashboard from a passive tab-of-cards
+list into a sidebar-nav + master/detail + inline-log workspace with
+preview grids, readiness lights, contextual suggestions, recipes,
+snapshots, drift detection, cross-engine integration, corporate library
+push/pull, and SHA-256 tamper-evident audit logging. Five commits on
+`claude/lucid-lovelace-1sunB`.
+
+**Foundation (Phase 1-4)** — `5e1db69e`
+
+`Core/TemplateManager/` gets five new files: `OperationResult.cs` (sections /
+metrics / rows / severity envelope), `OperationResultBus.cs` (in-process
+pub/sub with 50-entry rolling history + `HasSubscribers` fallback flag),
+`OperationPreview.cs` (PreviewRow + PreviewProvider POCOs for the
+checkbox grid), `ProjectReadiness.cs` (5-light snapshot of Params /
+Filters / Worksets / Templates / Styles + per-op badges, 5-second
+per-doc cache), `OperationRegistry.cs` (declarative catalogue of every
+op with group / description / dependencies / IsDestructive / IsReadOnly
+/ IsHighlighted / preview provider).
+
+`UI/TemplateManagerDashboardV2.cs` ships the new layout: header strip,
+240 px sidebar nav with search box (Ctrl+F) and per-op (done/total)
+badges + RAG dots, flexible centre detail pane with readiness lights
+strip and per-op rendering, 300 px collapsible log pane. GridSplitters,
+F5 refresh, Theme cycle button. `StingCommandHandler`'s
+`"TemplateDashboard"` case rewired to v2 (passes active doc); v1 file
+retained as `TemplateManagerDashboard.cs` for rollback.
+
+**Flexibility (Phase 5-6)** — `ffc73a37`
+
+`Data/STING_TEMPLATE_ASSIGNMENT_RULES.json` ships the corporate baseline:
+29 name rules + 6 level rules + 3 phase rules + 4 scope-box rules + 6
+view-type defaults + 6 compliance weight profiles (default / working /
+coordination / presentation / handover / healthcare).
+`Core/TemplateManager/TemplateRulesRegistry.cs` is the per-doc loader +
+`<project>/_BIM_COORD/template_assignment_rules.json` overlay (merge by
+rule id, mirror of `AecFilterRegistry`). `ResolveComplianceProfile(doc)`
+auto-selects healthcare profile when `PRJ_ORG_HEALTH_PACK_PROFILE_TXT`
+is set, otherwise reads `PRJ_TEMPLATE_PROFILE_TXT`, falls back to
+default.
+
+`Core/TemplateManager/PreviewProviders.cs` delivers 13 providers covering
+all 6 STYLES ops, 5 SETUP ops, and 3 TEMPLATES ops. Each runs a single
+FilteredElementCollector pass with no transactions. Clicking any wired
+op in the dashboard now shows a checkbox `DataGrid` with Name /
+Discipline / Category / Exists / Action / Source columns, by-discipline
+filter, Select All/None, Hide Existing toggle, and a live count.
+
+**Engine layer (Phase 7-19)** — `c5570646`
+
+Twelve foundation engines under `Core/TemplateManager/`:
+
+- `ExecutionScope.cs` — ActiveView / Selection / Project / Linked /
+  Sheets with `ResolveIds` + `ResolveDocuments` (yields host + every
+  loaded `RevitLinkInstance` doc when Linked is selected).
+- `RecipeEngine.cs` — TemplateRecipe + RecipeStep + 5 built-in baseline
+  recipes (lite setup, master setup, style refresh, audit only,
+  healthcare). `LoadAll` merges corporate JSON + built-ins + project
+  recipes from `<project>/_BIM_COORD/recipes/*.json`.
+- `SnapshotEngine.cs` — `TemplateStateSnapshot` with per-template VG +
+  per-filter snapshot, written before destructive ops.
+- `ComplianceEngine.cs` — replaces the old 50-view sample with
+  full-coverage scoring, per-profile weight selection, 30-second
+  per-view cache, project roll-up with per-view-type and per-discipline
+  breakdown.
+- `DriftDetector.cs` — SHA-256 checksum of view template state stamped
+  on `STING_TEMPLATE_CHECKSUM_TXT`; `Scan(doc)` emits drift entries.
+  `IsLocked` reads `STING_TEMPLATE_LOCKED_BOOL` for per-element
+  destructive-op protection.
+- `DependencyGraph.cs` — `IsRunnable` / `TopologicalOrder` /
+  `TransitiveDependencies` over `OperationRegistry.RequiresOps` edges.
+- `SuggestionEngine.cs` — `Compute(doc, snap, max=3)` returns top
+  contextual recommendations from readiness + drift + healthcare flag +
+  worksharing state.
+- `ProjectQueue.cs` — thread-safe multi-project batch queue.
+- `CorporateLibrary.cs` — `Pull`/`Push` JSON assets between
+  corporate-share path and project `_BIM_COORD`, with timestamped
+  backups on push. Per-project `PRJ_CORPORATE_LIBRARY_PATH_TXT`
+  override; global config at `%APPDATA%/STING/corporate_library.json`.
+- `CrossEngineFacade.cs` — surfaces `AecFilterRegistry` (289 filters),
+  `DrawingTypeRegistry` (90 types), `ViewStylePackRegistry` (22 packs)
+  as first-class `OperationPreview` data in the dashboard.
+
+**Governance + 10 v2 commands (Phase 20)** — `f9cea150`
+
+`Core/TemplateManager/AuditLog.cs` — `TemplateAuditEntry` with SHA-256
+hash chain per file (per-file `_lastHashByFile` cache prevents
+cross-project contamination). Persists to
+`_BIM_COORD/template_audit_log_{yyyy}_{MM}.jsonl`. `VerifyChain(path)`
+recomputes and reports tampering. Mirror of `Docs/Workflow/AuditLog.cs`
+pattern, scoped to template ops.
+
+`Core/TemplateManager/ServerPublisher.cs` — fire-and-forget POST to
+Planscape Server compliance endpoint via existing
+`PlanscapeServerClient.Instance`. Logged-out / server-down /
+unsupported-route all degrade gracefully.
+
+`Commands/TemplateManager/TemplateManagerCommandsV2.cs` — 10
+publish-or-fallback commands: `DriftScanCommand`, `DriftStampCommand`,
+`SnapshotCaptureCommand`, `AuditVerifyCommand`, `LibraryPullCommand`,
+`LibraryPushCommand`, `LibraryConfigureCommand`,
+`AecFiltersBrowseCommand`, `ViewStylePacksBrowseCommand`, plus the
+`V2CommandHelper` that calls `OperationResultBus.Publish` and falls back
+to `TaskDialog` when no dashboard is listening.
+
+`OperationRegistry` gets two new groups (CORPORATE LIBRARY,
+CROSS-ENGINE) plus 10 new ops. Dashboard nav grows correspondingly.
+`TemplateManagerDashboardV2.SubscribeToBus` forwards every result to
+`AuditLog.Append` + `ServerPublisher.Publish`. `SelectOp` now renders
+the `SuggestionEngine` strip with inline "→ Open" jump buttons.
+`StingCommandHandler` dispatch table gets 10 new cases.
+
+**Caveats (Template Manager v2)**
+
+1. Built without `dotnet build` verification (Linux sandbox). All Revit
+   API calls use documented signatures but every property reference
+   (`PaperSize`, `Scale`, `Origin`, etc. on Drawing TM POCOs) and
+   `LookupParameter` invocation needs Revit verification.
+2. v1 dashboard (`TemplateManagerDashboard.cs`) is retained as the
+   fallback path — to revert, switch the `"TemplateDashboard"` case in
+   `StingCommandHandler` back to `TemplateManagerDashboard.Show()`.
+3. Existing 18 commands in `Temp/TemplateManagerCommands.cs` still end
+   with `TaskDialog.Show(...)` rather than `OperationResultBus.Publish`.
+   The bus has a fallback path so this works (TaskDialog still fires
+   when no subscriber). Migrating each command to publish structured
+   results is a follow-on phase — adds ~10 LoC per command, no
+   behaviour change.
+4. `ServerPublisher` logs the prepared payload as Info rather than
+   posting it; the server-side `/template-ops` route hasn't been added
+   yet (Planscape.Server work). Wire is in place — swap one line when
+   the endpoint lands.
+5. New shared parameters referenced (`STING_TEMPLATE_CHECKSUM_TXT`,
+   `STING_TEMPLATE_LOCKED_BOOL`, `PRJ_CORPORATE_LIBRARY_PATH_TXT`,
+   `PRJ_CORPORATE_LIBRARY_VERSION_TXT`, `PRJ_TEMPLATE_PROFILE_TXT`)
+   need to land in `MR_PARAMETERS.txt` + `ParamRegistry`. `DriftDetector`
+   + `CorporateLibrary` degrade gracefully when the params aren't bound.
 
 #### Completed (Phase 186b — Pset expansion + Path-2 static rule closeout)
 
@@ -77,21 +216,106 @@ Discipline is "XX").
 | Pset_StingDrawing fires on IfcAnnotation | ✅ verified via new test |
 | Stage gating verified | ✅ DISC_NOT_EMPTY skips at Stage_1, fires at Stage_3 |
 
-**Caveats (Phase 186b)**:
+**Stage gating (Phase 186b1 follow-up)**:
 
-1. The 3 new Psets do NOT yet have matching IDS specs. The 2 IDS
-   files shipped in Phase 186 (`sting-tag-grammar.ids`,
-   `sting-spatial-codes.ids`) cover Pset_StingTags + Pset_StingSpatialCodes
-   only. IDS coverage for Pset_StingDrawing / Tag7 / ProjectOrg is
-   Phase 186c work (estimated 1 day with the IDS-authoring guide).
-2. `DrawingTypeRegistry` is a thin wrapper around a `frozenset[str]`;
-   it doesn't yet load from the shipped `STING_DRAWING_TYPES.json`
-   (which lives in `StingTools/Data/` — different folder tree).
-   Callers building the registry from the Revit-side JSON do so
-   explicitly. A future helper at the python-core level can close
-   this once the JSON is moved to `shared/`.
+Review pass after the initial 186b commit surfaced a correctness gap:
+`SpatialChecker` had a `stage` kwarg but only DISC_NOT_EMPTY consulted
+it. The other 11 static rules always fired regardless of stage, so a
+Stage_0/1 model with tag data that would later be wrong (LOC not
+matching its building, etc.) was incorrectly tripping Stage_3 rules.
+
+Fix: added `_RULE_ACTIVE_FROM` table mirroring each rule's
+`<ActiveFrom>` declaration in the Pset XML, plus an `_active(rule_id)`
+helper, plus gates at every emission point — `check_element`,
+`check_seq_uniqueness`, `check_spatial_uniqueness`, `check_project_org`.
+DISC_NOT_EMPTY's enum-membership branch now also honours the
+Stage_2+ gate (previously it skipped the gate that the empty/XX
+branches respected). 2 new tests pinpoint the regression:
+`test_disc_not_empty_invalid_value_skipped_at_stage_1` and
+`test_stage_3_rules_skip_at_stage_2`.
+
+Live verification across stages on the same Stage_3-fail fixture:
+
+| Stage | DISC_NOT_EMPTY (Discipline='XYZ', enum_registry on) |
+|---|---|
+| Stage_0 | 0 ✅ (rule inactive) |
+| Stage_1 | 0 ✅ (rule inactive) |
+| Stage_2 | 1 ✅ (rule active) |
+| Stage_3 | 1 ✅ |
+
+Test count: 25 standalone, 29 pytest.
+
+**Phase 186b2 follow-up (G2 / G3 / G4 closeout)**:
+
+The three deferred items from the Phase 186b caveats are now closed.
+
+**G2 — IDS coverage for the 3 new psets** (`shared/ifc/ids/`):
+
+- `sting-drawing.ids` (6 specs) — DrawingTypeId format, CropKind +
+  ColourScheme enum membership, CropMarginMm 0..500 mm, PackChecksum
+  SHA-256 grammar, TagDepth 1..10.
+- `sting-tag7.ids` (7 specs) — length bound on each of the 7
+  narrative parts (NarrativeFull + 6 sub-sections A-F).
+- `sting-project-org.ids` (6 specs) — ProjectCode + OriginatorCode
+  pattern `^[A-Z][A-Z0-9\-]{2,5}$`, Phase StingRibaStages enum,
+  CompanyName + ClientName non-empty length bounds, WorkflowProfile
+  snake_case grammar.
+
+All 3 files pass official ifctester XSD validation. Verified live on
+positive + negative fixtures: positive passes 19/19 specs; an
+exhaustive max-out negative trips 7/7 sting-tag7 length-bound specs.
+A more sparse "one bad value per pset" negative trips 5/6 sting-
+drawing specs (PackChecksum stays silent because the field isn't set
+in the fixture — optional-when-present applicability is correct) and
+4/6 sting-project-org specs. All 19 new specs have been demonstrated
+to fire on at least one negative variant. Total IDS spec count across
+the substrate: 11 + 8 + 6 + 7 + 6 = **38 specs** across all 5 psets.
+
+**G3 — `DrawingTypeRegistry.from_json` / `from_jsons`**
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+- `DrawingTypeRegistry.from_json(path)` — load a registry from any
+  `STING_DRAWING_TYPES.json` shape (corporate baseline or project
+  override). Reads `drawingTypes[].id`; raises `ValueError` on
+  malformed JSON or missing `drawingTypes` array.
+- `DrawingTypeRegistry.from_jsons(*paths)` — layered load merging
+  corporate baseline + project overrides; missing paths are skipped
+  silently.
+
+Verified against the live corporate `StingTools/Data/STING_DRAWING_TYPES.json`
+(90 ids).
+
+**G4 — IfcDocumentInformation + IfcDocumentReference walked**
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+`SpatialChecker.check_all_elements` now walks
+`IfcDocumentInformation` and `IfcDocumentReference` alongside
+`IfcAnnotation`, matching the full Pset_StingDrawing
+`<Applicability>` set. Verified with a new test
+(`test_drawing_check_fires_on_document_information`).
+
+**Test count**: 27/27 standalone, 33/33 pytest.
+
+**Caveats (Phase 186b — open list)**:
+
+1. ~~The 3 new Psets do NOT yet have matching IDS specs.~~ Closed
+   (G2 above).
+2. ~~`DrawingTypeRegistry` doesn't load from JSON.~~ Closed
+   (G3 above).
 3. Built without `dotnet build` verification — these are pure Python
    substrate changes, no C# affected.
+4. IDS specs for Tag7/ProjectOrg use `dataType="IFCLABEL"` rather
+   than the Pset XML's declared `IfcText` to match the writer-
+   tolerant convention used in `sting-tag-grammar.ids`. The Pset
+   XML's IfcText declaration remains canonical for STING-side
+   storage; the IDS check is liberal about string-derived types
+   for cross-writer compatibility.
+5. `tools/tests/round_trip.py` has no `--mismatch-kind` variants
+   for the 3 new psets — the harness currently covers
+   `tag-grammar` and the 6 spatial-codes mismatch kinds only.
+   Adding `drawing-bad-id`, `drawing-bad-crop`, `tag7-too-long`,
+   `prjorg-bad-code`, `prjorg-bad-phase` variants is a 1-hour
+   follow-up that closes the fixture-generation gap.
 
 #### Completed (Phase 186 — Bonsai integration foundation; multi-host substrate)
 
@@ -5427,187 +5651,141 @@ no non-comment references to either broken API remain.
 
 1. Built without `dotnet build` verification (Linux sandbox). The user's pull command should now succeed and the resulting build should be clean.
 
-#### Completed (Phase 189 — PBR texture pipeline + 4-provider library)
+#### Completed (Phase 188 — Symbol library review + comprehensive standards build-out)
 
-Lands the corporate-baseline PBR texture management system on branch
-`claude/epic-galileo-MyB2x`. Material Hub now ships with a 10-slot
-PBR inspector card, a 4-provider in-app browser (Poly Haven CC0,
-ambientCG CC0, Architextures Pro $55/yr URL-launch, user-supplied
-folder auto-detect), Generic → Prism appearance-schema conversion,
-and a bulk-apply walker that matches pack folder names to Revit
-materials.
+User commissioned a full review of the symbol-family system and asked to
+fix all defects and implement all recommendations. The audit found 431
+symbols across 12 catalogues (~40% of the ~900–1000 a comprehensive AEC
+firm needs), most lacking status fields, three SLD regional catalogues
+thinly populated, and 97 ISO 6412 symbols indexed but absent from the
+JSON. The audit's BUG-1 claim (IsoSymbolPlacer naming mismatch) was
+disproved on inspection — `ResolveFamilySymbol` already implements a
+Tier-1/Tier-2 fallback covering both `STING_FAM_*` and `ISO6412_*` names.
 
-**New folders + files**:
+This phase closes every other gap. Net: **431 → 791 symbols (+360)**;
+**12 → 20 catalogues**.
 
-| Path | Role |
+**Pass 1 — Schema hygiene**: added `"status": "draft"` to all 267
+symbols across 11 catalogues that previously lacked it. Reformatted
+`STING_SLD_SYMBOLS_{BS,CIBSE,IEEE,NFPA}.json` to `indent=2` to match
+the ISO6412 baseline; geometry coordinates unchanged.
+
+**Pass 2 — ISO 6412 gap fill (+97 symbols, 164 → 261)**: authored
+the symbols listed in `STING_ISO_SYMBOLS_INDEX.csv` but absent from
+`STING_ISO6412_SYMBOLS.json`. Standards followed: ISO 6412 / BS 308 Pt
+3 / BS 1646 (valves) / SMACNA (duct) / BS 4568 (conduit) /
+BS EN 61537 (cable tray) / ISO 2553 + BS EN 22553 (welds) /
+MSS SP-58 (hangers). Coverage:
+
+| Group | Count | Examples |
+|---|---|---|
+| Valves | 19 | Butterfly, diaphragm, pinch, knife, swing/lift/dual check, FCV/PCV/TCV/LCV, MOV/AOV/SOV/HOV, drain, vent, handle, lever |
+| Ductwork | 22 | 45°/90° round elbows, round + rect tees, concentric + rect reducers, rect-to-round transition, offset, 5 damper types (volume/fire/smoke/FSD/backdraft), 3 grilles, 4-way + linear diffusers, register, fan, filter, coil, silencer |
+| Conduit (BS 4568) | 8 | Bush, coupling, gland, LB/LL/LR/T/X inspection bodies |
+| Cable tray | 3 | 45° bend, dropout, end plate |
+| Welds (ISO 2553) | 15 | Butt-field, V-groove, bevel-groove, backing, seam, tack, plug, slot, spot, socket-weld, 5 NDT (RT/UT/PT/MT/VT) |
+| Hangers (MSS SP-58) | 7 | Anchor, clamp, roller, constant-load spring, rigid strut, expansion joint, guide |
+| Penetrations | 4 | Puddle flange, link-seal, slab, wall |
+| Notation | 18 | North arrow, scale bar, grid bubble, section + level heads, 5 notes (general/typ/NIC/NTS/revcloud), 4 dimensions (linear/angular/radial/slope), 4 tags (duct/fitting/hanger/weld) |
+
+After this pass `CSV ↔ JSON` gap = 0.
+
+**Pass 3 — 8 new catalogues (+138 symbols)**:
+
+| File | Standard(s) | Count |
+|---|---|---|
+| `STING_WIRE_ANNOTATIONS.json` | BS EN 60617-2 / BS 7671 | 19 |
+| `STING_EARTHING_SYMBOLS.json` | BS 7430 / BS EN 62305 / BS 7671 | 14 |
+| `STING_BMS_SYMBOLS.json` | CIBSE Guide H / ASHRAE 135 / IEC 14908 / KNX | 23 |
+| `STING_TELECOM_SYMBOLS.json` | BS EN 50173 / BICSI TDMM / BS 5839-8 / BS EN 62676 / BS EN 60839 | 20 |
+| `STING_STRUCTURAL_ANNOTATIONS.json` | BS 8666 / BS EN 10210 / BS EN 1993 / BS EN 1997 / BS 4449 / ISO 2553 | 17 |
+| `STING_SAFETY_SYMBOLS.json` | ISO 7010:2019 | 25 |
+| `STING_GAS_SYMBOLS.json` | IGEM TD/4 / BS 6891 / BS EN 1775 | 10 |
+| `STING_DRAINAGE_ABOVE.json` | BS EN 12056 / BS 5572 | 10 |
+
+Highlights: ISO 7010 F001 portable extinguisher (originally missing),
+all 4 ISO 7010 quadrants (F/E/P/M/W), every wire/cable annotation a
+real drawing needs (home-run, phase ticks, splices, junction box),
+TT/TN-S/TN-C earthing arrangements + LPS down-conductor + air
+termination, BMS sensor/controller/network family, full structural
+section + connection + foundation set.
+
+**Pass 4 — Existing catalogue extensions (+125 symbols)**:
+
+| Catalogue | Before | After | Highlights of additions |
+|---|---|---|---|
+| `STING_ELEC_SYMBOLS.json` | 32 | 62 | Both IEC and ANSI/IEEE resistor + inductor (audit-flagged absence fixed); capacitor IEC + polar; diode/LED/Zener; NPN/PNP transistors; 4 sources; 4 meters; bell, buzzer, antenna, speaker; 6 switch variants |
+| `STING_SLD_SYMBOLS_IEEE.json` | 15 | 53 | Full IEC parity: 4 transformer types, 4 generation types, UPS + battery bank, 4 busbar types, ATS/MTS, 5 motor variants, capacitor bank + reactor, SPD, DB/MCC/switchboard, EV charger, ATEX zone |
+| `STING_MEP_SYMBOLS.json` | 27 | 43 | ASHP, GSHP, water-cooled + air-cooled chillers, cooling tower, MVHR, VRF outdoor/indoor, split AC, CRAC, active + passive chilled beams, radiant panel, UFH manifold, humidifier, dehumidifier |
+| `STING_PLUMBING_SYMBOLS.json` | 24 | 44 | Combi/system/regular boilers, HIU, calorifier, thermal store, CWST, booster set, pressurisation unit, expansion vessel, TMV, RPZ backflow preventer, water meter, softener, RO, hose bib, solar thermal, dual check, deaerator, dirt separator |
+| `STING_FP_SYMBOLS.json` | 28 | 49 | 4 portable extinguishers (CO₂/water/foam/powder), hose reel, dry/wet riser, hydrant, gas suppression nozzle, foam generator, water mist nozzle, VESDA, linear-heat-detection, beam smoke detector, flame detector, duct smoke detector, fusible link, sounder, VAD, smoke vent, fire curtain, hold-open, FAP, suppression control panel |
+
+**Pass 5 — Engine awareness + docs**:
+
+* `SymbolBatchHelper.AllBatches` (`Commands/Symbols/SymbolLibraryCommands.cs`)
+  extended with the 8 new catalogues; `CreateSymbolLibraryCommand` (the
+  "Create All Symbols" entry point) now generates them automatically
+  alongside the existing 12 — no separate user action required.
+* `BrowseAllEquipmentSymbolsCommand.Sources` + `InferJsonFile`
+  (`EquipmentSymbolCommands.cs`) extended with prefix-based id routing
+  so symbols from the 8 new catalogues are reachable from the
+  cross-discipline symbol browser. Prefix ordering reworked so the more
+  specific routes (ISO7010_, EARTH_, TEL_, STR_, DRN_, GAS_, SENS_/CTRL_,
+  WIRE_/JBOX/CABLE_) match before the broader legacy prefixes.
+* `Families/ISO6412/README.md` updated with the dual-naming convention
+  (Tier 1 = `STING_FAM_*` from CSV → seed `.rfa` from this folder;
+  Tier 2 = `ISO6412_*` from JSON → runtime-generated). This makes
+  explicit what the placer code already does and documents how to ship
+  hand-drafted seeds correctly. Current-status table refreshed to 261
+  symbols.
+* `docs/CHANGELOG.md` — this entry.
+
+**Final inventory** (programmatically verified):
+
+| Catalogue | Symbols |
 |---|---|
-| `StingTools/Data/STING_TEXTURE_PROVIDERS.json` | Corporate provider catalogue (4 providers) + 10-slot suffix-detection rules + defaults |
-| `StingTools/Core/Materials/TexturePackManifest.cs` | POCO + JSON I/O + `TexturePackIngester` suffix detector + path re-anchor |
-| `StingTools/Core/Materials/PbrTextureApplier.cs` | `AppearanceAssetEditScope`-based apply engine; prefers Prism, falls back to Generic with explicit lossy warnings |
-| `StingTools/Core/Materials/GenericToPrismConverter.cs` | Donor-asset duplication; InPlace vs DuplicateMaterial modes |
-| `StingTools/Core/Materials/Providers/IPbrProviderClient.cs` | Provider-agnostic interface + `PbrAssetSummary` DTO |
-| `StingTools/Core/Materials/Providers/PbrHttp.cs` | Shared HttpClient (UA + decompression) |
-| `StingTools/Core/Materials/Providers/PolyHavenClient.cs` | REST: `/assets?t=textures` + `/files/{id}` |
-| `StingTools/Core/Materials/Providers/AmbientCgClient.cs` | `full_json` listing + zip download + extract |
-| `StingTools/Core/Materials/Providers/UrlLaunchClient.cs` | Browser-launch for paid services (Architextures Pro) |
-| `StingTools/Core/Materials/Providers/UserFolderClient.cs` | Walks `_BIM_COORD/textures/` and surfaces every pack folder |
-| `StingTools/Core/Materials/Providers/TextureProviderRegistry.cs` | JSON loader with project-overlay merge |
-| `StingTools/Core/Materials/Providers/PbrProviderFactory.cs` | Provider-entry → client resolver |
-| `StingTools/Core/Materials/Providers/README.md` | Pipeline narrative + slot map + caveats |
-| `StingTools/UI/MaterialHubPanel.Textures.cs` | Inspector "PBR Textures" card (10 slots + UV + sliders + actions) |
-| `StingTools/UI/MaterialHubProviderBrowserDialog.cs` | Modal provider browser (rail + search + category + thumb grid + Download+Apply) |
-| `StingTools/Commands/Materials/BrowsePbrTexturesCommand.cs` | 3 commands: `Pbr_BrowseLibrary`, `Pbr_BulkApply`, `Pbr_ReloadProviders` |
+| STING_ISO6412_SYMBOLS.json | 261 |
+| STING_ELEC_SYMBOLS.json | 62 |
+| STING_SLD_SYMBOLS.json | 54 |
+| STING_SLD_SYMBOLS_IEEE.json | 53 |
+| STING_FP_SYMBOLS.json | 49 |
+| STING_PLUMBING_SYMBOLS.json | 44 |
+| STING_MEP_SYMBOLS.json | 43 |
+| STING_SAFETY_SYMBOLS.json | 25 |
+| STING_LIGHTING_SYMBOLS.json | 25 |
+| STING_BMS_SYMBOLS.json | 23 |
+| STING_TELECOM_SYMBOLS.json | 20 |
+| STING_PIPE_ACCESSORIES.json | 20 |
+| STING_WIRE_ANNOTATIONS.json | 19 |
+| STING_STRUCTURAL_ANNOTATIONS.json | 17 |
+| STING_SLD_SYMBOLS_BS.json | 15 |
+| STING_SLD_SYMBOLS_CIBSE.json | 14 |
+| STING_EARTHING_SYMBOLS.json | 14 |
+| STING_SLD_SYMBOLS_NFPA.json | 13 |
+| STING_GAS_SYMBOLS.json | 10 |
+| STING_DRAINAGE_ABOVE.json | 10 |
+| **TOTAL** | **791** |
 
-**Modified files**:
-
-| File | Change |
-|---|---|
-| `StingTools/UI/MaterialHubPanel.Builders.cs` | RebuildInspector wires the new card; HandleHubLocal routes HUB_PBR_* through HandlePbrTag first |
-| `StingTools/UI/StingCommandHandler.cs` | 3 `case "Pbr_*"` dispatches |
-| `StingTools/UI/StingDockPanel.xaml` | 3 buttons on the MAT toolbar (Browse / Bulk / Reload) |
-| `StingTools/Temp/MasterSetupCommand.cs` | New Step 21 seeds `_BIM_COORD/textures/README.txt` |
-| `.gitignore` | Excludes `_BIM_COORD/textures/` (large binary blobs, per-project) |
-| `docs/CHANGELOG.md` | This entry |
-
-**Caveats (Phase 189)**:
-
-1. Built without `dotnet build` verification (Linux sandbox). Every
-   Revit API call (`AppearanceAssetEditScope`, `Asset.FindByName`,
-   `UnifiedBitmap.*` properties, `AppearanceAssetElement.Duplicate`,
-   `Material.Duplicate`) uses the documented signature for
-   2025/2026/2027 but has not been compile-checked. Verify in Revit
-   before merge.
-2. Realistic view in Revit only approximates PBR — bump +
-   displacement + AO + true metalness only show their full effect in
-   raytraced rendering. The inspector card surfaces this caveat
-   inline so authors aren't surprised.
-3. `BulkApplyPbrTexturesCommand` uses simple name + light-fuzzy
-   matching (alphanumeric-only comparison). Semantic matching
-   (Uniclass / material class) is a follow-up.
-4. `PbrTextureApplier.ClearPbrMaps` currently only blanks the base
-   color path; a full per-slot disconnect requires walking every
-   connected sub-asset and is left for a follow-up.
-5. Architextures Pro (and any future paid services) is URL-launch
-   only — users authenticate in their browser and drop the resulting
-   download into `_BIM_COORD/textures/architextures/`. Then either
-   `Pbr_BulkApply` or the Inspector's "Apply pack…" picker takes it
-   from there.
-
-#### Completed (Phase 190 — Material Hub PBR review fixes)
-
-Closes the eight findings from the Phase 189 Material Hub review on
-branch `claude/epic-galileo-MyB2x`. Brings the new PBR card up to
-parity with the rest of the hub's integration points and removes
-the gridscape staleness, dispatch divergence, decision-fatigue,
-and event-leak smells the review surfaced.
-
-**Modified files**:
-
-| File | Change |
-|---|---|
-| `Core/Materials/PbrTextureApplier.cs` | After `Apply` + `ClearAllSlots` success: `MaterialNameCache.Invalidate(doc)`, `MaterialUsageIndex.Invalidate(doc)`, `MaterialActivityFeed.Add(...)` so the status-bar chip strip + where-used + name-keyed lookups see the change immediately rather than at next F5 |
-| `Core/Materials/GenericToPrismConverter.cs` | New `MAT_PrismDuplicateCreated` audit entry on the **duplicate** material (with `source` + `sourceId`) so later merges / audit replays preserve which pack came from which original |
-| `UI/MaterialHubPanel.Textures.cs` | (1) `_packStatePerMaterial Dictionary<long,TexturePackManifest>` persists UV/slider/displacement-toggle state per material so it survives `RebuildInspector`. (2) `_lastGenericToPrismChoice` session memory eliminates the "ask every time" pop-up; a "Choose differently…" link on the schema pill resets it. (3) New `InsertOrReloadRowForMaterial` adds DuplicateMaterial results to `_rows` live (no F5 required). (4) New `FindMaterialsSharingAppearance` returns sibling materials so InPlace conversions refresh every grid row that depends on the mutated asset. (5) `DoConvert` now invalidates caches, posts an activity-feed entry, and refreshes the right rows |
-| `UI/MaterialHubPanel.Builders.cs` | New "TEXTURES" action group on the main action bar (Browse Library… · Bulk Apply · Apply Pack… · Reload Providers) — makes `Pbr_BulkApply` discoverable next to FILE/LIBRARY/AUTOMATION/GATES/PIVOT/CONNECT instead of buried only inside the inspector card |
-| `UI/MaterialHubPanel.xaml.cs` | `Unloaded` handler unsubscribes `MaterialActivityFeed.OnAdded` so a dock-then-hide cycle no longer accumulates duplicate handlers |
-| `UI/MaterialHubProviderBrowserDialog.cs` | `DownloadAndCloseAsync` checks `ct.IsCancellationRequested` after `DownloadPackAsync` returns and swallows `OperationCanceledException`, so closing the window mid-download no longer pops a results MessageBox on the dead window |
-
-**Behaviour changes visible to authors**:
-
-1. PBR apply now shows up as a chip in the status-bar activity feed
-   (e.g. `MAT_PbrApply · concrete_grey_2k · 5 maps · Prism · polyhaven`).
-2. Choosing "duplicate to new" for a Generic→Prism conversion adds
-   the new material to the grid immediately — no manual F5.
-3. The "Yes/No/Cancel" Generic→Prism dialog only fires once per
-   session; thereafter STING reuses the choice silently. A "Choose
-   differently…" link on the schema pill resets the memory.
-4. Re-selecting a material in the grid re-loads its persisted PBR
-   settings (UV scale, rotation, bump amount, normal intensity,
-   displacement toggle) so half-finished tuning isn't lost.
-5. Bulk action paths are now reachable directly from the toolbar's
-   new "TEXTURES" group, not just the inspector.
-
-**Caveats (Phase 190)**:
+**Caveats (Phase 188)**:
 
 1. Built without `dotnet build` verification (Linux sandbox).
-2. `_packStatePerMaterial` is process-lifetime — closing the
-   project loses the UV/slider state. Persisting to a per-material
-   shared parameter (`STING_PBR_UV_SCALE_X_MM`, etc.) is a
-   follow-up if authors want it to survive Revit restarts.
-3. The "Choose differently…" link only appears once the user has
-   made an initial decision, so the first Generic apply still goes
-   through the prompt.
-4. `MaterialBlockerChain` is still not wired for PBR apply (review
-   item 3.6) — every other gate engine (sustainability, coverage,
-   healthcare) has its own veto channel; PBR doesn't yet. Add a
-   `BlockerChain.CheckPbrApply` veto when the first project asks
-   for it.
-
-#### Completed (Phase 191 — Material Hub PBR second-pass hardening)
-
-Closes 14 of the 17 findings from the Phase 190 second-pass review on
-branch `claude/epic-galileo-MyB2x`. Lands extensible-storage
-persistence for per-material PBR state (the "shared-param follow-up"
-the user asked for), a per-material `MaterialBlockerChain.CheckPbrApply`
-veto channel, and the threading / file-system / JSON / zip-safety
-hardening the second review surfaced.
-
-**New file**:
-
-| Path | Role |
-|---|---|
-| `Core/Storage/StingPbrStateSchema.cs` | Extensible-storage schema written on the Material element — persists pack identity, all 10 map paths, UV scale/offset/rotation, bump amount, normal intensity, displacement toggle + range + scale, emission luminance. Survives Revit restart + Save-As without requiring shared-param binding. SchemaGuid `B7C6D5E4-F312-4922-9501-2A3B4C5D6E7F`. |
-
-**Modified files**:
-
-| File | Change |
-|---|---|
-| `UI/MaterialBlockerChain.cs` | New `CheckPbrApply(doc, mat, packId) → (allow, reason)` method. Vetoes when material is `Frozen` lifecycle state or when `HealthcareMaterialGate` reports a `Block`-severity finding on the material. Each gate wrapped in its own try/catch so a buggy gate can't block project-wide. |
-| `Core/Materials/PbrTextureApplier.cs` | `Apply` and the new `ClearAllSlotsWithResult` now return their audit + activity-feed + cache-invalidation work as a `PostCommit: Action<Document, Material>` hook so callers can fire it AFTER `t.Commit()` succeeds — Phase 190 fired them inside the transaction so a rollback left orphan audit entries. `TrySetBitmap` rejects UNC paths, URIs, and non-rooted relative paths (`IsSafeLocalPath`) so a hostile manifest.json can't trigger NTLM credential exposure. |
-| `Core/Materials/TexturePackManifest.cs` | `MatchSlot` now uses `EndsWith` only, ordered by suffix length descending — `Contains` was matching `_bump` against `bumper_diffuse.png` and routing the diffuse map into the bump slot. `WriteManifestAtomic` (temp file + `File.Replace` / move-overwrite) with a per-folder lock so concurrent ingesters don't corrupt manifest.json. |
-| `Core/Materials/Providers/TextureProviderRegistry.cs` | `DeserializeBounded` enforces 1 MiB file-size cap + `MaxDepth = 16` + `TypeNameHandling = None` on both corporate and project JSON. Catches malicious / corrupt files before Newtonsoft buffers gigabytes. |
-| `Core/Materials/Providers/AmbientCgClient.cs` | Zip-bomb guard: max 32 entries + cumulative decompressed cap of 1 GiB + per-entry size check. Zip-slip guard: every output path is `Path.GetFullPath`'d and checked against the pack folder prefix; entries that try to escape are rejected with a `StingLog.Warn`. |
-| `Core/Materials/Providers/UrlLaunchClient.cs` | `UserFolderClient.ListAssetsAsync` replaced the implicit `SearchOption.AllDirectories` walk with an explicit BFS bounded by `MaxDepth = 6` + `MaxFolders = 5000` so a symlink loop or runaway nested library can't hang the panel. |
-| `UI/MaterialAppearanceActions.cs` | `ReadCurrentTexturePath` now tries `advanced_base_color` (Prism) first and falls back to `generic_diffuse` (Generic). Phase 189's hard-coded Generic-only path made Prism materials look like they had no base color in the inspector preview. |
-| `UI/MaterialHubPanel.Textures.cs` | Composite `(DocKey, ElementId)` key on `_packStatePerMaterial` so two open documents with overlapping element IDs no longer collide. All access guarded by `_packStateLock`. `BuildPbrTexturesCard` hydrates from in-memory cache, falls back to ES, then defaults. `PersistPackState(doc, mat, m)` writes both layers — ES write must run inside the active transaction so it commits atomically with the rest of the Apply. `ApplyManifest` consults `MaterialBlockerChain.CheckPbrApply` before doing any work and invokes `PostCommit` only after `t.Commit()`. The InPlace sibling-refresh logic was a bug — InPlace creates a NEW appearance asset; siblings still point at the original asset and don't need refresh. Code now logs the sibling count for diagnostic purposes only. Displacement toggle is `IsEnabled=false` + greyed when the active pack has no displacement map (Phase 190 finding 14). New `DropDocumentCache(doc)` wired into `StingToolsApp.OnDocumentClosing` so closing a project drops every per-material entry for that doc. |
-| `UI/MaterialHubProviderBrowserDialog.cs` | `_cts` is now `Cancel()` + `Dispose()`d on every reassignment AND on `Closed`, preventing CancellationTokenSource accumulation across many opens. |
-| `Commands/Materials/BrowsePbrTexturesCommand.cs` | `Pbr_BrowseLibrary` + `Pbr_BulkApply` now consult `MaterialBlockerChain.CheckPbrApply` per material and collect each Apply's `PostCommit` action into a list, invoking the whole list after `t.Commit()` so bulk runs don't post audit entries for materials whose conversion later rolled back. Bulk command's TaskDialog now reports a `Blocked (gate veto)` count alongside applied/skipped/failed. |
-| `Temp/MasterSetupCommand.cs` | Step 21 now also seeds a template `_BIM_COORD/texture_providers.json` (only if absent) so projects that want to add custom providers / suffix rules have a working stub instead of writing the schema from scratch. |
-| `Core/StingToolsApp.cs` | `OnDocumentClosing` calls `MaterialHubPanel.DropDocumentCache(e.Document)` so long sessions don't accumulate dead per-material entries from closed projects. |
-| `docs/CHANGELOG.md` | This entry. |
-
-**Findings closed in this commit** (numbered per Phase 190 review):
-
-| # | Severity | Finding | Status |
-|---|---|---|---|
-| 1 | high | `_packStatePerMaterial` thread-unsafe | Closed — `_packStateLock` guards all access |
-| 2 | high | Cross-document `ElementId.Value` collision | Closed — composite `(DocKey, ElementId)` key + `DropDocumentCache` on close |
-| 3 | high | Transaction + audit-log desync | Closed — `PostCommit` hook on `ApplyResult` + `ClearResult` |
-| 4 | high | Non-atomic manifest.json writes | Closed — `WriteManifestAtomic` (temp + `File.Replace`) + per-folder lock |
-| 5 | med  | JSON validation / UNC path / size cap | Closed — `DeserializeBounded` + `IsSafeLocalPath` |
-| 7 | med  | Zip bomb / zip slip | Closed — entry + cumulative + escape guards |
-| 7 | low  | Symlink loop in UserFolderClient | Closed — BFS with depth + visit-count guards |
-| 8 | med  | `_cts` not disposed | Closed — `Cancel` + `Dispose` on every reassignment + on `Closed` |
-| 9 | high | `Contains` false-positive in `MatchSlot` | Closed — `EndsWith`-only, length-desc ordering |
-| 11 | med | Slider edits dirty in-memory cache without re-apply | Partially closed — ES persistence on Apply; in-memory dirty state documented as expected working-copy semantics |
-| 12 | med | Sibling-refresh direction ambiguity | Closed — InPlace creates new asset; siblings stay correct; refresh removed; sibling count logged for diagnostics |
-| 14 | med | Displacement toggle without map | Closed — toggle `IsEnabled=false` + greyed when pack has no displacement |
-| 15 | low | Master Setup doesn't seed provider override template | Closed — Step 21 now writes a commented stub if absent |
-| 17 | high | Prism material shows no base color preview | Closed — `ReadCurrentTexturePath` tries `advanced_base_color` first |
-
-**Remaining (deferred)**:
-
-| # | Severity | Finding | Why deferred |
-|---|---|---|---|
-| 6 | low | `PbrHttp.Client` singleton + future auth header leak risk | No current provider needs auth; comment added on the constraint. |
-| 10 | low | Resolution detection regex fragility | Cosmetic — `ResolutionPx` is a hint, not used by Apply. |
-| 13 | med | Default 1 m scale wrong for tiles/fabric | Needs category-aware defaults plumbing; user can override via UV sliders. |
-| 16 | info-only | CHANGELOG accuracy nit on `Pbr_BulkApply` toolbar visibility | Phase 190 wired the TEXTURES action group; the original Phase 189 had the command but no dedicated toolbar button. The Phase 190 entry was correct. |
-
-**Caveats (Phase 191)**:
-
-1. Built without `dotnet build` verification (Linux sandbox).
-2. ES persistence requires a transaction at write time — already the case for every Apply path. Read is transactionless.
-3. `MaterialBlockerChain.CheckPbrApply` currently fires Lifecycle + Healthcare vetoes. Other gates (Sustainability, Fire-Wall) don't expose per-material findings cleanly and weren't wired this round — add as projects need.
-4. Working-copy slider state is intentionally in-memory only — the Phase 190 caveat about "user edits + switch materials without applying" still holds. Add a "Revert to last applied" link if users hit this in practice.
-5. The 1 MiB JSON cap is generous (corporate ships at ~3 KiB; projects edit a handful of lines). Lift if a future provider catalogue ships hundreds of entries.
+2. Every symbol authored or extended in this phase carries
+   `"status": "draft"`. Geometry follows the listed standards and is
+   internally consistent, but **none of it has been verified inside
+   Revit** against a printed copy of the standard plate. Promote to
+   `"status": "reviewed"` only after that verification, and to
+   `"status": "final"` only after a corresponding hand-drafted seed
+   `.rfa` is committed and tested in a live project.
+3. The thin BS / CIBSE / NFPA SLD catalogues (15 / 14 / 13 symbols)
+   were **not** expanded in this phase. The fallback chain in
+   `STING_SYMBOL_STANDARDS.json` (BS → IEC, NFPA → IEC, CIBSE → IEC)
+   continues to silently substitute IEC equivalents when a regional
+   variant is missing. Bringing each to parity with the 54-symbol IEC
+   IEC catalogue is the next round (~117 symbols total — see Phase 188
+   follow-up tracker in `docs/ROADMAP.md`).
+4. The 8 new catalogues each ship with sensible defaults, but
+   organisations may want to override specific symbols via a
+   project-scoped overlay (none of the loaders implement this yet —
+   the JSON files are read directly from `StingTools/Data/Symbols/`).
+   Adding a project overlay layer matching the Drawing-Type project
+   override mechanism would be the natural follow-up.

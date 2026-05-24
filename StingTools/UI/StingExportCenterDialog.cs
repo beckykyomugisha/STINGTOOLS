@@ -500,7 +500,7 @@ namespace StingTools.UI
             return dock;
         }
 
-        private CheckBox AddFormatChip(Panel parent, string label, ExportFormats fmt)
+        private CheckBox AddFormatChip(System.Windows.Controls.Panel parent, string label, ExportFormats fmt)
         {
             var cb = new CheckBox
             {

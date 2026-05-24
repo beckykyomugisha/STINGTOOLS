@@ -82,17 +82,20 @@ namespace StingTools.Commands.Electrical
                         }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
-                        // Location from spatial / project
+                        // Location from spatial / project. Canonical: ASS_LOC_TXT
+                        // (per MR_PARAMETERS — used by every other discipline's
+                        // location stamp, no panel-specific param exists).
                         string loc = SpatialAutoDetect.DetectLoc(doc, p, roomIndex, projLoc) ?? "";
                         if (!string.IsNullOrEmpty(loc))
-                            ParameterHelpers.SetString(p, "ELC_PNL_LOCATION_TXT", loc, overwrite: false);
+                            ParameterHelpers.SetString(p, "ASS_LOC_TXT", loc, overwrite: false);
 
-                        // Manufacturer / model from family-type native params
+                        // Manufacturer / model from family-type native params.
+                        // Canonical via ParamRegistry.MFR alias → ASS_MANUFACTURER_TXT.
                         try
                         {
                             var mfg = p.Symbol?.get_Parameter(BuiltInParameter.ALL_MODEL_MANUFACTURER)?.AsString();
                             if (!string.IsNullOrEmpty(mfg))
-                                ParameterHelpers.SetString(p, "ELC_PNL_MANUFACTURER_TXT", mfg, overwrite: false);
+                                ParameterHelpers.SetString(p, ParamRegistry.MFR, mfg, overwrite: false);
                         }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
@@ -149,16 +152,22 @@ namespace StingTools.Commands.Electrical
                     ParameterHelpers.SetString(panel, ParamRegistry.ELC_MAIN_BRK, snap.MainBreakerA, overwrite: true);
                 if (!string.IsNullOrEmpty(snap.FedFrom))
                     ParameterHelpers.SetString(panel, ParamRegistry.ELC_PNL_FED_FROM, snap.FedFrom, overwrite: true);
+                // Canonical via MR_PARAMETERS (Phase 188 fix-3):
+                //   Location  → ASS_LOC_TXT (no panel-specific equivalent exists)
+                //   Manufact. → ASS_MANUFACTURER_TXT (via ParamRegistry.MFR alias)
+                //   Fault kA  → ELC_PNL_SHORT_CIRCUIT_RATING_KA (via ELC_PNL_FAULT_KA alias)
+                //   Enclosure → ELC_PNL_IP_RATING_TXT (IP rating IS the formal
+                //               BS EN 60529 enclosure protection classification)
                 if (!string.IsNullOrEmpty(snap.Location))
-                    ParameterHelpers.SetString(panel, "ELC_PNL_LOCATION_TXT", snap.Location, overwrite: true);
+                    ParameterHelpers.SetString(panel, "ASS_LOC_TXT", snap.Location, overwrite: true);
                 if (!string.IsNullOrEmpty(snap.IpRating))
                     ParameterHelpers.SetString(panel, ParamRegistry.ELC_IP_RATING, snap.IpRating, overwrite: true);
                 if (!string.IsNullOrEmpty(snap.Manufacturer))
-                    ParameterHelpers.SetString(panel, "ELC_PNL_MANUFACTURER_TXT", snap.Manufacturer, overwrite: true);
+                    ParameterHelpers.SetString(panel, ParamRegistry.MFR, snap.Manufacturer, overwrite: true);
                 if (!string.IsNullOrEmpty(snap.FaultKA))
-                    ParameterHelpers.SetString(panel, "ELC_PNL_FAULT_KA_NR", snap.FaultKA, overwrite: true);
+                    ParameterHelpers.SetString(panel, ParamRegistry.ELC_PNL_FAULT_KA, snap.FaultKA, overwrite: true);
                 if (!string.IsNullOrEmpty(snap.Enclosure))
-                    ParameterHelpers.SetString(panel, "ELC_PNL_ENCLOSURE_TXT", snap.Enclosure, overwrite: true);
+                    ParameterHelpers.SetString(panel, "ELC_PNL_IP_RATING_TXT", snap.Enclosure, overwrite: true);
                 tx.Commit();
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

@@ -8044,6 +8044,218 @@
         "qa"
       ],
       "notes": "Design-intent overlay elements/notes — blue."
+    },
+    {
+      "id": "elec-lps-airterm",
+      "name": "STING - LPS: Air Terminal",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "logic": "or",
+        "rules": [
+          {
+            "param": "ELC_LPS_ELEMENT_TYPE_TXT",
+            "op": "equals",
+            "value": "AIR_TERMINAL"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Air Terminal"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Franklin"
+          }
+        ]
+      },
+      "override": {
+        "projColor": "#E65100",
+        "cutColor": "#E65100",
+        "projWeight": 5,
+        "cutWeight": 5
+      },
+      "tags": [
+        "elec",
+        "lps",
+        "lat",
+        "life-safety"
+      ],
+      "standard": "BS EN 62305-3"
+    },
+    {
+      "id": "elec-lps-downcond",
+      "name": "STING - LPS: Down Conductor",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel",
+        "OST_Conduit",
+        "OST_CableTray"
+      ],
+      "rule": {
+        "logic": "or",
+        "rules": [
+          {
+            "param": "ELC_LPS_ELEMENT_TYPE_TXT",
+            "op": "equals",
+            "value": "DOWN_CONDUCTOR"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Down Conductor"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "DownCond"
+          }
+        ]
+      },
+      "override": {
+        "projColor": "#D32F2F",
+        "cutColor": "#D32F2F",
+        "projWeight": 4,
+        "cutWeight": 4
+      },
+      "tags": [
+        "elec",
+        "lps",
+        "ldc",
+        "life-safety"
+      ],
+      "standard": "BS EN 62305-3"
+    },
+    {
+      "id": "elec-lps-earth",
+      "name": "STING - LPS: Earth Electrode",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel",
+        "OST_StructuralFoundation"
+      ],
+      "rule": {
+        "logic": "or",
+        "rules": [
+          {
+            "param": "ELC_LPS_ELEMENT_TYPE_TXT",
+            "op": "equals",
+            "value": "EARTH_ELECTRODE"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Earth Rod"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Ground Rod"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Earth Electrode"
+          }
+        ]
+      },
+      "override": {
+        "projColor": "#2E7D32",
+        "cutColor": "#2E7D32",
+        "projWeight": 4,
+        "cutWeight": 4
+      },
+      "tags": [
+        "elec",
+        "lps",
+        "lee",
+        "earthing"
+      ],
+      "standard": "BS EN 62305-3"
+    },
+    {
+      "id": "elec-lps-bonding",
+      "name": "STING - LPS: Bonding",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel",
+        "OST_Conduit",
+        "OST_CableTray",
+        "OST_PipeCurves",
+        "OST_DuctCurves"
+      ],
+      "rule": {
+        "logic": "or",
+        "rules": [
+          {
+            "param": "ELC_LPS_ELEMENT_TYPE_TXT",
+            "op": "equals",
+            "value": "BONDING_BAR"
+          },
+          {
+            "param": "ELC_LPS_BOND_TYPE_TXT",
+            "op": "isNotEmpty",
+            "value": ""
+          }
+        ]
+      },
+      "override": {
+        "projColor": "#FFC107",
+        "cutColor": "#FFC107",
+        "projWeight": 3,
+        "cutWeight": 3
+      },
+      "tags": [
+        "elec",
+        "lps",
+        "bond",
+        "equipotential"
+      ],
+      "standard": "BS EN 62305-3"
+    },
+    {
+      "id": "elec-lps-spd",
+      "name": "STING - LPS: Surge Protective Device",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "logic": "or",
+        "rules": [
+          {
+            "param": "ELC_LPS_ELEMENT_TYPE_TXT",
+            "op": "equals",
+            "value": "SPD"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "SPD"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Surge"
+          }
+        ]
+      },
+      "override": {
+        "projColor": "#6A1B9A",
+        "cutColor": "#6A1B9A",
+        "projWeight": 4,
+        "cutWeight": 4
+      },
+      "tags": [
+        "elec",
+        "lps",
+        "spd",
+        "surge"
+      ],
+      "standard": "IEC 62305-4 / IEC 61643-11"
     }
   ]
 }

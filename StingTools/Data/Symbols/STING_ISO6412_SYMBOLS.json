@@ -1,12 +1,12 @@
 {
   "version": "1.0",
-  "standard": "ISO 6412 / BS 308 Part 3 \u2014 Piping, Duct, Conduit Spool Symbols",
+  "standard": "ISO 6412 / BS 308 Part 3 — Piping, Duct, Conduit Spool Symbols",
   "description": "GenericAnnotation families for isometric spool drawings. symbolSize in mm. All geometry normalised -0.5..+0.5.",
   "_authoring_rule": "TRACK B - SYMBOLIC, NOT PRODUCT GEOMETRY. Every entry below is a 2D schematic symbol drawn on a GenericAnnotation template, targeting ~6mm paper height regardless of the real product size. Do NOT replace these with photoreal 3D valve / fitting / pipe families - that breaks spool sheets, SLDs and detail views which all rely on consistent paper-space symbol sizing. Hand-drafted seeds drop into Families/ISO6412/ for line-work fidelity improvements. See Families/README.md for the full intake SOP.",
   "symbols": [
     {
       "id": "ISO6412_ELBOW_90_BW",
-      "name": "90\u00b0 Butt-Weld Elbow (LR)",
+      "name": "90° Butt-Weld Elbow (LR)",
       "category": "Pipe Fittings",
       "familyType": "GenericAnnotation",
       "discipline": "Generic",
@@ -48,7 +48,7 @@
     },
     {
       "id": "ISO6412_ELBOW_45_BW",
-      "name": "45\u00b0 Butt-Weld Elbow",
+      "name": "45° Butt-Weld Elbow",
       "category": "Pipe Fittings",
       "familyType": "GenericAnnotation",
       "discipline": "Generic",
@@ -90,7 +90,7 @@
     },
     {
       "id": "ISO6412_ELBOW_90_SR",
-      "name": "90\u00b0 Short-Radius Butt-Weld Elbow",
+      "name": "90° Short-Radius Butt-Weld Elbow",
       "category": "Pipe Fittings",
       "familyType": "GenericAnnotation",
       "discipline": "Generic",
@@ -132,7 +132,7 @@
     },
     {
       "id": "ISO6412_ELBOW_180_BW",
-      "name": "180\u00b0 Butt-Weld Return Bend",
+      "name": "180° Butt-Weld Return Bend",
       "category": "Pipe Fittings",
       "familyType": "GenericAnnotation",
       "discipline": "Generic",
@@ -4177,7 +4177,7 @@
     },
     {
       "id": "ISO6412_DCT_ELBOW_90_R",
-      "name": "Rectangular Duct 90\u00b0 Elbow",
+      "name": "Rectangular Duct 90° Elbow",
       "category": "Duct Fittings",
       "familyType": "GenericAnnotation",
       "discipline": "Mechanical",
@@ -4222,7 +4222,7 @@
     },
     {
       "id": "ISO6412_DCT_ELBOW_45_R",
-      "name": "Rectangular Duct 45\u00b0 Elbow",
+      "name": "Rectangular Duct 45° Elbow",
       "category": "Duct Fittings",
       "familyType": "GenericAnnotation",
       "discipline": "Mechanical",
@@ -4267,7 +4267,7 @@
     },
     {
       "id": "ISO6412_DCT_ELBOW_90_RND",
-      "name": "Round Duct 90\u00b0 Elbow",
+      "name": "Round Duct 90° Elbow",
       "category": "Duct Fittings",
       "familyType": "GenericAnnotation",
       "discipline": "Mechanical",
@@ -5511,7 +5511,7 @@
     },
     {
       "id": "ISO6412_CDT_ELBOW_90",
-      "name": "Conduit 90\u00b0 Elbow",
+      "name": "Conduit 90° Elbow",
       "category": "Conduit Fittings",
       "familyType": "GenericAnnotation",
       "discipline": "Generic",
@@ -5553,7 +5553,7 @@
     },
     {
       "id": "ISO6412_CDT_ELBOW_45",
-      "name": "Conduit 45\u00b0 Elbow",
+      "name": "Conduit 45° Elbow",
       "category": "Conduit Fittings",
       "familyType": "GenericAnnotation",
       "discipline": "Generic",
@@ -6094,7 +6094,7 @@
     },
     {
       "id": "ISO6412_CDT_ELBOW_90_STR",
-      "name": "Conduit Street Elbow 90\u00b0",
+      "name": "Conduit Street Elbow 90°",
       "category": "Conduit Fittings",
       "familyType": "GenericAnnotation",
       "discipline": "Generic",
@@ -6142,7 +6142,7 @@
     },
     {
       "id": "ISO6412_CTR_BEND_90",
-      "name": "Cable Tray 90\u00b0 Horizontal Bend",
+      "name": "Cable Tray 90° Horizontal Bend",
       "category": "Cable Tray",
       "familyType": "GenericAnnotation",
       "discipline": "Generic",
@@ -9251,6 +9251,5830 @@
             "y1": 0.0,
             "x2": 0.5,
             "y2": 0.0
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_BFLY",
+      "name": "Butterfly Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_DIAPHR",
+      "name": "Diaphragm Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.0,
+            "r": 0.22,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_PINCH",
+      "name": "Pinch Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.3,
+            "x2": 0,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.3,
+            "x2": 0,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": -0.05
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": -0.05
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_KNIFE",
+      "name": "Knife-Gate Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.08,
+            "y1": 0.3,
+            "x2": 0.08,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.08,
+            "y1": 0.3,
+            "x2": -0.08,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.08,
+            "y1": 0.3,
+            "x2": 0.08,
+            "y2": 0.0
+          },
+          {
+            "x1": -0.08,
+            "y1": 0.0,
+            "x2": 0.08,
+            "y2": -0.05
+          },
+          {
+            "x1": 0.08,
+            "y1": 0.0,
+            "x2": -0.08,
+            "y2": -0.05
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_CHECK_SWING",
+      "name": "Swing Check Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.2,
+            "x2": 0.15,
+            "y2": -0.2
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0.15,
+            "cy": -0.2,
+            "r": 0.05,
+            "startAngle": 90,
+            "endAngle": 180
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_CHECK_LIFT",
+      "name": "Lift Check Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.25
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.05,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": 0.25
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_CHECK_DUAL",
+      "name": "Dual-Plate Check Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.25,
+            "x2": 0,
+            "y2": 0.25
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0.1
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.1,
+                "y": 0.1
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": -0.1
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.1,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_FCV",
+      "name": "Flow Control Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0.0,
+            "x2": 0,
+            "y2": 0.32
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.32,
+            "x2": 0.1,
+            "y2": 0.32
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.32,
+            "x2": -0.1,
+            "y2": 0.48
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.32,
+            "x2": 0.1,
+            "y2": 0.48
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.48,
+            "x2": 0.1,
+            "y2": 0.48
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_PCV",
+      "name": "Pressure Control Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0.0,
+            "x2": 0,
+            "y2": 0.32
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.4,
+            "r": 0.08,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_TCV",
+      "name": "Temperature Control Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0.0,
+            "x2": 0,
+            "y2": 0.32
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0.32
+              },
+              {
+                "x": 0.1,
+                "y": 0.32
+              },
+              {
+                "x": 0,
+                "y": 0.48
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_LCV",
+      "name": "Level Control Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0.0,
+            "x2": 0,
+            "y2": 0.32
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0.12,
+            "cy": 0.4,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0.32,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_MOV",
+      "name": "Motor Actuated Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {},
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_AOV",
+      "name": "Air Actuated Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {},
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_SOV",
+      "name": "Solenoid Actuated Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {},
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_HOV",
+      "name": "Hand-wheel Actuated Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {},
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_HANDLE",
+      "name": "Valve Handwheel (Operator Overlay)",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.3,
+            "x2": 0.2,
+            "y2": 0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.3,
+            "r": 0.08,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_LEVER",
+      "name": "Valve Lever Handle (Operator Overlay)",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.4,
+            "x2": 0.1,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.3,
+            "x2": 0.1,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.3,
+            "x2": -0.1,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.3,
+            "x2": 0.1,
+            "y2": 0.4
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_DRAIN",
+      "name": "Drain Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.4,
+            "x2": 0.1,
+            "y2": -0.4
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": -0.2
+              },
+              {
+                "x": 0,
+                "y": -0.3
+              },
+              {
+                "x": 0.1,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_VENT",
+      "name": "Vent Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.4,
+            "x2": 0.1,
+            "y2": 0.4
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0.2
+              },
+              {
+                "x": 0,
+                "y": 0.3
+              },
+              {
+                "x": 0.1,
+                "y": 0.2
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_ELBOW_90_C",
+      "name": "90° Round Duct Elbow",
+      "category": "Duct Fittings",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.15,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0.15,
+            "x2": 0,
+            "y2": 0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.15,
+            "cy": 0.15,
+            "r": 0.15,
+            "startAngle": 270,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.15,
+            "cy": 0.15,
+            "r": 0.3,
+            "startAngle": 270,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_ELBOW_45_C",
+      "name": "45° Round Duct Elbow",
+      "category": "Duct Fittings",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": -0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": 0.45,
+            "y2": 0.45
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.1,
+            "cy": -0.1,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 45
+          },
+          {
+            "cx": -0.1,
+            "cy": -0.1,
+            "r": 0.35,
+            "startAngle": 0,
+            "endAngle": 45
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_TEE_C",
+      "name": "Round Duct Tee",
+      "category": "Duct Fittings",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": -0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.1,
+            "x2": -0.1,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": 0.5
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_TEE_R",
+      "name": "Rectangular Duct Tee",
+      "category": "Duct Fittings",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.15,
+            "x2": 0.5,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.15,
+            "x2": -0.15,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.15,
+            "x2": 0.5,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.15,
+            "x2": -0.15,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.15,
+            "x2": 0.15,
+            "y2": 0.5
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_RED_C",
+      "name": "Round Duct Concentric Reducer",
+      "category": "Duct Fittings",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.15,
+            "x2": -0.15,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.15,
+            "x2": -0.15,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.15,
+            "x2": 0.5,
+            "y2": 0.08
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.15,
+            "x2": 0.5,
+            "y2": -0.08
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.08,
+            "x2": 0.5,
+            "y2": -0.08
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_RED_R",
+      "name": "Rectangular Duct Reducer",
+      "category": "Duct Fittings",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.15,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": -0.15,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.1,
+            "x2": 0.5,
+            "y2": -0.1
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_RECT_TO_RND",
+      "name": "Rectangular-to-Round Transition",
+      "category": "Duct Fittings",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.15,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": -0.15,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0.5,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 270,
+            "endAngle": 90
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_OFFSET",
+      "name": "Duct Offset",
+      "category": "Duct Fittings",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.15,
+            "x2": -0.15,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.05,
+            "x2": -0.2,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.05,
+            "x2": 0.2,
+            "y2": 0.25
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.15,
+            "x2": 0.2,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.05,
+            "x2": 0.5,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.25,
+            "x2": 0.5,
+            "y2": 0.25
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_DAMPER_VOL",
+      "name": "Volume Control Damper",
+      "category": "Duct Accessories",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_DAMPER_FIRE",
+      "name": "Fire Damper",
+      "category": "Duct Accessories",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.2,
+            "x2": -0.19999999999999998,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.19999999999999998,
+            "y1": 0.2,
+            "x2": 0.4,
+            "y2": -0.2
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": -0.3
+              },
+              {
+                "x": 0.05,
+                "y": -0.3
+              },
+              {
+                "x": 0,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_DAMPER_SMOKE",
+      "name": "Smoke Damper",
+      "category": "Duct Accessories",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.2,
+            "x2": -0.19999999999999998,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.19999999999999998,
+            "y1": 0.2,
+            "x2": 0.4,
+            "y2": -0.2
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_DAMPER_FSD",
+      "name": "Combined Fire/Smoke Damper",
+      "category": "Duct Accessories",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.2,
+            "x2": -0.19999999999999998,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.19999999999999998,
+            "y1": 0.2,
+            "x2": 0.4,
+            "y2": -0.2
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": 0.3
+              },
+              {
+                "x": 0.05,
+                "y": 0.3
+              },
+              {
+                "x": 0,
+                "y": 0.2
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": -0.3
+              },
+              {
+                "x": 0.05,
+                "y": -0.3
+              },
+              {
+                "x": 0,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_DAMPER_BACK",
+      "name": "Backdraft Damper",
+      "category": "Duct Accessories",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_GRILLE_SUP",
+      "name": "Supply Grille",
+      "category": "Air Terminals",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.36,
+            "y1": 0.18,
+            "x2": -0.36,
+            "y2": -0.18
+          },
+          {
+            "x1": -0.24,
+            "y1": 0.18,
+            "x2": -0.24,
+            "y2": -0.18
+          },
+          {
+            "x1": -0.12,
+            "y1": 0.18,
+            "x2": -0.12,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.18,
+            "x2": 0.0,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.12,
+            "y1": 0.18,
+            "x2": 0.12,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.24,
+            "y1": 0.18,
+            "x2": 0.24,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.36,
+            "y1": 0.18,
+            "x2": 0.36,
+            "y2": -0.18
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_GRILLE_RET",
+      "name": "Return Grille",
+      "category": "Air Terminals",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.36,
+            "y1": 0.18,
+            "x2": -0.36,
+            "y2": -0.18
+          },
+          {
+            "x1": -0.24,
+            "y1": 0.18,
+            "x2": -0.24,
+            "y2": -0.18
+          },
+          {
+            "x1": -0.12,
+            "y1": 0.18,
+            "x2": -0.12,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.18,
+            "x2": 0.0,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.12,
+            "y1": 0.18,
+            "x2": 0.12,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.24,
+            "y1": 0.18,
+            "x2": 0.24,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.36,
+            "y1": 0.18,
+            "x2": 0.36,
+            "y2": -0.18
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_GRILLE_EXH",
+      "name": "Exhaust Grille",
+      "category": "Air Terminals",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.36,
+            "y1": 0.18,
+            "x2": -0.36,
+            "y2": -0.18
+          },
+          {
+            "x1": -0.24,
+            "y1": 0.18,
+            "x2": -0.24,
+            "y2": -0.18
+          },
+          {
+            "x1": -0.12,
+            "y1": 0.18,
+            "x2": -0.12,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.18,
+            "x2": 0.0,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.12,
+            "y1": 0.18,
+            "x2": 0.12,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.24,
+            "y1": 0.18,
+            "x2": 0.24,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.36,
+            "y1": 0.18,
+            "x2": 0.36,
+            "y2": -0.18
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_DIFFUSER_4W",
+      "name": "4-Way Square Diffuser",
+      "category": "Air Terminals",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.4,
+            "x2": 0.4,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.4,
+            "x2": 0.4,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.4,
+            "x2": -0.4,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.4,
+            "x2": -0.4,
+            "y2": -0.4
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.4,
+            "x2": -0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.4,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.4,
+            "x2": -0.2,
+            "y2": 0.2
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_DIFFUSER_LIN",
+      "name": "Linear Slot Diffuser",
+      "category": "Air Terminals",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": -0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.05,
+            "x2": 0.5,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.05,
+            "x2": 0.5,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_REGISTER",
+      "name": "Air Register",
+      "category": "Air Terminals",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.2,
+            "x2": 0.4,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.2,
+            "x2": 0.4,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.2,
+            "x2": -0.4,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.2,
+            "x2": -0.4,
+            "y2": -0.2
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.4,
+                "y": -0.1
+              },
+              {
+                "x": -0.3,
+                "y": -0.1
+              },
+              {
+                "x": -0.3,
+                "y": 0.1
+              },
+              {
+                "x": -0.4,
+                "y": 0.1
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.3,
+                "y": -0.1
+              },
+              {
+                "x": 0.4,
+                "y": -0.1
+              },
+              {
+                "x": 0.4,
+                "y": 0.1
+              },
+              {
+                "x": 0.3,
+                "y": 0.1
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_FAN",
+      "name": "In-line Duct Fan",
+      "category": "Duct Accessories",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.1,
+            "x2": 0.15,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.1,
+            "x2": -0.15,
+            "y2": -0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.08,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_FILTER",
+      "name": "In-line Duct Filter",
+      "category": "Duct Accessories",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.15,
+            "x2": -0.3,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.15,
+            "x2": 0.5,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.15,
+            "x2": -0.3,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.15,
+            "x2": 0.5,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": -0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.2,
+            "x2": 0.0,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_COIL",
+      "name": "In-line Duct Heating/Cooling Coil",
+      "category": "Duct Accessories",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.15,
+            "x2": -0.3,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.15,
+            "x2": 0.5,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.15,
+            "x2": -0.3,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.15,
+            "x2": 0.5,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": 0,
+            "r": 0.08,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.05,
+            "cy": 0,
+            "r": 0.08,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.08,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.25,
+            "cy": 0,
+            "r": 0.08,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DCT_SILENCER",
+      "name": "Duct Acoustic Silencer",
+      "category": "Duct Accessories",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.15,
+            "x2": 0.4,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.15,
+            "x2": 0.4,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.1,
+            "x2": 0.4,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.1,
+            "x2": 0.4,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.05,
+            "x2": 0.4,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.05,
+            "x2": 0.4,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.4,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_CDT_BUSH",
+      "name": "Conduit Bush",
+      "category": "Conduit",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.1,
+            "y2": 0
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.15,
+            "x2": -0.1,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.15,
+            "x2": 0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.15,
+            "x2": 0.1,
+            "y2": 0.2
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_CDT_COUPLING",
+      "name": "Conduit Coupling",
+      "category": "Conduit",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.15,
+            "x2": -0.3,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.15,
+            "x2": 0.3,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.15,
+            "x2": 0.3,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.15,
+            "x2": 0.3,
+            "y2": -0.15
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_CDT_GLAND",
+      "name": "Conduit Gland",
+      "category": "Conduit",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.18,
+            "x2": -0.2,
+            "y2": -0.18
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.2,
+            "x2": 0.0,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.18,
+            "x2": 0.2,
+            "y2": -0.18
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.18,
+            "x2": 0.0,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.18,
+            "x2": 0.0,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": 0.18
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.18
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_CDT_LB",
+      "name": "Conduit Inspection LB Body",
+      "category": "Conduit",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": -0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.12,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_CDT_LL",
+      "name": "Conduit Inspection LL Body",
+      "category": "Conduit",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": -0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.12,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_CDT_LR",
+      "name": "Conduit Inspection LR Body",
+      "category": "Conduit",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.12,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_CDT_T",
+      "name": "Conduit Inspection T Body",
+      "category": "Conduit",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": -0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.12,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_CDT_X",
+      "name": "Conduit Inspection X Body",
+      "category": "Conduit",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": -0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.5
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.12,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_CTR_BEND_45",
+      "name": "Cable Tray 45° Bend",
+      "category": "Cable Tray",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.15,
+            "y2": 0
+          },
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": -0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.15,
+            "y2": 0.4
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_CTR_DROPOUT",
+      "name": "Cable Tray Dropout",
+      "category": "Cable Tray",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.1,
+            "x2": -0.1,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.5,
+            "x2": -0.1,
+            "y2": -0.5
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_CTR_END_PLATE",
+      "name": "Cable Tray End Plate",
+      "category": "Cable Tray",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0.2,
+                "y": 0.15
+              },
+              {
+                "x": 0.25,
+                "y": 0.15
+              },
+              {
+                "x": 0.25,
+                "y": -0.15
+              },
+              {
+                "x": 0.2,
+                "y": -0.15
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_FIT_BW",
+      "name": "Butt-Weld Field Joint",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": 0.1
+              },
+              {
+                "x": 0.05,
+                "y": 0.1
+              },
+              {
+                "x": 0,
+                "y": -0.15
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_GROOVE_V",
+      "name": "V-Groove Weld",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": -0.2
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.2,
+            "x2": 0.4,
+            "y2": 0.2
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_GROOVE_BEVEL",
+      "name": "Bevel Groove Weld",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.2,
+            "x2": 0.4,
+            "y2": 0.2
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_BACKING",
+      "name": "Weld Backing Bar",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.3,
+                "y": -0.1
+              },
+              {
+                "x": 0.3,
+                "y": -0.1
+              },
+              {
+                "x": 0.3,
+                "y": -0.2
+              },
+              {
+                "x": -0.3,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_SEAM",
+      "name": "Seam Weld",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": 0.05,
+            "x2": -0.3,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.05,
+            "x2": -0.3,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.05,
+            "x2": -0.2,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.05,
+            "x2": -0.2,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.05,
+            "x2": -0.1,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.05,
+            "x2": -0.1,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.05,
+            "x2": 0,
+            "y2": -0.05
+          },
+          {
+            "x1": 0,
+            "y1": -0.05,
+            "x2": 0,
+            "y2": 0.05
+          },
+          {
+            "x1": 0,
+            "y1": 0.05,
+            "x2": 0.1,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.05,
+            "x2": 0.1,
+            "y2": -0.05
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.05,
+            "x2": 0.2,
+            "y2": -0.05
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.05,
+            "x2": 0.2,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.05,
+            "x2": 0.3,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.05,
+            "x2": 0.3,
+            "y2": -0.05
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.05,
+            "x2": 0.4,
+            "y2": -0.05
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_TACK",
+      "name": "Tack Weld",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.15,
+                "y": 0.08
+              },
+              {
+                "x": -0.05,
+                "y": 0.08
+              },
+              {
+                "x": -0.1,
+                "y": -0.1
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.05,
+                "y": 0.08
+              },
+              {
+                "x": 0.15,
+                "y": 0.08
+              },
+              {
+                "x": 0.1,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_PLUG",
+      "name": "Plug Weld",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.08,
+            "r": 0.08,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_SLOT",
+      "name": "Slot Weld",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": -0.12,
+            "y1": -0.04,
+            "x2": 0.12,
+            "y2": -0.04
+          },
+          {
+            "x1": -0.12,
+            "y1": -0.16,
+            "x2": 0.12,
+            "y2": -0.16
+          },
+          {
+            "x1": -0.12,
+            "y1": -0.04,
+            "x2": -0.12,
+            "y2": -0.16
+          },
+          {
+            "x1": 0.12,
+            "y1": -0.04,
+            "x2": 0.12,
+            "y2": -0.16
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_SP",
+      "name": "Spot Weld",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.1,
+            "cy": -0.1,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.05,
+            "cy": -0.1,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.15,
+            "cy": -0.1,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_SW",
+      "name": "Socket-Weld Joint",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": -0.1
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": 0.1
+              },
+              {
+                "x": 0.05,
+                "y": 0.1
+              },
+              {
+                "x": 0,
+                "y": 0.2
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": -0.1
+              },
+              {
+                "x": 0.05,
+                "y": -0.1
+              },
+              {
+                "x": 0,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_NDT_RT",
+      "name": "Non-Destructive Test — Radiography",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.18,
+            "y1": 0,
+            "x2": 0.18,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.18,
+            "x2": 0,
+            "y2": 0.18
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_NDT_UT",
+      "name": "Non-Destructive Test — Ultrasonic",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.18,
+            "y1": 0,
+            "x2": 0.18,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.18,
+            "x2": 0,
+            "y2": 0.18
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_NDT_PT",
+      "name": "Non-Destructive Test — Liquid Penetrant",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.18,
+            "y1": 0,
+            "x2": 0.18,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.18,
+            "x2": 0,
+            "y2": 0.18
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_NDT_MT",
+      "name": "Non-Destructive Test — Magnetic Particle",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.18,
+            "y1": 0,
+            "x2": 0.18,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.18,
+            "x2": 0,
+            "y2": 0.18
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WELD_NDT_VT",
+      "name": "Non-Destructive Test — Visual",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.18,
+            "y1": 0,
+            "x2": 0.18,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.18,
+            "x2": 0,
+            "y2": 0.18
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_ANCHOR_PIPE",
+      "name": "Pipe Anchor (Fixed Point)",
+      "category": "Hangers",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.3,
+                "y": 0.3
+              },
+              {
+                "x": 0.3,
+                "y": 0.3
+              },
+              {
+                "x": 0.3,
+                "y": 0.2
+              },
+              {
+                "x": -0.3,
+                "y": 0.2
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.3,
+                "y": -0.2
+              },
+              {
+                "x": 0.3,
+                "y": -0.2
+              },
+              {
+                "x": 0.3,
+                "y": -0.3
+              },
+              {
+                "x": -0.3,
+                "y": -0.3
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_HANGER_CLAMP",
+      "name": "Pipe Hanger — Clamp",
+      "category": "Hangers",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.15,
+                "y": 0.1
+              },
+              {
+                "x": 0.15,
+                "y": 0.1
+              },
+              {
+                "x": 0.15,
+                "y": 0.05
+              },
+              {
+                "x": -0.15,
+                "y": 0.05
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_HANGER_ROLLER",
+      "name": "Pipe Hanger — Roller Support",
+      "category": "Hangers",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.2,
+            "x2": 0.25,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.2,
+            "x2": 0.25,
+            "y2": -0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.18,
+            "cy": -0.1,
+            "r": 0.06,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.18,
+            "cy": -0.1,
+            "r": 0.06,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_HANGER_CONST",
+      "name": "Pipe Hanger — Constant-Load Spring",
+      "category": "Hangers",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.3,
+            "x2": 0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.1,
+            "x2": 0.15,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.3,
+            "x2": -0.05,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.2,
+            "x2": 0.15,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.1,
+            "x2": -0.05,
+            "y2": 0
+          },
+          {
+            "x1": -0.05,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": -0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.3,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_HANGER_RIGID",
+      "name": "Pipe Hanger — Rigid Strut",
+      "category": "Hangers",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.45,
+            "x2": 0.1,
+            "y2": 0.45
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.05,
+            "x2": 0.1,
+            "y2": -0.05
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.2,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_EXPANSION_JOINT",
+      "name": "Expansion Joint",
+      "category": "Pipe Accessories",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.15,
+            "x2": -0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": 0.15
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.18,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 90,
+            "endAngle": 270
+          },
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 90,
+            "endAngle": 270
+          },
+          {
+            "cx": -0.02,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 90,
+            "endAngle": 270
+          },
+          {
+            "cx": 0.06,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 90,
+            "endAngle": 270
+          },
+          {
+            "cx": 0.14,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 90,
+            "endAngle": 270
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_GUIDE_PIPE",
+      "name": "Pipe Guide",
+      "category": "Hangers",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.12,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_SLEEVE_PUDDLE",
+      "name": "Puddle-Flange Wall Penetration",
+      "category": "Penetrations",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.3,
+            "x2": 0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.3,
+            "x2": 0.15,
+            "y2": -0.3
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_SLEEVE_LINK_SEAL",
+      "name": "Link-Seal Sleeve Penetration",
+      "category": "Penetrations",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.15,
+            "x2": 0.5,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.15,
+            "x2": 0.5,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": -0.1
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.3,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.3,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_SLAB_PENETRATION",
+      "name": "Slab Penetration (Plan View)",
+      "category": "Penetrations",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_WALL_PENETRATION",
+      "name": "Wall Penetration (Plan View)",
+      "category": "Penetrations",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": -0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": -0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_NORTH_ARROW",
+      "name": "North Arrow",
+      "category": "Notation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0,
+                "y": 0.4
+              },
+              {
+                "x": -0.1,
+                "y": -0.2
+              },
+              {
+                "x": 0,
+                "y": -0.1
+              },
+              {
+                "x": 0.1,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_SCALE_BAR",
+      "name": "Scale Bar",
+      "category": "Notation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 10.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.05,
+            "x2": -0.5,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.05,
+            "x2": -0.25,
+            "y2": 0.05
+          },
+          {
+            "x1": 0,
+            "y1": -0.05,
+            "x2": 0,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.05,
+            "x2": 0.25,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.05,
+            "x2": 0.5,
+            "y2": 0.05
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.5,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.05
+              },
+              {
+                "x": -0.5,
+                "y": -0.05
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.05
+              },
+              {
+                "x": 0,
+                "y": -0.05
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_GRID_BUBBLE",
+      "name": "Grid Bubble",
+      "category": "Notation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_SECTION_HEAD",
+      "name": "Section Marker Head",
+      "category": "Notation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 10.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0.4,
+                "y": 0.1
+              },
+              {
+                "x": 0.6,
+                "y": 0
+              },
+              {
+                "x": 0.4,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_LEVEL_HEAD",
+      "name": "Level/Elevation Marker",
+      "category": "Notation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.3
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_NOTE_GENERAL",
+      "name": "General Note Tag",
+      "category": "Notation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.15,
+            "x2": 0.4,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.15,
+            "x2": 0.4,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.15,
+            "x2": -0.4,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.15,
+            "x2": -0.4,
+            "y2": -0.15
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_NOTE_TYPICAL",
+      "name": "Typical (TYP) Note Tag",
+      "category": "Notation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.15,
+            "x2": 0.4,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.15,
+            "x2": 0.4,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.15,
+            "x2": -0.4,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.15,
+            "x2": -0.4,
+            "y2": -0.15
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_NOTE_NIC",
+      "name": "Not in Contract (NIC) Tag",
+      "category": "Notation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.15,
+            "x2": 0.4,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.15,
+            "x2": 0.4,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.15,
+            "x2": -0.4,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.15,
+            "x2": -0.4,
+            "y2": -0.15
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_NOTE_NTS",
+      "name": "Not to Scale (NTS) Tag",
+      "category": "Notation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.15,
+            "x2": 0.4,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.15,
+            "x2": 0.4,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.15,
+            "x2": -0.4,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.15,
+            "x2": -0.4,
+            "y2": -0.15
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_NOTE_REVCLOUD",
+      "name": "Revision Cloud (Pictogram)",
+      "category": "Notation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": -0.3,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 90,
+            "endAngle": 270
+          },
+          {
+            "cx": -0.1,
+            "cy": 0.1,
+            "r": 0.1,
+            "startAngle": 90,
+            "endAngle": 270
+          },
+          {
+            "cx": 0.1,
+            "cy": 0.1,
+            "r": 0.1,
+            "startAngle": 90,
+            "endAngle": 270
+          },
+          {
+            "cx": 0.3,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 90,
+            "endAngle": 270
+          },
+          {
+            "cx": 0.1,
+            "cy": -0.1,
+            "r": 0.1,
+            "startAngle": 270,
+            "endAngle": 90
+          },
+          {
+            "cx": -0.1,
+            "cy": -0.1,
+            "r": 0.1,
+            "startAngle": 270,
+            "endAngle": 90
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DIM_LINEAR",
+      "name": "Linear Dimension Tick",
+      "category": "Dimensions",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DIM_ANGULAR",
+      "name": "Angular Dimension Marker",
+      "category": "Dimensions",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 90
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DIM_RADIAL",
+      "name": "Radial Dimension Marker",
+      "category": "Dimensions",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0.4,
+                "y": 0.05
+              },
+              {
+                "x": 0.5,
+                "y": 0
+              },
+              {
+                "x": 0.4,
+                "y": -0.05
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_DIM_SLOPE",
+      "name": "Slope/Gradient Indicator",
+      "category": "Dimensions",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0.3,
+                "y": 0.1
+              },
+              {
+                "x": 0.2,
+                "y": 0.05
+              },
+              {
+                "x": 0.2,
+                "y": 0.15
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_TAG_DUCT",
+      "name": "Duct Annotation Tag",
+      "category": "Tags",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.1,
+            "x2": 0.4,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": 0.4,
+            "y2": 0
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_TAG_FITTING",
+      "name": "Fitting Annotation Tag",
+      "category": "Tags",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.1,
+            "x2": 0.4,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": 0.4,
+            "y2": 0
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_TAG_HANGER",
+      "name": "Hanger Annotation Tag",
+      "category": "Tags",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.1,
+            "x2": 0.4,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": 0.4,
+            "y2": 0
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_TAG_WELD",
+      "name": "Weld Annotation Tag",
+      "category": "Tags",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.1,
+            "x2": 0.4,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": 0.4,
+            "y2": 0
           }
         ]
       },

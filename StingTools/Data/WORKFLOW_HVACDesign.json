@@ -1,21 +1,27 @@
 {
   "id": "HVACDesign",
   "label": "HVAC — Design pass",
-  "description": "Audit topology → auto-size ducts → balance system → NC check → validate. The standard HVAC engineer's pre-issue sequence. Respects the active scope and sizing-strategy radio set on the HVAC dock panel.",
+  "description": "Block load → audit topology → auto-size ducts → balance system → NC check → pressure-class audit → validate. The standard HVAC engineer's pre-issue sequence. Respects the active scope and sizing-strategy radio set on the HVAC dock panel.",
   "discipline": "Mechanical",
   "icon": "❄",
   "steps": [
-    { "commandTag": "Hvac_SystemAudit",     "label": "System topology audit" },
-    { "commandTag": "Hvac_ConnectionAudit", "label": "Connector graph audit" },
-    { "commandTag": "Hvac_AutoSizeDuct",    "label": "Auto-size ducts (strategy + scope from HVAC panel)" },
-    { "commandTag": "Hvac_HardyCross",      "label": "Hardy-Cross balance" },
-    { "commandTag": "Mep_VibroAcoustic",    "label": "NC rating per branch" },
-    { "commandTag": "Hvac_RunAllValidators","label": "Run v4 validators (+ healthcare if applicable)" },
-    { "commandTag": "Hvac_EquipmentSchedule","label": "Refresh mechanical equipment schedule" }
+    { "commandTag": "Hvac_BlockLoad",         "label": "Block load (peak-pick with diversity)" },
+    { "commandTag": "Hvac_PropagateLoads",    "label": "Propagate loads → HVC_FLOW_LS on ducts" },
+    { "commandTag": "Hvac_SystemAudit",       "label": "System topology audit" },
+    { "commandTag": "Hvac_ConnectionAudit",   "label": "Connector graph audit" },
+    { "commandTag": "Hvac_AutoSizeDuct",      "label": "Auto-size ducts (strategy + scope from HVAC panel)" },
+    { "commandTag": "Hvac_HardyCross",        "label": "Hardy-Cross balance" },
+    { "commandTag": "Hvac_NcPredict",         "label": "NC prediction (VDI 2081 / ASHRAE A48 + regenerated noise)" },
+    { "commandTag": "Hvac_PressureClassAudit","label": "Pressure-class audit (DW/144 A-D)" },
+    { "commandTag": "Hvac_DetectStaleSizes",  "label": "Flag stale sizes vs current flow" },
+    { "commandTag": "Hvac_RunAllValidators",  "label": "Run v4 validators (+ healthcare if applicable)" },
+    { "commandTag": "Hvac_EquipmentSchedule", "label": "Refresh mechanical equipment schedule" }
   ],
   "notes": [
+    "Block load opens the pass so downstream sizing reads the per-space HVC_PEAK_* stamps (Phase 187 BlockLoadEngine).",
     "Each step opens its own transaction; on cancel the partial work commits but later steps are skipped.",
     "The HVAC panel WorkflowGrid records every step + status.",
+    "NC step requires a duct selection — the command surfaces a guidance dialog and exits cleanly if no selection is active.",
     "Edit <project>/_BIM_COORD/workflow_overrides.json to swap individual steps for project-specific commands."
   ]
 }

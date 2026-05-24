@@ -17,9 +17,9 @@ TAG_FAMILY,STING - Clinical Room Tag,H,Rooms,1,CLN_ROOM_CLASS_TXT,Clinical room 
 TAG_FAMILY,STING - Pressure Regime Tag,H,Rooms,1,CLN_PRESS_REGIME_TXT,Pressure cascade arrow + Δp
 TAG_FAMILY,STING - Infection Class Tag,H,Rooms,1,CLN_INFECT_CLASS_TXT,AIIR/PE banner
 TAG_FAMILY,STING - MRI Zone Tag,H,Generic Models,0,CLN_MRI_ZONE_INT,MRI Z1..Z4 zoning marker
-TAG_FAMILY,STING - Anti-Ligature Tag,H,Doors,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
-TAG_FAMILY,STING - Anti-Ligature Tag,H,Plumbing Fixtures,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
-TAG_FAMILY,STING - Anti-Ligature Tag,H,Lighting Fixtures,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
+TAG_FAMILY,STING - Anti-Ligature (Door) Tag,H,Doors,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
+TAG_FAMILY,STING - Anti-Ligature (Plumbing Fixture) Tag,H,Plumbing Fixtures,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
+TAG_FAMILY,STING - Anti-Ligature (Lighting Fixture) Tag,H,Lighting Fixtures,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
 TAG_FAMILY,STING - Bedhead Trunking Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Bedhead trunking/services unit
 TAG_FAMILY,STING - Pendant Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Operating room / ICU pendant
 TAG_FAMILY,STING - Scrub Trough Tag,H,Plumbing Fixtures,0,CEQ_CATEGORY_TXT,Pre-operative scrub trough

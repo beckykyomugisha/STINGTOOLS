@@ -383,9 +383,9 @@ namespace StingTools.Commands.Electrical
 
             try
             {
-                var p = conduit.LookupParameter("ELC_WIRE_VD_PCT_NUM");
+                var p = conduit.LookupParameter(ParamRegistry.ELC_CKT_VD_PCT);
                 if (p == null) {
-                    double.TryParse(ParameterHelpers.GetString(conduit, "ELC_WIRE_VD_PCT_NUM"),
+                    double.TryParse(ParameterHelpers.GetString(conduit, ParamRegistry.ELC_CKT_VD_PCT),
                         System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out vd);
                 } else if (p.StorageType == StorageType.Double) {
@@ -1198,6 +1198,511 @@ namespace StingTools.Commands.Electrical
             catch (Exception ex) { StingLog.Warn("ResolveTickSubcategory: " + ex.Message); }
             return null;
         }
+
+        private static ConnectorManager GetMepConnectorManager(Element el)
+        {
+            try
+            {
+                if (el is MEPCurve mc) return mc.ConnectorManager;
+                if (el is FamilyInstance fi) return fi.MEPModel?.ConnectorManager;
+            }
+            catch { }
+            return null;
+        }
+
+        private static bool IsElectricalDevice(Element el)
+        {
+            if (!(el is FamilyInstance fi) || fi.MEPModel == null) return false;
+            var catId = fi.Category?.Id?.Value ?? 0;
+            return catId == (long)BuiltInCategory.OST_ElectricalEquipment
+                || catId == (long)BuiltInCategory.OST_ElectricalFixtures
+                || catId == (long)BuiltInCategory.OST_LightingFixtures
+                || catId == (long)BuiltInCategory.OST_LightingDevices
+                || catId == (long)BuiltInCategory.OST_DataDevices
+                || catId == (long)BuiltInCategory.OST_CommunicationDevices
+                || catId == (long)BuiltInCategory.OST_FireAlarmDevices
+                || catId == (long)BuiltInCategory.OST_NurseCallDevices
+                || catId == (long)BuiltInCategory.OST_SecurityDevices
+                || catId == (long)BuiltInCategory.OST_TelephoneDevices;
+        }
+
+        // Switches/dimmers/sensors live in OST_LightingDevices. In LoadOnly
+        // walk mode they're treated as pass-through fittings so the DFS
+        // can reach the actual fixture beyond a 2-way / intermediate
+        // switching chain.
+        private static bool IsSwitch(Element el) =>
+            el?.Category?.Id?.Value == (long)BuiltInCategory.OST_LightingDevices;
+
+        private static bool IsSourceEquipment(Element el) =>
+            el?.Category?.Id?.Value == (long)BuiltInCategory.OST_ElectricalEquipment;
+
+        private static bool IsLoad(Element el)
+        {
+            var catId = el?.Category?.Id?.Value ?? 0;
+            return catId == (long)BuiltInCategory.OST_LightingFixtures
+                || catId == (long)BuiltInCategory.OST_ElectricalFixtures
+                || catId == (long)BuiltInCategory.OST_DataDevices
+                || catId == (long)BuiltInCategory.OST_CommunicationDevices
+                || catId == (long)BuiltInCategory.OST_FireAlarmDevices
+                || catId == (long)BuiltInCategory.OST_NurseCallDevices
+                || catId == (long)BuiltInCategory.OST_SecurityDevices
+                || catId == (long)BuiltInCategory.OST_TelephoneDevices;
+        }
+
+        public enum WalkMode
+        {
+            StopAtAnyDevice,
+            StopAtLoadOnly,
+        }
+
+        public enum WireRole
+        {
+            Unknown,
+            Feeder,        // source equipment → switch
+            Strapper,      // switch ↔ switch (BS 7671 strappers / US travelers)
+            SwitchedLive,  // last switch → fixture (the switch drop)
+            LoadDrop,      // source equipment → fixture (no intermediate switch)
+            Ring,          // ring final circuit (panel ↔ panel)
+        }
+
+        public static WireRole ClassifyRole(Element startEl, Element endEl)
+        {
+            if (startEl == null || endEl == null) return WireRole.Unknown;
+            if (startEl.Id == endEl.Id) return WireRole.Ring;
+            bool sSw = IsSwitch(startEl), eSw = IsSwitch(endEl);
+            bool sSrc = IsSourceEquipment(startEl), eSrc = IsSourceEquipment(endEl);
+            bool sLd = IsLoad(startEl), eLd = IsLoad(endEl);
+            if (sSw && eSw) return WireRole.Strapper;
+            if ((sSrc && eSw) || (sSw && eSrc)) return WireRole.Feeder;
+            if ((sSw && eLd) || (sLd && eSw)) return WireRole.SwitchedLive;
+            if ((sSrc && eLd) || (sLd && eSrc)) return WireRole.LoadDrop;
+            return WireRole.Unknown;
+        }
+
+        public static WireRole ClassifyConduitRole(Element conduit)
+        {
+            if (conduit == null) return WireRole.Unknown;
+            var lc = conduit.Location as LocationCurve;
+            if (lc?.Curve == null) return WireRole.Unknown;
+            var endA = FindFirstDeviceOnSide(conduit, lc.Curve.GetEndPoint(0));
+            var endB = FindFirstDeviceOnSide(conduit, lc.Curve.GetEndPoint(1));
+            return ClassifyRole(endA, endB);
+        }
+
+        private static Element FindFirstDeviceOnSide(Element start, XYZ startPt)
+        {
+            if (start == null || startPt == null) return null;
+            var visited = new HashSet<long> { start.Id.Value };
+            Element current = start;
+            XYZ currentPt = startPt;
+            int safety = 50;
+            while (safety-- > 0)
+            {
+                var cm = GetMepConnectorManager(current);
+                if (cm == null) return null;
+                Connector outConn = null;
+                try
+                {
+                    foreach (Connector c in cm.Connectors)
+                    {
+                        if (c.ConnectorType != ConnectorType.End) continue;
+                        if (c.Origin != null && c.Origin.IsAlmostEqualTo(currentPt, 1e-3))
+                        { outConn = c; break; }
+                    }
+                }
+                catch { return null; }
+                if (outConn == null || !outConn.IsConnected) return null;
+                Connector partner = null;
+                try
+                {
+                    foreach (Connector other in outConn.AllRefs)
+                    {
+                        if (other?.Owner == null) continue;
+                        if (other.Owner.Id == current.Id) continue;
+                        partner = other; break;
+                    }
+                }
+                catch { return null; }
+                if (partner == null) return null;
+                var nextEl = partner.Owner;
+                if (!visited.Add(nextEl.Id.Value)) return null;
+                if (IsElectricalDevice(nextEl)) return nextEl;
+                var catId = nextEl.Category?.Id?.Value ?? 0;
+                if (catId != (long)BuiltInCategory.OST_Conduit
+                 && catId != (long)BuiltInCategory.OST_ConduitFitting) return null;
+                var nextCm = GetMepConnectorManager(nextEl);
+                if (nextCm == null) return null;
+                Connector exit = null;
+                try
+                {
+                    foreach (Connector c in nextCm.Connectors)
+                    {
+                        if (c.ConnectorType != ConnectorType.End) continue;
+                        if (c.Id == partner.Id) continue;
+                        exit = c; break;
+                    }
+                }
+                catch { return null; }
+                if (exit == null || exit.Origin == null) return null;
+                current = nextEl;
+                currentPt = exit.Origin;
+            }
+            return null;
+        }
+
+        // Maps STING_CABLE_TYPE_TXT to a core count. Returns 0 when no
+        // match — caller falls back to circuit poles or shared-param value.
+        // Recognises UK BS-style cable codes: 2C+E / T&E / Twin&Earth /
+        // 3C+E / 4C+E / 5C+E (with or without spaces / dashes).
+        private static int ParseCableTypeCores(string cableType)
+        {
+            if (string.IsNullOrEmpty(cableType)) return 0;
+            string s = cableType.ToUpperInvariant().Replace(" ", "").Replace("-", "");
+            if (s.Contains("T&E") || s.Contains("TWIN&EARTH") || s.StartsWith("2C")) return 2;
+            if (s.StartsWith("3C")) return 3;
+            if (s.StartsWith("4C")) return 4;
+            if (s.StartsWith("5C")) return 5;
+            return 0;
+        }
+
+        public static ElectricalSystem GetConnectedCircuit(Element conduit)
+        {
+            if (conduit == null) return null;
+            var cm = GetMepConnectorManager(conduit);
+            if (cm == null) return null;
+
+            var visited = new HashSet<long> { conduit.Id.Value };
+            var frontier = new List<Connector>();
+            try
+            {
+                foreach (Connector c in cm.Connectors)
+                    if (c.ConnectorType == ConnectorType.End) frontier.Add(c);
+            }
+            catch { return null; }
+
+            const int maxDepth = 12;
+            for (int depth = 0; depth < maxDepth && frontier.Count > 0; depth++)
+            {
+                var next = new List<Connector>();
+                foreach (var fc in frontier)
+                {
+                    ConnectorSet refs;
+                    try { refs = fc.AllRefs; } catch { continue; }
+                    if (refs == null) continue;
+                    foreach (Connector other in refs)
+                    {
+                        var owner = other?.Owner;
+                        if (owner == null) continue;
+                        long oid = owner.Id.Value;
+                        if (!visited.Add(oid)) continue;
+
+                        if (IsElectricalDevice(owner))
+                        {
+                            try
+                            {
+                                var systems = ((FamilyInstance)owner).MEPModel.GetElectricalSystems();
+                                if (systems != null && systems.Count > 0)
+                                    return systems.FirstOrDefault();
+                            }
+                            catch { }
+                            continue;
+                        }
+
+                        var catId = owner.Category?.Id?.Value ?? 0;
+                        if (catId != (long)BuiltInCategory.OST_Conduit
+                         && catId != (long)BuiltInCategory.OST_ConduitFitting)
+                            continue;
+
+                        var ocm = GetMepConnectorManager(owner);
+                        if (ocm == null) continue;
+                        try
+                        {
+                            foreach (Connector pc in ocm.Connectors)
+                            {
+                                if (pc.ConnectorType != ConnectorType.End) continue;
+                                if (pc.Id == other.Id) continue;
+                                next.Add(pc);
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                frontier = next;
+            }
+            return null;
+        }
+
+        public class WirePathResult
+        {
+            public List<XYZ> Vertices { get; set; } = new List<XYZ>();
+            public Connector StartConnector { get; set; }
+            public Connector EndConnector { get; set; }
+            public WireRole Role { get; set; } = WireRole.Unknown;
+            // Conduit + conduit-fitting element IDs traversed by this path
+            // (excluding the device endpoints). Used by ring-circuit dedup
+            // to differentiate the two legs of a closed loop where both
+            // ends terminate at the same panel.
+            public List<long> TraversedIds { get; set; } = new List<long>();
+        }
+
+        // Back-compat: returns first path with default StopAtAnyDevice walk.
+        public static WirePathResult BuildWirePath(Element conduit)
+        {
+            var all = BuildWirePaths(conduit);
+            return all.Count > 0 ? all[0] : null;
+        }
+
+        public static List<WirePathResult> BuildWirePaths(Element conduit) =>
+            BuildWirePaths(conduit, WalkMode.StopAtAnyDevice);
+
+        // Walks both directions through the conduit + conduit-fitting graph
+        // with a multi-branch DFS. WalkMode controls termination:
+        //   StopAtAnyDevice: stop at any electrical device (per-segment wires).
+        //   StopAtLoadOnly:  pass through switches (multi-connector LightingDevices)
+        //                    so a 2-way / intermediate-switching chain emits a
+        //                    single panel-to-fixture wire.
+        // Each result carries a WireRole derived from start/end categories.
+        public static List<WirePathResult> BuildWirePaths(Element conduit, WalkMode walkMode)
+        {
+            var results = new List<WirePathResult>();
+            if (conduit == null) return results;
+            var lc = conduit.Location as LocationCurve;
+            if (lc?.Curve == null) return results;
+            var p0 = lc.Curve.GetEndPoint(0);
+            var p1 = lc.Curve.GetEndPoint(1);
+
+            var seedVisited = new HashSet<long> { conduit.Id.Value };
+            var sideA = WalkSideMulti(conduit, p0, seedVisited, walkMode);
+            var sideB = WalkSideMulti(conduit, p1, seedVisited, walkMode);
+
+            const int maxPairs = 64;
+
+            void AddResult(List<XYZ> verts, Connector sc, Connector ec, HashSet<long> traversed)
+            {
+                var r = new WirePathResult
+                {
+                    Vertices       = DeDupeConsecutive(verts),
+                    StartConnector = sc,
+                    EndConnector   = ec,
+                    TraversedIds   = traversed.ToList(),
+                };
+                r.Role = ClassifyRole(sc?.Owner, ec?.Owner);
+                results.Add(r);
+            }
+
+            HashSet<long> CombinedTraversed(HashSet<long> a, HashSet<long> b)
+            {
+                var c = new HashSet<long>(a);
+                c.UnionWith(b);
+                c.Add(conduit.Id.Value);
+                return c;
+            }
+
+            if (sideA.Count > 0 && sideB.Count > 0)
+            {
+                foreach (var a in sideA)
+                {
+                    foreach (var b in sideB)
+                    {
+                        if (results.Count >= maxPairs) break;
+                        var verts = new List<XYZ>(a.points.Count + b.points.Count);
+                        for (int i = a.points.Count - 1; i >= 0; i--) verts.Add(a.points[i]);
+                        verts.AddRange(b.points);
+                        AddResult(verts, a.deviceConn, b.deviceConn,
+                            CombinedTraversed(a.traversed, b.traversed));
+                    }
+                }
+            }
+            else if (sideA.Count > 0)
+            {
+                foreach (var a in sideA)
+                {
+                    if (results.Count >= maxPairs) break;
+                    var verts = new List<XYZ>(a.points.Count + 1);
+                    for (int i = a.points.Count - 1; i >= 0; i--) verts.Add(a.points[i]);
+                    verts.Add(p1);
+                    AddResult(verts, a.deviceConn, null,
+                        CombinedTraversed(a.traversed, new HashSet<long>()));
+                }
+            }
+            else if (sideB.Count > 0)
+            {
+                foreach (var b in sideB)
+                {
+                    if (results.Count >= maxPairs) break;
+                    var verts = new List<XYZ>(b.points.Count + 1) { p0 };
+                    verts.AddRange(b.points);
+                    AddResult(verts, null, b.deviceConn,
+                        CombinedTraversed(new HashSet<long>(), b.traversed));
+                }
+            }
+            else
+            {
+                AddResult(new List<XYZ> { p0, p1 }, null, null,
+                    new HashSet<long> { conduit.Id.Value });
+            }
+
+            return results;
+        }
+
+        private static List<XYZ> DeDupeConsecutive(List<XYZ> verts)
+        {
+            var clean = new List<XYZ>();
+            foreach (var v in verts)
+            {
+                if (clean.Count == 0 || !clean[clean.Count - 1].IsAlmostEqualTo(v, 1e-3))
+                    clean.Add(v);
+            }
+            return clean;
+        }
+
+        private static List<(List<XYZ> points, Connector deviceConn, HashSet<long> traversed)> WalkSideMulti(
+            Element startElement, XYZ startPt, HashSet<long> seedVisited, WalkMode walkMode)
+        {
+            var results = new List<(List<XYZ>, Connector, HashSet<long>)>();
+            const int maxResults = 32;
+            const int maxDepth   = 200;
+
+            void Recurse(Element current, XYZ currentPt, List<XYZ> acc, HashSet<long> visited, int depth)
+            {
+                if (results.Count >= maxResults || depth > maxDepth) return;
+
+                var cm = GetMepConnectorManager(current);
+                if (cm == null) return;
+
+                Connector outConn = null;
+                try
+                {
+                    foreach (Connector c in cm.Connectors)
+                    {
+                        if (c.ConnectorType != ConnectorType.End) continue;
+                        if (c.Origin != null && c.Origin.IsAlmostEqualTo(currentPt, 1e-3))
+                        { outConn = c; break; }
+                    }
+                }
+                catch { return; }
+                if (outConn == null || !outConn.IsConnected) return;
+
+                Connector partnerConn = null;
+                try
+                {
+                    foreach (Connector other in outConn.AllRefs)
+                    {
+                        if (other?.Owner == null) continue;
+                        if (other.Owner.Id == current.Id) continue;
+                        partnerConn = other;
+                        break;
+                    }
+                }
+                catch { return; }
+                if (partnerConn == null) return;
+
+                var nextElement = partnerConn.Owner;
+                if (visited.Contains(nextElement.Id.Value)) return;
+
+                if (IsElectricalDevice(nextElement))
+                {
+                    // LoadOnly mode: try to pass through switches that have
+                    // additional end connectors (multi-port smart switch /
+                    // dimmer / sensor with input + output terminals).
+                    if (walkMode == WalkMode.StopAtLoadOnly && IsSwitch(nextElement))
+                    {
+                        var nxtCm = GetMepConnectorManager(nextElement);
+                        if (nxtCm != null)
+                        {
+                            var swExits = new List<Connector>();
+                            try
+                            {
+                                foreach (Connector c in nxtCm.Connectors)
+                                {
+                                    if (c.ConnectorType != ConnectorType.End) continue;
+                                    if (c.Id == partnerConn.Id) continue;
+                                    swExits.Add(c);
+                                }
+                            }
+                            catch { swExits.Clear(); }
+                            if (swExits.Count > 0)
+                            {
+                                var swVisited = new HashSet<long>(visited) { nextElement.Id.Value };
+                                foreach (var exit in swExits)
+                                {
+                                    if (results.Count >= maxResults) break;
+                                    if (exit.Origin == null) continue;
+                                    var branchAcc = new List<XYZ>(acc) { exit.Origin };
+                                    Recurse(nextElement, exit.Origin, branchAcc,
+                                        new HashSet<long>(swVisited), depth + 1);
+                                }
+                                return;
+                            }
+                        }
+                        // No additional connectors — fall through to terminate.
+                    }
+
+                    var finalAcc = new List<XYZ>(acc);
+                    if (partnerConn.Origin != null) finalAcc.Add(partnerConn.Origin);
+                    var finalTraversed = new HashSet<long>(visited);
+                    finalTraversed.Remove(startElement.Id.Value); // exclude the picked conduit (added by seed)
+                    results.Add((finalAcc, partnerConn, finalTraversed));
+                    return;
+                }
+
+                var catId = nextElement.Category?.Id?.Value ?? 0;
+                if (catId != (long)BuiltInCategory.OST_Conduit
+                 && catId != (long)BuiltInCategory.OST_ConduitFitting)
+                    return;
+
+                var nextCm = GetMepConnectorManager(nextElement);
+                if (nextCm == null) return;
+
+                var exits = new List<Connector>();
+                try
+                {
+                    foreach (Connector c in nextCm.Connectors)
+                    {
+                        if (c.ConnectorType != ConnectorType.End) continue;
+                        if (c.Id == partnerConn.Id) continue;
+                        exits.Add(c);
+                    }
+                }
+                catch { return; }
+                if (exits.Count == 0) return;
+
+                var visitedDown = new HashSet<long>(visited) { nextElement.Id.Value };
+
+                foreach (var exit in exits)
+                {
+                    if (results.Count >= maxResults) break;
+                    if (exit.Origin == null) continue;
+                    var branchAcc = new List<XYZ>(acc) { exit.Origin };
+                    Recurse(nextElement, exit.Origin, branchAcc, new HashSet<long>(visitedDown), depth + 1);
+                }
+            }
+
+            var initialAcc = new List<XYZ> { startPt };
+            Recurse(startElement, startPt, initialAcc, new HashSet<long>(seedVisited), 0);
+            return results;
+        }
+
+        public static WireType ResolveWireType(Document doc)
+        {
+            if (doc == null) return null;
+            try
+            {
+                var all = new FilteredElementCollector(doc)
+                    .OfClass(typeof(WireType))
+                    .Cast<WireType>()
+                    .ToList();
+                if (all.Count == 0) return null;
+                var preferred = all.FirstOrDefault(w =>
+                    (w.Name ?? "").IndexOf("STING", StringComparison.OrdinalIgnoreCase) >= 0);
+                return preferred ?? all[0];
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("ResolveWireType: " + ex.Message);
+                return null;
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1245,6 +1750,7 @@ namespace StingTools.Commands.Electrical
                     if (dup.Show() != TaskDialogResult.Yes) return Result.Cancelled;
                 }
 
+                var role = WireAnnotationEngine.ClassifyConduitRole(conduit);
                 using (var t = new Transaction(doc, "STING Place Wire Annotation"))
                 {
                     t.Start();

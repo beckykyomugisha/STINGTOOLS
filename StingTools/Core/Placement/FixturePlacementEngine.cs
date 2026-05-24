@@ -299,6 +299,8 @@ namespace StingTools.Core.Placement
                 int processed = 0;
                 int total = rooms.Count;
                 bool cancelled = false;
+                StingLog.Info($"FixturePlacementEngine: pre-flight finished in {swEngine.ElapsedMilliseconds} ms — entering per-room loop ({total} rooms).");
+                CurrentPhase = "Per-room loop";
                 foreach (var room in rooms)
                 {
                     // Phase 139.5 Q21 — room name derived once per room for fast pre-filter.
@@ -306,6 +308,7 @@ namespace StingTools.Core.Placement
 
                     // PC-13 — per-room state so dependent rules see predecessors.
                     var roomState = new RoomState();
+                    string roomName = SafeRoomName(room);
                     foreach (var rule in ordered)
                     {
                         var diag = result.Diag(rule.MergeKey);
@@ -387,6 +390,14 @@ namespace StingTools.Core.Placement
                             result.Warnings.Add($"Progress callback: {pgEx.Message}");
                         }
                     }
+                }
+
+                // Phase 139.2 G — Step 3: place every second-fix device
+                // by GUID-proximity match to the first-fix index.
+                if (!dryRun && firstFixIndex != null && firstFixIndex.Count > 0)
+                {
+                    try { TwoPhaseBoxPlacer.PlaceSecondFixDevices(doc, roomIds, ordered, firstFixIndex, result); }
+                    catch (Exception ex) { result.Warnings.Add($"Two-phase second-fix: {ex.Message}"); }
                 }
 
                 if (!dryRun)
@@ -594,6 +605,39 @@ namespace StingTools.Core.Placement
             FamilySymbol symbol = ResolveSymbol(doc, effRule.CategoryFilter, effRule, perCategorySymbol, result);
             if (symbol == null) return;
 
+            // Phase 139.18 — warn once per (rule, family) when a wall- or
+            // ceiling-anchored rule resolves to an un-hosted family. The
+            // engine still places it (post-placement wall-snap + rotation
+            // does its best), but designers should re-author the family
+            // as wall-hosted / ceiling-hosted for proper attachment.
+            try
+            {
+                string anchorPt = (rule.AnchorType ?? "").ToUpperInvariant();
+                bool wantsWallHost = anchorPt == "WALL_MIDPOINT" || anchorPt == "WALL_CORNER"
+                                  || anchorPt == "WALL_FACE_OFFSET"
+                                  || anchorPt.StartsWith("DOOR_")
+                                  || anchorPt.StartsWith("WINDOW_");
+                bool wantsCeilingHost = anchorPt == "CEILING_CENTRE"
+                                  || anchorPt == "CEILING_TILE_CENTRE"
+                                  || anchorPt == "LIGHTING_GRID"
+                                  || anchorPt == "LUX_GRID";
+                var fpt = symbol.Family?.FamilyPlacementType ?? FamilyPlacementType.Invalid;
+                bool isHosted = fpt == FamilyPlacementType.OneLevelBasedHosted;
+                if ((wantsWallHost || wantsCeilingHost) && !isHosted)
+                {
+                    string warnKey = "FamilyPlacementType:" + (symbol.Family?.Name ?? "?") + ":" + rule.MergeKey;
+                    if (!result.Warnings.Any(w => w.Contains(warnKey)))
+                    {
+                        result.Warnings.Add(
+                            $"{warnKey} — rule '{rule.MergeKey}' uses {anchorPt} but the resolved family " +
+                            $"'{symbol.Family?.Name}' is {fpt}, not OneLevelBasedHosted. Engine will place " +
+                            $"+ snap + rotate but the family won't attach to the wall/ceiling. " +
+                            $"Re-author the family as wall-hosted (or ceiling-hosted) for proper attachment.");
+                    }
+                }
+            }
+            catch { }
+
             if (!symbol.IsActive)
             {
                 try { symbol.Activate(); doc.Regenerate(); }
@@ -676,6 +720,7 @@ namespace StingTools.Core.Placement
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
                     if (diagRoom != null) diagRoom.CandidatesPlaced++;
                     placedPoints.Add(c.Position);
+                    existingNearby.Add(c.Position); // Phase 139.25 — live dedup
 
                     // PC-13 — record placement on per-room state for downstream rules.
                     if (state != null)
@@ -726,24 +771,37 @@ namespace StingTools.Core.Placement
                         int occ = 0;
                         try
                         {
-                            var p = room.LookupParameter("STING_OCC_COUNT_INT");
+                            string occParam = string.IsNullOrEmpty(rule.OccupancyParamName)
+                                ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName;
+                            var p = room.LookupParameter(occParam);
                             if (p != null && p.HasValue && p.StorageType == StorageType.Integer) occ = p.AsInteger();
                         }
                         catch { }
                         if (occ > 0) byOcc = Math.Max(1, (int)Math.Ceiling((double)occ / rule.PerOccupant));
                     }
                     cap = Math.Max(byArea, byOcc);
+                    // Phase 139.4 — Density rule with neither PerAreaM2 nor PerOccupant
+                    // (or with both = 0) used to fall through with cap=1, then later
+                    // collapse to candidateCount once MaxPerRoom = 0. Treat the rule
+                    // as misconfigured: place at most one and warn upstream via the
+                    // rule-loader validation pass (#39 below).
                     if (cap == 0) cap = 1;
                     break;
                 }
                 case PlacementRuleKind.Linear:
                 {
+                    // Phase 139.5 Q15 — Linear cap was always candidateCount
+                    // regardless of PerLinearMetre. Now: perimeter (m) ÷
+                    // PerLinearMetre = required count, taken from the room's
+                    // boundary (or bbox fallback). When PerLinearMetre is 0,
+                    // fall through to candidateCount as before.
                     if (rule.PerLinearMetre > 0)
                     {
-                        // Perimeter is approximated from the bounding box; the
-                        // PERIMETER_OFFSET anchor already produces one candidate
-                        // per step, so we just take all candidates.
-                        cap = candidateCount;
+                        double perimeterM = ComputeRoomPerimeterMetres(room);
+                        if (perimeterM > 0)
+                            cap = Math.Max(1, (int)Math.Ceiling(perimeterM / rule.PerLinearMetre));
+                        else
+                            cap = candidateCount;
                     }
                     else cap = candidateCount;
                     break;
@@ -803,6 +861,7 @@ namespace StingTools.Core.Placement
                     return;
                 }
                 WriteAnchorParameters(pf.Placed, rule);
+                OrientPlacedInstance(doc, pf.Placed, rule, room);
                 if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
                 {
                     try { StingTools.Core.Storage.StingProvenanceSchema.Stamp(pf.Placed, "FixturePlacementEngine.CoPlace", rule.MergeKey ?? ""); } catch { }
@@ -865,7 +924,14 @@ namespace StingTools.Core.Placement
             int bestChainIndex = int.MaxValue;
             try
             {
-                var collector = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
+                // Phase 139.4 — apply OfCategory before OfClass so the
+                // collector pre-filters by category index (Revit's native
+                // index lookup) instead of walking every FamilySymbol.
+                BuiltInCategory bic = BuiltInCategory.INVALID;
+                try { bic = ResolveBuiltInCategoryByName(doc, categoryName); } catch { }
+                FilteredElementCollector collector = (bic != BuiltInCategory.INVALID)
+                    ? new FilteredElementCollector(doc).OfCategory(bic).OfClass(typeof(FamilySymbol))
+                    : new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
                 foreach (var el in collector)
                 {
                     if (!(el is FamilySymbol fs)) continue;
@@ -2218,6 +2284,44 @@ namespace StingTools.Core.Placement
                     $"Cable derating: rule '{rule.MergeKey}' has up to {total} same-category instances within 300mm — " +
                     $"BS 7671 Table 4 derating ≈ {derate:F2}×. Verify cable size with the electrical engineer before issue.");
             }
+        }
+
+        // Phase 139.4 — resolve a Document.Settings.Categories entry to its
+        // BuiltInCategory enum so FilteredElementCollector.OfCategory can
+        // pre-filter family symbols. Cached per document on first hit.
+        private static readonly Dictionary<int, Dictionary<string, BuiltInCategory>> _bicByName
+            = new Dictionary<int, Dictionary<string, BuiltInCategory>>();
+        private static readonly object _bicByNameLock = new object();
+
+        private static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
+        {
+            if (doc == null || string.IsNullOrEmpty(categoryName)) return BuiltInCategory.INVALID;
+            int key = doc.GetHashCode();
+            Dictionary<string, BuiltInCategory> map;
+            lock (_bicByNameLock)
+            {
+                if (!_bicByName.TryGetValue(key, out map))
+                {
+                    map = new Dictionary<string, BuiltInCategory>(StringComparer.OrdinalIgnoreCase);
+                    try
+                    {
+                        foreach (Category c in doc.Settings.Categories)
+                        {
+                            if (c == null || string.IsNullOrEmpty(c.Name)) continue;
+                            try
+                            {
+                                var bic = (BuiltInCategory)c.Id.Value;
+                                if (bic != BuiltInCategory.INVALID)
+                                    map[c.Name] = bic;
+                            }
+                            catch { }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ResolveBuiltInCategoryByName: {ex.Message}"); }
+                    _bicByName[key] = map;
+                }
+            }
+            return map.TryGetValue(categoryName, out var hit) ? hit : BuiltInCategory.INVALID;
         }
     }
 }

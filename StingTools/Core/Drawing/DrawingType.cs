@@ -157,30 +157,6 @@ namespace StingTools.Core.Drawing
         public Dictionary<string, Dictionary<string, string>> TitleBlockParamsBySymbol { get; set; }
 
         /// <summary>
-        /// A6 — Material pack id. When set, stamping a sheet with this
-        /// drawing type triggers a "load matching material pack?" prompt
-        /// in the MAT tab. Resolves against
-        /// <c>Data/STING_MATERIAL_PACKS.json</c> +
-        /// <c>&lt;project&gt;/_BIM_COORD/material_packs.json</c>.
-        /// Example: an <c>arch-plan-A1-1to100</c> profile binds to
-        /// <c>arch-concrete-steel-glass</c> so every arch sheet stamps
-        /// with the same baseline materials.
-        /// </summary>
-        [JsonProperty("materialPack", NullValueHandling = NullValueHandling.Ignore)]
-        public string MaterialPack { get; set; }
-
-        /// <summary>
-        /// C3 — Allowed material origins ("STING" / "BLE" / "MEP" /
-        /// "Other"). When set, the DrawingType pre-flight validator
-        /// warns if a sheet stamped with this profile contains views
-        /// where any placed element uses a material outside the
-        /// allowed-origin set. Empty / missing → all origins allowed
-        /// (existing behaviour preserved).
-        /// </summary>
-        [JsonProperty("materialOriginAllowed", NullValueHandling = NullValueHandling.Ignore)]
-        public List<string> MaterialOriginAllowed { get; set; }
-
-        /// <summary>
         /// ISO 19650 naming — optional per-profile convention payload.
         /// When set, the editor's Numbering card's "Generate ISO
         /// pattern" button assembles SheetNumberPattern from these
@@ -562,6 +538,191 @@ namespace StingTools.Core.Drawing
         [JsonProperty("scheduleFields", NullValueHandling = NullValueHandling.Ignore)]
         public List<string> ScheduleFields { get; set; }
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  ANNOTATION TOKEN PROFILE — Phase 135
+    //
+    //  Per-DrawingType token-level presentation knobs. Distinct from the
+    //  rule-pack (which decides WHAT to tag) — this one decides HOW the
+    //  resulting tags read on the sheet: how many paragraph tiers are
+    //  visible, which TAG7 sub-sections show, what size/style/colour the
+    //  tag text is, and which 8-segment tokens the displayed tag carries.
+    //
+    //  Every field is optional. Null means "inherit / don't override":
+    //    * Pack-level defaults on the resolved ViewStylePack apply when
+    //      this profile leaves a slot empty.
+    //    * Where neither profile nor pack sets a value, the engine
+    //      leaves the underlying parameter alone.
+    //
+    //  Applied by <c>TokenProfileApplier</c> in step 7.5 of the pipeline,
+    //  between ViewStylePack (step 7) and Annotation (step 8).
+    // ─────────────────────────────────────────────────────────────────────
+
+    public sealed class AnnotationTokenProfile
+    {
+        /// <summary>
+        /// Presentation mode preset — Compact / Technical / FullSpec /
+        /// Presentation / BOQ. Drives the global TAG_PARA_STATE_*
+        /// pattern and TAG_WARN_VISIBLE flag through the same engine
+        /// the existing SetPresentationModeCommand uses. Null = leave
+        /// preset alone, write the explicit fields below instead.
+        /// </summary>
+        [JsonProperty("presentationMode", NullValueHandling = NullValueHandling.Ignore)]
+        public string PresentationMode { get; set; }
+
+        /// <summary>
+        /// Global TAG7 paragraph depth (1..10). Sets PARA_STATE_1..N to
+        /// Yes and the rest to No. Null = leave as-is. Per-category
+        /// overrides (<see cref="CategoryDepths"/>) win over this when
+        /// present.
+        /// </summary>
+        [JsonProperty("paraDepth", NullValueHandling = NullValueHandling.Ignore)]
+        public int? ParaDepth { get; set; }
+
+        /// <summary>
+        /// Per-category TAG7 paragraph depth override (1..10). Lookup
+        /// by category display name. Empty / missing key falls back to
+        /// <see cref="ParaDepth"/>.
+        /// </summary>
+        [JsonProperty("categoryDepths", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, int> CategoryDepths { get; set; }
+
+        /// <summary>
+        /// TAG7 sub-section visibility map. Keys: "A".."F" (case-
+        /// insensitive). Values: true = visible, false = hidden. Writes
+        /// TAG_7_SECTION_VISIBLE_{A..F}_BOOL on every element in scope.
+        /// Missing key = leave as-is.
+        /// </summary>
+        [JsonProperty("sectionVisibility", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, bool> SectionVisibility { get; set; }
+
+        /// <summary>
+        /// Tag size preset — "2", "2.5", "3", "3.5". Combined with
+        /// <see cref="TagStyle"/> + <see cref="TagColor"/> to pick the
+        /// active TAG_{size}{style}_{color}_BOOL. Null = leave as-is.
+        /// </summary>
+        [JsonProperty("tagSize", NullValueHandling = NullValueHandling.Ignore)]
+        public string TagSize { get; set; }
+
+        /// <summary>
+        /// Tag style preset — "NOM" / "BOLD" / "ITALIC" / "BOLDITALIC".
+        /// Null = leave as-is.
+        /// </summary>
+        [JsonProperty("tagStyle", NullValueHandling = NullValueHandling.Ignore)]
+        public string TagStyle { get; set; }
+
+        /// <summary>
+        /// Tag colour preset — "BLACK" / "BLUE" / "GREEN" / "RED" /
+        /// "ORANGE" / "GREY" / "PURPLE" / "YELLOW". Null = leave as-is.
+        /// </summary>
+        [JsonProperty("tagColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string TagColor { get; set; }
+
+        /// <summary>
+        /// Per-view variable colour scheme to write into
+        /// STING_VIEW_TAG_STYLE — picks up TagStyleEngine's
+        /// VariableSchemes (System / Status / Zone / Level / Location
+        /// / Function) or BuiltInSchemes (Discipline / Warm / Cool /
+        /// Red / Yellow / Blue / Mono / Dark). Null = leave the view
+        /// param alone.
+        /// </summary>
+        [JsonProperty("colorScheme", NullValueHandling = NullValueHandling.Ignore)]
+        public string ColorScheme { get; set; }
+
+        /// <summary>
+        /// 8-segment tag mask string of 1/0 chars selecting which
+        /// DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ tokens render in the
+        /// displayed tag. Example "10000001" = DISC + SEQ only. Writes
+        /// <c>TAG_SEG_MASK_TXT</c>. Null = leave as-is. Length must be
+        /// 8; shorter / longer values are ignored with a warning.
+        /// </summary>
+        [JsonProperty("segmentMask", NullValueHandling = NullValueHandling.Ignore)]
+        public string SegmentMask { get; set; }
+
+        /// <summary>
+        /// Display mode integer (1..5) written to
+        /// <c>STING_DISPLAY_MODE</c>. 1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ,
+        /// 4=DISC-PROD-SEQ, 5=Full 8-segment. Null = leave as-is.
+        /// </summary>
+        [JsonProperty("displayMode", NullValueHandling = NullValueHandling.Ignore)]
+        public int? DisplayMode { get; set; }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  PRODUCTION RULE — Phase 137
+    //
+    //  One rule per companion view a single DrawingType produces. The
+    //  parent profile defines slot geometry, scale, etc; each rule may
+    //  optionally override scale / detail level / view template / pack
+    //  / annotation / phase per produced view, and pin itself to a
+    //  specific slot index.
+    // ─────────────────────────────────────────────────────────────────────
+
+    public sealed class ProductionRule
+    {
+        [JsonProperty("idx")]       public int    Idx { get; set; }
+        [JsonProperty("viewType")]  public string ViewType { get; set; }
+        [JsonProperty("nameSuffix",            NullValueHandling = NullValueHandling.Ignore)] public string NameSuffix { get; set; }
+        [JsonProperty("scaleOverride",         NullValueHandling = NullValueHandling.Ignore)] public int?   ScaleOverride { get; set; }
+        [JsonProperty("detailLevelOverride",   NullValueHandling = NullValueHandling.Ignore)] public string DetailLevelOverride { get; set; }
+        [JsonProperty("viewTemplateOverride",  NullValueHandling = NullValueHandling.Ignore)] public string ViewTemplateOverride { get; set; }
+        [JsonProperty("viewStylePackOverride", NullValueHandling = NullValueHandling.Ignore)] public string ViewStylePackOverride { get; set; }
+        [JsonProperty("annotationOverride",    NullValueHandling = NullValueHandling.Ignore)] public AnnotationRulePack AnnotationOverride { get; set; }
+        [JsonProperty("phaseOverride",         NullValueHandling = NullValueHandling.Ignore)] public string PhaseOverride { get; set; }
+        [JsonProperty("required")]  public bool Required { get; set; } = true;
+        [JsonProperty("slotIndex")] public int  SlotIndex { get; set; } = -1;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  ANNOTATION TOKEN PROFILE — Phase 135
+    //
+    //  Per-DrawingType token-level presentation knobs. Distinct from the
+    //  rule-pack (which decides WHAT to tag) — this one decides HOW the
+    //  resulting tags read on the sheet: how many paragraph tiers are
+    //  visible, which TAG7 sub-sections show, what size/style/colour the
+    //  tag text is, and which 8-segment tokens the displayed tag carries.
+    //
+    //  Every field is optional. Null means "inherit / don't override":
+    //    * Pack-level defaults on the resolved ViewStylePack apply when
+    //      this profile leaves a slot empty.
+    //    * Where neither profile nor pack sets a value, the engine
+    //      leaves the underlying parameter alone.
+    //
+    //  Applied by <c>TokenProfileApplier</c> in step 7.5 of the pipeline,
+    //  between ViewStylePack (step 7) and Annotation (step 8).
+    // ─────────────────────────────────────────────────────────────────────
+
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  ANNOTATION TOKEN PROFILE — Phase 135
+    //
+    //  Per-DrawingType token-level presentation knobs. Distinct from the
+    //  rule-pack (which decides WHAT to tag) — this one decides HOW the
+    //  resulting tags read on the sheet: how many paragraph tiers are
+    //  visible, which TAG7 sub-sections show, what size/style/colour the
+    //  tag text is, and which 8-segment tokens the displayed tag carries.
+    //
+    //  Every field is optional. Null means "inherit / don't override":
+    //    * Pack-level defaults on the resolved ViewStylePack apply when
+    //      this profile leaves a slot empty.
+    //    * Where neither profile nor pack sets a value, the engine
+    //      leaves the underlying parameter alone.
+    //
+    //  Applied by <c>TokenProfileApplier</c> in step 7.5 of the pipeline,
+    //  between ViewStylePack (step 7) and Annotation (step 8).
+    // ─────────────────────────────────────────────────────────────────────
+
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  PRODUCTION RULE — Phase 137
+    //
+    //  One rule per companion view a single DrawingType produces. The
+    //  parent profile defines slot geometry, scale, etc; each rule may
+    //  optionally override scale / detail level / view template / pack
+    //  / annotation / phase per produced view, and pin itself to a
+    //  specific slot index.
+    // ─────────────────────────────────────────────────────────────────────
+
 
     // ─────────────────────────────────────────────────────────────────────
     //  PRINT OVERRIDE

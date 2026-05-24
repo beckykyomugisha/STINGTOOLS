@@ -1,0 +1,28 @@
+{
+  "id": "ElectricalSubmission",
+  "name": "Electrical Submission Package",
+  "description": "Pre-issue submission gate: locks panel schedules, computes fault levels & feeder sizes, generates SLD + arc-flash labels, then exports the full PDF / Excel / DIALux / EasyPower report bundle. Designed to run unattended overnight or before sign-off.",
+  "version": "1.0",
+  "phase": 182,
+  "steps": [
+    { "order": 1, "tag": "Panel_BatchSchedules",  "label": "Mint missing panel schedules",            "continueOnFail": true  },
+    { "order": 2, "tag": "Panel_SyncParams",      "label": "Sync ELC_PNL_* parameters",                "continueOnFail": true  },
+    { "order": 3, "tag": "Panel_WriteParams",     "label": "Write back computed panel params",        "continueOnFail": true  },
+    { "order": 4, "tag": "Calc_LoadSummary",      "label": "Compute load summary",                     "continueOnFail": true  },
+    { "order": 5, "tag": "Calc_FaultCurrent",     "label": "Calculate fault levels",                   "continueOnFail": true  },
+    { "order": 6, "tag": "Calc_AicStamp",         "label": "Stamp AIC ratings",                        "continueOnFail": true  },
+    { "order": 7, "tag": "Calc_FeederSize",       "label": "Auto-size feeders",                        "continueOnFail": true  },
+    { "order": 8, "tag": "Calc_VoltageDrop",      "label": "Calculate voltage drop",                   "continueOnFail": true  },
+    { "order": 9, "tag": "Cable_ValidateConduitFill","label": "Validate conduit fill (NEC 310/IEC 60364)", "continueOnFail": true  },
+    { "order": 10,"tag": "SLD_Generate",          "label": "Generate single-line diagram",             "continueOnFail": true  },
+    { "order": 11,"tag": "Elec_ArcFlash",         "label": "Compute arc-flash incident energy",        "continueOnFail": true  },
+    { "order": 12,"tag": "Elec_ArcFlashLabels",   "label": "Generate arc-flash label sheets",          "continueOnFail": true  },
+    { "order": 13,"tag": "Elec_SelectCoord",      "label": "Selective coordination check",             "continueOnFail": true  },
+    { "order": 14,"tag": "Rprt_FaultSchedule",    "label": "Fault-current schedule",                   "continueOnFail": true  },
+    { "order": 15,"tag": "Rprt_VDSchedule",       "label": "Voltage-drop schedule",                    "continueOnFail": true  },
+    { "order": 16,"tag": "Rprt_DemandFactors",    "label": "Demand-factors report",                    "continueOnFail": true  },
+    { "order": 17,"tag": "Rprt_ExcelExport",      "label": "Export panel schedules to Excel",          "continueOnFail": true  },
+    { "order": 18,"tag": "Rprt_PDF",              "label": "Export panel schedules to PDF",            "continueOnFail": true  },
+    { "order": 19,"tag": "Elec_ExportEasyPower",  "label": "Export to EasyPower (.epw)",               "continueOnFail": true  }
+  ]
+}

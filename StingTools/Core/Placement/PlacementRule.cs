@@ -477,6 +477,76 @@ namespace StingTools.Core.Placement
         /// <summary>Free-text note surfaced in the placement result panel.</summary>
         public string Notes { get; set; } = "";
 
+        /// <summary>Phase 139 — discipline pack of origin (Baseline/Electrical/Windows/...).</summary>
+        public string SourcePack { get; set; } = "";
+
+        // ── Phase 139 A1 — Building & Standards Context ─────────────
+
+
+
+
+
+
+
+        // ── Phase 139 A2 — Coverage & Spacing Standards ────────────
+
+
+
+
+
+
+        // ── Phase 139 A3 — Routing & Containment ───────────────────
+
+
+
+
+
+
+        // ── Phase 139 A4 — Window/Sill Variants ────────────────────
+
+
+
+
+
+
+        // ── Phase 139 A5 — Density Extensions ──────────────────────
+
+
+
+
+
+
+
+        // ── Phase 139 A6 — Post-Placement Audit ────────────────────
+
+
+
+
+
+        // ── Phase 139.2 A1 — Manufacturer hint ──────────────────────
+
+
+        // ── Phase 139.2 A2 — Two-phase conduiting ───────────────────
+
+
+        // ── Phase 139.2 A3 — Compound cluster ───────────────────────
+
+
+        // ── Phase 139.2 A4 — Plaster / finish-face offset ───────────
+
+
+        // ── Phase 139.2 A5 — Ceiling tile snap ──────────────────────
+
+
+        // ── Phase 139.2 A6 — Structural fixing check ────────────────
+
+
+        // ── Phase 139.2 A7 — BS 7671 wet zone exclusion ─────────────
+
+
+        // ── Phase 139.2 A8 — Standards aliases ──────────────────────
+
+
         // ── Methods ─────────────────────────────────────────────────
 
         /// <summary>Deep-copy the rule.</summary>

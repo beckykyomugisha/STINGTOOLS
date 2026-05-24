@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Revit API CI Stubs — RevitAPIUI.dll
+    Provides minimal type definitions for Autodesk.Revit.UI.*
+    so that StingTools.csproj can compile on Linux/CI without a Revit install.
+    These stubs are NOT used at runtime — they exist only for the compiler.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <AssemblyName>RevitAPIUI</AssemblyName>
+    <RootNamespace>Autodesk.Revit</RootNamespace>
+    <OutputType>Library</OutputType>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <NoWarn>1591;1998;CS0108;CS0114;CS0612;CS0618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RevitAPI\RevitAPI.csproj" />
+  </ItemGroup>
+</Project>

@@ -250,6 +250,20 @@ namespace StingTools.UI
                 .ToList();
         }
 
+        // ── Phase filters (PhaseFilter elements) ──
+        public static IEnumerable<string> PhaseFilterNames(Document doc)
+        {
+            if (doc == null) return System.Linq.Enumerable.Empty<string>();
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(PhaseFilter))
+                .Cast<PhaseFilter>()
+                .Select(pf => pf.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .OrderBy(n => n)
+                .ToList();
+        }
+
         // ── Worksets (project worksets, user-only) ──
         public static IEnumerable<string> WorksetNames(Document doc)
         {

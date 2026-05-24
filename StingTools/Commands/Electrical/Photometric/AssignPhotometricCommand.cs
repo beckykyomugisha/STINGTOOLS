@@ -35,14 +35,67 @@ namespace StingTools.Commands.Electrical.Photometric
             var doc = ctx.Doc;
 
             var file = PendingFile;
+            var targetTypeIds = PendingTargetTypeIds ?? new List<ElementId>();
+            // Phase 188c — luminaire registry auto-bind. When no file was
+            // explicitly picked from the library dialog, try to bind each
+            // selected type from the project registry's IES path. If every
+            // selected type has a registry hit, we never need the picker.
             if (file == null)
             {
+                var sel = ctx.UIDoc?.Selection?.GetElementIds() ?? new List<ElementId>();
+                if (targetTypeIds.Count == 0)
+                {
+                    foreach (var id in sel)
+                        if (doc.GetElement(id) is FamilyInstance fi
+                            && fi.Category?.Id?.Value == (long)BuiltInCategory.OST_LightingFixtures)
+                        {
+                            var t = fi.GetTypeId();
+                            if (t != null && t != ElementId.InvalidElementId && !targetTypeIds.Contains(t))
+                                targetTypeIds.Add(t);
+                        }
+                }
+                if (targetTypeIds.Count > 0)
+                {
+                    string projFolder = !string.IsNullOrEmpty(doc.PathName)
+                        ? System.IO.Path.GetDirectoryName(doc.PathName) : null;
+                    if (!string.IsNullOrEmpty(projFolder))
+                    {
+                        var registry = StingTools.Photometrics.LuminaireRegistry.LoadFor(projFolder);
+                        int registryStamped = 0;
+                        using (var rtx = new Transaction(doc, "STING Auto-Bind Photometric (Registry)"))
+                        {
+                            rtx.Start();
+                            foreach (var typeId in targetTypeIds.ToList())
+                            {
+                                if (doc.GetElement(typeId) is FamilySymbol sym)
+                                {
+                                    var entry = registry.Find(sym.FamilyName, sym.Name);
+                                    if (entry == null || string.IsNullOrEmpty(entry.IesPath)) continue;
+                                    if (!System.IO.File.Exists(entry.IesPath)) continue;
+                                    var pf = StingTools.Photometrics.IesParser.ParseFile(entry.IesPath);
+                                    if (pf == null) continue;
+                                    StampType(sym, pf);
+                                    registryStamped++;
+                                }
+                            }
+                            rtx.Commit();
+                        }
+                        if (registryStamped > 0)
+                        {
+                            TaskDialog.Show("STING Photometric",
+                                $"Auto-bound {registryStamped} luminaire type(s) from the project registry.\n\n" +
+                                "To override with a different file, pick one in PHOTO → Library and click Assign.");
+                            return Result.Succeeded;
+                        }
+                    }
+                }
+
                 TaskDialog.Show("STING Photometric",
-                    "No file selected. Pick a luminaire in the photometric library, then click Assign.");
+                    "No file selected. Pick a luminaire in the photometric library, then click Assign — " +
+                    "or populate <project>/_BIM_COORD/luminaire_registry.csv via Lite_LuminaireRegistry " +
+                    "to skip the picker entirely.");
                 return Result.Cancelled;
             }
-
-            var targetTypeIds = PendingTargetTypeIds ?? new List<ElementId>();
             if (targetTypeIds.Count == 0)
             {
                 // Fall back to the type of every selected lighting fixture instance.

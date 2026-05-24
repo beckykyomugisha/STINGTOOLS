@@ -162,8 +162,33 @@ A symbol is considered **final** when ALL of the following are true:
 
 ## Current Status
 
-164 symbols defined in JSON. 0 seed families committed.
-All symbols are currently `"status": "draft"` — generated geometry is in use as placeholders.
+**261 symbols** defined in `STING_ISO6412_SYMBOLS.json` (164 baseline + 97 added
+in the Phase 188 symbol review): pipe fittings, flanges, 19 valve variants,
+22 ductwork fittings, 8 BS 4568 conduit bodies, 3 cable-tray fittings, 15
+ISO 2553 weld marks (including 5 NDT types), 7 MSS SP-58 hangers, 4
+penetrations, and 18 drafting-annotation symbols.
+
+**0 seed `.rfa` families committed.** All symbols are currently
+`"status": "draft"` — `IsoSymbolPlacer` falls back to the runtime-generated
+families produced by `SymbolLibraryCreator`.
 
 See the [Quick Reference](../../docs/guides/ISO6412_WORKFLOW_AND_DRAFTING_GUIDE.md#quick-reference)
 for the full list of symbol IDs, categories, and symbol sizes.
+
+---
+
+## Dual-Naming Convention (Important for Placer Authors)
+
+`IsoSymbolPlacer.ResolveFamilySymbol` checks family names in two tiers,
+which avoids the "index says X, JSON produces Y" mismatch that an early
+audit flagged as a bug:
+
+| Tier | Family name searched | Source |
+|---|---|---|
+| 1 | `STING_FAM_<code>` (e.g. `STING_FAM_PIPE_ELBOW_90_BW`) | `FamilyFile` column in `Data/Fabrication/STING_ISO_SYMBOLS_INDEX.csv` — used when a hand-drafted seed `.rfa` lives in this folder |
+| 2 | `ISO6412_<code>` (e.g. `ISO6412_ELBOW_90_BW`) | JSON `id` from `STING_ISO6412_SYMBOLS.json` — used for runtime-generated families under `<project>/_BIM_COORD/Families/Symbols/ISO6412/` |
+
+When you ship a seed `.rfa`, use the **`STING_FAM_*` name from the CSV** so
+the placer prefers it over the auto-generated equivalent. When the placer
+fails to find either name it logs once per family and adds an entry to
+`FabricationResult.MissingFamilies`.

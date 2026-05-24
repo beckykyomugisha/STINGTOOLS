@@ -227,7 +227,7 @@ TAG STYLE PARAMETER CATALOG (v5.3) — Type parameters injected into every famil
 
 STING Tag Configuration v5.0 - GEN (COMPLETE with Warnings)
 6E — Generic / Site / Specialty
-Tag Family #1: STING - Generic Models Tag
+Tag Family #1: STING - Generic Model Tag
 TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Generic Models
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
@@ -1399,3 +1399,26 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets (ViewSheet)
 
 # CROSS-REFERENCE: Generic Models with PROD=SLV (MEP Sleeves/Penetrations) use the MEP Sleeve Tag defined in STING_TAG_CONFIG_v5_0_MEP.csv
 # Category: Generic Models | FUNC: PEN | Disciplines: M, E, P, FP | Standard: BS EN 1366-3
+
+Tag Family #34: STING - LPS Generic Component Tag
+# Category: Generic Models, Specialty Equipment, Detail Items | PROD: family-resolved | SYS: LPS | FUNC: AT/DC/EE/BOND/SPD/TC | DISC: E
+# Catch-all for lightning protection elements modelled as Generic Models / Specialty Equipment / Detail Items.
+# DC variant — same content as Handover/FM (tier 1-2 + warnings only; no T4-T10 expansion).
+# CROSS-REFERENCE: 6 specialised LPS tag families live in STING_TAG_CONFIG_v5_0_MEP_DesignConstruction.csv (#54-#59).
+# CROSS-DISCIPLINE REUSE: STR Tag #22 (Foundation Earth — rebar reuse), ARCH Tag #36 (Natural Air Termination).
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Generic Models / Specialty Equipment
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_CLASS_TXT,Class:,,0,✓,Common,Text,LPS Class,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CLASS_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_ZONE_TXT,LPZ:,,0,✓,Common,Text,Lightning Zone,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_COMPLIANCE_STATUS_TXT,,,0,✓,Common,Text,LPS Compliance Status (PASS/WARN/FAIL),"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_COMPLIANCE_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_ELC_LPS_NO_CLASS,LPS class missing — set I/II/III/IV per BS EN 62305-2 risk assessment,BS EN 62305-1:2011 §8,Common,Text,⚠ Warning: No LPS Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, """")"
+2,MEDIUM,WARN_ELC_LPS_NO_ZONE,Lightning protection zone (LPZ) not assigned,BS EN 62305-4:2011 §4.1,Common,Text,⚠ Warning: No LPZ Assigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_ZONE, """")"

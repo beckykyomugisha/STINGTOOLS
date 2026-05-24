@@ -95,3 +95,4 @@ tests/fixtures/*.roundtrip.ifc
 # blobs, per-project, never source-controlled.
 _BIM_COORD/textures/
 **/_BIM_COORD/textures/
+CompiledPlugin/

@@ -31,6 +31,10 @@ namespace StingTools.Core
         private static List<Tier> _cached;
         private static double _cachedCapFt = 30.0;
         private static string _cachedSource = "";
+        // Phase 165 — per-category scale multipliers loaded alongside tiers.
+        // Keys are normalised to ToUpperInvariant for case-insensitive lookup.
+        private static Dictionary<string, double> _cachedMultipliers
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Ordered tiers (ascending by <see cref="Tier.MaxDenominator"/>).</summary>
         public static IReadOnlyList<Tier> Current
@@ -48,6 +52,24 @@ namespace StingTools.Core
         public static string Source
         {
             get { EnsureLoaded(null); return _cachedSource; }
+        }
+
+        /// <summary>
+        /// Phase 165 — per-category multiplier lookup. Returns 1.0 for missing
+        /// keys so callers can multiply unconditionally. Known keys: "DUCTS",
+        /// "PIPES", "EQUIPMENT", "FIXTURES" (matching the Tag Studio Scale tab).
+        /// </summary>
+        public static double GetCategoryMultiplier(string categoryKey)
+        {
+            EnsureLoaded(null);
+            if (string.IsNullOrEmpty(categoryKey)) return 1.0;
+            return _cachedMultipliers.TryGetValue(categoryKey, out double m) && m > 0 ? m : 1.0;
+        }
+
+        /// <summary>Phase 165 — full multiplier map (read-only snapshot).</summary>
+        public static IReadOnlyDictionary<string, double> CategoryMultipliers
+        {
+            get { EnsureLoaded(null); return _cachedMultipliers; }
         }
 
         /// <summary>
@@ -79,6 +101,16 @@ namespace StingTools.Core
         /// </summary>
         public static string SaveProjectOverride(Document doc,
             IList<Tier> tiers, double offsetCapFt)
+            => SaveProjectOverride(doc, tiers, offsetCapFt, null);
+
+        /// <summary>
+        /// Phase 165 — overload that also persists the per-category multiplier
+        /// map under "SCALE_CATEGORY_MULTIPLIERS". Pass null/empty to leave the
+        /// existing multiplier block untouched.
+        /// </summary>
+        public static string SaveProjectOverride(Document doc,
+            IList<Tier> tiers, double offsetCapFt,
+            IDictionary<string, double> categoryMultipliers)
         {
             if (doc == null || tiers == null || tiers.Count == 0) return null;
             string cfgPath = ProjectConfigPath(doc);
@@ -100,6 +132,18 @@ namespace StingTools.Core
                 })),
             };
             jo["SCALE_TIERS"] = block;
+
+            if (categoryMultipliers != null && categoryMultipliers.Count > 0)
+            {
+                var multBlock = new JObject();
+                foreach (var kv in categoryMultipliers)
+                {
+                    if (string.IsNullOrEmpty(kv.Key) || kv.Value <= 0) continue;
+                    multBlock[kv.Key.ToUpperInvariant()] = kv.Value;
+                }
+                jo["SCALE_CATEGORY_MULTIPLIERS"] = multBlock;
+            }
+
             File.WriteAllText(cfgPath, jo.ToString(Newtonsoft.Json.Formatting.Indented));
 
             Reload(doc);
@@ -112,9 +156,13 @@ namespace StingTools.Core
             {
                 if (_cached != null) return;
 
+                // Reset multipliers each time tiers reload.
+                _cachedMultipliers = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
                 if (TryLoadFromProjectConfig(doc, out var tiers, out double cap))
                 {
                     _cached = tiers; _cachedCapFt = cap; _cachedSource = "project_config.json";
+                    LoadMultipliersFromProjectConfig(doc);
                     return;
                 }
                 if (TryLoadFromDataFile(out tiers, out cap))
@@ -125,6 +173,29 @@ namespace StingTools.Core
                 _cached = HardcodedFallback();
                 _cachedCapFt = 30.0;
                 _cachedSource = "hardcoded";
+            }
+        }
+
+        // Phase 165 — read SCALE_CATEGORY_MULTIPLIERS map from project_config.json.
+        // Best-effort: missing block leaves the cache empty (== all 1.0×).
+        private static void LoadMultipliersFromProjectConfig(Document doc)
+        {
+            string path = ProjectConfigPath(doc);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+            try
+            {
+                var jo = JObject.Parse(File.ReadAllText(path));
+                var block = jo["SCALE_CATEGORY_MULTIPLIERS"] as JObject;
+                if (block == null) return;
+                foreach (var prop in block.Properties())
+                {
+                    double v = (double?)prop.Value ?? 0.0;
+                    if (v > 0) _cachedMultipliers[prop.Name.ToUpperInvariant()] = v;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ScaleTiers: SCALE_CATEGORY_MULTIPLIERS read failed — {ex.Message}");
             }
         }
 

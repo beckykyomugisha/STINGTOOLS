@@ -394,6 +394,11 @@ export interface SitePhotoListResponse {
   total: number;
   page: number;
   pageSize: number;
+  /** Phase 179.2 — ids of photos in `items` that the caller must
+   *  accept the project NDA for before the photo bytes will load.
+   *  Empty when the caller bypasses ACL (Admin / Owner / SecurityOfficer)
+   *  or no listed photo carries an NDA-required PhotoAccessRule. */
+  ndaRequiredIds?: string[];
 }
 
 export interface SitePhotoListFilters {

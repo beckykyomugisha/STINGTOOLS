@@ -226,16 +226,9 @@ namespace StingTools.Commands.Electrical
                         // Revit 2024+ requires FamilyInstance, not the panel name string.
                         // Resolve once here so any pre-existing string-based callers still
                         // get clean error reporting via the catch block below.
-                        var panelFi = (a.PanelId != null && a.PanelId != ElementId.InvalidElementId)
-                            ? doc.GetElement(a.PanelId) as FamilyInstance
-                            : null;
-                        if (panelFi == null)
-                        {
-                            failed++;
-                            StingLog.Warn($"BatchAssignCircuits '{a.SystemName}' → '{a.PanelName}': panel instance not found");
-                            continue;
-                        }
-                        sys.SelectPanel(panelFi);
+                        var panelInst = doc.GetElement(a.PanelId) as FamilyInstance;
+                        if (panelInst == null) { failed++; continue; }
+                        sys.SelectPanel(panelInst);
                         applied++;
 
                         // Stamp ELC_PANEL_REF_TXT on the circuit so STING tag
@@ -256,8 +249,8 @@ namespace StingTools.Commands.Electrical
                             // collector by name now that PanelId is on Assignment.
                             try
                             {
-                                if (panelFi != null)
-                                    ParameterHelpers.SetString(panelFi, "ELC_PNL_CIRCUIT_GROUP_TXT", a.Group, overwrite: false);
+                                if (panelInst != null)
+                                    ParameterHelpers.SetString(panelInst, "ELC_PNL_CIRCUIT_GROUP_TXT", a.Group, overwrite: false);
                             }
                             catch (Exception ex2) { StingLog.Warn($"Stamp panel group: {ex2.Message}"); }
                         }
@@ -370,24 +363,15 @@ namespace StingTools.Commands.Electrical
 
             public PanelState(FamilyInstance fi, Dictionary<long, List<ElectricalSystem>> circuitsByPanel)
             {
-                _fi = fi;
-                Id = fi.Id;
-                Name = SafeName(fi);
-                TotalSlots = SafeReadInt(fi, "Number Of Circuits", 42);
                 circuitsByPanel.TryGetValue(fi.Id.Value, out var owned);
                 int used = owned?.Count ?? 0;
-                RemainingSlots = Math.Max(0, TotalSlots - used);
                 double sum = 0;
                 if (owned != null) foreach (var s in owned) sum += SafeApparentVA(s);
-                ConnectedVa = sum;
-                NominalVoltage = SafePanelVoltage(fi);
-                LevelId = fi.LevelId ?? ElementId.InvalidElementId;
                 try { Location = (fi.Location as LocationPoint)?.Point; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 // Pre-existing group tag from a prior run lets a re-run remain
                 // stable: panels already accumulating a group keep getting that
                 // group's circuits rather than scattering on each invocation.
-                GroupTag = ParameterHelpers.GetString(fi, "ELC_PNL_CIRCUIT_GROUP_TXT") ?? "";
             }
 
             public void PrimeRoomLevel(Document doc)

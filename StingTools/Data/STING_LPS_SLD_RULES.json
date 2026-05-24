@@ -1,0 +1,33 @@
+{
+  "_comment": "Wave E #13 — corporate baseline layout rules for LpsSldEngine. Project override at <project>/_BIM_COORD/lps_sld_rules.json. All measurements in feet (Revit internal units).",
+  "version": "1.0",
+  "rows": {
+    "airTerminalBandY":    50.0,
+    "downConductorMidY":   20.0,
+    "spdBranchY":           5.0,
+    "mainEarthBarY":        0.0,
+    "earthElectrodeBandY": -25.0
+  },
+  "spacing": {
+    "columnPitchFt":        6.0,
+    "boxWidthFt":           4.0,
+    "boxHeightFt":          2.0,
+    "mainEarthBarPadFt":    2.0,
+    "spdHorizontalOffsetFt": 6.0,
+    "spdVerticalPitchFt":   3.0
+  },
+  "appearance": {
+    "drawMainEarthBarDouble": true,
+    "showLegend":             true,
+    "showTitleBlock":         true,
+    "legendOffsetFt":         4.0
+  },
+  "labelTemplates": {
+    "airTerminalPrefix":    "★ AT-",
+    "downConductorPrefix":  "DC-",
+    "earthElectrodePrefix": "⏚ EE-",
+    "spdPrefix":            "★ SPD-",
+    "title":                "LIGHTNING PROTECTION — SINGLE LINE DIAGRAM",
+    "subtitle":             "BS EN 62305-3 / IEC 62305-3"
+  }
+}

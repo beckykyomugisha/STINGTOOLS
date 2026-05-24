@@ -89,7 +89,19 @@ public class RedactPublishedPhotoJob
             // the locked decision: "PLANSCAPE · {code} · {client_short} · {date}"
             // where client_short = PRJ_ORG_CLIENT_INITIALS_TXT first, then
             // first 8 chars of PRJ_ORG_CLIENT_NAME_TXT.
-            var watermark = BuildWatermark(photo);
+            //
+            // Phase 180 — when the project's PhotoPolicy supplies
+            // WatermarkFooterTemplate, that overrides the default. Tokens
+            // {project} {code} {client} {date} {capturedBy} are
+            // substituted; missing tokens render literally.
+            var policy = await _db.PhotoPolicies.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.ProjectId == photo.ProjectId, ct);
+            // Phase 180 — respect WatermarkRequired=false (skip composition).
+            var watermark = (policy?.WatermarkRequired ?? true)
+                ? (string.IsNullOrWhiteSpace(policy?.WatermarkFooterTemplate)
+                    ? BuildWatermark(photo)
+                    : ApplyTokens(policy!.WatermarkFooterTemplate!, photo))
+                : "";
 
             await using var ms = new MemoryStream();
             await src.CopyToAsync(ms, ct);
@@ -145,6 +157,26 @@ public class RedactPublishedPhotoJob
         // can retry without re-approving. The reason is captured in audit.
         await _db.SaveChangesAsync(ct);
         _logger.LogWarning("RedactPublishedPhoto: photo {Id} marked Failed — {Reason}", photo.Id, reason);
+    }
+
+    /// <summary>
+    /// Substitute {project} {code} {client} {date} {capturedBy} tokens
+    /// in the policy-provided template. Unknown tokens pass through
+    /// literally so the BIM manager can stamp arbitrary cell text.
+    /// </summary>
+    private static string ApplyTokens(string template, SitePhoto photo)
+    {
+        var code   = photo.Project?.Code ?? "—";
+        var client = ResolveClientShort(photo) ?? "";
+        var date   = photo.CapturedAt.ToString("yyyy-MM-dd");
+        var name   = photo.Project?.Name ?? "";
+        var capBy  = photo.CapturedByUser?.DisplayName ?? "";
+        return template
+            .Replace("{project}",    name,   StringComparison.OrdinalIgnoreCase)
+            .Replace("{code}",       code,   StringComparison.OrdinalIgnoreCase)
+            .Replace("{client}",     client, StringComparison.OrdinalIgnoreCase)
+            .Replace("{date}",       date,   StringComparison.OrdinalIgnoreCase)
+            .Replace("{capturedBy}", capBy,  StringComparison.OrdinalIgnoreCase);
     }
 
     private static string BuildWatermark(SitePhoto photo)

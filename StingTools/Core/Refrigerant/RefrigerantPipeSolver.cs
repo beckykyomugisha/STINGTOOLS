@@ -40,6 +40,35 @@ namespace StingTools.Core.Refrigerant
         public bool HasVerticalRiser  { get; set; }
         /// <summary>ΔP budget per leg, kPa. Default 30 kPa gas / 50 kPa liquid.</summary>
         public double MaxPressureDropKpa { get; set; } = 30;
+        /// <summary>
+        /// Subcooling reserve at the condenser outlet (K). Used by the
+        /// LIQUID-leg flash-gas check: line ΔP drops saturation pressure,
+        /// which is allowable only while sub-cooling exceeds the equivalent
+        /// temperature drop. Default 5 K — typical TXV-fed system. Set 8 K
+        /// for EEV systems with deliberate sub-cooling control.
+        /// </summary>
+        public double SubcoolingReserveK { get; set; } = 5.0;
+
+        /// <summary>
+        /// Optional vendor series id (e.g. "Daikin-VRV-5", "Mitsubishi-CityMulti-R2").
+        /// When set, the solver consults <see cref="RefrigerantVendorRegistry"/>
+        /// for vendor-published max-length tables. Stricter checks layered on
+        /// top of the generic Darcy ΔP-budget pass; failures surface as warnings.
+        /// </summary>
+        public string VendorSeriesId { get; set; }
+        /// <summary>Actual (physical) one-way length of the run, m. Used for
+        /// vendor-table compliance when an Equivalent-Length value is supplied
+        /// via <see cref="EquivLengthM"/>.</summary>
+        public double ActualOnewayLengthM { get; set; }
+        /// <summary>Total summed pipe length across all branches (m).
+        /// Vendor tables cap this independently of the one-way length.</summary>
+        public double TotalSystemLengthM { get; set; }
+        /// <summary>Optional document for resolving the vendor registry. May
+        /// be null — caller can also pre-pass a <see cref="VendorLimits"/>.</summary>
+        public Autodesk.Revit.DB.Document Document { get; set; }
+        /// <summary>Direct vendor limits override — bypasses registry lookup
+        /// when supplied.</summary>
+        public VendorSeriesLimits VendorLimits { get; set; }
     }
 
     public class RefrigerantSizingResult
@@ -52,6 +81,13 @@ namespace StingTools.Core.Refrigerant
         public double FrictionFactor      { get; set; }
         public double PressureDropKpa     { get; set; }
         public double LiftPenaltyKpa      { get; set; }
+        /// <summary>Equivalent saturation-temperature drop from line ΔP (K).
+        /// LIQUID legs only; compared against <see cref="RefrigerantSizingInput.SubcoolingReserveK"/>.</summary>
+        public double SatTempDropK        { get; set; }
+        /// <summary>Vendor series id consulted for length-table compliance, when supplied.</summary>
+        public string VendorSeriesId      { get; set; }
+        /// <summary>Vendor series human-readable label.</summary>
+        public string VendorSeriesLabel   { get; set; }
         public string Refrigerant         { get; set; }
         public string Leg                 { get; set; }
         public List<string> Warnings { get; } = new List<string>();
@@ -100,9 +136,21 @@ namespace StingTools.Core.Refrigerant
             if (input.Leg == RefrigerantLeg.Liquid) minVel = 0.5;
             double maxVel = fluid.MaxVelocityMs;
 
-            // Lift penalty applies only to LIQUID columns (static head).
-            // For gas it's negligible — included as 0.
-            double liftKpa = input.Leg == RefrigerantLeg.Liquid && input.LiftM > 0
+            // Liquid-column static head — applies to LIQUID legs only.
+            // For gas (suction / discharge) the density is too low for the
+            // static term to matter (<0.1 kPa per metre at typical conditions).
+            //
+            // Sign: positive LiftM means outdoor unit is ABOVE indoor.
+            //   * For a liquid line flowing UP that path, gravity opposes
+            //     flow → static head DEBITS the available ΔP budget.
+            //   * For a liquid line flowing DOWN that path (negative lift),
+            //     gravity ASSISTS → static head CREDITS the budget. The
+            //     recovered head can be substantial; ignoring it makes
+            //     sizing of evap-above-condenser systems unnecessarily
+            //     conservative.
+            //
+            // We sign-track the lift and let the budget go either way.
+            double liftKpa = input.Leg == RefrigerantLeg.Liquid
                 ? rho * GravityMs2 * input.LiftM / 1000.0
                 : 0;
             r.LiftPenaltyKpa = liftKpa;
@@ -153,13 +201,61 @@ namespace StingTools.Core.Refrigerant
                 r.PressureDropKpa = dpKpa;
                 r.Trace.Add((odMm, v, dpKpa, "OK"));
 
-                // Length / lift compliance against vendor envelope.
+                // Liquid-leg flash-gas check. Line ΔP drops the saturation
+                // pressure; the corresponding T_sat drop is dpKpa × (dT/dP)_sat.
+                // If that exceeds the subcooling reserve, vapour forms before
+                // the TXV → erratic capacity. Issue as a warning so the user
+                // either oversizes the liquid line or specifies more subcooling.
+                if (input.Leg == RefrigerantLeg.Liquid && fluid.DtDpKperKpa > 0)
+                {
+                    r.SatTempDropK = dpKpa * fluid.DtDpKperKpa;
+                    if (r.SatTempDropK > input.SubcoolingReserveK)
+                    {
+                        r.Warnings.Add(
+                            $"Flash-gas risk: line ΔP {dpKpa:F1} kPa drops T_sat by " +
+                            $"{r.SatTempDropK:F1} K, exceeding the {input.SubcoolingReserveK:F1} K " +
+                            $"subcooling reserve. Oversize the liquid line or specify more " +
+                            $"sub-cooling at the condenser outlet.");
+                    }
+                }
+
+                // Length / lift compliance against the generic fluid envelope.
                 if (input.EquivLengthM > fluid.MaxEquivLengthM)
-                    r.Warnings.Add($"Equivalent length {input.EquivLengthM:F0} m exceeds vendor max {fluid.MaxEquivLengthM:F0} m for {fluid.Id}.");
+                    r.Warnings.Add($"Equivalent length {input.EquivLengthM:F0} m exceeds generic max {fluid.MaxEquivLengthM:F0} m for {fluid.Id}.");
                 if (input.LiftM > fluid.MaxLiftAboveIndoorM)
-                    r.Warnings.Add($"Lift {input.LiftM:F0} m exceeds vendor max {fluid.MaxLiftAboveIndoorM:F0} m above indoor unit.");
+                    r.Warnings.Add($"Lift {input.LiftM:F0} m exceeds generic max {fluid.MaxLiftAboveIndoorM:F0} m above indoor unit.");
                 if (input.LiftM < -fluid.MaxLiftBelowIndoorM)
-                    r.Warnings.Add($"Drop {-input.LiftM:F0} m exceeds vendor max {fluid.MaxLiftBelowIndoorM:F0} m below indoor unit.");
+                    r.Warnings.Add($"Drop {-input.LiftM:F0} m exceeds generic max {fluid.MaxLiftBelowIndoorM:F0} m below indoor unit.");
+
+                // Vendor-specific length-table compliance (Daikin REYQ-T,
+                // Mitsubishi City Multi, Toshiba SHRMe, etc). Stricter than
+                // the generic envelope when present.
+                var vendor = input.VendorLimits
+                    ?? (input.VendorSeriesId != null && input.Document != null
+                        ? RefrigerantVendorRegistry.Get(input.Document).Get(input.VendorSeriesId)
+                        : null);
+                if (vendor != null)
+                {
+                    r.VendorSeriesId    = vendor.Id;
+                    r.VendorSeriesLabel = vendor.Label;
+                    if (vendor.EquivalentOnewayMaxM > 0 && input.EquivLengthM > vendor.EquivalentOnewayMaxM)
+                        r.Warnings.Add(
+                            $"Vendor {vendor.Label}: equivalent one-way length " +
+                            $"{input.EquivLengthM:F0} m exceeds max {vendor.EquivalentOnewayMaxM:F0} m.");
+                    if (vendor.ActualOnewayMaxM > 0 && input.ActualOnewayLengthM > vendor.ActualOnewayMaxM)
+                        r.Warnings.Add(
+                            $"Vendor {vendor.Label}: actual one-way length " +
+                            $"{input.ActualOnewayLengthM:F0} m exceeds max {vendor.ActualOnewayMaxM:F0} m.");
+                    if (vendor.TotalPipeLengthM > 0 && input.TotalSystemLengthM > vendor.TotalPipeLengthM)
+                        r.Warnings.Add(
+                            $"Vendor {vendor.Label}: total system pipe length " +
+                            $"{input.TotalSystemLengthM:F0} m exceeds max {vendor.TotalPipeLengthM:F0} m.");
+                    if (vendor.VerticalHighLowOduIduM > 0 &&
+                        Math.Abs(input.LiftM) > vendor.VerticalHighLowOduIduM)
+                        r.Warnings.Add(
+                            $"Vendor {vendor.Label}: |lift| {Math.Abs(input.LiftM):F0} m " +
+                            $"exceeds ODU↔IDU vertical max {vendor.VerticalHighLowOduIduM:F0} m.");
+                }
                 return r;
             }
 

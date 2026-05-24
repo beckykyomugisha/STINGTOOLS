@@ -76,6 +76,23 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         }
 
         /// <summary>
+        /// Resolve the conductor's operating temperature from the insulation
+        /// rating string. Defaults to 70 °C (PVC) when the insulation isn't
+        /// recognised. Centralised here so every consumer (VD calc, fault
+        /// current, feeder sizer, auto-upsize) gets the same answer.
+        /// </summary>
+        public static double OperatingTempForInsulation(string insulation)
+        {
+            string norm = (insulation ?? "").ToUpperInvariant();
+            if (norm.Contains("XLPE") || norm.Contains("LSOH") || norm.Contains("EPR")
+                || norm.Contains("90")) return 90.0;
+            if (norm.Contains("110") || norm.Contains("MICA")) return 110.0;
+            if (norm.Contains("60")) return 60.0;
+            if (norm.Contains("75") || norm.Contains("THWN")) return 75.0;
+            return 70.0;  // PVC default (BS 7671 baseline)
+        }
+
+        /// <summary>
         /// Calculate voltage drop as a percentage of nominal system voltage.
         /// 1-phase: VD = 2 × I × L × R / 1000 / V
         /// 3-phase: VD = √3 × I × L × R / 1000 / V (line-to-line)

@@ -844,77 +844,6 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Export every supplied material to CSV with identity / appearance /
-        /// thermal / structural columns. Used by the Material Manager dialog
-        /// and previously inlined in StingMaterialManagerCommand.
-        /// </summary>
-        internal static void ExportMaterialsCsv(Document doc, IReadOnlyList<Material> materials, string filePath)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("Name,Class,Color,Transparency,Smoothness,Shininess,Description,Manufacturer,Model,Cost,Keynote,Mark,URL,Density_kg_m3,ThermalCond_W_mK,SpecificHeat_J_kgK,CompStrength_MPa,TensStrength_MPa");
-            foreach (var mat in materials)
-            {
-                string name = (mat.Name ?? "").Replace(",", ";");
-                string matClass = (mat.MaterialClass ?? "").Replace(",", ";");
-                string color = "";
-                int transparency = 0, smoothness = 0, shininess = 0;
-                try { var c = mat.Color; if (c != null && c.IsValid) color = $"RGB({c.Red},{c.Green},{c.Blue})"; }
-                catch (Exception ex) { StingLog.Warn($"ExportMaterials color '{name}': {ex.Message}"); }
-                try { transparency = mat.Transparency; } catch (Exception ex) { StingLog.Warn($"Read mat transparency: {ex.Message}"); }
-                try { smoothness = mat.Smoothness; }       catch (Exception ex) { StingLog.Warn($"Read mat smoothness: {ex.Message}"); }
-                try { shininess = mat.Shininess; }         catch (Exception ex) { StingLog.Warn($"Read mat shininess: {ex.Message}"); }
-
-                string desc    = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_DESCRIPTION);
-                string mfr     = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MANUFACTURER);
-                string model   = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MODEL);
-                string cost    = ReadMatParamDouble(mat, BuiltInParameter.ALL_MODEL_COST);
-                string keynote = ReadMatParam(mat, BuiltInParameter.KEYNOTE_PARAM);
-                string mark    = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MARK);
-                string url     = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_URL);
-
-                string density = "", thermalCond = "", specificHeat = "";
-                try
-                {
-                    if (mat.ThermalAssetId != ElementId.InvalidElementId &&
-                        doc.GetElement(mat.ThermalAssetId) is PropertySetElement tPse)
-                    {
-                        density      = ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
-                        thermalCond  = ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_THERMAL_CONDUCTIVITY);
-                        specificHeat = ReadAssetParamByName(tPse, "Specific Heat");
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"ExportMaterials thermal '{name}': {ex.Message}"); }
-
-                string compStr = "", tensStr = "";
-                try
-                {
-                    if (mat.StructuralAssetId != ElementId.InvalidElementId &&
-                        doc.GetElement(mat.StructuralAssetId) is PropertySetElement sPse)
-                    {
-                        if (string.IsNullOrEmpty(density))
-                            density = ReadAssetParam(sPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
-                        compStr = ReadAssetParamByName(sPse, "Minimum Yield Stress");
-                        if (!string.IsNullOrEmpty(compStr) && double.TryParse(compStr,
-                            System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture, out double cVal))
-                            compStr = (cVal / 1e6).ToString("F1"); // Pa → MPa
-                        tensStr = ReadAssetParamByName(sPse, "Minimum Tensile Strength");
-                        if (!string.IsNullOrEmpty(tensStr) && double.TryParse(tensStr,
-                            System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture, out double tVal))
-                            tensStr = (tVal / 1e6).ToString("F1");
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"ExportMaterials structural '{name}': {ex.Message}"); }
-
-                sb.AppendLine($"\"{name}\",\"{matClass}\",\"{color}\",{transparency},{smoothness},{shininess},\"{desc}\",\"{mfr}\",\"{model}\",{cost},\"{keynote}\",\"{mark}\",\"{url}\",{density},{thermalCond},{specificHeat},{compStr},{tensStr}");
-            }
-
-            System.IO.File.WriteAllText(filePath, sb.ToString());
-            StingLog.Info($"ExportMaterialsCsv: {materials.Count} materials → {filePath}");
-        }
-
-        /// <summary>
         /// Apply surface and cut fill patterns with their colors.
         /// Uses columns 64-66 for pattern names, 40/42/48/50 for colors.
         /// Falls back to columns 41/43 if 64/65 are empty.
@@ -1400,6 +1329,101 @@ namespace StingTools.Temp
                         new CreateMEPMaterialsCommand().Execute(commandData, ref msg, elements);
                     }
                 }
+                else if (result == TaskDialogResult.CommandLink2)
+                {
+                    // Delegate to CreateBLEMaterialsCommand
+                    string msg = "";
+                    var cmd = new CreateBLEMaterialsCommand();
+                    cmd.Execute(commandData, ref msg, elements);
+                }
+                else if (result == TaskDialogResult.CommandLink3)
+                {
+                    // Delegate to CreateMEPMaterialsCommand
+                    string msg = "";
+                    var cmd = new CreateMEPMaterialsCommand();
+                    cmd.Execute(commandData, ref msg, elements);
+                }
+                else if (result == TaskDialogResult.CommandLink4)
+                {
+                    // Export material list to CSV (reuses materials collected above)
+                    string outputDir = OutputLocationHelper.GetOutputDirectory(doc);
+                    string filePath = Path.Combine(outputDir, "STING_MATERIALS_EXPORT.csv");
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine("Name,Class,Color,Transparency,Smoothness,Shininess,Description,Manufacturer,Model,Cost,Keynote,Mark,URL,Density_kg_m3,ThermalCond_W_mK,SpecificHeat_J_kgK,CompStrength_MPa,TensStrength_MPa");
+                    foreach (var mat in materials)
+                    {
+                        string name = (mat.Name ?? "").Replace(",", ";");
+                        string matClass = (mat.MaterialClass ?? "").Replace(",", ";");
+                        string color = "";
+                        int transparency = 0, smoothness = 0, shininess = 0;
+                        try { var c = mat.Color; if (c != null && c.IsValid) color = $"RGB({c.Red},{c.Green},{c.Blue})"; }
+                        catch (Exception ex) { StingLog.Warn($"Read material color for '{name}': {ex.Message}"); }
+                        try { transparency = mat.Transparency; } catch (Exception ex) { StingLog.Warn($"Read material transparency: {ex.Message}"); }
+                        try { smoothness = mat.Smoothness; } catch (Exception ex) { StingLog.Warn($"Read material smoothness: {ex.Message}"); }
+                        try { shininess = mat.Shininess; } catch (Exception ex) { StingLog.Warn($"Read material shininess: {ex.Message}"); }
+
+                        // Read BuiltInParameters (Identity tab)
+                        string desc = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_DESCRIPTION);
+                        string mfr = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MANUFACTURER);
+                        string model = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MODEL);
+                        string cost = MaterialPropertyHelper.ReadMatParamDouble(mat, BuiltInParameter.ALL_MODEL_COST);
+                        string keynote = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.KEYNOTE_PARAM);
+                        string mark = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MARK);
+                        string url = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_URL);
+
+                        // Read ThermalAsset properties
+                        string density = "", thermalCond = "", specificHeat = "";
+                        try
+                        {
+                            if (mat.ThermalAssetId != ElementId.InvalidElementId)
+                            {
+                                var tPse = doc.GetElement(mat.ThermalAssetId) as PropertySetElement;
+                                if (tPse != null)
+                                {
+                                    density = MaterialPropertyHelper.ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
+                                    thermalCond = MaterialPropertyHelper.ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_THERMAL_CONDUCTIVITY);
+                                    specificHeat = MaterialPropertyHelper.ReadAssetParamByName(tPse, "Specific Heat");
+                                }
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Read thermal '{name}': {ex.Message}"); }
+
+                        // Read StructuralAsset properties
+                        string compStr = "", tensStr = "";
+                        try
+                        {
+                            if (mat.StructuralAssetId != ElementId.InvalidElementId)
+                            {
+                                var sPse = doc.GetElement(mat.StructuralAssetId) as PropertySetElement;
+                                if (sPse != null)
+                                {
+                                    if (string.IsNullOrEmpty(density))
+                                        density = MaterialPropertyHelper.ReadAssetParam(sPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
+                                    compStr = MaterialPropertyHelper.ReadAssetParamByName(sPse, "Minimum Yield Stress");
+                                    if (!string.IsNullOrEmpty(compStr) && double.TryParse(compStr,
+                                        System.Globalization.NumberStyles.Any,
+                                        System.Globalization.CultureInfo.InvariantCulture, out double cVal))
+                                        compStr = (cVal / 1e6).ToString("F1"); // Pa → MPa
+                                    tensStr = MaterialPropertyHelper.ReadAssetParamByName(sPse, "Minimum Tensile Strength");
+                                    if (!string.IsNullOrEmpty(tensStr) && double.TryParse(tensStr,
+                                        System.Globalization.NumberStyles.Any,
+                                        System.Globalization.CultureInfo.InvariantCulture, out double tVal))
+                                        tensStr = (tVal / 1e6).ToString("F1"); // Pa → MPa
+                                }
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Read structural '{name}': {ex.Message}"); }
+
+                        sb.AppendLine($"\"{name}\",\"{matClass}\",\"{color}\",{transparency},{smoothness},{shininess},\"{desc}\",\"{mfr}\",\"{model}\",{cost},\"{keynote}\",\"{mark}\",\"{url}\",{density},{thermalCond},{specificHeat},{compStr},{tensStr}");
+                    }
+
+                    File.WriteAllText(filePath, sb.ToString());
+                    TaskDialog.Show("Export Materials",
+                        $"Exported {materials.Count} materials to:\n{filePath}");
+                    StingLog.Info($"MaterialManager: exported {materials.Count} materials to {filePath}");
+                }
+
                 return Result.Succeeded;
             }
             catch (Exception ex)

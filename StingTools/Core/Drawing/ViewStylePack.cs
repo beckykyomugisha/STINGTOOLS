@@ -1,4 +1,3 @@
-using System;
 // StingTools — Drawing Template Manager · Week 2
 //
 // ViewStylePack factors the graphic-override payload out of
@@ -16,6 +15,7 @@ using System;
 // Inheritance: a pack may set Extends = "<parent-id>"; the registry
 // walks the chain at load-time so resolvers see a merged snapshot.
 
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -42,7 +42,7 @@ namespace StingTools.Core.Drawing
         [JsonProperty("orientation", NullValueHandling = NullValueHandling.Ignore)] public string Orientation { get; set; }
     }
 
-    public sealed class ViewStylePack
+    public sealed partial class ViewStylePack
     {
         [JsonProperty("id")]          public string Id { get; set; }
         [JsonProperty("name")]        public string Name { get; set; }
@@ -82,22 +82,37 @@ namespace StingTools.Core.Drawing
         [JsonProperty("tagFamilies")] public Dictionary<string, string> TagFamilies { get; set; }
             = new Dictionary<string, string>();
 
+        // ── Phase 135 — Tag Appearance pack-level defaults ──
+        // Resolved by TokenProfileApplier whenever the per-DrawingType
+        // AnnotationTokenProfile leaves a slot empty. DrawingType always
+        // wins when both set the same field.
+
         /// <summary>
-        /// C4 — Material-class → graphic override. Keys match
-        /// <see cref="Material.MaterialClass"/> (case-insensitive); values
-        /// reuse the same <see cref="StyleVgOverride"/> POCO as the
-        /// category overrides. Applied AFTER per-category VG so a
-        /// class-level override beats a category-level one for elements
-        /// whose primary material matches the class.
-        ///
-        /// Driven through Revit ParameterFilterElement keyed on the
-        /// host element's Material parameter; see
-        /// ViewStylePackApplier.ApplyMaterialClassOverrides for the
-        /// concrete projection. Empty / missing → no class overrides
-        /// (existing pack behaviour preserved).
+        /// Pack-level default colour scheme. Variable-driven scheme
+        /// name (e.g. "System", "Status", "Discipline") written into
+        /// STING_VIEW_TAG_STYLE for every view this pack is applied to.
+        /// Null = no pack default.
         /// </summary>
-        [JsonProperty("byMaterialClass", NullValueHandling = NullValueHandling.Ignore)]
-        public Dictionary<string, StyleVgOverride> ByMaterialClass { get; set; }
+        [JsonProperty("tagColorScheme", NullValueHandling = NullValueHandling.Ignore)]
+        public string TagColorScheme { get; set; }
+
+        /// <summary>
+        /// Pack-level default tag style preset — "{size}{style}_{colour}"
+        /// canonical name (e.g. "2.5BOLD_RED"). Used when the
+        /// DrawingType profile's TagSize / TagStyle / TagColor are all
+        /// null. Null = no pack default.
+        /// </summary>
+        [JsonProperty("defaultTagStyle", NullValueHandling = NullValueHandling.Ignore)]
+        public string DefaultTagStyle { get; set; }
+
+        /// <summary>
+        /// Per-category tag style override (canonical preset name).
+        /// Loosely wins over DefaultTagStyle, loses to the
+        /// DrawingType.TokenProfile.TagSize/Style/Color triple.
+        /// </summary>
+        [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> CategoryTagStyles { get; set; }
+            = new Dictionary<string, string>();
 
         [JsonProperty("checksum", NullValueHandling = NullValueHandling.Ignore)]
         public string Checksum { get; set; }
@@ -170,18 +185,6 @@ namespace StingTools.Core.Drawing
 
         // ── Phase 135 — token profile defaults ──────────────────────
 
-        /// <summary>Default tag colour scheme applied at pack level (e.g. "STING Discipline").</summary>
-        [JsonProperty("tagColorScheme", NullValueHandling = NullValueHandling.Ignore)]
-        public string TagColorScheme { get; set; }
-
-        /// <summary>Default tag style preset applied at pack level.</summary>
-        [JsonProperty("defaultTagStyle", NullValueHandling = NullValueHandling.Ignore)]
-        public string DefaultTagStyle { get; set; }
-
-        /// <summary>Per-category tag style overrides. Category name → style preset name.</summary>
-        [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
-        public System.Collections.Generic.Dictionary<string, string> CategoryTagStyles { get; set; }
-
         // ── Phase 177 — per-category paragraph depth ─────────────────
 
         /// <summary>Per-category paragraph depth overrides. Category name → depth tier (1-10).</summary>
@@ -195,14 +198,71 @@ namespace StingTools.Core.Drawing
 
     public sealed class StyleFilterRule
     {
-        [JsonProperty("filterName")]          public string FilterName { get; set; }
+        // Phase 139 — accept both schema variants. Long form (filterName /
+        // projectionLineColor / cutLineWeight / …) is the canonical POCO
+        // shape; short form (name / projColor / cutWeight / …) is the
+        // STING_VIEW_STYLE_PACKS.json corporate file convention. Wrapper
+        // setters route either into the underlying field.
+        [JsonProperty("filterName", NullValueHandling = NullValueHandling.Ignore)]
+        public string FilterNameLong { get => FilterName; set { if (!string.IsNullOrEmpty(value)) FilterName = value; } }
+        [JsonProperty("name", NullValueHandling = NullValueHandling.Ignore)]
+        public string FilterNameShort { get => null; set { if (!string.IsNullOrEmpty(value)) FilterName = value; } }
+        [JsonIgnore] public string FilterName { get; set; }
+
         [JsonProperty("visible")]             public bool Visible { get; set; } = true;
         [JsonProperty("halftone")]            public bool Halftone { get; set; } = false;
-        [JsonProperty("projectionLineColor",  NullValueHandling = NullValueHandling.Ignore)] public string ProjectionLineColor { get; set; }  // "#RRGGBB"
-        [JsonProperty("projectionLineWeight", NullValueHandling = NullValueHandling.Ignore)] public int?   ProjectionLineWeight { get; set; }
-        [JsonProperty("cutLineColor",         NullValueHandling = NullValueHandling.Ignore)] public string CutLineColor { get; set; }
-        [JsonProperty("cutLineWeight",        NullValueHandling = NullValueHandling.Ignore)] public int?   CutLineWeight { get; set; }
+
+        [JsonProperty("projectionLineColor",  NullValueHandling = NullValueHandling.Ignore)]
+        public string ProjLineColorLong { get => ProjectionLineColor; set { if (!string.IsNullOrEmpty(value)) ProjectionLineColor = value; } }
+        [JsonProperty("projColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string ProjLineColorShort { get => null; set { if (!string.IsNullOrEmpty(value)) ProjectionLineColor = value; } }
+        [JsonIgnore] public string ProjectionLineColor { get; set; }
+
+        [JsonProperty("projectionLineWeight", NullValueHandling = NullValueHandling.Ignore)]
+        public int? ProjLineWeightLong { get => ProjectionLineWeight; set { if (value.HasValue) ProjectionLineWeight = value; } }
+        [JsonProperty("projWeight", NullValueHandling = NullValueHandling.Ignore)]
+        public int? ProjLineWeightShort { get => null; set { if (value.HasValue) ProjectionLineWeight = value; } }
+        [JsonIgnore] public int? ProjectionLineWeight { get; set; }
+
+        [JsonProperty("cutLineColor",         NullValueHandling = NullValueHandling.Ignore)]
+        public string CutLineColorLong { get => CutLineColor; set { if (!string.IsNullOrEmpty(value)) CutLineColor = value; } }
+        [JsonProperty("cutColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string CutLineColorShort { get => null; set { if (!string.IsNullOrEmpty(value)) CutLineColor = value; } }
+        [JsonIgnore] public string CutLineColor { get; set; }
+
+        [JsonProperty("cutLineWeight",        NullValueHandling = NullValueHandling.Ignore)]
+        public int? CutLineWeightLong { get => CutLineWeight; set { if (value.HasValue) CutLineWeight = value; } }
+        [JsonProperty("cutWeight", NullValueHandling = NullValueHandling.Ignore)]
+        public int? CutLineWeightShort { get => null; set { if (value.HasValue) CutLineWeight = value; } }
+        [JsonIgnore] public int? CutLineWeight { get; set; }
+
         [JsonProperty("transparency",         NullValueHandling = NullValueHandling.Ignore)] public int?   Transparency { get; set; }  // 0..100
+
+        // ── Phase 139 — extended override fields ──
+        // Mirrors FilterDefaultOverride so packs can express surface fills,
+        // line patterns, and detail-level overrides for filter-driven rules
+        // (fire compartments, system colour washes, escape-route highlights).
+        [JsonProperty("projectionLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string ProjectionLinePattern { get; set; }
+        [JsonProperty("cutLinePattern",        NullValueHandling = NullValueHandling.Ignore)] public string CutLinePattern { get; set; }
+        [JsonProperty("surfaceFgColor",        NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgColor { get; set; }
+        [JsonProperty("surfaceFgPattern",      NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPattern { get; set; }
+        [JsonProperty("surfaceBgColor",        NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgColor { get; set; }
+        [JsonProperty("surfaceBgPattern",      NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPattern { get; set; }
+        [JsonProperty("cutFgColor",            NullValueHandling = NullValueHandling.Ignore)] public string CutFgColor { get; set; }
+        [JsonProperty("cutFgPattern",          NullValueHandling = NullValueHandling.Ignore)] public string CutFgPattern { get; set; }
+        [JsonProperty("cutBgColor",            NullValueHandling = NullValueHandling.Ignore)] public string CutBgColor { get; set; }
+        [JsonProperty("cutBgPattern",          NullValueHandling = NullValueHandling.Ignore)] public string CutBgPattern { get; set; }
+        [JsonProperty("detailLevel",           NullValueHandling = NullValueHandling.Ignore)] public string DetailLevel { get; set; }
+
+        /// <summary>
+        /// When true, the applier merges defaults from
+        /// AecFilterRegistry.GetByName(filterName) before writing — useful
+        /// for packs that just say {"filterName":"STING - Fire 60 min Walls"}
+        /// and want the corporate-baseline override recipe applied.
+        /// Default true. Set false to leave Revit defaults in place where
+        /// this rule is silent.
+        /// </summary>
+        [JsonProperty("inheritDefaults", NullValueHandling = NullValueHandling.Ignore)] public bool? InheritDefaults { get; set; }
     }
 
     public sealed class StyleVgOverride
@@ -213,12 +273,20 @@ namespace StingTools.Core.Drawing
         [JsonProperty("cutLineWeight",         NullValueHandling = NullValueHandling.Ignore)] public int?    CutLineWeight { get; set; }
         [JsonProperty("cutLineColor",          NullValueHandling = NullValueHandling.Ignore)] public string  CutLineColor { get; set; }
         [JsonProperty("transparency",          NullValueHandling = NullValueHandling.Ignore)] public int?    Transparency { get; set; }
+
+        // Optional visibility flag — true = show, false = hide. Null = leave as-is.
+        // Phase 113+ presentation packs use this to hide MEP / structural framing
+        // / scope boxes etc. on architectural presentation drawings.
+        [JsonProperty("visible",               NullValueHandling = NullValueHandling.Ignore)] public bool?   Visible { get; set; }
     }
 
     public sealed class ViewStylePackLibrary
     {
         [JsonProperty("version")] public int Version { get; set; } = 1;
-        [JsonProperty("viewStylePacks")] public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
+
+        // Primary list — newer JSON files use "viewStylePacks".
+        [JsonProperty("viewStylePacks", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
     }
 
 }
