@@ -3371,3 +3371,8 @@ PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e05	STR_WIND_DIRECTIONAL_NR	TEXT		16	1	EC
 PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0b	STR_WIND_PRESSURE_PA	TEXT		16	1	Wind pressure Pa on element / storey per EC1-1-4 lookup — WindLoadCalculator [Phase 188]	1
 PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e04	STR_WIND_TERRAIN_CAT_TXT	TEXT		16	1	EC1-1-4 §4.3.2 terrain category 0 (sea) / I (lakes) / II (open) / III (suburban) / IV (city) — drives ce(z) exposure factor [Phase 190]	1
 PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e07	WARN_STR_FND_BLACK_COTTON	TEXT		16	1	Warning: Black-cotton / expansive subgrade detected — extend foundation below active zone (~1.5 m), verify BS 1377-2 swelling test, consider raft or stabilised sub-base [HIGH]	1
+PARAM	a1f2b3c4-d5e6-4f70-8123-456789abcd01	STING_TEMPLATE_CHECKSUM_TXT	TEXT		11	1	SHA-256 checksum of view template's VG state — DriftDetector baseline [Template Manager v2]	1
+PARAM	a1f2b3c4-d5e6-4f70-8123-456789abcd02	STING_TEMPLATE_LOCKED_BOOL	YESNO		11	1	When true, Sync/AutoFix/BatchVGReset ops skip this template (user-protected) [Template Manager v2]	1
+PARAM	a1f2b3c4-d5e6-4f70-8123-456789abcd03	PRJ_CORPORATE_LIBRARY_PATH_TXT	TEXT		13	1	Path to corporate template library (network share / local seed) — overrides %APPDATA% global config [Template Manager v2]	1
+PARAM	a1f2b3c4-d5e6-4f70-8123-456789abcd04	PRJ_CORPORATE_LIBRARY_VERSION_TXT	TEXT		13	1	Stamped library version on this project — drift baseline vs corporate library [Template Manager v2]	1
+PARAM	a1f2b3c4-d5e6-4f70-8123-456789abcd05	PRJ_TEMPLATE_PROFILE_TXT	TEXT		13	1	Compliance weight profile (default / working / coordination / presentation / handover / healthcare) [Template Manager v2]	1

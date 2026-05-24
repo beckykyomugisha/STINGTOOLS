@@ -524,6 +524,23 @@ namespace StingTools.Core
         // DocumentIdentityGenerator, TokenContext.FromDeliverable, and WorkflowEngine.
         public const string ORG_PROJECT_CODE            = "PRJ_ORG_PROJECT_CODE_TXT";
         public const string ORG_PROJECT_CODE_GUID       = "d72513d3-2aed-5048-a949-b262fcd51a39";
+
+        // ── Template Manager v2 — drift + lockdown + library + profile ──
+        // Five parameters added in the Template Manager v2 rebuild. Auto-loaded
+        // from MR_PARAMETERS.txt by the FIX-12.4 supplement path so projects
+        // pick them up without a code change. Constants here are the canonical
+        // names that DriftDetector, CorporateLibrary, TemplateRulesRegistry,
+        // and the dashboard's Lock toggle look up via LookupParameter.
+        public const string TM_TEMPLATE_CHECKSUM        = "STING_TEMPLATE_CHECKSUM_TXT";
+        public const string TM_TEMPLATE_CHECKSUM_GUID   = "a1f2b3c4-d5e6-4f70-8123-456789abcd01";
+        public const string TM_TEMPLATE_LOCKED          = "STING_TEMPLATE_LOCKED_BOOL";
+        public const string TM_TEMPLATE_LOCKED_GUID     = "a1f2b3c4-d5e6-4f70-8123-456789abcd02";
+        public const string TM_CORP_LIB_PATH            = "PRJ_CORPORATE_LIBRARY_PATH_TXT";
+        public const string TM_CORP_LIB_PATH_GUID       = "a1f2b3c4-d5e6-4f70-8123-456789abcd03";
+        public const string TM_CORP_LIB_VERSION         = "PRJ_CORPORATE_LIBRARY_VERSION_TXT";
+        public const string TM_CORP_LIB_VERSION_GUID    = "a1f2b3c4-d5e6-4f70-8123-456789abcd04";
+        public const string TM_PROFILE                  = "PRJ_TEMPLATE_PROFILE_TXT";
+        public const string TM_PROFILE_GUID             = "a1f2b3c4-d5e6-4f70-8123-456789abcd05";
         public const string ORG_ORIGINATOR_CODE         = "PRJ_ORG_ORIGINATOR_CODE_TXT";
         public const string ORG_ORIGINATOR_CODE_GUID    = "d9b568c8-0dcf-5226-add0-a6e3643589e8";
         public const string ORG_COMPANY_NAME            = "PRJ_ORG_COMPANY_NAME_TXT";

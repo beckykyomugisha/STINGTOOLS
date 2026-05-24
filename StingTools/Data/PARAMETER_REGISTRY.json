@@ -20963,6 +20963,66 @@
       "curated": true
     },
     {
+      "param_name": "STING_TEMPLATE_CHECKSUM_TXT",
+      "guid": "a1f2b3c4-d5e6-4f70-8123-456789abcd01",
+      "description": "SHA-256 checksum of view template's VG state - DriftDetector baseline [Template Manager v2]",
+      "datatype": "TEXT",
+      "group_id": 11,
+      "group_name": "TPL_TRACKING",
+      "binding": "view",
+      "required": false,
+      "discipline": "General",
+      "curated": true
+    },
+    {
+      "param_name": "STING_TEMPLATE_LOCKED_BOOL",
+      "guid": "a1f2b3c4-d5e6-4f70-8123-456789abcd02",
+      "description": "When true, Sync/AutoFix/BatchVGReset ops skip this template (user-protected) [Template Manager v2]",
+      "datatype": "YESNO",
+      "group_id": 11,
+      "group_name": "TPL_TRACKING",
+      "binding": "view",
+      "required": false,
+      "discipline": "General",
+      "curated": true
+    },
+    {
+      "param_name": "PRJ_CORPORATE_LIBRARY_PATH_TXT",
+      "guid": "a1f2b3c4-d5e6-4f70-8123-456789abcd03",
+      "description": "Path to corporate template library (network share / local seed) - overrides %APPDATA% global config [Template Manager v2]",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "Project",
+      "curated": true
+    },
+    {
+      "param_name": "PRJ_CORPORATE_LIBRARY_VERSION_TXT",
+      "guid": "a1f2b3c4-d5e6-4f70-8123-456789abcd04",
+      "description": "Stamped library version on this project - drift baseline vs corporate library [Template Manager v2]",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "Project",
+      "curated": true
+    },
+    {
+      "param_name": "PRJ_TEMPLATE_PROFILE_TXT",
+      "guid": "a1f2b3c4-d5e6-4f70-8123-456789abcd05",
+      "description": "Compliance weight profile (default / working / coordination / presentation / handover / healthcare) [Template Manager v2]",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "Project",
+      "curated": true
+    },
+    {
       "param_name": "CLN_FLOOR_LOAD_KN_M2_NR",
       "guid": "c8d4f6e2-2001-4d27-8c61-0e7a3f9bb001",
       "description": "Imposed floor load (kN/m2) for heavy imaging equipment [H-23]",

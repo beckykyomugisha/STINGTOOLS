@@ -787,6 +787,24 @@ public sealed partial class PlanscapeServerClient : IDisposable
     }
 
     /// <summary>
+    /// Template Manager v2 — push one OperationResult to the server's
+    /// /api/projects/{id}/template-ops endpoint. Returns true on 2xx,
+    /// false on any error (degrades gracefully when the route doesn't
+    /// exist on older server builds — caller swallows the false).
+    /// </summary>
+    public async Task<bool> PushTemplateOpAsync(Guid projectId, object payload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/template-ops", payload);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>
     /// Phase 177 — fetch the calling user's per-folder ACL slice for the
     /// project. Mirrors <c>GET /api/projects/{id}/members/me</c>; the BCC
     /// uses the result to hide CDE tabs / discipline filters the user

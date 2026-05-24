@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Autodesk.Revit.DB;
-using Newtonsoft.Json.Linq;
 
 namespace StingTools.Core.TemplateManager
 {
@@ -40,36 +39,42 @@ namespace StingTools.Core.TemplateManager
                     return;
                 }
 
-                var payload = new JObject
+                // Parse created/skipped/failed counts from the Counters bag (if present).
+                int created = 0, skipped = 0, failed = 0;
+                if (result.Counters != null)
                 {
-                    ["projectId"]      = projectId,
-                    ["operation"]      = result.Operation,
-                    ["operationLabel"] = result.OperationLabel,
-                    ["severity"]       = result.Severity.ToString(),
-                    ["headline"]       = result.Headline,
-                    ["subHeadline"]    = result.SubHeadline,
-                    ["completedUtc"]   = result.CompletedUtc,
-                    ["durationMs"]     = result.DurationMs,
-                    ["user"]           = Environment.UserName,
-                    ["documentPath"]   = doc?.PathName ?? "",
-                    ["documentTitle"]  = doc?.Title ?? "",
-                    ["counters"]       = JObject.FromObject(result.Counters ?? new Dictionary<string, string>()),
-                    ["sectionCount"]   = result.Sections?.Count ?? 0
+                    if (result.Counters.TryGetValue("created", out var c) && int.TryParse(c, out var ci)) created = ci;
+                    if (result.Counters.TryGetValue("skipped", out var s) && int.TryParse(s, out var si)) skipped = si;
+                    if (result.Counters.TryGetValue("failed",  out var f) && int.TryParse(f, out var fi)) failed = fi;
+                }
+
+                var payload = new
+                {
+                    operation      = result.Operation,
+                    operationLabel = result.OperationLabel,
+                    severity       = result.Severity.ToString(),
+                    headline       = result.Headline,
+                    subHeadline    = result.SubHeadline,
+                    completedUtc   = result.CompletedUtc,
+                    durationMs     = result.DurationMs,
+                    user           = string.IsNullOrEmpty(result.UserName) ? Environment.UserName : result.UserName,
+                    documentPath   = doc?.PathName ?? "",
+                    documentTitle  = doc?.Title ?? "",
+                    createdCount   = created,
+                    skippedCount   = skipped,
+                    failedCount    = failed,
+                    sectionCount   = result.Sections?.Count ?? 0,
+                    counters       = result.Counters
                 };
 
-                // Best-effort POST. The actual endpoint is added server-side via the
-                // gap analysis; until then this is a no-op when the server's
-                // /template-ops route is missing — log + continue.
-                try
-                {
-                    // Hook: client.PostAsync($"/api/projects/{projectId}/template-ops", payload);
-                    // The dedicated endpoint isn't on every server version, so we just
-                    // log the payload here. When the server route lands, swap to a
-                    // real call without touching callers.
-                    StingTools.Core.StingLog.Info("ServerPublisher: payload prepared "
-                        + $"op={result.Operation} sev={result.Severity} project={projectId}");
-                }
+                bool ok = false;
+                try { ok = await client.PushTemplateOpAsync(projectId, payload); }
                 catch (Exception ex) { StingTools.Core.StingLog.Warn($"ServerPublisher post: {ex.Message}"); }
+                if (!ok)
+                {
+                    StingTools.Core.StingLog.Info("ServerPublisher: push skipped or returned non-2xx "
+                        + $"op={result.Operation} project={projectId} (server route may be unavailable)");
+                }
             }
             catch (Exception ex)
             {

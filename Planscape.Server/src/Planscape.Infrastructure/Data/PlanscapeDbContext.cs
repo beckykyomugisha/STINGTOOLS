@@ -104,6 +104,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<LicenseKey> LicenseKeys => Set<LicenseKey>();
     public DbSet<WorkflowRun> WorkflowRuns => Set<WorkflowRun>();
     public DbSet<ComplianceSnapshot> ComplianceSnapshots => Set<ComplianceSnapshot>();
+    public DbSet<TemplateOpRecord> TemplateOpRecords => Set<TemplateOpRecord>();
     public DbSet<LpsRecord> LpsRecords => Set<LpsRecord>();
     public DbSet<SeqCounter> SeqCounters => Set<SeqCounter>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
@@ -741,6 +742,19 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(s => s.Id);
             e.HasOne(s => s.Project).WithMany().HasForeignKey(s => s.ProjectId);
             e.HasIndex(s => new { s.ProjectId, s.CapturedAt });
+        });
+
+        // ── TemplateOpRecord (Template Manager v2 — server publish) ──
+        modelBuilder.Entity<TemplateOpRecord>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasOne(s => s.Project).WithMany().HasForeignKey(s => s.ProjectId);
+            e.HasIndex(s => new { s.ProjectId, s.CompletedUtc });
+            e.HasIndex(s => new { s.TenantId,  s.CompletedUtc });
+            e.HasIndex(s => new { s.ProjectId, s.Operation });
+            e.Property(s => s.Operation).HasMaxLength(64);
+            e.Property(s => s.Severity).HasMaxLength(16);
+            e.Property(s => s.Headline).HasMaxLength(1024);
         });
 
         // ── LpsRecord (Phase 192 — LPS server entity) ──
