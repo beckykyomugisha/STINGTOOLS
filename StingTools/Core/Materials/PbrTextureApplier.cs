@@ -234,5 +234,47 @@ namespace StingTools.Core.Materials
         /// <summary>Revit internal length unit is feet. Use this for the
         /// UnifiedBitmap real-world dimension properties.</summary>
         private static double MillimetresToFeet(double mm) => mm / 304.8;
+
+        /// <summary>Disconnect bitmaps from every PBR slot. Caller MUST hold a
+        /// Revit Transaction.</summary>
+        public static int ClearAllSlots(Document doc, Material mat)
+        {
+            int cleared = 0;
+            if (doc == null || mat?.AppearanceAssetId == null) return cleared;
+            try
+            {
+                using (var scope = new AppearanceAssetEditScope(doc))
+                {
+                    var asset = scope.Start(mat.AppearanceAssetId);
+                    if (asset == null) { scope.Cancel(); return 0; }
+
+                    bool isPrism = LooksLikePrism(asset);
+                    string[] slots = isPrism
+                        ? new[] { PrismBaseColor, PrismRoughness, PrismMetalness, PrismNormal,
+                                  PrismBump, PrismDisplacement, PrismCutout, PrismEmission, PrismAnisotropy }
+                        : new[] { GenericDiffuse, GenericBump, GenericCutout, GenericSelfIllum };
+
+                    foreach (var slotName in slots)
+                    {
+                        try
+                        {
+                            var prop = asset.FindByName(slotName) as AssetProperty;
+                            if (prop == null) continue;
+                            int connections = prop.NumberOfConnectedProperties;
+                            for (int i = connections - 1; i >= 0; i--)
+                            {
+                                var connected = prop.GetConnectedProperty(i);
+                                if (connected != null) { prop.RemoveConnectedAsset(i); cleared++; }
+                            }
+                        }
+                        catch (Exception ex) { StingLog.WarnRateLimited("PbrClear", $"Clear '{slotName}': {ex.Message}"); }
+                    }
+                    scope.Commit(true);
+                }
+                MaterialAuditLogger.Log(doc, "MAT_PbrClear", mat.Name, new Dictionary<string, object> { ["slotsCleared"] = cleared });
+            }
+            catch (Exception ex) { StingLog.Warn($"PbrTextureApplier.ClearAllSlots('{mat?.Name}'): {ex.Message}"); }
+            return cleared;
+        }
     }
 }

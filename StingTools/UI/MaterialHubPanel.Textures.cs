@@ -422,19 +422,19 @@ namespace StingTools.UI
         private void ClearPbrMaps(Document doc, Material mat)
         {
             if (mat == null) { Toast("Pick a material first.", "warn"); return; }
-            // We use the existing texture-path setter to blank out base color
-            // (the most visible slot). A fuller clear would need per-slot
-            // disconnects; left as a follow-up.
             try
             {
+                int cleared;
                 using (var t = new Transaction(doc, "STING PBR clear"))
                 {
                     t.Start();
-                    bool ok = MaterialAppearanceActions.SetTexturePath(doc, mat, "");
-                    if (ok) t.Commit(); else t.RollBack();
-                    Toast(ok ? "Cleared base color path." : "Clear failed (asset may be locked).",
-                          ok ? "ok" : "warn");
+                    cleared = PbrTextureApplier.ClearAllSlots(doc, mat);
+                    if (cleared > 0) t.Commit(); else t.RollBack();
                 }
+                Toast(cleared > 0
+                    ? $"Disconnected {cleared} PBR slot(s) from '{mat.Name}'."
+                    : "Nothing to clear (no connected bitmaps).",
+                    cleared > 0 ? "ok" : "info");
             }
             catch (Exception ex) { Toast($"Clear failed: {ex.Message}", "error"); }
         }

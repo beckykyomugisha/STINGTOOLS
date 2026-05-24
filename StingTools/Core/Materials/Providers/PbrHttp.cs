@@ -44,25 +44,36 @@ namespace StingTools.Core.Materials.Providers
 
         public static async Task<bool> DownloadFileAsync(string url, string destPath, CancellationToken ct)
         {
-            try
+            // Retry up to 3 times with exponential back-off — large packs are
+            // shipped from CDNs that occasionally 503 or close connections
+            // mid-stream. Honour cancellation between attempts.
+            const int maxAttempts = 3;
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                using (var resp = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false))
+                try
                 {
-                    resp.EnsureSuccessStatusCode();
-                    using (var fs = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-                    using (var ds = await resp.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                    Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                    using (var resp = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false))
                     {
-                        await ds.CopyToAsync(fs, 81920, ct).ConfigureAwait(false);
+                        resp.EnsureSuccessStatusCode();
+                        using (var fs = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+                        using (var ds = await resp.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                        {
+                            await ds.CopyToAsync(fs, 81920, ct).ConfigureAwait(false);
+                        }
                     }
+                    return true;
                 }
-                return true;
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PbrHttp.DownloadFileAsync('{url}' → '{destPath}') attempt {attempt}/{maxAttempts}: {ex.Message}");
+                    if (attempt == maxAttempts) return false;
+                    try { await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), ct).ConfigureAwait(false); }
+                    catch (OperationCanceledException) { throw; }
+                }
             }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"PbrHttp.DownloadFileAsync('{url}' → '{destPath}'): {ex.Message}");
-                return false;
-            }
+            return false;
         }
     }
 }

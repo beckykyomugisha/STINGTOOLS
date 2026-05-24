@@ -35,6 +35,8 @@ namespace StingTools.UI
         private readonly ListBox _providerList = new ListBox();
         private readonly TextBox _searchBox = new TextBox { Width = 240 };
         private readonly ComboBox _categoryCombo = new ComboBox { Width = 160 };
+        private readonly ComboBox _resolutionCombo = new ComboBox { Width = 80 };
+        private readonly ComboBox _formatCombo = new ComboBox { Width = 80 };
         private readonly WrapPanel _thumbWrap = new WrapPanel { Orientation = Orientation.Horizontal };
         private readonly TextBlock _statusText = new TextBlock { Foreground = Brushes.SlateGray, FontSize = 11 };
         private readonly Button _okButton;
@@ -67,6 +69,14 @@ namespace StingTools.UI
             tb.Children.Add(_searchBox);
             tb.Children.Add(new TextBlock { Text = "  Category:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 4, 0) });
             tb.Children.Add(_categoryCombo);
+            tb.Children.Add(new TextBlock { Text = "  Resolution:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 4, 0) });
+            foreach (var r in new[] { "1k", "2k", "4k", "8k" }) _resolutionCombo.Items.Add(new ComboBoxItem { Content = r });
+            _resolutionCombo.SelectedIndex = 1;
+            tb.Children.Add(_resolutionCombo);
+            tb.Children.Add(new TextBlock { Text = "  Format:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 4, 0) });
+            foreach (var f in new[] { "png", "jpg", "exr" }) _formatCombo.Items.Add(new ComboBoxItem { Content = f });
+            _formatCombo.SelectedIndex = 0;
+            tb.Children.Add(_formatCombo);
             var refreshBtn = new Button { Content = "Search", Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(12, 2, 12, 2) };
             refreshBtn.Click += (_, __) => _ = LoadAssetsAsync();
             tb.Children.Add(refreshBtn);
@@ -307,7 +317,9 @@ namespace StingTools.UI
                 }
                 _cts?.Cancel();
                 _cts = new CancellationTokenSource();
-                var manifest = await _activeProvider.DownloadPackAsync(_selectedAsset, root, null, null, _cts.Token);
+                string resHint = (_resolutionCombo.SelectedItem as ComboBoxItem)?.Content?.ToString();
+                string fmtHint = (_formatCombo.SelectedItem as ComboBoxItem)?.Content?.ToString();
+                var manifest = await _activeProvider.DownloadPackAsync(_selectedAsset, root, resHint, fmtHint, _cts.Token);
                 if (manifest == null || manifest.Maps.FilledSlotCount == 0)
                 {
                     MessageBox.Show(this, "Download finished but no PBR maps were detected. Check disk permissions and provider connectivity.", "STING", MessageBoxButton.OK, MessageBoxImage.Warning);
