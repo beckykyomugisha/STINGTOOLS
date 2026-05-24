@@ -11,6 +11,7 @@ using Autodesk.Revit.DB;
 using StingTools.Core;
 using StingTools.Core.Materials;
 using StingTools.Core.Materials.Providers;
+using StingTools.Core.Storage;
 using Grid = System.Windows.Controls.Grid;     // disambiguate vs Autodesk.Revit.DB.Grid
 
 namespace StingTools.UI
@@ -38,11 +39,17 @@ namespace StingTools.UI
             ("anisotropy",   "Anisotropy"),
         };
 
-        // Per-material pack state — keyed by ElementId.Value so UV / slider /
-        // displacement toggle edits survive panel rebuilds and material
-        // re-selection. Rebuilt-but-not-applied state lives here too.
-        private static readonly Dictionary<long, TexturePackManifest> _packStatePerMaterial
-            = new Dictionary<long, TexturePackManifest>();
+        // Per-material working-copy state — keyed by (document path, ElementId)
+        // so two open documents never collide. UV / slider / displacement
+        // toggle edits live here in memory; persistence to disk uses
+        // StingPbrStateSchema (extensible storage on the Material element),
+        // committed only on successful Apply.
+        private static readonly Dictionary<(string DocKey, long ElementId), TexturePackManifest> _packStatePerMaterial
+            = new Dictionary<(string, long), TexturePackManifest>();
+        private static readonly object _packStateLock = new object();
+
+        private static (string, long) PackStateKey(Document doc, Material mat)
+            => ((doc?.PathName ?? "<no-path>"), (mat?.Id?.Value ?? 0));
 
         // Session-scoped memory of the user's last Generic→Prism decision so
         // we don't ask the same question every apply. Reset on plugin reload.
@@ -57,12 +64,23 @@ namespace StingTools.UI
             var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
             var mat = (row != null && doc != null) ? doc.GetElement(row.Id) as Material : null;
 
-            // Hydrate the active pack from per-material state so UV /
-            // sliders / displacement toggle survive RebuildInspector.
-            if (mat != null && _packStatePerMaterial.TryGetValue(mat.Id.Value, out var persisted))
-                _activePackForInspector = persisted;
-            else
-                _activePackForInspector = null;
+            // Hydrate the active pack from (doc-scoped) memory first; fall
+            // back to extensible-storage on the Material so state survives
+            // a Revit restart / project re-open. A fresh project gets a
+            // null pack and the card uses TexturePackDefaults values.
+            _activePackForInspector = null;
+            if (mat != null)
+            {
+                var key = PackStateKey(doc, mat);
+                lock (_packStateLock)
+                    _packStatePerMaterial.TryGetValue(key, out _activePackForInspector);
+                if (_activePackForInspector == null)
+                {
+                    _activePackForInspector = StingPbrStateSchema.Read(mat);
+                    if (_activePackForInspector != null)
+                        lock (_packStateLock) _packStatePerMaterial[key] = _activePackForInspector;
+                }
+            }
 
             // ── Header ────────────────────────────────────────────────
             bool isPrism = (doc != null && mat != null) && GenericToPrismConverter.IsPrism(doc, mat);
@@ -131,12 +149,24 @@ namespace StingTools.UI
             sp.Children.Add(MakeSliderRow("Normal intensity",  0, 4,  _activePackForInspector?.Defaults?.NormalIntensity ?? 1.0, "HUB_PBR_NormalIntensity"));
 
             // ── Displacement toggle ───────────────────────────────────
+            // Only meaningful when the active pack carries a displacement
+            // map. Disable the checkbox + grey out the label when there's
+            // nothing to displace, so the toggle never claims to be doing
+            // something the apply path would silently skip.
+            bool hasDispMap = !string.IsNullOrEmpty(_activePackForInspector?.Maps?.Displacement);
             var dispRow = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
             var dispCheck = new CheckBox
             {
-                Content = "Displacement (raytrace only)",
-                IsChecked = _activePackForInspector?.Defaults?.DisplacementEnabled ?? false,
+                Content = hasDispMap
+                    ? "Displacement (raytrace only)"
+                    : "Displacement (no map in pack)",
+                IsChecked = hasDispMap && (_activePackForInspector?.Defaults?.DisplacementEnabled ?? false),
+                IsEnabled = hasDispMap,
                 FontSize = 10,
+                Foreground = hasDispMap ? Brushes.Black : Brushes.Gray,
+                ToolTip = hasDispMap
+                    ? "Adds true geometric displacement on raytraced render. Slow (30–120 s/frame) but accurate."
+                    : "The active pack doesn't include a displacement map. Pick a pack with a _disp / _height file to enable.",
             };
             dispCheck.Checked   += (_, __) => { if (_activePackForInspector?.Defaults != null) _activePackForInspector.Defaults.DisplacementEnabled = true;  Toast("Displacement enabled — slow but accurate. Re-apply pack to commit.", "info"); };
             dispCheck.Unchecked += (_, __) => { if (_activePackForInspector?.Defaults != null) _activePackForInspector.Defaults.DisplacementEnabled = false; };
@@ -382,20 +412,35 @@ namespace StingTools.UI
             if (m == null) return;
             try
             {
+                // Per-material gate veto — lifecycle Frozen, healthcare-block
+                // findings, anything a project plugs in via BlockerChain.
+                var (allow, reason) = MaterialBlockerChain.CheckPbrApply(doc, mat, m.PackId);
+                if (!allow) { Toast(reason ?? "Blocked by gate.", "warn"); return; }
+
                 if (!GenericToPrismConverter.IsPrism(doc, mat))
                 {
                     var dr = ResolveGenericToPrismChoice(mat, m);
                     if (dr == MessageBoxResult.Cancel) return;
 
-                    // Snapshot peer materials sharing this appearance asset so
-                    // we can refresh their grid rows when an InPlace conversion
-                    // mutates the shared asset.
+                    // Snapshot peer materials sharing this asset BEFORE
+                    // conversion. After Convert(InPlace), target's
+                    // AppearanceAssetId points at a NEW asset — the siblings
+                    // still point at the ORIGINAL asset, which is now
+                    // unmodified. So we don't refresh the siblings' rows;
+                    // their visual state is correct. We only need to refresh
+                    // the target row. The snapshot stays for diagnostic /
+                    // future-policy hooks but is no longer consumed for
+                    // grid refresh (this fixes Phase 190 Finding 12).
                     var siblingIds = (dr == MessageBoxResult.Yes)
                         ? FindMaterialsSharingAppearance(doc, mat).ToList()
                         : new List<ElementId>();
+                    if (siblingIds.Count > 0)
+                        StingLog.Info($"PBR convert (InPlace): {siblingIds.Count} sibling material(s) keep original asset → no refresh needed");
 
                     Material target = mat;
                     bool createdNewMaterial = (dr != MessageBoxResult.Yes);
+                    PbrTextureApplier.ApplyResult ar = null;
+                    bool committed = false;
                     using (var t = new Transaction(doc, "STING PBR convert + apply"))
                     {
                         t.Start();
@@ -405,38 +450,56 @@ namespace StingTools.UI
                                 : GenericToPrismConverter.ConvertMode.DuplicateMaterial);
                         if (!conv.Success) { t.RollBack(); Toast(conv.Note, "error"); return; }
                         target = conv.ResultMaterial;
-                        var ar = PbrTextureApplier.Apply(doc, target, m);
-                        if (ar.Success) t.Commit(); else t.RollBack();
-                        Toast(ar.Success
-                            ? $"Applied {ar.SlotsWritten} maps ({ar.SchemaUsed}) → {target.Name}"
-                            : "Apply failed: " + string.Join("; ", ar.Warnings),
-                            ar.Success ? "ok" : "error");
-
+                        ar = PbrTextureApplier.Apply(doc, target, m);
                         if (ar.Success)
                         {
-                            PersistPackState(target, m);
-                            if (createdNewMaterial) InsertOrReloadRowForMaterial(target);
-                            else                    foreach (var id in siblingIds) ReloadSingleRow(id);
+                            // ES write must happen inside the transaction.
+                            PersistPackState(doc, target, m);
+                            t.Commit();
+                            committed = true;
                         }
+                        else t.RollBack();
+                    }
+
+                    Toast(ar?.Success == true
+                        ? $"Applied {ar.SlotsWritten} maps ({ar.SchemaUsed}) → {target?.Name}"
+                        : "Apply failed: " + string.Join("; ", ar?.Warnings ?? new List<string>()),
+                        ar?.Success == true ? "ok" : "error");
+
+                    if (committed)
+                    {
+                        // Fire deferred side effects only after a clean commit.
+                        try { ar?.PostCommit?.Invoke(doc, target); } catch (Exception ex) { StingLog.Warn($"PostCommit: {ex.Message}"); }
+                        if (createdNewMaterial) InsertOrReloadRowForMaterial(target);
+                        ReloadSingleRow(target?.Id);
                     }
                     return;
                 }
 
+                PbrTextureApplier.ApplyResult r = null;
+                bool prismCommitted = false;
                 using (var t = new Transaction(doc, "STING PBR apply"))
                 {
                     t.Start();
-                    var r = PbrTextureApplier.Apply(doc, mat, m);
-                    if (r.Success) t.Commit(); else t.RollBack();
-                    Toast(r.Success
-                        ? $"Applied {r.SlotsWritten} maps ({r.SchemaUsed})."
-                        : "Apply failed: " + string.Join("; ", r.Warnings),
-                        r.Success ? "ok" : "error");
-
+                    r = PbrTextureApplier.Apply(doc, mat, m);
                     if (r.Success)
                     {
-                        PersistPackState(mat, m);
-                        ReloadSingleRow(mat.Id);
+                        PersistPackState(doc, mat, m);
+                        t.Commit();
+                        prismCommitted = true;
                     }
+                    else t.RollBack();
+                }
+
+                Toast(r?.Success == true
+                    ? $"Applied {r.SlotsWritten} maps ({r.SchemaUsed})."
+                    : "Apply failed: " + string.Join("; ", r?.Warnings ?? new List<string>()),
+                    r?.Success == true ? "ok" : "error");
+
+                if (prismCommitted)
+                {
+                    try { r?.PostCommit?.Invoke(doc, mat); } catch (Exception ex) { StingLog.Warn($"PostCommit: {ex.Message}"); }
+                    ReloadSingleRow(mat.Id);
                 }
             }
             catch (Exception ex) { Toast($"Apply failed: {ex.Message}", "error"); StingLog.Warn($"ApplyManifest: {ex.Message}"); }
@@ -476,10 +539,37 @@ namespace StingTools.UI
             }
         }
 
-        private static void PersistPackState(Material mat, TexturePackManifest m)
+        /// <summary>Commit per-material PBR state both to in-memory cache
+        /// (fast re-open) and to extensible storage (survives Revit restart).
+        /// Must be called inside an open Revit transaction so the ES write
+        /// commits atomically with the rest of the Apply.</summary>
+        private static void PersistPackState(Document doc, Material mat, TexturePackManifest m)
         {
-            try { if (mat != null && m != null) _packStatePerMaterial[mat.Id.Value] = m; }
+            if (mat == null || m == null) return;
+            try
+            {
+                lock (_packStateLock) _packStatePerMaterial[PackStateKey(doc, mat)] = m;
+            }
             catch { /* non-fatal */ }
+            try { StingPbrStateSchema.Write(mat, m); }
+            catch (Exception ex) { StingLog.WarnRateLimited("PbrStateWrite", $"PersistPackState: {ex.Message}"); }
+        }
+
+        /// <summary>Drop a document's worth of cache entries — wired to
+        /// <see cref="MaterialHubPanel"/>'s document-close hook to prevent
+        /// long-running sessions from accumulating dead entries.</summary>
+        internal static void DropDocumentCache(Document doc)
+        {
+            if (doc == null) return;
+            string key = doc.PathName ?? "<no-path>";
+            lock (_packStateLock)
+            {
+                var dead = new List<(string, long)>();
+                foreach (var k in _packStatePerMaterial.Keys)
+                    if (string.Equals(k.DocKey, key, StringComparison.OrdinalIgnoreCase))
+                        dead.Add(k);
+                foreach (var k in dead) _packStatePerMaterial.Remove(k);
+            }
         }
 
         /// <summary>Insert a freshly-created Material into the grid (no F5
@@ -557,17 +647,27 @@ namespace StingTools.UI
             if (mat == null) { Toast("Pick a material first.", "warn"); return; }
             try
             {
-                int cleared;
+                PbrTextureApplier.ClearResult cr = null;
+                bool committed = false;
                 using (var t = new Transaction(doc, "STING PBR clear"))
                 {
                     t.Start();
-                    cleared = PbrTextureApplier.ClearAllSlots(doc, mat);
-                    if (cleared > 0) t.Commit(); else t.RollBack();
+                    cr = PbrTextureApplier.ClearAllSlotsWithResult(doc, mat);
+                    if (cr.SlotsCleared > 0) { t.Commit(); committed = true; }
+                    else t.RollBack();
                 }
-                Toast(cleared > 0
-                    ? $"Disconnected {cleared} PBR slot(s) from '{mat.Name}'."
+                Toast(cr?.SlotsCleared > 0
+                    ? $"Disconnected {cr.SlotsCleared} PBR slot(s) from '{mat.Name}'."
                     : "Nothing to clear (no connected bitmaps).",
-                    cleared > 0 ? "ok" : "info");
+                    cr?.SlotsCleared > 0 ? "ok" : "info");
+                if (committed)
+                {
+                    try { cr?.PostCommit?.Invoke(doc, mat); } catch (Exception ex) { StingLog.Warn($"Clear PostCommit: {ex.Message}"); }
+                    // Also wipe the in-memory + ES state so the inspector
+                    // doesn't re-hydrate a stale pack on next selection.
+                    lock (_packStateLock) _packStatePerMaterial.Remove(PackStateKey(doc, mat));
+                    ReloadSingleRow(mat.Id);
+                }
             }
             catch (Exception ex) { Toast($"Clear failed: {ex.Message}", "error"); }
         }

@@ -143,7 +143,7 @@ namespace StingTools.UI
             Grid.SetRow(br, 3); root.Children.Add(br);
 
             Content = root;
-            Closed += (_, __) => _cts?.Cancel();
+            Closed += (_, __) => { try { _cts?.Cancel(); _cts?.Dispose(); } catch { /* non-fatal */ } _cts = null; };
 
             // Default-select the first inline-browsable provider
             int defaultIdx = _providers.FindIndex(p => p.SupportsInlineBrowse);
@@ -200,7 +200,7 @@ namespace StingTools.UI
         private async Task LoadAssetsAsync()
         {
             if (_activeProvider == null || !_activeProvider.SupportsInlineBrowse) return;
-            _cts?.Cancel();
+            try { _cts?.Cancel(); _cts?.Dispose(); } catch { /* non-fatal */ }
             _cts = new CancellationTokenSource();
             var ct = _cts.Token;
 
@@ -316,7 +316,7 @@ namespace StingTools.UI
                     _okButton.IsEnabled = true;
                     return;
                 }
-                _cts?.Cancel();
+                try { _cts?.Cancel(); _cts?.Dispose(); } catch { /* non-fatal */ }
                 _cts = new CancellationTokenSource();
                 string resHint = (_resolutionCombo.SelectedItem as ComboBoxItem)?.Content?.ToString();
                 string fmtHint = (_formatCombo.SelectedItem as ComboBoxItem)?.Content?.ToString();

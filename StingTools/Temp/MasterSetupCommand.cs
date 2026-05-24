@@ -315,6 +315,41 @@ namespace StingTools.Temp
                 string tex = StingTools.Core.Materials.Providers.TextureProviderRegistry.ProjectTexturesRoot(doc);
                 if (!string.IsNullOrEmpty(tex))
                 {
+                    // Template provider-override JSON so authors can layer
+                    // a custom in-house library without writing the schema
+                    // from scratch. Only seed if absent (don't clobber).
+                    string bimCoord = System.IO.Directory.GetParent(tex)?.FullName;
+                    if (!string.IsNullOrEmpty(bimCoord))
+                    {
+                        string providerOverridePath = System.IO.Path.Combine(bimCoord, "texture_providers.json");
+                        if (!System.IO.File.Exists(providerOverridePath))
+                        {
+                            System.IO.File.WriteAllText(providerOverridePath,
+                                "{\n" +
+                                "  \"_doc\": \"STING project-scoped texture provider override. Entries match the corporate STING_TEXTURE_PROVIDERS.json by id (yours wins). Suffix-rule lists merge (your suffixes append). Reload via the dock panel's 'Reload Providers' button.\",\n" +
+                                "  \"providers\": [\n" +
+                                "    /* Example — uncomment + edit to add an in-house library:\n" +
+                                "    {\n" +
+                                "      \"id\": \"in-house\",\n" +
+                                "      \"name\": \"In-house textures\",\n" +
+                                "      \"kind\": \"folder-watch\",\n" +
+                                "      \"license\": \"proprietary\",\n" +
+                                "      \"cost\": \"internal\",\n" +
+                                "      \"description\": \"Drop packs into _BIM_COORD/textures/in-house/. STING auto-detects PBR maps by suffix.\",\n" +
+                                "      \"ingestFolder\": \"in-house\",\n" +
+                                "      \"enabledByDefault\": true\n" +
+                                "    }\n" +
+                                "    */\n" +
+                                "  ],\n" +
+                                "  \"mapSuffixRules\": {\n" +
+                                "    /* Example — uncomment + edit to add project-specific suffix conventions:\n" +
+                                "    \"baseColor\": [\"_color\", \"_dif\"]\n" +
+                                "    */\n" +
+                                "  }\n" +
+                                "}\n");
+                            StingLog.Info($"MasterSetup Step 21: seeded provider override template at {providerOverridePath}");
+                        }
+                    }
                     string readme = System.IO.Path.Combine(tex, "README.txt");
                     if (!System.IO.File.Exists(readme))
                     {

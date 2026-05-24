@@ -113,10 +113,21 @@ namespace StingTools.UI
                 if (aaeId == null || aaeId.Value <= 0) return "";
                 if (!(doc.GetElement(aaeId) is AppearanceAssetElement aae)) return "";
                 var src = aae.GetRenderingAsset();
-                var diffuse = src.FindByName("generic_diffuse") as AssetProperty;
-                var connected = diffuse?.GetConnectedProperty(0) as Asset;
-                var path = connected?.FindByName(UnifiedBitmap.UnifiedbitmapBitmap) as AssetPropertyString;
-                return path?.Value ?? "";
+                // Prism (Autodesk Standard Surface) materials live behind
+                // `advanced_base_color`; Generic materials behind
+                // `generic_diffuse`. Try Prism first because the PBR pipeline
+                // creates Prism assets and the Generic-only path produced a
+                // false-empty preview for converted materials.
+                foreach (var slotName in new[] { "advanced_base_color", "generic_diffuse" })
+                {
+                    var slot = src.FindByName(slotName) as AssetProperty;
+                    if (slot == null) continue;
+                    var connected = slot.GetConnectedProperty(0) as Asset
+                                 ?? slot.GetSingleConnectedAsset();
+                    var path = connected?.FindByName(UnifiedBitmap.UnifiedbitmapBitmap) as AssetPropertyString;
+                    if (!string.IsNullOrEmpty(path?.Value)) return path.Value;
+                }
+                return "";
             }
             catch (Exception ex) { StingLog.WarnRateLimited("ReadTexture", $"ReadCurrentTexturePath: {ex.Message}"); return ""; }
         }

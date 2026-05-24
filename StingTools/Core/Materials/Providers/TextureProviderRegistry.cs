@@ -45,6 +45,18 @@ namespace StingTools.Core.Materials.Providers
             lock (_lock) { _cache = null; _cacheProjectKey = null; }
         }
 
+        // 1 MiB cap on either JSON file — both are human-edited config, far
+        // smaller than this in practice. Caps catch hostile / corrupt inputs
+        // before Newtonsoft buffers them.
+        private const long MaxJsonBytes = 1L * 1024 * 1024;
+
+        private static readonly JsonSerializerSettings _safeJsonSettings = new JsonSerializerSettings
+        {
+            MaxDepth = 16,
+            TypeNameHandling = TypeNameHandling.None,   // never deserialize $type
+            MissingMemberHandling = MissingMemberHandling.Ignore,
+        };
+
         private static TextureProviderCatalogue LoadCorporate()
         {
             try
@@ -55,7 +67,7 @@ namespace StingTools.Core.Materials.Providers
                     StingLog.Warn($"TextureProviderRegistry: corporate file '{CorporateFile}' not found");
                     return null;
                 }
-                return JsonConvert.DeserializeObject<TextureProviderCatalogue>(File.ReadAllText(path));
+                return DeserializeBounded(path);
             }
             catch (Exception ex)
             {
@@ -72,11 +84,33 @@ namespace StingTools.Core.Materials.Providers
                 if (string.IsNullOrEmpty(root)) return null;
                 string path = Path.Combine(root, ProjectFile);
                 if (!File.Exists(path)) return null;
-                return JsonConvert.DeserializeObject<TextureProviderCatalogue>(File.ReadAllText(path));
+                return DeserializeBounded(path);
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"TextureProviderRegistry.LoadProject: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>Size-capped + depth-capped + type-handling-disabled JSON
+        /// load. Used for both corporate and project files because project
+        /// files are user-editable and could be hostile.</summary>
+        private static TextureProviderCatalogue DeserializeBounded(string path)
+        {
+            try
+            {
+                var fi = new FileInfo(path);
+                if (fi.Length > MaxJsonBytes)
+                {
+                    StingLog.Warn($"TextureProviderRegistry: '{path}' is {fi.Length} bytes — exceeds {MaxJsonBytes} cap; ignoring.");
+                    return null;
+                }
+                return JsonConvert.DeserializeObject<TextureProviderCatalogue>(File.ReadAllText(path), _safeJsonSettings);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TextureProviderRegistry.DeserializeBounded '{path}': {ex.Message}");
                 return null;
             }
         }

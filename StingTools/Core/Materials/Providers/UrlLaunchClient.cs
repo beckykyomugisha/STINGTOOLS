@@ -81,13 +81,33 @@ namespace StingTools.Core.Materials.Providers
                 if (string.IsNullOrEmpty(_projectTexturesRoot) || !Directory.Exists(_projectTexturesRoot))
                     return Task.FromResult<IReadOnlyList<PbrAssetSummary>>(hits);
 
-                foreach (var dir in Directory.GetDirectories(_projectTexturesRoot, "*", SearchOption.AllDirectories))
-                {
-                    if (hits.Count >= maxResults) break;
-                    if (!HasAnyImage(dir)) continue;
+                // Manual BFS with depth + visit-count guards so a symlink
+                // loop or a runaway nested texture library can't hang the
+                // panel. Depth cap is generous; visit-count is conservative.
+                const int MaxDepth = 6;
+                const int MaxFolders = 5000;
+                var queue = new Queue<(string path, int depth)>();
+                queue.Enqueue((_projectTexturesRoot, 0));
+                int visited = 0;
 
-                    string id = Path.GetFileName(dir);
-                    string parent = Path.GetFileName(Path.GetDirectoryName(dir) ?? "");
+                while (queue.Count > 0 && hits.Count < maxResults)
+                {
+                    var (cur, depth) = queue.Dequeue();
+                    if (visited++ > MaxFolders) { StingLog.Warn($"UserFolderClient: scan capped at {MaxFolders} folders (symlink loop?)"); break; }
+                    if (depth > MaxDepth) continue;
+
+                    string[] subs;
+                    try { subs = Directory.GetDirectories(cur); }
+                    catch (Exception ex) { StingLog.WarnRateLimited("UserFolderDir", $"GetDirectories '{cur}': {ex.Message}"); continue; }
+
+                    foreach (var dir in subs) queue.Enqueue((dir, depth + 1));
+
+                    if (depth == 0) continue;  // textures/ root itself is never a pack
+                    if (hits.Count >= maxResults) break;
+                    if (!HasAnyImage(cur)) continue;
+
+                    string id = Path.GetFileName(cur);
+                    string parent = Path.GetFileName(Path.GetDirectoryName(cur) ?? "");
                     string category = parent != null && !parent.Equals("textures", StringComparison.OrdinalIgnoreCase) ? parent : "";
 
                     if (!string.IsNullOrWhiteSpace(searchText))
@@ -99,16 +119,16 @@ namespace StingTools.Core.Materials.Providers
                         !category.Equals(categoryFilter, StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    string thumb = FindFirstImage(dir);
+                    string thumb = FindFirstImage(cur);
 
                     hits.Add(new PbrAssetSummary
                     {
-                        Id = dir,                           // full path acts as id
+                        Id = cur,                           // full path acts as id
                         DisplayName = id,
                         Category = category,
                         ProviderId = ProviderId,
                         ThumbnailUrl = thumb,               // local file path
-                        AssetPageUrl = dir,
+                        AssetPageUrl = cur,
                         License = "varies",
                         Resolution = 0,
                         Tags = "",

@@ -39,6 +39,8 @@ namespace StingTools.Commands.Materials
                 var dlg = new MaterialHubProviderBrowserDialog(doc);
                 if (dlg.ShowDialog() != true || dlg.Result == null) return Result.Cancelled;
 
+                PbrTextureApplier.ApplyResult ar = null;
+                bool committed = false;
                 using (var t = new Transaction(doc, "STING Apply PBR pack"))
                 {
                     t.Start();
@@ -50,13 +52,15 @@ namespace StingTools.Commands.Materials
                         if (!conv.Success) { t.RollBack(); TaskDialog.Show("STING PBR", "Convert failed: " + conv.Note); return Result.Failed; }
                         mat = conv.ResultMaterial;
                     }
-                    var ar = PbrTextureApplier.Apply(doc, mat, dlg.Result);
-                    if (ar.Success) t.Commit(); else t.RollBack();
-                    TaskDialog.Show("STING PBR", ar.Success
-                        ? $"Applied {ar.SlotsWritten} maps to '{mat.Name}' ({ar.SchemaUsed} schema)."
-                        : "Apply failed:\n" + string.Join("\n", ar.Warnings));
-                    return ar.Success ? Result.Succeeded : Result.Failed;
+                    ar = PbrTextureApplier.Apply(doc, mat, dlg.Result);
+                    if (ar.Success) { t.Commit(); committed = true; } else t.RollBack();
                 }
+
+                if (committed) try { ar.PostCommit?.Invoke(doc, mat); } catch { /* non-fatal */ }
+                TaskDialog.Show("STING PBR", ar?.Success == true
+                    ? $"Applied {ar.SlotsWritten} maps to '{mat.Name}' ({ar.SchemaUsed} schema)."
+                    : "Apply failed:\n" + string.Join("\n", ar?.Warnings ?? new System.Collections.Generic.List<string>()));
+                return ar?.Success == true ? Result.Succeeded : Result.Failed;
             }
             catch (System.Exception ex)
             {
@@ -136,7 +140,8 @@ namespace StingTools.Commands.Materials
                     if (!matsByName.ContainsKey(mat.Name)) matsByName[mat.Name] = mat;
                 }
 
-                int applied = 0, skipped = 0, failed = 0;
+                int applied = 0, skipped = 0, failed = 0, blocked = 0;
+                var postCommits = new System.Collections.Generic.List<(System.Action<Document, Material> PostCommit, Material Mat)>();
                 using (var t = new Transaction(doc, "STING Bulk-apply PBR packs"))
                 {
                     t.Start();
@@ -149,16 +154,27 @@ namespace StingTools.Commands.Materials
                             skipped++;
                             continue;
                         }
+                        var (allow, _) = StingTools.UI.MaterialBlockerChain.CheckPbrApply(doc, match, pack.PackId);
+                        if (!allow) { blocked++; continue; }
                         var convResult = GenericToPrismConverter.Convert(doc, match,
                             GenericToPrismConverter.ConvertMode.InPlace);
                         var ar = PbrTextureApplier.Apply(doc, convResult.ResultMaterial ?? match, pack);
-                        if (ar.Success) applied++; else failed++;
+                        if (ar.Success)
+                        {
+                            applied++;
+                            if (ar.PostCommit != null)
+                                postCommits.Add((ar.PostCommit, convResult.ResultMaterial ?? match));
+                        }
+                        else failed++;
                     }
                     t.Commit();
                 }
 
+                foreach (var (post, m) in postCommits)
+                    try { post(doc, m); } catch { /* non-fatal */ }
+
                 TaskDialog.Show("STING PBR Bulk",
-                    $"Packs found: {packs.Count}\nApplied: {applied}\nSkipped (no name match): {skipped}\nFailed: {failed}");
+                    $"Packs found: {packs.Count}\nApplied: {applied}\nSkipped (no name match): {skipped}\nBlocked (gate veto): {blocked}\nFailed: {failed}");
                 return Result.Succeeded;
             }
             catch (System.Exception ex)

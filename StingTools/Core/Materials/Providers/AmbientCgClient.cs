@@ -121,17 +121,42 @@ namespace StingTools.Core.Materials.Providers
 
             try
             {
+                // Zip-bomb / zip-slip guards: cap entry count + cumulative
+                // decompressed bytes; reject any entry whose normalised
+                // output path escapes the destination folder.
+                const int MaxEntries = 32;
+                const long MaxDecompressedBytes = 1L * 1024 * 1024 * 1024; // 1 GiB total
+                long extracted = 0;
+                int entryCount = 0;
+                string packFolderFull = Path.GetFullPath(packFolder)
+                    .TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
                 using (var zs = ZipFile.OpenRead(zipPath))
                 {
                     foreach (var entry in zs.Entries)
                     {
+                        if (++entryCount > MaxEntries)
+                        {
+                            StingLog.Warn($"ambientCG zip aborted: > {MaxEntries} entries (possible zip bomb): {zipPath}");
+                            return null;
+                        }
                         if (string.IsNullOrEmpty(entry.Name)) continue;
-                        string outPath = Path.Combine(packFolder, entry.Name);
+                        if (entry.Length > MaxDecompressedBytes) { StingLog.Warn($"ambientCG zip entry oversized ({entry.Length} B): {entry.FullName}"); return null; }
+                        extracted += entry.Length;
+                        if (extracted > MaxDecompressedBytes) { StingLog.Warn($"ambientCG zip aborted: cumulative > {MaxDecompressedBytes} B"); return null; }
+
+                        string outPath = Path.GetFullPath(Path.Combine(packFolder, entry.Name));
+                        if (!outPath.StartsWith(packFolderFull, StringComparison.OrdinalIgnoreCase))
+                        {
+                            StingLog.Warn($"ambientCG zip-slip blocked: '{entry.FullName}' tried to escape pack folder");
+                            return null;
+                        }
+
                         if (File.Exists(outPath)) continue;
                         entry.ExtractToFile(outPath, overwrite: false);
                     }
                 }
-                try { File.Delete(zipPath); } catch { /* keep zip if locked */ }
+                try { File.Delete(zipPath); } catch { /* keep zip if locked by AV scanner */ }
             }
             catch (Exception ex)
             {

@@ -302,6 +302,11 @@ namespace StingTools.Core
                 // Phase 167: Drop the per-doc ProjectSetup cache so reopens re-detect.
                 try { ProjectFolderEngine.InvalidateSetupCache(e.Document?.PathName); }
                 catch (Exception cEx) { StingLog.Warn($"Setup cache invalidate: {cEx.Message}"); }
+                // Phase 190: Drop per-document PBR working-copy state so a
+                // long-running session doesn't accumulate dead entries from
+                // closed documents.
+                try { UI.MaterialHubPanel.DropDocumentCache(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"PBR state cache drop: {cEx.Message}"); }
                 // Phase 78: Save dropped element IDs to sidecar before clearing queue
                 StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
                 // R-02: Clear deferred elements on document close

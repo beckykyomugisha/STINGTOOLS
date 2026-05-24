@@ -5542,3 +5542,72 @@ and event-leak smells the review surfaced.
    healthcare) has its own veto channel; PBR doesn't yet. Add a
    `BlockerChain.CheckPbrApply` veto when the first project asks
    for it.
+
+#### Completed (Phase 191 — Material Hub PBR second-pass hardening)
+
+Closes 14 of the 17 findings from the Phase 190 second-pass review on
+branch `claude/epic-galileo-MyB2x`. Lands extensible-storage
+persistence for per-material PBR state (the "shared-param follow-up"
+the user asked for), a per-material `MaterialBlockerChain.CheckPbrApply`
+veto channel, and the threading / file-system / JSON / zip-safety
+hardening the second review surfaced.
+
+**New file**:
+
+| Path | Role |
+|---|---|
+| `Core/Storage/StingPbrStateSchema.cs` | Extensible-storage schema written on the Material element — persists pack identity, all 10 map paths, UV scale/offset/rotation, bump amount, normal intensity, displacement toggle + range + scale, emission luminance. Survives Revit restart + Save-As without requiring shared-param binding. SchemaGuid `B7C6D5E4-F312-4922-9501-2A3B4C5D6E7F`. |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `UI/MaterialBlockerChain.cs` | New `CheckPbrApply(doc, mat, packId) → (allow, reason)` method. Vetoes when material is `Frozen` lifecycle state or when `HealthcareMaterialGate` reports a `Block`-severity finding on the material. Each gate wrapped in its own try/catch so a buggy gate can't block project-wide. |
+| `Core/Materials/PbrTextureApplier.cs` | `Apply` and the new `ClearAllSlotsWithResult` now return their audit + activity-feed + cache-invalidation work as a `PostCommit: Action<Document, Material>` hook so callers can fire it AFTER `t.Commit()` succeeds — Phase 190 fired them inside the transaction so a rollback left orphan audit entries. `TrySetBitmap` rejects UNC paths, URIs, and non-rooted relative paths (`IsSafeLocalPath`) so a hostile manifest.json can't trigger NTLM credential exposure. |
+| `Core/Materials/TexturePackManifest.cs` | `MatchSlot` now uses `EndsWith` only, ordered by suffix length descending — `Contains` was matching `_bump` against `bumper_diffuse.png` and routing the diffuse map into the bump slot. `WriteManifestAtomic` (temp file + `File.Replace` / move-overwrite) with a per-folder lock so concurrent ingesters don't corrupt manifest.json. |
+| `Core/Materials/Providers/TextureProviderRegistry.cs` | `DeserializeBounded` enforces 1 MiB file-size cap + `MaxDepth = 16` + `TypeNameHandling = None` on both corporate and project JSON. Catches malicious / corrupt files before Newtonsoft buffers gigabytes. |
+| `Core/Materials/Providers/AmbientCgClient.cs` | Zip-bomb guard: max 32 entries + cumulative decompressed cap of 1 GiB + per-entry size check. Zip-slip guard: every output path is `Path.GetFullPath`'d and checked against the pack folder prefix; entries that try to escape are rejected with a `StingLog.Warn`. |
+| `Core/Materials/Providers/UrlLaunchClient.cs` | `UserFolderClient.ListAssetsAsync` replaced the implicit `SearchOption.AllDirectories` walk with an explicit BFS bounded by `MaxDepth = 6` + `MaxFolders = 5000` so a symlink loop or runaway nested library can't hang the panel. |
+| `UI/MaterialAppearanceActions.cs` | `ReadCurrentTexturePath` now tries `advanced_base_color` (Prism) first and falls back to `generic_diffuse` (Generic). Phase 189's hard-coded Generic-only path made Prism materials look like they had no base color in the inspector preview. |
+| `UI/MaterialHubPanel.Textures.cs` | Composite `(DocKey, ElementId)` key on `_packStatePerMaterial` so two open documents with overlapping element IDs no longer collide. All access guarded by `_packStateLock`. `BuildPbrTexturesCard` hydrates from in-memory cache, falls back to ES, then defaults. `PersistPackState(doc, mat, m)` writes both layers — ES write must run inside the active transaction so it commits atomically with the rest of the Apply. `ApplyManifest` consults `MaterialBlockerChain.CheckPbrApply` before doing any work and invokes `PostCommit` only after `t.Commit()`. The InPlace sibling-refresh logic was a bug — InPlace creates a NEW appearance asset; siblings still point at the original asset and don't need refresh. Code now logs the sibling count for diagnostic purposes only. Displacement toggle is `IsEnabled=false` + greyed when the active pack has no displacement map (Phase 190 finding 14). New `DropDocumentCache(doc)` wired into `StingToolsApp.OnDocumentClosing` so closing a project drops every per-material entry for that doc. |
+| `UI/MaterialHubProviderBrowserDialog.cs` | `_cts` is now `Cancel()` + `Dispose()`d on every reassignment AND on `Closed`, preventing CancellationTokenSource accumulation across many opens. |
+| `Commands/Materials/BrowsePbrTexturesCommand.cs` | `Pbr_BrowseLibrary` + `Pbr_BulkApply` now consult `MaterialBlockerChain.CheckPbrApply` per material and collect each Apply's `PostCommit` action into a list, invoking the whole list after `t.Commit()` so bulk runs don't post audit entries for materials whose conversion later rolled back. Bulk command's TaskDialog now reports a `Blocked (gate veto)` count alongside applied/skipped/failed. |
+| `Temp/MasterSetupCommand.cs` | Step 21 now also seeds a template `_BIM_COORD/texture_providers.json` (only if absent) so projects that want to add custom providers / suffix rules have a working stub instead of writing the schema from scratch. |
+| `Core/StingToolsApp.cs` | `OnDocumentClosing` calls `MaterialHubPanel.DropDocumentCache(e.Document)` so long sessions don't accumulate dead per-material entries from closed projects. |
+| `docs/CHANGELOG.md` | This entry. |
+
+**Findings closed in this commit** (numbered per Phase 190 review):
+
+| # | Severity | Finding | Status |
+|---|---|---|---|
+| 1 | high | `_packStatePerMaterial` thread-unsafe | Closed — `_packStateLock` guards all access |
+| 2 | high | Cross-document `ElementId.Value` collision | Closed — composite `(DocKey, ElementId)` key + `DropDocumentCache` on close |
+| 3 | high | Transaction + audit-log desync | Closed — `PostCommit` hook on `ApplyResult` + `ClearResult` |
+| 4 | high | Non-atomic manifest.json writes | Closed — `WriteManifestAtomic` (temp + `File.Replace`) + per-folder lock |
+| 5 | med  | JSON validation / UNC path / size cap | Closed — `DeserializeBounded` + `IsSafeLocalPath` |
+| 7 | med  | Zip bomb / zip slip | Closed — entry + cumulative + escape guards |
+| 7 | low  | Symlink loop in UserFolderClient | Closed — BFS with depth + visit-count guards |
+| 8 | med  | `_cts` not disposed | Closed — `Cancel` + `Dispose` on every reassignment + on `Closed` |
+| 9 | high | `Contains` false-positive in `MatchSlot` | Closed — `EndsWith`-only, length-desc ordering |
+| 11 | med | Slider edits dirty in-memory cache without re-apply | Partially closed — ES persistence on Apply; in-memory dirty state documented as expected working-copy semantics |
+| 12 | med | Sibling-refresh direction ambiguity | Closed — InPlace creates new asset; siblings stay correct; refresh removed; sibling count logged for diagnostics |
+| 14 | med | Displacement toggle without map | Closed — toggle `IsEnabled=false` + greyed when pack has no displacement |
+| 15 | low | Master Setup doesn't seed provider override template | Closed — Step 21 now writes a commented stub if absent |
+| 17 | high | Prism material shows no base color preview | Closed — `ReadCurrentTexturePath` tries `advanced_base_color` first |
+
+**Remaining (deferred)**:
+
+| # | Severity | Finding | Why deferred |
+|---|---|---|---|
+| 6 | low | `PbrHttp.Client` singleton + future auth header leak risk | No current provider needs auth; comment added on the constraint. |
+| 10 | low | Resolution detection regex fragility | Cosmetic — `ResolutionPx` is a hint, not used by Apply. |
+| 13 | med | Default 1 m scale wrong for tiles/fabric | Needs category-aware defaults plumbing; user can override via UV sliders. |
+| 16 | info-only | CHANGELOG accuracy nit on `Pbr_BulkApply` toolbar visibility | Phase 190 wired the TEXTURES action group; the original Phase 189 had the command but no dedicated toolbar button. The Phase 190 entry was correct. |
+
+**Caveats (Phase 191)**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. ES persistence requires a transaction at write time — already the case for every Apply path. Read is transactionless.
+3. `MaterialBlockerChain.CheckPbrApply` currently fires Lifecycle + Healthcare vetoes. Other gates (Sustainability, Fire-Wall) don't expose per-material findings cleanly and weren't wired this round — add as projects need.
+4. Working-copy slider state is intentionally in-memory only — the Phase 190 caveat about "user edits + switch materials without applying" still holds. Add a "Revert to last applied" link if users hit this in practice.
+5. The 1 MiB JSON cap is generous (corporate ships at ~3 KiB; projects edit a handful of lines). Lift if a future provider catalogue ships hundreds of entries.

@@ -51,6 +51,12 @@ namespace StingTools.Core.Materials
             public int SlotsWritten { get; set; }
             public List<string> Warnings { get; } = new List<string>();
             public string SchemaUsed { get; set; }   // "Prism" | "Generic" | "None"
+
+            /// <summary>Side-effects that must fire only AFTER the outer
+            /// transaction commits successfully — audit log, activity feed,
+            /// cache invalidations. Calling this after a rollback would
+            /// leave the chain pointing at work that didn't happen.</summary>
+            public Action<Document, Material> PostCommit { get; set; }
         }
 
         /// <summary>
@@ -94,22 +100,31 @@ namespace StingTools.Core.Materials
                 }
 
                 r.Success = r.SlotsWritten > 0;
-                MaterialAuditLogger.Log(doc, "MAT_PbrApply", mat.Name, new Dictionary<string, object>
-                {
-                    ["pack"] = manifest.PackId,
-                    ["provider"] = manifest.ProviderId,
-                    ["schema"] = r.SchemaUsed,
-                    ["slots"] = r.SlotsWritten,
-                });
                 if (r.Success)
                 {
-                    // Downstream consumers (where-used, merge, name-keyed
-                    // lookups, status-bar chip strip) need to see the new
-                    // appearance state immediately rather than at next F5.
-                    try { MaterialNameCache.Invalidate(doc); } catch { /* non-fatal */ }
-                    try { MaterialUsageIndex.Invalidate(doc); } catch { /* non-fatal */ }
-                    try { MaterialActivityFeed.Add("MAT_PbrApply", mat.Name,
-                        $"{r.SlotsWritten} maps · {r.SchemaUsed} · {manifest.ProviderId}"); } catch { /* non-fatal */ }
+                    // Defer audit + feed + cache invalidation until the
+                    // outer transaction commits successfully. If the caller
+                    // forgets to invoke PostCommit nothing leaks — but rolling
+                    // back leaves no orphan log entries claiming work the
+                    // user actually undid.
+                    var packId = manifest.PackId;
+                    var providerId = manifest.ProviderId;
+                    var schemaUsed = r.SchemaUsed;
+                    var slotsWritten = r.SlotsWritten;
+                    r.PostCommit = (postDoc, postMat) =>
+                    {
+                        try { MaterialAuditLogger.Log(postDoc, "MAT_PbrApply", postMat?.Name, new Dictionary<string, object>
+                        {
+                            ["pack"] = packId,
+                            ["provider"] = providerId,
+                            ["schema"] = schemaUsed,
+                            ["slots"] = slotsWritten,
+                        }); } catch { /* non-fatal */ }
+                        try { MaterialNameCache.Invalidate(postDoc); } catch { /* non-fatal */ }
+                        try { MaterialUsageIndex.Invalidate(postDoc); } catch { /* non-fatal */ }
+                        try { MaterialActivityFeed.Add("MAT_PbrApply", postMat?.Name,
+                            $"{slotsWritten} maps · {schemaUsed} · {providerId}"); } catch { /* non-fatal */ }
+                    };
                 }
                 return r;
             }
@@ -172,10 +187,20 @@ namespace StingTools.Core.Materials
         }
 
         /// <summary>Connect a UnifiedBitmap to <paramref name="slotName"/> on
-        /// the asset and stamp it with the manifest's UV defaults.</summary>
+        /// the asset and stamp it with the manifest's UV defaults. Rejects
+        /// UNC paths and any path that isn't fully qualified to a local
+        /// drive — both because Revit blocks UI on network IO during
+        /// material resolution, and to neutralise credential-leak vectors
+        /// from hostile <c>manifest.json</c> files.</summary>
         private static bool TrySetBitmap(Asset asset, string slotName, string filePath, TexturePackDefaults defaults)
         {
-            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return false;
+            if (string.IsNullOrEmpty(filePath)) return false;
+            if (!IsSafeLocalPath(filePath))
+            {
+                StingLog.WarnRateLimited("PbrUncBlock", $"TrySetBitmap rejected non-local path '{filePath}'");
+                return false;
+            }
+            if (!File.Exists(filePath)) return false;
             try
             {
                 var slot = asset.FindByName(slotName) as AssetProperty;
@@ -248,12 +273,40 @@ namespace StingTools.Core.Materials
         /// UnifiedBitmap real-world dimension properties.</summary>
         private static double MillimetresToFeet(double mm) => mm / 304.8;
 
-        /// <summary>Disconnect bitmaps from every PBR slot. Caller MUST hold a
-        /// Revit Transaction.</summary>
-        public static int ClearAllSlots(Document doc, Material mat)
+        /// <summary>True only for rooted local paths (e.g.
+        /// <c>C:\…</c>). Rejects UNC (<c>\\server\share</c>), URIs
+        /// (<c>http://…</c>), and relative paths. Allows long
+        /// (<c>\\?\C:\…</c>) prefixed paths.</summary>
+        private static bool IsSafeLocalPath(string p)
         {
+            if (string.IsNullOrEmpty(p)) return false;
+            try
+            {
+                if (p.StartsWith("\\\\?\\", StringComparison.Ordinal)) p = p.Substring(4);
+                if (p.StartsWith("\\\\", StringComparison.Ordinal)) return false; // UNC
+                if (p.IndexOf("://", StringComparison.Ordinal) >= 0) return false; // URI scheme
+                return Path.IsPathRooted(p) && !string.IsNullOrEmpty(Path.GetPathRoot(p));
+            }
+            catch { return false; }
+        }
+
+        public sealed class ClearResult
+        {
+            public int SlotsCleared { get; set; }
+            public Action<Document, Material> PostCommit { get; set; }
+        }
+
+        /// <summary>Disconnect bitmaps from every PBR slot. Caller MUST hold a
+        /// Revit Transaction. Backwards-compatible overload returns just the
+        /// count; the structured overload exposes the deferred-effect hook.</summary>
+        public static int ClearAllSlots(Document doc, Material mat)
+            => ClearAllSlotsWithResult(doc, mat).SlotsCleared;
+
+        public static ClearResult ClearAllSlotsWithResult(Document doc, Material mat)
+        {
+            var result = new ClearResult();
             int cleared = 0;
-            if (doc == null || mat?.AppearanceAssetId == null) return cleared;
+            if (doc == null || mat?.AppearanceAssetId == null) return result;
             try
             {
                 using (var scope = new AppearanceAssetEditScope(doc))
@@ -288,17 +341,21 @@ namespace StingTools.Core.Materials
                     }
                     scope.Commit(true);
                 }
-                MaterialAuditLogger.Log(doc, "MAT_PbrClear", mat.Name, new Dictionary<string, object> { ["slotsCleared"] = cleared });
                 if (cleared > 0)
                 {
-                    try { MaterialNameCache.Invalidate(doc); } catch { /* non-fatal */ }
-                    try { MaterialUsageIndex.Invalidate(doc); } catch { /* non-fatal */ }
-                    try { MaterialActivityFeed.Add("MAT_PbrClear", mat.Name, $"{cleared} slot(s) cleared"); }
-                    catch { /* non-fatal */ }
+                    int clearedCount = cleared;
+                    result.PostCommit = (postDoc, postMat) =>
+                    {
+                        try { MaterialAuditLogger.Log(postDoc, "MAT_PbrClear", postMat?.Name, new Dictionary<string, object> { ["slotsCleared"] = clearedCount }); } catch { /* non-fatal */ }
+                        try { MaterialNameCache.Invalidate(postDoc); } catch { /* non-fatal */ }
+                        try { MaterialUsageIndex.Invalidate(postDoc); } catch { /* non-fatal */ }
+                        try { MaterialActivityFeed.Add("MAT_PbrClear", postMat?.Name, $"{clearedCount} slot(s) cleared"); } catch { /* non-fatal */ }
+                    };
                 }
             }
             catch (Exception ex) { StingLog.Warn($"PbrTextureApplier.ClearAllSlots('{mat?.Name}'): {ex.Message}"); }
-            return cleared;
+            result.SlotsCleared = cleared;
+            return result;
         }
     }
 }
