@@ -20,6 +20,7 @@ namespace StingTools.Core.TemplateManager
         public string Source { get; set; } = string.Empty; // CSV | hardcoded | corp-library | project-overlay
         public string Detail { get; set; } = string.Empty;
         public string Key { get; set; } = string.Empty;    // stable identifier for round-trip
+        public int RevitElementId { get; set; }             // backing Revit element id (0 if none)
         public Dictionary<string, string> Extras { get; set; } = new();
     }
 

@@ -125,15 +125,15 @@ namespace StingTools.Core.TemplateManager
                 paramsTotal = allGuids?.Count ?? 0;
                 if (paramsTotal > 0)
                 {
-                    var bindings = doc.ParameterBindings;
-                    var it = bindings.ForwardIterator();
+                    // Shared parameters present in the document, keyed by GUID.
+                    // The binding iterator's Key is a Definition (not an
+                    // Element), so we read GUIDs straight off the
+                    // SharedParameterElement collector instead.
                     var bound = new HashSet<Guid>();
-                    while (it.MoveNext())
-                    {
-                        if (it.Key is SharedParameterElement spe) bound.Add(spe.GuidValue);
-                        else if (it.Key is Definition def && def is ExternalDefinition extDef)
-                            bound.Add(extDef.GUID);
-                    }
+                    foreach (var spe in new FilteredElementCollector(doc)
+                                 .OfClass(typeof(SharedParameterElement))
+                                 .Cast<SharedParameterElement>())
+                        bound.Add(spe.GuidValue);
                     foreach (var kvp in allGuids)
                         if (bound.Contains(kvp.Value)) paramsBound++;
                 }
