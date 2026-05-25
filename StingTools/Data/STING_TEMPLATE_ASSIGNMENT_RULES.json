@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "1.0",
+  "description": "STING Template Manager — 5-layer template auto-assignment rules. Layered evaluation: name pattern → level → phase → scope-box → view-type default. First match wins. Project-overlay supported at <project>/_BIM_COORD/template_assignment_rules.json (additive by rule id; same-id overrides).",
+  "viewTypeDefaults": [
+    { "viewType": "FloorPlan",        "templateName": "STING - Architectural Plan" },
+    { "viewType": "CeilingPlan",      "templateName": "STING - Ceiling RCP" },
+    { "viewType": "Section",          "templateName": "STING - Working Section" },
+    { "viewType": "ThreeD",           "templateName": "STING - Coordination 3D" },
+    { "viewType": "Elevation",        "templateName": "STING - Working Elevation" },
+    { "viewType": "AreaPlan",         "templateName": "STING - Area Plan" },
+    { "viewType": "EngineeringPlan",  "templateName": "STING - Engineering Plan" },
+    { "viewType": "Detail",           "templateName": "STING - Detail Section" }
+  ],
+  "nameRules": [
+    { "id": "name-mech-plan",     "pattern": "Mechanical",    "viewType": "FloorPlan",   "templateName": "STING - Mechanical Plan",     "discipline": "M" },
+    { "id": "name-hvac-plan",     "pattern": "HVAC",          "viewType": "FloorPlan",   "templateName": "STING - Mechanical Plan",     "discipline": "M" },
+    { "id": "name-elec-plan",     "pattern": "Electrical",    "viewType": "FloorPlan",   "templateName": "STING - Electrical Plan",     "discipline": "E" },
+    { "id": "name-power-plan",    "pattern": "Power",         "viewType": "FloorPlan",   "templateName": "STING - Electrical Plan",     "discipline": "E" },
+    { "id": "name-light-plan",    "pattern": "Lighting Plan", "viewType": "FloorPlan",   "templateName": "STING - Electrical Plan",     "discipline": "E" },
+    { "id": "name-plumb-plan",    "pattern": "Plumbing",      "viewType": "FloorPlan",   "templateName": "STING - Plumbing Plan",       "discipline": "P" },
+    { "id": "name-hydr-plan",     "pattern": "Hydraulic",     "viewType": "FloorPlan",   "templateName": "STING - Plumbing Plan",       "discipline": "P" },
+    { "id": "name-drain-plan",    "pattern": "Drainage",      "viewType": "FloorPlan",   "templateName": "STING - Plumbing Plan",       "discipline": "P" },
+    { "id": "name-arch-plan",     "pattern": "Architectural", "viewType": "FloorPlan",   "templateName": "STING - Architectural Plan",  "discipline": "A" },
+    { "id": "name-int-plan",      "pattern": "Interior",      "viewType": "FloorPlan",   "templateName": "STING - Architectural Plan",  "discipline": "A" },
+    { "id": "name-struct-plan",   "pattern": "Structural",    "viewType": "FloorPlan",   "templateName": "STING - Structural Plan",     "discipline": "S" },
+    { "id": "name-fire-plan",     "pattern": "Fire",          "viewType": "FloorPlan",   "templateName": "STING - Fire Protection Plan", "discipline": "FP" },
+    { "id": "name-spr-plan",      "pattern": "Sprinkler",     "viewType": "FloorPlan",   "templateName": "STING - Fire Protection Plan", "discipline": "FP" },
+    { "id": "name-lv-plan",       "pattern": "Low Voltage",   "viewType": "FloorPlan",   "templateName": "STING - Low Voltage Plan",    "discipline": "LV" },
+    { "id": "name-comm-plan",     "pattern": "Communication", "viewType": "FloorPlan",   "templateName": "STING - Low Voltage Plan",    "discipline": "LV" },
+    { "id": "name-sec-plan",      "pattern": "Security",      "viewType": "FloorPlan",   "templateName": "STING - Low Voltage Plan",    "discipline": "LV" },
+    { "id": "name-data-plan",     "pattern": "Data",          "viewType": "FloorPlan",   "templateName": "STING - Low Voltage Plan",    "discipline": "LV" },
+    { "id": "name-coord-plan",    "pattern": "Coordination",  "viewType": "FloorPlan",   "templateName": "STING - MEP Coordination",    "discipline": "*" },
+    { "id": "name-comb-plan",     "pattern": "Combined",      "viewType": "FloorPlan",   "templateName": "STING - Combined Services",   "discipline": "*" },
+    { "id": "name-demo-plan",     "pattern": "Demolition",    "viewType": "FloorPlan",   "templateName": "STING - Demolition Plan",     "discipline": "A" },
+    { "id": "name-asb-plan",      "pattern": "As-Built",      "viewType": "FloorPlan",   "templateName": "STING - As-Built Plan",       "discipline": "A" },
+    { "id": "name-exist-plan",    "pattern": "Existing",      "viewType": "FloorPlan",   "templateName": "STING - As-Built Plan",       "discipline": "A" },
+    { "id": "name-light-rcp",     "pattern": "Lighting",      "viewType": "CeilingPlan", "templateName": "STING - Lighting RCP",        "discipline": "E" },
+    { "id": "name-ceil-rcp",      "pattern": "Ceiling",       "viewType": "CeilingPlan", "templateName": "STING - Ceiling RCP",         "discipline": "A" },
+    { "id": "name-pres-sec",      "pattern": "Presentation",  "viewType": "Section",     "templateName": "STING - Presentation Section","discipline": "A" },
+    { "id": "name-detail-sec",    "pattern": "Detail",        "viewType": "Section",     "templateName": "STING - Detail Section",      "discipline": "A" },
+    { "id": "name-coord-3d",      "pattern": "Coordination",  "viewType": "ThreeD",      "templateName": "STING - Coordination 3D",     "discipline": "*" },
+    { "id": "name-pres-3d",       "pattern": "Presentation",  "viewType": "ThreeD",      "templateName": "STING - Presentation 3D",     "discipline": "A" },
+    { "id": "name-pres-elev",     "pattern": "Presentation",  "viewType": "Elevation",   "templateName": "STING - Presentation Elevation","discipline": "A" }
+  ],
+  "levelRules": [
+    { "id": "lvl-roof",       "levelPattern": "Roof",         "viewType": "FloorPlan", "templateName": "STING - Architectural Plan", "discipline": "A" },
+    { "id": "lvl-basement",   "levelPattern": "Basement",     "viewType": "FloorPlan", "templateName": "STING - Structural Plan",    "discipline": "S" },
+    { "id": "lvl-foundation", "levelPattern": "Foundation",   "viewType": "FloorPlan", "templateName": "STING - Structural Plan",    "discipline": "S" },
+    { "id": "lvl-plant",      "levelPattern": "Plant Room",   "viewType": "FloorPlan", "templateName": "STING - Mechanical Plan",    "discipline": "M" },
+    { "id": "lvl-switch",     "levelPattern": "Switch",       "viewType": "FloorPlan", "templateName": "STING - Electrical Plan",    "discipline": "E" },
+    { "id": "lvl-riser",      "levelPattern": "Riser",        "viewType": "FloorPlan", "templateName": "STING - MEP Coordination",   "discipline": "*" }
+  ],
+  "phaseRules": [
+    { "id": "phase-existing",        "phaseName": "Existing",         "templateName": "STING - As-Built Plan",     "discipline": "A" },
+    { "id": "phase-demolition",      "phaseName": "Demolition",       "templateName": "STING - Demolition Plan",   "discipline": "A" },
+    { "id": "phase-new-construction","phaseName": "New Construction", "templateName": "STING - Architectural Plan","discipline": "A" }
+  ],
+  "scopeBoxRules": [
+    { "id": "sb-mech",   "pattern": "Mechanical|HVAC|MEP-M",       "templateName": "STING - Mechanical Plan",    "discipline": "M" },
+    { "id": "sb-elec",   "pattern": "Electrical|Power|MEP-E",      "templateName": "STING - Electrical Plan",    "discipline": "E" },
+    { "id": "sb-plumb",  "pattern": "Plumbing|Hydraulic|MEP-P",    "templateName": "STING - Plumbing Plan",      "discipline": "P" },
+    { "id": "sb-struct", "pattern": "Structural|STR",              "templateName": "STING - Structural Plan",    "discipline": "S" }
+  ],
+  "complianceWeights": {
+    "default": {
+      "HasTemplate": 1.5,
+      "IsStingTemplate": 1.0,
+      "HasFilters": 1.5,
+      "FilterOverrides": 1.0,
+      "DetailLevel": 0.5,
+      "CorrectDiscipline": 1.5,
+      "PhaseCorrect": 0.5,
+      "VGConsistent": 1.0,
+      "NoOrphans": 0.5,
+      "ScaleAppropriate": 0.5
+    },
+    "working": {
+      "HasTemplate": 1.5,
+      "IsStingTemplate": 1.0,
+      "HasFilters": 1.0,
+      "FilterOverrides": 0.5,
+      "DetailLevel": 0.5,
+      "CorrectDiscipline": 2.0,
+      "PhaseCorrect": 0.5,
+      "VGConsistent": 1.0,
+      "NoOrphans": 1.0,
+      "ScaleAppropriate": 1.0
+    },
+    "coordination": {
+      "HasTemplate": 2.0,
+      "IsStingTemplate": 1.5,
+      "HasFilters": 2.0,
+      "FilterOverrides": 1.5,
+      "DetailLevel": 0.5,
+      "CorrectDiscipline": 1.0,
+      "PhaseCorrect": 0.5,
+      "VGConsistent": 1.5,
+      "NoOrphans": 0.5,
+      "ScaleAppropriate": 0.5
+    },
+    "presentation": {
+      "HasTemplate": 1.5,
+      "IsStingTemplate": 1.0,
+      "HasFilters": 0.5,
+      "FilterOverrides": 1.0,
+      "DetailLevel": 1.0,
+      "CorrectDiscipline": 0.5,
+      "PhaseCorrect": 0.5,
+      "VGConsistent": 1.5,
+      "NoOrphans": 1.0,
+      "ScaleAppropriate": 1.5
+    },
+    "handover": {
+      "HasTemplate": 2.0,
+      "IsStingTemplate": 1.5,
+      "HasFilters": 1.0,
+      "FilterOverrides": 1.0,
+      "DetailLevel": 0.5,
+      "CorrectDiscipline": 1.0,
+      "PhaseCorrect": 1.0,
+      "VGConsistent": 1.0,
+      "NoOrphans": 1.5,
+      "ScaleAppropriate": 0.5
+    },
+    "healthcare": {
+      "HasTemplate": 2.0,
+      "IsStingTemplate": 2.0,
+      "HasFilters": 2.0,
+      "FilterOverrides": 1.5,
+      "DetailLevel": 0.5,
+      "CorrectDiscipline": 2.0,
+      "PhaseCorrect": 0.5,
+      "VGConsistent": 1.5,
+      "NoOrphans": 1.0,
+      "ScaleAppropriate": 0.5
+    }
+  }
+}
