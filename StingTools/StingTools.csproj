@@ -19,6 +19,11 @@
     <!-- Suppress MSB3277: ClosedXML transitive deps pull older Microsoft.VisualBasic / System.Drawing
          versions that conflict with .NET 8 runtime refs. Benign — .NET 8 runtime wins at load time. -->
     <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
+    <!-- Silence merge-leftover noise warnings:
+         CS0414/CS0649 — fields never assigned / assigned but never used (Revit IUpdater fields wired by reflection)
+         CS0472 — bool == null comparison from merged null-guarded code
+         CS8600/CS8602/CS8625 — nullable-flow analysis on stubs (Nullable is disabled project-wide anyway). -->
+    <NoWarn>$(NoWarn);CS0414;CS0649;CS0472;CS8600;CS8602;CS8625</NoWarn>
   </PropertyGroup>
 
   <!-- Default RevitApiPath when not passed via command line (e.g. Visual Studio) -->
@@ -28,10 +33,25 @@
     <RevitApiPath Condition="'$(RevitApiPath)' == '' And Exists('C:\Program Files\Autodesk\Revit 2027\RevitAPI.dll')">C:\Program Files\Autodesk\Revit 2027</RevitApiPath>
   </PropertyGroup>
 
-  <!-- Revit 2025/2026/2027 API assemblies -->
+  <!--
+    CI stub fallback: when RevitApiPath is still empty (Linux CI / no Revit install)
+    resolve stubs from the pre-built path under tools/revit-stubs/.
+    $(RevitApiStubsDir) can also be set explicitly on the command line.
+  -->
+  <PropertyGroup Condition="'$(RevitApiPath)' == ''">
+    <RevitApiStubsDir Condition="'$(RevitApiStubsDir)' == ''">$(MSBuildThisFileDirectory)..\tools\revit-stubs\bin</RevitApiStubsDir>
+    <RevitApiPath>$(RevitApiStubsDir)</RevitApiPath>
+    <UsingRevitApiStubs>true</UsingRevitApiStubs>
+  </PropertyGroup>
+
+  <!-- Revit 2025/2026/2027 API assemblies (real Revit install or CI stubs) -->
   <ItemGroup>
     <Reference Include="RevitAPI">
       <HintPath>$(RevitApiPath)\RevitAPI.dll</HintPath>
+      <!--
+        Private=false: don't copy to output — at runtime Revit loads the real
+        assembly from its own directory; stubs are compile-time-only.
+      -->
       <Private>false</Private>
     </Reference>
     <Reference Include="RevitAPIUI">

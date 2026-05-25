@@ -1,0 +1,49 @@
+{
+  "_comment": "Diversity / demand factors per BS 7671 Appendix 1 + IEE On-Site Guide Appendix A + NEC Article 220. Applied at panel rollup to convert connected load to maximum demand. Per-discipline percentages, override per-project by editing this file or providing _BIM_COORD/diversity_factors.json.",
+  "_standard": "BS 7671:2018 App 1 / IEE On-Site Guide / NEC 220",
+  "version": "1.0",
+
+  "factors": [
+    { "category": "Lighting",         "patterns": ["lighting", "ltg", "lite"],            "factor": 0.90, "comment": "BS 7671 App 1: 100% first 10 A, 50% balance for dwellings; 90% commercial blanket" },
+    { "category": "Small Power",      "patterns": ["socket", "ring", "spur", "small power", "13a"], "factor": 0.75, "comment": "13A rings/socket-outlets — 100% largest, 50% balance commercial" },
+    { "category": "Cooking",          "patterns": ["cooker", "hob", "oven", "kitchen"],   "factor": 0.45, "comment": "BS 7671 App 1: first 10 A + 30% balance + 5 A if socket" },
+    { "category": "Water Heating",    "patterns": ["immersion", "hwt", "calorifier", "water heater"], "factor": 1.00, "comment": "Resistive, no diversity" },
+    { "category": "Space Heating",    "patterns": ["heater", "heating", "panel heater", "convector"], "factor": 0.75, "comment": "Thermostat cycling — IEE OSG App A" },
+    { "category": "HVAC",             "patterns": ["hvac", "ahu", "fcu", "vrv", "vrf", "chiller", "rtu"], "factor": 1.00, "comment": "Continuous mechanical loads" },
+    { "category": "Lifts / Elevators","patterns": ["lift", "elevator"],                   "factor": 0.50, "comment": "Diversity for starting kVA + duty cycle" },
+    { "category": "EV Charging",      "patterns": ["ev", "evse", "charger", "charging"],  "factor": 1.00, "comment": "BS 7671 §722 — no diversity unless smart charging" },
+    { "category": "Process / Motor",  "patterns": ["motor", "pump", "fan", "compressor"], "factor": 1.00, "comment": "100% per IEE OSG; engineer adjusts for VSD" },
+    { "category": "IT / Server",      "patterns": ["it", "server", "rack", "data centre"],"factor": 1.00, "comment": "Continuous load + UPS upstream" },
+    { "category": "General",          "patterns": ["*"],                                  "factor": 0.85, "comment": "Catch-all for unmatched circuits" }
+  ],
+
+  "_neutral_comment": "Triplen-harmonic content per load type. Neutral derating per BS 7671 §523.6.3 + IEEE 519. Three-phase neutral current can equal phase current when triplens exceed ~33% — neutral must be sized full or oversized.",
+  "harmonics": [
+    { "category": "Lighting",         "thdHarmonic3Pct": 30, "neutralFactor": 1.00, "comment": "LED drivers: 15-25% typical; older fluorescent magnetic: 30%+" },
+    { "category": "Small Power",      "thdHarmonic3Pct": 35, "neutralFactor": 1.10, "comment": "Mixed IT + small loads via switching PSUs" },
+    { "category": "IT / Server",      "thdHarmonic3Pct": 50, "neutralFactor": 1.50, "comment": "Switching PSUs without PFC — significant triplens" },
+    { "category": "HVAC",             "thdHarmonic3Pct": 15, "neutralFactor": 0.50, "comment": "VFD-fed motors — 5-15%, neutral sized half" },
+    { "category": "EV Charging",      "thdHarmonic3Pct": 10, "neutralFactor": 1.00, "comment": "Modern EVSE with active PFC" },
+    { "category": "General",          "thdHarmonic3Pct": 25, "neutralFactor": 1.00 }
+  ],
+
+  "_pfc_comment": "Power-factor correction targets per IEC 61000-3-2 + utility tariff guidance. UK MIC penalties typically apply below PF 0.95.",
+  "pfcDefaults": {
+    "targetPfLagging": 0.95,
+    "presentPfBaseline": 0.85,
+    "kvarPerKwAtPf": {
+      "0.70": 0.70, "0.75": 0.55, "0.80": 0.42, "0.85": 0.31,
+      "0.90": 0.20, "0.95": 0.10, "1.00": 0.00
+    }
+  },
+
+  "_spare_comment": "Spare-capacity targets per IEC 60364-5-52 Annex B + CIBSE Guide K (typical commercial 25%, industrial 30%, residential 20%, healthcare 35%).",
+  "spareTargetsPct": {
+    "Commercial": 25,
+    "Industrial": 30,
+    "Residential": 20,
+    "Healthcare": 35,
+    "Education": 25,
+    "Retail": 25
+  }
+}

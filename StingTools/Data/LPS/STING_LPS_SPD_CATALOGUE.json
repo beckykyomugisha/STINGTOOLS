@@ -1,0 +1,54 @@
+{
+  "_comment": "Corporate baseline SPD product catalogue for STING Lightning Protection panel. Project override at <project>/_BIM_COORD/lps_spd_catalogue.json. Iimp values for Type 1 are 10/350 µs waveform; In for Type 2/3 are 8/20 µs per IEC 61643-11.",
+  "version": "1.0",
+  "lpsClassToIimpKA": {
+    "I":   25.0,
+    "II":  20.0,
+    "III": 12.5,
+    "IV":  12.5
+  },
+  "minSeparationCableLengthM": 10.0,
+  "products": [
+    { "id": "T1_DEHNbloc_M",     "manufacturer": "DEHN",   "model": "DEHNbloc Maxi 255", "type": 1, "iimpKa": 25.0,  "inKa": 0.0,  "upKv": 1.5, "polesCfg": "TN-C/TN-S", "location": "MAIN_INCOMER",     "datasheet": "https://www.dehn.com" },
+    { "id": "T1_OBO_MCD125",     "manufacturer": "OBO",    "model": "MCD 125-B NPE",      "type": 1, "iimpKa": 25.0,  "inKa": 0.0,  "upKv": 1.5, "polesCfg": "TN-C-S",   "location": "MAIN_INCOMER",     "datasheet": "https://www.obo.de" },
+    { "id": "T1_Furse_ESP_M1",   "manufacturer": "Furse",  "model": "ESP 415 M1R",        "type": 1, "iimpKa": 12.5,  "inKa": 0.0,  "upKv": 1.5, "polesCfg": "TN-S",     "location": "MAIN_INCOMER",     "datasheet": "https://new.abb.com" },
+    { "id": "T2_DEHNguard_M",    "manufacturer": "DEHN",   "model": "DEHNguard M",        "type": 2, "iimpKa": 0.0,   "inKa": 20.0, "upKv": 1.4, "polesCfg": "TN-S",     "location": "SUB_DB",           "datasheet": "https://www.dehn.com" },
+    { "id": "T2_OBO_V20",        "manufacturer": "OBO",    "model": "V20-C 3+NPE",        "type": 2, "iimpKa": 0.0,   "inKa": 20.0, "upKv": 1.5, "polesCfg": "TN-S",     "location": "SUB_DB",           "datasheet": "https://www.obo.de" },
+    { "id": "T2_Furse_ESP_M40",  "manufacturer": "Furse",  "model": "ESP 240 M40A",       "type": 2, "iimpKa": 0.0,   "inKa": 40.0, "upKv": 1.5, "polesCfg": "TN-S",     "location": "SUB_DB",           "datasheet": "https://new.abb.com" },
+    { "id": "T3_DEHNrail",       "manufacturer": "DEHN",   "model": "DEHNrail M",         "type": 3, "iimpKa": 0.0,   "inKa": 5.0,  "upKv": 1.3, "polesCfg": "L-N-PE",   "location": "FINAL_CIRCUIT",    "datasheet": "https://www.dehn.com" },
+    { "id": "T3_OBO_FineNet",    "manufacturer": "OBO",    "model": "FineController",     "type": 3, "iimpKa": 0.0,   "inKa": 5.0,  "upKv": 1.3, "polesCfg": "L-N-PE",   "location": "FINAL_CIRCUIT",    "datasheet": "https://www.obo.de" },
+    { "id": "T12_DEHNvenCI",     "manufacturer": "DEHN",   "model": "DEHNvenCI",          "type": 12,"iimpKa": 25.0,  "inKa": 25.0, "upKv": 1.5, "polesCfg": "TN-S",     "location": "MAIN_INCOMER",     "datasheet": "https://www.dehn.com" },
+    { "id": "T12_OBO_V25",       "manufacturer": "OBO",    "model": "V25-B+C",            "type": 12,"iimpKa": 12.5,  "inKa": 20.0, "upKv": 1.5, "polesCfg": "TN-S",     "location": "MAIN_INCOMER",     "datasheet": "https://www.obo.de" },
+    { "id": "T1_DATA_BLITZDUCTOR","manufacturer": "DEHN",  "model": "BLITZDUCTOR XT",     "type": 1, "iimpKa": 2.5,   "inKa": 0.0,  "upKv": 0.6, "polesCfg": "DATA",     "location": "COMMS_ENTRY",      "datasheet": "https://www.dehn.com" },
+    { "id": "T2_DATA_NetDefender","manufacturer": "Furse", "model": "NetDefender ESP NET", "type": 2, "iimpKa": 0.0,   "inKa": 10.0, "upKv": 0.7, "polesCfg": "DATA",     "location": "COMMS_DB",         "datasheet": "https://new.abb.com" }
+  ],
+  "locations": [
+    { "id": "MAIN_INCOMER",  "label": "Main incomer (LPZ 0/1 boundary)", "requiredType": 1,  "iec62305Section": "62305-4 §6.2.1" },
+    { "id": "SUB_DB",        "label": "Sub-distribution board (LPZ 1/2)", "requiredType": 2,  "iec62305Section": "62305-4 §6.2.2" },
+    { "id": "FINAL_CIRCUIT", "label": "Final circuit / equipment (LPZ 2/3)", "requiredType": 3, "iec62305Section": "62305-4 §6.2.3" },
+    { "id": "COMMS_ENTRY",   "label": "Telecom / data service entry", "requiredType": 1, "iec62305Section": "62305-4 §6.3" },
+    { "id": "COMMS_DB",      "label": "Telecom / data sub-DB", "requiredType": 2, "iec62305Section": "62305-4 §6.3" }
+  ],
+  "coordinationRules": [
+    {
+      "id": "RULE_TYPE_PRESENT",
+      "description": "Each LPZ 0/1 boundary requires a Type 1 SPD; each LPZ 1/2 boundary requires a Type 2 SPD; each LPZ 2/3 boundary supplying sensitive equipment requires a Type 3 SPD.",
+      "severity": "FAIL"
+    },
+    {
+      "id": "RULE_UP_LE_UW",
+      "description": "Up (protection level) must be ≤ Uw (equipment withstand). For typical 230/400 V equipment Uw = 1.5 kV.",
+      "severity": "FAIL"
+    },
+    {
+      "id": "RULE_CASCADE_ENERGY",
+      "description": "Upstream Type 1 + downstream Type 2 must be energy-coordinated (manufacturer pairing, or ≥10 m cable separation between them).",
+      "severity": "WARN"
+    },
+    {
+      "id": "RULE_IIMP_GE_CLASS",
+      "description": "Type 1 / combined SPD Iimp must be ≥ class minimum: I=25 kA, II=20 kA, III/IV=12.5 kA.",
+      "severity": "FAIL"
+    }
+  ]
+}
