@@ -305,6 +305,46 @@ public sealed partial class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return Guid.Empty; }
     }
 
+    /// <summary>Create a project explicitly (vs GetOrCreate). Returns
+    /// (ok, id, error) with friendly mapping for duplicate-code / quota
+    /// responses. Used by PlanscapeCreateProjectCommand.</summary>
+    public async Task<(bool ok, Guid id, string? error)> CreateProjectAsync(
+        string name, string code, string? phase = null, string? description = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, Guid.Empty, LastError ?? "Not authenticated");
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(code))
+            return (false, Guid.Empty, "Name and Code are required.");
+        try
+        {
+            var payload = new
+            {
+                name = name.Trim(),
+                code = code.Trim(),
+                phase = string.IsNullOrWhiteSpace(phase) ? null : phase.Trim(),
+                description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
+            };
+            var resp = await PostJsonAsync("/api/projects", payload);
+            if (resp.ok)
+            {
+                var json = JObject.Parse(resp.body);
+                var id = Guid.TryParse(json["id"]?.Value<string>(), out var g) ? g : Guid.Empty;
+                return (true, id, null);
+            }
+            string friendly = resp.status switch
+            {
+                409 => $"A project with code '{code}' already exists in this tenant.",
+                400 => resp.body,
+                402 => "Project quota exceeded for the current subscription tier.",
+                _   => $"HTTP {resp.status}: {resp.body}",
+            };
+            return (false, Guid.Empty, friendly);
+        }
+        catch (Exception ex)
+        {
+            return (false, Guid.Empty, ex.Message);
+        }
+    }
+
     /// <summary>Get project dashboard (issues, docs, recent workflows).</summary>
     public async Task<JObject?> GetDashboardAsync(Guid projectId)
     {

@@ -1563,7 +1563,7 @@ namespace StingTools.BOQ
         //  Utility helpers — private
         // ══════════════════════════════════════════════════════════════════
 
-        private static Dictionary<string, (double rate, string unit)> LoadCsvRates()
+        internal static Dictionary<string, (double rate, string unit)> LoadCsvRates()
         {
             var rates = new Dictionary<string, (double rate, string unit)>(StringComparer.OrdinalIgnoreCase);
             string costFile = TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
