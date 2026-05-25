@@ -17,7 +17,7 @@ namespace StingTools.UI
     /// resource tree can be broken. Resources are set on BOTH the Page and
     /// Application to ensure DynamicResource bindings resolve correctly.
     /// </summary>
-    public static class ThemeManager
+    public static partial class ThemeManager
     {
         // Default theme is "Cool" — light blue-grey body with bright blue
         // accents. The BCC, Document Management Centre, and dockable panel

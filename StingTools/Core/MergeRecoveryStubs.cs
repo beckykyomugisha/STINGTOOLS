@@ -237,10 +237,10 @@ namespace StingTools.Core.Drawing
         public string ViewTemplate     { get; set; }
         public string DetailLevel      { get; set; }
         public string ScaleHint        { get; set; }
-        public string ColorScheme      { get; set; }
         public PackAppearanceDto Appearance { get; set; }
         public string PhaseName        { get; set; }
-        public Dictionary<string, ByMaterialClassOverride> ByMaterialClass  { get; set; }
+        // ColorScheme + ByMaterialClass are declared on the real ViewStylePack
+        // (green build) — removed here to avoid duplicate-member collision.
     }
 
     /// <summary>Stub — pack-level appearance settings referenced by ViewStylePack.</summary>
@@ -358,22 +358,11 @@ namespace StingTools.Commands.Symbols
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// 9. StingToolsApp — missing static fields + EnsureStingRibbonTab
+// 9. StingToolsApp — (removed) briefing fields + EnsureStingRibbonTab
+//    The real StingToolsApp (green build) carries the briefing fields, and
+//    nothing references EnsureStingRibbonTab/EnsureRibbonTab — the ribbon is
+//    built inline via CreateRibbonTab — so both stubs are dropped.
 // ──────────────────────────────────────────────────────────────────────
-namespace StingTools.Core
-{
-    public partial class StingToolsApp
-    {
-        // Briefing — referenced by various command handlers; populated by
-        // morning-briefing flow that didn't make the merge. Default null/false.
-        internal static Autodesk.Revit.DB.Document _pendingBriefingDoc;
-        internal static bool _briefingSubscribed;
-        internal static bool _briefingPending;
-
-        /// <summary>Stub — the real ribbon-tab initialiser lives in EnsureRibbonTab; this alias keeps merged call sites compiling.</summary>
-        internal static void EnsureStingRibbonTab(Autodesk.Revit.UI.UIControlledApplication application) => EnsureRibbonTab(application);
-    }
-}
 
 // ──────────────────────────────────────────────────────────────────────
 // 10. StingPlacementCenter — missing run-handler / run-event fields + helpers

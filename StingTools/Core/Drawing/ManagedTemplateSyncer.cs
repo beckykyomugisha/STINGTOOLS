@@ -26,7 +26,7 @@ using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Drawing
 {
-    internal static class ManagedTemplateSyncer
+    internal static partial class ManagedTemplateSyncer
     {
         // C-6: keyed by document so a stale ElementId from a previously
         // open document is never returned to a different document.

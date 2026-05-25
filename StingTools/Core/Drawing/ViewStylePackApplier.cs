@@ -36,7 +36,7 @@ namespace StingTools.Core.Drawing
         public List<string> Warnings { get; } = new List<string>();
     }
 
-    public static class ViewStylePackApplier
+    public static partial class ViewStylePackApplier
     {
         public static void InvalidateCache(Document doc) { /* Pack registry is doc-scoped; no separate cache needed. */ }
         public static void ReadCategoryOverrides(Document doc, View view, ViewStylePack pack) { /* No-op stub. */ }
