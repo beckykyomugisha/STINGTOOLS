@@ -312,7 +312,7 @@ namespace StingTools.Core.Materials
                 using (var scope = new AppearanceAssetEditScope(doc))
                 {
                     var asset = scope.Start(mat.AppearanceAssetId);
-                    if (asset == null) { scope.Cancel(); return 0; }
+                    if (asset == null) { scope.Cancel(); return result; }
 
                     bool isPrism = LooksLikePrism(asset);
                     string[] slots = isPrism
