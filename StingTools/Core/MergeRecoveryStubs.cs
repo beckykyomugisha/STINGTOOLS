@@ -373,7 +373,6 @@ namespace StingTools.UI.PlacementCenter
     {
         private PlacementRunHandler _runHandler;
         private Autodesk.Revit.UI.ExternalEvent _runEvent;
-        private PlacementRunRequest _runRequest;
 
         private void EnsureRunEvent()
         {

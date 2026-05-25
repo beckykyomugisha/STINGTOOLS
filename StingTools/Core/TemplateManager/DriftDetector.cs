@@ -55,7 +55,7 @@ namespace StingTools.Core.TemplateManager
                         // Never stamped — surface as Missing
                         list.Add(new TemplateDriftEntry
                         {
-                            TemplateId = tmpl.Id.IntegerValue,
+                            TemplateId = (int)tmpl.Id.Value,
                             TemplateName = tmpl.Name,
                             Kind = "Missing",
                             Detail = "No checksum stamp — never synced.",
@@ -67,7 +67,7 @@ namespace StingTools.Core.TemplateManager
                     {
                         list.Add(new TemplateDriftEntry
                         {
-                            TemplateId = tmpl.Id.IntegerValue,
+                            TemplateId = (int)tmpl.Id.Value,
                             TemplateName = tmpl.Name,
                             Kind = "FilterOverride",
                             Detail = $"VG checksum drift",
@@ -83,10 +83,10 @@ namespace StingTools.Core.TemplateManager
                         {
                             list.Add(new TemplateDriftEntry
                             {
-                                TemplateId = tmpl.Id.IntegerValue,
+                                TemplateId = (int)tmpl.Id.Value,
                                 TemplateName = tmpl.Name,
                                 Kind = "Orphan",
-                                Detail = $"Orphaned filter id {fid.IntegerValue}"
+                                Detail = $"Orphaned filter id {(int)fid.Value}"
                             });
                         }
                     }
@@ -119,11 +119,11 @@ namespace StingTools.Core.TemplateManager
                 sb.Append("tmpl:").Append(tmpl.Name).Append('|');
                 sb.Append("scale:").Append(tmpl.Scale).Append('|');
                 sb.Append("dl:").Append(tmpl.DetailLevel).Append('|');
-                var fids = tmpl.GetFilters().OrderBy(i => i.IntegerValue).ToList();
+                var fids = tmpl.GetFilters().OrderBy(i => (int)i.Value).ToList();
                 sb.Append("filters:");
                 foreach (var fid in fids)
                 {
-                    sb.Append(fid.IntegerValue).Append(',');
+                    sb.Append((int)fid.Value).Append(',');
                     try
                     {
                         var ogs = tmpl.GetFilterOverrides(fid);

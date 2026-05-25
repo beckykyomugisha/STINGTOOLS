@@ -99,14 +99,14 @@ namespace StingTools.Core.TemplateManager
             Dictionary<string, double> weights = null, string profile = null)
         {
             if (view == null) return new ComplianceScore();
-            string cacheKey = $"{(doc?.PathName ?? "")}|{view.Id.IntegerValue}|{profile ?? "default"}";
+            string cacheKey = $"{(doc?.PathName ?? "")}|{(int)view.Id.Value}|{profile ?? "default"}";
             if (_viewCache.TryGetValue(cacheKey, out var hit) && DateTime.UtcNow - hit.t < StaleAfter)
                 return hit.s;
 
             weights ??= TemplateRulesRegistry.ResolveComplianceProfile(doc, profile);
             var s = new ComplianceScore
             {
-                ViewId = view.Id.IntegerValue,
+                ViewId = (int)view.Id.Value,
                 ViewName = view.Name ?? "",
                 ViewType = view.ViewType.ToString(),
                 Profile = profile ?? "default"
