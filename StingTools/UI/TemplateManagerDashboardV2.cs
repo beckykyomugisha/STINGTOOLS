@@ -11,7 +11,9 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core;
 using StingTools.Core.TemplateManager;
-using Color = System.Windows.Media.Color;
+using Color   = System.Windows.Media.Color;
+using Grid    = System.Windows.Controls.Grid;
+using Binding = System.Windows.Data.Binding;
 
 namespace StingTools.UI
 {
