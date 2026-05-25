@@ -93,6 +93,13 @@ namespace StingTools.Core.Drawing
                     }
                     if (!view.IsFilterApplied(filter.Id))
                         view.AddFilter(filter.Id);
+                }
+                catch (Exception ex)
+                {
+                    r.Warnings.Add($"byMaterialClass '{className}': {ex.Message}");
+                }
+            }
+        }
 
         internal static void ApplyCategoryOverrides(Document doc, View view, ViewStylePack pack, PackApplyResult r)
         {
