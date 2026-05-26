@@ -87,16 +87,38 @@ namespace StingTools.Commands.Lightning
             rp.SetSubtitle(
                 $"Region: {snap.Region}  •  Class header: {snap.LpsClass}  •  Recommended: {result.RecommendedClass ?? "—"}");
 
-            var s = rp.AddSection("RISK COMPONENTS");
-            s.Metric("Collection area Ae", $"{result.CollectionAreaM2:F0} m²");
+            var s = rp.AddSection("RISK SUMMARY");
+            s.Metric("Collection area Ad", $"{result.CollectionAreaM2:F0} m²");
             s.Metric("Annual strikes Nd",  $"{result.AnnualStrikeFrequency:F4} /yr");
-            foreach (var kv in result.RiskComponents)
-                s.Metric(kv.Key, kv.Value.ToString("E2"));
-            s.Metric("Tolerable risk Rt",  result.TolerableRisk.ToString("E2"));
             if (result.RequiresLps)
                 s.MetricError("LPS required?", "YES");
             else
                 s.MetricHighlight("LPS required?", "NO");
+
+            // Per-loss-type risk vs. tolerable (BS EN 62305-2 R1–R4).
+            var lossLabels = new Dictionary<string, string>
+            {
+                ["L1"] = "R1 — loss of life", ["L2"] = "R2 — loss of service",
+                ["L3"] = "R3 — cultural", ["L4"] = "R4 — economic"
+            };
+            var lt = rp.AddSection("RISK BY LOSS TYPE");
+            foreach (var key in new[] { "L1", "L2", "L3", "L4" })
+            {
+                if (!result.RiskByLossType.TryGetValue(key, out double rv)) continue;
+                double tol = result.TolerableByLossType.TryGetValue(key, out var t) ? t : 0.0;
+                string label = lossLabels.TryGetValue(key, out var lbl) ? lbl : key;
+                string val = $"{rv:E2}  (Rt {tol:E2})";
+                if (rv > tol) lt.MetricError(label, val);
+                else          lt.MetricHighlight(label, val);
+            }
+
+            // BS EN 62305-2 component breakdown for the life-safety risk.
+            if (result.ComponentBreakdown != null && result.ComponentBreakdown.Count > 0)
+            {
+                var cb = rp.AddSection("L1 COMPONENTS (RA..RZ)");
+                foreach (var kv in result.ComponentBreakdown.OrderByDescending(k => k.Value))
+                    cb.Metric(kv.Key, kv.Value.ToString("E2"));
+            }
 
             if (result.ResidualRiskByClass != null && result.ResidualRiskByClass.Count > 0)
             {
