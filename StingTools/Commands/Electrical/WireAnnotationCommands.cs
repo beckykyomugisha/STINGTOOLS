@@ -794,7 +794,6 @@ namespace StingTools.Commands.Electrical
             double scale   = Math.Max(0.01, style.ScaleFactor);
             double lenFt   = (style.SlashLengthMm  * scale) / MmPerFt;
             double gapFt   = (style.SlashSpacingMm * scale) / MmPerFt;
-            double angleRad= (style.SlashAngleDeg  * Math.PI) / 180.0;
 
             var curve   = lc.Curve;
             var p0      = curve.GetEndPoint(0);
@@ -1762,7 +1761,6 @@ namespace StingTools.Commands.Electrical
                     if (dup.Show() != TaskDialogResult.Yes) return Result.Cancelled;
                 }
 
-                var role = WireAnnotationEngine.ClassifyConduitRole(conduit);
                 using (var t = new Transaction(doc, "STING Place Wire Annotation"))
                 {
                     t.Start();
