@@ -22,6 +22,8 @@ async function logPressureReading(
   projectId: string,
   roomId: string,
   roomName: string,
+  roomClass: string,
+  designRegime: 'NEG' | 'POS' | 'NEUTRAL',
   liveDeltaPa: number,
   designDeltaPa: number,
   inBand: boolean,
@@ -29,10 +31,12 @@ async function logPressureReading(
   const payload = {
     roomBimId: roomId,
     roomName,
+    roomClass,
+    designRegime,
     designDeltaPa,
     liveDeltaPa,
     inBand,
-    source: 'MANUAL',
+    source: 'MANUAL' as const,
     capturedAt: new Date().toISOString(),
   };
   try {
