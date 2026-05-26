@@ -1072,6 +1072,14 @@ namespace StingTools.UI
                                 _deferredTabContent.Remove(capturedIdx);
                                 Core.StingLog.Info($"Tab {capturedIdx} content loaded (lazy)");
                             }
+
+                            // Healthcare tab: once its named controls are realised,
+                            // seed the validator grid + wire combo handlers. Idempotent.
+                            if (tab.Header is string hdr &&
+                                string.Equals(hdr, "HEALTHCARE", StringComparison.OrdinalIgnoreCase))
+                            {
+                                InitializeHealthcareTab();
+                            }
                         }
                         catch (Exception ex)
                         {
