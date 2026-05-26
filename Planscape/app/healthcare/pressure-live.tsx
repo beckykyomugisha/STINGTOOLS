@@ -59,10 +59,11 @@ export default function PressureLiveScreen() {
   const connectToHub = useCallback(async () => {
     if (!activeProject?.id) return;
     try {
-      const { realtimeClient } = await import('@/services/realtimeClient');
-      const conn = await realtimeClient.connect('/hubs/healthcare');
-      hubRef.current = conn;
-      conn.on('ReceivePressureReading', (reading: {
+      const { realtime } = await import('@/services/realtimeClient');
+      // The app shares one hub connection; connect() is idempotent and joins
+      // the project group. We only add/remove our named handler on mount/unmount.
+      realtime.connect(activeProject.id).catch(() => {});
+      const off = realtime.on('ReceivePressureReading', (reading: {
         projectId: string; roomId: string; roomName: string; roomClass: string;
         designRegime: string; designDeltaPa: number; liveDeltaPa: number;
         inBand: boolean; capturedAt: string;
@@ -87,7 +88,7 @@ export default function PressureLiveScreen() {
           return [...prev, updated];
         });
       });
-      await conn.invoke('JoinProject', activeProject.id);
+      hubRef.current = { stop: off };
     } catch (err) {
       // Non-fatal: SignalR unavailable (offline or hub not deployed yet).
       console.warn('[pressure-live] SignalR connect failed:', err);

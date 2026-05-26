@@ -202,7 +202,7 @@ export default function SettingsScreen() {
             <InfoRow label="Name" value={user.displayName} />
             <InfoRow label="Email" value={user.email} />
             <InfoRow label="Role" value={user.role} />
-            <InfoRow label="Organisation" value={user.tenantName} />
+            <InfoRow label="Organisation" value={user.tenantName ?? '—'} />
           </>
         ) : (
           <Text style={styles.mutedText}>Not signed in</Text>

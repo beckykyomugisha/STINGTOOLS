@@ -154,7 +154,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
     case 'CREATE_ISSUE':
       await createIssue(
         p.projectId as string,
-        { ...(p.issue as Record<string, unknown>), idempotencyKey: p.idempotencyKey }
+        { ...(p.issue as Record<string, unknown>), idempotencyKey: p.idempotencyKey as string | undefined }
       );
       break;
 
@@ -162,7 +162,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
       await updateIssue(
         p.projectId as string,
         p.issueId as string,
-        { ...(p.updates as Record<string, unknown>), idempotencyKey: p.idempotencyKey }
+        { ...(p.updates as Record<string, unknown>), idempotencyKey: p.idempotencyKey as string | undefined }
       );
       break;
 
@@ -194,35 +194,25 @@ async function replayAction(action: OfflineAction): Promise<void> {
     // module; the modules add the `idempotencyKey` header on every call so
     // a retried action can't double-apply.
     case 'POST_COMMENT': {
-      const { postIssueComment } = await import('@/api/endpoints');
-      await postIssueComment(
+      const { addIssueComment } = await import('@/api/endpoints');
+      await addIssueComment(
         p.projectId as string,
         p.issueId as string,
-        { body: p.body as string, idempotencyKey: p.idempotencyKey as string },
+        p.body as string,
+        p.mentionedUserId as string | undefined,
       );
       break;
     }
-    case 'PIN_PLACE': {
-      const { placeIssuePin } = await import('@/api/endpoints');
-      await placeIssuePin(p.projectId as string, p.issueId as string, {
-        modelId: p.modelId as string,
-        x: p.x as number, y: p.y as number, z: p.z as number,
-        elementGuid: p.elementGuid as string | undefined,
-        idempotencyKey: p.idempotencyKey as string,
-      });
-      break;
-    }
-    case 'PIN_DELETE': {
-      const { deleteIssuePin } = await import('@/api/endpoints');
-      await deleteIssuePin(p.projectId as string, p.issueId as string, p.pinId as string);
-      break;
-    }
+    case 'PIN_PLACE':
+    case 'PIN_DELETE':
+      // 3D issue pins are derived from issue location on the server; there is
+      // no standalone pin endpoint to replay against. These actions are not
+      // enqueued today — fail loud if one ever is, rather than silently drop.
+      throw new Error(`${action.type} replay not supported: no pin endpoint`);
     case 'ADD_MEETING_ACTION': {
       const { addMeetingAction } = await import('@/api/endpoints');
-      await addMeetingAction(p.projectId as string, p.meetingId as string, {
-        ...(p.action as Record<string, unknown>),
-        idempotencyKey: p.idempotencyKey as string,
-      });
+      await addMeetingAction(p.projectId as string, p.meetingId as string,
+        p.action as Parameters<typeof addMeetingAction>[2]);
       break;
     }
     case 'UPDATE_MEETING_ACTION': {
@@ -234,18 +224,20 @@ async function replayAction(action: OfflineAction): Promise<void> {
       break;
     }
     case 'DIARY_ENTRY': {
-      const { upsertDiaryEntry } = await import('@/api/endpoints');
-      await upsertDiaryEntry(p.projectId as string, {
-        ...(p.entry as Record<string, unknown>),
-        idempotencyKey: p.idempotencyKey as string,
-      });
+      const { createSiteDiary } = await import('@/api/endpoints');
+      // Server keys diaries by (project, date) so create is effectively upsert.
+      await createSiteDiary(
+        p.projectId as string,
+        p.entry as Parameters<typeof createSiteDiary>[1],
+      );
       break;
     }
     case 'STAGE_SIGNOFF': {
       const { signOffStageCriterion } = await import('@/api/endpoints');
+      const met = p.met === true || (p.decision as string)?.toLowerCase() === 'met';
       await signOffStageCriterion(
         p.projectId as string, p.gateId as string, p.criterionId as string,
-        { decision: p.decision as string, comment: p.comment as string | undefined },
+        met, { comment: p.comment as string | undefined },
       );
       break;
     }

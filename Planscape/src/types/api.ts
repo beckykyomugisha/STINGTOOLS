@@ -60,6 +60,8 @@ export interface DisciplineCompliance {
 export interface BimIssue {
   id: string;
   projectId: string;
+  /** Client-supplied dedup key so an offline-queued create/update can't double-apply on replay. */
+  idempotencyKey?: string;
   issueCode: string;
   title: string;
   description: string;

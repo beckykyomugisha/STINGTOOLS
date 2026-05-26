@@ -26,6 +26,9 @@ import type { ElementMap, ModelPin, ViewerTool } from "@/types/models";
 export interface ModelViewerHandle {
   setTool: (tool: ViewerTool) => void;
   fit: () => void;
+  /** Optional: zoom to and select a single element by GUID. Not all viewer
+   *  builds implement element targeting — callers must optional-chain. */
+  selectAndZoom?: (elementGuid: string) => void;
   clearMeasure: () => void;
   clearHighlight: () => void;
   setDisciplineVisible: (discipline: string, visible: boolean) => void;

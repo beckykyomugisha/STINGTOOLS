@@ -36,6 +36,8 @@ export type ElementMap = Record<
     category?: string;
     discipline?: string;
     level?: string;
+    system?: string;
+    status?: string;
   }
 >;
 

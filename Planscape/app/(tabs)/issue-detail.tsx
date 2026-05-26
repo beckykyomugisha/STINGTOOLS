@@ -325,7 +325,7 @@ export default function IssueDetailScreen() {
     viewerRef.current.fit();
     // Give the renderer one frame to commit the fit before the targeted zoom.
     const t = setTimeout(() => {
-      viewerRef.current?.selectAndZoom(issue.modelElementGuid!);
+      viewerRef.current?.selectAndZoom?.(issue.modelElementGuid!);
     }, 120);
     return () => clearTimeout(t);
   }, [viewerReady, issue?.modelElementGuid]);

@@ -50,6 +50,7 @@ export default function DashboardScreen() {
   const [projectViewMode, setProjectViewMode] = useState<'chip' | 'list'>('chip');
 
   const loadData = useCallback(async (projectId?: string) => {
+    if (!activeProject) return;
     try {
       setError(null);
       const data = await getProjectDashboard(activeProject.id);
@@ -423,6 +424,9 @@ function IssueRow({ issue }: { issue: BimIssue }) {
 }
 
 const styles = StyleSheet.create({
+  breadcrumb: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8 },
+  breadcrumbChevron: { fontSize: 20, color: '#1565C0', marginRight: 4 },
+  breadcrumbProject: { fontSize: 13, color: '#1565C0', flexShrink: 1 },
   root: {
     flex: 1,
     backgroundColor: theme.colors.background,

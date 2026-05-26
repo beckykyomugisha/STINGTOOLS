@@ -83,6 +83,7 @@ export default function CaptureSitePhotoScreen() {
   const [caption, setCaption] = useState('');
   const [levelCode, setLevelCode] = useState('');
   const [zoneCode, setZoneCode] = useState('');
+  const [spatialData, setSpatialData] = useState<SpatialStructure | null>(null);
   const [saving, setSaving] = useState(false);
   const [queuedHint, setQueuedHint] = useState<string | null>(null);
   const [pairKey, setPairKey] = useState<string | null>(null);
