@@ -615,27 +615,6 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex) { r.Warnings.Add($"TokenProfileApplier: {ex.Message}"); }
             }
 
-            // Token Profile (Phase 135) — Step 7.5 -----------------------
-            // Runs between the pack apply and the annotation pass so any
-            // auto-tags AnnotationRunner emits inherit the active style
-            // preset, paragraph depth, section visibility, and segment
-            // mask. No-op when neither the profile nor the pack supplies
-            // any tag-appearance value.
-            if (dt.TokenProfile != null
-                || resolvedPack?.TagColorScheme != null
-                || resolvedPack?.DefaultTagStyle != null
-                || (resolvedPack?.CategoryTagStyles != null && resolvedPack.CategoryTagStyles.Count > 0))
-            {
-                try
-                {
-                    var tpRes = TokenProfileApplier.Apply(doc, view, dt, resolvedPack);
-                    r.TokenProfileApplied = tpRes.ViewParamWrites + tpRes.ElementWrites
-                                          + tpRes.TypeWrites > 0 || tpRes.PresentationApplied;
-                    r.Warnings.AddRange(tpRes.Warnings);
-                }
-                catch (Exception ex) { r.Warnings.Add($"TokenProfileApplier: {ex.Message}"); }
-            }
-
             // Phase 175 — Step 7.7 design-option scope. Resolves the
             // profile's OptionScope to a concrete option ElementId and
             // writes VIEWER_OPTION_VISIBILITY on the view. Runs after

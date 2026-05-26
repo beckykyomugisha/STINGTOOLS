@@ -530,10 +530,12 @@ namespace StingTools.Core
                 // IsWorkshared walks the document state.
                 string currentUser = null;
                 bool isWorkshared = false;
-                try { isWorkshared = doc.IsWorkshared; } catch { }
+                try { isWorkshared = doc.IsWorkshared; }
+                catch (Exception ex) { StingLog.Warn($"AutoTagger: IsWorkshared check failed — treating as non-workshared: {ex.Message}"); }
                 if (isWorkshared)
                 {
-                    try { currentUser = doc.Application.Username; } catch { }
+                    try { currentUser = doc.Application.Username; }
+                    catch (Exception ex) { StingLog.Warn($"AutoTagger: Username lookup failed — ownership deferral disabled this pass: {ex.Message}"); }
                 }
 
                 foreach (ElementId id in addedIds)
@@ -565,9 +567,12 @@ namespace StingTools.Core
                             if (wsId != null && wsId != WorksetId.InvalidWorksetId)
                             {
                                 var wsInfo = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
-                                if (!string.IsNullOrEmpty(wsInfo.Owner)
-                                    && wsInfo.Owner != currentUser
-                                    && wsInfo.Owner != "")
+                                // Only defer on ownership when we could actually resolve the
+                                // current user — otherwise (Username lookup failed) every owned
+                                // element would defer, stalling all auto-tagging.
+                                if (!string.IsNullOrEmpty(currentUser)
+                                    && !string.IsNullOrEmpty(wsInfo.Owner)
+                                    && wsInfo.Owner != currentUser)
                                 {
                                     EnqueueDeferred(id);
                                     StingLog.Info($"AutoTagger: deferred {id.Value} (workset not owned by {currentUser}) — will retry after sync");

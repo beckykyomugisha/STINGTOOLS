@@ -727,14 +727,25 @@ namespace StingTools.Core
 
         private static bool _inBatchSession = false;
 
+        /// <summary>
+        /// Pin the room-index cache for the duration of a batch run. Sets both
+        /// the invalidation guard (<c>_inBatchSession</c>, read by
+        /// <see cref="InvalidateRoomIndex"/>) and the long-TTL flag
+        /// (<c>_batchSessionActive</c>, read by <see cref="BuildRoomIndex"/>).
+        /// Idempotent — repeated calls without a matching End are safe.
+        /// </summary>
         public static void BeginBatchSession()
         {
             lock (_roomCacheLock) { _inBatchSession = true; }
+            _batchSessionActive = true;
         }
 
+        /// <summary>End the batch session, clear both flags, and force-refresh the cache.</summary>
         public static void EndBatchSession()
         {
             lock (_roomCacheLock) { _inBatchSession = false; }
+            _batchSessionActive = false;
+            ForceRefresh();
         }
 
         /// <summary>
@@ -750,21 +761,6 @@ namespace StingTools.Core
         // post-batch ForceRefresh / Invalidate flips it off.
         private static volatile bool _batchSessionActive;
         private static readonly TimeSpan _roomCacheBatchTtl = TimeSpan.FromSeconds(90);
-
-        /// <summary>
-        /// Phase 165 — Issue #21. Marks an active batch session so the room
-        /// index uses the longer TTL until <see cref="EndBatchSession"/> is
-        /// called. Idempotent — multiple BeginBatchSession calls without
-        /// matching End calls are safe.
-        /// </summary>
-        public static void BeginBatchSession() { _batchSessionActive = true; }
-
-        /// <summary>End an active batch session and force-refresh the cache.</summary>
-        public static void EndBatchSession()
-        {
-            _batchSessionActive = false;
-            ForceRefresh();
-        }
 
         /// <summary>
         /// Pre-scan all rooms in the project and build a lookup by ElementId.
@@ -1555,46 +1551,6 @@ namespace StingTools.Core
             /// stored value directly.
             /// </summary>
             public ParamRegistry.TagMode ActiveTagMode { get; set; } = ParamRegistry.TagMode.DC;
-
-            /// <summary>EFF-05 (Phase 149b): per-batch memo of type-level LOC/ZONE
-            /// overrides so PopulateAll doesn't pay a Document.GetElement +
-            /// 2× GetString per instance when most types don't have overrides
-            /// set. Key is type ElementId; null tuple value means "no override".</summary>
-            public Dictionary<ElementId, (string Loc, string Zone)> TypeOverrideCache { get; set; }
-                = new Dictionary<ElementId, (string, string)>();
-
-            // TAG-PREFLIGHT-DUP-01: Per-document cached PopulationContext so consecutive
-            // commands (e.g. PreTagAudit followed by BatchTag) reuse the spatial / room /
-            // phase / grid indices instead of rebuilding them from scratch each time.
-            // 30 s TTL matches the room index cache; the cache is invalidated on document
-            // close, on TagConfig reload, and after any tagging command via PostTagCleanup.
-            private static (string docKey, DateTime time, PopulationContext ctx) _cached;
-            private static readonly object _cacheLock = new object();
-            private static readonly TimeSpan _cacheTtl = TimeSpan.FromSeconds(30);
-
-            /// <summary>
-            /// TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext. Call from
-            /// PostTagCleanup, document close, and TagConfig reload paths.
-            /// </summary>
-            /// <summary>
-            /// Phase 165 follow-up — explicit teardown helper. Ends the
-            /// SpatialAutoDetect batch session opened by <see cref="Build"/>
-            /// so the room-index TTL drops back to 30 s. Idempotent and
-            /// safe to call when no session is active.
-            ///
-            /// Usage pattern in batch commands:
-            ///   var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
-            ///   try { ... } finally { TokenAutoPopulator.PopulationContext.EndSession(); }
-            /// </summary>
-            public static void EndSession() => SpatialAutoDetect.EndBatchSession();
-
-            public static void InvalidateCache()
-            {
-                lock (_cacheLock)
-                {
-                    _cached = default;
-                }
-            }
 
             /// <summary>
             /// Build a PopulationContext once for a batch operation.
@@ -4261,15 +4217,11 @@ namespace StingTools.Core
                 // on main-model elements.
                 StingTools.Core.DesignOptions.DesignOptionRegistry.WriteOptionParams(doc, el, overwrite);
 
-                // PERF-02: Inline FUNC/PROD empty tracking from tokenVals (avoids 2 GetString calls per element)
-                // tokenVals: [0]=DISC [1]=LOC [2]=ZONE [3]=LVL [4]=SYS [5]=FUNC [6]=PROD [7]=SEQ
+                // Inline FUNC/PROD empty tracking from the freshly-built token array
+                // (avoids 2 GetString calls per element). tokenVals layout:
+                // [0]=DISC [1]=LOC [2]=ZONE [3]=LVL [4]=SYS [5]=FUNC [6]=PROD [7]=SEQ
                 if (stats != null && tokenVals != null && tokenVals.Length >= 7)
                     stats.RecordEmptyTokens(tokenVals[5], tokenVals[6]);
-
-                // PERF-02: Inline FUNC/PROD empty tracking to avoid post-loop re-scans
-                stats?.RecordEmptyTokens(
-                    ParameterHelpers.GetString(el, ParamRegistry.FUNC),
-                    ParameterHelpers.GetString(el, ParamRegistry.PROD));
 
                 // Phase 184d / P3.1 — Opt-in cost write-back. Off by
                 // default; turn on via project_config.json
