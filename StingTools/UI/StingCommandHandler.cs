@@ -3194,7 +3194,7 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                var dlgResult = UI.TemplateManagerDashboard.Show();
+                                var dlgResult = UI.TemplateManagerDashboardV2.Show(app?.ActiveUIDocument?.Document);
                                 if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
                                     break;
                                 SetCommand(dlgResult.Operation);
