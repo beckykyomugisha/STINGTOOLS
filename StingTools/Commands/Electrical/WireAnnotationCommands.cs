@@ -397,20 +397,51 @@ namespace StingTools.Commands.Electrical
                 }
             } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
-            try
+            // Prefer the per-conduit synced value (ELC_WIRE_VD_PCT_NUM, written by
+            // WireVDSyncCommand and read by the cable schedule) so the annotation
+            // agrees with the rest of the toolset. Fall back to the circuit-level
+            // ELC_CKT_VD_PCT, then recalc from geometry.
+            vd = ReadNumParam(conduit, "ELC_WIRE_VD_PCT_NUM");
+            if (vd <= 0)
             {
-                var p = conduit.LookupParameter(ParamRegistry.ELC_CKT_VD_PCT);
-                if (p == null) {
-                    double.TryParse(ParameterHelpers.GetString(conduit, ParamRegistry.ELC_CKT_VD_PCT),
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture, out vd);
-                } else if (p.StorageType == StorageType.Double) {
-                    vd = p.AsDouble();
-                } else if (p.StorageType == StorageType.String) {
-                    double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture, out vd);
+                try
+                {
+                    var p = conduit.LookupParameter(ParamRegistry.ELC_CKT_VD_PCT);
+                    if (p == null) {
+                        double.TryParse(ParameterHelpers.GetString(conduit, ParamRegistry.ELC_CKT_VD_PCT),
+                            System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out vd);
+                    } else if (p.StorageType == StorageType.Double) {
+                        vd = p.AsDouble();
+                    } else if (p.StorageType == StorageType.String) {
+                        double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out vd);
+                    }
+                } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            }
+
+            // Resolve the connected circuit once when core count or VD is missing
+            // (the only cases that need it) — avoids a graph walk per conduit when
+            // the values are already stamped.
+            int    circuitPoles    = 0;
+            double circuitCurrentA = 0;
+            if (cores <= 0 || (vd <= 0 && csa > 0))
+            {
+                try
+                {
+                    var circuit = GetConnectedCircuit(conduit);
+                    if (circuit != null)
+                    {
+                        var pp = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES);
+                        if (pp != null && pp.StorageType == StorageType.Integer) circuitPoles = pp.AsInteger();
+                        try { circuitCurrentA = circuit.ApparentCurrent; } catch { }
+                    }
                 }
-            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"Circuit resolve: {ex.Message}"); }
+                // Fall back to circuit poles for the conductor/slash count when the
+                // ELC_WIRE_CORE_COUNT_INT parameter was never stamped.
+                if (cores <= 0 && circuitPoles > 0) cores = circuitPoles;
+            }
 
             // Recalculate VD from actual conduit length if stored value is missing/zero
             if (vd <= 0 && csa > 0 && cores > 0)
@@ -423,36 +454,15 @@ namespace StingTools.Commands.Electrical
                         double lengthM = lc.Curve.Length * 0.3048; // ft → m
                         if (lengthM > 0.01)
                         {
-                            // Read load current from connected ElectricalSystem if available
-                            double currentA = 0;
-                            try
-                            {
-                                foreach (Autodesk.Revit.DB.Connector c in ((Autodesk.Revit.DB.MEPCurve)conduit).ConnectorManager.Connectors)
-                                {
-                                    foreach (Autodesk.Revit.DB.Connector cr in c.AllRefs)
-                                    {
-                                        if (cr.Owner is Autodesk.Revit.DB.Electrical.ElectricalSystem sys)
-                                        {
-                                            currentA = sys.ApparentCurrent;
-                                            break;
-                                        }
-                                    }
-                                    if (currentA > 0) break;
-                                }
-                            }
-                            catch { }
-
-                            if (currentA <= 0) currentA = 16.0; // default 16A if no circuit found
-                            int phases = cores >= 3 ? 3 : 1;
+                            double currentA = circuitCurrentA > 0 ? circuitCurrentA : 16.0; // default 16A
+                            // Phase count comes from the circuit poles, not the core
+                            // count — a 3-core cable is commonly single-phase (L+N+E).
+                            int phases = circuitPoles >= 3 ? 3 : 1;
                             double voltV = phases == 3 ? 400.0 : 230.0;
                             string materialStr = string.IsNullOrEmpty(mat) ? "Cu" : mat;
                             vd = StingTools.Commands.Electrical.VoltageDrop.VoltageDropEngine.CalculateVoltDropPercent(
                                 currentA, lengthM, csa, materialStr, voltV, phases);
-                            // No write-back: ReadWireData is a pure read. The previous
-                            // version wrote to ELC_WIRE_VD_PCT_NUM, a different parameter
-                            // from the ELC_CKT_VD_PCT it reads, so the value was never
-                            // read back and the Set() threw whenever ReadWireData ran
-                            // outside a transaction (single-pick + home-run paths).
+                            // No write-back: ReadWireData is a pure read.
                         }
                     }
                 }
@@ -1043,7 +1053,9 @@ namespace StingTools.Commands.Electrical
 
             var visited  = new HashSet<long>();
             var frontier = new List<Connector> { startConn };
-            for (int depth = 0; depth < 4 && frontier.Count > 0; depth++)
+            // Match GetConnectedCircuit's depth (12) so a home-run that passes
+            // through more than a few fittings before the board is still detected.
+            for (int depth = 0; depth < 12 && frontier.Count > 0; depth++)
             {
                 var next = new List<Connector>();
                 foreach (var fc in frontier)
@@ -1355,21 +1367,6 @@ namespace StingTools.Commands.Electrical
                 currentPt = exit.Origin;
             }
             return null;
-        }
-
-        // Maps STING_CABLE_TYPE_TXT to a core count. Returns 0 when no
-        // match — caller falls back to circuit poles or shared-param value.
-        // Recognises UK BS-style cable codes: 2C+E / T&E / Twin&Earth /
-        // 3C+E / 4C+E / 5C+E (with or without spaces / dashes).
-        private static int ParseCableTypeCores(string cableType)
-        {
-            if (string.IsNullOrEmpty(cableType)) return 0;
-            string s = cableType.ToUpperInvariant().Replace(" ", "").Replace("-", "");
-            if (s.Contains("T&E") || s.Contains("TWIN&EARTH") || s.StartsWith("2C")) return 2;
-            if (s.StartsWith("3C")) return 3;
-            if (s.StartsWith("4C")) return 4;
-            if (s.StartsWith("5C")) return 5;
-            return 0;
         }
 
         public static ElectricalSystem GetConnectedCircuit(Element conduit)
