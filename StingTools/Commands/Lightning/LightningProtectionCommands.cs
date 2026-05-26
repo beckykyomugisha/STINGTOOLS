@@ -1505,6 +1505,10 @@ namespace StingTools.Commands.Lightning
         private TextBlock _ngLabel, _riskResult;
         private TextBox _ngOverride;
         private ComboBox _classOverride;
+        // Envelope / wiring / line sub-factors feeding the BS EN 62305-2 model.
+        private ComboBox _wiringType, _fireProtection, _soilSurface, _fireRisk, _specialHazard, _lifeEndanger;
+        private ComboBox _lineInstall, _lineEnv, _lineTransformer, _lineShield;
+        private TextBox _uwKv, _spatialMeshM, _internalMeshM, _lineLengthM, _occupiedHours;
 
         public bool IsCompleted { get; private set; }
         public string SelectedClass { get; private set; }
@@ -1610,6 +1614,73 @@ namespace StingTools.Commands.Lightning
             _svcWater = new CheckBox { Content = "Water", Margin = new Thickness(0, 0, 0, 8) };
             sp.Children.Add(_svcPower); sp.Children.Add(_svcTelecom); sp.Children.Add(_svcGas); sp.Children.Add(_svcWater);
 
+            sp.Children.Add(SectionHeader("3. ENVELOPE, WIRING & LINES (optional — refines the BS EN 62305-2 sub-factors)"));
+            _uwKv = LabeledBox("Equipment impulse withstand U_w (kV) — K_S4 = 1/U_w; also reduces P_LD/P_LI", "1.5", sp);
+            _wiringType = LabeledCombo("Internal wiring routing / shielding (K_S3)", new[]
+            {
+                "UNSHIELDED_NO_PRECAUTION — Unshielded, no loop precaution",
+                "UNSHIELDED_LOOP_PRECAUTION — Unshielded, loops minimised",
+                "UNSHIELDED_CLOSE_BONDING — Unshielded, routed along bonding network",
+                "SHIELDED_RS_5_20 — Shielded cable / conduit, 5–20 Ω/km",
+                "SHIELDED_RS_LE_5 — Shielded cable / conduit, ≤5 Ω/km"
+            }, sp);
+            _spatialMeshM = LabeledBox("Spatial-shield mesh width w_m1 (m, blank = none) — K_S1 = 0.12·w", "", sp);
+            _internalMeshM = LabeledBox("Inner-LPZ shield mesh width w_m2 (m, blank = none) — K_S2 = 0.12·w", "", sp);
+            _fireProtection = LabeledCombo("Fire-protection provisions (r_p)", new[]
+            {
+                "NONE — None",
+                "EXTINGUISHERS_ALARM — Extinguishers / manual alarm / hydrants",
+                "FIRE_BRIGADE_AUTO — Automatic suppression / auto alarm to brigade"
+            }, sp);
+            _soilSurface = LabeledCombo("Ground / floor surface (r_t — touch/step)", new[]
+            {
+                "MARBLE_CONCRETE — Marble / concrete",
+                "AGRICULTURAL — Agricultural / soil",
+                "GRAVEL_CARPET — Gravel / carpet",
+                "ASPHALT_WOOD — Asphalt / wood / lino"
+            }, sp);
+            _fireRisk = LabeledCombo("Fire/explosion risk override (r_f)", new[]
+            {
+                "(auto) — Derive from building / content",
+                "NONE — No fire risk", "LOW — Low", "ORDINARY — Ordinary",
+                "HIGH — High", "EXPLOSION — Explosion zone"
+            }, sp);
+            _specialHazard = LabeledCombo("Special hazard override (h_z — L1 only)", new[]
+            {
+                "(auto) — Derive from occupant / use",
+                "NONE — None", "LOW_PANIC — Low panic", "MEDIUM_PANIC — Medium panic",
+                "HIGH_PANIC — High panic / hard evacuation", "ENV_CONTAMINATION — Environmental contamination"
+            }, sp);
+            _lifeEndanger = LabeledCombo("Internal-system failure endangers life?", new[]
+            {
+                "(auto) — Derive from building use", "YES — Yes", "NO — No"
+            }, sp);
+            _occupiedHours = LabeledBox("Occupied hours / year (blank = 8760 — full occupancy)", "", sp);
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Connected service-line characteristics (applied to the power & telecom lines):",
+                Margin = new Thickness(0, 6, 0, 2), FontStyle = FontStyles.Italic
+            });
+            _lineLengthM = LabeledBox("Line length (m)", "1000", sp);
+            _lineInstall = LabeledCombo("Line installation (C_I)", new[]
+            {
+                "AERIAL — Overhead", "BURIED — Buried", "BURIED_MESHED_EARTH — Buried in meshed earth"
+            }, sp);
+            _lineEnv = LabeledCombo("Line environment (C_E)", new[]
+            {
+                "RURAL — Rural", "SUBURBAN — Suburban", "URBAN — Urban", "URBAN_HIGH — Urban, tall buildings"
+            }, sp);
+            _lineTransformer = LabeledCombo("HV/LV transformer on line (C_T)", new[]
+            {
+                "NONE — None", "HV_LV_TRANSFORMER — HV/LV transformer"
+            }, sp);
+            _lineShield = LabeledCombo("Line shielding / bonding (P_LD / P_LI)", new[]
+            {
+                "UNSHIELDED — Unshielded", "SHIELDED_BONDED — Shielded, bonded both ends",
+                "SHIELDED_LOW_R — Shielded, low shield resistance", "WELL_SHIELDED — Well shielded"
+            }, sp);
+
             var runRisk = new Button { Content = "Run risk assessment", Width = 200, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 8) };
             runRisk.Click += (_, __) => RunRisk();
             sp.Children.Add(runRisk);
@@ -1622,11 +1693,11 @@ namespace StingTools.Commands.Lightning
             };
             sp.Children.Add(_riskResult);
 
-            sp.Children.Add(SectionHeader("3. CLASS CONFIRMATION"));
+            sp.Children.Add(SectionHeader("4. CLASS CONFIRMATION"));
             _classOverride = LabeledCombo("LPS class (override)", new[] { "I", "II", "III", "IV", "NONE" }, sp);
             _classOverride.SelectedIndex = 1;
 
-            sp.Children.Add(SectionHeader("4. APPLY"));
+            sp.Children.Add(SectionHeader("5. APPLY"));
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
             var ok = new Button { Content = "Apply", Width = 100, Margin = new Thickness(4) };
             var cancel = new Button { Content = "Cancel", Width = 100, Margin = new Thickness(4) };
@@ -1727,11 +1798,24 @@ namespace StingTools.Commands.Lightning
                 // Gas / water are bonded metallic services (not signal lines),
                 // so they don't add line-surge components. An empty list means
                 // "no connected lines" (no line risk).
+                if (!double.TryParse(_lineLengthM?.Text, out double lineLen) || lineLen <= 0) lineLen = 1000.0;
+                string lineInstall = PickId(_lineInstall);
+                string lineEnv     = PickId(_lineEnv);
+                string lineTrafo   = PickId(_lineTransformer);
+                string lineShield  = PickId(_lineShield);
                 var lines = new List<LpsServiceLine>();
                 if (_svcPower.IsChecked == true)
-                    lines.Add(new LpsServiceLine { Id = "POWER", Install = "AERIAL" });
+                    lines.Add(new LpsServiceLine { Id = "POWER", LengthM = lineLen, Install = lineInstall,
+                        Environment = lineEnv, Transformer = lineTrafo, Shield = lineShield });
                 if (_svcTelecom.IsChecked == true)
-                    lines.Add(new LpsServiceLine { Id = "TELECOM", Install = "AERIAL" });
+                    lines.Add(new LpsServiceLine { Id = "TELECOM", LengthM = lineLen, Install = lineInstall,
+                        Environment = lineEnv, Transformer = "NONE", Shield = lineShield });
+
+                // Envelope / wiring sub-factor inputs. "(auto)" overrides stay
+                // empty so the model derives them from building / content / use.
+                string frKey = PickId(_fireRisk);
+                string shKey = PickId(_specialHazard);
+                string leKey = PickId(_lifeEndanger);
 
                 var input = new LpsRiskInput
                 {
@@ -1743,7 +1827,17 @@ namespace StingTools.Commands.Lightning
                     BuildingTypeCb = cb, InternalContentCc = cc,
                     OccupantHazardCd = cd, ConsequenceCe = ce,
                     LocationFactorCd = 1.0,          // C_D — isolated structure (Table A.1)
-                    Lines = lines, TolerableRisk = rt
+                    Lines = lines, TolerableRisk = rt,
+                    UwKv = (double.TryParse(_uwKv?.Text, out double uw) && uw > 0) ? uw : 1.5,
+                    WiringType = PickId(_wiringType),
+                    SpatialShieldMeshWidthM = double.TryParse(_spatialMeshM?.Text, out double w1) ? w1 : 0,
+                    InternalShieldMeshWidthM = double.TryParse(_internalMeshM?.Text, out double w2) ? w2 : 0,
+                    FireProtection = PickId(_fireProtection),
+                    SoilSurfaceType = PickId(_soilSurface),
+                    FireRisk = frKey == "(auto)" ? "" : frKey,
+                    SpecialHazard = shKey == "(auto)" ? "" : shKey,
+                    LifeEndangeringSystems = leKey == "YES" ? true : (leKey == "NO" ? (bool?)false : null),
+                    OccupiedHoursPerYear = double.TryParse(_occupiedHours?.Text, out double oh) ? oh : 0
                 };
                 RiskResult = LpsEngine.RunRiskAssessment(input);
 
