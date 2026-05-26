@@ -65,19 +65,27 @@
     "BETTER": 0.005,
     "BEST": 0.001
   },
-  "pLD_byShield": {
-    "_ref": "Table B.8 — P_LD, failure of internal systems from a flash TO a connected line (representative by line shielding / bonding / withstand).",
+  "pLD_shieldFactor": {
+    "_ref": "Table B.8 — shielding/bonding column of P_LD (flash TO a line). Multiplied by the U_w withstand reduction below to give P_LD.",
     "UNSHIELDED": 1.0,
     "SHIELDED_BONDED": 0.5,
     "SHIELDED_LOW_R": 0.2,
     "WELL_SHIELDED": 0.1
   },
-  "pLI_byShield": {
-    "_ref": "Table B.9 — P_LI, failure of internal systems from a flash NEAR a connected line (representative).",
+  "pLI_shieldFactor": {
+    "_ref": "Table B.9 — shielding/bonding column of P_LI (flash NEAR a line). Multiplied by the U_w withstand reduction below.",
     "UNSHIELDED": 0.3,
     "SHIELDED_BONDED": 0.15,
     "SHIELDED_LOW_R": 0.06,
     "WELL_SHIELDED": 0.02
+  },
+  "uwReduction": {
+    "_ref": "Table B.8/B.9 — reduction of P_LD/P_LI with the rated impulse withstand voltage U_w (kV) of the equipment. Normalised to 1.0 at U_w = 1 kV (unshielded line, U_w = 2.5 kV → 0.3 reproduces Table B.8). For an intermediate U_w the next lower band is used (conservative).",
+    "1": 1.0,
+    "1.5": 0.6,
+    "2.5": 0.3,
+    "4": 0.16,
+    "6": 0.1
   },
   "pTA": {
     "_ref": "Table B.1 — P_TA, additional protection against touch/step voltage (flash to structure).",
@@ -94,14 +102,18 @@
     "RESTRICTED": 0.0
   },
   "ks": {
-    "_ref": "Annex B.5 — P_MS = (K_S1·K_S2·K_S3·K_S4)². Representative defaults; K_S4 = 1/U_w (U_w in kV).",
-    "ks1_structureShielded": 0.5,
-    "ks1_unshielded": 1.0,
-    "ks2_internalShielded": 0.5,
-    "ks2_none": 1.0,
-    "ks3_shieldedWiring": 0.2,
-    "ks3_unshieldedWiring": 1.0,
-    "defaultUwKv": 1.5
+    "_ref": "Annex B.5 — P_MS = (K_S1·K_S2·K_S3·K_S4)². K_S1 = 0.12·w_m1 (large-scale spatial shield mesh width, m), K_S2 = 0.12·w_m2 (inner-LPZ shield mesh width, m), K_S4 = 1/U_w (U_w in kV). K_S3 from the table below. Each capped at 1.0; no shield ⇒ factor 1.0.",
+    "ks1ks2_perMetre": 0.12,
+    "ks1_fallbackStructureShielded": 0.5,
+    "defaultUwKv": 1.5,
+    "ks3": {
+      "_ref": "Table B.5 — K_S3 by internal-wiring routing / shielding.",
+      "UNSHIELDED_NO_PRECAUTION": 1.0,
+      "UNSHIELDED_LOOP_PRECAUTION": 0.2,
+      "UNSHIELDED_CLOSE_BONDING": 0.02,
+      "SHIELDED_RS_5_20": 0.001,
+      "SHIELDED_RS_LE_5": 0.0001
+    }
   },
 
   "loss": {

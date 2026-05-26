@@ -808,12 +808,25 @@ namespace StingTools.Core.Lightning
         /// MEDIUM_PANIC / HIGH_PANIC / ENV_CONTAMINATION. Empty → resolved from
         /// occupant hazard / building use.</summary>
         public string SpecialHazard { get; set; } = "";
-        /// <summary>Internal wiring routed in a shield/conduit (K_S3, Annex B.5).</summary>
+        /// <summary>Internal wiring routed in a shield/conduit (legacy flag;
+        /// prefer <see cref="WiringType"/> for the full K_S3 table).</summary>
         public bool WiringShielded { get; set; } = false;
-        /// <summary>Structure provides a spatial magnetic shield (K_S1, Annex B.5).</summary>
+        /// <summary>Structure provides a spatial magnetic shield (legacy flag;
+        /// prefer <see cref="SpatialShieldMeshWidthM"/>).</summary>
         public bool StructureShielded { get; set; } = false;
+        /// <summary>Mesh width w_m1 (m) of the large-scale spatial shield
+        /// (LPS grid). K_S1 = 0.12·w_m1 (Annex B.5). 0 ⇒ no shield (K_S1 = 1).</summary>
+        public double SpatialShieldMeshWidthM { get; set; }
+        /// <summary>Mesh width w_m2 (m) of the inner-LPZ shield.
+        /// K_S2 = 0.12·w_m2 (Annex B.5). 0 ⇒ no inner shield (K_S2 = 1).</summary>
+        public double InternalShieldMeshWidthM { get; set; }
+        /// <summary>Internal-wiring routing/shielding key for K_S3 (Table B.5):
+        /// UNSHIELDED_NO_PRECAUTION / UNSHIELDED_LOOP_PRECAUTION /
+        /// UNSHIELDED_CLOSE_BONDING / SHIELDED_RS_5_20 / SHIELDED_RS_LE_5.
+        /// Empty ⇒ derived from <see cref="WiringShielded"/>.</summary>
+        public string WiringType { get; set; } = "";
         /// <summary>Rated impulse withstand voltage of internal systems, kV
-        /// (K_S4 = 1/U_w, Annex B.5). Default 1.5 kV.</summary>
+        /// (K_S4 = 1/U_w, Annex B.5; also reduces P_LD / P_LI). Default 1.5 kV.</summary>
         public double UwKv { get; set; } = 1.5;
         /// <summary>Internal systems endanger life on failure (hospital ICU,
         /// explosion) → L_O contributes to R1. Empty → resolved from use.</summary>
@@ -847,6 +860,12 @@ namespace StingTools.Core.Lightning
     {
         public bool RequiresLps { get; set; }
         public string RecommendedClass { get; set; } = "II";
+        /// <summary>Minimal coordinated SPD protection level (NONE / III-IV /
+        /// II / I / BETTER / BEST) needed — alongside the recommended LPS
+        /// class — to bring every loss type's risk below its tolerable
+        /// threshold. SPDs (not the LPS class) drive the surge-related
+        /// components, so this is what clears the surge-dominated R2 / R4.</summary>
+        public string RecommendedSpdLevel { get; set; } = "NONE";
         public double AnnualStrikeFrequency { get; set; }
         public double CollectionAreaM2 { get; set; }
         public double TolerableRisk { get; set; }

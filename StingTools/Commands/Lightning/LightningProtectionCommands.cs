@@ -1836,7 +1836,7 @@ namespace StingTools.Commands.Lightning
                 RiskResult = LpsEngine.RunRiskAssessment(input);
 
                 var head = (RiskResult.RequiresLps
-                    ? $"LPS REQUIRED — Class {RiskResult.RecommendedClass} recommended.\n"
+                    ? $"LPS REQUIRED — Class {RiskResult.RecommendedClass} + coordinated SPD level {RiskResult.RecommendedSpdLevel} recommended.\n"
                     : "LPS NOT REQUIRED based on risk inputs.\n") + RiskResult.Notes;
 
                 // Append residual risk table (BS EN 62305-2 Table 6).

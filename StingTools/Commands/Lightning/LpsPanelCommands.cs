@@ -85,13 +85,18 @@ namespace StingTools.Commands.Lightning
             // Build a result panel mirroring HVAC's StingResultPanel pattern.
             var rp = StingResultPanel.Create("LPS Risk Assessment (BS EN 62305-2)");
             rp.SetSubtitle(
-                $"Region: {snap.Region}  •  Class header: {snap.LpsClass}  •  Recommended: {result.RecommendedClass ?? "—"}");
+                $"Region: {snap.Region}  •  Class header: {snap.LpsClass}  •  " +
+                $"Recommended: LPS {result.RecommendedClass ?? "—"} + SPD {result.RecommendedSpdLevel ?? "NONE"}");
 
             var s = rp.AddSection("RISK SUMMARY");
             s.Metric("Collection area Ad", $"{result.CollectionAreaM2:F0} m²");
             s.Metric("Annual strikes Nd",  $"{result.AnnualStrikeFrequency:F4} /yr");
             if (result.RequiresLps)
+            {
                 s.MetricError("LPS required?", "YES");
+                s.Metric("Recommended LPS class", result.RecommendedClass ?? "—");
+                s.Metric("Recommended SPD level", result.RecommendedSpdLevel ?? "NONE");
+            }
             else
                 s.MetricHighlight("LPS required?", "NO");
 
