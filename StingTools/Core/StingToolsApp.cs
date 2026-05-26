@@ -1906,13 +1906,12 @@ namespace StingTools.Core
                 ("ExportCenter",         "Export Center", "EX", DrawingColor.DarkSlateBlue, typeof(HubExportCenterCommand).FullName),
                 ("DocWizard",            "Doc Auto",      "DA", DrawingColor.DarkOrchid,   typeof(HubDocAutomationCommand).FullName),
                 ("CreateFolders",        "Folders",       "FD", DrawingColor.SaddleBrown,  typeof(HubFolderManagerCommand).FullName),
-                ("MaterialManager",      "Materials",     "MM", DrawingColor.DarkOliveGreen,typeof(HubMaterialManagerCommand).FullName),
                 ("MaterialHub",          "Mat Hub",       "MH", DrawingColor.DarkSlateBlue, typeof(HubMaterialHubCommand).FullName),
                 ("ClashManager",         "Clash Mgr",     "CM", DrawingColor.IndianRed,    typeof(HubClashManagerCommand).FullName),
                 ("TemplateDashboard",    "Template Mgr",  "TM", DrawingColor.DarkTurquoise,typeof(HubTemplateManagerCommand).FullName),
             };
 
-            var buttons = new List<PushButtonData>(19);
+            var buttons = new List<PushButtonData>(18);
             foreach (var s in specs)
             {
                 var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
@@ -1933,14 +1932,14 @@ namespace StingTools.Core
 
             try
             {
-                panel.AddStackedItems(buttons[0],  buttons[1],  buttons[2]);
-                panel.AddStackedItems(buttons[3],  buttons[4],  buttons[5]);
-                panel.AddStackedItems(buttons[6],  buttons[7],  buttons[8]);
-                panel.AddStackedItems(buttons[9],  buttons[10], buttons[11]);
-                panel.AddStackedItems(buttons[12], buttons[13], buttons[14]);
-                panel.AddStackedItems(buttons[15], buttons[16], buttons[17]);
-                // 19th button (Mat Hub) sits as its own single item.
-                if (buttons.Count > 18) panel.AddItem(buttons[18]);
+                // Stack 3-at-a-time; any 1-2 leftover buttons go as their own
+                // items. Index-agnostic so adding/removing a Hub button can't
+                // throw an out-of-range or leave a button unplaced.
+                int i = 0;
+                for (; i + 3 <= buttons.Count; i += 3)
+                    panel.AddStackedItems(buttons[i], buttons[i + 1], buttons[i + 2]);
+                for (; i < buttons.Count; i++)
+                    panel.AddItem(buttons[i]);
             }
             catch (Exception ex)
             {
