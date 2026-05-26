@@ -460,12 +460,20 @@ namespace StingTools.UI
                 var cmd = new T();
                 string msg = "";
                 var els = new ElementSet();
-                cmd.Execute(null, ref msg, els);
-                StingLog.Info($"ElecRunCommand<{typeof(T).Name}>: done");
+                var result = cmd.Execute(null, ref msg, els);
+                StingLog.Info($"ElecRunCommand<{typeof(T).Name}>: done ({result})");
+                if (result == Result.Failed && !string.IsNullOrEmpty(msg))
+                    TaskDialog.Show("STING Electrical", $"{typeof(T).Name} failed:\n{msg}");
             }
             catch (Exception ex)
             {
                 StingLog.Error($"ElecRunCommand<{typeof(T).Name}>: {ex.Message}", ex);
+                try
+                {
+                    TaskDialog.Show("STING Electrical",
+                        $"Command '{typeof(T).Name}' threw an unexpected error:\n{ex.Message}\n\nCheck StingTools.log for details.");
+                }
+                catch (Exception ex2) { StingLog.Warn($"Suppressed TaskDialog: {ex2.Message}"); }
             }
         }
 
