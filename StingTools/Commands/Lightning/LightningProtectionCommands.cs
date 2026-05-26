@@ -102,7 +102,9 @@ namespace StingTools.Commands.Lightning
                         double zM = LpsEngine.GetConductorLengthM(dc);
                         string mat = ParameterHelpers.GetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT);
                         if (string.IsNullOrWhiteSpace(mat)) mat = "COPPER";
-                        double sMm = LpsEngine.ComputeSeparationDistance(classId, zM, mat, kc);
+                        // km is the insulation medium (air/solid), not the conductor
+                        // metal — externally-routed down conductors default to air.
+                        double sMm = LpsEngine.ComputeSeparationDistance(classId, zM, "AIR", kc);
                         SetDouble(dc, LpsParams.SEPARATION_DISTANCE_MM, sMm);
                         if (string.IsNullOrWhiteSpace(ParameterHelpers.GetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT)))
                             ParameterHelpers.SetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT, mat);
@@ -1073,11 +1075,11 @@ namespace StingTools.Commands.Lightning
                         double sMm = LpsEngine.GetDoubleParam(dc, LpsParams.SEPARATION_DISTANCE_MM);
                         if (sMm <= 0)
                         {
-                            // Compute on the fly from class + length + material + kc
+                            // Compute on the fly from class + length + medium + kc.
+                            // km is the insulation medium (air/solid), not the
+                            // conductor metal — assume air for external routing.
                             double L = LpsEngine.GetConductorLengthM(dc);
-                            string mat = ParameterHelpers.GetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT);
-                            if (string.IsNullOrWhiteSpace(mat)) mat = "COPPER";
-                            sMm = LpsEngine.ComputeSeparationDistance(classId, L, mat, kc);
+                            sMm = LpsEngine.ComputeSeparationDistance(classId, L, "AIR", kc);
                             try
                             {
                                 var p = dc.LookupParameter(LpsParams.SEPARATION_DISTANCE_MM);
@@ -2208,9 +2210,9 @@ namespace StingTools.Commands.Lightning
                     foreach (var dc in conductors)
                     {
                         double L = LpsEngine.GetConductorLengthM(dc);
-                        string mat = ParameterHelpers.GetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT);
-                        if (string.IsNullOrWhiteSpace(mat)) mat = "COPPER";
-                        double sMm = LpsEngine.ComputeSeparationDistance(classId, L, mat, kc);
+                        // km is the insulation medium (air/solid), not the
+                        // conductor metal — assume air for external routing.
+                        double sMm = LpsEngine.ComputeSeparationDistance(classId, L, "AIR", kc);
                         LpsCommandsHelpers.SetDouble(dc, LpsParams.SEPARATION_DISTANCE_MM, sMm);
                         if (sMm > maxSepMm) maxSepMm = sMm;
                         restamped++;

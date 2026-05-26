@@ -3,16 +3,23 @@
 // 3D coverage analyser for the LPS module. Implements the rolling sphere
 // method protection check per BS EN 62305-3 Annex E.4 against the model's
 // roof geometry. For each sample point on each roof, tests whether any
-// air terminal's rolling-sphere zone covers it. Unprotected points are
-// flagged with red DirectShape markers in a dedicated 3D view.
+// air terminal's rolling-sphere protected zone covers it. Unprotected
+// points are flagged with red DirectShape markers in a dedicated 3D view.
 //
-// Geometry: a point P at height zp is single-handedly reachable by air
-// terminal AT at height za if horizontal_distance(P, AT) <= sqrt(2R·H - H²)
-// where H = za - zp and 0 < H < 2R. Cooperative coverage extends this:
-// for every reaching terminal, the apex sphere resting on AT and P from
-// above is computed; if any *other* terminal lies inside that sphere, it
-// physically blocks the rolling sphere from reaching P. P is exposed iff
-// at least one reaching terminal has a clear (unblocked) apex sphere.
+// Geometry: a roof point P is PROTECTED by an air terminal AT when it lies
+// inside AT's down-hanging rolling sphere — the sphere of radius R whose
+// highest point sits at AT's tip. With H = za - zp (0 < H < 2R), the
+// protected horizontal radius at depth H is sqrt(2R·H - H²); a point within
+// that radius of AT cannot be touched by the rolling sphere resting on AT,
+// so it is shielded. P is PROTECTED if any terminal covers it (union of
+// single-terminal protected zones) and EXPOSED otherwise.
+//
+// This is an air-terminal-only model and conservative by design: it credits
+// protection only from air-termination rods — NOT from roof-level mesh
+// conductors, parapets, taller adjacent roof sections, or the ground plane.
+// Gaps between sparse or low rods will read as exposed even where roof-level
+// mesh would protect them. Treat the result as indicative coverage, not a
+// certifiable BS EN 62305-3 check.
 //
 // Roof sampling walks each roof's solid faces, picks top-facing surfaces
 // (face normal Z > 0.5), and emits a uniform UV grid translated to a
@@ -163,12 +170,13 @@ namespace StingTools.Commands.Lightning
                  .MetricError("Exposed",           exposed.Count.ToString("N0"), $"{100 - pct:F1}% of sampled area")
                  .Metric("3D markers placed",      markersPlaced.ToString("N0"));
             panel.AddSection("METHOD")
-                 .Text("Per BS EN 62305-3 §E.4: a point is single-handedly reachable by an air terminal at height H")
-                 .Text("above it when its horizontal distance is ≤ √(2R·H − H²) and 0 < H < 2R. Cooperative coverage:")
-                 .Text("for every reaching terminal, compute the apex sphere of radius R touching AT and P from above")
-                 .Text("(the unique max-z sphere centred in the AT–P vertical plane). If any other terminal lies inside")
-                 .Text("that sphere, it physically blocks the rolling sphere from reaching P. P is exposed iff at least")
-                 .Text("one reaching terminal has a clear (unblocked) apex sphere.")
+                 .Text("Per BS EN 62305-3 §E.4: a roof point P is PROTECTED by an air terminal at height H above it")
+                 .Text("when its horizontal distance is ≤ √(2R·H − H²) with 0 < H < 2R — i.e. P lies inside the")
+                 .Text("terminal's down-hanging rolling sphere. P is protected if any terminal covers it, exposed otherwise.")
+                 .Text("Air-terminal-only model: protection is credited from rods only — NOT from roof-level mesh")
+                 .Text("conductors, parapets, taller adjacent roofs, or the ground. Gaps between sparse / low rods read")
+                 .Text("as exposed even where roof mesh would protect them. Conservative — indicative coverage, not a")
+                 .Text("certifiable check.")
                  .Text($"Grid resolution: {DEFAULT_GRID_M:F1} m. Roof sampling walks each roof's top faces (normal Z>0.5)")
                  .Text("on a UV grid translated to world-space spacing using face area / UV area. Falls back to bbox-top")
                  .Text("when no extractable top face is found.");
@@ -179,69 +187,32 @@ namespace StingTools.Commands.Lightning
         // ── Helpers ──────────────────────────────────────────────────
 
         /// <summary>
-        /// Cooperative protection test. P is protected iff every terminal AT
-        /// that single-handedly could reach P (sqrt(2RH - H²) check) has
-        /// some *other* terminal AT' lying inside the apex rolling sphere
-        /// resting on AT and P from above. The apex sphere is the unique
-        /// position where the sphere of radius R touches AT and P from above
-        /// while sitting in the vertical plane through them. AT' inside that
-        /// sphere physically blocks it from reaching P → AT's reach is
-        /// occluded. If every reaching terminal is blocked, the sphere has
-        /// no path to P and the cooperative geometry shields it.
+        /// Rolling-sphere protection test (BS EN 62305-3 §E.4), air-terminal-only
+        /// model. P is PROTECTED when it lies inside the down-hanging rolling
+        /// sphere of at least one air terminal: with H = Tz − Pz and 0 &lt; H &lt; 2R,
+        /// the protected horizontal radius at depth H is √(2R·H − H²). A point
+        /// within that radius of any terminal cannot be touched by the rolling
+        /// sphere resting on that terminal, so it is shielded. P is EXPOSED when
+        /// no terminal covers it.
+        ///
+        /// This is the union of single-terminal protected zones — conservative
+        /// by design: it credits protection only from air-termination rods, not
+        /// from roof-level mesh conductors, parapets, taller adjacent roof
+        /// sections, or the ground plane. Gaps between sparse / low rods read as
+        /// exposed even where roof-level mesh would protect them. Indicative
+        /// coverage, not a certifiable check.
         /// </summary>
         private static bool IsProtected(XYZ P, IList<XYZ> terminalTops, double Rft)
         {
-            // Phase 1 — collect terminals that could single-handedly reach P.
-            var reaches = new List<XYZ>();
             foreach (var T in terminalTops)
             {
-                double H = T.Z - P.Z;
+                double H = T.Z - P.Z;          // terminal tip above the point
                 if (H <= 0 || H >= 2.0 * Rft) continue;
                 double rMax = Math.Sqrt(2.0 * Rft * H - H * H);
                 double dx = T.X - P.X, dy = T.Y - P.Y;
-                if (Math.Sqrt(dx * dx + dy * dy) <= rMax) reaches.Add(T);
+                if (Math.Sqrt(dx * dx + dy * dy) <= rMax) return true; // inside a protected zone
             }
-            if (reaches.Count == 0) return true;
-
-            // Phase 2 — for each reaching terminal, check pair occlusion.
-            foreach (var T in reaches)
-            {
-                var apex = ApexSphereCenter(T, P, Rft);
-                if (apex == null) continue; // sphere geometrically can't form an apex above both
-                bool blocked = false;
-                foreach (var Tp in terminalTops)
-                {
-                    if (ReferenceEquals(Tp, T)) continue;
-                    if ((apex - Tp).GetLength() < Rft - 1e-6)
-                    {
-                        blocked = true; break;
-                    }
-                }
-                if (!blocked) return false; // unblocked path exists → P is exposed
-            }
-            return true;
-        }
-
-        /// <summary>Apex sphere centre: |C-AT|=|C-P|=R with C in the vertical
-        /// plane through AT-P, max-z solution. Returns null when no such
-        /// sphere can rest on AT and P from above.</summary>
-        private static XYZ ApexSphereCenter(XYZ AT, XYZ P, double R)
-        {
-            var v = P - AT;
-            double d = v.GetLength();
-            if (d < 1e-9 || d > 2 * R) return null;
-            var M = (AT + P) * 0.5;
-            double rc = Math.Sqrt(R * R - (d * 0.5) * (d * 0.5));
-            var vUnit = v / d;
-            // Component of +z perpendicular to v, normalised. If v is purely
-            // vertical, no canonical "above" direction in the locus circle.
-            var n = XYZ.BasisZ - (XYZ.BasisZ.DotProduct(vUnit)) * vUnit;
-            double nLen = n.GetLength();
-            if (nLen < 1e-9) return null;
-            n = n / nLen;
-            var C = M + rc * n;
-            if (C.Z <= AT.Z || C.Z <= P.Z) return null;
-            return C;
+            return false; // no terminal shields P → exposed
         }
 
         private static XYZ GetTopPoint(FamilyInstance fi)
