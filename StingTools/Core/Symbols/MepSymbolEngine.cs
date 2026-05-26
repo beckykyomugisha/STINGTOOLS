@@ -643,6 +643,39 @@ namespace StingTools.Core.Symbols
             return null;
         }
 
+        // ── Shared library root ──────────────────────────────────────────
+
+        /// <summary>
+        /// Resolves an optional firm-wide shared symbol-library root so a single
+        /// build serves every project. The value points directly at the folder
+        /// that holds the generated sub-trees (SLD/IEC, HVAC, Lighting, …) —
+        /// i.e. the equivalent of &lt;project&gt;/_BIM_COORD/Families/Symbols.
+        /// Resolution order:
+        ///   1. STING_SYMBOL_LIB environment variable.
+        ///   2. "symbol_library_root" in %APPDATA%/STING/sting_symbols.json.
+        /// Returns null when not configured (callers fall back to per-project).
+        /// </summary>
+        public static string ResolveSharedLibraryRoot()
+        {
+            try
+            {
+                string env = Environment.GetEnvironmentVariable("STING_SYMBOL_LIB");
+                if (!string.IsNullOrWhiteSpace(env)) return env.Trim();
+
+                string cfg = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "STING", "sting_symbols.json");
+                if (File.Exists(cfg))
+                {
+                    var root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(cfg));
+                    string lib = (string)root["symbol_library_root"];
+                    if (!string.IsNullOrWhiteSpace(lib)) return lib.Trim();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveSharedLibraryRoot: {ex.Message}"); }
+            return null;
+        }
+
         // ── Family loading ───────────────────────────────────────────────
 
         private static FamilySymbol ResolveFamilySymbol(Document doc, MepSymbolEntry entry,
@@ -666,6 +699,20 @@ namespace StingTools.Core.Symbols
                     Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "SLD",     entry.FamilyFile),
                     Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "ISO6412", entry.FamilyFile),
                 };
+
+                // Firm-wide shared library — checked before the per-project folder so a
+                // single build (STING_SYMBOL_LIB) serves every project without re-running.
+                try
+                {
+                    string sharedRoot = ResolveSharedLibraryRoot();
+                    if (!string.IsNullOrEmpty(sharedRoot) && Directory.Exists(sharedRoot))
+                    {
+                        candidateList.Add(Path.Combine(sharedRoot, entry.FamilyFile));
+                        foreach (var sub in Directory.GetDirectories(sharedRoot, "*", SearchOption.AllDirectories))
+                            candidateList.Add(Path.Combine(sub, entry.FamilyFile));
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Shared symbol lib scan: {ex.Message}"); }
 
                 // _BIM_COORD path — where Create All Symbols writes generated .rfa files
                 try
