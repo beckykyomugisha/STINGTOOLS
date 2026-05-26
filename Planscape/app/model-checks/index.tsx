@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { apiFetch } from "@/api/client";
-import { useAuthStore } from "@/stores/authStore";
+import { useProjectStore } from "@/stores/projectStore";
 
 interface ModelCheckRun {
   id: string;
@@ -26,7 +26,7 @@ interface ModelCheckRun {
 
 export default function ModelChecksScreen() {
   const router = useRouter();
-  const projectId = useAuthStore((s) => s.activeProjectId);
+  const projectId = useProjectStore((s) => s.active?.id ?? null);
   const [runs, setRuns] = useState<ModelCheckRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

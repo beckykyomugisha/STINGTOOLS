@@ -21,15 +21,18 @@ export function openHelpDocs(): Promise<unknown> {
 
 /** Compose a support email pre-filled with tenant + device info. */
 export async function openSupportEmail(subject: string = 'Planscape support request'): Promise<unknown> {
-  const tenant = useTenantStore.getState().activeTenant;
+  const ts = useTenantStore.getState();
+  const tenant = ts.memberships.find((m) => m.tenantId === ts.currentTenantId)
+    ?? ts.memberships.find((m) => m.isActiveTenant)
+    ?? ts.memberships[0];
   const body = [
     'Hi Planscape team,',
     '',
     '(describe your issue here)',
     '',
     '— —',
-    `Tenant: ${tenant?.name ?? '(unknown)'}`,
-    `Slug:   ${tenant?.slug ?? '(unknown)'}`,
+    `Tenant: ${tenant?.tenantName ?? '(unknown)'}`,
+    `Slug:   ${tenant?.tenantSlug ?? '(unknown)'}`,
     `Sent from the mobile app at ${new Date().toISOString()}`,
   ].join('\n');
   const url = `mailto:${HELP_SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;

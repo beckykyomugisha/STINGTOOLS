@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { apiFetch } from "@/api/client";
-import { useAuthStore } from "@/stores/authStore";
+import { useProjectStore } from "@/stores/projectStore";
 
 interface ModelCheckFinding {
   id: string;
@@ -38,7 +38,7 @@ const SEV_ORDER = ["CRITICAL", "MAJOR", "MINOR", "INFO"];
 
 export default function ModelCheckRunScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const projectId = useAuthStore((s) => s.activeProjectId);
+  const projectId = useProjectStore((s) => s.active?.id ?? null);
   const [run, setRun] = useState<ModelCheckRunDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

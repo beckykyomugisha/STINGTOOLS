@@ -55,7 +55,7 @@ export function startConnectivityListener(): Unsubscribe {
     // Fire-and-forget — the syncQueue broadcast will update any subscribed UI.
     syncQueue().catch((err) => { console.warn('[OfflineQueue] Drain failed:', err); });
   });
-  return _unsubscribe;
+  return _unsubscribe ?? (() => {});
 }
 
 export function stopConnectivityListener(): void {

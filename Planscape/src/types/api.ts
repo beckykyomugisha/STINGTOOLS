@@ -26,6 +26,7 @@ export interface UserProfile {
   tier: string;
   mimEnabled?: boolean;
   lastLoginAt?: string;
+  tenantName?: string;
 }
 
 export interface Project {
@@ -295,6 +296,10 @@ export interface WarningRecord {
   severity: string;
   description: string;
   elementId?: string;
+  elementCount?: number;
+  autoFixStrategy?: string;
+  firstSeen?: string;
+  discipline?: string;
   createdAt: string;
 }
 

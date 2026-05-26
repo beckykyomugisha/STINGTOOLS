@@ -30,6 +30,22 @@ export const DEFAULT_POLICIES: Record<OfflineAction['type'], ConflictPolicy> = {
   UPDATE_ISSUE:    'merge-fields',   // Coordinators often race on notes/status.
   TRANSITION_CDE:  'server-wins',    // CDE state machine is authoritative.
   ATTACH_PHOTO:    'client-wins',    // On-site photo supersedes desk edit.
+  POST_COMMENT:           'client-wins',   // Comments append; never lose one.
+  PIN_PLACE:              'client-wins',
+  PIN_DELETE:             'client-wins',
+  ADD_MEETING_ACTION:     'client-wins',
+  UPDATE_MEETING_ACTION:  'merge-fields',
+  DIARY_ENTRY:            'client-wins',
+  STAGE_SIGNOFF:          'server-wins',   // Stage gate is authoritative.
+  ATTACH_AUDIO:           'client-wins',
+  ATTACH_MARKUP:          'client-wins',
+  CAPTURE_SITE_PHOTO:     'client-wins',
+  CREATE_DELIVERABLE:     'client-wins',
+  UPDATE_DELIVERABLE:     'merge-fields',
+  TRANSITION_DELIVERABLE: 'server-wins',
+  HC_MGAS_VERIFICATION:   'client-wins',
+  HC_PRESSURE_LOG:        'client-wins',
+  HC_ANTI_LIGATURE_AUDIT: 'client-wins',
 };
 
 export interface ConflictContext {

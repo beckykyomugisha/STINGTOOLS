@@ -1527,6 +1527,8 @@ export interface CaptureSitePhotoArgs {
   fileName: string;
   contentType: string;
   meta: SitePhotoCaptureMeta;
+  /** Optional before/after pairing key so two captures can be linked. */
+  pairKey?: string;
 }
 
 /**
