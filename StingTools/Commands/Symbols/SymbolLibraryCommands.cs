@@ -54,6 +54,24 @@ namespace StingTools.Commands.Symbols
 
         public static string ResolveOutputRoot(Document doc)
         {
+            // Firm-wide shared library takes precedence so one build serves every
+            // project. STING_SYMBOL_LIB (or sting_symbols.json) points directly at
+            // the symbols root; the per-standard sub-folders land beneath it.
+            string shared = MepSymbolEngine.ResolveSharedLibraryRoot();
+            if (!string.IsNullOrEmpty(shared))
+            {
+                try
+                {
+                    Directory.CreateDirectory(shared);
+                    return shared;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Shared symbol root '{shared}' unusable, "
+                        + $"falling back to per-project: {ex.Message}");
+                }
+            }
+
             string baseDir = null;
             try
             {
@@ -117,6 +135,26 @@ namespace StingTools.Commands.Symbols
             return aggregate;
         }
 
+        /// <summary>
+        /// True when a batch built nothing AND the warnings/errors carry the
+        /// "no family template found" signature SymbolLibraryCreator emits when
+        /// the Revit family-template folder can't be resolved (the usual cause of
+        /// empty SLD / Generic Annotation output folders).
+        /// </summary>
+        public static bool LooksLikeMissingTemplate(SymbolCreationResult r)
+        {
+            if (r == null || r.Created > 0) return false;
+            return r.Warnings.Concat(r.Errors).Any(w =>
+                w?.IndexOf("no family template", StringComparison.OrdinalIgnoreCase) >= 0
+             || w?.IndexOf("template found", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        public const string TemplateFixHint =
+              "ACTION — 0 families created: the Revit family TEMPLATE folder is not set.\n"
+            + "  Revit → Options → File Locations → 'Family Template Files' (or 'Default\n"
+            + "  template files') must point at a folder containing the generic-annotation\n"
+            + "  template (e.g. 'Metric Generic Annotation.rft'). Set it, then re-run.";
+
         public static string FormatReport(string title, SymbolCreationResult r)
         {
             var sb = new StringBuilder();
@@ -124,6 +162,11 @@ namespace StingTools.Commands.Symbols
             sb.AppendLine($"  • Created : {r.Created}");
             sb.AppendLine($"  • Existed : {r.Existed}");
             sb.AppendLine($"  • Failed  : {r.Failed}");
+            if (LooksLikeMissingTemplate(r))
+            {
+                sb.AppendLine();
+                sb.AppendLine(TemplateFixHint);
+            }
             if (r.Warnings.Count > 0)
             {
                 sb.AppendLine();
@@ -155,6 +198,7 @@ namespace StingTools.Commands.Symbols
             if (ctx == null) { TaskDialog.Show("STING - Symbol Library", "No document open."); return Result.Failed; }
 
             var aggregate = new SymbolCreationResult();
+            var emptyBatches = new List<string>();
             foreach (var b in SymbolBatchHelper.AllBatches)
             {
                 var r = SymbolBatchHelper.RunBatch(ctx.Doc, b.File, b.Folder);
@@ -163,10 +207,20 @@ namespace StingTools.Commands.Symbols
                 aggregate.Failed  += r.Failed;
                 aggregate.Warnings.AddRange(r.Warnings);
                 aggregate.Errors.AddRange(r.Errors);
+                // Per-batch detection: the aggregate hides a single failed batch when
+                // others succeed, so flag the empty ones by name here.
+                if (SymbolBatchHelper.LooksLikeMissingTemplate(r))
+                    emptyBatches.Add($"{b.Label}  ({b.Folder})");
             }
 
-            TaskDialog.Show("STING - Symbol Library",
-                SymbolBatchHelper.FormatReport("Symbol Library — full build", aggregate));
+            string report = SymbolBatchHelper.FormatReport("Symbol Library — full build", aggregate);
+            if (emptyBatches.Count > 0)
+            {
+                report += "\n\n" + $"{emptyBatches.Count} catalogue(s) produced 0 families:\n"
+                    + string.Join("\n", emptyBatches.Select(x => "  · " + x))
+                    + "\n\n" + SymbolBatchHelper.TemplateFixHint;
+            }
+            TaskDialog.Show("STING - Symbol Library", report);
             return Result.Succeeded;
         }
     }
