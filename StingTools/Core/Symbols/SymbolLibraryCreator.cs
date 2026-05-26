@@ -2223,6 +2223,36 @@ namespace StingTools.Core.Symbols
                 catch (Exception ex) { StingLog.Warn($"ResolveTemplateFile {name}: {ex.Message}"); }
             }
 
+            // Fuzzy fallback — exact names missed. Naming drift is common across
+            // installs (version suffixes, "Metric" prefix variants, extra qualifiers),
+            // so retry with a wildcard derived from each candidate's core descriptor.
+            // Scoped to the same descriptor (e.g. "*Generic Annotation*.rft") so it
+            // can't grab a different template kind.
+            // NOTE: matches English-named templates only — localized (non-English)
+            // Revit installs name the template differently and still need the template
+            // path set; the caller's "0 created" diagnostic covers that case.
+            var fuzzyTried = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var name in candidates)
+            {
+                string core = Path.GetFileNameWithoutExtension(name);
+                if (core.StartsWith("Metric ", StringComparison.OrdinalIgnoreCase))
+                    core = core.Substring("Metric ".Length);
+                if (string.IsNullOrWhiteSpace(core)) continue;
+                string pattern = $"*{core}*.rft";
+                if (!fuzzyTried.Add(pattern)) continue;
+                try
+                {
+                    var hits = Directory.GetFiles(folder, pattern, SearchOption.AllDirectories);
+                    if (hits.Length > 0)
+                    {
+                        StingLog.Info($"ResolveTemplateFile: '{def?.Id}' matched via fuzzy "
+                            + $"'{pattern}' → {Path.GetFileName(hits[0])}");
+                        return hits[0];
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ResolveTemplateFile fuzzy {pattern}: {ex.Message}"); }
+            }
+
             // Not found in primary folder — warn and return null so caller can skip.
             StingLog.Warn($"ResolveTemplateFile: '{def?.Id}' — none of [{string.Join(", ", candidates)}] found under '{folder}'.");
             return null;
