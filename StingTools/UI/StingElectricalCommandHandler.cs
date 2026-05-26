@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.UI;
@@ -48,11 +49,15 @@ namespace StingTools.UI
             = StingTools.Core.SLD.SLDAnnotationOptions.Default;
         public static string CurrentLpdStandard = "ASHRAE_90_1_2019";
         public static double CurrentLpdCustomLimit = 0;
+        // Phase 183: earthing-system selector for the BS 7671 compliance audit.
+        // Drives Ze (utility loop impedance) lookup in BS7671ComplianceEngine.
+        public static string CurrentEarthingSystem = "TN-C-S";
 
         // Snapshot outputs surfaced by Phase 178 commands.
         public static List<StingTools.UI.ConduitFillData> LastConduitFills = new();
         public static List<StingTools.UI.EmergAuditRow> LastEmergAudit = new();
         public static List<StingTools.UI.LpdRow> LastLpdRows = new();
+        public static List<StingTools.Commands.Electrical.Compliance.CircuitAuditResult> LastBs7671Results = new();
 
         private StingElectricalCommandHandler(StingElectricalPanel panel) { _panel = panel; }
 
@@ -102,7 +107,7 @@ namespace StingTools.UI
             catch (Exception ex)
             {
                 StingLog.Error($"ElectricalCommandHandler [{tag}]", ex);
-                try { TaskDialog.Show("STING Electrical", $"Command failed: {ex.Message}"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { TaskDialog.Show("STING Electrical", $"Command failed: {ex.Message}"); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             }
 
             // After every command, push a fresh snapshot so the panel grids stay in sync.
@@ -174,13 +179,14 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.ElecCircuitRenumberCommand>(app); break;
                 case "Circuit_Excel":
                     RunCommand<StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand>(app); break;
-                case "Circuit_Move":
                 case "Circuit_Create":
+                    RunCommand<StingTools.Commands.Electrical.CircuitCreateCommand>(app); break;
                 case "Circuit_Delete":
+                    RunCommand<StingTools.Commands.Electrical.CircuitDeleteCommand>(app); break;
+                case "Circuit_Move":
+                    RunCommand<StingTools.Commands.Electrical.CircuitMoveCommand>(app); break;
                 case "Circuit_Sort":
-                    TaskDialog.Show("STING Electrical",
-                        $"{tag} is planned for Phase 178. Use the panel schedule UI for now.");
-                    break;
+                    RunCommand<StingTools.Commands.Electrical.CircuitSortCommand>(app); break;
 
                 // ── CALCS ────────────────────────────────────────────
                 case "Calc_LoadSummary":
@@ -210,10 +216,13 @@ namespace StingTools.UI
                 case "SLD_SwitchStandard":
                     RunCommand<StingTools.Commands.SLD.SLDSwitchStandardCommand>(app); break;
                 case "SLD_Refresh":
-                    /* fresh snapshot will run after Dispatch */
+                    // The PushSnapshot tail-call rebuilds the SLD tree; this
+                    // case just records the refresh timestamp so the panel
+                    // status bar visibly confirms the request landed.
+                    FlashRefreshed("SLD refreshed");
                     break;
                 case "SLD_Export":
-                    TaskDialog.Show("STING SLD", "SLD export is not yet implemented."); break;
+                    RunCommand<StingTools.Commands.SLD.SLDExportCommand>(app); break;
                 case "SLD_ZoomTo":
                     ZoomToSelectedSld(app, doc);
                     break;
@@ -231,29 +240,61 @@ namespace StingTools.UI
 
                 // ── LITE ─────────────────────────────────────────────
                 case "Lite_Refresh":
-                    /* snapshot picks up lighting refresh */
+                    FlashRefreshed("Lighting refreshed");
                     break;
                 case "Lite_CreateSchedule":
                     RunCommand<StingTools.Commands.Electrical.ElecLightingScheduleCommand>(app); break;
                 case "Lite_UpdateTargets":
-                    /* snapshot picks up targets */
+                    StingTools.Photometrics.LuxTargetTable.InvalidateCache();
+                    FlashRefreshed("Lux targets reloaded");
                     break;
+                case "Elec_ClearOverrides":
+                    ClearActiveViewOverrides(app, doc);
+                    break;
+
+                // ── Phase 183: BS 7671 compliance audit ────────────────
+                case "Bs7671_Audit":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671AuditCommand>(app); break;
+                case "Bs7671_LoopCalcSheet":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671LoopCalcSheetCommand>(app); break;
+                case "Bs7671_Certificate":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671CertificateCommand>(app); break;
+                case "Rprt_CablePullList":
+                    RunCommand<StingTools.Commands.Electrical.Reports.CablePullListCommand>(app); break;
+                case "Rprt_EquipSchedule":
+                    RunCommand<StingTools.Commands.Electrical.Reports.ElectricalEquipmentScheduleCommand>(app); break;
+                case "Calc_LoadDemandAudit":
+                    RunCommand<StingTools.Commands.Electrical.LoadDemand.LoadDemandAuditCommand>(app); break;
+                case "Elec_TccPlot":
+                    RunCommand<StingTools.Commands.Electrical.Coordination.TccPlotCommand>(app); break;
+                case "Elec_ArcFlashBoundary":
+                    RunCommand<StingTools.Commands.Electrical.ArcFlash.ArcFlashBoundaryViewCommand>(app); break;
+                case "Lite_QuickLuxEstimate":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.QuickLuxEstimateCommand>(app); break;
+                case "Lite_ControlZones":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LightingControlZoneCommand>(app); break;
+                case "Bs7671_WorkingClearance":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.WorkingClearanceCommand>(app); break;
+                case "Elec_CarbonRollup":
+                    RunCommand<StingTools.Commands.Electrical.Sustainability.ElectricalCarbonCommand>(app); break;
+                case "Lite_LightingCalcSheet":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LightingCalcSheetCommand>(app); break;
+                case "Lite_LuminaireRegistry":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LuminaireRegistryCommand>(app); break;
+                case "Elec_DrawingLegend":
+                    RunCommand<StingTools.Commands.Electrical.Reports.ElectricalDrawingLegendCommand>(app); break;
 
                 // ── RPRT ─────────────────────────────────────────────
                 case "Rprt_Audit":
                     RunCommand<StingTools.Commands.Panels.PanelScheduleAuditCommand>(app); break;
                 case "Rprt_PDF":
-                    TaskDialog.Show("STING Electrical",
-                        "PDF report generation is queued for Phase 178. Excel export is available now.");
-                    break;
+                    RunCommand<StingTools.Commands.Electrical.Reports.ElecPdfReportCommand>(app); break;
                 case "Rprt_ExcelExport":
                     RunCommand<StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand>(app); break;
                 case "Rprt_ExcelImport":
                     RunCommand<StingTools.Commands.Panels.ImportPanelSchedulesFromExcelCommand>(app); break;
                 case "Rprt_ShowDiff":
-                    TaskDialog.Show("STING Electrical",
-                        "Last import diff is logged in StingTools.log. A dedicated viewer arrives in Phase 178.");
-                    break;
+                    RunCommand<StingTools.Commands.Electrical.Reports.ImportDiffViewerCommand>(app); break;
                 case "Rprt_CircuitExport":
                     RunCommand<StingTools.Commands.Electrical.ExportCircuitsCommand>(app); break;
                 case "Rprt_COBie":
@@ -383,6 +424,26 @@ namespace StingTools.UI
                 case "Placement_MedGasOutlets":
                     RunCommand<StingTools.Commands.Placement.MedGasOutletPlacementCommand>(app); break;
 
+                // ── SLD inline annotations ────────────────────────────────────
+                case "SldAnnotate_All":          RunCommand<StingTools.Commands.Symbols.SldAnnotateAllCommand>(app); break;
+                case "SldAnnotate_Voltage":      RunCommand<StingTools.Commands.Symbols.SldAnnotateVoltageCommand>(app); break;
+                case "SldAnnotate_Current":      RunCommand<StingTools.Commands.Symbols.SldAnnotateCurrentCommand>(app); break;
+                case "SldAnnotate_Fault":        RunCommand<StingTools.Commands.Symbols.SldAnnotateFaultCommand>(app); break;
+                case "SldAnnotate_Cable":        RunCommand<StingTools.Commands.Symbols.SldAnnotateCableCommand>(app); break;
+                case "SldAnnotate_Phase":        RunCommand<StingTools.Commands.Symbols.SldAnnotatePhaseCommand>(app); break;
+                case "SldAnnotate_Load":         RunCommand<StingTools.Commands.Symbols.SldAnnotateLoadCommand>(app); break;
+                case "SldAnnotate_Reference":    RunCommand<StingTools.Commands.Symbols.SldAnnotateReferenceCommand>(app); break;
+                case "SldAnnotate_Impedance":    RunCommand<StingTools.Commands.Symbols.SldAnnotateImpedanceCommand>(app); break;
+                case "SldAnnotate_Diversity":    RunCommand<StingTools.Commands.Symbols.SldAnnotateDiversityCommand>(app); break;
+                case "SldAnnotate_Format":
+                case "SldAnnotate_Format_Compact":
+                case "SldAnnotate_Format_Full":
+                case "SldAnnotate_Format_Reference": RunCommand<StingTools.Commands.Symbols.SldAnnotationFormatCommand>(app); break;
+                case "SldAnnotate_UpdateCalcs":  RunCommand<StingTools.Commands.Symbols.SldUpdateFromCalcsCommand>(app); break;
+                case "SldAnnotate_Toggle":       RunCommand<StingTools.Commands.Symbols.SldAnnotationToggleCommand>(app); break;
+                case "SldAnnotate_Clear":        RunCommand<StingTools.Commands.Symbols.SldAnnotationClearCommand>(app); break;
+                case "SldAnnotate_Audit":        RunCommand<StingTools.Commands.Symbols.SldAnnotationAuditCommand>(app); break;
+
                 default:
                     StingLog.Info($"ElectricalCommandHandler: unknown tag '{tag}'");
                     break;
@@ -506,6 +567,7 @@ namespace StingTools.UI
             try
             {
                 var r = LastCableSizeResult;
+                var input = CurrentCableSizeInput;
                 if (r == null || r.RecommendedCsaMm2 <= 0)
                 {
                     TaskDialog.Show("STING Electrical",
@@ -519,21 +581,89 @@ namespace StingTools.UI
                         "Select an ElectricalSystem or panel circuit before applying.");
                     return;
                 }
-                int updated = 0;
+                int circuits = 0, wireWrites = 0, ratingWrites = 0, stingStamps = 0;
                 using (var tx = new Transaction(doc, "STING Apply Cable Size"))
                 {
                     tx.Start();
                     foreach (var id in sel)
                     {
                         if (!(doc.GetElement(id) is ElectricalSystem sys)) continue;
-                        var p = sys.LookupParameter("Wire Size");
-                        if (p == null) continue;
-                        try { p.Set(r.CsaLabel); updated++; }
-                        catch (Exception ex) { StingLog.Warn($"Apply wire size on system {id}: {ex.Message}"); }
+                        circuits++;
+
+                        // 1. Native wire size — prefer the BuiltInParameter (locale-safe).
+                        try
+                        {
+                            var p = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)
+                                  ?? sys.LookupParameter("Wire Size");
+                            if (p != null && !p.IsReadOnly)
+                            {
+                                p.Set(r.CsaLabel);
+                                wireWrites++;
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Wire size on system {id}: {ex.Message}"); }
+
+                        // 2. Native breaker rating (amperes, stored as double). Matches the
+                        // pattern used by BreakerSizerCommand so the apply path is consistent.
+                        if (r.ProposedBreakerA > 0)
+                        {
+                            try
+                            {
+                                var p = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM);
+                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
+                                {
+                                    p.Set((double)r.ProposedBreakerA);
+                                    ratingWrites++;
+                                }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Breaker rating on system {id}: {ex.Message}"); }
+                        }
+
+                        // 3. STING shared-param stamps so the calc result is visible to
+                        // schedules / BOQ / paragraph builders without re-reading the
+                        // native param. All param names below already exist in
+                        // MR_PARAMETERS.txt — direct literals because ParamRegistry only
+                        // exposes a subset of them as constants.
+                        try
+                        {
+                            ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_CSA_MM2,
+                                $"{r.RecommendedCsaMm2:0.#}", overwrite: true);
+                            ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_VD_PCT,
+                                $"{r.ActualVoltDropPct:0.00}", overwrite: true);
+                            if (r.ProposedBreakerA > 0)
+                                ParameterHelpers.SetString(sys, "ELC_CKT_BRK_RATING_A",
+                                    $"{r.ProposedBreakerA}", overwrite: true);
+                            if (r.DesignCurrentA > 0)
+                                ParameterHelpers.SetString(sys, "ELC_CBL_AMPACITY_A",
+                                    $"{r.DesignCurrentA:0.0}", overwrite: true);
+                            if (input != null)
+                            {
+                                if (!string.IsNullOrEmpty(input.InstallMethod))
+                                    ParameterHelpers.SetString(sys, "ELC_CBL_INSTALL_METHOD_TXT",
+                                        input.InstallMethod, overwrite: true);
+                                if (!string.IsNullOrEmpty(input.Insulation))
+                                    ParameterHelpers.SetString(sys, "ELC_CBL_INS_TYPE_TXT",
+                                        input.Insulation, overwrite: true);
+                                if (input.LengthM > 0)
+                                    ParameterHelpers.SetString(sys, "ELC_CKT_LENGTH_M",
+                                        $"{input.LengthM:0.0}", overwrite: true);
+                            }
+                            stingStamps++;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"STING stamps on system {id}: {ex.Message}"); }
                     }
                     tx.Commit();
                 }
-                TaskDialog.Show("STING Electrical", $"Applied {r.CsaLabel} to {updated} circuit(s).");
+                try { StingTools.Core.ComplianceScan.InvalidateCache(); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+
+                TaskDialog.Show("STING Electrical",
+                    $"Cable size applied to {circuits} circuit(s).\n\n" +
+                    $"• Wire size written: {wireWrites}\n" +
+                    $"• Breaker rating written: {ratingWrites}\n" +
+                    $"• STING params stamped: {stingStamps}\n\n" +
+                    $"Recommendation: {r.CsaLabel} @ {r.ProposedBreakerA}A " +
+                    $"(VD {r.ActualVoltDropPct:0.00}%)");
             }
             catch (Exception ex) { StingLog.Warn($"ApplyCableSize: {ex.Message}"); }
         }
@@ -610,6 +740,37 @@ namespace StingTools.UI
             // hint so the button on the dock panel is discoverable.
             TaskDialog.Show("STING Circuit Wizard",
                 "Click 'Launch Wizard' to open the modal proposer / editor.");
+        }
+
+        private void FlashRefreshed(string message)
+        {
+            try { _panel?.UpdateStatus($"{message}  ·  {DateTime.Now:HH:mm:ss}"); } catch { }
+        }
+
+        // Clear graphic overrides applied by ArcFlash / LPD / EmergAudit /
+        // PhotometricDesignReview — those commands tint elements red/amber/green
+        // and leave the colour stuck on the active view. One-shot reset.
+        private void ClearActiveViewOverrides(UIApplication app, Document doc)
+        {
+            if (doc == null) return;
+            var view = app?.ActiveUIDocument?.ActiveView;
+            if (view == null || view.IsTemplate) return;
+            try
+            {
+                using var tx = new Transaction(doc, "STING Clear Electrical Overrides");
+                tx.Start();
+                var blank = new OverrideGraphicSettings();
+                int n = 0;
+                foreach (var id in new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .ToElementIds())
+                {
+                    try { view.SetElementOverrides(id, blank); n++; } catch { }
+                }
+                tx.Commit();
+                FlashRefreshed($"Cleared overrides on {n} elements");
+            }
+            catch (Exception ex) { StingLog.Warn($"ClearActiveViewOverrides: {ex.Message}"); }
         }
 
         public void RefreshWireRefTable(StingElectricalPanel panel)

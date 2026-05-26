@@ -111,14 +111,17 @@ public class DemoSandboxJob
     {
         // Cascade-delete order matters: child rows first, then the project,
         // then leaf tenant-scoped rows (users, models without project).
-        await _db.Database.ExecuteSqlRawAsync($@"
-            DELETE FROM ""Issues""              WHERE ""TenantId"" = '{DemoTenantId}';
-            DELETE FROM ""TaggedElements""      WHERE ""TenantId"" = '{DemoTenantId}';
-            DELETE FROM ""ProjectModels""       WHERE ""TenantId"" = '{DemoTenantId}';
-            DELETE FROM ""ProjectMembers""      WHERE ""TenantId"" = '{DemoTenantId}';
-            DELETE FROM ""ComplianceSnapshots"" WHERE ""TenantId"" = '{DemoTenantId}';
-            DELETE FROM ""Projects""            WHERE ""TenantId"" = '{DemoTenantId}';
-            DELETE FROM ""Users""               WHERE ""TenantId"" = '{DemoTenantId}';
+        // DemoTenantId is a hard-coded constant in this file (not user input),
+        // but we parameterise anyway to silence EF1002 and stay safe under refactor.
+        await _db.Database.ExecuteSqlInterpolatedAsync($@"
+            DELETE FROM ""Issues""              WHERE ""TenantId"" = {DemoTenantId};
+            DELETE FROM ""TaggedElements""      WHERE ""TenantId"" = {DemoTenantId};
+            DELETE FROM ""ProjectModels""       WHERE ""TenantId"" = {DemoTenantId};
+            DELETE FROM ""ProjectMembers""      WHERE ""TenantId"" = {DemoTenantId};
+            DELETE FROM ""ComplianceSnapshots"" WHERE ""TenantId"" = {DemoTenantId};
+            DELETE FROM ""Projects""            WHERE ""TenantId"" = {DemoTenantId};
+            DELETE FROM ""Users""               WHERE ""TenantId"" = {DemoTenantId};
         ", ct);
+#pragma warning restore EF1002
     }
 }

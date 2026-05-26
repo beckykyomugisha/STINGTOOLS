@@ -44,8 +44,11 @@ namespace StingTools.Core.Fabrication
         public const string SHIP_DATE_TXT           = "ASS_SHIP_DATE_TXT";
         public const string SHIP_DATE_TXT_GUID      = "c2fc8e62-b793-517c-94c6-d2d7ae7584fe";
 
-        public const string INSTALL_DATE_TXT        = "ASS_INSTALL_DATE_TXT";
-        public const string INSTALL_DATE_TXT_GUID   = "953575a9-1d0c-5bb5-a4d2-c52b4b4adf96";
+        // Migrated to canonical ASS_INSTALLATION_DATE_TXT (GROUP 1, GUID cfc716aa).
+        // The v4 fabrication alias 953575a9 is retained in MR_PARAMETERS.txt for
+        // backwards compat but marked DEPRECATED.
+        public const string INSTALL_DATE_TXT        = "ASS_INSTALLATION_DATE_TXT";
+        public const string INSTALL_DATE_TXT_GUID   = "cfc716aa-126d-5e9e-a9e8-3c2a2b52d933";
 
         public const string BOM_REV_TXT             = "ASS_BOM_REV_TXT";
         public const string BOM_REV_TXT_GUID        = "0293f487-2ca9-5514-9b18-ac98b1a20b27";
@@ -114,6 +117,12 @@ namespace StingTools.Core.Fabrication
         public const string BOND_TYPE_TXT               = "ELC_LPS_BOND_TYPE_TXT";
         public const string BOND_TYPE_TXT_GUID          = "1cb4c3d3-8c12-5be3-9eeb-4072b4be3240";
 
+        public const string FROM_LPZ_TXT                = "ELC_LPS_FROM_LPZ_TXT";
+        public const string FROM_LPZ_TXT_GUID           = "e1c5f9d4-1010-5111-9111-100000000010";
+
+        public const string TO_LPZ_TXT                  = "ELC_LPS_TO_LPZ_TXT";
+        public const string TO_LPZ_TXT_GUID             = "e1c5f9d4-1011-5111-9111-100000000011";
+
         public const string PROTECTION_ANGLE_DEG        = "ELC_LPS_PROTECTION_ANGLE_DEG";
         public const string PROTECTION_ANGLE_DEG_GUID   = "0063477e-cda5-58a3-a802-061838e57a47";
 
@@ -143,6 +152,50 @@ namespace StingTools.Core.Fabrication
 
         public const string CERT_REF_TXT                = "ELC_LPS_CERT_REF_TXT";
         public const string CERT_REF_TXT_GUID           = "0a8dbcfb-6f73-5c8c-94eb-b72606feae87";
+
+        // ── Additional LPS parameters referenced by LightningProtectionCommands ──
+
+        /// <summary>Project-level override for N_g (lightning flash density, flashes/km²/yr).</summary>
+        public const string PROJECT_NG_OVERRIDE_NR      = "ELC_LPS_PROJECT_NG_OVERRIDE_NR";
+        public const string PROJECT_NG_OVERRIDE_NR_GUID = "b1c2d3e4-f5a6-5b7c-8d9e-0a1b2c3d4e5f";
+
+        /// <summary>Kc separation-distance factor (BS EN 62305-3 §6.3).</summary>
+        public const string KC_FACTOR_NR                = "ELC_LPS_KC_FACTOR_NR";
+        public const string KC_FACTOR_NR_GUID           = "c2d3e4f5-a6b7-5c8d-9e0a-1b2c3d4e5f60";
+
+        /// <summary>Conductor material for down conductors (e.g. "CU", "AL", "HOT_DIP_GALV").</summary>
+        public const string CONDUCTOR_MATERIAL_TXT      = "ELC_LPS_CONDUCTOR_MATERIAL_TXT";
+        public const string CONDUCTOR_MATERIAL_TXT_GUID = "d3e4f5a6-b7c8-5d9e-0a1b-2c3d4e5f6071";
+
+        /// <summary>Element type classification for air terminals / down conductors (e.g. "AIR_TERMINAL", "DOWN_CONDUCTOR").</summary>
+        public const string ELEMENT_TYPE_TXT            = "ELC_LPS_ELEMENT_TYPE_TXT";
+        public const string ELEMENT_TYPE_TXT_GUID       = "e4f5a6b7-c8d9-5e0a-1b2c-3d4e5f607182";
+
+        /// <summary>Compliance verdict written by LPS audit commands (e.g. "EARTH OK", "EARTH FAIL — 12.3 ohm").</summary>
+        public const string COMPLIANCE_STATUS_TXT       = "ELC_LPS_COMPLIANCE_STATUS_TXT";
+        public const string COMPLIANCE_STATUS_TXT_GUID  = "f5a6b7c8-d9e0-5a1b-2c3d-4e5f60718293";
+
+        // ── Per-element tag containers (one full ISO 19650 tag per LPS sub-type) ──
+        // Wave 1 alignment — surface the *_TAG_TXT params the schedule
+        // and SLD overlay consume so callers can use a constant rather
+        // than a magic string.
+        public const string AIRTERM_TAG_TXT             = "ELC_LPS_AIRTERM_TAG_TXT";
+        public const string AIRTERM_TAG_TXT_GUID        = "e1c5f9d4-1001-5111-9111-100000000001";
+
+        public const string DOWNCOND_TAG_TXT            = "ELC_LPS_DOWNCOND_TAG_TXT";
+        public const string DOWNCOND_TAG_TXT_GUID       = "e1c5f9d4-1002-5111-9111-100000000002";
+
+        public const string EARTH_TAG_TXT               = "ELC_LPS_EARTH_TAG_TXT";
+        public const string EARTH_TAG_TXT_GUID          = "e1c5f9d4-1003-5111-9111-100000000003";
+
+        public const string BOND_TAG_TXT                = "ELC_LPS_BOND_TAG_TXT";
+        public const string BOND_TAG_TXT_GUID           = "e1c5f9d4-1004-5111-9111-100000000004";
+
+        public const string SPD_TAG_TXT                 = "ELC_LPS_SPD_TAG_TXT";
+        public const string SPD_TAG_TXT_GUID            = "e1c5f9d4-1005-5111-9111-100000000005";
+
+        public const string TESTCLAMP_TAG_TXT           = "ELC_LPS_TESTCLAMP_TAG_TXT";
+        public const string TESTCLAMP_TAG_TXT_GUID      = "e1c5f9d4-1006-5111-9111-100000000006";
     }
 
     /// <summary>

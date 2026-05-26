@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.4,CREATED=2026-03-16,UPDATED=2026-04-23,FAMILIES=142,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries),VARIANT=DesignConstruction
+#SCHEMA_VERSION=5.6,CREATED=2026-03-16,UPDATED=2026-05-20,FAMILIES=34,DISCIPLINE=GEN,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.12(204_categories)+PARAMETER_REGISTRY.json_phase187(3163_params)+TagFamilyConfig.TotalFamilyCount=204,VARIANT=DesignConstruction
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -227,7 +227,7 @@ TAG STYLE PARAMETER CATALOG (v5.3) — Type parameters injected into every famil
 
 STING Tag Configuration v5.0 - GEN (COMPLETE with Warnings)
 6E — Generic / Site / Specialty
-Tag Family #1: STING - Generic Models Tag
+Tag Family #1: STING - Generic Model Tag
 TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Generic Models
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
@@ -260,6 +260,9 @@ TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Generic Models
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_GEN_TAG_INCOMPLETE_TXT,Primary tag ASS_TAG_1_TXT empty,ISO 19650-2,Common,Text,⚠ Warning: Tag Incomplete,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_TAG_INCOMPLETE_TXT, """")"
@@ -300,6 +303,9 @@ TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Specialty Equipment
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_GEN_SPEC_EQUIP_NO_SYS,ASS_SYSTEM_TYPE_TXT empty — system not assigned,ISO 19650-2 / CIBSE,Common,Text,⚠ Warning: No System Assigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_SYS, """")"
@@ -339,6 +345,9 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Site
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SITE_LOC_MISSING,ASS_LOC_TXT empty — location not defined,ISO 19650-2,Common,Text,⚠ Warning: Site Location Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_LOC_MISSING, """")"
@@ -377,6 +386,9 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Planting
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SITE_PLANTING_SPEC_MISSING,GEN_SPECIES_TXT empty — plant species not specified,Landscape Specification,Common,Text,⚠ Warning: Species Not Specified,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_PLANTING_SPEC_MISSING, """")"
@@ -413,6 +425,9 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Hardscape
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SITE_HARDSCAPE_SPEC_MISSING,BLE_WALL_EXTERIOR_FINISH_TXT empty — surface finish not specified,Landscape Specification,Common,Text,⚠ Warning: Surface Finish Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_HARDSCAPE_SPEC_MISSING, """")"
@@ -449,6 +464,9 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Roads
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SITE_ROAD_SPEC_MISSING,GEN_ROAD_TYPE_TXT empty — road classification not specified,Highway Standards,Common,Text,⚠ Warning: Road Type Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_ROAD_SPEC_MISSING, """")"
@@ -485,6 +503,9 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Pads
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_SITE_PAD_BEARING_MISSING,STR_BEARING_CAPACITY_KN_M2 empty — bearing capacity not specified,BS EN 1997-1 / EC7,Common,Text,⚠ Warning: Bearing Capacity Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_PAD_BEARING_MISSING, """")"
@@ -520,6 +541,9 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Toposolid
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SITE_TOPOSOLID_MATERIAL_MISSING,BLE_MAT_ELEM_TYPE_TXT empty — ground material not defined,Ground Investigation Report,Common,Text,⚠ Warning: Ground Material Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_TOPOSOLID_MATERIAL_MISSING, """")"
@@ -549,6 +573,9 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Parts
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_GEN_PARTS_HOST_MISSING,Part host element tag missing — host not tagged,ISO 19650-2,Common,Text,⚠ Warning: Host Element Not Tagged,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_PARTS_HOST_MISSING, """")"
@@ -579,6 +606,9 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Assemblies
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_GEN_ASSEMBLY_CODE_MISSING,ASS_PRODCT_COD_TXT empty — assembly code not assigned,ISO 19650-2,Common,Text,⚠ Warning: Assembly Code Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_ASSEMBLY_CODE_MISSING, """")"
@@ -612,6 +642,9 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Detail Items
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,LOW,WARN_ARCH_DETAIL_CODE_MISSING,ASS_TAG_1_TXT empty — detail reference not tagged,ISO 19650-2 / Drawing Standards,Common,Text,⚠ Warning: Detail Reference Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_ARCH_DETAIL_CODE_MISSING, """")"
@@ -645,6 +678,9 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Profiles
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,LOW,WARN_GEN_PROFILE_DIM_MISSING,Profile dimensional parameters not populated,Drawing Standards,Common,Text,⚠ Warning: Profile Dimensions Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_PROFILE_DIM_MISSING, """")"
@@ -692,6 +728,9 @@ TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_GEN_MATERIAL_SPEC_MISSING,MAT_MANUFACTURER empty — material source not specified,Procurement Standards,Common,Text,⚠ Warning: Material Source Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_MATERIAL_SPEC_MISSING, """")"
@@ -726,6 +765,9 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Point Loads
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_PT,STR_LOAD_CASE_TXT empty — load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_PT, """")"
@@ -756,6 +798,9 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Line Loads
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_LN,STR_LOAD_CASE_TXT empty — load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_LN, """")"
@@ -786,6 +831,9 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Area Loads
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_AR,STR_LOAD_CASE_TXT empty — load case not specified,BS EN 1991-1-1 / EC1,Common,Text,⚠ Warning: Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_AR, """")"
@@ -816,6 +864,9 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Point Loads
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_PT,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_PT, """")"
@@ -846,6 +897,9 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Line Loads
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_LN,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_LN, """")"
@@ -876,6 +930,9 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Area Loads
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_AR,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1991-1-1 / EC1,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_AR, """")"
@@ -907,6 +964,9 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Members
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_ANLYT_NO_HOST,Analytical member has no physical host element,BS EN 1992-1-1 / BS EN 1993-1-1,Common,Text,⚠ Warning: No Physical Host,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_NO_HOST, """")"
@@ -935,6 +995,9 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Nodes
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_STR_ANLYT_NODE_UNCONNECTED,Analytical node not connected to any member,BS EN 1992-1-1 / Structural Analysis,Common,Text,⚠ Warning: Unconnected Node,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_NODE_UNCONNECTED, """")"
@@ -964,6 +1027,9 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Panels
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_ANLYT_PANEL_MATERIAL,STR_MATERIAL_GRADE_TXT empty — panel material grade not assigned,BS EN 1992-1-1 / BS EN 1993-1-1,Common,Text,⚠ Warning: Panel Material Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_PANEL_MATERIAL, """")"
@@ -992,6 +1058,9 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Openings
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_ANLYT_OPENING_OVERSIZED,Analytical opening exceeds structural limits,BS EN 1992-1-1 / EC2,Common,Text,⚠ Warning: Opening May Be Oversized,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_OPENING_OVERSIZED, """")"
@@ -1020,6 +1089,9 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Links
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_STR_ANLYT_LINK_RIGIDITY,Analytical link rigidity not defined — defaults to rigid,BS EN 1992-1-1 / Structural Analysis,Common,Text,⚠ Warning: Link Rigidity Undefined,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_LINK_RIGIDITY, """")"
@@ -1049,6 +1121,9 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Model Groups
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_GEN_GROUP_EXCLUDED_MEMBERS,Model group contains excluded members not in BIM scope,BIM Execution Plan / ISO 19650,Common,Text,⚠ Warning: Excluded Members in Group,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_GROUP_EXCLUDED_MEMBERS, """")"
@@ -1077,6 +1152,9 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: RVT Links
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_GEN_LINK_NOT_LOADED,RVT Link file not loaded or path broken,Revit Collaboration / ISO 19650,Common,Text,⚠ Warning: Link Not Loaded,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_LINK_NOT_LOADED, """")"
@@ -1106,6 +1184,9 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Property Lines
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_SITE_PROPERTY_AREA_MISSING,RGL_PLOT_AREA_SQ_M not set — plot area not defined,Land Registry / Boundary Survey,Common,Text,⚠ Warning: Property Area Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_PROPERTY_AREA_MISSING, """")"
@@ -1134,6 +1215,9 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Property Line Segments
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SITE_PROPERTY_BEARING_MISSING,Bearing and distance not defined for segment,Land Registry / Boundary Survey Standards,Common,Text,⚠ Warning: Bearing/Distance Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_PROPERTY_BEARING_MISSING, """")"
@@ -1171,6 +1255,9 @@ TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Bolt
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_BOLT_GRADE_MISSING,STR_BOLT_GRADE_TXT empty — bolt grade not specified,BS EN 14399 / BS 4190,Common,Text,⚠ Warning: Bolt Grade Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BOLT_GRADE_MISSING, """")"
@@ -1199,6 +1286,9 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Toposolid Links
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SITE_TOPOSOLID_LINK_MISSING,Toposolid link target not found or unresolved,Revit 2024+ Toposolid API,Common,Text,⚠ Warning: Toposolid Link Unresolved,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_TOPOSOLID_LINK_MISSING, """")"
@@ -1236,6 +1326,9 @@ TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Weld
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_WELD_SPEC_MISSING,STR_WELD_TYPE_TXT empty — weld specification not defined,BS EN ISO 5817 / AWS D1.1,Common,Text,⚠ Warning: Weld Spec Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WELD_SPEC_MISSING, """")"
@@ -1273,6 +1366,9 @@ TAG7: ELC_TAG_7_PARA_CIRC_TXT  •  Category: Wire
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_ELC_WIRE_AMPACITY_MISSING,ELC_WIRE_SIZE_TXT empty — wire ampacity not specified,BS 7671 / IEE Wiring Regs 18th Ed,Common,Text,⚠ Warning: Wire Ampacity Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_WIRE_AMPACITY_MISSING, """")"
@@ -1292,6 +1388,9 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets (ViewSheet)
 1,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
 2,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
 3,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+4,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+5,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_SHT_DISC_MISSING,SHT_DISC_TXT empty — sheet discipline not derived from viewport contents,ISO 19650-2 Clause 11.2,Common,Text,⚠ Warning: Sheet Discipline Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_DISC_MISSING, """")"
@@ -1300,3 +1399,26 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets (ViewSheet)
 
 # CROSS-REFERENCE: Generic Models with PROD=SLV (MEP Sleeves/Penetrations) use the MEP Sleeve Tag defined in STING_TAG_CONFIG_v5_0_MEP.csv
 # Category: Generic Models | FUNC: PEN | Disciplines: M, E, P, FP | Standard: BS EN 1366-3
+
+Tag Family #34: STING - LPS Generic Component Tag
+# Category: Generic Models, Specialty Equipment, Detail Items | PROD: family-resolved | SYS: LPS | FUNC: AT/DC/EE/BOND/SPD/TC | DISC: E
+# Catch-all for lightning protection elements modelled as Generic Models / Specialty Equipment / Detail Items.
+# DC variant — same content as Handover/FM (tier 1-2 + warnings only; no T4-T10 expansion).
+# CROSS-REFERENCE: 6 specialised LPS tag families live in STING_TAG_CONFIG_v5_0_MEP_DesignConstruction.csv (#54-#59).
+# CROSS-DISCIPLINE REUSE: STR Tag #22 (Foundation Earth — rebar reuse), ARCH Tag #36 (Natural Air Termination).
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Generic Models / Specialty Equipment
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_CLASS_TXT,Class:,,0,✓,Common,Text,LPS Class,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CLASS_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_ZONE_TXT,LPZ:,,0,✓,Common,Text,Lightning Zone,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_COMPLIANCE_STATUS_TXT,,,0,✓,Common,Text,LPS Compliance Status (PASS/WARN/FAIL),"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_COMPLIANCE_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_ELC_LPS_NO_CLASS,LPS class missing — set I/II/III/IV per BS EN 62305-2 risk assessment,BS EN 62305-1:2011 §8,Common,Text,⚠ Warning: No LPS Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, """")"
+2,MEDIUM,WARN_ELC_LPS_NO_ZONE,Lightning protection zone (LPZ) not assigned,BS EN 62305-4:2011 §4.1,Common,Text,⚠ Warning: No LPZ Assigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_ZONE, """")"

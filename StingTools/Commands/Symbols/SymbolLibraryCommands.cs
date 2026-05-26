@@ -21,6 +21,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Symbols;
+using Newtonsoft.Json;
 
 namespace StingTools.Commands.Symbols
 {
@@ -28,17 +29,27 @@ namespace StingTools.Commands.Symbols
     {
         public static readonly (string File, string Folder, string Label)[] AllBatches = new[]
         {
-            ("STING_SLD_SYMBOLS.json",       "SLD/IEC",    "Single Line Diagram (IEC 60617)"),
-            ("STING_SLD_SYMBOLS_IEEE.json",  "SLD/IEEE",   "Single Line Diagram (IEEE 315)"),
-            ("STING_SLD_SYMBOLS_BS.json",    "SLD/BS",     "Single Line Diagram (BS EN 60617)"),
-            ("STING_SLD_SYMBOLS_NFPA.json",  "SLD/NFPA",   "Single Line Diagram (NFPA 70)"),
-            ("STING_SLD_SYMBOLS_CIBSE.json", "SLD/CIBSE",  "Building Services (CIBSE)"),
-            ("STING_LIGHTING_SYMBOLS.json",  "Lighting",   "Lighting"),
-            ("STING_FP_SYMBOLS.json",        "FireProt",   "Fire Protection"),
-            ("STING_MEP_SYMBOLS.json",       "HVAC",       "HVAC / Mechanical"),
-            ("STING_ELEC_SYMBOLS.json",      "Electrical", "Electrical Devices"),
-            ("STING_PLUMBING_SYMBOLS.json",  "Plumbing",   "Plumbing"),
-            ("STING_PIPE_ACCESSORIES.json",  "PipeAcc",    "Pipe Accessories"),
+            ("STING_SLD_SYMBOLS.json",             "SLD/IEC",    "Single Line Diagram (IEC 60617)"),
+            ("STING_SLD_SYMBOLS_IEEE.json",        "SLD/IEEE",   "Single Line Diagram (IEEE 315)"),
+            ("STING_SLD_SYMBOLS_BS.json",          "SLD/BS",     "Single Line Diagram (BS EN 60617)"),
+            ("STING_SLD_SYMBOLS_NFPA.json",        "SLD/NFPA",   "Single Line Diagram (NFPA 70)"),
+            ("STING_SLD_SYMBOLS_CIBSE.json",       "SLD/CIBSE",  "Building Services (CIBSE)"),
+            ("STING_LIGHTING_SYMBOLS.json",        "Lighting",   "Lighting"),
+            ("STING_FP_SYMBOLS.json",              "FireProt",   "Fire Protection"),
+            ("STING_MEP_SYMBOLS.json",             "HVAC",       "HVAC / Mechanical"),
+            ("STING_ELEC_SYMBOLS.json",            "Electrical", "Electrical Devices"),
+            ("STING_PLUMBING_SYMBOLS.json",        "Plumbing",   "Plumbing"),
+            ("STING_PIPE_ACCESSORIES.json",        "PipeAcc",    "Pipe Accessories"),
+            ("STING_ISO6412_SYMBOLS.json",         "ISO6412",    "ISO 6412 Piping/Duct/Conduit Spool Symbols"),
+            // ── Phase 188: 8 new corporate-baseline catalogues ────────────────
+            ("STING_WIRE_ANNOTATIONS.json",        "Wire",       "Wire / Cable Annotations (BS EN 60617-2)"),
+            ("STING_EARTHING_SYMBOLS.json",        "Earth",      "Earthing & Bonding (BS 7430, BS EN 62305)"),
+            ("STING_BMS_SYMBOLS.json",             "BMS",        "BMS / DDC Controls (CIBSE Guide H)"),
+            ("STING_TELECOM_SYMBOLS.json",         "Telecom",    "Telecom / Voice / Data / AV (BS EN 50173)"),
+            ("STING_STRUCTURAL_ANNOTATIONS.json",  "Struct",     "Structural Annotations (BS 8666, ISO 2553)"),
+            ("STING_SAFETY_SYMBOLS.json",          "Safety",     "Safety Pictograms (ISO 7010)"),
+            ("STING_GAS_SYMBOLS.json",             "Gas",        "Natural Gas / LPG (IGEM TD/4, BS 6891)"),
+            ("STING_DRAINAGE_ABOVE.json",          "DrainAbove", "Above-Ground Drainage (BS EN 12056)"),
         };
 
         public static string ResolveOutputRoot(Document doc)
@@ -59,7 +70,25 @@ namespace StingTools.Commands.Symbols
             return outDir;
         }
 
-        public static SymbolCreationResult RunBatch(Document doc, string jsonName, string subFolder)
+        /// <summary>
+        /// Returns the path to the project-level symbol_size_config.json.
+        /// File is at &lt;project&gt;/_BIM_COORD/symbol_size_config.json.
+        /// </summary>
+        public static string ResolveSizeConfigPath(Document doc)
+        {
+            string baseDir = null;
+            try
+            {
+                if (!string.IsNullOrEmpty(doc.PathName))
+                    baseDir = Path.GetDirectoryName(doc.PathName);
+            }
+            catch { }
+            if (string.IsNullOrEmpty(baseDir)) return null;
+            return Path.Combine(baseDir, "_BIM_COORD", "symbol_size_config.json");
+        }
+
+        public static SymbolCreationResult RunBatch(Document doc, string jsonName, string subFolder,
+            SymbolSizeConfig sizeConfig = null)
         {
             var aggregate = new SymbolCreationResult();
             string jsonPath = StingToolsApp.FindDataFile(jsonName);
@@ -73,7 +102,12 @@ namespace StingTools.Commands.Symbols
             string outFolder = Path.Combine(outRoot, subFolder);
             Directory.CreateDirectory(outFolder);
 
-            var r = SymbolLibraryCreator.CreateAllFromFile(doc, jsonPath, outFolder, loadIntoProject: true);
+            // Load project-level size config if caller didn't supply one.
+            if (sizeConfig == null)
+                sizeConfig = SymbolSizeConfig.LoadOrDefault(ResolveSizeConfigPath(doc));
+
+            var r = SymbolLibraryCreator.CreateAllFromFile(doc, jsonPath, outFolder,
+                loadIntoProject: true, sizeConfig: sizeConfig);
             aggregate.Created += r.Created;
             aggregate.Existed += r.Existed;
             aggregate.Failed  += r.Failed;
@@ -244,6 +278,10 @@ namespace StingTools.Commands.Symbols
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
+
+            // Also flush the JSON shapes cache so any disk edits to
+            // STING_SYMBOL_SHAPES.json are picked up on the next AuthorSymbols call.
+            FamilySymbolAuthor.ReloadSymbolShapes();
 
             string outRoot = SymbolBatchHelper.ResolveOutputRoot(ctx.Doc);
             int loaded = 0, failed = 0;
@@ -441,6 +479,105 @@ namespace StingTools.Commands.Symbols
             }
 
             TaskDialog.Show("STING - Symbol Library Inspect", sb.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ConfigureSymbolSizesCommand
+    // Read-only view of current size config + a TaskDialog that lets the user
+    // choose a global multiplier preset or open the config file directly.
+    // For fine-grained per-category/per-symbol edits the user opens the JSON
+    // file; this command is the discoverable entry point.
+    // ─────────────────────────────────────────────────────────────────────────
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ConfigureSymbolSizesCommand : IExternalCommand
+    {
+        // Named presets: label → globalMultiplier
+        private static readonly (string Label, double Multiplier)[] Presets = new[]
+        {
+            ("Small  — 75%  (tight drawings, A3 sheets)",         0.75),
+            ("Normal — 100% (default ISO 6412 sizes)",            1.00),
+            ("Large  — 125% (large-format or presentation spools)", 1.25),
+            ("XL     — 150% (coordination / review prints)",       1.50),
+        };
+
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Symbol Sizes", "No document open."); return Result.Failed; }
+
+            string configPath = SymbolBatchHelper.ResolveSizeConfigPath(ctx.Doc);
+            var config = SymbolSizeConfig.LoadOrDefault(configPath);
+
+            // Build a summary of current state
+            var sb = new StringBuilder();
+            sb.AppendLine("Current symbol size configuration:");
+            sb.AppendLine($"  Global multiplier : {config.GlobalMultiplier:F2}×");
+            sb.AppendLine($"  Category overrides: {config.CategoryOverrides.Count}");
+            sb.AppendLine($"  Symbol overrides  : {config.SymbolOverrides.Count}");
+            if (config.CategoryOverrides.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Category overrides:");
+                foreach (var kv in config.CategoryOverrides)
+                    sb.AppendLine($"  {kv.Key,-20} {kv.Value:F1} mm");
+            }
+            sb.AppendLine();
+            sb.AppendLine("Default symbolSize values:");
+            sb.AppendLine("  Pipe Fittings / Valves / Flanges   6 mm");
+            sb.AppendLine("  Duct Fittings                      8 mm");
+            sb.AppendLine("  Conduit / Cable Tray / Notation    5 mm");
+            sb.AppendLine("  Welds                              4 mm");
+            sb.AppendLine();
+            sb.AppendLine("After changing size, run 'Create All Symbols (Overwrite)' to rebuild.");
+            sb.AppendLine();
+            sb.AppendLine("Config file:");
+            sb.AppendLine(string.IsNullOrEmpty(configPath) ? "  (project not saved — save first)" : $"  {configPath}");
+
+            var td = new TaskDialog("STING - Symbol Sizes")
+            {
+                MainInstruction = "Symbol Size Control",
+                MainContent = sb.ToString(),
+                CommonButtons = TaskDialogCommonButtons.Close
+            };
+
+            // Add preset buttons
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, Presets[0].Label);
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, Presets[1].Label);
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, Presets[2].Label);
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, Presets[3].Label);
+
+            var tdResult = td.Show();
+
+            double? chosenMultiplier = tdResult switch
+            {
+                TaskDialogResult.CommandLink1 => Presets[0].Multiplier,
+                TaskDialogResult.CommandLink2 => Presets[1].Multiplier,
+                TaskDialogResult.CommandLink3 => Presets[2].Multiplier,
+                TaskDialogResult.CommandLink4 => Presets[3].Multiplier,
+                _ => null
+            };
+
+            if (chosenMultiplier.HasValue)
+            {
+                config.GlobalMultiplier = chosenMultiplier.Value;
+                if (!string.IsNullOrEmpty(configPath))
+                {
+                    config.Save(configPath);
+                    TaskDialog.Show("STING - Symbol Sizes",
+                        $"Saved: globalMultiplier = {chosenMultiplier.Value:F2}×\n\n" +
+                        $"Run 'Create All Symbols (Overwrite)' to apply the new sizes.\n\n" +
+                        $"For per-category or per-symbol overrides, edit:\n{configPath}");
+                }
+                else
+                {
+                    TaskDialog.Show("STING - Symbol Sizes",
+                        "Project must be saved before the config file can be written.");
+                }
+            }
+
             return Result.Succeeded;
         }
     }

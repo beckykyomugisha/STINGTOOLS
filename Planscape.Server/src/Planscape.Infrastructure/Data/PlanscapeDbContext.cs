@@ -98,11 +98,13 @@ public class PlanscapeDbContext : DbContext
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<TaggedElement> TaggedElements => Set<TaggedElement>();
+    public DbSet<ExternalElementMapping> ExternalElementMappings => Set<ExternalElementMapping>();
     public DbSet<BimIssue> Issues => Set<BimIssue>();
     public DbSet<DocumentRecord> Documents => Set<DocumentRecord>();
     public DbSet<LicenseKey> LicenseKeys => Set<LicenseKey>();
     public DbSet<WorkflowRun> WorkflowRuns => Set<WorkflowRun>();
     public DbSet<ComplianceSnapshot> ComplianceSnapshots => Set<ComplianceSnapshot>();
+    public DbSet<LpsRecord> LpsRecords => Set<LpsRecord>();
     public DbSet<SeqCounter> SeqCounters => Set<SeqCounter>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();
@@ -156,6 +158,11 @@ public class PlanscapeDbContext : DbContext
     public DbSet<HealthcareAntiLigatureAudit> HealthcareAntiLigatureAudits => Set<HealthcareAntiLigatureAudit>();
     public DbSet<HealthcareRdsSnapshot>       HealthcareRdsSnapshots       => Set<HealthcareRdsSnapshot>();
 
+    // Phase 188 (Tier 3) — HVAC snapshots pushed by the desktop plugin.
+    // One row per sizing / balance / drift / loads / carbon run; mobile
+    // HVAC dashboard reads via /api/projects/{id}/hvac/...
+    public DbSet<HvacSnapshot>                HvacSnapshots                => Set<HvacSnapshot>();
+
     // Phase 178f — penetration commissioning sign-off captured by the
     // mobile app on-site. One row per FRP / fire damper / acoustic
     // seal instance keyed on PenetrationControlNumber + PfvUuid.
@@ -188,6 +195,24 @@ public class PlanscapeDbContext : DbContext
     // FEDERATED-MODEL: per-element tessellated geometry (Revit plugin delta, IFC hot-folder, Speckle).
     public DbSet<FederatedElement> FederatedElements => Set<FederatedElement>();
 
+    // Gap 5 — Per-element IFC change tracking (Added / Modified / Deleted / Unchanged across uploads).
+    public DbSet<IfcElementSnapshot> IfcElementSnapshots => Set<IfcElementSnapshot>();
+    // Gap 6 — Cross-tool GlobalId registry (IFC / ArchiCAD / Revit / Tekla element identity mapping).
+    public DbSet<ElementGlobalIdRegistry> GlobalIdRegistry => Set<ElementGlobalIdRegistry>();
+    // Gap 7 — Level harmonisation (normalised storey dictionary + per-tool alias map).
+    public DbSet<ProjectLevel> ProjectLevels => Set<ProjectLevel>();
+    // Gap A — Project canonical coordinate system (CRS, origin, true north, unit).
+    public DbSet<ProjectCoordinateSystem> ProjectCoordinateSystems => Set<ProjectCoordinateSystem>();
+    // Gap B — Per-model coordinate transform (manual correction or auto-computed from IfcMapConversion).
+    public DbSet<ProjectModelTransform> ProjectModelTransforms => Set<ProjectModelTransform>();
+
+    // Gap 1 — CDE folder hierarchy (explicit information container tree).
+    public DbSet<CdeContainer> CdeContainers => Set<CdeContainer>();
+    // Gap 4 — E-signature / watermark records for S4 publications.
+    public DbSet<DocumentSignature> DocumentSignatures => Set<DocumentSignature>();
+    // Gap 5 — Version-snapshotting join table for transmittals.
+    public DbSet<TransmittalDocument> TransmittalDocuments => Set<TransmittalDocument>();
+
     // Phase 178c (T3-12) — Multi-step / parallel approval chains for CDE transitions.
     public DbSet<ApprovalChain> ApprovalChains => Set<ApprovalChain>();
     public DbSet<ApprovalStage> ApprovalStages => Set<ApprovalStage>();
@@ -196,9 +221,7 @@ public class PlanscapeDbContext : DbContext
 
     // ── NRM2 BOQ engine — classification, take-off, quantity lines,
     //    baselines, variations, work packages, preambles, and the
-    //    BoqDocument header that frames them all. Built to support the
-    //    full RICS NRM2 narrative output (preliminaries, preambles,
-    //    measured items, prov sums, PC sums, dayworks).
+    //    BoqDocument header that frames them all.
     public DbSet<ClassificationSystem>   ClassificationSystems   => Set<ClassificationSystem>();
     public DbSet<ClassificationCode>     ClassificationCodes     => Set<ClassificationCode>();
     public DbSet<TakeoffRule>            TakeoffRules            => Set<TakeoffRule>();
@@ -209,37 +232,30 @@ public class PlanscapeDbContext : DbContext
     public DbSet<BoqBaseline>            BoqBaselines            => Set<BoqBaseline>();
     public DbSet<BoqVariation>           BoqVariations           => Set<BoqVariation>();
     public DbSet<BoqDocument>            BoqDocuments            => Set<BoqDocument>();
+    public DbSet<PaymentCertificate>     PaymentCertificates     => Set<PaymentCertificate>();
     public DbSet<Nrm2PreliminariesItem>  Nrm2PreliminariesItems  => Set<Nrm2PreliminariesItem>();
 
-    // ── Suitability code state machine (ISO 19650-2). Holds the
-    //    transition rule set + per-document transition history.
+    // ── Suitability code state machine (ISO 19650-2).
     public DbSet<SuitabilityTransitionRule> SuitabilityTransitionRules => Set<SuitabilityTransitionRule>();
     public DbSet<SuitabilityTransition>     SuitabilityTransitions     => Set<SuitabilityTransition>();
 
-    // ── Solibri-grade rule-based model checker — authorable rules,
-    //    scheduled runs, per-element results, rule sets for batch
-    //    execution. Geometry checks lean on the same SceneNode +
-    //    spatial-index plumbing as the clash engine.
+    // ── Solibri-grade rule-based model checker.
     public DbSet<ModelCheckRuleSet> ModelCheckRuleSets => Set<ModelCheckRuleSet>();
     public DbSet<ModelCheckRule>    ModelCheckRules    => Set<ModelCheckRule>();
     public DbSet<ModelCheckRun>     ModelCheckRuns     => Set<ModelCheckRun>();
     public DbSet<ModelCheckResult>  ModelCheckResults  => Set<ModelCheckResult>();
 
-    // ── SSO + MFA. SsoConfig holds per-tenant identity provider
-    //    configuration (OIDC/SAML); MfaEnrollment is per-user TOTP
-    //    secret + recovery codes; MfaChallenge logs each verification.
+    // ── SSO + MFA.
     public DbSet<SsoConfig>      SsoConfigs      => Set<SsoConfig>();
     public DbSet<MfaEnrollment>  MfaEnrollments  => Set<MfaEnrollment>();
     public DbSet<MfaChallenge>   MfaChallenges   => Set<MfaChallenge>();
 
-    // ── Executive dashboard. KpiSnapshot is a daily Hangfire rollup;
-    //    CoordinatorWorkload is per-user assigned-issue load over time.
+    // ── Executive dashboard.
     public DbSet<KpiSnapshot>         KpiSnapshots         => Set<KpiSnapshot>();
     public DbSet<CoordinatorWorkload> CoordinatorWorkloads => Set<CoordinatorWorkload>();
     public DbSet<DashboardWidget>     DashboardWidgets     => Set<DashboardWidget>();
 
-    // ── Mobile offline 3D cache manifest. One row per cached chunk;
-    //    the mobile app reads this to know what's local vs needs sync.
+    // ── Mobile offline 3D cache manifest.
     public DbSet<MobileOfflineModelManifest> MobileOfflineModelManifests => Set<MobileOfflineModelManifest>();
 
     // ── P6 / BOQ snapshot ──
@@ -553,13 +569,43 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasKey(t => t.Id);
             e.HasOne(t => t.Project).WithMany(p => p.Elements).HasForeignKey(t => t.ProjectId);
-            e.HasIndex(t => new { t.ProjectId, t.RevitElementId }).IsUnique();
+            // Revit-side legacy index: unique per (project, RevitElementId), but only when
+            // RevitElementId > 0. Non-Revit hosts (Blender/ArchiCAD/Tekla) ingested via
+            // IfcController set RevitElementId = 0 and identify elements by UniqueId
+            // (IFC GlobalId) instead — the next index handles those.
+            e.HasIndex(t => new { t.ProjectId, t.RevitElementId })
+                .IsUnique()
+                .HasFilter("\"RevitElementId\" > 0");
+            // Cross-host unique key: (project, UniqueId). For Revit UniqueId is the Revit
+            // Element.UniqueId; for non-Revit hosts UniqueId carries the IFC GlobalId.
+            e.HasIndex(t => new { t.ProjectId, t.UniqueId })
+                .IsUnique()
+                .HasFilter("\"UniqueId\" <> ''");
             e.HasIndex(t => t.Tag1);
             e.HasIndex(t => t.Disc);
             e.HasIndex(t => t.IsStale);
             // Delta-sync cutoff queries (`(LastModifiedUtc ?? SyncedAt) > cutoff`)
             // benefit from an index on the modification timestamp.
             e.HasIndex(t => t.LastModifiedUtc);
+        });
+
+        // ── ExternalElementMapping ──
+        // Cross-host element identity. Maps IFC GlobalId ↔ host-element-id, populated by
+        // IfcController.IngestData. The composite (ProjectId, IfcGlobalId, Host,
+        // HostDocumentGuid) is unique — same GlobalId can appear in multiple federated
+        // host documents, each with its own host-element-id.
+        modelBuilder.Entity<ExternalElementMapping>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId);
+            e.HasOne(m => m.Tenant).WithMany().HasForeignKey(m => m.TenantId);
+            e.Property(m => m.IfcGlobalId).HasMaxLength(22);
+            e.Property(m => m.Host).HasMaxLength(20);
+            e.Property(m => m.HostElementId).HasMaxLength(200);
+            e.Property(m => m.HostDocumentGuid).HasMaxLength(64);
+            e.HasIndex(m => new { m.ProjectId, m.IfcGlobalId, m.Host, m.HostDocumentGuid }).IsUnique();
+            e.HasIndex(m => new { m.ProjectId, m.IfcGlobalId });  // cross-host lookup
+            e.HasIndex(m => new { m.ProjectId, m.Host, m.HostElementId });  // reverse lookup
         });
 
         // ── BimIssue ──
@@ -695,6 +741,15 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(s => s.Id);
             e.HasOne(s => s.Project).WithMany().HasForeignKey(s => s.ProjectId);
             e.HasIndex(s => new { s.ProjectId, s.CapturedAt });
+        });
+
+        // ── LpsRecord (Phase 192 — LPS server entity) ──
+        modelBuilder.Entity<LpsRecord>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasOne(s => s.Project).WithMany().HasForeignKey(s => s.ProjectId);
+            e.HasIndex(s => new { s.ProjectId, s.CapturedAt });
+            e.HasIndex(s => new { s.TenantId,  s.CapturedAt });
         });
 
         // ── SeqCounter ──
@@ -984,6 +1039,28 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
         });
 
+        // Phase 187d — HVAC engine result indexes. Dashboard queries
+        // filter by (ProjectId, CapturedAt) on every table; NC dashboards
+        // additionally filter by (PredictedNc > TargetNc) so a covering
+        // index on (ProjectId, PredictedNc) speeds the "over target"
+        // aggregate.
+        modelBuilder.Entity<HvacLoadSnapshot>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.SystemId });
+        });
+        modelBuilder.Entity<HvacNcSnapshot>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.PredictedNc });
+        });
+        modelBuilder.Entity<HvacRefrigerantSizing>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.RefrigerantId });
+            e.HasIndex(x => new { x.ProjectId, x.Ok });
+        });
+
         // Phase 178b — SitePhoto compound (ProjectId, PairKey) for
         // before/after pair lookups. The single-column PairKey index
         // exists already; the compound version skips a second-pass
@@ -1068,10 +1145,167 @@ public class PlanscapeDbContext : DbContext
         });
 
         // ── IfcAlignmentReport — per-model IFC alignment validation results ──
+        // New double fields (MapConversionScale, MapConversionRotationDeg, GeometryCentroid*)
+        // are nullable doubles — no max-length constraints needed.
         modelBuilder.Entity<IfcAlignmentReport>(e =>
         {
             e.HasIndex(r => new { r.ProjectId, r.ProjectModelId });
             e.HasIndex(r => r.TenantId);
+            e.HasIndex(r => new { r.ProjectId, r.ValidatedAt });
+        });
+
+        // ── Gap 5 — IfcElementSnapshot (per-element IFC change delta) ──────────
+        modelBuilder.Entity<IfcElementSnapshot>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.ProjectModelId, x.IfcGuid });
+            e.HasIndex(x => new { x.ProjectId, x.UploadSequence });
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.IfcGuid).HasMaxLength(80).IsRequired();
+            e.Property(x => x.IfcType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(400);
+            e.Property(x => x.Storey).HasMaxLength(200);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.PropertiesHash).HasMaxLength(64).IsRequired();
+            e.Property(x => x.ChangeKind).HasMaxLength(20).IsRequired();
+        });
+
+        // ── Gap 6 — ElementGlobalIdRegistry (cross-tool element identity) ──────
+        modelBuilder.Entity<ElementGlobalIdRegistry>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.IfcGlobalId });
+            e.HasIndex(x => new { x.ProjectId, x.RevitUniqueId });
+            e.HasIndex(x => new { x.ProjectId, x.ArchiCadGuid });
+            e.HasIndex(x => new { x.ProjectId, x.TeklaGuid });
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.IfcGlobalId).HasMaxLength(80);
+            e.Property(x => x.ArchiCadGuid).HasMaxLength(80);
+            e.Property(x => x.RevitUniqueId).HasMaxLength(80);
+            e.Property(x => x.TeklaGuid).HasMaxLength(80);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.IfcType).HasMaxLength(100);
+            e.Property(x => x.ElementName).HasMaxLength(400);
+            e.Property(x => x.NormalizedLevelName).HasMaxLength(80);
+            e.Property(x => x.MappingStatus).HasMaxLength(40).IsRequired();
+            e.Property(x => x.MappedBy).HasMaxLength(200);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+        });
+
+        // ── Gap 7 — ProjectLevel (harmonised storey dictionary) ──────────────
+        modelBuilder.Entity<ProjectLevel>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.NormalizedName }).IsUnique();
+            e.HasIndex(x => new { x.ProjectId, x.SortIndex });
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.NormalizedName).HasMaxLength(80).IsRequired();
+            e.Property(x => x.DisplayName).HasMaxLength(200);
+        });
+
+        // ── Gap A — ProjectCoordinateSystem ──────────────────────────────────
+        modelBuilder.Entity<ProjectCoordinateSystem>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId).IsUnique(); // one CRS per project
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.CrsEpsgCode).HasMaxLength(20);
+            e.Property(x => x.CrsName).HasMaxLength(200);
+            e.Property(x => x.LengthUnit).HasMaxLength(8).IsRequired();
+            e.Property(x => x.DefinedBy).HasMaxLength(200);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Gap B — ProjectModelTransform ─────────────────────────────────────
+        modelBuilder.Entity<ProjectModelTransform>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectModelId).IsUnique(); // one active transform per model
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.AppliedBy).HasMaxLength(200);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.HasOne(x => x.Model).WithMany().HasForeignKey(x => x.ProjectModelId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Gap 1 — CdeContainer (CDE folder hierarchy) ──────────────────────
+        modelBuilder.Entity<CdeContainer>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.TenantId);
+            e.HasIndex(x => new { x.ProjectId, x.ParentContainerId });
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.ContainerType).HasMaxLength(40);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            // Self-referencing parent: restrict delete so deleting a folder
+            // with children requires explicit child removal first.
+            e.HasOne(x => x.Parent)
+             .WithMany(x => x.Children)
+             .HasForeignKey(x => x.ParentContainerId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Gap 1 — DocumentRecord.ContainerId FK
+        modelBuilder.Entity<DocumentRecord>(e =>
+        {
+            e.HasOne(x => x.Container)
+             .WithMany(c => c.Documents)
+             .HasForeignKey(x => x.ContainerId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.PublishedByUserId).HasMaxLength(200);
+            e.Property(x => x.PublishedByName).HasMaxLength(200);
+        });
+
+        // ── Gap 4 — DocumentSignature (e-signature + watermark on S4) ─────────
+        modelBuilder.Entity<DocumentSignature>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.DocumentId);
+            e.HasIndex(x => x.TenantId);
+            // Partial index on PENDING rows — the stamp job queries by WatermarkStatus = 'PENDING'
+            // and this keeps that scan tight as the table grows.
+            e.HasIndex(x => x.WatermarkStatus)
+             .HasFilter("\"WatermarkStatus\" = 'PENDING'");
+            e.Property(x => x.SignedByUserId).HasMaxLength(200);
+            e.Property(x => x.SignedByName).HasMaxLength(200);
+            e.Property(x => x.SignatureNote).HasMaxLength(2000);
+            e.Property(x => x.WatermarkedFilePath).HasMaxLength(600);
+            e.Property(x => x.WatermarkStatus).HasMaxLength(20);
+            e.HasOne(x => x.Document)
+             .WithMany()
+             .HasForeignKey(x => x.DocumentId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Gap 5 — TransmittalDocument (version snapshot join table) ─────────
+        modelBuilder.Entity<TransmittalDocument>(e =>
+        {
+            e.HasKey(x => x.Id);
+            // Unique composite index — the critical GAP-04 duplicate guard.
+            // The two separate single-column indexes are kept for FK lookup
+            // performance but do not enforce uniqueness on their own.
+            e.HasIndex(x => new { x.TransmittalId, x.DocumentId }).IsUnique();
+            e.HasIndex(x => x.DocumentId);
+            e.Property(x => x.CdeStateAtTransmittal).HasMaxLength(20);
+            e.Property(x => x.SuitabilityAtTransmittal).HasMaxLength(10);
+            e.Property(x => x.FilePathAtTransmittal).HasMaxLength(600);
+            e.HasOne(x => x.Transmittal)
+             .WithMany(t => t.Documents)
+             .HasForeignKey(x => x.TransmittalId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Document)
+             .WithMany()
+             .HasForeignKey(x => x.DocumentId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.DocumentVersion)
+             .WithMany()
+             .HasForeignKey(x => x.DocumentVersionId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── ClashAutomationRule — per-project automation rules for new clashes ──
@@ -1228,11 +1462,22 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(x => new { x.ProjectId, x.Reference }).IsUnique();
             e.Property(x => x.Reference).HasMaxLength(40).IsRequired();
             e.Property(x => x.Kind).HasMaxLength(20);
+            // Phase 184q — contract family.
+            e.Property(x => x.ContractForm).HasMaxLength(32).HasDefaultValue("JCT2024");
+            e.HasIndex(x => new { x.ProjectId, x.ContractForm });
             e.Property(x => x.Title).HasMaxLength(400);
             e.Property(x => x.Description).HasMaxLength(4000);
             e.Property(x => x.InstructionRef).HasMaxLength(200);
             e.Property(x => x.Currency).HasMaxLength(8);
             e.Property(x => x.Status).HasMaxLength(20);
+            // Phase 184o — reason + liability fields. String-typed (not
+            // enum) so cross-cluster reporting tools can read directly
+            // from Postgres without enum mapping.
+            e.Property(x => x.Reason).HasMaxLength(32).HasDefaultValue("Other");
+            e.Property(x => x.Liability).HasMaxLength(32).HasDefaultValue("Employer");
+            e.Property(x => x.ReasonDetail).HasMaxLength(4000);
+            e.HasIndex(x => new { x.ProjectId, x.Reason });
+            e.HasIndex(x => new { x.ProjectId, x.Liability });
             e.Property(x => x.SubmittedBy).HasMaxLength(200);
             e.Property(x => x.ApprovedBy).HasMaxLength(200);
             e.Property(x => x.RejectionReason).HasMaxLength(2000);
@@ -1241,6 +1486,36 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Baseline).WithMany().HasForeignKey(x => x.BaselineId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.BimIssue).WithMany().HasForeignKey(x => x.BimIssueId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Phase 184k / P5.1 — payment certificates.
+        modelBuilder.Entity<PaymentCertificate>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.ContractRef, x.CertNumber }).IsUnique();
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.Property(x => x.ContractRef).HasMaxLength(80).IsRequired();
+            e.Property(x => x.Form).HasMaxLength(40);
+            e.Property(x => x.Status).HasMaxLength(20);
+            e.Property(x => x.Currency).HasMaxLength(8);
+            e.Property(x => x.ContractorName).HasMaxLength(200);
+            e.Property(x => x.EmployerName).HasMaxLength(200);
+            e.Property(x => x.ProjectName).HasMaxLength(200);
+            e.Property(x => x.SignedByContractor).HasMaxLength(200);
+            e.Property(x => x.SignedByEmployer).HasMaxLength(200);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            e.Property(x => x.Note).HasMaxLength(4000);
+            e.Property(x => x.RetentionPercent).HasColumnType("numeric(6,3)");
+            e.Property(x => x.EffectiveRetentionPercent).HasColumnType("numeric(6,3)");
+            e.Property(x => x.HalfRetentionAtPercent).HasColumnType("numeric(6,3)");
+            e.Property(x => x.VatPercent).HasColumnType("numeric(6,3)");
+            e.Property(x => x.GrossValuation).HasColumnType("numeric(18,2)");
+            e.Property(x => x.RetentionAmount).HasColumnType("numeric(18,2)");
+            e.Property(x => x.OtherDeductions).HasColumnType("numeric(18,2)");
+            e.Property(x => x.NetThisCert).HasColumnType("numeric(18,2)");
+            e.Property(x => x.VatAmount).HasColumnType("numeric(18,2)");
+            e.Property(x => x.TotalPayable).HasColumnType("numeric(18,2)");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<BoqDocument>(e =>

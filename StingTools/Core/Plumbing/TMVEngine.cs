@@ -18,6 +18,7 @@ using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
 using StingTools.Core;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Core.Plumbing
 {
@@ -241,7 +242,10 @@ namespace StingTools.Core.Plumbing
                 if (el == null) return false;
                 ok &= TryWriteDouble(el, ParamRegistry.PLM_TMV_INLET_HOT_C,  inletHotC);
                 ok &= TryWriteDouble(el, ParamRegistry.PLM_TMV_INLET_COLD_C, inletColdC);
-                ok &= TryWriteDouble(el, ParamRegistry.PLM_TMV_BLEND,        outletC);
+                // Write the commissioning reading to PLM_TMV_MEASURED_C; the
+                // design set-point in PLM_TMV_BLEND is set during design and
+                // left untouched here.
+                ok &= TryWriteDouble(el, ParamRegistry.PLM_TMV_MEASURED_C,    outletC);
                 ok &= TryWriteString(el, ParamRegistry.PLM_TMV_TEST_DATE,    testDate);
 
                 // Compute annual test due: test date + 12 months
@@ -302,9 +306,14 @@ namespace StingTools.Core.Plumbing
             // Read class
             rec.Class = ParseClass(ReadString(el, ParamRegistry.PLM_TMV_CLASS));
 
-            // Temperatures
+            // Temperatures: SetOutletC is the design set-point (PLM_TMV_BLEND),
+            // ActualOutletC is the commissioning reading (PLM_TMV_MEASURED_C).
+            // Pre-Phase-187 families that don't have PLM_TMV_MEASURED_C bound
+            // will report ActualOutletC = 0, which ValidateTemperatures treats
+            // as "no measurement yet" — better than the historic behaviour of
+            // mirroring the set-point and silently passing every tolerance.
             rec.SetOutletC    = ReadDouble(el, ParamRegistry.PLM_TMV_BLEND);
-            rec.ActualOutletC = ReadDouble(el, ParamRegistry.PLM_TMV_BLEND);  // same param — set vs actual may be same field
+            rec.ActualOutletC = ReadDouble(el, ParamRegistry.PLM_TMV_MEASURED_C);
             rec.InletHotC     = ReadDouble(el, ParamRegistry.PLM_TMV_INLET_HOT_C);
             rec.InletColdC    = ReadDouble(el, ParamRegistry.PLM_TMV_INLET_COLD_C);
 

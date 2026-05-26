@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json;
 using StingTools.Core;
@@ -287,7 +288,7 @@ namespace StingTools.Docs
                 if (slot.PreferredScale > 0 && bestView.Scale != slot.PreferredScale)
                 {
                     try { bestView.Scale = slot.PreferredScale; }
-                    catch (Exception ex) { StingLog.Warn($"Locked by template: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Locked by template: {ex2.Message}"); }
                 }
 
                 // Denormalise position
@@ -309,13 +310,13 @@ namespace StingTools.Docs
                         if (vpType != null)
                         {
                             try { vp.ChangeTypeId(vpType.Id); }
-                            catch (Exception ex) { StingLog.Warn($"Type not available: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Type not available: {ex2.Message}"); }
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Warn($"Could not place view '{bestView.Name}' in slot '{slot.Label}': {ex.Message}");
+                    StingLog.Warn($"Could not place view '{bestView.Name}' in slot '{slot.Label}': {ex2.Message}");
                 }
             }
 

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — drift detector (Phase 175)
 //
 // Compares each STING symbol tag's stamped standard against the standard
@@ -25,7 +26,10 @@ namespace StingTools.Core.Symbols
         public string ConceptId { get; set; }
         public string ActualStandard { get; set; }
         public string ExpectedStandard { get; set; }
-        public string DriftType { get; set; }   // STANDARD | FAMILY_MISMATCH
+        /// <summary>STANDARD | FAMILY_MISMATCH | COMPOUND_INCONSISTENT</summary>
+        public string DriftType { get; set; }
+        /// <summary>For COMPOUND_INCONSISTENT: parent compound concept id.</summary>
+        public string CompoundParentId { get; set; }
     }
 
     public static class SymbolDriftDetector
@@ -99,6 +103,12 @@ namespace StingTools.Core.Symbols
                         StingTools.Core.StingLog.Warn($"DetectDrift inner: {ex.Message}");
                     }
                 }
+                // Compound-parent consistency: every child instance of a
+                // compound (stamped via STING_COMPOUND_PARENT_ID) should
+                // carry the same standard as its siblings. Mismatches
+                // mean a compound was half-swapped.
+                AppendCompoundDrift(doc, view, report);
+
                 report.DriftedSymbols = report.Drifted.Count;
             }
             catch (Exception ex)
@@ -106,6 +116,65 @@ namespace StingTools.Core.Symbols
                 StingTools.Core.StingLog.Warn($"DetectDrift: {ex.Message}");
             }
             return report;
+        }
+
+        private static void AppendCompoundDrift(Document doc, View view, DriftReport report)
+        {
+            try
+            {
+                FilteredElementCollector col = view != null
+                    ? new FilteredElementCollector(doc, view.Id)
+                    : new FilteredElementCollector(doc);
+
+                // Group every compound child by parent id.
+                var byParent = new Dictionary<string, List<FamilyInstance>>(StringComparer.OrdinalIgnoreCase);
+                foreach (FamilyInstance fi in col
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>())
+                {
+                    string parentId = fi.LookupParameter("STING_COMPOUND_PARENT_ID")?.AsString();
+                    if (string.IsNullOrEmpty(parentId)) continue;
+                    if (!byParent.TryGetValue(parentId, out var bucket))
+                        byParent[parentId] = bucket = new List<FamilyInstance>();
+                    bucket.Add(fi);
+                }
+
+                foreach (var kv in byParent)
+                {
+                    var standards = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var inst in kv.Value)
+                    {
+                        var s = inst.LookupParameter("STING_SYMBOL_STANDARD")?.AsString();
+                        if (!string.IsNullOrEmpty(s)) standards.Add(s);
+                    }
+                    if (standards.Count <= 1) continue;
+                    // Standards diverge across siblings — flag every child.
+                    string winner = standards.OrderByDescending(s =>
+                        kv.Value.Count(i => string.Equals(
+                            i.LookupParameter("STING_SYMBOL_STANDARD")?.AsString(),
+                            s, StringComparison.OrdinalIgnoreCase))).First();
+                    foreach (var inst in kv.Value)
+                    {
+                        var s = inst.LookupParameter("STING_SYMBOL_STANDARD")?.AsString() ?? "";
+                        if (!string.Equals(s, winner, StringComparison.OrdinalIgnoreCase))
+                        {
+                            report.Drifted.Add(new DriftInstance
+                            {
+                                TagId = inst.Id,
+                                ConceptId = inst.LookupParameter("STING_SYMBOL_ID")?.AsString(),
+                                ActualStandard = s,
+                                ExpectedStandard = winner,
+                                DriftType = "COMPOUND_INCONSISTENT",
+                                CompoundParentId = kv.Key,
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"AppendCompoundDrift: {ex.Message}");
+            }
         }
 
         private static Element ResolveHost(Document doc, IndependentTag tag)

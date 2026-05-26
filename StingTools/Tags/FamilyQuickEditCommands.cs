@@ -493,12 +493,13 @@ namespace StingTools.Tags
             // Reference-based NewFamilyInstance overload; for levels we use the
             // level-based overload (cleaner for OneLevelBased families).
             Element picked;
+            Reference pickedRef;
             try
             {
-                var r = ctx.UIDoc.Selection.PickObject(
+                pickedRef = ctx.UIDoc.Selection.PickObject(
                     ObjectType.Element, new WorkPlaneFilter(),
                     "Pick a reference plane or level (ESC to cancel)");
-                picked = ctx.Doc.GetElement(r.ElementId);
+                picked = ctx.Doc.GetElement(pickedRef.ElementId);
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
 

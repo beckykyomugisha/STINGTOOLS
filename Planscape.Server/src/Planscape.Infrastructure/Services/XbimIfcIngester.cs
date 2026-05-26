@@ -5,6 +5,7 @@ using Xbim.Common;
 using Xbim.Common.Step21;
 using Xbim.Ifc;
 using Xbim.Ifc4.Interfaces;
+using Xbim.Ifc4.MeasureResource;
 
 namespace Planscape.Infrastructure.Services;
 
@@ -68,6 +69,10 @@ public class XbimIfcIngester : IIfcIngester
             _                        => model.SchemaVersion.ToString(),
         };
 
+        // Gap 5: Extract IfcUnitAssignment to determine length unit scale.
+        // This lets downstream services apply unit normalization without re-parsing.
+        double unitScaleToMm = ExtractUnitScaleToMm(model);
+
         // Pre-build cached maps so we don't repeatedly traverse inverse
         // relationships on every element. Both build in O(N) total.
         var propsByElement  = BuildPropertyIndex(model);
@@ -75,8 +80,9 @@ public class XbimIfcIngester : IIfcIngester
         var spatialAncestors = BuildSpatialAncestorIndex(model);
         var openingAreaByHost = BuildOpeningAreaIndex(model, qtysByElement);
 
-        // Detect ArchiCAD-specific pset names to set Source field.
-        bool hasAcPsets = false;
+        // Detect ArchiCAD-specific and Tekla-specific pset names to set Source field.
+        bool hasAcPsets    = false;
+        bool hasTeklaPsets = false;
 
         foreach (var element in model.Instances.OfType<IIfcElement>())
         {
@@ -115,6 +121,15 @@ public class XbimIfcIngester : IIfcIngester
                         hasAcPsets = true;
                     }
 
+                    // Track Tekla-specific psets for source detection.
+                    // Tekla uses exactly "Tekla " or "Tekla_" prefixed pset names.
+                    if (!hasTeklaPsets &&
+                        (psetName.StartsWith("Tekla ", StringComparison.Ordinal) ||
+                         psetName.StartsWith("Tekla_", StringComparison.Ordinal)))
+                    {
+                        hasTeklaPsets = true;
+                    }
+
                     foreach (var prop in pset.HasProperties.OfType<IIfcPropertySingleValue>())
                     {
                         var pname = prop.Name.Value?.ToString();
@@ -123,6 +138,50 @@ public class XbimIfcIngester : IIfcIngester
                         if (pvalue == null) continue;
                         bag[$"{psetName}.{pname}"] = pvalue;
                     }
+                }
+
+                // Tekla normalised keys: promote Tekla-specific bag entries to
+                // canonical STING names so mapping rules work without knowing the
+                // exact pset / property name combination.
+                if (hasTeklaPsets)
+                {
+                    // Assembly mark: "Tekla Assembly.AssemblyMark" or
+                    //                "Tekla Assembly.ASSEMBLY_MARK" or
+                    //                "Tekla Common.NAME"
+                    string? assemblyMark =
+                        bag.GetValueOrDefault("Tekla Assembly.AssemblyMark")
+                        ?? bag.GetValueOrDefault("Tekla Assembly.ASSEMBLY_MARK")
+                        ?? bag.GetValueOrDefault("Tekla Common.NAME");
+                    if (assemblyMark != null)
+                        bag["TeklaAssemblyMark"] = assemblyMark;
+
+                    // Cast unit mark: "Tekla Cast Unit.CAST_UNIT_MARK" or
+                    //                 "Tekla Cast Unit.CastUnitMark"
+                    string? castUnitMark =
+                        bag.GetValueOrDefault("Tekla Cast Unit.CAST_UNIT_MARK")
+                        ?? bag.GetValueOrDefault("Tekla Cast Unit.CastUnitMark");
+                    if (castUnitMark != null)
+                        bag["TeklarCastUnitMark"] = castUnitMark;
+
+                    // Part number: "Tekla Steel Part.PART_POS" or
+                    //              "Tekla Steel Part.PART_NUMBER"
+                    string? teklaPart =
+                        bag.GetValueOrDefault("Tekla Steel Part.PART_POS")
+                        ?? bag.GetValueOrDefault("Tekla Steel Part.PART_NUMBER");
+                    if (teklaPart != null)
+                        bag["TeklaPart"] = teklaPart;
+
+                    // Material: "Tekla Common.MATERIAL"
+                    string? teklaMaterial = bag.GetValueOrDefault("Tekla Common.MATERIAL");
+                    if (teklaMaterial != null)
+                        bag["TeklarMaterial"] = teklaMaterial;
+
+                    // Profile: "Tekla Profile.Profile" or "Tekla Common.Profile"
+                    string? teklaProfile =
+                        bag.GetValueOrDefault("Tekla Profile.Profile")
+                        ?? bag.GetValueOrDefault("Tekla Common.Profile");
+                    if (teklaProfile != null)
+                        bag["TeklaProfile"] = teklaProfile;
                 }
             }
 
@@ -181,10 +240,11 @@ public class XbimIfcIngester : IIfcIngester
         }
 
         sw.Stop();
+        string source = hasAcPsets ? "archicad" : hasTeklaPsets ? "tekla" : "ifc";
         _logger.LogInformation(
             "XbimIfcIngester: {Path} → {Schema} {Count} elements in {Ms}ms (quantitySets={HasQty}, source={Source})",
             ifcPath, schemaVersion, elements.Count, sw.ElapsedMilliseconds,
-            hasQuantities, hasAcPsets ? "archicad" : "ifc");
+            hasQuantities, source);
 
         return Task.FromResult(new IfcIngestResult(
             SchemaVersion: schemaVersion,
@@ -193,8 +253,9 @@ public class XbimIfcIngester : IIfcIngester
             Elements: elements,
             Duration: sw.Elapsed,
             Warnings: warnings.Count > 0 ? string.Join("; ", warnings) : null,
-            Source: hasAcPsets ? "archicad" : "ifc",
-            HasQuantitySets: hasQuantities));
+            Source: source,
+            HasQuantitySets: hasQuantities,
+            UnitScaleToMm: unitScaleToMm));
     }
 
     /// <summary>
@@ -347,6 +408,48 @@ public class XbimIfcIngester : IIfcIngester
             }
         }
         return result;
+    }
+
+    // ── Gap 5: Unit scale extraction ─────────────────────────────────────────
+
+    /// <summary>
+    /// Reads IIfcProject.UnitsInContext and returns a multiplier such that
+    /// value_in_file × unitScaleToMm = value_in_mm.
+    /// Defaults to 1000.0 (metres → mm) when the unit context is absent.
+    /// Mirrors XbimIfcGeometryExtractor.ResolveScaleToMm so both extractors
+    /// agree on the same scale factor.
+    /// </summary>
+    private static double ExtractUnitScaleToMm(IModel model)
+    {
+        try
+        {
+            var project = model.Instances.OfType<IIfcProject>().FirstOrDefault();
+            if (project?.UnitsInContext == null) return 1000.0;
+
+            foreach (var unit in project.UnitsInContext.Units.OfType<IIfcSIUnit>())
+            {
+                if (unit.UnitType != IfcUnitEnum.LENGTHUNIT) continue;
+                return unit.Prefix switch
+                {
+                    IfcSIPrefix.MILLI => 1.0,
+                    IfcSIPrefix.CENTI => 10.0,
+                    IfcSIPrefix.DECI  => 100.0,
+                    _                 => 1000.0,
+                };
+            }
+
+            foreach (var unit in project.UnitsInContext.Units.OfType<IIfcConversionBasedUnit>())
+            {
+                if (unit.UnitType != IfcUnitEnum.LENGTHUNIT) continue;
+                var factor = unit.ConversionFactor?.ValueComponent?.Value;
+                if (factor != null && double.TryParse(factor.ToString(),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double f) && f > 0)
+                    return f * 1000.0;
+            }
+        }
+        catch { }
+        return 1000.0;
     }
 
     /// <summary>

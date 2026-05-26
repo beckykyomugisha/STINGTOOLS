@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager
 //
 // AnnotationConditionEvaluator evaluates the optional Condition string on

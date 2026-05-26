@@ -25,11 +25,15 @@ namespace StingTools.Commands.Electrical.VoltageDrop
 
     /// <summary>
     /// Computes voltage drop for every power circuit using actual 3D wire
-    /// lengths from <see cref="ElectricalSystem.Length"/>. Read-only — never
-    /// touches model state. Pushes results back to the dock panel via the
-    /// snapshot builder so the VD grid reflects the calculation.
+    /// lengths from <see cref="ElectricalSystem.Length"/>. Closes the calc →
+    /// model loop: stamps the computed VD% to ELC_VLT_DROP_PCT (the alias
+    /// behind ELC_CKT_VD_PCT, already in MR_PARAMETERS.txt) on every circuit
+    /// so downstream wire-upsize commands, schedules and paragraph builders
+    /// can read it without re-running the calc. Pushes results back to the
+    /// dock panel via the snapshot builder so the VD grid reflects the
+    /// calculation.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class VoltageDropCommand : IExternalCommand
     {
@@ -46,8 +50,32 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             var results = Calculate(doc, opts.Standard, opts.BranchLimitPct, opts.FeederLimitPct,
                                     opts.Material, opts.OperatingTempC);
             int exceed = results.Count(r => r.ExceedsThreshold);
+
+            // Stamp VD% per circuit. Existing param ELC_VLT_DROP_PCT (alias
+            // ELC_CKT_VD_PCT) — no new params introduced.
+            int stamped = 0;
+            using (var tx = new Transaction(doc, "STING Stamp Voltage Drop"))
+            {
+                tx.Start();
+                foreach (var r in results)
+                {
+                    if (r?.CircuitId == null) continue;
+                    if (!(doc.GetElement(r.CircuitId) is ElectricalSystem sys)) continue;
+                    try
+                    {
+                        if (ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_VD_PCT,
+                                $"{r.VoltDropPct:0.00}", overwrite: true))
+                            stamped++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"VD stamp {r.CircuitId.Value}: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
             TaskDialog.Show("STING Voltage Drop",
-                $"Calculated VD for {results.Count} circuit(s).\nExceeding threshold: {exceed}");
+                $"Calculated VD for {results.Count} circuit(s).\n" +
+                $"Exceeding threshold: {exceed}\n" +
+                $"ELC_VLT_DROP_PCT stamped: {stamped}");
             return Result.Succeeded;
         }
 
@@ -131,17 +159,17 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         private static double SafeVoltage(ElectricalSystem s)
         {
             try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)?.AsDouble() ?? 0; }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return 0; }
         }
         private static string SafeWireSize(ElectricalSystem s)
         {
             try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? ""; }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
+            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return ""; }
         }
-        private static string SafePanel(ElectricalSystem s) { try { return s?.PanelName ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
+        private static string SafePanel(ElectricalSystem s) { try { return s?.PanelName ?? ""; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return ""; } }
         private static string SafeCircuitNumber(ElectricalSystem s)
         {
-            try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
+            try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString() ?? ""; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return ""; }
         }
         private static double ParseCsa(string wireSize)
         {

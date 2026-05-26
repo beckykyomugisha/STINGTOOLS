@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingTheatreTypes</Name>
+    <Definition>Operating-theatre type classification per HBN 26. Drives theatre-air-supply strategy (laminar vs turbulent), pressure regime selection, MGS terminal-unit complement, room data sheet template, and the OR-RCP drawing-type pack.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4005-9000-000000000033</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/nhs/hbn-26/2013/class/theatre-type</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>HBN 26 (Facilities for surgical procedures) 2013; HTM 03-01 ventilation; HFN 26-1 minor surgical procedure rooms</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Standard" sentinel="false">
+      <Definition>Standard Theatre — general / day surgery. Turbulent-flow ventilation, +25 Pa positive, full MGS complement (O2, N2O, AIR-4, AIR-7, VAC, AGSS).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="UltraClean" sentinel="false">
+      <Definition>Ultra-Clean Theatre — orthopaedic / implant surgery. Laminar-flow canopy directly above operating table; high-efficiency HEPA filtration; +45 Pa positive cascade.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Hybrid" sentinel="false">
+      <Definition>Hybrid Theatre — surgery + intraoperative imaging (CT, MRI, C-arm fluoroscopy). Combines theatre + imaging requirements; lead shielding in walls; MRI-zone considerations if MR-hybrid.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="BoneMarrowProtection" sentinel="false">
+      <Definition>Bone Marrow Protection Theatre — extreme positive pressure (+45 Pa or higher). Highest air-change rate; HEPA + UV. For immunocompromised transplant patients.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Orthopaedic" sentinel="false">
+      <Definition>Orthopaedic Theatre — general orthopaedic (non-laminar). Standard or upgraded HEPA. May or may not have ultra-clean canopy.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HybridIR" sentinel="false">
+      <Definition>Hybrid Interventional Radiology Theatre — IR procedures with surgical contingency. C-arm + lead shielding + theatre-grade vent.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CathLab" sentinel="false">
+      <Definition>Cardiac Catheterisation Lab — coronary angiography + interventional cardiology. Theatre-grade air; full lead shielding; ECG / haemodynamic monitoring.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Caesarean" sentinel="false">
+      <Definition>Caesarean Theatre — dedicated obstetric theatre. Often adjoining LDR rooms; warmer setpoint; entonox provision.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="LDR" sentinel="false">
+      <Definition>Labour-Delivery-Recovery Room — single-room maternity model; not strictly a theatre but managed under HBN 09 with theatre-adjacent provisions.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MinorOps" sentinel="false">
+      <Definition>Minor Operations / Procedure Room (HFN 26-1). Local-anaesthetic procedures; reduced ventilation requirements; smaller MGS complement.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MaternityTheatre" sentinel="false">
+      <Definition>Maternity-Adjacent Theatre — emergency caesarean within delivery suite. Theatre-grade ventilation with rapid mobilisation.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>38eb970b257563379817800a765e0f8366040883fc1de82471e74ca6de58d427</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — Phase I sleeve engine.
 //
 // Detects MEP-vs-structure penetrations, sizes a sleeve per
@@ -39,6 +40,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 
@@ -181,16 +183,16 @@ namespace StingTools.Core.Mep
                                     $"Host {cand.Host.Id} CanBeCutWithVoid=false; sleeve placed without cut");
                             }
                         }
-                        catch (Exception ex)
-                        { result.Warnings.Add($"InstanceVoidCut {cand.Host.Id}: {ex.Message}"); }
+                        catch (Exception ex2)
+                        { result.Warnings.Add($"InstanceVoidCut {cand.Host.Id}: {ex2.Message}"); }
 
                         result.PlacedIds.Add(fi.Id);
                         result.Placed++;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         result.Failed++;
-                        result.Warnings.Add($"sleeve place: {ex.Message}");
+                        result.Warnings.Add($"sleeve place: {ex2.Message}");
                     }
                 }
 

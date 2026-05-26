@@ -25,27 +25,25 @@
 // Performance: DataGrid virtualization on (ScrollUnit=Item, recycling).
 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
+using StingTools.Core;
 using StingTools.Core.Drawing;
-// Resolve type collisions between WPF and Revit API:
-//   System.Windows.Controls.Grid vs Autodesk.Revit.DB.Grid
-//   System.Windows.Visibility    vs Autodesk.Revit.DB.Visibility (Workset enum)
-//   System.Windows.Data.Binding  vs Autodesk.Revit.DB.Binding   (parameter binding)
-//   System.Windows.Media.Color   vs Autodesk.Revit.DB.Color     (Revit colour)
+using Button     = System.Windows.Controls.Button;
+using Color      = System.Windows.Media.Color;
+using ComboBox   = System.Windows.Controls.ComboBox;
 using Grid       = System.Windows.Controls.Grid;
+using TextBox    = System.Windows.Controls.TextBox;
 using Visibility = System.Windows.Visibility;
 using Binding    = System.Windows.Data.Binding;
-using Color      = System.Windows.Media.Color;
-
+using SelectionChangedEventArgs = System.Windows.Controls.SelectionChangedEventArgs;
 namespace StingTools.UI
 {
     public sealed class RevitVgEditor
@@ -747,7 +745,7 @@ namespace StingTools.UI
                 ColorHex = "#000000",
                 Weight   = cut ? 4 : 1,
             };
-            var picked = VgLineGraphicsDialog.Show(seed, _linePatterns);
+            var picked = VgLineGraphicsDialog.Show(seed, _linePatterns, "Line Graphics", RefreshLinePatternsFromDoc);
             if (picked == null) return;
 
             // Scope: selected rows on the active grid, falling back to every
@@ -922,7 +920,7 @@ namespace StingTools.UI
                 ColorHex = proj ? row.ProjLineColor    : row.CutLineColor,
                 Weight   = proj ? row.Data.ProjLineWeight : row.Data.CutLineWeight
             };
-            var picked = VgLineGraphicsDialog.Show(current, _linePatterns);
+            var picked = VgLineGraphicsDialog.Show(current, _linePatterns, "Line Graphics", RefreshLinePatternsFromDoc);
             if (picked == null) return;   // cancelled
             if (picked.Cleared)
             {
@@ -973,7 +971,8 @@ namespace StingTools.UI
                 BgColor   = proj ? d.SurfBgColor   : d.CutBgColor
             };
             var picked = VgFillPatternDialog.Show(current, _fillPatterns,
-                proj ? "Fill Pattern Graphics — Surface" : "Fill Pattern Graphics — Cut");
+                proj ? "Fill Pattern Graphics — Surface" : "Fill Pattern Graphics — Cut",
+                RefreshFillPatternsFromDoc);
             if (picked == null) return;
             if (picked.Cleared)
             {
@@ -1262,7 +1261,7 @@ namespace StingTools.UI
                             string patternName = null;
                             if (sub.LineColor != null && sub.LineColor.IsValid)
                                 colourHex = $"#{sub.LineColor.Red:X2}{sub.LineColor.Green:X2}{sub.LineColor.Blue:X2}";
-                            try { weight = sub.GetLineWeight(GraphicsStyleType.Projection) ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { weight = sub.GetLineWeight(GraphicsStyleType.Projection) ?? 0; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                             try
                             {
                                 var pid = sub.GetLinePatternId(GraphicsStyleType.Projection);
@@ -1272,10 +1271,10 @@ namespace StingTools.UI
                                     else if (_doc.GetElement(pid) is LinePatternElement lp) patternName = lp.Name;
                                 }
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
                             _lineStyleByName[sub.Name] = (colourHex, weight, patternName);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     }
                 }
             }
@@ -1291,6 +1290,43 @@ namespace StingTools.UI
                     $"{_fillPatterns.Count} fill patterns, {_lineStyles.Count} line styles harvested.");
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+        }
+
+        // Phase 183 — refresh callbacks passed to the inline pattern dialogs.
+        // The dialogs invoke these on Refresh-button click so newly-authored
+        // FillPatternElement / LinePatternElement entries appear in the
+        // dropdowns without closing the editor. Rebuilds the cached lists
+        // in-place and returns the caller's freshly-sorted view.
+        internal IList<string> RefreshFillPatternsFromDoc()
+        {
+            if (_doc == null) return _fillPatterns;
+            try
+            {
+                var fresh = new List<string> { "<no override>", "<Solid fill>" };
+                foreach (var fp in new FilteredElementCollector(_doc).OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
+                    if (!string.IsNullOrEmpty(fp.Name) && !fresh.Contains(fp.Name))
+                        fresh.Add(fp.Name);
+                fresh.Sort(StringComparer.OrdinalIgnoreCase);
+                _fillPatterns = fresh;
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"RefreshFillPatternsFromDoc: {ex.Message}"); }
+            return _fillPatterns;
+        }
+
+        internal IList<string> RefreshLinePatternsFromDoc()
+        {
+            if (_doc == null) return _linePatterns;
+            try
+            {
+                var fresh = new List<string> { "<no override>", "Solid" };
+                foreach (var lp in new FilteredElementCollector(_doc).OfClass(typeof(LinePatternElement)).Cast<LinePatternElement>())
+                    if (!string.IsNullOrEmpty(lp.Name) && !fresh.Contains(lp.Name))
+                        fresh.Add(lp.Name);
+                fresh.Sort(StringComparer.OrdinalIgnoreCase);
+                _linePatterns = fresh;
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"RefreshLinePatternsFromDoc: {ex.Message}"); }
+            return _linePatterns;
         }
 
         private void OnRowChanged(VgRow r) => RowChanged?.Invoke(r);

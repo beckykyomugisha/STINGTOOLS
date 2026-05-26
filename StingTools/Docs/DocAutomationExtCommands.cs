@@ -10,6 +10,8 @@ using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using ClosedXML.Excel;
 using StingTools.Core;
+using StingTools.Core.Drawing;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Docs
 {
@@ -2254,7 +2256,7 @@ namespace StingTools.Docs
 
                 // Originator / appointing-party / project code from PRJ_ORG_* parameters.
                 var pi = doc.ProjectInformation;
-                string originator = pi?.LookupParameter("PRJ_ORG_ORIGINATOR_CODE_TXT")?.AsString() ?? "PLNS";
+                string originatorCode = pi?.LookupParameter("PRJ_ORG_ORIGINATOR_CODE_TXT")?.AsString() ?? "PLNS";
                 string appointing = pi?.LookupParameter("PRJ_ORG_APPOINTING_PARTY_TXT")?.AsString() ?? "";
                 string prjCode    = pi?.LookupParameter("PRJ_ORG_PROJECT_CODE_TXT")?.AsString() ?? projectNumber;
                 string uniclass   = sheet.LookupParameter("ASS_UNICLASS_TXT")?.AsString() ?? "";
@@ -2271,7 +2273,7 @@ namespace StingTools.Docs
                     $"\"{status}\",\"{suitCode}\",\"{suitDesc}\"," +
                     $"\"{revNum}\",\"{revDate}\",\"{revDesc.Replace("\"", "'")}\"," +
                     $"{viewCount},\"{drawnBy}\",\"{checkedBy}\",\"{approvedBy}\"," +
-                    $"\"{originator}\",\"{appointing}\",\"{prjCode}\",\"{uniclass}\"," +
+                    $"\"{originatorCode}\",\"{appointing}\",\"{prjCode}\",\"{uniclass}\"," +
                     $"\"{security}\",\"{approvedDt}\",\"{issuedDt}\",\"{approvalStatus}\"");
             }
 

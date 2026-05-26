@@ -7,6 +7,7 @@ using System.Text;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using Newtonsoft.Json;
 
 namespace StingTools.BIMManager
 {
@@ -58,7 +59,11 @@ namespace StingTools.BIMManager
                         Export2DGeometricObjectsIncludingPatternLines = false,
                     };
                     exporter.Export(view);
-                    return ctx.WriteGlb(outputGlbPath);
+                    var result = ctx.WriteGlb(outputGlbPath);
+                    // Gap J — write coordinate sidecar alongside the GLB so the
+                    // server can populate IfcAlignmentReport without re-parsing IFC.
+                    ExportCoordinateSidecar(doc, outputGlbPath);
+                    return result;
                 },
                 extras: new System.Collections.Generic.Dictionary<string, object?>
                 {
@@ -183,6 +188,103 @@ namespace StingTools.BIMManager
                 _current.Indices.Add((uint)(baseIdx + tri.V1));
                 _current.Indices.Add((uint)(baseIdx + tri.V2));
                 _current.Indices.Add((uint)(baseIdx + tri.V3));
+            }
+        }
+
+        // ── Gap J — Coordinate sidecar ─────────────────────────────────
+
+        /// <summary>
+        /// Gap J — Writes a JSON sidecar alongside the GLB with Revit coordinate metadata.
+        /// The server reads this on upload to populate IfcAlignmentReport without re-parsing IFC.
+        /// Output path: same as the GLB but with extension changed to .coord.json
+        /// </summary>
+        private static void ExportCoordinateSidecar(Document doc, string glbOutputPath)
+        {
+            try
+            {
+                var sidecarPath = Path.ChangeExtension(glbOutputPath, ".coord.json");
+
+                // Project Base Point and Survey Point
+                // TODO-VERIFY-API: FilteredElementCollector for BasePoint — confirmed available in Revit 2025 API.
+                var pbpCollector = new FilteredElementCollector(doc)
+                    .OfClass(typeof(BasePoint))
+                    .Cast<BasePoint>()
+                    .ToList();
+
+                var projectBasePoint = pbpCollector.FirstOrDefault(bp => !bp.IsShared);
+                var surveyPoint      = pbpCollector.FirstOrDefault(bp => bp.IsShared);
+
+                // Project location (lat/lon/north angle)
+                ProjectLocation? projectLocation = null;
+                try { projectLocation = doc.ActiveProjectLocation; } catch { /* ignore */ }
+
+                double? latitude = null, longitude = null, elevation = null, northAngleDeg = null;
+                double? easting = null, northing = null;
+
+                if (projectLocation != null)
+                {
+                    try
+                    {
+                        var pos = projectLocation.GetProjectPosition(XYZ.Zero);
+                        // Latitude/Longitude moved to SiteLocation in Revit 2025+ API.
+                        var site = doc.SiteLocation;
+                        if (site != null)
+                        {
+                            latitude  = site.Latitude  * (180.0 / Math.PI);
+                            longitude = site.Longitude * (180.0 / Math.PI);
+                        }
+                        northAngleDeg = pos.Angle     * (180.0 / Math.PI);
+                        elevation     = pos.Elevation * FeetToMm;
+                    }
+                    catch { /* not all configurations carry site data */ }
+                }
+
+                // Survey point position via its coordinate system (feet → mm)
+                // NOTE: BasePoint.GetCoordinateSystem() is not available in Revit 2025 public API.
+                // Easting/northing will remain null until a supported API is identified.
+                // if (surveyPoint != null) { ... surveyPoint.GetCoordinateSystem() ... }
+
+                // Project base point coordinate system (feet → mm)
+                double? pbpX = null, pbpY = null, pbpZ = null;
+                // NOTE: BasePoint.GetCoordinateSystem() is not available in Revit 2025 public API.
+                // pbpX/pbpY/pbpZ will remain null until a supported API is identified.
+
+                var sidecar = new
+                {
+                    schemaVersion = "1.0",
+                    generatedBy = "StingTools.RevitGltfExporter",
+                    generatedAt = DateTime.UtcNow.ToString("O"),
+                    exportMode = "ProjectInternal",  // TODO: detect shared coordinate export
+                    projectBasePoint = (pbpX.HasValue) ? new
+                    {
+                        x    = pbpX.Value,
+                        y    = pbpY!.Value,
+                        z    = pbpZ!.Value,
+                        unit = "mm",
+                    } : (object?)null,
+                    surveyPoint = (easting.HasValue && northing.HasValue) ? new
+                    {
+                        easting  = easting.Value,
+                        northing = northing.Value,
+                        unit     = "mm",
+                    } : (object?)null,
+                    geolocation = latitude.HasValue ? new
+                    {
+                        latitude          = latitude.Value,
+                        longitude         = longitude!.Value,
+                        elevation         = elevation!.Value,
+                        trueNorthAngleDeg = northAngleDeg!.Value,
+                    } : (object?)null,
+                    lengthUnit = "mm",
+                };
+
+                var json = Newtonsoft.Json.JsonConvert.SerializeObject(sidecar, Newtonsoft.Json.Formatting.Indented);
+                File.WriteAllText(sidecarPath, json);
+                StingLog.Info($"[RevitGltfExporter] Coordinate sidecar written: {sidecarPath}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"[RevitGltfExporter] Failed to write coordinate sidecar: {ex.Message}");
             }
         }
 

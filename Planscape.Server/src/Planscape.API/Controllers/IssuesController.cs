@@ -289,6 +289,42 @@ public class IssuesController : ControllerBase
             }
         }
 
+        // NEW-SRV-23 + NEW-MOB-17: resolve and validate assignee against project membership.
+        // Accept any of: AssigneeUserId (preferred), AssigneeEmail, or legacy Assignee display name.
+        AppUser? assigneeUser = null;
+        if (req.AssigneeUserId.HasValue)
+        {
+            assigneeUser = await _db.Users.FirstOrDefaultAsync(u =>
+                u.Id == req.AssigneeUserId.Value && u.TenantId == tenantId);
+        }
+        if (assigneeUser == null && !string.IsNullOrWhiteSpace(req.AssigneeEmail))
+        {
+            assigneeUser = await _db.Users.FirstOrDefaultAsync(u =>
+                u.Email == req.AssigneeEmail && u.TenantId == tenantId);
+        }
+        if (assigneeUser == null && !string.IsNullOrWhiteSpace(req.Assignee))
+        {
+            // Legacy display-name match — kept so older mobile builds still work
+            assigneeUser = await _db.Users.FirstOrDefaultAsync(u =>
+                u.DisplayName == req.Assignee && u.TenantId == tenantId);
+        }
+        if (assigneeUser != null)
+        {
+            var isMember = await _db.ProjectMembers.AnyAsync(m =>
+                m.ProjectId == projectId && m.UserId == assigneeUser.Id && m.IsActive);
+            if (!isMember)
+            {
+                return BadRequest(new { error = "Assignee is not an active member of this project" });
+            }
+        }
+
+        var creatorClaim = User.FindFirst("user_id")?.Value;
+        Guid? creatorId = Guid.TryParse(creatorClaim, out var cid) ? cid : null;
+
+        // Source detection: explicit > X-Device-Id presence > default "web"
+        var source = req.Source
+            ?? (Request.Headers.ContainsKey("X-Device-Id") ? "mobile" : "web");
+
         var issue = new BimIssue
         {
             ProjectId = projectId,
@@ -1343,11 +1379,12 @@ public record UpdateIssueRequest(
     // Replace the watcher list (null = leave unchanged; empty array = clear).
     Guid[]? WatcherUserIds,
     // Assignee FK fields — preferred over the display-name string above.
-    // When supplied the server resolves the user, validates project membership,
-    // and writes all three fields (Assignee, AssigneeEmail, AssigneeUserId).
     string? AssigneeEmail,
     Guid? AssigneeUserId,
     // CO-ASSIGNEES — additional users who share responsibility.
     // null = leave unchanged; empty array = clear.
-    Guid[]? CoAssigneeUserIds);
+    Guid[]? CoAssigneeUserIds,
+    // ResolvedBy — display name of the user who resolved the issue.
+    // null = leave unchanged.
+    string? ResolvedBy);
 public record LinkAttachmentRequest(Guid DocumentId);

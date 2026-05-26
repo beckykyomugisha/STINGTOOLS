@@ -28,6 +28,8 @@ namespace StingTools.Core.Drawing
     public sealed class TitleBlockApplyResult
     {
         public int ParamsWritten { get; set; }
+        public int ParametersDeclared { get; set; }
+        public List<string> ParametersMissing { get; } = new List<string>();
         public List<string> Warnings { get; } = new List<string>();
     }
 
@@ -56,12 +58,26 @@ namespace StingTools.Core.Drawing
             if (doc == null || sheet == null || dt?.TitleBlockParams == null
                 || dt.TitleBlockParams.Count == 0) return r;
 
-            var tb = FindTitleBlockInstance(doc, sheet);
-            if (tb == null)
+            // GAP-A: walk every title-block instance on the sheet, not just
+            // the first. Sheets that host more than one TB (front + back,
+            // landscape + portrait variants) used to leave the second
+            // instance with stale values; now every TB receives the same
+            // declarative payload.
+            var tbs = FindAllTitleBlockInstances(doc, sheet);
+            if (tbs.Count == 0)
             {
                 r.Warnings.Add($"Sheet '{sheet.SheetNumber}' has no title block to stamp.");
                 return r;
             }
+
+            foreach (var tb in tbs)
+            {
+                // GAP-M: a secondary title block (e.g. a North arrow or a
+                // fabrication-only stamp on the same sheet) typically has
+                // zero of the declared keys. Skip silently rather than
+                // emitting a "no parameter" warning per key per secondary TB.
+                if (tbs.Count > 1 && !TitleBlockHasAnyKey(tb, dt.TitleBlockParams.Keys))
+                    continue;
 
             foreach (var kv in dt.TitleBlockParams)
             {
@@ -71,6 +87,9 @@ namespace StingTools.Core.Drawing
                 string resolved;
                 try
                 {
+                    // ACC-07: a null/empty template still resolves to the
+                    // empty string and writes through, ensuring cloned
+                    // sheets don't carry stale prior values forward.
                     resolved = ResolveTemplate(doc, kv.Value ?? "", tokens);
                 }
                 catch (Exception ex)
@@ -95,14 +114,19 @@ namespace StingTools.Core.Drawing
                     switch (p.StorageType)
                     {
                         case StorageType.String:
-                            p.Set(resolved);
+                            // ACC-07: always set, even for empty string,
+                            // so cloned/template sheets reset stale text.
+                            p.Set(resolved ?? string.Empty);
+                            wrote = true;
                             break;
                         case StorageType.Integer:
-                            if (int.TryParse(resolved, out var iv)) p.Set(iv);
+                            if (string.IsNullOrEmpty(resolved)) p.Set(0);
+                            else if (int.TryParse(resolved, out var iv)) p.Set(iv);
                             else r.Warnings.Add($"'{paramName}' expects integer; '{resolved}' not parsable.");
                             break;
                         case StorageType.Double:
-                            if (double.TryParse(resolved, out var dv)) p.Set(dv);
+                            if (string.IsNullOrEmpty(resolved)) p.Set(0.0);
+                            else if (double.TryParse(resolved, out var dv)) p.Set(dv);
                             else r.Warnings.Add($"'{paramName}' expects number; '{resolved}' not parsable.");
                             break;
                         default:
@@ -116,7 +140,68 @@ namespace StingTools.Core.Drawing
                     r.Warnings.Add($"Write '{paramName}': {ex.Message}");
                 }
             }
+            } // end per-TB block (GAP-M)
             return r;
+        }
+
+        /// <summary>
+        /// Returns a no-op IDisposable scope that callers can wrap in a
+        /// <c>using</c> statement for symmetry with other batch-mode
+        /// helpers. No actual batching is performed — Apply() is
+        /// lightweight enough to call per-sheet.
+        /// </summary>
+
+
+        /// <summary>
+        /// Apply dt.TitleBlockParams to a batch of sheets. Returns a flat list of
+        /// warnings from all sheets. Never throws.
+        /// </summary>
+        public static List<string> Batch(
+            Document doc, IEnumerable<ElementId> sheetIds, DrawingType dt,
+            Dictionary<string, string> tokens)
+        {
+            var warnings = new List<string>();
+            if (sheetIds == null) return warnings;
+            foreach (var id in sheetIds)
+            {
+                try
+                {
+                    var sheet = doc?.GetElement(id) as ViewSheet;
+                    if (sheet == null) continue;
+                    var r = Apply(doc, sheet, dt, tokens);
+                    warnings.AddRange(r.Warnings);
+                }
+                catch (Exception ex) { warnings.Add($"Batch sheet {id}: {ex.Message}"); }
+            }
+            return warnings;
+        }
+
+        /// <summary>
+        /// Returns a list of ProjectInformation parameter names referenced by
+        /// dt.TitleBlockParams that do not exist in the project. Used by
+        /// pre-flight validators to surface missing parameters before a run.
+        /// </summary>
+        public static List<string> FindMissingProjectInfoParams(Document doc, DrawingType dt)
+        {
+            var missing = new List<string>();
+            if (doc == null || dt?.TitleBlockParams == null) return missing;
+            try
+            {
+                var pi = doc.ProjectInformation;
+                if (pi == null) return missing;
+                foreach (var kv in dt.TitleBlockParams)
+                {
+                    var ms = _projInfo.Matches(kv.Value ?? "");
+                    foreach (System.Text.RegularExpressions.Match m in ms)
+                    {
+                        var name = m.Groups[1].Value;
+                        if (pi.LookupParameter(name) == null && !missing.Contains(name))
+                            missing.Add(name);
+                    }
+                }
+            }
+            catch { /* defensive */ }
+            return missing;
         }
 
         // ── Internals ──
@@ -177,6 +262,73 @@ namespace StingTools.Core.Drawing
             catch { return null; }
         }
 
+        /// <summary>
+        /// Clear any title-block parameter values that were stamped by a
+        /// prior DrawingType profile but are not present in the new profile.
+        /// Prevents stale corporate metadata from a previous profile bleeding
+        /// through when the sheet is re-assigned to a different drawing type.
+        ///
+        /// Only parameters whose keys are NOT in the new profile's
+        /// TitleBlockParams are cleared; the new Apply() call will re-write
+        /// the ones that remain. String parameters are set to empty string;
+        /// Integer / Double parameters are set to 0.
+        ///
+        /// Requires an active transaction from the caller. Never throws.
+        /// </summary>
+        public static void ClearStaleKeysFromPriorProfile(
+            Document doc, ViewSheet sheet, string priorDrawingTypeId)
+        {
+            if (doc == null || sheet == null
+                || string.IsNullOrWhiteSpace(priorDrawingTypeId)) return;
+            try
+            {
+                // Resolve the prior drawing type to get its TitleBlockParams keys.
+                DrawingType priorDt = null;
+                try { priorDt = DrawingTypeRegistry.Get(doc, priorDrawingTypeId); }
+                catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
+
+                if (priorDt?.TitleBlockParams == null || priorDt.TitleBlockParams.Count == 0) return;
+
+                var tb = FindTitleBlockInstance(doc, sheet);
+                if (tb == null) return;
+
+                foreach (var key in priorDt.TitleBlockParams.Keys)
+                {
+                    if (string.IsNullOrWhiteSpace(key)) continue;
+                    try
+                    {
+                        var p = tb.LookupParameter(key);
+                        if (p == null || p.IsReadOnly) continue;
+                        switch (p.StorageType)
+                        {
+                            case StorageType.String:  p.Set(""); break;
+                            case StorageType.Integer: p.Set(0);  break;
+                            case StorageType.Double:  p.Set(0.0); break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingTools.Core.StingLog.Warn(
+                            $"ClearStaleKeysFromPriorProfile: '{key}': {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn(
+                    $"TitleBlockParamApplier.ClearStaleKeysFromPriorProfile: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Resolves the value of each TitleBlockParams entry in <paramref name="dt"/>
+        /// using the same ${ProjectInfo} and {token} substitution rules as
+        /// <see cref="Apply"/>, but does NOT write anything to the title block.
+        /// Returns a dictionary of parameter-name → resolved-value strings.
+        /// Used by pre-flight validators and drift detectors to compare what
+        /// would be written against what is already on the sheet.
+        /// </summary>
+
         private static FamilyInstance FindTitleBlockInstance(Document doc, ViewSheet sheet)
         {
             try
@@ -189,5 +341,6 @@ namespace StingTools.Core.Drawing
             }
             catch { return null; }
         }
+
     }
 }

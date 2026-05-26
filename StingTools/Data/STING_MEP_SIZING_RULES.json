@@ -1,0 +1,228 @@
+{
+  "_schema": "STING_MEP_SIZING_RULES",
+  "_version": "1.0",
+  "_notes": [
+    "Single source of truth for MEP sizing constants.",
+    "Replaces hardcoded constants in:",
+    "  - Commands/Mep/MepAutoSizeCommand.cs (PipeMaxVelMs, DuctMaxVelMs, MaxAspect, MaxFillPct)",
+    "  - aspect-ratio default baked into Math.Sqrt(area * 1.5)",
+    "  - MepSizeTables.DuctStandardMm / PipeStandardBoreMm region lock",
+    "Project override lives at <project>/_BIM_COORD/mep_sizing_rules.json.",
+    "First-match-wins by (discipline, role, fluid, region)."
+  ],
+
+  "regions": {
+    "UK_SI": { "label": "UK / SI (CIBSE)",      "standard": "CIBSE Guide B/C", "airDensityKgM3": 1.20 },
+    "US_IP": { "label": "US / IP (ASHRAE)",     "standard": "ASHRAE 90.1",     "airDensityKgM3": 1.20 },
+    "EU_SI": { "label": "EU / SI (EN 1505)",    "standard": "EN 1505 / 1506",  "airDensityKgM3": 1.20 },
+    "DE_SI": { "label": "Germany (DIN 4740)",   "standard": "DIN 4740",        "airDensityKgM3": 1.20 },
+    "SE_SI": { "label": "Nordic (SS-EN)",       "standard": "SS-EN 1505",      "airDensityKgM3": 1.20 }
+  },
+
+  "duct": {
+    "_defaultRegion": "UK_SI",
+    "roles": [
+      { "id": "main",        "label": "Main",          "maxVelocityMs": 8.0,  "maxFrictionPaPerM": 1.2, "aspectMax": 3.0, "source": "CIBSE Guide B3" },
+      { "id": "branch",      "label": "Branch",        "maxVelocityMs": 6.0,  "maxFrictionPaPerM": 1.0, "aspectMax": 2.5, "source": "CIBSE Guide B3" },
+      { "id": "runout",      "label": "Runout",        "maxVelocityMs": 4.5,  "maxFrictionPaPerM": 0.8, "aspectMax": 2.0, "source": "CIBSE Guide B3" },
+      { "id": "outdoor_air", "label": "Outdoor air",   "maxVelocityMs": 4.0,  "maxFrictionPaPerM": 0.8, "aspectMax": 2.5, "source": "ASHRAE 62.1" },
+      { "id": "exhaust",     "label": "Exhaust",       "maxVelocityMs": 10.0, "maxFrictionPaPerM": 1.5, "aspectMax": 3.0, "source": "SMACNA" },
+      { "id": "kitchen",     "label": "Kitchen exhaust","maxVelocityMs": 12.0,"maxFrictionPaPerM": 2.0, "aspectMax": 2.0, "source": "DW/172" },
+      { "id": "smoke",       "label": "Smoke",         "maxVelocityMs": 15.0, "maxFrictionPaPerM": 2.5, "aspectMax": 2.0, "source": "BS 9999" }
+    ],
+    "defaultAspect": 1.5,
+    "pressureClasses": [
+      { "id": "low",  "label": "Low — ≤ 500 Pa",  "maxPa": 500,  "standard": "DW/144 class A" },
+      { "id": "med",  "label": "Medium — ≤ 1000 Pa","maxPa": 1000,"standard": "DW/144 class B" },
+      { "id": "high", "label": "High — ≤ 2500 Pa","maxPa": 2500, "standard": "DW/144 class C" },
+      { "id": "extra","label": "Extra — ≤ 7500 Pa","maxPa": 7500,"standard": "DW/144 class D" }
+    ],
+    "standardSizesMm": {
+      "UK_SI": [100,150,200,250,300,350,400,500,600,700,800,900,1000,1100,1200,1400,1600,1800,2000],
+      "US_IP": [102,152,203,254,305,356,406,508,610,711,813,914,1016,1118,1219,1422,1626,1829,2032],
+      "EU_SI": [100,125,160,200,250,315,400,500,630,710,800,1000,1250,1600,2000],
+      "DE_SI": [100,125,160,200,250,315,400,500,630,800,1000,1250,1600,2000],
+      "SE_SI": [100,125,160,200,250,315,400,500,630,800,1000,1250,1600,2000]
+    },
+    "gaugeBreakpoints": [
+      { "uptoWidthMm": 600,  "thicknessMm": 0.7, "seam": "A", "label": "Pittsburgh lock" },
+      { "uptoWidthMm": 1200, "thicknessMm": 0.9, "seam": "A", "label": "Pittsburgh lock" },
+      { "uptoWidthMm": 1800, "thicknessMm": 1.0, "seam": "B", "label": "Snap lock" },
+      { "uptoWidthMm": 9999, "thicknessMm": 1.2, "seam": "D", "label": "Double-seam" }
+    ],
+    "fittingLossCoefficients": {
+      "_notes": [
+        "Loss coefficients C in ΔP = C · ½ρv². Source: SMACNA HVAC Systems",
+        "Duct Design 4th ed., Appendix A. Projects may override individual",
+        "entries (e.g. modern vaned elbows) via the project override file."
+      ],
+      "ELBOW_90_SMOOTH":       0.11,
+      "ELBOW_90_MITRED_VANED": 0.27,
+      "ELBOW_90_MITRED_PLAIN": 1.20,
+      "ELBOW_45_SMOOTH":       0.08,
+      "ELBOW_60_SMOOTH":       0.10,
+      "TEE_STRAIGHT_45":       0.15,
+      "TEE_STRAIGHT_90":       0.50,
+      "TEE_BRANCH_45":         0.60,
+      "TEE_BRANCH_90":         1.00,
+      "CONTRACTION_45":        0.20,
+      "EXPANSION_45":          0.25,
+      "EXPANSION_ABRUPT":      0.50,
+      "DAMPER_OPEN":           0.04,
+      "DAMPER_HALF":           6.00,
+      "DIFFUSER":              1.40,
+      "EGGCRATE":              0.80,
+      "FLEX_PER_METRE":        1.00
+    },
+    "manufacturerFittings": {
+      "_notes": [
+        "Manufacturer-specific loss coefficients. Looked up by the",
+        "MEP_PROD_REF_TXT parameter on each fitting; falls back to the",
+        "generic fittingLossCoefficients above when no match is found.",
+        "Sources: Lindab Comfort Catalogue 2023, Trox Technical Cat.,",
+        "Halton Selector. Values are 'design point' C, not full curve."
+      ],
+      "lindab": {
+        "BFU-90-CIRC":   0.10,
+        "BFL-90-RECT":   0.13,
+        "TCPU-T-BRANCH": 0.65,
+        "DRU-DAMPER":    0.30,
+        "SLU-SILENCER":  0.45
+      },
+      "trox": {
+        "RN-90-ELBOW":   0.12,
+        "TVR-BRANCH":    0.55,
+        "AT-VAV":        0.35,
+        "LV-LOUVRE":     1.10
+      },
+      "halton": {
+        "HSL-SILENCER":  0.42,
+        "MSD-DAMPER":    0.28,
+        "MFB-MIXED-FLOW":0.58
+      }
+    }
+  },
+
+  "pipe": {
+    "_defaultRegion": "UK_SI",
+    "services": [
+      { "id": "chw",         "label": "Chilled water",     "maxVelocityMs": 1.5, "maxPaPerM": 250, "source": "CIBSE Guide C 4.4.2" },
+      { "id": "hws",         "label": "Heating water",     "maxVelocityMs": 2.0, "maxPaPerM": 350, "source": "CIBSE Guide C 4.4.2" },
+      { "id": "lhw",         "label": "LTHW return",       "maxVelocityMs": 1.5, "maxPaPerM": 250, "source": "CIBSE Guide C" },
+      { "id": "dcw",         "label": "Domestic cold",     "maxVelocityMs": 2.0, "maxPaPerM": 300, "source": "BS EN 806-3" },
+      { "id": "dhw",         "label": "Domestic hot",      "maxVelocityMs": 1.0, "maxPaPerM": 200, "source": "BS 6700" },
+      { "id": "dhw_circ",    "label": "DHW recirculation", "maxVelocityMs": 1.0, "maxPaPerM": 200, "source": "BS 6700" },
+      { "id": "condensate",  "label": "Condensate",        "maxVelocityMs": 0.6, "maxPaPerM": 100, "source": "ASHRAE" },
+      { "id": "refrig_gas",  "label": "Refrigerant gas",   "maxVelocityMs": 15.0,"maxPaPerM": 800, "source": "ASHRAE 15" },
+      { "id": "refrig_liq",  "label": "Refrigerant liquid","maxVelocityMs": 0.5, "maxPaPerM": 150, "source": "ASHRAE 15" },
+      { "id": "steam",       "label": "Steam (LP)",        "maxVelocityMs": 25.0,"maxPaPerM": 100, "source": "CIBSE Guide C" },
+      { "id": "natural_gas", "label": "Natural gas",       "maxVelocityMs": 6.0, "maxPaPerM": 150, "source": "IGEM/UP/2" }
+    ],
+    "standardBoreMm": {
+      "UK_SI": [15,20,25,32,40,50,65,80,100,125,150,200,250,300,350,400,450,500],
+      "US_IP": [13,19,25,32,38,51,64,76,102,127,152,203,254,305,356,406,457,508],
+      "EU_SI": [15,20,25,32,40,50,65,80,100,125,150,200,250,300]
+    },
+    "valveCv": {
+      "_notes": [
+        "Manufacturer valve flow coefficients. Kvs published in m³/h at",
+        "1 bar pressure drop (EU convention). Cv = 1.156 · Kvs.",
+        "ΔP_bar = (Q_m3h / Kvs)². For STING ΔP_Pa = 1e5 · (Q / Kvs)²."
+      ],
+      "belimo": {
+        "B215-DN15":    1.0,
+        "B220-DN20":    2.5,
+        "B225-DN25":    6.3,
+        "B232-DN32":   10.0,
+        "B240-DN40":   16.0,
+        "B250-DN50":   25.0,
+        "PICV-DN20":    1.8,
+        "PICV-DN25":    3.6,
+        "PICV-DN32":    7.2,
+        "PICV-DN40":   12.0
+      },
+      "siemens": {
+        "VVF53-DN50":  25.0,
+        "VVF53-DN65":  40.0,
+        "VVF53-DN80":  63.0,
+        "VVF53-DN100":100.0
+      },
+      "danfoss": {
+        "VFG2-DN15":    2.5,
+        "VFG2-DN25":    8.0,
+        "AB-QM-DN20":   1.5,
+        "AB-QM-DN32":   4.0
+      }
+    },
+    "picvCurves": {
+      "_notes": [
+        "Pressure-Independent Control Valve characteristic curves.",
+        "Each PICV holds flow constant across a published authority window",
+        "(ΔP_min .. ΔP_max) — outside that window, behaviour reverts to a",
+        "standard equal-percentage Kvs. Values per vendor data sheets.",
+        "",
+        "Lookup via valveBrand:picvCode. Used by hydronic balancing to",
+        "(a) check that the system pressure budget stays within the PICV's",
+        "authority window, (b) substitute the constant Q for the standard",
+        "Kvs ΔP relationship where applicable."
+      ],
+      "belimo": {
+        "PICV-DN20":  { "qMaxLs": 1.50, "dpMinKpa": 16, "dpMaxKpa": 400 },
+        "PICV-DN25":  { "qMaxLs": 3.00, "dpMinKpa": 16, "dpMaxKpa": 400 },
+        "PICV-DN32":  { "qMaxLs": 6.00, "dpMinKpa": 16, "dpMaxKpa": 400 },
+        "PICV-DN40":  { "qMaxLs": 10.0, "dpMinKpa": 16, "dpMaxKpa": 400 }
+      },
+      "danfoss": {
+        "AB-QM-DN20": { "qMaxLs": 1.30, "dpMinKpa": 16, "dpMaxKpa": 400 },
+        "AB-QM-DN32": { "qMaxLs": 4.20, "dpMinKpa": 16, "dpMaxKpa": 400 }
+      },
+      "ifc": {
+        "PICV-DN15":  { "qMaxLs": 0.50, "dpMinKpa": 20, "dpMaxKpa": 350 },
+        "PICV-DN25":  { "qMaxLs": 2.80, "dpMinKpa": 20, "dpMaxKpa": 350 }
+      }
+    }
+  },
+
+  "conduit": {
+    "_defaultRegion": "UK_SI",
+    "maxFillPct": 45,
+    "source": "BS 7671 522.8 single circuit; NEC Ch 9 Table 1 for US_IP"
+  },
+
+  "cableTray": {
+    "_defaultRegion": "UK_SI",
+    "maxFillPct": 50,
+    "source": "BS EN 61537 + industry rule-of-thumb"
+  },
+
+  "sizingStrategy": {
+    "options": [
+      { "id": "velocity",       "label": "Velocity limit",      "default": true,  "notes": "Pick smallest size that satisfies maxVelocityMs" },
+      { "id": "equal_friction", "label": "Equal friction",      "default": false, "notes": "Pick size that satisfies maxFrictionPaPerM" },
+      { "id": "static_regain",  "label": "Static regain",       "default": false, "notes": "Progressive reduction recovering Δv² as static pressure (CIBSE B3 / ASHRAE)" },
+      { "id": "constant_pressure","label": "Constant pressure", "default": false, "notes": "Maintain branch pressure for VAV systems" }
+    ]
+  },
+
+  "balancing": {
+    "maxIterations": 100,
+    "tolerancePa": 1.0,
+    "dampingFactor": 0.7,
+    "minBranchFlowLs": 0.01,
+    "notes": "Hardy Cross under-relaxation; lower damping (0.4-0.5) on unstable networks."
+  },
+
+  "acoustics": {
+    "ncTargets": [
+      { "spaceType": "Office",        "ncTarget": 35 },
+      { "spaceType": "Meeting room",  "ncTarget": 30 },
+      { "spaceType": "Patient room",  "ncTarget": 30 },
+      { "spaceType": "Operating room","ncTarget": 35 },
+      { "spaceType": "Classroom",     "ncTarget": 30 },
+      { "spaceType": "Library",       "ncTarget": 30 },
+      { "spaceType": "Restaurant",    "ncTarget": 40 },
+      { "spaceType": "Plantroom",     "ncTarget": 75 }
+    ],
+    "source": "CIBSE TG6 / ASHRAE Handbook A48"
+  }
+}

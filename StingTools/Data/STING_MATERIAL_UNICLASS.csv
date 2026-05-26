@@ -1,0 +1,31 @@
+MaterialClassPattern,UniclassCode,UniclassTitle
+# A3 — STING MaterialClass → Uniclass 2015 Pr_ mapping.
+# Pattern is regex (case-insensitive). First match wins.
+# Override at <project>/_BIM_COORD/material_uniclass.csv.
+(?i)concrete|cement|grout,Pr_20_29_03,Concrete
+(?i)reinforcement|rebar,Pr_20_85_60,Reinforcement
+(?i)steel|metal|stainless|galv,Pr_25_30_75,Steel sections
+(?i)aluminium|aluminum,Pr_25_30_05,Aluminium sections
+(?i)copper,Pr_25_30_25,Copper sheet & tube
+(?i)brass,Pr_25_30_15,Brass
+(?i)timber|wood|hardwood|softwood|plywood|OSB,Pr_20_85_88,Timber
+(?i)glass|glazing,Pr_25_57_38,Glass
+(?i)brick|masonry,Pr_20_29_06,Brick
+(?i)block,Pr_20_29_05,Block
+(?i)plaster|gypsum|drywall,Pr_25_50_70,Plaster
+(?i)mineral wool|rockwool|stone wool|glass wool,Pr_25_45_50,Mineral wool insulation
+(?i)pir|polyurethane,Pr_25_45_67,PIR insulation
+(?i)eps|expanded polystyrene,Pr_25_45_31,EPS insulation
+(?i)xps|extruded polystyrene,Pr_25_45_94,XPS insulation
+(?i)cellulose,Pr_25_45_15,Cellulose insulation
+(?i)bitumen|asphalt,Pr_25_57_06,Bitumen
+(?i)stone|granite|marble|limestone|sandstone,Pr_25_57_82,Natural stone
+(?i)tile|ceramic|porcelain,Pr_25_57_91,Ceramic tile
+(?i)carpet,Pr_25_57_18,Carpet
+(?i)rubber|EPDM|neoprene,Pr_25_57_74,Rubber
+(?i)pvc|vinyl,Pr_25_71_84,Vinyl
+(?i)hdpe|mdpe|polyethylene,Pr_25_71_67,Polyethylene
+(?i)paint|coating,Pr_25_67_64,Paint
+(?i)resin|epoxy,Pr_25_67_73,Resin coating
+(?i)lead,Pr_25_30_44,Lead
+(?i)zinc,Pr_25_30_99,Zinc

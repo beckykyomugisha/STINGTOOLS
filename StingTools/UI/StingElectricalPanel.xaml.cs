@@ -1,13 +1,18 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using TextBox = System.Windows.Controls.TextBox;
-using ComboBox = System.Windows.Controls.ComboBox;
+using System.Windows.Data;
+using System.Windows.Media;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using Button     = System.Windows.Controls.Button;
+using ComboBox   = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using StingTools.Core;
 
 namespace StingTools.UI
 {
@@ -222,6 +227,16 @@ namespace StingTools.UI
                 ((cmbSheetPlacementMode?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "GuidedManual";
         }
 
+        private void EarthingSystem_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                string sysName = (cmbEarthingSystem?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "TN-C-S";
+                StingElectricalCommandHandler.CurrentEarthingSystem = sysName;
+            }
+            catch { }
+        }
+
         private void LpdStandard_Changed(object sender, SelectionChangedEventArgs e)
         {
             try
@@ -229,7 +244,7 @@ namespace StingTools.UI
                 string tag = ((LpdStandard?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "ASHRAE_90_1_2019";
                 StingElectricalCommandHandler.CurrentLpdStandard = tag;
                 if (LpdCustomRow != null)
-                    LpdCustomRow.Visibility = tag == "Custom" ? Visibility.Visible : Visibility.Collapsed;
+                    LpdCustomRow.Visibility = tag == "Custom" ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
                 StingElectricalCommandHandler.CurrentLpdCustomLimit = ParseDouble(LpdCustomLimit?.Text, 0);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

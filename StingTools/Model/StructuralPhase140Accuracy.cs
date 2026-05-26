@@ -729,13 +729,13 @@ namespace StingTools.Model
                             if (note != null) ids.Add(note.Id);
                             row++;
                         }
-                        catch (Exception ex) { StingLog.Warn($"PlaceWarning row {row}: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"PlaceWarning row {row}: {ex2.Message}"); }
                     }
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Warn($"PlaceWarnings sub-transaction: {ex.Message}");
+                    StingLog.Warn($"PlaceWarnings sub-transaction: {ex2.Message}");
                     if (tx.HasStarted()) tx.RollBack();
                 }
             }

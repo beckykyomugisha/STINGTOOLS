@@ -16,7 +16,24 @@ Lighting Fixtures,LUM,E,180.00,666000,each,Standard luminaire
 Cable Trays,CTR,E,35.00,129500,m,Cable tray per linear metre
 Conduits,CDT,E,25.00,92500,m,Conduit per linear metre
 Plumbing Fixtures,SNY,P,650.00,2405000,each,Sanitary fixture installed
+Plumbing Equipment,PEQ,P,1200.00,4440000,each,Plumbing equipment (calorifier / pump / pressure vessel)
+Pipe Fittings,PFT,M,12.00,44400,each,Pipe fitting (elbow / tee / reducer / coupling / cap)
+Pipe Accessories,PAC,M,35.00,129500,each,Pipe accessory (valve / trap / strainer / gauge / TMV)
+Pipe Insulations,PIN,M,15.00,55500,m,Pipe insulation per linear metre
+Duct Insulations,DIN,M,20.00,74000,m,Duct insulation per linear metre
+Pipe Sleeve,PSL,M,50.00,185000,each,Pipe sleeve / fire-rated penetration
+Pipe Hanger,PHG,M,30.00,111000,each,Pipe hanger / support assembly
 Sprinklers,SPK,FP,120.00,444000,each,Sprinkler head installed
 Fire Alarm Devices,FAD,FP,250.00,925000,each,Fire alarm device installed
 Rooms,RM,A,0.00,0,each,Room (no direct cost)
 Air Terminals,ATU,M,150.00,555000,each,Air terminal unit
+Air Terminals,LAT,E,180.00,666000,each,Lightning air terminal (Franklin rod / mesh node) per BS EN 62305-3
+Down Conductors,LDC,E,12.50,46200,m,Down conductor Cu tape 25x3mm per BS EN 62305-3 Tab 6
+Earth Electrodes,LEE,E,55.00,203500,each,Earth electrode Cu-bonded rod 2.4m driven type A
+Earth Bar,LEB,E,220.00,814000,each,Main earth bar with test clamps per BS EN 62305-3 §7.2
+SPD Type 1,LSP1,E,450.00,1665000,each,Type 1 SPD Iimp 25kA 10/350µs (DEHNbloc / equivalent)
+SPD Type 2,LSP2,E,280.00,1036000,each,Type 2 SPD In 20kA 8/20µs (DEHNguard / equivalent)
+SPD Type 1+2,LSP12,E,580.00,2146000,each,Combined Type 1+2 SPD per IEC 61643-11
+SPD Type 3,LSP3,E,140.00,518000,each,Type 3 SPD final-circuit class per IEC 61643-11
+Test Clamps,LTC,E,38.00,140600,each,Test clamp / inspection point per BS EN 62305-3 §7.2
+Bonding Conductor,LBC,E,8.50,31450,m,Equipotential bonding Cu 16mm² per BS EN 62305-3 §6.2

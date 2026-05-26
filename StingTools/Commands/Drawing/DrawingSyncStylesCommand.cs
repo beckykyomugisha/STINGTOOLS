@@ -15,6 +15,7 @@
 using System;
 using System.Linq;
 using System.Text;
+using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -34,12 +35,46 @@ namespace StingTools.Commands.Drawing
                 var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
+                // Phase 183 — pick up views affected by on-disk profile /
+                // pack edits even when no drift would have shown up in
+                // the live VG state yet. LiveProfileSync stages the
+                // changed-id set whenever the registries are reloaded.
+                var liveAffected = LiveProfileSync.GetAffectedViewIds(doc);
+
                 var reports = DrawingDriftDetector.Scan(doc);
-                if (reports.Count == 0)
+                // suppressedOnly count not provided by current Scan() return shape — assume 0.
+                int suppressedOnly = 0;
+                if (reports.Count == 0 && liveAffected.Count == 0)
                 {
-                    TaskDialog.Show("STING — Sync Styles",
-                        "Every stamped view is already in sync with its Drawing Type.");
+                    string msg2 = suppressedOnly > 0
+                        ? $"Every actionable view is already in sync with its Drawing Type.\n{suppressedOnly} view(s) have fields controlled by a view template — those are informational only."
+                        : "Every stamped view is already in sync with its Drawing Type.";
+                    TaskDialog.Show("STING — Sync Styles", msg2);
                     return Result.Succeeded;
+                }
+
+                // Merge LiveProfileSync-affected views into the report
+                // set so the resync pass picks them up. Build synthetic
+                // DriftReports for views that didn't appear in the live
+                // scan but whose profile / pack source has changed.
+                if (liveAffected.Count > 0)
+                {
+                    var existing = new HashSet<long>(reports.Select(r => r.ViewId?.Value ?? -1L));
+                    foreach (var vid in liveAffected)
+                    {
+                        if (existing.Contains(vid.Value)) continue;
+                        if (!(doc.GetElement(vid) is View vv) || vv.IsTemplate) continue;
+                        var stampedId = DrawingTypeStamper.Read(vv);
+                        if (string.IsNullOrEmpty(stampedId)) continue;
+                        var synth = new DriftReport
+                        {
+                            ViewId = vid,
+                            ViewName = vv.Name,
+                            DrawingTypeId = stampedId,
+                        };
+                        synth.Drifts.Add("PROFILE_RELOADED: profile or pack edited since last load");
+                        reports.Add(synth);
+                    }
                 }
 
                 var confirm = new TaskDialog("STING — Sync Styles")
@@ -61,7 +96,16 @@ namespace StingTools.Commands.Drawing
                         if (!(doc.GetElement(r.ViewId) is View v)) continue;
                         var dt = DrawingTypeRegistry.Get(doc, r.DrawingTypeId);
                         if (dt == null) continue;
-                        var applied = DrawingTypePresentation.Apply(doc, v, dt, runAnnotation: false);
+                        // Phase 137 — explicit annotation skips so SyncStyles
+                        // re-applies VG/template/managed-template state without
+                        // running auto-tag / auto-dim / decorative / spot passes.
+                        var applied = DrawingTypePresentation.Apply(doc, v, dt, new DrawingTypePresentation.ApplyOptions
+                        {
+                            AnnotationOptions = new AnnotationRunOptions
+                            {
+                                SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
+                            }
+                        });
                         if (applied.Warnings.Count > 0)
                             warnings.AddRange(applied.Warnings.Select(w => $"[{v.Name}] {w}"));
                         if (applied.ScaleApplied || applied.DetailLevelApplied || applied.TemplateApplied || applied.PackApplied)
@@ -69,6 +113,11 @@ namespace StingTools.Commands.Drawing
                     }
                     tx.Commit();
                 }
+
+                // Phase 183 — clear the staged diff now that every
+                // affected view has been re-applied; next Inspect /
+                // SyncStyles starts from a fresh baseline.
+                LiveProfileSync.ConsumeStagedDiff(doc);
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"Re-synced {resynced} of {reports.Count} drifted view(s).");
@@ -103,6 +152,82 @@ namespace StingTools.Commands.Drawing
             sb.AppendLine();
             sb.AppendLine("OK = re-apply profile to every drifted view (skips STYLE_LOCKED views).");
             return sb.ToString();
+        }
+    }
+
+    /// <summary>
+    /// FG-10 / INT-07: force-resync command. Re-applies every stamped
+    /// view's profile, including the views whose drifts are suppressed
+    /// because their currently-applied view template controls the
+    /// parameter. The applier still respects STING_STYLE_LOCKED_BOOL —
+    /// only the template-control suppression is overridden.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class DrawingForceResyncCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            try
+            {
+                var doc = data?.Application?.ActiveUIDocument?.Document;
+                if (doc == null) { msg = "No document open."; return Result.Failed; }
+
+                var reports = DrawingDriftDetector.Scan(doc)
+                    .Where(r => r.Any || r.AnySuppressed).ToList();
+                if (reports.Count == 0)
+                {
+                    TaskDialog.Show("STING — Force Resync",
+                        "No stamped views need re-syncing — every profile-controlled value matches the live state.");
+                    return Result.Succeeded;
+                }
+
+                var confirm = new TaskDialog("STING — Force Resync (Suppressed)")
+                {
+                    MainInstruction = $"{reports.Count} view(s) will be re-applied",
+                    MainContent =
+                        "Force-resync re-runs every stamped view's profile, including the ones whose " +
+                        "drift was previously suppressed because the view template controls the parameter. " +
+                        "Use this after editing a view template that intentionally diverges from the profile " +
+                        "but you want the profile back as the authority.\n\n" +
+                        "STING_STYLE_LOCKED views are still skipped.",
+                    CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
+                    DefaultButton = TaskDialogResult.Cancel,
+                };
+                if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+
+                int resynced = 0;
+                using (var tx = new Transaction(doc, "STING — Force Resync (Suppressed)"))
+                {
+                    tx.Start();
+                    foreach (var r in reports)
+                    {
+                        if (!(doc.GetElement(r.ViewId) is View v)) continue;
+                        var dt = DrawingTypeRegistry.Get(doc, r.DrawingTypeId);
+                        if (dt == null) continue;
+                        var applied = DrawingTypePresentation.Apply(doc, v, dt, new DrawingTypePresentation.ApplyOptions
+                        {
+                            AnnotationOptions = new AnnotationRunOptions
+                            {
+                                SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
+                            }
+                        });
+                        if (applied.ScaleApplied || applied.DetailLevelApplied
+                            || applied.TemplateApplied || applied.PackApplied
+                            || applied.TokenProfileApplied)
+                            resynced++;
+                    }
+                    tx.Commit();
+                }
+                TaskDialog.Show("STING — Force Resync", $"Re-applied profile on {resynced} view(s).");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("DrawingForceResync", ex);
+                msg = ex.Message;
+                return Result.Failed;
+            }
         }
     }
 }

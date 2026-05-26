@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139.25 — silently dismiss the predictable Revit failures that
 // the placement engine knowingly produces during a Place run:
 //
@@ -19,6 +20,7 @@
 // dismisses every error explicitly.  That's why "31 placed" reports
 // were still showing zero placements in the model.
 
+using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — Phase I.4 extended fabrication rules loader.
 //
 // Reads STING_FAB_RULES_EXT.json and exposes typed access. The 38

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — AutoPipeDrop.
 //
 // For each plumbing fixture, finds the nearest pipe of a matching
@@ -75,9 +76,9 @@ namespace StingTools.Core.Routing
             using (var tx = new Transaction(Doc, "STING v4 Auto-pipe drop"))
             {
                 try { tx.Start(); }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    result.Warnings.Add($"Transaction start failed: {ex.Message}");
+                    result.Warnings.Add($"Transaction start failed: {ex2.Message}");
                     return result;
                 }
 
@@ -92,18 +93,18 @@ namespace StingTools.Core.Routing
                             else
                                 TryDropFromFixture(fx, BuiltInCategory.OST_PipeCurves, SearchRadiusMm, result);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex3)
                         {
                             result.FailedCount++;
-                            result.Warnings.Add($"Drop from {fx?.Id}: {ex.Message}");
+                            result.Warnings.Add($"Drop from {fx?.Id}: {ex3.Message}");
                         }
                     }
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    result.Warnings.Add($"AutoPipeDrop fatal: {ex.Message}");
+                    result.Warnings.Add($"AutoPipeDrop fatal: {ex3.Message}");
                 }
             }
             return result;

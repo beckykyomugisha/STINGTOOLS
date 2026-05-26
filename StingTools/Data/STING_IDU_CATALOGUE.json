@@ -1,0 +1,46 @@
+{
+  "_schema": "STING_IDU_CATALOGUE",
+  "_version": "1.0",
+  "_notes": [
+    "Indoor-unit / fan-coil / cassette catalogue for HvacSelectIduCommand.",
+    "Each row carries nominal cooling + heating capacity, fan duty curve",
+    "(L/s at nominal external static pressure), noise (NC at design fan",
+    "speed), refrigerant connection sizes, MCA / power, weight.",
+    "",
+    "Selection logic:",
+    "  match by (vendorSeriesId, refrigerantId, mountingType, kind),",
+    "  filter by capacity ≥ duty kW, ESP ≥ minEsp, NC ≤ targetNc,",
+    "  rank by closest capacity / smallest size / lowest power.",
+    "",
+    "Sample dataset — Daikin VRV-5 + Mitsubishi City Multi + Toshiba",
+    "SHRMe at mid-2024 catalogue values. Project teams should override",
+    "with their actual installed series via <project>/_BIM_COORD/",
+    "idu_catalogue.json (additive — IDs map to vendor product codes)."
+  ],
+  "units": [
+    { "id": "Daikin-FXSQ-25M",  "vendorSeriesId": "Daikin-VRV-5",          "refrigerantId": "R32",   "mountingType": "Ducted",       "label": "Daikin FXSQ25M ducted 2.8 kW",
+      "nominalCoolingKw":  2.8, "nominalHeatingKw":  3.2, "fanLs":  90, "espPa": 30, "nc": 30, "liqOdMm":  6.35, "gasOdMm":  9.52, "mca": 0.7, "powerKw": 0.10, "weightKg": 23 },
+    { "id": "Daikin-FXSQ-32M",  "vendorSeriesId": "Daikin-VRV-5",          "refrigerantId": "R32",   "mountingType": "Ducted",       "label": "Daikin FXSQ32M ducted 3.6 kW",
+      "nominalCoolingKw":  3.6, "nominalHeatingKw":  4.0, "fanLs": 120, "espPa": 30, "nc": 31, "liqOdMm":  6.35, "gasOdMm": 12.7,  "mca": 0.8, "powerKw": 0.12, "weightKg": 23 },
+    { "id": "Daikin-FXSQ-50M",  "vendorSeriesId": "Daikin-VRV-5",          "refrigerantId": "R32",   "mountingType": "Ducted",       "label": "Daikin FXSQ50M ducted 5.6 kW",
+      "nominalCoolingKw":  5.6, "nominalHeatingKw":  6.3, "fanLs": 165, "espPa": 50, "nc": 32, "liqOdMm":  6.35, "gasOdMm": 12.7,  "mca": 1.1, "powerKw": 0.17, "weightKg": 30 },
+    { "id": "Daikin-FXSQ-100M", "vendorSeriesId": "Daikin-VRV-5",          "refrigerantId": "R32",   "mountingType": "Ducted",       "label": "Daikin FXSQ100M ducted 11.2 kW",
+      "nominalCoolingKw": 11.2, "nominalHeatingKw": 12.5, "fanLs": 330, "espPa": 60, "nc": 35, "liqOdMm":  9.52, "gasOdMm": 15.88, "mca": 1.8, "powerKw": 0.28, "weightKg": 44 },
+    { "id": "Daikin-FXFQ-50A",  "vendorSeriesId": "Daikin-VRV-5",          "refrigerantId": "R32",   "mountingType": "CeilingCassette","label": "Daikin FXFQ50A round-flow 5.6 kW",
+      "nominalCoolingKw":  5.6, "nominalHeatingKw":  6.3, "fanLs": 165, "espPa":  0, "nc": 33, "liqOdMm":  6.35, "gasOdMm": 12.7,  "mca": 1.0, "powerKw": 0.06, "weightKg": 24 },
+    { "id": "Daikin-FXAQ-50A",  "vendorSeriesId": "Daikin-VRV-5",          "refrigerantId": "R32",   "mountingType": "WallMounted",  "label": "Daikin FXAQ50A wall 5.6 kW",
+      "nominalCoolingKw":  5.6, "nominalHeatingKw":  6.3, "fanLs": 130, "espPa":  0, "nc": 36, "liqOdMm":  6.35, "gasOdMm": 12.7,  "mca": 0.8, "powerKw": 0.05, "weightKg": 13 },
+
+    { "id": "Mitsubishi-PEFY-P40", "vendorSeriesId": "Mitsubishi-CityMulti-Y", "refrigerantId": "R410A", "mountingType": "Ducted",       "label": "Mitsubishi PEFY-P40VMA-E ducted 4.5 kW",
+      "nominalCoolingKw":  4.5, "nominalHeatingKw":  5.0, "fanLs": 140, "espPa": 50, "nc": 32, "liqOdMm":  6.35, "gasOdMm": 12.7,  "mca": 1.0, "powerKw": 0.13, "weightKg": 25 },
+    { "id": "Mitsubishi-PEFY-P100","vendorSeriesId": "Mitsubishi-CityMulti-Y", "refrigerantId": "R410A", "mountingType": "Ducted",       "label": "Mitsubishi PEFY-P100VMA-E ducted 11.2 kW",
+      "nominalCoolingKw": 11.2, "nominalHeatingKw": 12.5, "fanLs": 330, "espPa": 100,"nc": 36, "liqOdMm":  9.52, "gasOdMm": 15.88, "mca": 2.0, "powerKw": 0.32, "weightKg": 48 },
+    { "id": "Mitsubishi-PLFY-P50","vendorSeriesId": "Mitsubishi-CityMulti-Y", "refrigerantId": "R410A", "mountingType": "CeilingCassette","label": "Mitsubishi PLFY-P50VKM-E cassette 5.6 kW",
+      "nominalCoolingKw":  5.6, "nominalHeatingKw":  6.3, "fanLs": 165, "espPa":  0, "nc": 34, "liqOdMm":  6.35, "gasOdMm": 12.7,  "mca": 0.9, "powerKw": 0.05, "weightKg": 21 },
+
+    { "id": "Toshiba-MMD-AP-72", "vendorSeriesId": "Toshiba-SHRMe",         "refrigerantId": "R32",   "mountingType": "Ducted",       "label": "Toshiba MMD-AP0072 ducted 8.0 kW",
+      "nominalCoolingKw":  8.0, "nominalHeatingKw":  9.0, "fanLs": 230, "espPa": 60, "nc": 34, "liqOdMm":  9.52, "gasOdMm": 15.88, "mca": 1.5, "powerKw": 0.22, "weightKg": 38 },
+    { "id": "Toshiba-MMU-AP-56", "vendorSeriesId": "Toshiba-SHRMe",         "refrigerantId": "R32",   "mountingType": "CeilingCassette","label": "Toshiba MMU-AP0056 cassette 6.3 kW",
+      "nominalCoolingKw":  6.3, "nominalHeatingKw":  7.1, "fanLs": 190, "espPa":  0, "nc": 33, "liqOdMm":  6.35, "gasOdMm": 15.88, "mca": 1.1, "powerKw": 0.07, "weightKg": 22 }
+  ]
+}

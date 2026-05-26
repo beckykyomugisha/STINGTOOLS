@@ -1,0 +1,134 @@
+#!SCHEMA_VERSION=5.6,VARIANT=DesignConstruction
+# STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv
+# Healthcare Pack — Tag families across H/MG/RP disciplines
+# Phase H-1, branch claude/research-hospital-design-0Uxbi
+# Updated: Phase 179 — added warning parameters for all 16 healthcare validators
+#   Warnings align with TAG_CONFIG_v5_0_VALIDATION.csv Section 15 (HEALTHCARE_RULE entries)
+#   and STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv tier definitions
+# Format: TagFamilyName,TagDiscipline,Category,RoomBound,DefaultLabel,Description
+# Phase 187 SYNC: TagFamilyCreatorCommand HealthcareVariantFamilies (58 entries) wired in; LABEL_DEFINITIONS.json category_labels backfilled with 58 healthcare entries; MR_PARAMETERS.txt +35 healthcare WARN params (CLN/MGS/RAD/CEQ/LIG/ELC/FAB/PLM). UPDATED=2026-05-20.
+# DesignConstruction variant (Phase 187): clinical content is largely stage-independent,
+# so the family roster is identical to the Handover CSV. Per-tier T4-T10 differences for
+# DC presentation (e.g. commissioning audit trail rows, fab status, QC inspector) are
+# inherited from the discipline-specific DC siblings (ARCH/GEN/MEP/STR _DesignConstruction).
+# When the HEALTH pack needs DC-specific clinical tier rows (e.g. RDS commissioning sign-off),
+# replace this stub with per-family Tier blocks following the v5.6 schema.
+TAG_FAMILY,STING - Clinical Room Tag,H,Rooms,1,CLN_ROOM_CLASS_TXT,Clinical room class label
+TAG_FAMILY,STING - Pressure Regime Tag,H,Rooms,1,CLN_PRESS_REGIME_TXT,Pressure cascade arrow + Δp
+TAG_FAMILY,STING - Infection Class Tag,H,Rooms,1,CLN_INFECT_CLASS_TXT,AIIR/PE banner
+TAG_FAMILY,STING - MRI Zone Tag,H,Generic Models,0,CLN_MRI_ZONE_INT,MRI Z1..Z4 zoning marker
+TAG_FAMILY,STING - Anti-Ligature (Door) Tag,H,Doors,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
+TAG_FAMILY,STING - Anti-Ligature (Plumbing Fixture) Tag,H,Plumbing Fixtures,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
+TAG_FAMILY,STING - Anti-Ligature (Lighting Fixture) Tag,H,Lighting Fixtures,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
+TAG_FAMILY,STING - Bedhead Trunking Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Bedhead trunking/services unit
+TAG_FAMILY,STING - Pendant Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Operating room / ICU pendant
+TAG_FAMILY,STING - Scrub Trough Tag,H,Plumbing Fixtures,0,CEQ_CATEGORY_TXT,Pre-operative scrub trough
+TAG_FAMILY,STING - Hoist Track Tag,H,Generic Models,0,CLN_HOIST_TRACK_BOOL,Ceiling hoist track
+TAG_FAMILY,STING - Bariatric Tag,H,Rooms,1,CLN_BARI_DESIGN_KG_NR,Bariatric SWL marker
+TAG_FAMILY,STING - Nurse Call Tag,H,Nurse Call Devices,0,CLN_NURSECALL_TYPE_TXT,Nurse call station/post
+TAG_FAMILY,STING - Crash Cart Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Crash cart location
+TAG_FAMILY,STING - AED Cabinet Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,AED cabinet
+TAG_FAMILY,STING - Hand-Rub Dispenser Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Hand-rub dispenser
+TAG_FAMILY,STING - PTS Station Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Pneumatic tube station
+TAG_FAMILY,STING - AGV Dock Tag,H,Generic Models,0,CEQ_CATEGORY_TXT,AGV docking point
+TAG_FAMILY,STING - Mortuary Fridge Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Mortuary refrigeration
+TAG_FAMILY,STING - Imaging Modality Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,CT/MRI/X-ray/PET/Linac
+TAG_FAMILY,STING - Dialysis Station Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Dialysis chair / RO drop
+TAG_FAMILY,STING - Incubator Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Neonatal incubator
+TAG_FAMILY,STING - Warming Cot Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Warming cot
+TAG_FAMILY,STING - Autoclave Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Sterilizer / autoclave
+TAG_FAMILY,STING - Washer Disinfector Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Washer-disinfector (HSDU)
+TAG_FAMILY,STING - Bedpan Washer Tag,H,Plumbing Fixtures,0,CEQ_CATEGORY_TXT,Bedpan washer
+TAG_FAMILY,STING - Patient Monitor Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Patient monitoring device
+TAG_FAMILY,STING - Medical Refrigerator Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Medical refrigerator (pharmacy / lab)
+TAG_FAMILY,STING - Pharmacy Isolator Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,USP <797> / <800> isolator
+TAG_FAMILY,STING - Operating Light Tag,H,Lighting Fixtures,0,CEQ_CATEGORY_TXT,Operating room surgical light
+TAG_FAMILY,STING - Examination Light Tag,H,Lighting Fixtures,0,CEQ_CATEGORY_TXT,Mobile / mounted exam light
+TAG_FAMILY,STING - HBO Chamber Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Hyperbaric oxygen chamber
+TAG_FAMILY,STING - Birth Pool Tag,H,Plumbing Fixtures,0,CEQ_CATEGORY_TXT,Maternity birthing pool
+TAG_FAMILY,STING - IVF Workstation Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,IVF / ART laminar flow workstation
+TAG_FAMILY,STING - Cytotoxic Hood Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Cytotoxic compounding hood
+TAG_FAMILY,STING - Lab Fume Hood Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Laboratory fume hood (pathology)
+TAG_FAMILY,STING - Biosafety Cabinet Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,BSC Class II/III
+TAG_FAMILY,STING - Endoscope Reprocessor Tag,H,Medical Equipment,0,CEQ_CATEGORY_TXT,Endoscope reprocessor (HTM 01-06)
+TAG_FAMILY,STING - Surgical Robot Bay Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Surgical robot envelope
+TAG_FAMILY,STING - RTLS Reader Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Real-time location reader
+TAG_FAMILY,STING - Medical Gas Pipeline Tag,MG,Pipes,0,MGS_GAS_TYPE_TXT,MGPS pipework
+TAG_FAMILY,STING - Medical Gas Terminal Unit Tag,MG,Plumbing Fixtures,0,MGS_GAS_TYPE_TXT,BS 5682 terminal unit
+TAG_FAMILY,STING - Zone Valve Box Tag,MG,Pipe Accessories,0,MGS_ZVB_REF_TXT,MGPS zone valve box
+TAG_FAMILY,STING - Area Alarm Panel Tag,MG,Plumbing Fixtures,0,MGS_AAP_REF_TXT,MGPS area alarm panel
+TAG_FAMILY,STING - Master Alarm Panel Tag,MG,Plumbing Fixtures,0,MGS_AAP_REF_TXT,MGPS master alarm panel
+TAG_FAMILY,STING - Manifold Tag,MG,Mechanical Equipment,0,MGS_GAS_TYPE_TXT,MGPS manifold / cylinder bank
+TAG_FAMILY,STING - VIE Tag,MG,Mechanical Equipment,0,MGS_GAS_TYPE_TXT,Vacuum Insulated Evaporator (LOX)
+TAG_FAMILY,STING - Medical Air Plant Tag,MG,Mechanical Equipment,0,MGS_GAS_TYPE_TXT,Medical air compressor plant
+TAG_FAMILY,STING - Medical Vacuum Plant Tag,MG,Mechanical Equipment,0,MGS_GAS_TYPE_TXT,Medical vacuum pump plant
+TAG_FAMILY,STING - AGS Plant Tag,MG,Mechanical Equipment,0,MGS_GAS_TYPE_TXT,AGS receiver plant
+TAG_FAMILY,STING - X-ray Barrier Tag,RP,Walls,0,RAD_LEAD_MM_NR,X-ray shielded wall (mm Pb)
+TAG_FAMILY,STING - X-ray Door Tag,RP,Doors,0,RAD_LEAD_MM_NR,X-ray shielded door (mm Pb)
+TAG_FAMILY,STING - X-ray Window Tag,RP,Windows,0,RAD_LEAD_MM_NR,X-ray viewing window (mm Pb)
+TAG_FAMILY,STING - Linac Maze Tag,RP,Walls,0,RAD_LEAD_MM_NR,LINAC maze barrier
+TAG_FAMILY,STING - MRI Faraday Cage Tag,RP,Walls,0,CLN_RF_SHIELD_BOOL,MRI Faraday cage panel
+TAG_FAMILY,STING - 5-Gauss Marker Tag,RP,Generic Models,0,CLN_MRI_ZONE_INT,MRI 5-Gauss boundary marker
+TAG_FAMILY,STING - Controlled Area Sign Tag,RP,Generic Models,0,RAD_DOSE_DESIGN_GOAL_TXT,Controlled / supervised area signage
+TAG_FAMILY,STING - Dosimetry Post Tag,RP,Generic Models,0,RAD_DOSE_DESIGN_GOAL_TXT,Dosimetry monitoring post
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# WARNING PARAMETERS — Healthcare Pack (H / MG / RP disciplines)
+# Phase 179 — derived from 16 HealthcareValidatorGate validators
+# Format: #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+# TAG_WARN_VISIBLE_BOOL gates all rows — set per-element or per-view via parameter
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── H: Clinical Room warnings ───────────────────────────────────────────────
+# Validator: PressureRegimeValidator (HTM 03-01 / ASHRAE 170)
+1,CRITICAL,WARN_CLN_PRESS_REGIME_INVALID,CLN_PRESS_REGIME_TXT not in (NEG POS NEUTRAL),HTM 03-01 / ASHRAE 170,H,Text,⚠ Warning: Invalid Pressure Regime,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_PRESS_REGIME_INVALID, """")"
+2,CRITICAL,WARN_CLN_AIIR_NOT_NEGATIVE,AIIR room not under negative pressure,HTM 03-01 / CDC,H,Text,⚠ Warning: AIIR Must Be Negative,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_AIIR_NOT_NEGATIVE, """")"
+3,CRITICAL,WARN_CLN_PE_NOT_POSITIVE,Protective Environment room not under positive pressure,HTM 03-01 / CDC,H,Text,⚠ Warning: PE Room Must Be Positive,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_PE_NOT_POSITIVE, """")"
+# Validator: AdjacencyValidator — anteroom linkage (HBN 04-01 / CDC)
+4,HIGH,WARN_CLN_ANTERM_MISSING,AIIR or PE room missing linked anteroom ID,HBN 04-01 / CDC,H,Text,⚠ Warning: Anteroom Not Linked,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_ANTERM_MISSING, """")"
+# Validator: HvacValidator — ACH thresholds (HTM 03-01 / ASHRAE 170)
+5,HIGH,WARN_CLN_OR_LOW_ACH,OR-CONV or OR-HYBRID ACH below 20 minimum,HTM 03-01 / ASHRAE 170,H,Text,⚠ Warning: OR ACH Below Minimum,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_OR_LOW_ACH, """")"
+6,HIGH,WARN_CLN_OR_ULTRA_LOW_ACH,Ultra-clean OR ACH below 300 minimum,HTM 03-01,H,Text,⚠ Warning: Ultra-Clean OR ACH Low,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_OR_ULTRA_LOW_ACH, """")"
+7,HIGH,WARN_CLN_HEPA_GRADE_INVALID,HEPA grade not H13/H14/U15/U16,BS EN 1822,H,Text,⚠ Warning: Invalid HEPA Grade,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_HEPA_GRADE_INVALID, """")"
+# Validator: AntiLigatureValidator (HBN 03-01 / FGI Part 2)
+8,HIGH,WARN_LIG_RES_NO_RATING,Anti-ligature room has fitting with no product rating,HBN 03-01,H,Text,⚠ Warning: Anti-Ligature Rating Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_LIG_RES_NO_RATING, """")"
+# IoT staleness (HealthcarePack IoTStalenessValidator)
+9,MEDIUM,WARN_CLN_IOT_STALE,RTLS or IoT tag last seen > staleness threshold,ISO 15686-3,H,Text,⚠ Warning: IoT Data Stale,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_IOT_STALE, """")"
+# RDS completeness (RdsCompletenessValidator)
+10,HIGH,WARN_CLN_RDS_INCOMPLETE,Room Data Sheet mandatory parameters incomplete,HBN / HTM,H,Text,⚠ Warning: RDS Incomplete,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_RDS_INCOMPLETE, """")"
+# RTLS coverage (RtlsCoverageValidator)
+11,HIGH,WARN_CLN_RTLS_NO_COVERAGE,Clinical space has no RTLS reader within coverage radius,RTLS design standard,H,Text,⚠ Warning: RTLS Coverage Gap,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_RTLS_NO_COVERAGE, """")"
+# Waste flow (WasteFlowValidator — HTM 07-01)
+12,HIGH,WARN_CLN_WASTE_ROUTE_UNRESOLVED,Clinical waste route conflicts with clean corridor,HTM 07-01,H,Text,⚠ Warning: Waste Route Conflict,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_WASTE_ROUTE_UNRESOLVED, """")"
+# Acoustic isolation (AcousticValidator — HTM / BB93)
+13,MEDIUM,WARN_CLN_ACOUSTIC_STC_LOW,Clinical room STC below minimum for use class,HTM / BB93,H,Text,⚠ Warning: Room STC Below Minimum,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_ACOUSTIC_STC_LOW, """")"
+# Clinical equipment completeness (CEQ_GMDN)
+14,MEDIUM,WARN_CEQ_GMDN_MISSING,Clinical asset missing GMDN classification code,COBie healthcare,H,Text,⚠ Warning: GMDN Code Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CEQ_GMDN_MISSING, """")"
+
+# ─── MG: Medical Gas Pipeline System warnings ────────────────────────────────
+# Validator: MgasFlowValidator (HTM 02-01 / NFPA 99 §5.1.12)
+15,CRITICAL,WARN_MGS_GAS_TYPE_MISSING,Terminal unit or pipeline missing gas type,BS 5682 / HTM 02-01,MG,Text,⚠ Warning: Gas Type Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_GAS_TYPE_MISSING, """")"
+16,HIGH,WARN_MGS_NOT_BRAZED,Medical gas pipework must be inert-gas brazed,HTM 02-01,MG,Text,⚠ Warning: Pipework Not Brazed,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_NOT_BRAZED, """")"
+17,CRITICAL,WARN_MGS_VERIFY_FAILED,NFPA 99 §5.1.12 MGPS verification test failed,NFPA 99 §5.1.12,MG,Text,⚠ Warning: MGPS Verification Failed,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_VERIFY_FAILED, """")"
+18,HIGH,WARN_MGS_ZVB_NO_REF,Zone Valve Box has no reference code,HTM 02-01,MG,Text,⚠ Warning: ZVB Reference Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_ZVB_NO_REF, """")"
+19,HIGH,WARN_MGS_FLOW_RATE_LOW,Calculated flow rate below NFPA 99 diversity requirement,NFPA 99 §5.1.13,MG,Text,⚠ Warning: MGPS Flow Rate Low,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_FLOW_RATE_LOW, """")"
+20,HIGH,WARN_MGS_PRESSURE_DROP_HIGH,Pipeline segment pressure drop exceeds allowable limit,HTM 02-01 / NFPA 99,MG,Text,⚠ Warning: MGPS Pressure Drop Exceeded,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_PRESSURE_DROP_HIGH, """")"
+# EES branch (EesBranchValidator + EesResilienceValidator — NFPA 99)
+21,CRITICAL,WARN_ELC_EES_BRANCH_INVALID,EES branch designation not LIFE-SAF / CRIT / EQP-BR / NORMAL,NFPA 99,MG,Text,⚠ Warning: Invalid EES Branch,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_EES_BRANCH_INVALID, """")"
+22,CRITICAL,WARN_ELC_ATS_TIME_EXCEEDED,ATS transfer time >10 s for LS/CR branch,NFPA 99 §6.4,MG,Text,⚠ Warning: ATS Transfer Timeout,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_ATS_TIME_EXCEEDED, """")"
+# Water safety (WaterSafetyValidator — HTM 04-01)
+23,HIGH,WARN_PLM_DEAD_LEG_EXCEEDED,Sentinel point dead-leg exceeds 1 m,HTM 04-01,MG,Text,⚠ Warning: Dead Leg >1 m,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_DEAD_LEG_EXCEEDED, """")"
+24,HIGH,WARN_PLM_AUG_CARE_NO_FILTER,Augmented-care outlet missing point-of-use filter,HTM 04-01 Pt C,MG,Text,⚠ Warning: POU Filter Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_AUG_CARE_NO_FILTER, """")"
+
+# ─── RP: Radiation Protection warnings ───────────────────────────────────────
+# Validator: RadShieldValidator + AdvancedRadShieldValidator (NCRP 147)
+25,HIGH,WARN_RAD_LEAD_INSUFFICIENT,Lead-equivalent shielding below minimum 2 mm,NCRP 147,RP,Text,⚠ Warning: Insufficient Lead Shielding,"if(TAG_WARN_VISIBLE_BOOL, WARN_RAD_LEAD_INSUFFICIENT, """")"
+26,HIGH,WARN_RAD_QE_NOT_SIGNED,Primary barrier missing Qualified Expert sign-off,NCRP 147,RP,Text,⚠ Warning: QE Sign-Off Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_RAD_QE_NOT_SIGNED, """")"
+27,HIGH,WARN_RAD_DOOR_NO_INTERLOCKS,Radiation-controlled access door missing interlock specification,NCRP 151 / RCR,RP,Text,⚠ Warning: Door Interlock Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_RAD_DOOR_NO_INTERLOCKS, """")"
+28,HIGH,WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,Controlled area has no regulatory signage element placed,IRR17 / NCRP,RP,Text,⚠ Warning: Controlled Area Sign Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_RAD_CONTROLLED_AREA_NOT_SIGNED, """")"
+29,MEDIUM,WARN_RAD_DOSIMETRY_POST_MISSING,Controlled area boundary has no dosimetry monitoring post,IRR17,RP,Text,⚠ Warning: Dosimetry Post Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_RAD_DOSIMETRY_POST_MISSING, """")"
+# MRI zone / Faraday cage (MRI shielding)
+30,HIGH,WARN_CLN_MRI_ZONE_UNASSIGNED,Generic model in MRI suite area has no zone classification,IEC 60601-2-33,RP,Text,⚠ Warning: MRI Zone Unassigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_MRI_ZONE_UNASSIGNED, """")"
+31,MEDIUM,WARN_CLN_RF_SHIELD_UNSPECIFIED,MRI Faraday cage panel has no RF shielding method specified,IEC 60601-2-33,RP,Text,⚠ Warning: RF Shield Method Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_RF_SHIELD_UNSPECIFIED, """")"
+# Structural load (StructuralLoadValidator — for heavy imaging equipment)
+32,HIGH,WARN_CEQ_IMAGING_STRUCT_LOAD,Imaging equipment slab load not verified against structural model,AISC / BS EN 1991-1-1,RP,Text,⚠ Warning: Imaging Structural Load Unverified,"if(TAG_WARN_VISIBLE_BOOL, WARN_CEQ_IMAGING_STRUCT_LOAD, """")"

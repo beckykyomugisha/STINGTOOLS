@@ -1,3 +1,4 @@
+using System;
 // StingTools — SLD layout engine (Phase 175 + Phase 179 enhancements)
 //
 // Pure layout — turns a hierarchy of SLDNodes into XYZ symbol positions
@@ -10,7 +11,6 @@
 
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
-using StingTools.Core.Symbols;
 
 namespace StingTools.Core.SLD
 {
@@ -52,8 +52,7 @@ namespace StingTools.Core.SLD
             = new List<(XYZ, XYZ)>();
         public List<(XYZ from, XYZ to)> BranchLines { get; set; }
             = new List<(XYZ, XYZ)>();
-        // Carry pole count alongside each branch line so the annotation placer
-        // can draw tick marks without re-walking the node tree.
+        // Carries pole count per branch so SLDAnnotationPlacer can draw tick marks.
         public List<(XYZ from, XYZ to, int poles)> BranchLinesWithPoles { get; set; }
             = new List<(XYZ, XYZ, int)>();
         public XYZ ViewOrigin { get; set; } = XYZ.Zero;
@@ -98,7 +97,8 @@ namespace StingTools.Core.SLD
             if (root == null) return layout;
 
             double dy      = Mm(opts.SymbolHeightMm + opts.SymbolSpacingMm);
-            double busOff  = Mm(opts.BusbarOffsetMm);
+            double symHalf = Mm(opts.SymbolHeightMm / 2.0); // half-height for connector alignment
+            double busOff  = Mm(opts.BusbarOffsetMm);       // vertical offset from panel symbol to busbar
             double levelDx = Mm(opts.LevelOffsetMm);
 
             var yByLevel = new Dictionary<int, double>();
@@ -106,32 +106,24 @@ namespace StingTools.Core.SLD
             void Place(SLDNode node)
             {
                 if (!yByLevel.TryGetValue(node.HierarchyLevel, out var curY)) curY = 0;
-                if (!colByLevel.TryGetValue(node.HierarchyLevel, out var col)) col = 0;
-
-                // SLD-05: wrap to a new column when height limit is exceeded
-                if (curY >= maxColHeight) { col++; curY = 0; colByLevel[node.HierarchyLevel] = col; }
-
-                double x = node.HierarchyLevel * levelDx + col * colWidth;
+                double x = node.HierarchyLevel * levelDx;
                 var pos = new XYZ(x, -curY, 0);
                 layout.SymbolPositions[node.ElementId] = pos;
                 yByLevel[node.HierarchyLevel] = curY + dy;
 
                 if (node.IsPanel && node.Children.Count > 0)
                 {
-                    double busY = pos.Y - busOff;
+                    double busY = pos.Y - symHalf; // busOff replaced with symHalf (symbol half-height)
                     var busFrom = new XYZ(pos.X - Mm(10), busY, 0);
                     var busTo   = new XYZ(pos.X + Mm(10) + node.Children.Count * Mm(opts.SymbolSpacingMm), busY, 0);
                     layout.BusbarSegments.Add((busFrom, busTo));
 
                     foreach (var child in node.Children)
                     {
+                        Place(child);
                         if (layout.SymbolPositions.TryGetValue(child.ElementId, out var childPos))
                             layout.BranchLines.Add((new XYZ(childPos.X, busY, 0), childPos));
                     }
-                }
-                else if (!node.IsPanel)
-                {
-                    // Leaf node — no busbar, children are already placed inline above
                 }
             }
 

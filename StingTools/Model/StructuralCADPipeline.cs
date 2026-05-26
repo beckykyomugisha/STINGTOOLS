@@ -27,9 +27,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using StingTools.Core;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Model
 {
@@ -1523,7 +1525,7 @@ namespace StingTools.Model
                 }
 
                 // DWG-STRUCT-DEEP-6b: Connection detail synthesis
-                if (config?.SynthesizeConnectionDetails == true)
+                if (CurrentConfig?.SynthesizeConnectionDetails == true)
                 {
                     try
                     {
@@ -1535,16 +1537,16 @@ namespace StingTools.Model
                              || activeView.ViewType == ViewType.Section))
                         {
                             // Detect junctions from the extraction result already computed in this run
-                            // Re-extract to get junction list (importInstance is the param of RunFullPipelineWithConfig)
-                            var connExtract = ExtractAll(importInstance, config);
+                            // Re-extract to get junction list
+                            var connExtract = ExtractStructuralGeometry(importInstance);
                             var junctions = DetectJunctions(connExtract);
                             using (var txConn = new Transaction(_doc, "STING STRUCT: Connection Details"))
                             {
                                 txConn.Start();
                                 var synResults = ConnectionDetailSynthesizer.SynthesizeAll(
                                     _doc, junctions, activeView,
-                                    config.ConnectionShearDemand_kN,
-                                    config.ConnectionMomentDemand_kNm);
+                                    CurrentConfig.ConnectionShearDemand_kN,
+                                    CurrentConfig.ConnectionMomentDemand_kNm);
                                 foreach (var sr in synResults)
                                     totalResult.Warnings.AddRange(sr.Warnings);
                                 txConn.Commit();
@@ -1763,11 +1765,19 @@ namespace StingTools.Model
                     double widthMm = detectBeamSize && bl.WidthDetected
                         ? bl.WidthMm
                         : fallbackBeamW;
-                    string typeKey = $"{defaultDepthMm:F0}x{widthMm:F0}";
+
+                    // Phase-140 P1-B: per-beam depth from span when enabled. Falls
+                    // back to defaultDepthMm (the wizard BEAM Depth value) when off.
+                    double depthMm = (cfgB != null && cfgB.UseSpanToDepthRatio)
+                        ? BeamDepthCalculator.ComputeDepthMm(
+                            bl.LengthFt * Units.FeetToMm, cfgB)
+                        : defaultDepthMm;
+
+                    string typeKey = $"{depthMm:F0}x{widthMm:F0}";
                     if (!typeCache.TryGetValue(typeKey, out var symbol))
                     {
                         var typeMatch = _typeFactory.FindOrCreateBeamType(
-                            defaultDepthMm, widthMm,
+                            depthMm, widthMm,
                             allowDuplicate: createBeamTypes);
                         if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
                         symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;

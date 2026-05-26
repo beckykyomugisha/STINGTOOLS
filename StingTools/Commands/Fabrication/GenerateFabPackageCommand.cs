@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Fabrication;
+using StingTools.Core.Placement;
 using StingTools.UI;
 
 namespace StingTools.Commands.Fabrication
@@ -41,6 +42,29 @@ namespace StingTools.Commands.Fabrication
 
         // Content mode — ISO 6412 (workshop) vs Generic (geometry only)
         public static bool ContentModeIso6412  { get; set; } = true;
+
+        // ISO 6412 symbol placement mode.  Off = skip all symbols;
+        // NewOnly = stamp only members without an existing symbol;
+        // Replace = purge then re-stamp everything.
+        public static PlacementMode SymbolPlacementMode { get; set; } = PlacementMode.NewOnly;
+
+        // Per-discipline ISO symbol placement toggles
+        public static bool PlaceISOPipe        { get; set; } = true;
+        public static bool PlaceISODuct        { get; set; } = true;
+        public static bool PlaceISOElectrical  { get; set; } = true;
+
+        /// <summary>
+        /// Controls when ISO 6412 symbols are placed onto iso-view detail views.
+        /// </summary>
+        public enum PlacementMode
+        {
+            /// <summary>Skip ISO symbol placement entirely.</summary>
+            Off,
+            /// <summary>Place symbols only for assembly members that do not yet have one.</summary>
+            NewOnly,
+            /// <summary>Purge all existing symbols and re-place from scratch.</summary>
+            Replace,
+        }
 
         /// <summary>
         /// Shop-drawing composition options captured from the
@@ -96,6 +120,43 @@ namespace StingTools.Commands.Fabrication
             }
             StingLog.Info($"GenerateFabPackage: collected {ids.Count} element(s) via {scopeLabelUsed} scope.");
 
+            // ── ISO symbol pre-flight check ────────────────────────────
+            // Run BEFORE the (potentially slow) fabrication engine so the
+            // user sees the coverage gap immediately and can abort or
+            // acknowledge before committing to a full package generation.
+            if (FabricationOptions.PlaceISO6412Symbols)
+            {
+                try
+                {
+                    var preflight = IsoSymbolPlacer.GetMissingFamilyReport();
+                    if (preflight.MissingCount > 0)
+                    {
+                        StingLog.Warn($"ISO symbol pre-flight: {preflight.Summary}");
+                        var td = new TaskDialog("STING v4 — ISO 6412 Symbol Pre-flight")
+                        {
+                            MainInstruction = $"{preflight.MissingCount} of {preflight.Total} ISO 6412 symbol families are missing",
+                            MainContent =
+                                preflight.Summary + "\n\n" +
+                                "Symbol placement will silently skip members whose family is absent. " +
+                                "The fabrication package will still be generated.\n\n" +
+                                "To fix: author the missing families per Families/ISO6412/README.md, " +
+                                "or run 'Load ISO Symbol Library' once the bundle is available.",
+                            CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
+                            DefaultButton  = TaskDialogResult.Ok,
+                        };
+                        if (preflight.MissingCount == preflight.Total)
+                        {
+                            td.MainInstruction = "No ISO 6412 symbol families found on disk";
+                            td.MainContent = "Zero of the 188 catalogue families are present — all symbol placement will be skipped.\n\n" +
+                                "Author or load the symbol library first, then regenerate the package.";
+                        }
+                        var preRes = td.Show();
+                        if (preRes == TaskDialogResult.Cancel) return Result.Cancelled;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ISO symbol pre-flight: {ex.Message}"); }
+            }
+
             // Shop-drawing composition is now configured up front via the
             // Fabrication Workspace (Configure… button on the Title Block
             // strip) or the dock panel's Configure… button — both
@@ -120,6 +181,28 @@ namespace StingTools.Commands.Fabrication
             }
 
             FabricationUndoManager.Record(res);
+
+            // Publish to PlacementResultBus so the Placement Centre + dock panel can display it.
+            var fabSummary = new PlacementRunSummary
+            {
+                Source   = "Symbols",
+                Headline = res != null
+                    ? $"Fabrication package: {res.AssemblyIds.Count} assemblies, {res.SymbolsPlaced} symbols"
+                    : "Fabrication package complete",
+                Metrics  = res != null ? new List<string>
+                {
+                    $"Assemblies created: {res.AssemblyIds.Count}",
+                    $"Sheets created: {res.SheetIds.Count}",
+                    $"Symbols placed: {res.SymbolsPlaced}",
+                    $"Failed: {res.FailedCount}",
+                    $"Warnings: {res.Warnings?.Count ?? 0}",
+                } : new List<string>(),
+                Warnings = res?.Warnings != null
+                    ? new List<string>(res.Warnings)
+                    : new List<string>(),
+            };
+            PlacementResultBus.Publish(fabSummary);
+
             ShowResult(res);
 
             // Open first generated sheet for instant feedback
@@ -130,7 +213,7 @@ namespace StingTools.Commands.Fabrication
                     var sheet = doc.GetElement(res.SheetIds[0]) as ViewSheet;
                     if (sheet != null) uidoc.ActiveView = sheet;
                 }
-                catch (Exception ex) { StingLog.Warn($"GenerateFabPackage open sheet failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"GenerateFabPackage open sheet failed: {ex2.Message}"); }
             }
 
             return Result.Succeeded;

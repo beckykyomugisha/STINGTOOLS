@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stingtools-core"
+version = "0.1.0"
+description = "Shared Python core for STING IFC substrate (enums + psets + tag grammar + Planscape client)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Planscape Limited", email = "info@stingtools.io" }]
+keywords = ["BIM", "IFC", "STING", "ISO19650", "BlenderBIM"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = []
+
+[project.optional-dependencies]
+planscape = ["httpx>=0.25"]
+ids       = ["ifctester>=0.0.10"]
+ifc       = ["ifcopenshell>=0.8.0"]
+realtime  = ["signalrcore>=0.9"]
+dev       = ["pytest>=7", "ruff>=0.4"]
+
+[project.urls]
+"Source" = "https://github.com/beckykyomugisha/STINGTOOLS"
+"Issues" = "https://github.com/beckykyomugisha/STINGTOOLS/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["stingtools_core*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

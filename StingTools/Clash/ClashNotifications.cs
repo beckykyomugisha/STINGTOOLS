@@ -14,6 +14,7 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
 using StingTools.Core;
+using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Clash
 {

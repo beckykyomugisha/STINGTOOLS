@@ -31,6 +31,7 @@ namespace StingTools.Core.Plumbing
         public double TotalHeatLossW    { get; set; }
         public double PumpDutyLpm       { get; set; }
         public double PumpHeadKpa       { get; set; }
+        public int    BranchesStamped   { get; set; }  // PLM_RECIRC_* params
         public List<RecircBranchResult> Branches { get; } = new List<RecircBranchResult>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -46,6 +47,16 @@ namespace StingTools.Core.Plumbing
         private const double UperLengthWmK  = 0.40;
 
         public static RecircLoopReport Analyse(Document doc, string systemNameFilter = null)
+            => Analyse(doc, systemNameFilter, writeBack: false);
+
+        /// <summary>
+        /// Compute DHW recirculation pump duty + per-branch DRV Kv. When
+        /// writeBack=true also stamps PLM_RECIRC_PUMP_DUTY_LPM (constant per
+        /// branch — the loop pump duty) and PLM_RECIRC_DRV_KV per branch
+        /// pipe so DRV commissioning sheets and schedules can read the
+        /// pre-set without re-running the calc. Caller owns the Transaction.
+        /// </summary>
+        public static RecircLoopReport Analyse(Document doc, string systemNameFilter, bool writeBack)
         {
             var r = new RecircLoopReport();
             if (doc == null) return r;
@@ -59,14 +70,40 @@ namespace StingTools.Core.Plumbing
             }
             r.SystemName = pipes[0].MEPSystem?.Name ?? "";
 
+            // ΔT for heat-loss calc. DHW typically operates at 60 °C; ambient
+            // varies by service space (riser, ceiling void). Use 20 °C ambient
+            // (BS EN 12831 / BS 5422 default office air temp) → ΔT = 40 K.
+            // Allow per-project override via PLM_RECIRC_DELTA_T_K on
+            // ProjectInformation when bound.
+            const double DefaultDeltaTK = 40.0;
+            double deltaTK = DefaultDeltaTK;
+            try
+            {
+                var pi = doc.ProjectInformation;
+                var prm = pi?.LookupParameter("PLM_RECIRC_DELTA_T_K");
+                if (prm != null && prm.HasValue)
+                {
+                    if (prm.StorageType == StorageType.Double && prm.AsDouble() > 0)
+                        deltaTK = prm.AsDouble();
+                    else if (prm.StorageType == StorageType.Integer && prm.AsInteger() > 0)
+                        deltaTK = prm.AsInteger();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"recirc ΔT read: {ex.Message}"); }
+
             double totalQ = 0;
             foreach (var p in pipes)
             {
                 try
                 {
-                    double lengthM = (p.LookupParameter("Length")?.AsDouble() ?? 0) * 0.3048;
+                    // Use the built-in CURVE_ELEM_LENGTH parameter — robust on
+                    // non-English Revit installs where LookupParameter("Length")
+                    // would return null.
+                    var lenParam = p.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
+                    double lengthFt = lenParam?.AsDouble() ?? 0;
+                    double lengthM  = lengthFt * 0.3048;
                     double diaMm = p.Diameter * 0.3048 * 1000.0;
-                    double q = UperLengthWmK * lengthM * 50.0; // ΔT 50 K (DHW vs ambient 15 °C)
+                    double q = UperLengthWmK * lengthM * deltaTK;
                     totalQ += q;
                     r.Branches.Add(new RecircBranchResult
                     {
@@ -93,6 +130,23 @@ namespace StingTools.Core.Plumbing
                 double branchFlowM3H = (mDotKgS / WaterRhoKgM3) * 3600.0 * share;
                 b.FlowLpm = branchFlowM3H * 1000.0 / 60.0;
                 b.DrvPresetKv = branchFlowM3H / Math.Sqrt(0.1);
+
+                if (writeBack)
+                {
+                    try
+                    {
+                        var p = doc.GetElement(b.PipeId);
+                        if (p != null)
+                        {
+                            StingTools.Core.ParameterHelpers.SetString(p, "PLM_RECIRC_PUMP_DUTY_LPM",
+                                $"{r.PumpDutyLpm:F1}", overwrite: true);
+                            StingTools.Core.ParameterHelpers.SetString(p, "PLM_RECIRC_DRV_KV",
+                                $"{b.DrvPresetKv:F3}", overwrite: true);
+                            r.BranchesStamped++;
+                        }
+                    }
+                    catch (Exception exW) { r.Warnings.Add($"Recirc stamp {b.PipeId}: {exW.Message}"); }
+                }
             }
             return r;
         }

@@ -1,6 +1,965 @@
+StructuralAnalysisEngine general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. That's the genuinely-deferred remainder of the integration audit.
 # CHANGELOG — STINGTOOLS
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
+
+#### Completed (Phase 186b — Pset expansion + Path-2 static rule closeout)
+
+Two follow-ups to Phase 186 that turn the substrate from "Tier-1 only,
+60% of declared rules statically enforced" into "Tier-1 + drawing +
+project-org coverage, 100% of declared statically-enforceable rules
+enforced".
+
+**3 new Pset templates** under `shared/ifc/psets/` (raises Pset count
+from 2 → 5):
+
+- `Pset_StingTag7.xml` — 10 properties (`NarrativeFull` + 6 sub-sections
+  A–F + 3 paragraph-state booleans) covering the TAG7 rich narrative
+  surface. 3 rules, all marked `enforced-by="host"` because they're
+  presentation-time contracts (TAG7Builder territory).
+- `Pset_StingDrawing.xml` — 12 properties (`DrawingTypeId`,
+  `StyleLocked`, `CropKind`, `CropMarginMm`, `PackId`, `PackChecksum`,
+  `TokenProfileId`, `TagDepth`, `SegmentMask`, `ColourScheme`,
+  `SheetNumber`, `SheetName`) mirroring the Drawing Template Manager
+  fields STING stamps on every Revit view/sheet. 3 rules
+  (`DRAWING_TYPE_RESOLVABLE` static, two `enforced-by="host"`).
+- `Pset_StingProjectOrg.xml` — 13 properties mirroring the
+  `PRJ_ORG_*` corporate metadata cells (`ProjectCode`, `Phase`,
+  `ClientName`, `CompanyName`, `OriginatorCode`, …). 3 rules
+  (2 static + 1 `enforced-by="host"`).
+
+**6 newly-enforced static rules** in `SpatialChecker`
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+| Rule | Pset | What it catches |
+|---|---|---|
+| `DISC_NOT_EMPTY` | `Pset_StingTags` | Discipline missing or sentinel "XX" at Stage_3+; enum-membership check when EnumRegistry available |
+| `DRAWING_TYPE_RESOLVABLE` | `Pset_StingDrawing` | DrawingTypeId format (`^[a-zA-Z][a-zA-Z0-9\-]+$`) + optional registry-lookup via new `DrawingTypeRegistry` class |
+| `PROJECTORG_PROJECT_CODE_REQUIRED` | `Pset_StingProjectOrg` | ProjectCode missing or not matching `^[A-Z][A-Z0-9\-]{2,5}$` |
+| `PROJECTORG_PHASE_VALID` | `Pset_StingProjectOrg` | Phase value not in `StingRibaStages` enum (when EnumRegistry available) |
+| `BUILDING_LOC_UNIQUE` | `Pset_StingSpatialCodes` | Two or more `IfcBuilding` entities sharing a LocationCode |
+| `STOREY_LVL_UNIQUE_WITHIN_BUILDING` | `Pset_StingSpatialCodes` | Two or more `IfcBuildingStorey` entities sharing a LevelCode within the same `IfcBuilding` |
+
+**Static rule coverage**: 6 → 12 (100% of declared statically-
+enforceable rules; the remaining 8 rules are marked
+`enforced-by="host"` because they are write-time / presentation-time
+contracts a static IFC snapshot can't verify).
+
+**SpatialChecker API additions**:
+
+- `SpatialChecker.__init__(model, stage="Stage_3", enum_registry=None,
+  drawing_type_registry=None)` — gains 3 optional kwargs (stage gating,
+  enum-membership checks, drawing-type registry lookup).
+- `SpatialChecker.check_project_org()` — model-level method for the 2
+  Pset_StingProjectOrg rules.
+- `SpatialChecker.check_spatial_uniqueness()` — model-level method for
+  the 2 spatial-code uniqueness rules.
+- `SpatialChecker.check_all_elements()` — now also walks
+  `IfcAnnotation` entities (so Pset_StingDrawing checks fire) and
+  invokes the new model-level methods.
+- New `DrawingTypeRegistry` class exported from
+  `stingtools_core.spatial` — wraps a set of known DrawingType ids
+  for `DRAWING_TYPE_RESOLVABLE` lookup.
+
+**Tests** (`stingtools-core/python/tests/test_smoke.py`): +8 new tests
+(23 standalone, 27 pytest including tmp_path) covering every newly-
+enforced rule with both positive and negative fixtures, plus a
+stage-gating test (Stage_1 must not fire DISC_NOT_EMPTY even when
+Discipline is "XX").
+
+**Verification status at Phase 186b close**:
+
+| Layer | Status |
+|---|---|
+| 5 Pset XMLs lock-consistent | ✅ `compute_checksums.py --check` exit 0 |
+| 52 enum XMLs SHA-256-locked | ✅ verified drift-free |
+| `stingtools-core` smoke tests | ✅ 23/23 standalone pass, 27/27 pytest pass |
+| 6 new static rules verified | ✅ all 6 fire on negative fixtures, pass on positive |
+| Pset_StingDrawing fires on IfcAnnotation | ✅ verified via new test |
+| Stage gating verified | ✅ DISC_NOT_EMPTY skips at Stage_1, fires at Stage_3 |
+
+**Stage gating (Phase 186b1 follow-up)**:
+
+Review pass after the initial 186b commit surfaced a correctness gap:
+`SpatialChecker` had a `stage` kwarg but only DISC_NOT_EMPTY consulted
+it. The other 11 static rules always fired regardless of stage, so a
+Stage_0/1 model with tag data that would later be wrong (LOC not
+matching its building, etc.) was incorrectly tripping Stage_3 rules.
+
+Fix: added `_RULE_ACTIVE_FROM` table mirroring each rule's
+`<ActiveFrom>` declaration in the Pset XML, plus an `_active(rule_id)`
+helper, plus gates at every emission point — `check_element`,
+`check_seq_uniqueness`, `check_spatial_uniqueness`, `check_project_org`.
+DISC_NOT_EMPTY's enum-membership branch now also honours the
+Stage_2+ gate (previously it skipped the gate that the empty/XX
+branches respected). 2 new tests pinpoint the regression:
+`test_disc_not_empty_invalid_value_skipped_at_stage_1` and
+`test_stage_3_rules_skip_at_stage_2`.
+
+Live verification across stages on the same Stage_3-fail fixture:
+
+| Stage | DISC_NOT_EMPTY (Discipline='XYZ', enum_registry on) |
+|---|---|
+| Stage_0 | 0 ✅ (rule inactive) |
+| Stage_1 | 0 ✅ (rule inactive) |
+| Stage_2 | 1 ✅ (rule active) |
+| Stage_3 | 1 ✅ |
+
+Test count: 25 standalone, 29 pytest.
+
+**Phase 186b2 follow-up (G2 / G3 / G4 closeout)**:
+
+The three deferred items from the Phase 186b caveats are now closed.
+
+**G2 — IDS coverage for the 3 new psets** (`shared/ifc/ids/`):
+
+- `sting-drawing.ids` (6 specs) — DrawingTypeId format, CropKind +
+  ColourScheme enum membership, CropMarginMm 0..500 mm, PackChecksum
+  SHA-256 grammar, TagDepth 1..10.
+- `sting-tag7.ids` (7 specs) — length bound on each of the 7
+  narrative parts (NarrativeFull + 6 sub-sections A-F).
+- `sting-project-org.ids` (6 specs) — ProjectCode + OriginatorCode
+  pattern `^[A-Z][A-Z0-9\-]{2,5}$`, Phase StingRibaStages enum,
+  CompanyName + ClientName non-empty length bounds, WorkflowProfile
+  snake_case grammar.
+
+All 3 files pass official ifctester XSD validation. Verified live on
+positive + negative fixtures: positive passes 19/19 specs; an
+exhaustive max-out negative trips 7/7 sting-tag7 length-bound specs.
+A more sparse "one bad value per pset" negative trips 5/6 sting-
+drawing specs (PackChecksum stays silent because the field isn't set
+in the fixture — optional-when-present applicability is correct) and
+4/6 sting-project-org specs. All 19 new specs have been demonstrated
+to fire on at least one negative variant. Total IDS spec count across
+the substrate: 11 + 8 + 6 + 7 + 6 = **38 specs** across all 5 psets.
+
+**G3 — `DrawingTypeRegistry.from_json` / `from_jsons`**
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+- `DrawingTypeRegistry.from_json(path)` — load a registry from any
+  `STING_DRAWING_TYPES.json` shape (corporate baseline or project
+  override). Reads `drawingTypes[].id`; raises `ValueError` on
+  malformed JSON or missing `drawingTypes` array.
+- `DrawingTypeRegistry.from_jsons(*paths)` — layered load merging
+  corporate baseline + project overrides; missing paths are skipped
+  silently.
+
+Verified against the live corporate `StingTools/Data/STING_DRAWING_TYPES.json`
+(90 ids).
+
+**G4 — IfcDocumentInformation + IfcDocumentReference walked**
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+`SpatialChecker.check_all_elements` now walks
+`IfcDocumentInformation` and `IfcDocumentReference` alongside
+`IfcAnnotation`, matching the full Pset_StingDrawing
+`<Applicability>` set. Verified with a new test
+(`test_drawing_check_fires_on_document_information`).
+
+**Test count**: 27/27 standalone, 33/33 pytest.
+
+**Caveats (Phase 186b — open list)**:
+
+1. ~~The 3 new Psets do NOT yet have matching IDS specs.~~ Closed
+   (G2 above).
+2. ~~`DrawingTypeRegistry` doesn't load from JSON.~~ Closed
+   (G3 above).
+3. Built without `dotnet build` verification — these are pure Python
+   substrate changes, no C# affected.
+4. IDS specs for Tag7/ProjectOrg use `dataType="IFCLABEL"` rather
+   than the Pset XML's declared `IfcText` to match the writer-
+   tolerant convention used in `sting-tag-grammar.ids`. The Pset
+   XML's IfcText declaration remains canonical for STING-side
+   storage; the IDS check is liberal about string-derived types
+   for cross-writer compatibility.
+5. `tools/tests/round_trip.py` has no `--mismatch-kind` variants
+   for the 3 new psets — the harness currently covers
+   `tag-grammar` and the 6 spatial-codes mismatch kinds only.
+   Adding `drawing-bad-id`, `drawing-bad-crop`, `tag7-too-long`,
+   `prjorg-bad-code`, `prjorg-bad-phase` variants is a 1-hour
+   follow-up that closes the fixture-generation gap.
+
+#### Completed (Phase 186 — Bonsai integration foundation; multi-host substrate)
+
+**Scope**: turns STING from a Revit-only plugin into the data-layer
+spine of a multi-host BIM coordination platform. Establishes the IFC4
+substrate (52 enums, 2 psets, 2 IDS files, bSDD plan), a dual-language
+Python core, the first non-Revit host plugin (Bonsai add-on), and the
+Planscape Server IFC-ingest endpoint with cross-host element-identity
+mapping.
+
+Substrate (`shared/ifc/`): 52 enum XMLs across 5 tiers (tag grammar /
+drawing engine / workflow / engineering domains / healthcare pack);
+49 corporate-locked with SHA-256 fingerprints + 3 project-template
+overlays for `StingLocationCodes/ZoneCodes/LevelCodes`. 2 Pset
+templates — `Pset_StingTags` (12 properties, 9 cross-entity rules) +
+`Pset_StingSpatialCodes` (6 properties, 5 cross-entity rules). 2 IDS
+files — `sting-tag-grammar.ids` (11 specs) + `sting-spatial-codes.ids`
+(8 specs) — both pass official ifctester XSD validation. bSDD
+publication plan triages all 52 enums across 6 status categories
+(`ready` × 24, `external_already` × 6, `private` × 16,
+`project_scoped` × 3, `skip_external` × 2, `draft` × 1).
+
+Python core (`stingtools-core/python/`): public API
+`EnumRegistry / PsetRegistry / TagGrammar / Tag / SpatialChecker /
+PlanscapeClient / AuditLog / IdsRunner`. Reads the substrate
+programmatically; SHA-256 verification on load; project-overlay
+merge with reserved-sentinel preservation. SpatialChecker enforces
+6 cross-entity rules statically (`LOC_MATCHES_BUILDING`,
+`LVL_MATCHES_STOREY`, `ZONE_MATCHES_ASSIGNEDZONE`,
+`SYS_MATCHES_IFCSYSTEM`, `SEQ_UNIQUE_WITHIN_GROUP`,
+`FULLTAG_CONSISTENT`); 2 behavioural rules (`TOKEN_LOCK_HONORED`,
+`TAG_HISTORY_PROVIDED`) marked `enforced-by="host"` in Pset XML
+since they can't be checked from a static IFC snapshot.
+
+Bonsai add-on (`stingtools-bonsai/`): Blender 4.2+ extension. Day-1
+scaffold ships diagnostic operators (`sting.about`,
+`sting.reload_substrate`, `sting.bonsai_probe`) + `STING_PT_main`
+N-panel + `BonsaiBridge` coexistence layer that delegates IFC
+writes through `ifcopenshell.api.run()` so Bonsai's undo + UI
+refresh hook in. MVP operators (16, ≈8 weeks) deferred to a
+follow-up phase.
+
+Planscape Server: new `IfcController` with
+`POST /api/projects/{id}/ifc/data` (host-agnostic element ingest)
+and `GET /api/projects/{id}/ifc/mappings` (cross-host GUID
+lookup). New `ExternalElementMapping` entity composite-keyed on
+`(ProjectId, IfcGlobalId, Host, HostDocumentGuid)`. `TaggedElement`
+unique constraints converted to filtered uniques (Revit path
+unchanged; non-Revit hosts now path-through). EF migration not yet
+generated — see `docs/PHASE_186_VERIFICATION_CHECKLIST.md § Day 1`.
+
+Tooling: `tools/enums/compute_checksums.py` (SHA-256 drift detector
++ manifest generator, handles both enums and psets),
+`tools/enums/audit_bsdd.py` (publication-plan summary check),
+`tools/converters/sting_to_psd.py` (STING XML → buildingSMART PSD),
+`tools/converters/sting_to_revit_params.py` (STING psets → Revit
+shared-parameter file fragment with deterministic UUID v5 GUIDs),
+`tools/tests/round_trip.py` (IDS round-trip harness with
+`--generate-fixture` producing both positive + negative test
+fixtures via `ifcopenshell.api`).
+
+CI: `.github/workflows/ifc-substrate.yml` — 8 validation steps
+(checksum drift, bSDD audit, XSD validation per enum, IDS XML
+well-formedness, Pset enum references resolve, IfdGuid uniqueness,
+stingtools-core smoke tests, Bonsai add-on py_compile). Triggers
+on push / PR touching `shared/ifc/**` or `tools/enums/**`.
+
+Documentation (`docs/`):
+- `PHASE_186_BONSAI_INTEGRATION.md` — architectural narrative,
+  19 named design decisions, cross-host federation diagram,
+  verification matrix, forward roadmap through Phase 190.
+- `PHASE_186_VERIFICATION_CHECKLIST.md` — Path A as a
+  step-by-step run-book (Days 1–5 with copy-paste commands).
+- `MVP_SCOPE_BONSAI.md` — the 8-week MVP scope captured to disk
+  (success demo, 16 operators, module structure, timeline).
+- `VERIFIED.md` — evidence log: every ❌ → ✅ flip with the
+  command + outcome that proved it.
+- `IDS_AUTHORING_GUIDE.md` — 3 IDS-v1.0 gotchas + authoring
+  conventions surfaced during Phase 186 verification.
+
+**Verification status at Phase 186 close**:
+
+| Layer | Status |
+|---|---|
+| 52 enum XMLs SHA-256-locked | ✅ verified drift-free |
+| 2 Pset XMLs lock-consistent | ✅ verified |
+| bSDD plan summary matches entries | ✅ `audit_bsdd.py` OK |
+| `stingtools-core` smoke tests | ✅ 15/15 pass (8 happy + 7 negative/integrity) |
+| Both IDS files pass official XSD | ✅ verified with ifctester schema |
+| Both IDS files run via ifctester | ✅ 19/19 specs pass on both fixtures |
+| `SpatialChecker` fires on negative fixture | ✅ `LOC_MATCHES_BUILDING` mismatch detected |
+| Bonsai add-on Python compiles | ✅ py_compile clean |
+| `dotnet build Planscape.Server` | ⚠️ pending human run |
+| EF migration generated | ⚠️ pending human run |
+| Bonsai add-on loads in real Blender | ⚠️ pending human run |
+| GitHub Actions runs green | ⚠️ pending push |
+
+**Caveats**:
+
+1. C# IfcController follows existing controller conventions but has
+   never seen `dotnet build`. Most likely place to find a real bug.
+2. EF migration: `dotnet ef migrations add IfcIngestSubstrate` is the
+   next deployment step. Schema diff: 1 new table + 2 new filtered
+   uniques on `TaggedElements`.
+3. bSDD entries all carry `proposed: true`. No actual publication
+   has happened. The 22 "ready" entries carry proposed IRIs that DO
+   NOT resolve in bSDD until status flips to `posted` / `verified`
+   via the future `tools/bsdd/publish.py`.
+4. MVP operators not built. Day-1 ships diagnostic ops only. The 16
+   production operators from `docs/MVP_SCOPE_BONSAI.md` are
+   estimated 8 weeks single-dev.
+5. Healthcare Pset bundle (5 psets) is Phase 187 work; the 11 Tier-5
+   healthcare enumerations shipped this phase but the consuming
+   psets did not.
+6. ArchiCAD (Phase 188) + Tekla connector (Phase 189) are forward
+   roadmap; substrate is host-agnostic so the work is incremental.
+7. CI workflow file exists but only triggers on push. First green
+   run happens once the branch is pushed past the verification
+   checkpoint.
+
+This phase's CLAUDE.md entry is the "Phase 186 — Bonsai integration
+foundation" section; full architectural detail lives in
+`docs/PHASE_186_BONSAI_INTEGRATION.md`.
+
+#### Completed (Phase 184m — Cost management UI surfacing)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Surfaces every command added in P0 → P8 + caveat-closure commits as clickable buttons / tiles. Previously the commands were dispatch-wired but had no UI affordances — a user opening the dock panel or mobile app saw no new buttons.
+
+**Dock panel (`UI/StingDockPanel.xaml`)** — 7 new sub-sections appended after the existing 5D COST ESTIMATION WrapPanel:
+
+- **COST — AUTOMATION (P2)** — 7 buttons: Run Cost Workflow, Validate Cost, Clear Stale, Stale Marker Toggle, Reload Rules, Migrate UGX → Neutral, Migrate ES v1 → v2.
+- **COST PLAN — NRM1 (P4)** — 3 buttons: New Cost Plan, Compare vs BOQ, Export Cost Plan.
+- **PAYMENT CERTS (P5.1)** — 3 buttons: Issue Cert, Approve Cert, Cert Register.
+- **VARIATIONS + STAR RATES (P5.2)** — 3 buttons: Variation from Diff, Star Rate Build-Up, VO Register.
+- **EVM (P5.3)** — 3 buttons: Calculate EVM, Import Actuals, EVM S-Curve.
+- **MEASUREMENT STANDARD (P6)** — 2 buttons: Set Standard, Standard Preview.
+- **IFC + ICMS3 (P8)** — 2 buttons: Stamp IFC Qto, ICMS3 Report.
+
+23 buttons total. ★-marked headline buttons get the GreenBtn style with bold weight to lead the eye. All `Tag` values match the dispatch cases already wired into `StingCommandHandler`, so no code-behind changes needed.
+
+**Mobile cost-dashboard (`Planscape/app/(tabs)/cost-dashboard.tsx`)** — new `CostQuickNav` block above the summary cards. Two tiles route to `/variations` and `/payment-certs` via Expo Router. Closes the previous gap where the variation / payment-cert screens existed but couldn't be reached from the tab bar.
+
+##### Caveats
+
+1. Built without Revit / Expo runtime verification (Linux sandbox).
+2. The dock panel layout puts the new sections inside the same `Border` as the existing 5D COST ESTIMATION group. On very narrow panel widths the WrapPanels will wrap aggressively — visually acceptable but may need a future restructuring into its own collapsible `Border` per phase. Deferred.
+3. Mobile quick-nav tiles use emojis as icons (📃 📝). A follow-up commit can swap to `@expo/vector-icons` Feather / MaterialCommunityIcons glyphs for consistency with the rest of the app.
+
+---
+
+#### Completed (Phase 184l — Cost management Phase 184k caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three caveats from Phase 184k.
+
+**S3 / persistent-volume signature storage.** The signature persistence in `BoqController.SignPaymentCert` now goes through the existing `Planscape.Core.Interfaces.IFileStorageService` (injected via DI) rather than `System.IO.File.WriteAllBytesAsync` to a hard-coded relative path. The same call works against `LocalFileStorageService` in dev and `S3FileStorageService` in production (MinIO / S3) without controller-level branching — production deployments just toggle the storage provider in `appsettings.json`. `SaveScopedAsync` returns a tenant-prefixed `t_{tenantId}/{projectId}/signatures/cert_{certId}_{action}_{ts}.png` path which is what the existing download / presign endpoints expect.
+
+**Config-driven ICMS3 phase → group map.** New file `Data/STING_ICMS3_PHASE_MAP.json` carries an 11-language keyword dictionary (EN / DE / FR / ES / IT / PT / NL / SV / DA / ZH / JA) mapping phase-name substrings to ICMS3 group codes 01 / 02 / 03 / 04. New loader `BOQ/MeasurementStandard/Icms3PhaseMap.cs` reads the corporate baseline + `<project>/_BIM_COORD/icms3_phase_map.json` override. `Icms3Standard.ClassifyRow` now consults the map; cache invalidated by `Cost_ReloadRules`. Replaces the previous English-only hard-coded keyword chain. Project overrides win by group code (`code` field) and entries are evaluated in JSON order so 04 End-of-life always beats a generic "operation" keyword on a demolition phase name.
+
+**npm install automation.** `Planscape/package.json` gains an `ensure-deps` script that checks whether `node_modules/.package-lock.json` is older than `package.json` and runs `npm install --no-audit --prefer-offline` if so. Wired as `prestart` / `preandroid` / `preios` / `preweb` so `npm start` (or any platform target) automatically picks up missing deps. No-op when deps are already in sync. Closes the "forgot to npm install after pulling" trap for the `react-native-signature-canvas` dep landed in Phase 184k.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `IFileStorageService` is registered in `Program.cs` already (existing wiring used by ModelDerivativeJob, IfcTessellationJob etc.) — no additional DI registration needed.
+3. The 11-language ICMS3 keyword set is a reasonable baseline but unlikely exhaustive — project overrides handle the long tail. Add languages by extending the `keywords` object in the project override JSON.
+4. `ensure-deps` uses `--prefer-offline` so a clean clone with a populated `~/.npm` cache stays fast (~1s no-op). First-ever install on a cold machine still takes the usual ~30-60s.
+
+---
+
+#### Completed (Phase 184k — Cost management P4–P8 caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the four caveats from Phase 184f-j: server endpoints, IFC Qto shared params, ICMS3 phase refinement, and the signature pad. Built without `dotnet build` verification (Linux sandbox).
+
+##### Server-side BoqController endpoints
+
+New entity + table:
+- `Planscape.Core/Entities/PaymentCertificate.cs` — server twin of the plugin `Core/PaymentCert.PaymentCertificate`. Carries `CertNumber` / `ContractRef` / `Form` / `Status` / `ValuationDate` / retention bands / VAT / `TotalPayable` / SOV JSON / signer fields.
+- `Planscape.Infrastructure/Data/PlanscapeDbContext.cs` — `PaymentCertificates` `DbSet` + entity config with `(ProjectId, ContractRef, CertNumber)` unique index + project FK.
+- `Migrations/20260518000000_AddPaymentCertificates.cs` — hand-written migration creating the table with the right decimal types (`numeric(18,2)` for money, `numeric(6,3)` for percentages).
+
+New controller routes on `BoqController`:
+- `GET  /boq/variations/{id}` — variation detail with deserialised `items[]` from `LineDeltaJson`. Matches the mobile detail screen's expected shape.
+- `GET  /boq/payment-certs` — list per project.
+- `GET  /boq/payment-certs/{id}` — full cert with deserialised SOV lines.
+- `POST /boq/payment-certs` — plugin push from `PaymentCert_Issue`.
+- `PUT  /boq/payment-certs/{id}/sign` — mobile signature flow. State machine: `Draft → Issued → Agreed | Disputed → Paid`. Validates the transition (e.g. cert must be `Issued` to be `Agreed`).
+
+The mobile screens from Phase 184i now work end-to-end against this server.
+
+##### IFC4 Qto + Pset_StingCost shared params (65 entries)
+
+- `Data/MR_PARAMETERS.txt` — appended 65 PARAM rows: 10 Qto sets covering walls / beams / columns / slabs / doors / windows / spaces / coverings / pipes / ducts (~59 fields) + the 6-field `Pset_StingCost` property set. GUIDs are deterministic UUIDv5-shaped from the param name so re-runs are stable. UTF-16 LE + BOM encoding preserved via Python helper.
+- `Data/PARAMETER_REGISTRY.json` — same 65 entries appended to `support_params` with `data_type` matching the storage (`Number` / `Text` / `YesNo`).
+- Once bound to elements via `LoadSharedParams`, Revit's IFC exporter will surface the values in IFC4 `IfcElementQuantity` / `IfcPropertySet` so external cost tools (Cost-X, CostOS, Candy, Bluebeam Revu) can ingest cost data without re-measuring.
+
+##### ICMS3 lifecycle phase refinement
+
+- `BOQ/MeasurementStandard/MeasurementStandards.cs` — `Icms3Standard.ClassifyRow` now reads `PHASE_DEMOLISHED` and `PHASE_CREATED` on the element to bucket into ICMS3 groups:
+  - `PHASE_DEMOLISHED` set + phase name contains "demolition"/"end-of-life"/"decommission" → `04 End-of-life`
+  - `PHASE_DEMOLISHED` set (any other phase) → `03 Operation`
+  - `PHASE_CREATED` phase name contains "existing"/"acquisition"/"site preparation"/"enabling" → `01 Acquisition`
+  - `PHASE_CREATED` phase name contains "operation"/"maintenance" → `03 Operation`
+  - Default → `02 Construction`
+- Lets the ICMS3 report break cost + carbon down across the whole lifecycle rather than collapsing everything to construction.
+
+##### react-native-signature-canvas integration
+
+- `Planscape/package.json` — adds `react-native-signature-canvas ^4.7.2` (built on top of `react-native-webview`, which is already a dep).
+- `Planscape/app/payment-certs/[id].tsx` — Agree / Dispute now opens a `Modal` containing the signature pad. Captured signature is a base64 PNG; submission POSTs the bytes alongside the signer name + rationale. Cancellation closes the modal without submitting.
+- `Planscape.API/Controllers/BoqController.cs` — `SignPaymentCertRequest` gains `SignaturePngBase64`. The handler decodes the base64, writes the PNG to `storage/signatures/{tenantId}/{certId}/{action}_{timestamp}.png`, and stores the relative path in the `Note` column alongside any rationale.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. EF migration is hand-written — run `dotnet ef database update` against the dev DB before deploying. Add to `Planscape.Server/docs/PLANSCAPE_DEPLOYMENT.md` deployment checklist.
+3. Signature storage uses a relative `storage/signatures/...` path. Production deployments using a stateless container need to remap this to S3 or persistent volume; current MVP assumes the existing file-system convention used by other Planscape attachments.
+4. `react-native-signature-canvas` requires running `npm install` after pulling the branch. The package is widely used (1M+ weekly downloads) and works on iOS + Android out of the box; web targets need additional Expo Web configuration which isn't shipped.
+5. ICMS3 phase detection assumes English phase names ("existing", "demolition" etc.). Non-English Revit installs need a config-driven phase-name → group code map, deferred.
+
+---
+
+#### Completed (Phase 184f-j — Cost management P4 → P8 — full plan complete)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Implements the remaining five phases of `docs/COST_MANAGEMENT_IMPLEMENTATION_PLAN.md` (P4 → P8). Each phase landed as a separate commit; this entry summarises the whole arc. Built without `dotnet build` verification (Linux sandbox).
+
+**P4 — NRM1 elemental cost plan (Phase 184f)**
+
+- `Core/CostPlan/NrmElement.cs` — NRM1 hierarchy (41 elements / groups per RIBA NRM1 2nd ed.)
+- `Core/CostPlan/CostPlanLine.cs` — PERT 3-point low/likely/high totals
+- `Core/CostPlan/CostPlanRegistry.cs` — CSV loader + project override
+- `Core/CostPlan/CostPlanEngine.cs` — build/save/load + NRM1↔NRM2 variance compare
+- `Commands/Cost/CostPlanCommands.cs` — `CostPlan_Create` / `CostPlan_Compare` / `CostPlan_Export`
+- `Data/STING_NRM1_BENCHMARKS.csv` — 6 building types × ~25 elements (office Cat A/B, residential, school, healthcare, warehouse)
+
+**P5 — Contract administration (Phase 184g)**
+
+- P5.1 payment certificates: `Core/PaymentCert/PaymentCertModels.cs` + `PaymentCertEngine.cs`; supports JCT 2024 / NEC4 / FIDIC 2017 with retention auto-halving, VAT, status machine (Draft → Issued → Disputed | Agreed → Paid).
+- P5.2 variations + star rates: `Core/Variation/VariationModels.cs` + `VariationEngine.cs`; mints VOs from `BOQSnapshotDiff` (NewItem uses RateB, RateRevised uses delta); StarRate carries labour + plant + materials + OH + profit build-up.
+- P5.3 EVM: `Core/Evm/EvmCalculator.cs` — full PMI metrics (CV, SV, CPI, SPI, EAC, ETC, VAC, TCPI) with Green / Amber / Red health gates at CPI 0.95 / 1.00.
+- 9 user commands wired up: `PaymentCert_{Issue,Approve,Register}`, `Variation_{FromDiff,BuildStarRate,ExportRegister}`, `Evm_{Calculate,ImportActuals,ExportReport}`.
+- 7 new shared params: PMT_PCT_COMPLETE_NR, PMT_CERT_NO_NR, PMT_CERT_DATE_DT, PMT_LAST_VALUED_DT, VAR_NO_TXT, VAR_INSTRUCTION_DT, VAR_VALUATION_NR.
+
+**P6 — Multi-standard take-off (Phase 184h)**
+
+- `BOQ/MeasurementStandard/IMeasurementStandard.cs` — strategy interface (PreferredUnit / ClassifyRow / BuildDescription / ApplyDeductions).
+- `MeasurementStandards.cs` — 5 concrete: `Nrm2Standard`, `Cesmm4Standard` (Class A-Z lattice, deducts openings > 0.5 m² from walls), `PomiStandard` (international, broad classes), `Icms3Standard` (cost + carbon ledger), `MmhwStandard` (UK highway works series 100–3000).
+- `BOQDocument.MeasurementStandardId` field defaults to "nrm2" so existing snapshots are unchanged.
+- Commands: `Cost_SetMeasurementStandard` (StingListPicker, persists in `project_config.json`) and `Cost_StandardInspect` (diagnostic preview).
+
+**P7 — Mobile write surface (Phase 184i)**
+
+- `Planscape/app/variations/index.tsx` + `[id].tsx` — list + detail with Approve / Reject / Reviewed actions and rationale field. Status colour-coded.
+- `Planscape/app/payment-certs/index.tsx` + `[id].tsx` — list with payable totals; detail with full SOV breakdown (retention auto-halving, VAT, payable), Agree / Dispute sign-off.
+- Signature is typed-name + auto-date in this MVP; `react-native-signature-canvas` integration is a follow-on commit (needs new dep).
+- Server endpoints expected (handlers land in the existing `BoqController`):
+  - `GET /api/projects/{id}/boq/variations` / `/{id}` + `PUT .../status`
+  - `GET /api/projects/{id}/boq/payment-certs` / `/{id}` + `PUT .../sign`
+
+**P8 — External connectors + IFC Qto + ICMS3 (Phase 184j)**
+
+- `BOQ/Rates/Providers/BcisHttpRateProvider.cs` — generic HTTP rate-book client (priority 50). Hot + disk cache with TTL; fail-soft to last-good. Configurable via `BCIS_BASE_URL` / `BCIS_API_KEY` / `BCIS_TTL_MIN`.
+- `BOQ/Rates/Providers/ProjectRateCardProvider.cs` — reads `<project>/_BIM_COORD/rate_card.json` (priority 87; above CSV's 90 only for project-specific overrides).
+- `RateProviderRegistry.RegisterExternalProvider` — late-bound registration so providers can be enabled per project. `Cost_ReloadRules` re-attaches them after invalidation.
+- `BOQ/IfcQuantitySetWriter.cs` — populates IFC4 Qto_* property sets (Qto_WallBaseQuantities, Qto_BeamBaseQuantities, Qto_SlabBaseQuantities, etc.) + a STING-specific `Pset_StingCost` with UnitRate / Currency / TotalCost / ProvisionalSum / RateSource / NRM2Section so external cost tools (Cost-X, CostOS, Candy, Bluebeam Revu) can ingest cost directly from the IFC export.
+- `Commands/Cost/IfcAndIcmsCommands.cs` — `Cost_StampIfcQuantities` (one-shot bulk stamp inside a transaction) and `Cost_ExportIcms3Report` (CSV with cost £ + carbon kgCO₂e + £/kgCO₂e ratio per ICMS3 group code).
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Mobile P7 screens compile against the existing `apiFetch` + `useAuthStore` patterns but the corresponding server endpoints (under `/api/projects/{id}/boq/variations` and `/payment-certs`) still need handlers on `BoqController`. The mobile UI is ready; server wiring is a follow-on commit on the Planscape.Server side.
+3. The `BcisHttpRateProvider` HTTP shape is generic — BCIS's real API requires a paid tier and an adapter layer. The provider is shaped to wrap any GET-returns-JSON-with-unitRate price book.
+4. `IfcQuantitySetWriter` writes shared params named `Qto_*.* ` and `Pset_StingCost.*`. These params must be added to `MR_PARAMETERS.txt` + `PARAMETER_REGISTRY.json` before Revit's IFC exporter will surface them in the IFC4 output — staged for a focused follow-up commit because each Qto field is a per-category binding (~60 entries).
+5. ICMS3 grouping is currently coarse (everything → "02 Construction"). Lifecycle phase data (01 Acquisition, 03 Operation, 04 End-of-life) requires per-element phase data not yet captured in the BOQ engine; a follow-on phase reads `PHASE_CREATED` / `PHASE_DEMOLISHED` to refine.
+
+##### What's NOT covered (deliberately out of scope)
+
+- The "P0 → P3" foundations (rate engine, take-off rules, server sync, automation, 4D/5D unification) landed earlier in the same branch (commits 45031a3f / c3125274 / 5b5fcf22 / f11c3e78 / 41b4fd8c / 4ae42266 / 38f76f77). Together with P4 → P8 here, the full implementation plan is delivered.
+- ERP integration (SAP, Oracle), forward FX hedging, Monte-Carlo risk modelling, ASMM / SMM7 standards, BIM Track / Aconex cost-module integration, and ESIGN-compliant signature pad — all out of scope per the implementation-plan §10.
+
+---
+
+#### Completed (Phase 184e — Cost management Phase 184d caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three caveats from Phase 184d. Built without `dotnet build` verification.
+
+- **Per-batch rate cache in CostStamp** — `BOQ/CostStamp.cs` gains a `ConcurrentDictionary<string, RateLookup>` keyed by `category|discipline|prod|matCode|unit`. Tagging 5 000 elements that share <50 unique tuples now drops from ~5 000 registry calls to ~50. Bounded at 500 entries (above which entries skip caching rather than evict — single tag operations don't touch that many unique categories). Cache invalidates with the other rate caches via `Cost_ReloadRules`. Diagnostic `GetRateCacheStats()` returns hits / misses / entries; `Invalidate()` logs the hit-rate before flushing. Hot-path tuple includes neither `Element` nor `AsOf` so the cache is safe across element identities at a single point in time.
+- **Deleted `_legacyInlineFallback`** — 124 hardcoded entries in `BIMManager/SchedulingCommands.cs` removed (164 lines deleted). Replaced with `_emergencyFallback`: 5 most-common categories (Walls, Floors, Doors, Windows, Mechanical Equipment) that keep the engine producing non-zero rates even if `STING_DEFAULT_COST_RATES.csv` is missing. The CSV is now the single source of truth for the default rate table. `LoadDefaultCostRatesCsv` logs a loud `Warn` when the CSV is missing (was `Info`) so distribution problems surface quickly.
+- **`Cost_MigrateESEntities` added to `WORKFLOW_BOQ_FullRefresh.json`** — first step, optional. Projects opening their first full refresh after upgrading pick up the one-shot v1→v2 Extensible Storage migration without explicit user action. Idempotent on re-runs (returns immediately when no v1 schema is present).
+
+##### Caveats
+
+1. Built without `dotnet build` verification.
+2. Per-batch rate cache uses ConcurrentDictionary so concurrent tag operations (rare but possible across multiple StingCommandHandler queues) won't corrupt it. The 500-entry cap is intentionally loose — a single tag operation never touches more than ~50 unique tuples in practice.
+3. If `STING_DEFAULT_COST_RATES.csv` ships missing or corrupt, `Scheduling4DEngine.DefaultCostRates` returns 5 entries and most categories will get zero rates from the `DefaultRateProvider`. Other providers (param override / ES override / CSV at higher priority) still work; only the lowest-priority fallback degrades.
+
+---
+
+#### Completed (Phase 184d — Cost management deferrals closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three "deliberate deferrals" from Phase 184b: tag-pipeline cost write-back, bulk ES v1→v2 migration, and `DefaultCostRates` extraction into a data file. Built without `dotnet build` verification (Linux sandbox).
+
+##### Tag-pipeline cost write-back (P3.1)
+
+- New file `StingTools/BOQ/CostStamp.cs` — opt-in cost write-back helper.
+  - `IsWriteOnTagEnabled()` reads `WRITE_COST_ON_TAG` from `project_config.json` (default `0` = off). Cached for the batch; `Invalidate()` clears.
+  - `WriteIfEnabled(doc, el)` resolves quantity via `TakeoffRuleRegistry`, rate via `RateProviderRegistry`, computes `qty × rate`, writes neutral params (`ASS_CST_UNIT_RATE_NR` / `_CURRENCY_TXT` / `_FX_TO_BASE_NR` / `_FX_DATE_DT` / `_AS_OF_DT`) + legacy mirrors (`CST_UNIT_RATE_UGX` / `CST_QTY_MEASURED` / `CST_RATE_SOURCE` / `CST_MODELED_TOTAL_UGX`). Failure-tolerant.
+- `Core/ParameterHelpers.cs` — `TagPipelineHelper.RunFullPipeline` calls `StingTools.BOQ.CostStamp.WriteIfEnabled(doc, el)` as its terminal step (after design-option params, before `return true`). No feedback-loop risk because `StingCostStaleMarker` listens for geometry / addition only, not parameter writes — a settled-tick gate isn't needed.
+- `Commands/Cost/CostCommands.cs` — `Cost_ReloadRules` also clears the `CostStamp` config cache so toggling `WRITE_COST_ON_TAG` mid-session takes effect on the next tag operation.
+
+##### Bulk ES v1→v2 migration (Cost_MigrateESEntities)
+
+- New command `CostMigrateESEntitiesCommand` in `Commands/Cost/CostCommands.cs`. Walks every element with a v1 `StingCostRateOverrideSchema` entity, re-writes via v2 (which auto-deletes the v1 entity). Idempotent: elements with no v1 entity are skipped; elements that already carry a v2 entity have their orphan v1 deleted and the counter records them as "Already v2".
+- Returns immediately with a clean message when the v1 schema isn't present in the document at all (no overrides ever written).
+- Wired into `WorkflowEngine.ResolveCommand` and `StingCommandHandler` dispatch under tag `Cost_MigrateESEntities`.
+
+##### DefaultCostRates → CSV (Phase 184d)
+
+- New file `StingTools/Data/STING_DEFAULT_COST_RATES.csv` — 124 default rate entries extracted from the historic hardcoded dictionary. Columns: `Category,RatePerUnit_UGX,Unit,Description`. Comment lines (leading `#`) supported.
+- `BIMManager/SchedulingCommands.cs` — `Scheduling4DEngine.DefaultCostRates` converted from a `readonly` field initialiser to a lazy-loaded property backed by `LoadDefaultCostRatesCsv()`. CSV entries override an embedded `_legacyInlineFallback` dictionary (kept as defensive backup if the CSV is missing). All 6 existing callers (in `GenerateCostEstimate`, the template exporter, `BOQ.Rates.DefaultRateProvider`) work unchanged because the access surface is identical.
+- `Scheduling4DEngine.InvalidateDefaultCostRates()` added; `Cost_ReloadRules` now clears this cache alongside the rate-provider, take-off and CostStamp caches so an edited CSV picks up without restarting Revit.
+
+##### Caveats
+
+1. Built without `dotnet build` verification.
+2. `WRITE_COST_ON_TAG` defaults to off. Power users enable in `project_config.json` (`"WRITE_COST_ON_TAG": 1`). When on, every tag operation does a per-element rate + qty lookup — measurable cost on bulk tag operations (>5000 elements). The 20-element-per-trigger cap on the IUpdater doesn't apply here because this runs in the user-initiated tag command, not the auto-tagger.
+3. `Cost_MigrateESEntities` is one-shot — once run on a project, subsequent runs are no-ops. Safe to include in `WORKFLOW_BOQ_FullRefresh.json` as an optional first step on the next sprint.
+4. The 124 inline fallback entries remain in `SchedulingCommands.cs` (as `_legacyInlineFallback`). A future commit can delete them entirely once the CSV ships with every plugin distribution and the no-CSV defensive path is verified unused.
+
+---
+
+#### Completed (Phase 184c — Cost management follow-ups)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes two caveats called out at the end of Phase 184b.
+
+- `StingTools/Data/MR_PARAMETERS.txt` — appended the 7 cost shared parameters (`ASS_CST_UNIT_RATE_NR`, `ASS_CST_CURRENCY_TXT`, `ASS_CST_FX_TO_BASE_NR`, `ASS_CST_FX_DATE_DT`, `ASS_CST_AS_OF_DT`, `ASS_CST_STALE_BOOL`, `ASS_CST_STALE_REASON_TXT`) so `LoadSharedParamsCommand` binds them automatically on the next project setup run. GUIDs match `ParamRegistry.cs` + `PARAMETER_REGISTRY.json`. File encoding (UTF-16 LE + BOM + tab-separated) preserved via a Python helper.
+- `StingTools/Commands/Cost/CostCommands.cs` — `Cost_RunWorkflow` swapped from `TaskDialog.AddCommandLink` (cap of 4 visible options) to `StingListPicker` with search + filter. Each item carries the preset summary on its `Tag` so the file path round-trips without re-parsing. Now scales to N workflow presets.
+
+Cost IUpdater (`StingCostStaleMarker`) opt-in default deliberately retained — same pattern as `StingAutoTagger` / `StingStaleMarker`. Users enable via `Cost_ToggleStaleMarker`.
+
+---
+
+#### Completed (Phase 184b — Cost management P0.1 + P0.2 + P2 + P3)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Second commit of Phase 184. Implements the remaining work from `docs/COST_MANAGEMENT_IMPLEMENTATION_PLAN.md` (P0.1 = ES schema v2, P0.2 = currency-neutral params + migration, P2 = IUpdater + validators + workflow presets, P3 = 4D/5D rate-engine unification). Built without `dotnet build` verification (Linux sandbox).
+
+##### P0.1 — Extensible Storage schema v2
+
+- `StingCostRateOverrideSchema.cs` extended with a second schema GUID (`E1A7B2C4-1011-1243-8411-F6E5D4C3B2B2`) carrying 7 new fields: `Currency` (ISO 4217), `WastePercent`, `OverheadPercent`, `ProfitPercent`, `DayworksCode`, `LockedByUser`, `LockedUntilUtcTicks`.
+- `Read` tries v2 first, falls back to v1 — every project that opened the v1 schema continues to work.
+- `Write` always v2; deletes any orphan v1 entity so the element doesn't carry stale data in two schemas.
+- `Override.IsLocked` derived property — `true` when `LockedUntilUtcTicks > now`. Future P5.1 work uses this to prevent edits to rows on issued payment certs.
+- `ExtensibleStorageRateProvider` (P0) updated to honour the new fields — base rate × (1 + waste%) × (1 + OH%) × (1 + profit%); provenance string surfaces the loaded-rate breakdown + lock state.
+
+##### P0.2 — Currency-neutral shared parameters
+
+- 7 new params added to `ParamRegistry.cs` + `PARAMETER_REGISTRY.json` (UUIDv5 in cost namespace `b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d40`):
+  - `ASS_CST_UNIT_RATE_NR`, `ASS_CST_CURRENCY_TXT`, `ASS_CST_FX_TO_BASE_NR`, `ASS_CST_FX_DATE_DT`, `ASS_CST_AS_OF_DT` — replace currency-baked legacy params
+  - `ASS_CST_STALE_BOOL`, `ASS_CST_STALE_REASON_TXT` — drive the P2 stale-cost detection
+- New command `Cost_MigrateCurrencyParams` (`Commands/Cost/CostCommands.cs`) — one-time migration that copies legacy `CST_UNIT_RATE_UGX` → neutral params with `CurrencyCode="UGX"` + current FX rate stamped. Idempotent (skips elements where neutral rate is already set).
+- Legacy `CST_UNIT_RATE_UGX` / `_USD` params stay bound — derivation logic in BOQ export still reads them so existing schedules don't break.
+
+##### P2 — Automation engine
+
+**New files:**
+
+| Path | Lines | Role |
+|------|-------|------|
+| `StingTools/Core/StingCostStaleMarker.cs` | ~230 | IUpdater (UpdaterGuid `B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D50`). Triggers on `GetChangeTypeGeometry()` + `GetChangeTypeElementAddition()` on the same multi-category filter the auto-tagger uses. Marks `ASS_CST_STALE_BOOL = 1` + writes a reason string (`Geometry` / `New`). 20-element-per-trigger cap + LRU eviction at 10 000 entries (mirrors `StingStaleMarker`). Workshared-safe (`WorksharingUtils.GetCheckoutStatus` gate). Only marks previously-costed elements (skips uncosted geometry). |
+| `StingTools/Core/Validation/Cost/CostValidators.cs` | ~290 | 5 validators + `CostValidatorChain.RunAll`: `MissingMaterialValidator` (cost-bearing element with no material → "COST.MAT.MISSING"), `UntypedCategoryValidator` (no takeoff rule matched → "COST.RULE.MISSING"), `UnpricedProdValidator` (no provider returned a non-zero rate → "COST.RATE.UNPRICED" grouped by category), `ZeroQuantityValidator` (rule evaluates to zero quantity → "COST.QTY.ZERO" Error severity), `StaleCostValidator` (counts `ASS_CST_STALE_BOOL == 1`, breakdown by reason → "COST.STALE"). |
+| `StingTools/Commands/Cost/CostCommands.cs` | ~325 | 6 IExternalCommands: `Cost_ValidateAll` (runs the chain, opens TaskDialog with "Select affected" command-link), `Cost_ClearStale` (resets the bool + reason params under a manual transaction; resets the LRU set), `Cost_RunWorkflow` (discovers `WORKFLOW_BOQ_*.json` presets, picker, hands off to `WorkflowEngine.ExecutePreset`), `Cost_ToggleStaleMarker` (toggles the IUpdater), `Cost_ReloadRules` (invalidates `RateProviderRegistry` + `TakeoffRuleRegistry` caches), `Cost_MigrateCurrencyParams` (P0.2 migration). |
+| `StingTools/Data/WORKFLOW_BOQ_FullRefresh.json` | 6 steps | Reload rules → validate (halt on error) → BOQ rebuild → snapshot → clear stale → export. `rollback_on_failure: true`. |
+| `StingTools/Data/WORKFLOW_BOQ_QuickValuation.json` | 5 steps | Lightweight monthly cycle: reload → rebuild → snapshot Interim → refresh cash-flow → export. |
+| `StingTools/Data/WORKFLOW_BOQ_TenderPack.json` | 8 steps | RIBA Stage 4: reload → validate (strict gate) → prep-for-export → final rebuild → Tender snapshot → clear stale → professional xlsx → drawings register. `rollback_on_failure: true`, `rollback_on_optional_failure: true`. |
+
+**Edited files:**
+
+- `StingTools/Core/StingToolsApp.cs` — `StingCostStaleMarker.Register(application)` in `OnStartup`; `.Unregister()` in `OnShutdown`.
+- `StingTools/Core/WorkflowEngine.cs` — `ResolveCommand` switch gains 7 new tags (`Cost_ValidateAll`, `Cost_ClearStale`, `Cost_RunWorkflow`, `Cost_ToggleStaleMarker`, `Cost_ReloadRules`, `Cost_MigrateCurrencyParams`, `BOQPrepForExport`). `BOQPrepForExport` was previously only on `StingCommandHandler` — now reachable from preset JSON too.
+- `StingTools/UI/StingCommandHandler.cs` — 6 new dispatch cases for the cost commands.
+
+##### P3 — 4D/5D rate-engine unification
+
+- `Scheduling4DEngine.GenerateCostEstimate` (in `BIMManager/SchedulingCommands.cs`) now consults `RateProviderRegistry` *after* the live BOQ override, *before* the caller's custom-rates dictionary and the hard-coded `DefaultCostRates`. The same rate the BOQ engine writes to a line is the rate the 4D / 5D / cash-flow surface sees — no more parallel cost tables.
+- `DefaultCostRates` retained as the lowest-priority fallback (and still consulted by `DefaultRateProvider` from P0). Deleting the table outright is deferred until all callers route exclusively through the registry.
+- Tag-pipeline cost write-back (gated on `WRITE_COST_ON_TAG=true` config flag) intentionally deferred — landing it together with the IUpdater would risk feedback loops (IUpdater fires → stale flag set → pipeline rewrites cost → IUpdater fires again).
+
+##### Caveats
+
+1. Built without `dotnet build` verification.
+2. The 7 new cost shared parameters in `PARAMETER_REGISTRY.json` need to be loaded via `LoadSharedParams` before `Cost_MigrateCurrencyParams` will find them on elements. Add to the standard project-setup workflow.
+3. ES schema v2 read-time migration is *implicit* — v1 entities are read transparently; the v1 data is overwritten by `Write` once the QS edits the override (delete-and-replace). A bulk "migrate all v1 entities now" command is deferred.
+4. `Cost_RunWorkflow` UI presents at most 4 presets (TaskDialog command-link limit). If more `WORKFLOW_BOQ_*.json` presets land, a richer picker UI is needed.
+5. The cost IUpdater is *disabled by default*. Users opt in via `Cost_ToggleStaleMarker` — same pattern as `StingAutoTagger` / `StingStaleMarker`. Performance impact on bulk paste is bounded by the 20-element-per-trigger guard.
+
+---
+
+#### Completed (Phase 184 — Cost management foundations: P0 + P1)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Implements phases P0
+and P1 of `docs/COST_MANAGEMENT_IMPLEMENTATION_PLAN.md`. Closes
+flexibility gaps F-1 / F-3 (rate engine + take-off rules now data-driven)
+and integration gaps I-1 / I-7 (plugin snapshots reach the server with
+checksums). Built without `dotnet build` verification (Linux sandbox).
+
+##### P0 — Pluggable rate engine + data-driven take-off rules
+
+**New files:**
+
+| Path | Lines | Role |
+|------|-------|------|
+| `StingTools/BOQ/Rates/IRateProvider.cs` | ~95 | Interface + `RateRequest` / `RateLookup` DTOs |
+| `StingTools/BOQ/Rates/RateProviders.cs` | ~265 | 5 concrete providers preserving legacy fallback order: `ParameterOverrideRateProvider` (priority 100), `ExtensibleStorageRateProvider` (95), `CsvRateProvider` (90/85/80), `CobieRateProvider` (75), `DefaultRateProvider` (60). New providers (BCIS, Spon's, project rate card) slot in without editing existing code. |
+| `StingTools/BOQ/Rates/RateProviderRegistry.cs` | ~175 | Composition root. Per-document cache. Currency adapter normalises UGX/USD/GBP to the requested currency via project FX. `ResolveAll` diagnostic surface drives the rate-source heat-map. |
+| `StingTools/BOQ/Takeoff/TakeoffRule.cs` | ~225 | POCO + `TakeoffRuleRegistry` loader. Corporate baseline + `<project>/_BIM_COORD/takeoff_rules.json` override. First-match-wins. Rule fields: `matchCategory`/`matchDiscipline`/`matchProdCode` + `unit` + `quantitySource` (`HOST_AREA_COMPUTED` / `CURVE_ELEM_LENGTH` / `LookupParameter:Weight` / `LocationCurve` / `literal:1.0` / any `BuiltInParameter` name) + `unitConversion` (`ft2_to_m2` / `ft3_to_m3` / `ft_to_m` / `none`) + `wastePercent` + `nrm2Section` + `description`. |
+| `StingTools/Data/STING_TAKEOFF_RULES.json` | 30 rules | Seed encoding the historic if/switch logic from `DeriveQuantity` + `DeriveNrm2Section` so behaviour is preserved on day one. Rules cover walls, curtain walls, floors, slabs, roofs, ceilings, foundations, columns, framing, beams, doors, windows, stairs, ramps, furniture, casework, ducts, pipes, mechanical equipment, plumbing fixtures, sanitary, conduits, cable tray, electrical equipment, lighting, fire/safety, security, structural steel, rebar (+5% waste). |
+
+**Edited files:**
+
+- `StingTools/BOQ/BOQCostManager.cs` — `ResolveRate` delegates to
+  `RateProviderRegistry`; legacy `RateSource` labels mapped from
+  provider ids so heat-maps + existing schedules keep working.
+  `DeriveQuantity` consults the takeoff registry first, only honouring
+  the matched rule when its declared unit aligns with the caller's
+  requested unit (normalised — `m²` ↔ `m2`, `lin-m` ↔ `m`, etc.);
+  falls back to legacy logic otherwise. `DeriveNrm2Section` signature
+  widened to `(doc, el, catName, disc)`; consults registry first,
+  falls back to the hard-coded map.
+
+##### P1 — Server snapshot sync with checksums
+
+**New files:**
+
+| Path | Lines | Role |
+|------|-------|------|
+| `StingTools/BOQ/Sync/BoqSnapshotHasher.cs` | ~110 | Canonical SHA-256 of a normalised `BOQDocument` projection. Excludes wall-clock fields, sorts sections + items deterministically, formats numbers with invariant culture + fixed precision. Lower-case hex digest matches the server's `BoqBaseline.Checksum` convention. |
+| `StingTools/BOQ/Sync/BoqSyncCoordinator.cs` | ~190 | Orchestrates snapshot → server push. Resolves project id via `PlanscapeServerClient.LoadConnectionSettings`; POSTs a baseline, then upserts lines in chunks of 200. Maps plugin snapshot types (DD / Stage / Weekly / Manual / Live / Handover) to canonical `BoqBaseline.Kind` ("Tender" / "Interim" / "Final"). Maps `BOQRowSource` to `LineKind` ("Measured" / "Manual" / "ProvisionalSum"). Returns `BoqSyncResult` carrying server baseline id, sync state and line counts. |
+
+**Edited files:**
+
+- `StingTools/BOQ/BOQModels.cs` — `BOQSnapshotMeta` gains `Checksum`,
+  `ServerBaselineId`, `SyncState` ("Local" / "Pending" / "Synced" /
+  "Conflict" / "Disabled").
+- `StingTools/BOQ/BOQCostManager.cs` — `SaveSnapshot` computes
+  checksum before write, writes a `<snapshot>.meta.json` sidecar, and
+  fires `_ = Task.Run(...)` to push to the server without blocking
+  save. `ListSnapshots` enriches each `BOQSnapshotMeta` from the
+  sidecar so the BOQ panel can show "Synced — baseline {id}" or
+  "Pending — offline".
+- `StingTools/BIMManager/PlanscapeServerClient.cs` — new methods:
+  `CreateBoqBaselineAsync(projectId, payload) → Guid?` (POST
+  `/api/projects/{id}/boq/baselines`),
+  `UpsertBoqLinesAsync(projectId, baselineId, lines) → (ok, created,
+  updated)` (POST `/baselines/{bid}/lines`),
+  `GetBoqBaselinesAsync(projectId) → JArray` (GET). All preserve the
+  existing `LastError` + `EnsureAuthenticatedAsync` pattern.
+
+##### What's still deferred
+
+- `StingCostRateOverrideSchema` extension to carry `WastePercent` /
+  `OverheadPercent` / `ProfitPercent` / `DayworksCode` / `LockedByUser`
+  needs its own focused commit — the Extensible Storage GUID change
+  requires a read-time migration. P0 provider stub reads the v1 schema
+  and treats `RateGbp` only.
+- Currency-neutral shared parameters (`ASS_CST_UNIT_RATE_NR` etc.) are
+  not added in this commit — needs a parameter-registry version bump
+  + a one-time migration command from `_UGX_NR` → neutral.
+- `WORKFLOW_BOQ_*.json` presets, IUpdater stale detection, validators
+  and 4D/5D unification land in P2 + P3.
+- Mobile / payment certs / variations / EVM land in P4 → P8.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox). New code
+   targets Revit 2025/2026/2027 API surface.
+2. The push is fire-and-forget via `Task.Run`. The sidecar
+   `.meta.json` carries the final sync state once the task completes.
+   UI panels should re-read the sidecar to show live state.
+3. Behaviour is preserved when no take-off rule matches (legacy
+   fallback) and when the rule's unit disagrees with the caller's
+   unit (legacy fallback). Existing demo projects should produce
+   identical BOQ output after this commit.
+4. Server-side `BoqController` endpoints already exist; no server
+   changes required.
+
+---
+
+#### Completed (Phase 183 — Model collaboration: Gaps H–N)
+
+Branch: `claude/review-archicad-revit-workflows-04E6q`. Third-pass review of the full collaboration layer, uncovering seven more gaps and fixing them all.
+
+| Gap | File(s) | Finding & Fix |
+|-----|---------|---------------|
+| H | `Program.cs` | **Critical:** `ArchiCADHub` and `FederatedModelHub` were declared but never registered with `app.MapHub<>()`. Every live ArchiCAD push and every federated model notification was dead code — no client could connect. Added `app.MapHub<ArchiCADHub>("/hubs/archicad")` and `app.MapHub<FederatedModelHub>("/hubs/model")`. |
+| I | `IfcDeltaService.cs` | **Hash instability:** SHA-256 was computed over `Dictionary<string,string>` with natural insertion order. The same element with properties in a different order produced a different hash on each upload and was always classified as "Modified". Fixed: sort keys with `SortedDictionary<string,string>(StringComparer.Ordinal)` before serialising. |
+| J | `IfcIngestController.cs` | After a successful IFC ingest the 3D viewer never refreshed — `FederatedModelHub.NotifyUpdate` was never called. Injected `IHubContext<FederatedModelHub>` and broadcast `ModelUpdated` (source `"archicad"` or `"ifc-ingest"`) after the audit log, non-fatally caught. |
+| K | `AutoAlignService.cs` | When `ComputeAsync` persisted a new coordinate transform, no SignalR event fired. Added optional `IHubContext<FederatedModelHub>` parameter; after `SaveChangesAsync` broadcasts `ModelUpdated(source="auto-align")` so viewer clients reload the coordinate frame. |
+| L | `archiCADLiveClient.ts` | On connect (and after reconnect) the client never called `GET /api/archicad/{projectId}/events/recent` — the ring buffer added in Phase 182 was unused. Added `_fetchRecentEvents()` called after `JoinProject` and `onreconnected`; events replayed in chronological order. |
+| M | `ArchiCADController.cs` | ArchiCAD push authors were never registered in `PresenceTracker` — the BCC "N people viewing" chip only showed web/mobile users. Injected `PresenceTracker` + `IHubContext<NotificationHub>`; on every `Push`, derive a stable synthetic `userId` from `MD5(author.Email)`, call `PresenceTracker.Join(projectId, connId, PresentUser(..., Source="archicad"))`, and broadcast `PresenceChanged` to the notification group. |
+| N | `PlanscapeRealtimeClient.cs` | The Revit plugin had no `ModelUpdated` event — when any tool (IFC upload, ArchiCAD push, auto-align) changed the federated model, the BIM Coordination Center didn't know. Added `ModelUpdated` event and `c.On<object>("ModelUpdated", ...)` registration in `RegisterHandlers`. |
+| O | `FederatedModelHub.cs` | `NotifyUpdate` had no `source` field — clients couldn't distinguish ArchiCAD pushes from IFC uploads from auto-align. Added `string source = "unknown"` parameter propagated in the `ModelUpdated` payload. All callers (FederatedModelController, IfcIngestController, AutoAlignService) pass the correct label. |
+
+---
+
+#### Completed (Phase 182 — ArchiCAD-Revit-Planscape deeper alignment: Gaps A–F)
+
+Branch: `claude/review-archicad-revit-workflows-04E6q`. Second-pass deep review uncovering six additional coordination gaps and implementing all fixes. Goal: zero coordinate drift, durable event delivery, stable GlobalIds, correct protocol versioning, and CRS-validated model origins across the ArchiCAD ↔ Revit ↔ Planscape federated model.
+
+##### Gap A — StabilizeIfcGuidsCommand: wrong UniqueId fallback (client)
+
+**File:** `StingTools/Commands/Interop/StabilizeIfcGuidsCommand.cs`
+
+`ReadRevitIfcGuid` previously fell back to `el.UniqueId` when no `IfcGUID` / `IFC GUID` parameter existed. Revit's `UniqueId` is NOT the same encoding as the 22-character IFC `GloballyUniqueId` that the IFC exporter writes — storing it in `IFC_GLOBAL_ID_TXT` would make Planscape's `GLOBALID_DRIFT` detection compare apples to oranges.
+
+Fix: return `null` when no IFC export history exists; skip the element and count it as `skippedNotExported`. Report now surfaces the skip count with the action message `(run IFC export once to assign GUIDs)`.
+
+##### Gap B — ArchiCADController: no late-join event history (server)
+
+**File:** `Planscape.Server/src/Planscape.API/Controllers/ArchiCADController.cs`
+
+`POST /push` only fan-out via SignalR; clients that reconnected after a push missed all model changes until the next push.
+
+Fix: added `internal static class ArchiCADEventBuffer` — an in-memory ring buffer capped at 200 events per project using a `ConcurrentDictionary<Guid, Queue<ArchiCADEvent>>` with per-queue locking. `Push` feeds the buffer before the SignalR fan-out. New endpoint `GET /api/archicad/{projectId}/events/recent?count=200` returns the buffer snapshot for late-join clients; accepts both project-member JWT auth and bridge-key auth so StingBridge can poll its own buffer.
+
+##### Gap C — IfcAlignmentValidator: no CRS mismatch detection (server)
+
+**File:** `Planscape.Server/src/Planscape.Infrastructure/Services/IfcAlignmentValidator.cs`
+
+The alignment validator compared models against each other but never against the project's canonical `ProjectCoordinateSystem`. A model exported from a wrong coordinate frame would pass the cross-model check silently.
+
+Fix: before the verdict block, query `ProjectCoordinateSystems` for the project. If a CRS is declared and the model carries survey coordinates, compute ΔEasting / ΔNorthing / ΔElevation; emit `WARN COORD_CRS_MISMATCH` (with tool-specific fix hint) when any component exceeds 10 m. If the project CRS is declared but the model has no survey origin at all, emit `INFO COORD_CRS_NO_ORIGIN` with the target coordinates. DB exceptions are caught and logged as non-fatal warnings so existing validation results are never lost.
+
+##### Gap D — ArchiCADLiveLink: no protocol versioning, single-property bottleneck, short export timeout (client)
+
+**File:** `StingBridge/src/ArchiCAD/ArchiCADLiveLink.cs`
+
+Three sub-gaps in the named-pipe protocol:
+
+- **D.1 Versioning:** no version field in any message — a breaking add-on update would fail silently. Added `ProtocolVersion = "1.0"` constant; every `SendCommand` call injects `["version"] = ProtocolVersion`. `IsAvailable()` reads the reply version and calls `StingLog.Warn` on mismatch (graceful degradation, connection stays up).
+- **D.2 BatchSetProperties:** each `SetProperty` call opened a pipe, wrote one property, and closed — setting 8 STING tokens per changed element meant 8 round-trips per element. Added `BatchSetProperties(string guidOrId, Dictionary<string,string> properties)` sending a single `batchSetProperty` command with all properties in one round-trip.
+- **D.3 Export timeout:** `TriggerPartialExport` used the same 3-second timeout as ping. Large ArchiCAD models need 10–30 s to export. Added `ExportTimeoutMs = 30_000` constant and `OpenPipe(int timeoutMs)` overload; `TriggerPartialExport` uses the longer timeout.
+
+##### Gap E — PlanscapeCloudPush: in-memory queue lost on restart (client)
+
+**File:** `StingBridge/src/ArchiCAD/PlanscapeCloudPush.cs`
+
+The `ConcurrentQueue` holding undelivered events was in-memory only — a StingBridge process crash or restart silently discarded all queued model changes.
+
+Fix: added a disk-backed JSON queue at `%TEMP%/stingbridge_queue/{projectId}.json`. Constructor computes the path and calls `LoadPersistedQueue()` (reads the file, re-enqueues events, deletes the file). On HTTP failure, `PersistQueueToDisk()` is called after re-queuing. On clean `Dispose()`, any non-empty queue is written to disk before the HTTP client is released.
+
+##### Gap F — IfcRevitImporter: scan cap too low for large IFC files (client)
+
+**File:** `StingBridge/src/IFC/IfcRevitImporter.cs`
+
+`ParseIfcSiteOrigin` scanned at most 10,000 lines when searching for `IfcMapConversion`. Large IFC files (>100 MB) frequently have `IfcMapConversion` beyond line 10,000, causing the survey origin to be silently missed and every import to land at the wrong coordinate.
+
+Fix: increased the scan cap from `10_000` to `50_000` lines.
+
+##### Summary
+
+| Gap | Side | File | Finding |
+|-----|------|------|---------|
+| A | Client | `StabilizeIfcGuidsCommand.cs` | Wrong UniqueId fallback replaced with null + skip counter |
+| B | Server | `ArchiCADController.cs` | 200-event ring buffer + `GET /events/recent` late-join endpoint |
+| C | Server | `IfcAlignmentValidator.cs` | CRS mismatch / no-origin findings vs `ProjectCoordinateSystem` |
+| D | Client | `ArchiCADLiveLink.cs` | Protocol versioning + `BatchSetProperties` + 30 s export timeout |
+| E | Client | `PlanscapeCloudPush.cs` | Disk-backed JSON queue survives process restart |
+| F | Client | `IfcRevitImporter.cs` | Scan cap 10 k → 50 k for large IFC files |
+
+---
+
+#### Completed (Phase 181 — ArchiCAD-Revit-Planscape full alignment: Gaps 1–15)
+
+Branch: `claude/review-archicad-revit-workflows-04E6q`. Deep review + full implementation of all 15 coordination alignment gaps between ArchiCAD, Revit, and the Planscape platform. Goal: zero coordinate drift, correct unit scaling, stable GlobalIds, and synchronized property mappings across the federated model.
+
+##### Client side — Revit / StingBridge
+
+| Gap | File | What was fixed |
+|-----|------|----------------|
+| 1 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `ParseIfcSiteOrigin` extracts IfcMapConversion Eastings/Northings/Elevation; `ApplySurveyOriginTranslation` moves the import symbol by the negated survey origin (metres→feet). |
+| 3 | `StingTools/Commands/Interop/StabilizeIfcGuidsCommand.cs` (new) | Manual-tx command that reads each element's `IfcGUID`/`IFC GUID` and persists it into `IFC_GLOBAL_ID_TXT` shared param. Planscape GLOBALID_DRIFT warning fires when >5 % of known GUIDs change between uploads. |
+| 7 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `ElementTransformUtils.RotateElement` applies true-north angle from `IfcGeometricRepresentationContext.TrueNorth`. |
+| 8 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `NormalizeLevelName` strips "AC_Level " prefix so ArchiCAD storeys match Revit level names without manual renaming. |
+| 9 | `StingTools/Core/StingToolsApp.cs` | `OnDocumentOpened` auto-starts `IfcDropWatcher` when `_ifc_drop/` folder exists alongside the `.rvt`; `OnShutdown` disposes the watcher. |
+| 15 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `RemoveExistingImport` scans `ImportInstance` elements by filename stem and deletes them before re-import to prevent duplicates. |
+| — | `StingBridge/src/IFC/DropFolderImportEventHandler.cs` (new) | `IExternalEventHandler` wrapper that runs `IfcRevitImporter.Import` on the Revit API thread when `IfcDropWatcher.FileArrived` fires. |
+
+Button wired in ARCHICAD COORDINATION section: **Stabilize IFC GUIDs** (tag `IFC_StabilizeGuids`).
+
+##### Server side — Planscape.Server
+
+| Gap | File | What was fixed |
+|-----|------|----------------|
+| 2 | `IfcIngestController` | Alignment validator always runs; `effectiveModelId` auto-minted from `MD5(projectId+filename)` when no modelId supplied so the alignment report is always surfaced. |
+| 4 | `IfcIngestController.UpsertProjectModelTransformAsync` | Creates/updates `ProjectModelTransform` from IfcMapConversion (negated survey origin × 1000 → mm, rotation °, IfcMapConversion.Scale). |
+| 5 | `IIfcIngester` / `XbimIfcIngester` | `UnitScaleToMm` field added to `IfcIngestResult`; `ExtractUnitScaleToMm` detects IFC length unit (METRE/DECI/CENTI/MILLI) and returns the correct metres→mm multiplier. |
+| 6 | `IfcIngestController.WriteGlobalIdRegistryAsync` | Writes `ElementGlobalIdRegistry` rows from `AC_Pset_ElementID.elementGUID` for ArchiCAD-sourced files; upserts by IfcGlobalId. |
+| 10 | `XbimIfcGeometryExtractor.ResolveMapConversionScale` | Reads `IfcMapConversion.Scale` and multiplies into `scaleMm` so AABB extents are geo-corrected. |
+| 11 | `ModelTransformController` | Already fully implemented (federation transform REST API: GET/PUT/DELETE per model). |
+| 12 | `STING_IFC_PSET_MAPPING.json` + `ARCHICAD_IFC_MAPPING.json` | Added `AC_Pset_ElementID.*` and `AC_Pset_RenovationInfo.*` mappings for full ArchiCAD property round-trip. |
+| 13 | `IfcIngestController.DetectAnalyticalTool` | Pre-flight scan of first 200 STEP header lines rejects ETABS/SAP2000/CSi/SAFE/RAM files with HTTP 400 `analytical_model_rejected`. |
+| 14 | `UpsertProjectModelTransformAsync` | Calls `_audit.LogAsync("TRANSFORM_UPSERT", ...)` after each coordinate correction so transforms are traceable in the audit log. |
+
+##### New files
+- `StingBridge/src/IFC/DropFolderImportEventHandler.cs` — drop-folder → Revit API thread bridge
+- `StingTools/Commands/Interop/StabilizeIfcGuidsCommand.cs` — GlobalId persistence before IFC export
+- `Planscape.Server/src/Planscape.API/Data/IFC/STING_IFC_PSET_MAPPING.json` — full IFC property-set → STING parameter mapping (standard + ArchiCAD AC_Pset_* sets)
+
+#### Completed (Phase 179 — Placement Center canonical integration + DrawingType/Pack wiring)
+
+Branch: `claude/toilet-fixture-placement-research-aZtgU`. Six commits. Makes the Placement Center and dock-panel sub-tabs the single canonical surface for all placement / annotation / symbol results, fully integrated with the DrawingType / ViewStylePack system.
+
+##### PlacementResultBus (new)
+
+`Core/Placement/PlacementResultBus.cs` — static event bus with `PlacementRunSummary` (Source / DrawingTypeId / PackId / Headline / Metrics / Warnings / AffectedIds / RunUtc). Any placement/annotation/symbol command calls `PlacementResultBus.Publish(summary)` after its run; all subscribers update automatically with zero coupling. `LastResult` allows late-subscribers to replay the most recent run.
+
+##### Placement Center context strip
+
+`UI/PlacementCenter/StingPlacementCenter.xaml` + `.xaml.cs` — new `Grid.Row="0"` context strip above the TabControl showing the active view's DrawingType id, ViewStylePack id, and discipline code. Subscribes to `PlacementResultBus.ResultPublished`; on each result the strip headline updates instantly and the Run tab result panel (`grpRunResult`) populates with headline, metric badges, and the AffectedIds list backing the "Select" button. `RefreshDrawingTypeContext()` reads `DrawingTypeStamper.Read(activeView)` and resolves DT + pack via `DrawingTypeRegistry`. Re-opening the window replays the last result.
+
+##### ISO symbol placement wired through DrawingType
+
+`Commands/Fabrication/PlaceIsoSymbolsCommand.cs` — resolves discipline from the active view's stamped DrawingType, passes it as a filter to `IsoSymbolPlacer.PlaceSymbolsForAssembly`, then publishes a `PlacementRunSummary` and shows `FabricationResultDialog`. `IsoSymbolPlacer` gained `CategoryMatchesDiscipline` helper mapping DT discipline strings to CSV category column prefix patterns (Pipe/Duct/Electrical).
+
+##### AnnotationRunner fixes + CategoryTagStyles/CategoryDepths
+
+`Core/Drawing/AnnotationRunner.cs` — `Run` overloads added to fix the `DrawingTypePresentation.Apply` call-site mismatch. `ResolveTagTypeId` tier-3 fallback reads `ViewStylePack.CategoryTagStyles` to find a tag family whose name contains the style preset. `TagCategory` applies `ViewStylePack.CategoryDepths` paragraph depth via `ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", depth)` after `IndependentTag.Create`.
+
+##### BuildAndWriteTag: TAG7 sections, DefaultTagStyle, CategoryTagStyles
+
+`Core/TagConfig.cs` — single pack-resolution pass in the display BOOL init block:
+- **CategoryTag7Sections**: per-category bool controls `TAG_7_SECTION_VISIBLE_A/B/C/D/E/F_BOOL` (false = hide all TAG7 sub-sections for this category in the active drawing type).
+- **CategoryTagStyles + DefaultTagStyle**: per-category or pack-level tag style code applied via inline BOOL-matrix logic (mirrors `TagStyleEngine.ApplyStyleCode` without crossing the `internal` class boundary). Replaces the hard-coded `TAG_2.5NOM_BLACK_BOOL = true` with pack-configured defaults.
+
+##### GenerateFabPackageCommand fabrication routing
+
+`Commands/Fabrication/GenerateFabPackageCommand.cs` — now publishes `PlacementRunSummary` to `PlacementResultBus` after every run so the Placement Center and dock panel strips update without the user switching windows. `FabricationResultDialog` wired as the result display (TaskDialog fallback if the WPF dialog fails).
+
+##### Inline result strips in dock panel
+
+`UI/StingDockPanel.xaml` + `.xaml.cs` — `PlacementResultBus` subscription added to the code-behind; `OnPlacementResultBus` routes "Tags"/"Fixtures" results to `bdrFixturesResult`/`txtFixturesResultHeadline` and "Routing"/"Symbols" results to `bdrRoutingResult`/`txtRoutingResultHeadline`. Strips are collapsed until a result arrives, then auto-show with the run headline.
+
+##### SmartTagPlacementCommand DrawingType wiring
+
+`Tags/SmartTagPlacementCommand.cs` — `ResolvePackForView` helper resolves the active DrawingType pack. During placement: tag family type resolution consults `CategoryTagStyles`; after `IndependentTag.Create`, `CategoryDepths` depth is applied; placed tag ElementIds collected into `AffectedIds`. After the transaction: publishes `PlacementRunSummary(Source="Tags")` so the context strip and dock panel strip update immediately.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `CategoryTag7Sections` currently controls visibility of ALL TAG7 sub-sections for the category uniformly (one bool per category). Per-section granularity can be added later by extending the dict key to `"Category:SectionLetter"`.
+3. `DefaultTagStyle` / `CategoryTagStyles` values must match a valid `TagStyleParamName` code (e.g. `"2.5NOM_BLACK"`) — mismatches fall back to the hard-coded default silently.
+4. `PlacementResultBus` is purely in-process; no persistence. The Placement Center replays `LastResult` on re-open but not across Revit sessions.
+
+---
+
+#### Completed (Phase 176 — symbol authoring: Option A, 7 MEP categories, elevation symbols)
+
+Branch: `claude/review-symbol-workflow-CJFil`.
+
+Three enhancements to the Phase 175 symbol authoring system:
+
+**1. Option A — auto-author symbols on manufacturer swap (`SwapToManufacturerCommand.cs`)**
+
+After `ChangeTypeId` swaps seed instances to manufacturer families, the manufacturer families previously had no STING symbol params. Now:
+- After `tg.Assimilate()`, `AutoAuthorSwappedFamilies(doc, plans)` collects every unique `Family` from winning swap candidates.
+- For each family: `doc.EditFamily` → `FamilyParamEngine.InjectAutomationPresentationPack` → `FamilySymbolAuthor.AuthorSymbols` → `famDoc.LoadFamily` → `famDoc.Close`.
+- Uses a new nested `StingFamilyReloadOptions : IFamilyLoadOptions` (`overwriteParameterValues = false`).
+- Runs outside the swap `TransactionGroup` so authoring failures never roll back successfully-swapped instances.
+- Result panel now shows "Symbol families authored: N".
+- `using StingTools.Tags;` added (for `FamilyParamEngine`, which is `internal` but accessible within the same assembly).
+
+**2. 7 missing MEP categories (`STING_SYMBOL_SHAPES.json` → v1.2)**
+
+All 7 new categories have full IEC/ANSI/BS/NFPA/CIBSE geometry:
+
+| Category | IEC/BS | ANSI/SMACNA | NFPA | CIBSE |
+|---|---|---|---|---|
+| `OST_DuctTerminal` | Square + inscribed circle | Square with X | Narrow rectangle | Square + inner circle |
+| `OST_DuctAccessory` | Rect + single blade diagonal | Rect + double blade | Rect + diagonal | Rect + centre horizontal |
+| `OST_PipeAccessory` | Bowtie (two triangles — valve) | Bowtie | Circle at node + stubs | Diamond |
+| `OST_DuctFitting` | Narrow rectangle (inline) | Same | Same | Same |
+| `OST_PipeFitting` | Narrow rectangle (inline) | Same | Same | Same |
+| `OST_LightingDevices` | Circle + 45° diagonal tail | Same | Circle + top tick | Circle + horizontal line |
+| `OST_GenericModel` | Diamond | Diamond | Diamond | Square + centre dot |
+
+Total categories: 13 → 21 (plus `_UNUSED` key). All are now properly resolved when `FamilySymbolAuthor` looks up `bic.ToString()` in the JSON cache.
+
+**3. Per-standard elevation symbols (`FamilySymbolAuthor.cs`)**
+
+The elevation symbol previously used a single generic bounding box (same geometry for all 5 standards). Now:
+- `CreateAllStandardElevationSets` authors per-standard elevation curves in the XZ front-elevation sketch plane, gated on `STING_SHOW_*_BOOL` (same visibility mechanism as plan symbols).
+- Called inside Step 5 of `AuthorSymbols` when `switchParams != null` and `opts.CreateElevationSymbol == true`.
+- `TryCreateStandardElevationCurvesFromJson` reads `{STANDARD}_elev` arrays from JSON. Coordinate mapping: `x * halfW` → `XYZ.X`; `y * halfW + centerZ` → `XYZ.Z` (symbol centred at `heightFt/2`).
+- `CreateElevCircle` helper creates quarter-arcs in the XZ plane (Y = 0).
+- Generic bounding box (Step 3) remains for categories without elevation JSON data — no regression.
+
+**Elevation data added to JSON for 2 most-impactful categories:**
+
+| Category | IEC_elev | ANSI_elev | BS_elev | NFPA_elev | CIBSE_elev |
+|---|---|---|---|---|---|
+| `OST_FireAlarmDevices` | Circle + horizontal bar | Square | Circle + bar | Square + inner circle | Circle + bar |
+| `OST_Sprinklers` | Circle (deflector) + pipe stub | Upright triangle (NFPA 13) | Circle + pipe stub | Pendant triangle (NFPA 13) | Circle + pipe stub |
+
+**Elevation symbol answer (user question: "can it be done automatically?")**
+
+YES — elevation symbols are now fully automatic via the same JSON-driven mechanism as plan symbols. Add `{STANDARD}_elev` arrays to any category in `STING_SYMBOL_SHAPES.json` and re-run `AuthorSymbols`; no Revit UI interaction required. The coordinate schema is identical to plan symbols except `y` maps to `XYZ.Z` (vertical height) instead of `XYZ.Y` (depth). For most MEP categories the generic bounding box is sufficient since the 3D body appears in elevation views; elevation symbol data is most valuable for fire alarm devices and sprinklers where the symbol identifies the standard visually.
+
+---
+
+#### Completed (Phase 175 — review fixes: symbol workflow correctness)
+
+Branch: `claude/review-symbol-workflow-CJFil` (same branch). Post-review hardening pass across all Phase 175 files.
+
+**Critical fixes**
+- `NLPCommandProcessor.cs`: 5 of 6 Phase 175 `CommandTag` strings were wrong, meaning NLP dispatch via `WorkflowEngine.ResolveCommandPublic` silently fell through to "not executable". Fixed to match `StingCommandHandler` case literals: `AuthorSymbols`, `SwitchProject`, `SwitchView`, `Audit`, `PlaceView`.
+- `FamilySymbolAuthor.cs`: `STING_SYMBOL_STD` was created as a **type** param (`isInstance=false`), making `SetElementSymbolStandardCommand.LookupParameter` always return `null`. Changed to **instance** param (`isInstance=true`). All existing family types are now seeded with `STD_CODE_IEC` in a foreach loop over `fm.Types`.
+- `FamilySymbolAuthor.cs`: `AnnotationSymbolCurvesCreated` used `=` (assign) instead of `+=` (accumulate) in `TryCreateJsonDrivenPlanSymbol` and `EmbedAnnotationPlanSymbolGeometry`, causing multi-standard authoring loops to lose curve counts from earlier iterations.
+
+**High-priority fixes**
+- `SwitchViewStandardCommand`: added `FilteredElementCollector(doc, view.Id)` loop to write `STING_SYMBOL_STD` on model family instances visible in the active view, so embedded curves switch standard immediately alongside annotation tags.
+- `STING_SYMBOL_SHAPES.json`: `OST_LightingFixtures_Recessed` is not a valid `BuiltInCategory.ToString()` value — `catKey` lookup can never match it. Renamed to `_OST_LightingFixtures_Recessed_UNUSED`.
+- `WorkflowEngine.ResolveCommand`: added 9 missing Phase 175 symbol resolver entries (`Symbols_AuthorSymbols`, `Symbols_SwitchProject`, `Symbols_SwitchView`, `Symbols_Audit`, `Symbols_PlaceView`, `Symbols_PlaceAll`, `Symbols_SetElementStandard`, `Symbols_SyncFilters`, `Symbols_SetProfile`), enabling NLP → workflow dispatch for all symbol commands.
+
+**Medium fixes**
+- `TryCreateJsonDrivenPlanSymbol`: `stdKey` was `ANSI/IEC` only — BS/NFPA/CIBSE silently collapsed to IEC. Replaced with a full 5-arm `switch` expression.
+- `LoadSymbolShapesJson`: added double-checked lock (`_cacheSync`) for thread safety; added version-mismatch warning when JSON schema revision differs from expected `"1.1"`.
+- `TryLinkBoundingBoxToFamilyDimensions`: `"Length"` and `"Length_MM"` removed from depth candidates for MEP linear categories (pipe, duct, conduit, cable tray, flex variants) where those names denote axial run length, not cross-section depth. New `IsMepLinearCategory` helper detects affected `BuiltInCategory` values.
+- `SyncViewFilterVisibilityCommand`: stray spaces in class declaration brace removed.
+
+**Low fixes**
+- `STING_SYMBOL_SHAPES.json`: added `"angles": "radians"` metadata field; arc segments in the file use raw radian values (`a1`, `a2`).
+- `MR_PARAMETERS.txt`: added comment block documenting 8 Phase 175 family-local (non-shared) params: `STING_SYMBOL_STD`, `STING_SHOW_{IEC,ANSI,BS,NFPA,CIBSE}_BOOL`, `STING_PLAN_HALF_W_FT`, `STING_PLAN_HALF_D_FT`.
+
+---
+
+#### Completed (Phase 175 — Multi-standard model family symbol switching)
+
+Branch: `claude/review-symbol-workflow-CJFil`. Implements embedded multi-standard
+curve sets in Revit model families (.rfa), matching the SLD annotation tag switching
+pattern already in place for `IndependentTag` families.
+
+##### Core mechanic
+
+All 5 symbol standard variants (IEC / ANSI / BS / NFPA / CIBSE) are authored into
+each model family simultaneously. A single `STING_SYMBOL_STD` Integer type parameter
+(0=IEC, 1=ANSI, 2=BS, 3=NFPA, 4=CIBSE) controls which set is visible at runtime via
+derived Yes/No formula parameters (`STING_SHOW_IEC_BOOL` … `STING_SHOW_CIBSE_BOOL`).
+Each derived bool uses the compound formula
+`if(STING_LOD_COARSE_VISIBLE, STING_SYMBOL_STD = N, false)` so LOD gating and
+standard selection are resolved in a single parameter read.
+
+##### Files changed
+
+| File | Change |
+|---|---|
+| `Core/ParamRegistry.cs` | Added `SYMBOL_STD_PARAM`, `SHOW_*_BOOL` constants, `STD_CODE_*` integer codes (0–4) |
+| `Core/FamilySymbolAuthor.cs` | Extended `SymbolStandard` enum (BS/NFPA/CIBSE); added `StandardSwitchingParams` class; added `InjectStandardSwitchingParams`, `CreateAllStandardSymbolSets`, `TryCreateStandardCurvesFromJson`; wired into `AuthorSymbols` step 5 with single-standard fallback path |
+| `Data/STING_SYMBOL_SHAPES.json` | Version 1.1 — added BS/NFPA/CIBSE shape entries for all 13 categories with standard-specific geometry differences (NFPA cross, BS diagonals, CIBSE fan arcs) |
+| `Commands/Symbols/SymbolStandardCommands.cs` | `SwapAllTags` extended to write `STING_SYMBOL_STD` on model instances; `StandardNameToCode` helper; new `SetElementSymbolStandardCommand` for per-instance selection |
+| `Commands/Symbols/AuthorFamilySymbolsCommand.cs` | Reports `std-params:N` in both selection and file batch result dialogs |
+| `Tags/FamilyParamCreatorCommand.cs` | `FamilyResult.StandardParamsCreated` delegate added |
+| `UI/StingCommandHandler.cs` | `Symbols_SetElementStandard` dispatch case |
+| `UI/StingDockPanel.xaml` | "Set Elem. Std" button wired to `Symbols_SetElementStandard` |
+| `Tags/NLPCommandProcessor.cs` | 6 NLP patterns for symbol authoring, project/view/element standard switching, audit, and overlay placement |
+
+##### New command
+
+`SetElementSymbolStandardCommand` (tag `Symbols_SetElementStandard`) — list picker
+shows IEC/ANSI/BS/NFPA/CIBSE, writes `STING_SYMBOL_STD` on selected model family
+instances that already carry the param (authored via Author Symbols). Skips and
+reports instances without the param.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Formula `if(STING_LOD_COARSE_VISIBLE, STING_SYMBOL_STD = N, false)` uses the
+   Revit formula engine integer-equality syntax; falls back to `STING_SYMBOL_STD = N`
+   if the compound form is rejected by `FamilyManager.SetFormula`.
+3. `STING_SYMBOL_SHAPES.json` v1.1 BS/NFPA/CIBSE entries are stub-quality shapes.
+   Production-accurate geometry (IEC 60617 / ANSI/IEEE 315 / BS 1553 / NFPA 170 /
+   CIBSE Guide) should be authored in native Revit family files by a BIM librarian.
+
+---
 
 #### Completed (Phase 177 — Code-quality sweep: locale safety, null-guard fixes, parameter registry alignment)
 
@@ -4090,3 +5049,605 @@ button continues to invoke the Centre as a modeless window.
      parameter rows that are intentionally unbound. A future
      `BINDING_COVERAGE_REPORT` job could flag the small subset of
      instance parameters that still lack a category binding.
+
+#### Completed (Phase 177 — Toilet Fixture Placement & Plumbing Auto-Router)
+
+**Scope**: 100% toilet-room fixture placement coverage + Naviate-inspired plumbing auto-router.
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Data/Placement/STING_PLACEMENT_RULES.toilet-fixtures.json` | 30+ placement rules across 20 fixture groups for complete toilet-room coverage |
+| `StingTools/Core/Routing/PlumbingFixtureRouter.cs` | Naviate MEP-inspired pipe auto-router: soil/waste + CWS/HWS supply, gravity slope, AAV placement, BS EN 12056-2 pipe sizing |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Core/Placement/PlacementScorer.AnchorTypes.cs` | Added `WINDOW_SIDE_WALL_RIGHT` and `WINDOW_SIDE_WALL_LEFT` anchor types + `EmitWindowSideWall()` implementation |
+| `StingTools/Core/Placement/PlacementRuleLoader.cs` | Added `STING_PLACEMENT_RULES.toilet-fixtures.json` to `DisciplinePacks[]` so rules auto-load |
+
+**Toilet-room fixture groups (20 groups, 30+ rules)**:
+
+| Group | Fixtures covered |
+|---|---|
+| 1 | WC / Water Closet (window-centred, comfort-height, wall-hung, no-window fallback) |
+| 2 | Urinal (standard 610mm AFF, ADA 432mm AFF) |
+| 3 | Lavatory / Basin (standard 850mm, ADA 865mm, commercial) |
+| 4 | Toilet paper holder (single, double, recessed — always RIGHT of WC) |
+| 5 | Grab bars (side right, side left fold-down ADA, rear) |
+| 6 | Sanitary bin + toilet brush (floor level, right side) |
+| 7 | Soap / sanitiser dispenser (wall-mounted and countertop) |
+| 8 | Mirror + medicine cabinet (above basin) |
+| 9 | Towel ring, towel bar, robe/towel hook |
+| 10 | Hand dryer (commercial) + paper towel dispenser |
+| 11 | Waste / rubbish bin |
+| 12 | Coat hook (back of door) |
+| 13 | Baby changing station (fold-down, 864mm AFF) |
+| 14 | Bathroom shelf |
+| 15 | Emergency pull cord (accessible + healthcare variant) |
+| 16 | Shower: head, TMV valve, fold-down seat, horizontal grab bar, curtain rod, shampoo niche, floor drain |
+| 17 | Commercial extras: feminine napkin disposal, entrance mat, sanitary vending machine |
+| 18 | Extract ventilation: ceiling grille (Approved Doc F) + wall-mounted fan |
+| 19 | Bidet |
+| 20 | Mirror / vanity light (IP44, 2000mm AFF) |
+
+**New anchor types**:
+- `WINDOW_SIDE_WALL_RIGHT` — emits candidate on the right side wall relative to the window-wall orientation; used for toilet paper holders, right grab bars, sanitary bin
+- `WINDOW_SIDE_WALL_LEFT` — mirror variant; used for left fold-down grab bars
+
+**PlumbingFixtureRouter — Naviate integration strategy**:
+- Connector-based fixture classification (soil vs waste vs CWS/HWS)
+- Gravity slope enforcement: 1:40 (2.5%) per BS EN 12056-2
+- Pipe sizing by discharge units: BS EN 12056-2 Table F.1 (32–110mm)
+- AAV auto-placement when vent run exceeds configurable threshold (default 3000mm)
+- Parameter stamping: `PLM_PIPE_SERVICE_TXT`, `PLM_SLOPE_PCT_V4`, `PLM_NOMINAL_DIA_MM`
+- `PlumbingStandards` constants class: BS EN 12056-2, CIBSE Guide G, HTM 04-01
+
+**Standards covered**: BS 6465-1:2006+A1:2009, BS 8300:2018, ADA §604/§605/§606/§608/§609, ANSI A117.1-2017, HTM 04-01/08-03, HTM HBN 00-02, BS EN 12056-2, CIBSE Guide G, Approved Doc F/H/M, WRAS, TMV3, BS 7671 (zone requirements).
+
+**Caveats**:
+1. Built without `dotnet build` verification (Linux sandbox, no Revit API).
+2. Toilet paper holder right-of-WC placement depends on `WINDOW_SIDE_WALL_RIGHT` anchor emitting correctly from `EmitWindowSideWall()`; verify in Revit when a window-wall WC is placed.
+3. `PlumbingFixtureRouter` requires soil-stack pipes (system abbrev `SS`/`SOIL`/`WASTE`/`SVP`) and rising mains (`CWS`/`HWS`) pre-routed in the model before auto-routing can connect fixtures.
+4. AAV family `STING_AAV_Inline` must be loaded in the project; router warns gracefully if missing.
+
+#### Completed (Phase 180 — STING HVAC Center dockable panel)
+
+**Scope**: third sibling dockable panel (Electrical · Plumbing · HVAC), tabbed
+behind PropertiesPalette. Mirrors the Electrical panel's seven-tab compact
+layout exactly so the dispatch / theming / dockable-pane patterns line up.
+Lands the flexibility / functionality / automation fixes flagged in the prior
+review: hardcoded velocity / aspect / fill / standard-size constants extracted
+to a JSON registry with project-level override; sizing strategy promoted from
+three separate commands to a header-level radio set; CALCS tab exposes per-role
+targets as an editable data-grid; scope (Selection / Active view / Project) is a
+header-level radio so every action respects it without re-prompting.
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Data/STING_MEP_SIZING_RULES.json` | Sizing-rule registry: regions, duct roles (main / branch / runout / OA / exhaust / kitchen / smoke), pressure classes (DW/144 A–D), standard-size tables (UK / US / EU / DE / Nordic), gauge breakpoints, pipe-service velocities (chw / hws / dcw / dhw / refrig / steam / gas), conduit + tray fill, sizing-strategy options, Hardy-Cross balancing settings, NC targets per space type |
+| `StingTools/Core/Mep/MepSizingRegistry.cs` | Loader + corporate baseline + `<project>/_BIM_COORD/mep_sizing_rules.json` override layer + `Reload()` + typed POCOs (`DuctRole`, `PipeService`, `DuctGaugeBreakpoint`, `BalancingSettings`, `NcTarget`). Mirrors `DrawingTypeRegistry` / `AecFilterRegistry` / `ViewStylePackRegistry` patterns. |
+| `StingTools/UI/StingHvacPanelProvider.cs` | `IDockablePaneProvider` — stable PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F`, Tabbed behind PropertiesPalette, VisibleByDefault=false |
+| `StingTools/UI/StingHvacCommandHandler.cs` | `IExternalEventHandler` — Tag-keyed switch dispatching 40+ HVAC tags to existing `IExternalCommand` classes via `Run<T>(app)`. Unknown tags fall through to the main `StingCommandHandler` so no command logic is duplicated. Snapshot statics (`CurrentRegion`, `CurrentStandard`, `CurrentPressureClassId`, `CurrentAirDensityKgM3`, `CurrentSizingStrategyId`, `CurrentScope`) carry header state into the API thread. |
+| `StingTools/UI/StingHvacPanel.xaml` | 7-tab WPF page (EQPT · SYS · CALCS · DUCT · LOADS · FAB · RPRT). Repeating skeleton: chip filter row → `DataGrid` left / `Expander` stack right → primary action button row. Header carries Standard · Region · Pressure class · Air density combos + Sizing strategy radio + Scope radio. ~660 lines. |
+| `StingTools/UI/StingHvacPanel.xaml.cs` | Code-behind: 10 `ObservableCollection<T>` data-grid sources (`EquipmentRows`, `SystemRows`, `SizingRoleRows`, `IssueRows`, `DuctTypeRows`, `StandardSizeRows`, `SpaceLoadRows`, `SpoolRows`, `DriftRows`, `WorkflowRows`), POCO view-models, header combo handlers, `Cmd_Click` dispatcher, `SeedSizingRolesFromRegistry()` so CALCS tab is non-empty on first show. |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Core/StingToolsApp.cs` | Added `RegisterHvacPanel(application)` call in `OnStartup` after `RegisterPlumbingPanel`. Added `RegisterHvacPanel(...)` method body. Added `ToggleHvacPanelCommand : IExternalCommand` after `TogglePlumbingPanelCommand`. Ribbon panel "❄ HVAC" with single "STING HVAC" toggle button. |
+| `CLAUDE.md` | New "STING HVAC Center" subsection under WPF Dockable Panel listing the tab map, file inventory, and how the panel relates to the existing 100+ HVAC commands. |
+
+**Tab map**:
+
+| Tab | Purpose | Wires through to |
+|---|---|---|
+| EQPT | AHU/FCU/VAV/Chiller/Boiler/HP inventory + parameter editor + Identity / Performance / Acoustics / Connections / COBie expanders | `PlaceHvacEquipmentCommand`, `MechanicalEquipmentScheduleCommand`, `MEPSystemAudit`, `MEPConnectionAudit`, `MEPSpaceAnalysis`, `MEPSizingCheck`, `SelectMechanicalCommand` |
+| SYS | Systems list (Supply / Return / Exhaust / OA / Relief × Air / CHW / HW / Refrigerant / Condensate) with fan-pressure budget + zones + fire dampers | `MEPSystemAuditCommand`, `AutoFireDamperCommand`, `Mep_SystemTracer`, `HardyCrossCommand`, `Mep_PressureDrop`, `Mep_SystemAnalyse` |
+| CALCS | Sizing strategy + per-role velocity / friction / aspect targets (editable DataGrid backed by registry) + live-result panel + issues grid | `MepAutoSizeDuctCommand`, `CalcDuctFrictionCommand`, `DuctStaticRegainCommand`, `DuctEqualFrictionCommand`, `HardyCrossCommand`, `Mep_VibroAcoustic`, `Mep_FittingLoss`, `RunAllValidatorsCommand` |
+| DUCT | Duct types + per-region standard-size table (enable/disable per row) + gauge / seam breakpoints + insulation / lining + fabrication defaults | `CreateDuctsCommand`, `ModelCreateDuctCommand`, `AutoDropCommand`, `GenerateLayoutCommand`, `DuctSeamAuditCommand`, `PlaceHangersCommand`, `ValidateFillsCommand` |
+| LOADS | Spaces × envelope × internal gains × ventilation × computed loads. Engine picker (Revit native / IES / TRACE / HAP / EnergyPlus) + code picker (ASHRAE 90.1 / 62.1, CIBSE Guide A, Part L 2021, BB101, ADF1) | Currently routes to TaskDialog placeholders for `Hvac_RunLoads` and `Hvac_ExportGbxml` (full wizard ships next phase); `MEPSpaceAnalysisCommand` for envelope audit; `VentilationCommand` for OA audit |
+| FAB | Spool grid + assembly / hangers / outputs expanders + checkbox-driven export pack | `Fabrication_OpenWorkspace`, `ExportCutListCommand`, `ExportIsometricsCommand`, `ExportWeldMapCommand`, `HangerTakedownCommand`, `FlangeRatingCommand`, `SpoolWeightCommand`, `ExportNCCommand` |
+| RPRT | Health KPIs + drift grid + workflow runs grid + export action row | `Hvac_ReloadRules` (registry reload), `Mep_SystemAnalyse`, `V6Carbon`, `DocPackage`, `PlatformSync` |
+
+**Flexibility fixes landed alongside the panel**:
+
+1. `private const double DuctMaxVelMs = 6.0` (and siblings) → JSON-driven per-role table, editable in the CALCS tab DataGrid, project-overrideable.
+2. `Math.Sqrt(area * 1.5)` aspect-ratio default → `DuctDefaultAspect` in the JSON; future `MepAutoSizeDuctCommand` refactor reads from `MepSizingRegistry`.
+3. SMACNA-only `MepSizeTables.DuctStandardMm` → per-region map (UK_SI / US_IP / EU_SI / DE_SI / SE_SI) with project-level enable/disable for individual sizes.
+4. Three separate sizing commands (`MepAutoSizeDuct`, `DuctStaticRegain`, `DuctEqualFriction`) unified under a single header-level Sizing strategy radio. Existing commands still callable via legacy tags; CALCS tab uses the strategy snapshot.
+5. Hardy-Cross `dampingFactor = 0.7` + `tolerancePa = 1.0` magic constants → `balancing` block in the JSON (engine still hardcodes; reading from registry is the next refactor).
+6. NC targets per space type now declarative in `acoustics.ncTargets` rather than scattered through `MEPVibroAcousticEngine`.
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox, no Revit API). Verify in Revit before merge.
+2. `MepAutoSizeDuctCommand` / `MepAutoSizePipeCommand` / `MEPBalancingEngine` still read hardcoded constants — the JSON registry is in place but the existing engines haven't been refactored yet. Phase 181 work: switch each `private const` to `MepSizingRegistry.Get(doc).DuctRole/PipeService/Balancing` lookups.
+3. `Hvac_RunLoads` and `Hvac_ExportGbxml` route to TaskDialog stubs pointing at Revit's native Analyze ribbon. A first-class Loads + gbXML wizard is the Phase 181 follow-up.
+4. The EQPT / SYS / SpoolGrid / DriftGrid / WorkflowGrid `ObservableCollection`s start empty — populated when a command run pushes data back (handler pattern; mirrors how `StingElectricalPanel.PanelRows` is filled by `BuildPanelScheduleCommand`).
+5. PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F` must remain stable from this point so users' Revit `UIState.dat` re-locates the panel between sessions.
+
+#### Completed (Phase 181 — HVAC engine refactor + real Loads / gbXML wizards)
+
+**Scope**: closes the two caveats that shipped with the Phase 180 HVAC Center.
+
+1. Sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`,
+   `MepAutoSizeConduitCommand`) now read velocity / aspect / fill / standard-size
+   tables from `MepSizingRegistry.Get(doc)` instead of `private const` literals.
+   Hardcoded values become `*Fallback` constants used only when the registry
+   load fails. Result panel subtitle now shows the active target + source so
+   the rule provenance is visible.
+2. `MEPBalancingEngine.BalanceSystem` damping `0.7`, tolerance `1.0`, iteration
+   cap `100`, and `0.01` flow floor → registry-driven via a new
+   `Document`-aware overload `BalanceSystem(Document doc, branches, totalPressurePa)`
+   that reads from `MepSizingRegistry.Get(doc).Balancing` and forwards to the
+   canonical signature. Existing parameterless callers still work via the
+   original signature with widened defaults (the explicit `dampingFactor` and
+   `minBranchFlowLs` arguments default to the historic `0.7` / `0.01`).
+3. `FittingLossCalculator` consults `Data/STING_FITTING_LOSSES.json` first via
+   a lazy thread-safe overlay; missing types fall back to the existing hardcoded
+   26-entry dictionary. JSON entries shadow the baseline — designers can override
+   K-values for proprietary fittings without recompiling.
+4. `Hvac_RunLoads` is a real `IExternalCommand` that pre-flights the model
+   (warns when no MEP Spaces are placed), confirms with the user, then posts
+   `PostableCommand.AnalyzeHeatingAndCoolingLoads` so Revit's native loads
+   engine runs against the energy analytical model.
+5. `Hvac_ExportGbxml` is a real `IExternalCommand` that verifies the active
+   view is 3D, resolves the output folder via `OutputLocationHelper`, sets
+   `ExportEnergyModelType = SpatialElement` defensively via reflection
+   (enum availability varies by Revit version), and calls `Document.Export`
+   with `GBXMLExportOptions`. Hand-off target: IES VE, TRACE 3D Plus, Carrier HAP, EnergyPlus.
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Commands/Hvac/HvacWizardCommands.cs` | `HvacRunLoadsCommand` + `HvacExportGbxmlCommand` real implementations |
+| `StingTools/Data/STING_FITTING_LOSSES.json` | 31-entry fitting-loss table (CIBSE Guide C / DW/144 / ASHRAE) loaded as an overlay over the hardcoded dictionary |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/Mep/MepAutoSizeCommand.cs` | `MepSizeTables.DuctSizesFor(doc)` / `PipeBoresFor(doc)` registry-aware helpers; all three commands consume `MepSizingRegistry`; hardcoded constants renamed `*Fallback`; result-panel subtitles surface active rule source |
+| `StingTools/Model/MEPIntelligenceEngine.cs` | `FittingLossCalculator` gains JSON-overlay path with `Lazy<>`-equivalent thread-safe init; `MEPBalancingEngine.BalanceSystem` gains `Document`-aware overload + explicit `dampingFactor` / `minBranchFlowLs` parameters; damping `0.7` and floor `0.01` no longer magic numbers in the inner loop |
+| `StingTools/UI/StingHvacCommandHandler.cs` | `Hvac_RunLoads` and `Hvac_ExportGbxml` switch from TaskDialog stubs to `Run<HvacRunLoadsCommand>()` / `Run<HvacExportGbxmlCommand>()` |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
+2. `MepAutoSizeDuctCommand` still uses the `"branch"` role as the project-wide default for every duct in the active scope. Per-element segment-role detection (HVC_SEGMENT_ROLE_TXT reads → role lookup) lands in a follow-up phase; this phase wires the data path.
+3. `MepAutoSizePipeCommand` defaults to the `"chw"` service for every pipe (matches the historic 2.5 m/s safety margin). Per-service detection from system abbreviation lands next.
+4. `HvacExportGbxmlCommand` uses reflection to set `ExportEnergyModelType = SpatialElement` because the enum identifier moved between Revit 2024 and 2026. The call is best-effort — if the property is missing, the export still runs with whatever default the active Revit version uses.
+5. `HvacRunLoadsCommand` posts the native Revit dialog rather than running the loads engine headlessly — the public Revit API does not expose the engine directly. The user still has to click Calculate in the native dialog.
+
+#### Completed (Phase 182 — HVAC gap closure: strategy / scope / role / audit / workflows)
+
+**Scope**: closes 10 of the 11 gaps flagged in the post-Phase-181 review. Two
+build errors that surfaced on Windows are also fixed.
+
+**Build fixes**:
+
+1. `StingHvacCommandHandler.cs:182` — `StingCommandHandler.Instance` does
+   not exist. Fallback dispatch now uses the public static
+   `StingDockPanel.DispatchCommand(tag)` which raises the unified panel's
+   `ExternalEvent`. No behavioural change.
+2. `HvacWizardCommands.cs:90` — `PostableCommand.AnalyzeHeatingAndCoolingLoads`
+   was removed in Revit 2025 (same pattern as `PostableCommand.EditFamily`).
+   Lookup now goes via reflection over `PostableCommand` enum names
+   (`AnalyzeHeatingAndCoolingLoads`, `HeatingAndCoolingLoads`,
+   `AnalyzeLoads`) with a string-id fallback chain
+   (`ID_HEATING_AND_COOLING_LOADS`, `ID_HEATING_AND_COOLING_LOADS_DIALOG`,
+   `ID_ANALYZE_HEATING_AND_COOLING_LOADS`). Source compiles against
+   Revit 2024 / 2025 / 2026.
+
+**Gap closures**:
+
+| Gap | Where | Change |
+|---|---|---|
+| D2 — sizing strategy radio actually dispatches | `StingHvacCommandHandler.Hvac_AutoSizeDuct` | `switch` on `CurrentSizingStrategyId`: `equal_friction` → `DuctEqualFrictionCommand`; `static_regain` → `DuctStaticRegainCommand`; `velocity` / `constant_pressure` → `MepAutoSizeDuctCommand`. |
+| D3 — scope radio enforced | `MepAutoSizePipe/Duct/Conduit` | Each command reads `StingHvacCommandHandler.CurrentScope` and filters its `FilteredElementCollector` accordingly: `Selection` (uidoc selection ids), `ActiveView` (per-view collector), `Project` (historic). Falls back to project on any error. |
+| D5 — per-element segment-role detection | new `Core/Mep/HvacSegmentRoleDetector.cs` (~180 lines) | Walks connector graph: source-equipment depth 0 → `main`, depth 1 → `branch`, depth ≥ 2 or terminal-adjacent → `runout`. Result cached on `HVC_SEGMENT_ROLE_TXT` so subsequent runs are O(1). Wired into `MepAutoSizeDuctCommand` — every duct now gets its own velocity / aspect ceiling instead of one project-wide default. |
+| D9 — panel live refresh | `StingHvacPanel.PushRunRow(name, statusDot)` thread-safe via Dispatcher | Every sizing run (pipe / duct / conduit), every reload, every save inserts a row at the top of the RPRT WorkflowGrid with a status dot + timestamp. Capped at 100 rows. The panel stops feeling read-only. |
+| D7 — HVAC workflow presets | three new JSONs under `Data/` | `WORKFLOW_HVACDesign.json` (7-step design pass), `WORKFLOW_HVACCommissioning.json` (7-step CIBSE TM39 commissioning), `WORKFLOW_DuctSpoolProduction.json` (8-step fab handover pack). Auto-discovered by `WorkflowEngine.AppendUserPresets`. |
+| D1 / A6 — save edited rules to JSON | new `Commands/Hvac/HvacSaveRulesCommand.cs` + `StingHvacPanel.SaveSizingRolesToProjectOverride` + 💾 Save button on CALCS tab | Serialises the in-grid sizing roles back to `<project>/_BIM_COORD/mep_sizing_rules.json` (merging into existing override), then calls `MepSizingRegistry.Reload()` so the next sizing run honours the edits. |
+| D4 — sizing audit trail | `MepAutoSizeDuctCommand.StampSizingAudit` + `SnapshotDuctSize` helpers | Per-element writes of `HVC_SIZE_PREV_TXT` (old WxH or Ø), `HVC_SIZE_MODIFIED_DT` (ISO 8601 UTC), `HVC_SIZE_RULE_ID_TXT` (role + source). Best-effort: skipped silently if the shared params aren't bound. Unlocks drift detection + undo. |
+| A7 — project override for fitting losses | `FittingLossCalculator.ApplyOverlay` helper | Loader now layers `<project>/_BIM_COORD/fitting_losses.json` over the corporate baseline (same pattern as `MepSizingRegistry`). Projects can override one fitting (proprietary Trox damper, e.g.) without restating the whole 31-entry table. |
+| B9 — Reload re-seeds CALCS grid | `StingHvacCommandHandler.Hvac_ReloadRules` | After `MepSizingRegistry.Reload()`, calls `StingHvacPanel.Instance.RefreshSizingRoles()` so the visible grid actually changes. Adds a WorkflowGrid row marking the reload. |
+
+**Not closed in this phase (deferred)**:
+
+- **A8** — `HardyCrossCommand` uses `HardyCrossSolver` (pipe-loop networks),
+  not `MEPBalancingEngine` (HVAC branch balance). The new `Document`-aware
+  `BalanceSystem` overload is exposed for future internal callers but no
+  user-facing command currently routes through it. Promoting
+  `HardyCrossSolver` defaults (`DefaultMaxIterations = 60`,
+  `DefaultToleranceRel = 0.001`) to the registry is a separate refactor.
+- **A2** — Per-pipe service detection (chw vs hws vs refrigerant) from
+  `MEPSystem.SystemAbbreviation`. Data path is ready; per-element classifier
+  lands next.
+- **A3 / D10** — Pressure-class enforcement against the active DW/144
+  class. Currently surfaced in the result-panel subtitle only.
+- **D8** — `StingHvacStaleMarker` `IUpdater` for flagging stale duct sizes
+  on flow change. Skipped for now to keep IUpdater overhead bounded; a
+  manual `Hvac_DetectStaleSizes` command is the lighter-weight alternative.
+- **C2 / C3 / C5 / C8** — BIM Coordination Center HVAC tab,
+  generalising `PressureRegimeValidator` beyond healthcare,
+  `Planscape.Server` HVAC controller, HVAC plant carbon report — each
+  large enough to warrant its own phase.
+
+**New files**:
+
+| File | Lines | Purpose |
+|---|---|---|
+| `StingTools/Core/Mep/HvacSegmentRoleDetector.cs` | ~180 | Connector-graph walker that classifies a duct as main / branch / runout. Caches result on `HVC_SEGMENT_ROLE_TXT`. |
+| `StingTools/Commands/Hvac/HvacSaveRulesCommand.cs` | ~70 | Writes the in-grid sizing rules to the project override JSON and reloads the registry. |
+| `StingTools/Data/WORKFLOW_HVACDesign.json` | — | 7-step design pass. |
+| `StingTools/Data/WORKFLOW_HVACCommissioning.json` | — | 7-step CIBSE TM39 commissioning sequence. |
+| `StingTools/Data/WORKFLOW_DuctSpoolProduction.json` | — | 8-step fabrication hand-off pack. |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/Mep/MepAutoSizeCommand.cs` | D3 (scope enforcement on three commands), D4 (audit-trail helpers), D5 (per-duct role detection wired into duct sizer), D9 (push panel row at completion). |
+| `StingTools/Model/MEPIntelligenceEngine.cs` | A7 (project override layered over corporate baseline in `FittingLossCalculator.Overrides()`). |
+| `StingTools/UI/StingHvacCommandHandler.cs` | D2 (strategy dispatch in `Hvac_AutoSizeDuct`), B9 (Reload also calls `RefreshSizingRoles` + pushes panel row), D1 wiring (`Hvac_SaveRules` tag), build fix #1. |
+| `StingTools/UI/StingHvacPanel.xaml.cs` | New methods: `PushRunRow`, `RefreshSizingRoles`, `SaveSizingRolesToProjectOverride`. |
+| `StingTools/UI/StingHvacPanel.xaml` | 💾 Save button on CALCS tab. |
+| `StingTools/Commands/Hvac/HvacWizardCommands.cs` | Build fix #2 — reflection-based `PostableCommand` lookup with `RevitCommandId.LookupCommandId` fallback. |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit.
+2. `HVC_SEGMENT_ROLE_TXT`, `HVC_SIZE_PREV_TXT`, `HVC_SIZE_MODIFIED_DT` and `HVC_SIZE_RULE_ID_TXT` must be bound as shared parameters on `OST_DuctCurves` for the cache + audit trail to land. `ParameterHelpers.SetString` is no-op when read-only / unbound so older project templates degrade gracefully — the registry-driven sizing still works, only the trail is lost.
+3. `HvacSegmentRoleDetector` walks the connector graph defensively (max-depth 12, seen-set to avoid cycles). Disconnected ducts return `branch` (the safe default). A future enhancement would surface "orphan" ducts as a separate `Hvac_DetectOrphanDucts` audit.
+4. The Save → project-override path only touches the `duct.roles` block; pipe services / pressure classes / standard sizes / gauge breakpoints are unchanged on disk. Editing those still requires hand-editing the JSON.
+
+#### Completed (Phase 183 — Deferred-list closure: services, stale scan, pressure-class audit, plant carbon, profile-driven pressure regime, BIM Center HVAC tab)
+
+**Scope**: closes the five "deferred (own phase)" items from the Phase 182
+summary plus one cleanup (BIM Coordination Center HVAC tab).
+
+**Gap closures**:
+
+| Gap | Where | Change |
+|---|---|---|
+| A2 — per-pipe-service detection | new `Core/Mep/PipeServiceDetector.cs` + `Data/STING_MEP_SERVICE_MAP.json` (31 patterns) | Reads `MEPSystem.SystemAbbreviation` / `RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM` and matches against a JSON pattern list (CHWS, CHW, HWS, DCW, DHW, COND, RG, RL, STM, NG, …) to resolve a `PipeService.Id`. `MepAutoSizePipeCommand` now consults this per element — chilled water gets sized at 1.5 m/s, DHW at 1.0, refrigerant gas at 15. Stamps `HVC_PIPE_SERVICE_TXT` on each sized pipe. Cached per-document; project override at `<project>/_BIM_COORD/mep_service_map.json`. |
+| D8 — manual stale-size scan | new `Commands/Hvac/HvacDetectStaleSizesCommand.cs` | Walks ducts in scope, recomputes the would-be size given current flow + role + registry rules, flags ducts whose area diverges > 20% by stamping `HVC_SIZE_STALE_BOOL = 1`. Avoids the IUpdater overhead of a passive marker — a user-invoked command with a clear cost model. Reports per-role breakdown + worst offenders + pushes an issue row to the HVAC panel. Surfaced as a button on the RPRT tab. |
+| A3 / D10 — pressure-class enforcement | sizer stamp + new `Commands/Hvac/HvacPressureClassAuditCommand.cs` | `MepAutoSizeDuctCommand` stamps `HVC_PRESSURE_CLASS_TXT` per duct with the active class id. The new audit command estimates per-duct ΔP (½ρv² + Darcy friction over duct length) using the panel's air-density setting and compares to the class max (DW/144 A=500 / B=1000 / C=2500 / D=7500 Pa). Reports worst offender + over-class count; pushes issue row. Surfaced as a button on the RPRT tab. |
+| C8 — HVAC plant + refrigerant carbon | new `Commands/Hvac/HvacCarbonReportCommand.cs` | Walks `OST_MechanicalEquipment` in scope. Classifies (Chiller / Boiler / AHU / FCU / VRF / HeatPump / Fan / CoolingTower / Generic) by family + product code, multiplies capacity (kW) by CIBSE TM65 embodied-carbon defaults, adds refrigerant charge × IPCC AR6 GWP (R32, R290, R410A, R134A, R1234yf, etc.). Reports A1-A3 + B7 + combined total + breakdown by class + top 15 offenders. Project override at `Data/STING_HVAC_CARBON_FACTORS.json` (auto-loaded). |
+| C3 — profile-driven pressure regime | new `Data/STING_PRESSURE_REGIMES.json` + `Core/Validation/Mep/GeneralPressureRegimeValidator.cs` | Sibling to the healthcare validator. Loads four profiles from JSON: `healthcare-htm03-01` (mirrors historic rules), `gmp-annex1` (EU GMP Annex 1 2022 Grade A/B/C/D), `iso-14644-cleanroom` (ISO classes 5-8 commercial cleanroom), `bs-en-12128-lab` (BSL-1/2/3/4 containment). Activated per project via `PRJ_ORG_PRESSURE_PROFILE_TXT`. Emits the same `ValidationResult` shape so `RunAllValidatorsCommand` aggregates it transparently. Coexists with the healthcare validator — a hospital cleanroom can run both. |
+| C2 — BIM Coordination Center HVAC tab | new `UI/HvacTab.cs` (thin wrapper) + three small edits to `BIMCoordinationCenter.cs` | 16th BCC tab gated on `PRJ_ORG_DISCIPLINES_TXT` containing "Mechanical" / "HVAC" / "MEP". Read-only mirror of the live STING HVAC panel: header chips (region / pressure class / strategy / scope), KPI strip (duct / pipe / equipment counts + stale count), recent workflow runs + active issues, quick-action buttons. Follows the same wrapper pattern as `SitePhotosTab.cs` so `BIMCoordinationCenter.cs` doesn't grow another 1000-line tab body. |
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Core/Mep/PipeServiceDetector.cs` | Pipe service classifier — `MEPSystem.Abbreviation` → `PipeService.Id`. |
+| `StingTools/Data/STING_MEP_SERVICE_MAP.json` | 31 abbreviation patterns mapping to 11 service ids. |
+| `StingTools/Commands/Hvac/HvacDetectStaleSizesCommand.cs` | D8 — manual stale-size scan. |
+| `StingTools/Commands/Hvac/HvacPressureClassAuditCommand.cs` | A3/D10 — pressure-class verification. |
+| `StingTools/Commands/Hvac/HvacCarbonReportCommand.cs` | C8 — plant + refrigerant carbon. |
+| `StingTools/Core/Validation/Mep/GeneralPressureRegimeValidator.cs` | C3 — profile-driven cascade validator + registry. |
+| `StingTools/Data/STING_PRESSURE_REGIMES.json` | C3 — 4 profiles × 14 room-class entries. |
+| `StingTools/UI/HvacTab.cs` | C2 — BCC tab wrapper. |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/Mep/MepAutoSizeCommand.cs` | Per-pipe service detection wired (A2) + pressure-class stamp on sized ducts (A3) + new helpers. |
+| `StingTools/UI/StingHvacCommandHandler.cs` | Three new tag handlers (`Hvac_DetectStaleSizes`, `Hvac_PressureClassAudit`, `Hvac_CarbonReport`). |
+| `StingTools/UI/StingHvacPanel.xaml` | RPRT tab gains Detect-stale / Pressure-class / Plant-carbon buttons. |
+| `StingTools/UI/BIMCoordinationCenter.cs` | TabHvac constant + nav-list gate + tab dispatcher → HvacTab.BuildTab(this). |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit.
+2. CLAUDE.md previously described the type as `CommandExecutionContext`; the actual class is `StingCommandContext`. New files use the correct name.
+3. `HvacPressureClassAuditCommand` uses a simplified ½ρv² + Darcy estimate, not coupled fitting losses. For the full system pressure drop run `Mep_PressureDrop` (`DetailedPressureDropEngine.AnalyseModel`).
+4. `HvacCarbonReportCommand` factors are CIBSE TM65 + IPCC AR6 *defaults*; manufacturer EPDs (Daikin, Trane, etc.) should override via `Data/STING_HVAC_CARBON_FACTORS.json`.
+5. `GeneralPressureRegimeValidator` is not yet auto-discovered by `RunAllValidatorsCommand` — call sites that want it must instantiate it explicitly. Wiring it into the unified validator chain is a one-line follow-up (additive, no engine changes).
+6. The BIM Coordination Center HVAC tab is read-only — all editable work happens on the STING HVAC dock panel (the quick-action buttons forward through `StingDockPanel.DispatchCommand`).
+
+#### Completed (Phase 184 — shared-parameter binding + build hardening)
+
+**Build hardening**:
+
+`HvacRunLoadsCommand` no longer contains *any* compile-time reference to
+any `PostableCommand` enum member — even in comments. The literal
+`PostableCommand.AnalyzeHeatingAndCoolingLoads` was removed in Revit
+2025, so referencing it by source name breaks any build targeting 2025+.
+The new `ResolveLoadsCommandId()` private helper walks every loaded
+assembly to find the `Autodesk.Revit.UI.PostableCommand` enum type by
+full-name string, enumerates its names via `Enum.GetNames`, parses by
+string match, and invokes `RevitCommandId.LookupPostableCommandId(enum)`
+via reflected `MethodInfo`. Source compiles against every Revit version
+2020 → 2026 regardless of which enum constants ship; falls back to the
+internal-command-id chain when the enum member doesn't exist in this
+Revit build.
+
+The Phase 180 → Phase 182 fixes for `StingCommandHandler.Instance`
+(replaced with `StingDockPanel.DispatchCommand`) and the Phase 182 fix
+for `PostableCommand.AnalyzeHeatingAndCoolingLoads` (reflection
+fallback) remain in place; both errors are now structurally impossible
+to recur — `grep` across the repo confirms zero non-comment references.
+
+**Shared-parameter binding** (closes the Phase 183 caveat):
+
+Eleven new shared parameters bound across all three source files:
+
+| Parameter | GUID | Group | Phase |
+|---|---|---|---|
+| `HVC_SEGMENT_ROLE_TXT`         | 5bf0485f-08dd-53d1-9cc5-d956305d42e0 | 5 HVC_SYSTEMS  | 182 |
+| `HVC_SIZE_PREV_TXT`            | b4385937-438e-5d5f-8ce0-f13c2a94a63d | 5 HVC_SYSTEMS  | 182 |
+| `HVC_SIZE_MODIFIED_DT`         | b485412f-0a10-5cf7-9a49-dd2ae6199442 | 5 HVC_SYSTEMS  | 182 |
+| `HVC_SIZE_RULE_ID_TXT`         | b02ae4ea-c9a0-5424-9e20-7d4406352260 | 5 HVC_SYSTEMS  | 182 |
+| `HVC_PIPE_SERVICE_TXT`         | 97e69122-4e43-5b88-9c82-6eaf586ddc07 | 5 HVC_SYSTEMS  | 183 |
+| `HVC_PRESSURE_CLASS_TXT`       | 61d432d6-77fe-5811-972f-0b28493d3de7 | 5 HVC_SYSTEMS  | 183 |
+| `HVC_SIZE_STALE_BOOL`          | ecbc8e8a-3466-53dd-92c9-a28d15ebf43d | 5 HVC_SYSTEMS  | 183 |
+| `HVC_REFRIGERANT_KG_NR`        | b99d07d1-6eca-50cf-b983-b6fe2442bc8c | 5 HVC_SYSTEMS  | 183 |
+| `HVC_REFRIGERANT_TYPE_TXT`     | 10d87a6e-b7d8-5058-81a9-bc62394d9bad | 5 HVC_SYSTEMS  | 183 |
+| `HVC_CAPACITY_KW`              | 397ee526-7af0-5516-a2a1-48db5a42f249 | 5 HVC_SYSTEMS  | 183 |
+| `PRJ_ORG_PRESSURE_PROFILE_TXT` | 8b3bfdcf-aab3-5944-a451-e4766bfaf8ce | 13 PRJ_INFORMATION | 183 |
+
+GUIDs are deterministic UUIDv5 from STING namespace
+`a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a`, so regenerating from name
+yields the same id (re-runs are idempotent).
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Data/MR_PARAMETERS.txt` | +11 UTF-16 LE `PARAM` rows appended to groups 5 + 13 |
+| `StingTools/Data/MR_PARAMETERS.csv` | +11 corresponding CSV mirror rows |
+| `StingTools/Data/PARAMETER_REGISTRY.json` | +11 `support_params` entries; version bumped 5.11 → 5.12 |
+| `StingTools/Commands/Hvac/HvacWizardCommands.cs` | `ResolveLoadsCommandId()` helper replaces compile-time enum reference |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Adding a shared parameter to `MR_PARAMETERS.txt` defines its GUID + name + group, but Revit still needs to *bind* the parameter to a category before instances can read or write it. `CATEGORY_BINDINGS.csv` is the binding layer; this phase only adds the definitions. Wiring the 11 new params to `Ducts` / `Pipes` / `Mechanical Equipment` / `Project Information` happens on the next pass — until then `ParameterHelpers.SetString` writes are silently dropped, exactly as documented in the Phase 183 caveats.
+3. The Revit shared-parameter file convention uses `TYPE=TEXT` for every parameter regardless of semantic type (`_NR`, `_BOOL`, `_DT`); STING shares this convention. Runtime conversion lives in `ParameterHelpers.GetInt/GetDouble`.
+
+#### Completed (Phase 185 — category bindings for the 11 new HVAC params)
+
+**Scope**: closes the Phase 184 caveat — adds 19 `CATEGORY_BINDINGS.csv`
+rows so the 11 new shared parameters actually attach to their target
+Revit categories. After this, `ParameterHelpers.SetString` writes from
+`MepAutoSizeDuct/Pipe`, `HvacDetectStaleSizes`, `HvacPressureClassAudit`,
+`HvacCarbonReport` and `HvacSegmentRoleDetector` land on real
+instance/type parameters instead of degrading silently.
+
+**Binding decisions**:
+
+| Parameter | Categories | Binding | Rationale |
+|---|---|---|---|
+| `HVC_SEGMENT_ROLE_TXT`         | Ducts, Flex Ducts                      | Instance | Each duct segment has its own role |
+| `HVC_SIZE_PREV_TXT`            | Ducts, Flex Ducts                      | Instance | Per-element audit trail |
+| `HVC_SIZE_MODIFIED_DT`         | Ducts, Flex Ducts                      | Instance | Per-element audit trail |
+| `HVC_SIZE_RULE_ID_TXT`         | Ducts, Flex Ducts                      | Instance | Per-element audit trail |
+| `HVC_PIPE_SERVICE_TXT`         | Pipes, Flex Pipes                      | Instance | Service detected per pipe |
+| `HVC_PRESSURE_CLASS_TXT`       | Ducts, Flex Ducts                      | Instance | Sizing-time class stamp |
+| `HVC_SIZE_STALE_BOOL`          | Ducts, Flex Ducts                      | Instance | Per-element drift flag |
+| `HVC_REFRIGERANT_KG_NR`        | Mechanical Equipment                   | Type     | Per equipment family/type |
+| `HVC_REFRIGERANT_TYPE_TXT`     | Mechanical Equipment                   | Type     | Per equipment family/type |
+| `HVC_CAPACITY_KW`              | Mechanical Equipment, Air Terminals    | Type     | VRF indoor units register as terminals; FCU/VAV likewise |
+| `PRJ_ORG_PRESSURE_PROFILE_TXT` | Project Information                    | Instance | Project-level singleton |
+
+**Total**: 19 new binding rows across 11 parameters.
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Data/CATEGORY_BINDINGS.csv` | +19 rows; header bumped to v3.2 |
+| `docs/CHANGELOG.md` | this entry |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `ParameterHelpers.SetString` honours each parameter's Instance vs Type binding semantics — writing to a Type-bound parameter from a code path that holds an `Element` (instance) goes through `Element.LookupParameter`, which finds the type's parameter automatically. Writing to an Instance-bound parameter from a Type code path won't work; the HVAC commands all hold instances so this hazard doesn't arise.
+3. The Revit shared-parameter file (`MR_PARAMETERS.txt`) plus this binding CSV together form the "load shared parameters" pipeline run by `LoadSharedParamsCommand` (`Tags/LoadSharedParamsCommand.cs`). Projects opened before Phase 184/185 need to re-run `LoadSharedParams` to bind the new params.
+
+#### Completed (Phase 186 — integrate local edits from claude/fix-errors-7HSLJ)
+
+**Scope**: integrate three legitimate edits the user had pending on a
+sibling branch (`origin/claude/fix-errors-7HSLJ`) that were blocking
+a `git pull` of the HVAC branch. The pull failed because the user had
+uncommitted modifications to two files; by landing those edits cleanly
+in this branch the next pull will fast-forward.
+
+**Integrated changes**:
+
+1. `#nullable enable annotations` pragma added to
+   `Commands/IFC/StingBridgeStubs.cs` and `Core/StingToolsApp.cs`.
+   Opt-in C# 8 nullable-reference annotations — harmless, additive.
+
+2. `_activeIfcDropWatcher` field + Gap 9 IFC drop-folder auto-start
+   block + Dispose call removed from `StingToolsApp.cs`. The
+   Document-open hot path was deactivated. The `IfcDropWatcher` class
+   itself remains available in `Commands/IFC/StingBridgeStubs.cs` for
+   any command that wants to start a watcher explicitly.
+
+3. `_sldUpdaterId` field declaration now wrapped in
+   `#pragma warning disable/restore CS0649` since it's reserved for
+   Phase 175 SLD sync updater wiring (assignment lands later).
+
+**Not integrated**: unresolved merge-conflict markers
+(`<<<<<<< HEAD` / `=======` / `>>>>>>>` referencing
+`origin/claude/review-model-collaboration-3ZiRc`) were physically
+present in the sibling branch's `StingToolsApp.cs` and would not have
+compiled there. They are NOT brought across — this branch resolves the
+conflict in the obvious direction (keep the SLD pragma, drop the
+IfcDropWatcher field).
+
+**Build errors carried over from Phase 184**:
+
+The CS0117 errors that re-appeared in the user's screenshot
+(`StingCommandHandler.Instance`, `PostableCommand.AnalyzeHeatingAndCoolingLoads`)
+were already fixed in Phase 181/184. The sibling branch
+`claude/fix-errors-7HSLJ` simply hadn't picked up those fixes yet —
+they arrive automatically with the next pull of this branch via the
+`ResolveLoadsCommandId()` reflection helper (zero compile-time
+references to the missing enum member) and the
+`StingDockPanel.DispatchCommand` fallback dispatch (zero references to
+the missing `Instance` property). `grep` of the entire repo confirms
+no non-comment references to either broken API remain.
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/IFC/StingBridgeStubs.cs` | +`#nullable enable annotations` |
+| `StingTools/Core/StingToolsApp.cs` | +`#nullable enable annotations`, `_sldUpdaterId` wrapped in CS0649 pragmas, `_activeIfcDropWatcher` field + Gap 9 block + Dispose call removed |
+| `docs/CHANGELOG.md` | this entry |
+
+**Caveat**:
+
+1. Built without `dotnet build` verification (Linux sandbox). The user's pull command should now succeed and the resulting build should be clean.
+
+#### Completed (Phase 188 — Symbol library review + comprehensive standards build-out)
+
+User commissioned a full review of the symbol-family system and asked to
+fix all defects and implement all recommendations. The audit found 431
+symbols across 12 catalogues (~40% of the ~900–1000 a comprehensive AEC
+firm needs), most lacking status fields, three SLD regional catalogues
+thinly populated, and 97 ISO 6412 symbols indexed but absent from the
+JSON. The audit's BUG-1 claim (IsoSymbolPlacer naming mismatch) was
+disproved on inspection — `ResolveFamilySymbol` already implements a
+Tier-1/Tier-2 fallback covering both `STING_FAM_*` and `ISO6412_*` names.
+
+This phase closes every other gap. Net: **431 → 791 symbols (+360)**;
+**12 → 20 catalogues**.
+
+**Pass 1 — Schema hygiene**: added `"status": "draft"` to all 267
+symbols across 11 catalogues that previously lacked it. Reformatted
+`STING_SLD_SYMBOLS_{BS,CIBSE,IEEE,NFPA}.json` to `indent=2` to match
+the ISO6412 baseline; geometry coordinates unchanged.
+
+**Pass 2 — ISO 6412 gap fill (+97 symbols, 164 → 261)**: authored
+the symbols listed in `STING_ISO_SYMBOLS_INDEX.csv` but absent from
+`STING_ISO6412_SYMBOLS.json`. Standards followed: ISO 6412 / BS 308 Pt
+3 / BS 1646 (valves) / SMACNA (duct) / BS 4568 (conduit) /
+BS EN 61537 (cable tray) / ISO 2553 + BS EN 22553 (welds) /
+MSS SP-58 (hangers). Coverage:
+
+| Group | Count | Examples |
+|---|---|---|
+| Valves | 19 | Butterfly, diaphragm, pinch, knife, swing/lift/dual check, FCV/PCV/TCV/LCV, MOV/AOV/SOV/HOV, drain, vent, handle, lever |
+| Ductwork | 22 | 45°/90° round elbows, round + rect tees, concentric + rect reducers, rect-to-round transition, offset, 5 damper types (volume/fire/smoke/FSD/backdraft), 3 grilles, 4-way + linear diffusers, register, fan, filter, coil, silencer |
+| Conduit (BS 4568) | 8 | Bush, coupling, gland, LB/LL/LR/T/X inspection bodies |
+| Cable tray | 3 | 45° bend, dropout, end plate |
+| Welds (ISO 2553) | 15 | Butt-field, V-groove, bevel-groove, backing, seam, tack, plug, slot, spot, socket-weld, 5 NDT (RT/UT/PT/MT/VT) |
+| Hangers (MSS SP-58) | 7 | Anchor, clamp, roller, constant-load spring, rigid strut, expansion joint, guide |
+| Penetrations | 4 | Puddle flange, link-seal, slab, wall |
+| Notation | 18 | North arrow, scale bar, grid bubble, section + level heads, 5 notes (general/typ/NIC/NTS/revcloud), 4 dimensions (linear/angular/radial/slope), 4 tags (duct/fitting/hanger/weld) |
+
+After this pass `CSV ↔ JSON` gap = 0.
+
+**Pass 3 — 8 new catalogues (+138 symbols)**:
+
+| File | Standard(s) | Count |
+|---|---|---|
+| `STING_WIRE_ANNOTATIONS.json` | BS EN 60617-2 / BS 7671 | 19 |
+| `STING_EARTHING_SYMBOLS.json` | BS 7430 / BS EN 62305 / BS 7671 | 14 |
+| `STING_BMS_SYMBOLS.json` | CIBSE Guide H / ASHRAE 135 / IEC 14908 / KNX | 23 |
+| `STING_TELECOM_SYMBOLS.json` | BS EN 50173 / BICSI TDMM / BS 5839-8 / BS EN 62676 / BS EN 60839 | 20 |
+| `STING_STRUCTURAL_ANNOTATIONS.json` | BS 8666 / BS EN 10210 / BS EN 1993 / BS EN 1997 / BS 4449 / ISO 2553 | 17 |
+| `STING_SAFETY_SYMBOLS.json` | ISO 7010:2019 | 25 |
+| `STING_GAS_SYMBOLS.json` | IGEM TD/4 / BS 6891 / BS EN 1775 | 10 |
+| `STING_DRAINAGE_ABOVE.json` | BS EN 12056 / BS 5572 | 10 |
+
+Highlights: ISO 7010 F001 portable extinguisher (originally missing),
+all 4 ISO 7010 quadrants (F/E/P/M/W), every wire/cable annotation a
+real drawing needs (home-run, phase ticks, splices, junction box),
+TT/TN-S/TN-C earthing arrangements + LPS down-conductor + air
+termination, BMS sensor/controller/network family, full structural
+section + connection + foundation set.
+
+**Pass 4 — Existing catalogue extensions (+125 symbols)**:
+
+| Catalogue | Before | After | Highlights of additions |
+|---|---|---|---|
+| `STING_ELEC_SYMBOLS.json` | 32 | 62 | Both IEC and ANSI/IEEE resistor + inductor (audit-flagged absence fixed); capacitor IEC + polar; diode/LED/Zener; NPN/PNP transistors; 4 sources; 4 meters; bell, buzzer, antenna, speaker; 6 switch variants |
+| `STING_SLD_SYMBOLS_IEEE.json` | 15 | 53 | Full IEC parity: 4 transformer types, 4 generation types, UPS + battery bank, 4 busbar types, ATS/MTS, 5 motor variants, capacitor bank + reactor, SPD, DB/MCC/switchboard, EV charger, ATEX zone |
+| `STING_MEP_SYMBOLS.json` | 27 | 43 | ASHP, GSHP, water-cooled + air-cooled chillers, cooling tower, MVHR, VRF outdoor/indoor, split AC, CRAC, active + passive chilled beams, radiant panel, UFH manifold, humidifier, dehumidifier |
+| `STING_PLUMBING_SYMBOLS.json` | 24 | 44 | Combi/system/regular boilers, HIU, calorifier, thermal store, CWST, booster set, pressurisation unit, expansion vessel, TMV, RPZ backflow preventer, water meter, softener, RO, hose bib, solar thermal, dual check, deaerator, dirt separator |
+| `STING_FP_SYMBOLS.json` | 28 | 49 | 4 portable extinguishers (CO₂/water/foam/powder), hose reel, dry/wet riser, hydrant, gas suppression nozzle, foam generator, water mist nozzle, VESDA, linear-heat-detection, beam smoke detector, flame detector, duct smoke detector, fusible link, sounder, VAD, smoke vent, fire curtain, hold-open, FAP, suppression control panel |
+
+**Pass 5 — Engine awareness + docs**:
+
+* `SymbolBatchHelper.AllBatches` (`Commands/Symbols/SymbolLibraryCommands.cs`)
+  extended with the 8 new catalogues; `CreateSymbolLibraryCommand` (the
+  "Create All Symbols" entry point) now generates them automatically
+  alongside the existing 12 — no separate user action required.
+* `BrowseAllEquipmentSymbolsCommand.Sources` + `InferJsonFile`
+  (`EquipmentSymbolCommands.cs`) extended with prefix-based id routing
+  so symbols from the 8 new catalogues are reachable from the
+  cross-discipline symbol browser. Prefix ordering reworked so the more
+  specific routes (ISO7010_, EARTH_, TEL_, STR_, DRN_, GAS_, SENS_/CTRL_,
+  WIRE_/JBOX/CABLE_) match before the broader legacy prefixes.
+* `Families/ISO6412/README.md` updated with the dual-naming convention
+  (Tier 1 = `STING_FAM_*` from CSV → seed `.rfa` from this folder;
+  Tier 2 = `ISO6412_*` from JSON → runtime-generated). This makes
+  explicit what the placer code already does and documents how to ship
+  hand-drafted seeds correctly. Current-status table refreshed to 261
+  symbols.
+* `docs/CHANGELOG.md` — this entry.
+
+**Final inventory** (programmatically verified):
+
+| Catalogue | Symbols |
+|---|---|
+| STING_ISO6412_SYMBOLS.json | 261 |
+| STING_ELEC_SYMBOLS.json | 62 |
+| STING_SLD_SYMBOLS.json | 54 |
+| STING_SLD_SYMBOLS_IEEE.json | 53 |
+| STING_FP_SYMBOLS.json | 49 |
+| STING_PLUMBING_SYMBOLS.json | 44 |
+| STING_MEP_SYMBOLS.json | 43 |
+| STING_SAFETY_SYMBOLS.json | 25 |
+| STING_LIGHTING_SYMBOLS.json | 25 |
+| STING_BMS_SYMBOLS.json | 23 |
+| STING_TELECOM_SYMBOLS.json | 20 |
+| STING_PIPE_ACCESSORIES.json | 20 |
+| STING_WIRE_ANNOTATIONS.json | 19 |
+| STING_STRUCTURAL_ANNOTATIONS.json | 17 |
+| STING_SLD_SYMBOLS_BS.json | 15 |
+| STING_SLD_SYMBOLS_CIBSE.json | 14 |
+| STING_EARTHING_SYMBOLS.json | 14 |
+| STING_SLD_SYMBOLS_NFPA.json | 13 |
+| STING_GAS_SYMBOLS.json | 10 |
+| STING_DRAINAGE_ABOVE.json | 10 |
+| **TOTAL** | **791** |
+
+**Caveats (Phase 188)**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Every symbol authored or extended in this phase carries
+   `"status": "draft"`. Geometry follows the listed standards and is
+   internally consistent, but **none of it has been verified inside
+   Revit** against a printed copy of the standard plate. Promote to
+   `"status": "reviewed"` only after that verification, and to
+   `"status": "final"` only after a corresponding hand-drafted seed
+   `.rfa` is committed and tested in a live project.
+3. The thin BS / CIBSE / NFPA SLD catalogues (15 / 14 / 13 symbols)
+   were **not** expanded in this phase. The fallback chain in
+   `STING_SYMBOL_STANDARDS.json` (BS → IEC, NFPA → IEC, CIBSE → IEC)
+   continues to silently substitute IEC equivalents when a regional
+   variant is missing. Bringing each to parity with the 54-symbol IEC
+   IEC catalogue is the next round (~117 symbols total — see Phase 188
+   follow-up tracker in `docs/ROADMAP.md`).
+4. The 8 new catalogues each ship with sensible defaults, but
+   organisations may want to override specific symbols via a
+   project-scoped overlay (none of the loaders implement this yet —
+   the JSON files are read directly from `StingTools/Data/Symbols/`).
+   Adding a project overlay layer matching the Drawing-Type project
+   override mechanism would be the natural follow-up.

@@ -6,6 +6,7 @@ using StingTools.Core;
 using System;
 using System.Linq;
 using System.Text;
+using StingTools.Core.Validation.Healthcare;
 
 namespace StingTools.Commands.Healthcare.Specialist
 {
@@ -33,15 +34,32 @@ namespace StingTools.Commands.Healthcare.Specialist
                     .WhereElementIsNotElementType().ToElements()
                     .Where(e => Get(e,"ASS_PRODCT_COD_TXT")=="RO-DIA")
                     .ToList();
+                // Hc.Specialist.Dial.* overrides:
+                //   Stations         → if > 0, declared count to compare against the
+                //                       model and flag mismatches.
+                //   RequireRoLoop    → checkbox; when false the RO-loop flag check
+                //                       is suppressed (e.g. early concept design).
+                int declaredStations = HcOptions.DialStations;
+                bool requireRoLoop   = HcOptions.DialRoLoopRequired;
+
                 var sb = new StringBuilder();
-                sb.AppendLine("STING — Dialysis Audit (HBN 07-02)").AppendLine();
+                sb.AppendLine($"STING — Dialysis Audit (HBN 07-02){(declaredStations > 0 ? $" — declared {declaredStations} stations" : "")}").AppendLine();
                 sb.AppendLine($"Dialysis stations / RO drops: {stations.Count}");
                 sb.AppendLine($"RO plants:                    {roPlants.Count}");
+                if (declaredStations > 0 && stations.Count != declaredStations)
+                    sb.AppendLine($"[WARNING] DIA.COUNT     Model has {stations.Count} stations vs panel-declared {declaredStations}");
                 if (stations.Count > 0 && roPlants.Count == 0)
                     sb.AppendLine("[ERROR  ] DIA.RO_PLANT  Stations present but no RO plant detected");
-                foreach (var s in stations)
-                    if (Get(s,"PLM_RO_LOOP_BOOL") != "1")
-                        sb.AppendLine($"[ERROR  ] DIA.RO_FLAG   {s.Name} dialysis station not flagged as RO loop member");
+                if (requireRoLoop)
+                {
+                    foreach (var s in stations)
+                        if (Get(s,"PLM_RO_LOOP_BOOL") != "1")
+                            sb.AppendLine($"[ERROR  ] DIA.RO_FLAG   {s.Name} dialysis station not flagged as RO loop member");
+                }
+                else
+                {
+                    sb.AppendLine("[INFO   ] DIA.RO_FLAG   RO-loop flag check suppressed via panel toggle");
+                }
                 StingLog.Info(sb.ToString());
                 TaskDialog.Show("STING — Dialysis Audit", sb.ToString());
                 return Result.Succeeded;

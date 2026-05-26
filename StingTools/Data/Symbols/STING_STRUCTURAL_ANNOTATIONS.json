@@ -1,0 +1,1030 @@
+{
+  "version": "1.0",
+  "standard": "BS 8666 / BS EN 10210 / BS EN 1993 / BS EN 1997 / BS 4449 / ISO 2553",
+  "description": "Structural annotation symbols (beam/column/hollow sections, rebar, welds, bolts, base plates, foundations, bracing, slabs, grid)",
+  "symbols": [
+    {
+      "id": "STR_BEAM_SECT",
+      "name": "Beam Section (UB/UC/HEB)",
+      "category": "Sections",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Sections",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.3,
+                "y": 0.2
+              },
+              {
+                "x": 0.3,
+                "y": 0.2
+              },
+              {
+                "x": 0.3,
+                "y": 0.15
+              },
+              {
+                "x": -0.3,
+                "y": 0.15
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.3,
+                "y": -0.2
+              },
+              {
+                "x": 0.3,
+                "y": -0.2
+              },
+              {
+                "x": 0.3,
+                "y": -0.15
+              },
+              {
+                "x": -0.3,
+                "y": -0.15
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.04,
+                "y": 0.15
+              },
+              {
+                "x": 0.04,
+                "y": 0.15
+              },
+              {
+                "x": 0.04,
+                "y": -0.15
+              },
+              {
+                "x": -0.04,
+                "y": -0.15
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS 8666 / AISC",
+      "status": "draft"
+    },
+    {
+      "id": "STR_COLUMN_SECT",
+      "name": "Column Section (UC/HEB)",
+      "category": "Sections",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Sections",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.25
+              },
+              {
+                "x": 0.25,
+                "y": 0.25
+              },
+              {
+                "x": 0.25,
+                "y": 0.2
+              },
+              {
+                "x": -0.25,
+                "y": 0.2
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": -0.25
+              },
+              {
+                "x": 0.25,
+                "y": -0.25
+              },
+              {
+                "x": 0.25,
+                "y": -0.2
+              },
+              {
+                "x": -0.25,
+                "y": -0.2
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.04,
+                "y": 0.2
+              },
+              {
+                "x": 0.04,
+                "y": 0.2
+              },
+              {
+                "x": 0.04,
+                "y": -0.2
+              },
+              {
+                "x": -0.04,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS 8666 / AISC",
+      "status": "draft"
+    },
+    {
+      "id": "STR_HOLLOW_SECT",
+      "name": "Hollow Section (SHS/RHS/CHS)",
+      "category": "Sections",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Sections",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "BS EN 10210",
+      "status": "draft"
+    },
+    {
+      "id": "STR_REBAR_BAR",
+      "name": "Reinforcement Bar (Section)",
+      "category": "Reinforcement",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Reinforcement",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.12,
+                "y": -0.12
+              },
+              {
+                "x": 0.12,
+                "y": -0.12
+              },
+              {
+                "x": 0.12,
+                "y": 0.12
+              },
+              {
+                "x": -0.12,
+                "y": 0.12
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS 4449 / BS 8666",
+      "status": "draft"
+    },
+    {
+      "id": "STR_REBAR_LINK",
+      "name": "Reinforcement Link (Stirrup)",
+      "category": "Reinforcement",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Reinforcement",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.25,
+            "y1": -0.2,
+            "x2": 0.25,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.2,
+            "x2": 0.25,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.2,
+            "x2": -0.25,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.2,
+            "x2": -0.25,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.1,
+            "x2": -0.3,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "BS 8666",
+      "status": "draft"
+    },
+    {
+      "id": "STR_WELD_FILLET",
+      "name": "Fillet Weld Symbol",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Welds",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": -0.05,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.15,
+            "x2": 0.05,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "ISO 2553 / BS EN 22553",
+      "status": "draft"
+    },
+    {
+      "id": "STR_WELD_BUTT",
+      "name": "Butt Weld Symbol",
+      "category": "Welds",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Welds",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": -0.15
+              },
+              {
+                "x": 0.1,
+                "y": 0
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 2553",
+      "status": "draft"
+    },
+    {
+      "id": "STR_BOLT",
+      "name": "Bolt (Plan)",
+      "category": "Connections",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Connections",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.18,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0.1
+              },
+              {
+                "x": 0.1,
+                "y": 0.1
+              },
+              {
+                "x": 0.1,
+                "y": -0.1
+              },
+              {
+                "x": -0.1,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS EN ISO 4014",
+      "status": "draft"
+    },
+    {
+      "id": "STR_BOLT_HSFG",
+      "name": "HSFG Bolt (Plan)",
+      "category": "Connections",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Connections",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.18,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0.1
+              },
+              {
+                "x": 0.1,
+                "y": 0.1
+              },
+              {
+                "x": 0.1,
+                "y": -0.1
+              },
+              {
+                "x": -0.1,
+                "y": -0.1
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.18,
+                "y": -0.05
+              },
+              {
+                "x": -0.1,
+                "y": -0.05
+              },
+              {
+                "x": -0.1,
+                "y": 0.05
+              },
+              {
+                "x": -0.18,
+                "y": 0.05
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS EN 14399",
+      "status": "draft"
+    },
+    {
+      "id": "STR_BASE_PLATE",
+      "name": "Column Base Plate",
+      "category": "Connections",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Connections",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.2,
+            "x2": -0.4,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.2,
+            "x2": -0.4,
+            "y2": -0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": 0.3
+              },
+              {
+                "x": 0.05,
+                "y": 0.3
+              },
+              {
+                "x": 0.05,
+                "y": -0.2
+              },
+              {
+                "x": -0.05,
+                "y": -0.2
+              }
+            ]
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.3,
+            "cy": -0.25,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.3,
+            "cy": -0.25,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.3,
+            "cy": -0.25,
+            "r": 0.02,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.3,
+            "cy": -0.25,
+            "r": 0.02,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS EN 1090",
+      "status": "draft"
+    },
+    {
+      "id": "STR_FOUNDATION_PAD",
+      "name": "Pad Foundation (Plan)",
+      "category": "Foundations",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Foundations",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.4,
+            "x2": 0.4,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.4,
+            "x2": 0.4,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.4,
+            "x2": -0.4,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.4,
+            "x2": -0.4,
+            "y2": -0.4
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "BS EN 1997",
+      "status": "draft"
+    },
+    {
+      "id": "STR_FOUNDATION_STRIP",
+      "name": "Strip Foundation (Section)",
+      "category": "Foundations",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Foundations",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": 0.1,
+            "x2": 0.4,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.2,
+            "x2": 0.4,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.1,
+            "x2": -0.4,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.1,
+            "x2": 0.4,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "BS EN 1997",
+      "status": "draft"
+    },
+    {
+      "id": "STR_PILE_HEAD",
+      "name": "Pile Head (Plan)",
+      "category": "Foundations",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Foundations",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS EN 1997",
+      "status": "draft"
+    },
+    {
+      "id": "STR_BRACING_X",
+      "name": "X-Bracing Marker",
+      "category": "Bracing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Bracing",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": -0.05
+              },
+              {
+                "x": 0.05,
+                "y": -0.05
+              },
+              {
+                "x": 0.05,
+                "y": 0.05
+              },
+              {
+                "x": -0.05,
+                "y": 0.05
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS EN 1993",
+      "status": "draft"
+    },
+    {
+      "id": "STR_BRACING_K",
+      "name": "K-Bracing Marker",
+      "category": "Bracing",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Bracing",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": 0,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": 0,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "BS EN 1993",
+      "status": "draft"
+    },
+    {
+      "id": "STR_SLAB_DROP",
+      "name": "Drop Panel / Slab Thickening",
+      "category": "Slabs",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Slabs",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.4,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.4,
+            "x2": 0.4,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.4,
+            "x2": 0.4,
+            "y2": -0.4
+          }
+        ]
+      },
+      "standard": "BS 8110",
+      "status": "draft"
+    },
+    {
+      "id": "STR_GRID_INTERSECT",
+      "name": "Structural Grid Intersection",
+      "category": "Notation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Structural",
+      "subcategory": "Notation",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS 8666",
+      "status": "draft"
+    }
+  ]
+}

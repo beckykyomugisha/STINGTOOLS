@@ -4,12 +4,12 @@
   "namespace": "STING",
   "description": "Comprehensive AEC/FM filter library for the StingTools Drawing Template Manager. Defines ParameterFilterElement rules + matching OverrideGraphicSettings recipes per BS 1192 / ISO 19650 / Uniclass 2015 / BS 1710 / ASME A13.1 / GSA MEP / CIBSE-SDE / BS 8300 / BIM Forum LOD. Each entry is a self-describing POCO consumed by AecFilterRegistry + AecFilterFactory. Rule grammar: leaf rule = { param, kind?, op, value, type? } where kind=builtin|shared|phase|workset|level (default builtin); compound rule = { logic, rules[] } where logic=and|or. Op vocabulary: equals|notEquals|greater|greaterOrEqual|less|lessOrEqual|contains|notContains|beginsWith|notBeginsWith|endsWith|notEndsWith|hasValue|hasNoValue. Override fields mirror StyleFilterRule (extended Phase 139): visible/halftone/projColor/projWeight/projLinePattern/cutColor/cutWeight/cutLinePattern/surfFgColor/surfFgPattern/surfBgColor/surfBgPattern/transparency/detailLevel.",
   "colorSchemes": {
-    "BS1710": "UK pipe identification \u2014 BS 1710:2014",
-    "ASME-A13": "US pipe identification \u2014 ANSI/ASME A13.1-2020",
+    "BS1710": "UK pipe identification — BS 1710:2014",
+    "ASME-A13": "US pipe identification — ANSI/ASME A13.1-2020",
     "GSA": "US public sector BIM Technical Standards MEP color mapping",
     "CIBSE-SDE": "CIBSE Society of Digital Engineering standard symbols (UK MEP)",
-    "BS9999": "UK fire compartmentation \u2014 BS 9999:2017",
-    "ISO19650": "Status code colour conventions \u2014 BS EN ISO 19650-2 NA"
+    "BS9999": "UK fire compartmentation — BS 9999:2017",
+    "ISO19650": "Status code colour conventions — BS EN ISO 19650-2 NA"
   },
   "filters": [
     {
@@ -46,7 +46,7 @@
         "struct"
       ],
       "standard": "BS1192",
-      "notes": "Existing-to-remain \u2014 halftone grey across all model categories."
+      "notes": "Existing-to-remain — halftone grey across all model categories."
     },
     {
       "id": "phase-new",
@@ -80,7 +80,7 @@
         "struct"
       ],
       "standard": "BS1192",
-      "notes": "New work \u2014 full intensity black."
+      "notes": "New work — full intensity black."
     },
     {
       "id": "phase-demolished",
@@ -115,7 +115,7 @@
         "struct"
       ],
       "standard": "BS1192",
-      "notes": "Demolished \u2014 halftone red dashed."
+      "notes": "Demolished — halftone red dashed."
     },
     {
       "id": "phase-temporary",
@@ -140,7 +140,7 @@
         "phase",
         "arch"
       ],
-      "notes": "Temporary works \u2014 orange dash-dot."
+      "notes": "Temporary works — orange dash-dot."
     },
     {
       "id": "phase-future",
@@ -168,7 +168,7 @@
         "phase",
         "arch"
       ],
-      "notes": "Future work / planned expansion \u2014 blue dash-dot-dot, halftone, 40% transparent."
+      "notes": "Future work / planned expansion — blue dash-dot-dot, halftone, 40% transparent."
     },
     {
       "id": "iso-status-S0",
@@ -395,7 +395,7 @@
         "compartment"
       ],
       "standard": "BS9999",
-      "notes": "30-min fire compartment wall \u2014 pink wash + red cut."
+      "notes": "30-min fire compartment wall — pink wash + red cut."
     },
     {
       "id": "arch-fire-fd60",
@@ -421,7 +421,7 @@
         "compartment"
       ],
       "standard": "BS9999",
-      "notes": "60-min fire compartment wall \u2014 strong red."
+      "notes": "60-min fire compartment wall — strong red."
     },
     {
       "id": "arch-fire-fd90",
@@ -473,7 +473,7 @@
         "compartment"
       ],
       "standard": "BS9999",
-      "notes": "120-min fire compartment wall \u2014 heaviest cut weight."
+      "notes": "120-min fire compartment wall — heaviest cut weight."
     },
     {
       "id": "arch-fire-fd240",
@@ -532,7 +532,7 @@
         "arch",
         "acoustic"
       ],
-      "notes": "Acoustic-rated wall (Rw value present in Type Comments) \u2014 blue crosshatch."
+      "notes": "Acoustic-rated wall (Rw value present in Type Comments) — blue crosshatch."
     },
     {
       "id": "arch-loadbearing-walls",
@@ -556,7 +556,7 @@
         "arch",
         "struct"
       ],
-      "notes": "Wall flagged structural \u2014 heavy cut + concrete hatch."
+      "notes": "Wall flagged structural — heavy cut + concrete hatch."
     },
     {
       "id": "arch-partition-walls",
@@ -591,7 +591,7 @@
         "arch",
         "partition"
       ],
-      "notes": "Interior non-structural partition \u2014 thin black cut."
+      "notes": "Interior non-structural partition — thin black cut."
     },
     {
       "id": "arch-curtain-wall",
@@ -627,7 +627,7 @@
         "arch",
         "glazing"
       ],
-      "notes": "Curtain wall \u2014 semi-transparent blue."
+      "notes": "Curtain wall — semi-transparent blue."
     },
     {
       "id": "arch-cavity-wall",
@@ -649,7 +649,7 @@
         "arch",
         "construction"
       ],
-      "notes": "Cavity wall (twin-leaf masonry) \u2014 light grey crosshatch."
+      "notes": "Cavity wall (twin-leaf masonry) — light grey crosshatch."
     },
     {
       "id": "arch-cladding",
@@ -684,7 +684,7 @@
         "arch",
         "facade"
       ],
-      "notes": "External cladding / rainscreen \u2014 diagonal hatch."
+      "notes": "External cladding / rainscreen — diagonal hatch."
     },
     {
       "id": "arch-external-walls",
@@ -708,7 +708,7 @@
         "facade",
         "envelope"
       ],
-      "notes": "Exterior wall (Function = Exterior) \u2014 heavy cut."
+      "notes": "Exterior wall (Function = Exterior) — heavy cut."
     },
     {
       "id": "arch-door-fd30",
@@ -733,7 +733,7 @@
         "door"
       ],
       "standard": "BS9999",
-      "notes": "FD30 fire door \u2014 pink wash."
+      "notes": "FD30 fire door — pink wash."
     },
     {
       "id": "arch-door-fd60",
@@ -808,7 +808,7 @@
         "door"
       ],
       "standard": "BS9999",
-      "notes": "FD120 fire door \u2014 separating compartment."
+      "notes": "FD120 fire door — separating compartment."
     },
     {
       "id": "arch-door-acoustic",
@@ -832,7 +832,7 @@
         "acoustic",
         "door"
       ],
-      "notes": "Acoustic-rated door \u2014 blue crosshatch."
+      "notes": "Acoustic-rated door — blue crosshatch."
     },
     {
       "id": "arch-door-accessible",
@@ -872,7 +872,7 @@
         "accessibility"
       ],
       "standard": "BS8300",
-      "notes": "Part M / BS 8300 accessible door \u2014 green."
+      "notes": "Part M / BS 8300 accessible door — green."
     },
     {
       "id": "arch-door-external",
@@ -894,7 +894,7 @@
         "door",
         "envelope"
       ],
-      "notes": "External door \u2014 bold projection."
+      "notes": "External door — bold projection."
     },
     {
       "id": "arch-door-sliding",
@@ -930,7 +930,7 @@
         "arch",
         "door"
       ],
-      "notes": "Sliding / folding / pocket doors \u2014 dashed dark blue."
+      "notes": "Sliding / folding / pocket doors — dashed dark blue."
     },
     {
       "id": "arch-window-external",
@@ -954,7 +954,7 @@
         "window",
         "envelope"
       ],
-      "notes": "External window \u2014 semi-transparent blue."
+      "notes": "External window — semi-transparent blue."
     },
     {
       "id": "arch-window-secure",
@@ -1003,7 +1003,7 @@
     },
     {
       "id": "arch-window-uvalue-low",
-      "name": "STING - Arch: Low U-Value Glazing (\u22641.4)",
+      "name": "STING - Arch: Low U-Value Glazing (≤1.4)",
       "categories": [
         "OST_Windows"
       ],
@@ -1021,7 +1021,7 @@
         "window",
         "sustainability"
       ],
-      "notes": "High-performance glazing meeting Part L 2021 (U \u2264 1.4 W/m\u00b2K)."
+      "notes": "High-performance glazing meeting Part L 2021 (U ≤ 1.4 W/m²K)."
     },
     {
       "id": "arch-curtain-panel",
@@ -1042,7 +1042,7 @@
         "arch",
         "glazing"
       ],
-      "notes": "All curtain wall panels \u2014 translucent envelope."
+      "notes": "All curtain wall panels — translucent envelope."
     },
     {
       "id": "arch-floor-suspended",
@@ -1075,7 +1075,7 @@
         "ceiling",
         "rcp"
       ],
-      "notes": "Suspended ceiling (MF / metal frame) \u2014 fine grid."
+      "notes": "Suspended ceiling (MF / metal frame) — fine grid."
     },
     {
       "id": "arch-floor-exposed",
@@ -1098,7 +1098,7 @@
         "ceiling",
         "rcp"
       ],
-      "notes": "Exposed slab soffit \u2014 concrete hatch."
+      "notes": "Exposed slab soffit — concrete hatch."
     },
     {
       "id": "arch-floor-plasterboard",
@@ -1120,7 +1120,7 @@
         "ceiling",
         "rcp"
       ],
-      "notes": "Plasterboard / dry-lined ceiling \u2014 white wash."
+      "notes": "Plasterboard / dry-lined ceiling — white wash."
     },
     {
       "id": "arch-floor-raised",
@@ -1151,7 +1151,7 @@
         "arch",
         "floor"
       ],
-      "notes": "Raised access floor \u2014 diagonal hatch."
+      "notes": "Raised access floor — diagonal hatch."
     },
     {
       "id": "arch-floor-screed",
@@ -1172,7 +1172,7 @@
         "arch",
         "floor"
       ],
-      "notes": "Screeded floor finish \u2014 sand hatch."
+      "notes": "Screeded floor finish — sand hatch."
     },
     {
       "id": "arch-floor-tile",
@@ -1194,7 +1194,7 @@
         "floor",
         "ffe"
       ],
-      "notes": "Tiled floor finish \u2014 tile hatch."
+      "notes": "Tiled floor finish — tile hatch."
     },
     {
       "id": "arch-floor-carpet",
@@ -1239,7 +1239,7 @@
         "roof",
         "envelope"
       ],
-      "notes": "Flat roof / warm or inverted deck \u2014 heavy cut, dark grey wash."
+      "notes": "Flat roof / warm or inverted deck — heavy cut, dark grey wash."
     },
     {
       "id": "arch-roof-pitched",
@@ -1262,7 +1262,7 @@
         "roof",
         "envelope"
       ],
-      "notes": "Pitched roof \u2014 blue projection lines."
+      "notes": "Pitched roof — blue projection lines."
     },
     {
       "id": "arch-roof-green",
@@ -1284,7 +1284,7 @@
         "roof",
         "sustainability"
       ],
-      "notes": "Green / biodiverse roof \u2014 green hatch."
+      "notes": "Green / biodiverse roof — green hatch."
     },
     {
       "id": "arch-stair",
@@ -1304,7 +1304,7 @@
         "arch",
         "circulation"
       ],
-      "notes": "All stairs \u2014 neutral default."
+      "notes": "All stairs — neutral default."
     },
     {
       "id": "arch-ramp",
@@ -1327,7 +1327,7 @@
         "accessibility"
       ],
       "standard": "BS8300",
-      "notes": "Ramp \u2014 accessible green."
+      "notes": "Ramp — accessible green."
     },
     {
       "id": "arch-ffe-furniture",
@@ -1350,7 +1350,7 @@
         "arch",
         "ffe"
       ],
-      "notes": "FF&E (furniture, fixtures, equipment) \u2014 halftone tan."
+      "notes": "FF&E (furniture, fixtures, equipment) — halftone tan."
     },
     {
       "id": "arch-room-accessible-wc",
@@ -1384,7 +1384,7 @@
         "room"
       ],
       "standard": "BS8300",
-      "notes": "Accessible WC room (Part M) \u2014 green wash."
+      "notes": "Accessible WC room (Part M) — green wash."
     },
     {
       "id": "arch-room-escape",
@@ -1417,7 +1417,7 @@
         "fire",
         "room"
       ],
-      "notes": "Refuge / escape stair lobby \u2014 yellow wash."
+      "notes": "Refuge / escape stair lobby — yellow wash."
     },
     {
       "id": "struct-concrete",
@@ -1445,7 +1445,7 @@
         "struct",
         "material"
       ],
-      "notes": "Concrete structural element \u2014 concrete hatch."
+      "notes": "Concrete structural element — concrete hatch."
     },
     {
       "id": "struct-steel",
@@ -1472,7 +1472,7 @@
         "material",
         "steel"
       ],
-      "notes": "Structural steel \u2014 blue."
+      "notes": "Structural steel — blue."
     },
     {
       "id": "struct-timber",
@@ -1501,7 +1501,7 @@
         "timber"
       ],
       "standard": "BS5268",
-      "notes": "Structural timber \u2014 wood end-grain hatch."
+      "notes": "Structural timber — wood end-grain hatch."
     },
     {
       "id": "struct-masonry",
@@ -1525,7 +1525,7 @@
         "material",
         "masonry"
       ],
-      "notes": "Masonry \u2014 brick hatch."
+      "notes": "Masonry — brick hatch."
     },
     {
       "id": "struct-col-uc",
@@ -1673,7 +1673,7 @@
         "struct",
         "foundation"
       ],
-      "notes": "Pad footing \u2014 halftone concrete."
+      "notes": "Pad footing — halftone concrete."
     },
     {
       "id": "struct-found-strip",
@@ -1740,7 +1740,7 @@
         "struct",
         "foundation"
       ],
-      "notes": "Pile cap \u2014 heavy cut, darker grey."
+      "notes": "Pile cap — heavy cut, darker grey."
     },
     {
       "id": "struct-found-pile",
@@ -1761,7 +1761,7 @@
         "struct",
         "foundation"
       ],
-      "notes": "Piles below pile caps \u2014 dashed grey."
+      "notes": "Piles below pile caps — dashed grey."
     },
     {
       "id": "struct-wall-shear",
@@ -1896,7 +1896,7 @@
     },
     {
       "id": "struct-rebar-small",
-      "name": "STING - Struct: Rebar \u226412mm",
+      "name": "STING - Struct: Rebar ≤12mm",
       "categories": [
         "OST_Rebar"
       ],
@@ -1915,7 +1915,7 @@
         "rebar"
       ],
       "standard": "BS4449",
-      "notes": "Small reinforcement bars (\u226412mm)."
+      "notes": "Small reinforcement bars (≤12mm)."
     },
     {
       "id": "struct-rebar-medium",
@@ -1972,7 +1972,7 @@
         "rebar"
       ],
       "standard": "BS4449",
-      "notes": "Large reinforcement bars (>25mm) \u2014 red, heavy."
+      "notes": "Large reinforcement bars (>25mm) — red, heavy."
     },
     {
       "id": "hvac-supply-air",
@@ -2003,7 +2003,7 @@
         "duct"
       ],
       "standard": "GSA",
-      "notes": "Supply Air \u2014 GSA blue (0,127,255)."
+      "notes": "Supply Air — GSA blue (0,127,255)."
     },
     {
       "id": "hvac-return-air",
@@ -2034,7 +2034,7 @@
         "duct"
       ],
       "standard": "GSA",
-      "notes": "Return Air \u2014 GSA green (0,255,127)."
+      "notes": "Return Air — GSA green (0,255,127)."
     },
     {
       "id": "hvac-exhaust-air",
@@ -2063,7 +2063,7 @@
         "duct"
       ],
       "standard": "GSA",
-      "notes": "Exhaust Air \u2014 GSA dark green (103,165,82)."
+      "notes": "Exhaust Air — GSA dark green (103,165,82)."
     },
     {
       "id": "hvac-outdoor-air",
@@ -2104,7 +2104,7 @@
         "hvac",
         "duct"
       ],
-      "notes": "Outdoor / fresh / makeup air \u2014 cyan."
+      "notes": "Outdoor / fresh / makeup air — cyan."
     },
     {
       "id": "hvac-transfer-air",
@@ -2131,7 +2131,7 @@
         "hvac",
         "duct"
       ],
-      "notes": "Transfer air \u2014 light cyan dashed."
+      "notes": "Transfer air — light cyan dashed."
     },
     {
       "id": "hvac-smoke-extract",
@@ -2161,7 +2161,7 @@
         "duct"
       ],
       "standard": "BS9999",
-      "notes": "Smoke extract \u2014 dark grey dash-dot-dot."
+      "notes": "Smoke extract — dark grey dash-dot-dot."
     },
     {
       "id": "hvac-kitchen-extract",
@@ -2256,7 +2256,7 @@
         "pipe"
       ],
       "standard": "CIBSE-SDE",
-      "notes": "Low-temp hot water flow \u2014 bright red."
+      "notes": "Low-temp hot water flow — bright red."
     },
     {
       "id": "hvac-lthw-return",
@@ -2283,7 +2283,7 @@
         "pipe"
       ],
       "standard": "CIBSE-SDE",
-      "notes": "LTHW return \u2014 dark red."
+      "notes": "LTHW return — dark red."
     },
     {
       "id": "hvac-mthw-flow",
@@ -2360,7 +2360,7 @@
         "pipe"
       ],
       "standard": "CIBSE-SDE",
-      "notes": "Chilled water flow \u2014 bright blue."
+      "notes": "Chilled water flow — bright blue."
     },
     {
       "id": "hvac-chw-return",
@@ -2387,7 +2387,7 @@
         "pipe"
       ],
       "standard": "CIBSE-SDE",
-      "notes": "Chilled water return \u2014 dark blue."
+      "notes": "Chilled water return — dark blue."
     },
     {
       "id": "hvac-cw-flow",
@@ -2473,7 +2473,7 @@
         "pipe"
       ],
       "standard": "BS1710",
-      "notes": "Steam \u2014 silver-grey per BS 1710."
+      "notes": "Steam — silver-grey per BS 1710."
     },
     {
       "id": "hvac-condensate",
@@ -2509,7 +2509,7 @@
         "steam",
         "pipe"
       ],
-      "notes": "Condensate return \u2014 grey dashed."
+      "notes": "Condensate return — grey dashed."
     },
     {
       "id": "hvac-refrigerant",
@@ -2534,7 +2534,7 @@
         "cooling",
         "pipe"
       ],
-      "notes": "Refrigerant \u2014 purple."
+      "notes": "Refrigerant — purple."
     },
     {
       "id": "hvac-insul-25",
@@ -2557,7 +2557,7 @@
         "mech",
         "insulation"
       ],
-      "notes": "25mm insulation \u2014 halftone."
+      "notes": "25mm insulation — halftone."
     },
     {
       "id": "hvac-insul-50",
@@ -2580,11 +2580,11 @@
         "mech",
         "insulation"
       ],
-      "notes": "50mm insulation \u2014 crosshatch."
+      "notes": "50mm insulation — crosshatch."
     },
     {
       "id": "hvac-insul-100",
-      "name": "STING - HVAC: Insulation \u226580mm",
+      "name": "STING - HVAC: Insulation ≥80mm",
       "categories": [
         "OST_DuctInsulations",
         "OST_PipeInsulations"
@@ -2603,7 +2603,7 @@
         "mech",
         "insulation"
       ],
-      "notes": "80-100mm insulation \u2014 heavy cross hatch."
+      "notes": "80-100mm insulation — heavy cross hatch."
     },
     {
       "id": "hvac-fire-damper",
@@ -2629,7 +2629,7 @@
         "damper"
       ],
       "standard": "BS9999",
-      "notes": "Fire damper \u2014 solid red."
+      "notes": "Fire damper — solid red."
     },
     {
       "id": "hvac-smoke-damper",
@@ -2655,7 +2655,7 @@
         "damper"
       ],
       "standard": "BS9999",
-      "notes": "Smoke damper \u2014 black."
+      "notes": "Smoke damper — black."
     },
     {
       "id": "hvac-vav",
@@ -2771,7 +2771,7 @@
         "pipe"
       ],
       "standard": "GSA",
-      "notes": "Domestic Cold Water \u2014 GSA blue (0,63,255)."
+      "notes": "Domestic Cold Water — GSA blue (0,63,255)."
     },
     {
       "id": "plumb-dhws",
@@ -2798,7 +2798,7 @@
         "pipe"
       ],
       "standard": "GSA",
-      "notes": "Domestic Hot Water Supply \u2014 GSA red (255,60,60)."
+      "notes": "Domestic Hot Water Supply — GSA red (255,60,60)."
     },
     {
       "id": "plumb-dhwr",
@@ -2825,7 +2825,7 @@
         "water",
         "pipe"
       ],
-      "notes": "DHW return \u2014 dark red dashed."
+      "notes": "DHW return — dark red dashed."
     },
     {
       "id": "plumb-drinking",
@@ -2861,7 +2861,7 @@
         "pipe"
       ],
       "standard": "BS1710",
-      "notes": "Drinking / potable water \u2014 green per BS 1710."
+      "notes": "Drinking / potable water — green per BS 1710."
     },
     {
       "id": "plumb-soft",
@@ -2932,7 +2932,7 @@
         "pipe"
       ],
       "standard": "BS-EN-12056",
-      "notes": "Above-ground foul drainage (BS EN 12056-2) \u2014 brown."
+      "notes": "Above-ground foul drainage (BS EN 12056-2) — brown."
     },
     {
       "id": "plumb-foul-bg",
@@ -2969,7 +2969,7 @@
         "pipe"
       ],
       "standard": "BS-EN-752",
-      "notes": "Below-ground foul (BS EN 752) \u2014 heavy halftone brown."
+      "notes": "Below-ground foul (BS EN 752) — heavy halftone brown."
     },
     {
       "id": "plumb-rwp",
@@ -3059,7 +3059,7 @@
         "drainage",
         "pipe"
       ],
-      "notes": "Vent stacks / stub stacks \u2014 orange dashed."
+      "notes": "Vent stacks / stub stacks — orange dashed."
     },
     {
       "id": "plumb-natural-gas",
@@ -3096,7 +3096,7 @@
         "pipe"
       ],
       "standard": "BS1710",
-      "notes": "Natural gas \u2014 yellow ochre per BS 1710."
+      "notes": "Natural gas — yellow ochre per BS 1710."
     },
     {
       "id": "plumb-lpg",
@@ -3121,7 +3121,7 @@
         "gas",
         "pipe"
       ],
-      "notes": "LPG \u2014 orange-yellow."
+      "notes": "LPG — orange-yellow."
     },
     {
       "id": "plumb-medical-gas",
@@ -3204,7 +3204,7 @@
         "industrial"
       ],
       "standard": "ASME-A13",
-      "notes": "Compressed air \u2014 blue."
+      "notes": "Compressed air — blue."
     },
     {
       "id": "plumb-vacuum",
@@ -3230,7 +3230,7 @@
         "pipe",
         "industrial"
       ],
-      "notes": "Vacuum \u2014 purple dashed."
+      "notes": "Vacuum — purple dashed."
     },
     {
       "id": "plumb-fixtures-wc",
@@ -3376,7 +3376,7 @@
         "life-safety"
       ],
       "standard": "BS5266",
-      "notes": "Emergency lighting / exit signs \u2014 green, heavy."
+      "notes": "Emergency lighting / exit signs — green, heavy."
     },
     {
       "id": "elec-light-feature",
@@ -3528,7 +3528,7 @@
         "power",
         "life-safety"
       ],
-      "notes": "UPS-backed circuits \u2014 purple."
+      "notes": "UPS-backed circuits — purple."
     },
     {
       "id": "elec-power-hv",
@@ -3552,7 +3552,7 @@
         "elec",
         "power"
       ],
-      "notes": "HV circuits (>1 kV) \u2014 red, heavy."
+      "notes": "HV circuits (>1 kV) — red, heavy."
     },
     {
       "id": "elec-cable-tray",
@@ -3667,7 +3667,7 @@
         "elec",
         "containment"
       ],
-      "notes": "All conduit \u2014 thin grey."
+      "notes": "All conduit — thin grey."
     },
     {
       "id": "elec-fire-alarm",
@@ -3850,7 +3850,7 @@
         "elec",
         "av"
       ],
-      "notes": "AV \u2014 speakers, displays, projectors, microphones."
+      "notes": "AV — speakers, displays, projectors, microphones."
     },
     {
       "id": "elec-bms",
@@ -3968,7 +3968,7 @@
         "compartment"
       ],
       "standard": "BS9999",
-      "notes": "Fire compartment wall \u2014 solid red, weight 8."
+      "notes": "Fire compartment wall — solid red, weight 8."
     },
     {
       "id": "fire-compartment-floor",
@@ -4015,7 +4015,7 @@
         "fire",
         "smoke"
       ],
-      "notes": "Smoke compartment boundary \u2014 purple."
+      "notes": "Smoke compartment boundary — purple."
     },
     {
       "id": "fire-escape-primary",
@@ -4049,7 +4049,7 @@
         "escape",
         "life-safety"
       ],
-      "notes": "Primary escape route \u2014 bright green wash."
+      "notes": "Primary escape route — bright green wash."
     },
     {
       "id": "fire-escape-secondary",
@@ -4083,7 +4083,7 @@
         "escape",
         "life-safety"
       ],
-      "notes": "Secondary escape route \u2014 light green wash."
+      "notes": "Secondary escape route — light green wash."
     },
     {
       "id": "fire-sprinkler-wet",
@@ -4155,7 +4155,7 @@
         "sprinkler",
         "life-safety"
       ],
-      "notes": "Dry pipe sprinkler \u2014 red dashed."
+      "notes": "Dry pipe sprinkler — red dashed."
     },
     {
       "id": "fire-suppression-gas",
@@ -4550,11 +4550,11 @@
         "lod"
       ],
       "standard": "BIMForum-LOD",
-      "notes": "Low LOD content (\u2264200) \u2014 halftone for stage gate views."
+      "notes": "Low LOD content (≤200) — halftone for stage gate views."
     },
     {
       "id": "coord-lod-fab",
-      "name": "STING - Coord: LOD \u2265 400",
+      "name": "STING - Coord: LOD ≥ 400",
       "categories": [
         "OST_DuctCurves",
         "OST_PipeCurves",
@@ -4589,7 +4589,7 @@
         "fabrication"
       ],
       "standard": "BIMForum-LOD",
-      "notes": "Fabrication-ready content (\u2265LOD 400) \u2014 full intensity."
+      "notes": "Fabrication-ready content (≥LOD 400) — full intensity."
     },
     {
       "id": "coord-workset-arch",
@@ -4619,7 +4619,7 @@
         "coord",
         "workset"
       ],
-      "notes": "Architecture workset \u2014 halftone in coordination views."
+      "notes": "Architecture workset — halftone in coordination views."
     },
     {
       "id": "coord-workset-struct",
@@ -4703,7 +4703,7 @@
         "fm",
         "cobie"
       ],
-      "notes": "Element with COBie Type assignment \u2014 flagged for handover."
+      "notes": "Element with COBie Type assignment — flagged for handover."
     },
     {
       "id": "fm-cobie-component",
@@ -4814,7 +4814,7 @@
     },
     {
       "id": "fm-replace-soon",
-      "name": "STING - FM: Replace \u2264 5 years",
+      "name": "STING - FM: Replace ≤ 5 years",
       "categories": [
         "OST_MechanicalEquipment",
         "OST_ElectricalEquipment",
@@ -4837,7 +4837,7 @@
         "fm",
         "lifecycle"
       ],
-      "notes": "Short-life-cycle assets (\u22645 yrs replacement)."
+      "notes": "Short-life-cycle assets (≤5 yrs replacement)."
     },
     {
       "id": "fm-sfg20-mech",
@@ -4996,7 +4996,7 @@
         "qa",
         "tag"
       ],
-      "notes": "Elements without ISO 19650 tag \u2014 QA flag."
+      "notes": "Elements without ISO 19650 tag — QA flag."
     },
     {
       "id": "qa-incomplete-tag",
@@ -5138,7 +5138,7 @@
         "rebar"
       ],
       "standard": "BS4449",
-      "notes": "Grade H reinforcement \u2014 hot-rolled per BS 4449."
+      "notes": "Grade H reinforcement — hot-rolled per BS 4449."
     },
     {
       "id": "struct-mesh",
@@ -5200,7 +5200,7 @@
         "struct",
         "connection"
       ],
-      "notes": "Welded connections \u2014 red."
+      "notes": "Welded connections — red."
     },
     {
       "id": "struct-fire-protection",
@@ -5279,7 +5279,7 @@
         "uniclass"
       ],
       "standard": "Uniclass2015",
-      "notes": "Uniclass 2015 Systems table \u2014 wall systems group."
+      "notes": "Uniclass 2015 Systems table — wall systems group."
     },
     {
       "id": "arch-uniclass-roof",
@@ -5301,7 +5301,7 @@
         "uniclass"
       ],
       "standard": "Uniclass2015",
-      "notes": "Uniclass 2015 \u2014 roof systems group."
+      "notes": "Uniclass 2015 — roof systems group."
     },
     {
       "id": "arch-thermal-insul",
@@ -5673,7 +5673,7 @@
         "option",
         "baseline"
       ],
-      "notes": "Isolates main-model elements only \u2014 useful for baseline-only review prints before option authoring."
+      "notes": "Isolates main-model elements only — useful for baseline-only review prints before option authoring."
     },
     {
       "id": "option-decided-primary",
@@ -5841,7 +5841,7 @@
         "healthcare",
         "ees"
       ],
-      "standard": "NFPA 99 \u00a76.4",
+      "standard": "NFPA 99 §6.4",
       "notes": ""
     },
     {
@@ -5872,7 +5872,7 @@
         "healthcare",
         "ees"
       ],
-      "standard": "NFPA 99 \u00a76.4",
+      "standard": "NFPA 99 §6.4",
       "notes": ""
     },
     {
@@ -5903,7 +5903,7 @@
         "healthcare",
         "ees"
       ],
-      "standard": "NFPA 99 \u00a76.4",
+      "standard": "NFPA 99 §6.4",
       "notes": ""
     },
     {
@@ -6027,7 +6027,7 @@
         "healthcare",
         "mgs"
       ],
-      "standard": "HTM 02-01 / NFPA 99 \u2014 Medical Oxygen 400 kPa",
+      "standard": "HTM 02-01 / NFPA 99 — Medical Oxygen 400 kPa",
       "notes": ""
     },
     {
@@ -6055,7 +6055,7 @@
         "healthcare",
         "mgs"
       ],
-      "standard": "HTM 02-01 / NFPA 99 \u2014 Medical Air 400 kPa",
+      "standard": "HTM 02-01 / NFPA 99 — Medical Air 400 kPa",
       "notes": ""
     },
     {
@@ -6083,7 +6083,7 @@
         "healthcare",
         "mgs"
       ],
-      "standard": "HTM 02-01 / NFPA 99 \u2014 Surgical Air 700 kPa",
+      "standard": "HTM 02-01 / NFPA 99 — Surgical Air 700 kPa",
       "notes": ""
     },
     {
@@ -6111,7 +6111,7 @@
         "healthcare",
         "mgs"
       ],
-      "standard": "HTM 02-01 / NFPA 99 \u2014 Nitrous Oxide",
+      "standard": "HTM 02-01 / NFPA 99 — Nitrous Oxide",
       "notes": ""
     },
     {
@@ -6139,7 +6139,7 @@
         "healthcare",
         "mgs"
       ],
-      "standard": "HTM 02-01 / NFPA 99 \u2014 Surgical Nitrogen",
+      "standard": "HTM 02-01 / NFPA 99 — Surgical Nitrogen",
       "notes": ""
     },
     {
@@ -6167,7 +6167,7 @@
         "healthcare",
         "mgs"
       ],
-      "standard": "HTM 02-01 / NFPA 99 \u2014 Carbon Dioxide",
+      "standard": "HTM 02-01 / NFPA 99 — Carbon Dioxide",
       "notes": ""
     },
     {
@@ -6195,7 +6195,7 @@
         "healthcare",
         "mgs"
       ],
-      "standard": "HTM 02-01 / NFPA 99 \u2014 Helium / Heliox",
+      "standard": "HTM 02-01 / NFPA 99 — Helium / Heliox",
       "notes": ""
     },
     {
@@ -6223,7 +6223,7 @@
         "healthcare",
         "mgs"
       ],
-      "standard": "HTM 02-01 / NFPA 99 \u2014 Medical Vacuum",
+      "standard": "HTM 02-01 / NFPA 99 — Medical Vacuum",
       "notes": ""
     },
     {
@@ -6251,7 +6251,7 @@
         "healthcare",
         "mgs"
       ],
-      "standard": "HTM 02-01 / NFPA 99 \u2014 Anaesthetic Gas Scavenging",
+      "standard": "HTM 02-01 / NFPA 99 — Anaesthetic Gas Scavenging",
       "notes": ""
     },
     {
@@ -6279,7 +6279,7 @@
         "healthcare",
         "mgs"
       ],
-      "standard": "HTM 02-01 / NFPA 99 \u2014 Dental compressed air / vacuum",
+      "standard": "HTM 02-01 / NFPA 99 — Dental compressed air / vacuum",
       "notes": ""
     },
     {
@@ -6331,7 +6331,7 @@
         "mgs",
         "alarm"
       ],
-      "standard": "NFPA 99 \u00a75.1.9",
+      "standard": "NFPA 99 §5.1.9",
       "notes": ""
     },
     {
@@ -6361,7 +6361,7 @@
         "mgs",
         "warning"
       ],
-      "standard": "NFPA 99 \u00a75.1.12",
+      "standard": "NFPA 99 §5.1.12",
       "notes": ""
     },
     {
@@ -7375,8 +7375,20 @@
         "kind": "compound",
         "op": "or",
         "operands": [
-          { "param": "PLM_PRESSURE_ZONE_TXT", "kind": "shared", "op": "equals", "value": "HIGH",     "type": "string" },
-          { "param": "PLM_PRESSURE_ZONE_TXT", "kind": "shared", "op": "equals", "value": "BOOSTED",  "type": "string" }
+          {
+            "param": "PLM_PRESSURE_ZONE_TXT",
+            "kind": "shared",
+            "op": "equals",
+            "value": "HIGH",
+            "type": "string"
+          },
+          {
+            "param": "PLM_PRESSURE_ZONE_TXT",
+            "kind": "shared",
+            "op": "equals",
+            "value": "BOOSTED",
+            "type": "string"
+          }
         ]
       },
       "override": {
@@ -7405,9 +7417,27 @@
         "kind": "compound",
         "op": "or",
         "operands": [
-          { "param": "PLM_FLUID_CATEGORY_TXT", "kind": "shared", "op": "equals", "value": "3", "type": "string" },
-          { "param": "PLM_FLUID_CATEGORY_TXT", "kind": "shared", "op": "equals", "value": "4", "type": "string" },
-          { "param": "PLM_FLUID_CATEGORY_TXT", "kind": "shared", "op": "equals", "value": "5", "type": "string" }
+          {
+            "param": "PLM_FLUID_CATEGORY_TXT",
+            "kind": "shared",
+            "op": "equals",
+            "value": "3",
+            "type": "string"
+          },
+          {
+            "param": "PLM_FLUID_CATEGORY_TXT",
+            "kind": "shared",
+            "op": "equals",
+            "value": "4",
+            "type": "string"
+          },
+          {
+            "param": "PLM_FLUID_CATEGORY_TXT",
+            "kind": "shared",
+            "op": "equals",
+            "value": "5",
+            "type": "string"
+          }
         ]
       },
       "override": {
@@ -7422,6 +7452,810 @@
       ],
       "standard": "BS EN 1717",
       "notes": "Fluid category 3+ requires DCV / RPZ / air gap upstream."
+    },
+    {
+      "id": "clin-accessible-routes",
+      "name": "Accessible Routes",
+      "categories": [
+        "OST_Rooms",
+        "OST_Doors",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "CLN_ROOM_CLASS_TXT",
+        "kind": "shared",
+        "op": "contains",
+        "value": "ACCESSIBLE"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#43A047",
+        "projWeight": 2,
+        "transparency": 50
+      },
+      "tags": [
+        "healthcare",
+        "accessibility"
+      ],
+      "standard": "BS 8300"
+    },
+    {
+      "id": "clin-bedhead-service-units",
+      "name": "Bedhead Service Units",
+      "categories": [
+        "OST_SpecialityEquipment",
+        "OST_MedicalEquipment",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "Family Name",
+        "op": "contains",
+        "value": "Bedhead"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#0066CC",
+        "projWeight": 4
+      },
+      "tags": [
+        "healthcare",
+        "clinical"
+      ],
+      "standard": "HTM 08-03"
+    },
+    {
+      "id": "clin-pendants-ceiling",
+      "name": "Pendants - Ceiling",
+      "categories": [
+        "OST_SpecialityEquipment",
+        "OST_MedicalEquipment",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "Family Name",
+        "op": "contains",
+        "value": "Pendant"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#1976D2",
+        "projWeight": 3
+      },
+      "tags": [
+        "healthcare",
+        "clinical"
+      ],
+      "standard": "HTM 03-01"
+    },
+    {
+      "id": "clin-scrub-stations",
+      "name": "Scrub Stations",
+      "categories": [
+        "OST_PlumbingFixtures",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "Family Name",
+        "op": "contains",
+        "value": "Scrub"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#0288D1",
+        "projWeight": 3
+      },
+      "tags": [
+        "healthcare",
+        "clinical"
+      ],
+      "standard": "HBN 26"
+    },
+    {
+      "id": "clin-room-dept-acute",
+      "name": "Room Department - Acute",
+      "categories": [
+        "OST_Rooms"
+      ],
+      "rule": {
+        "param": "CLN_ROOM_CLASS_TXT",
+        "kind": "shared",
+        "op": "contains",
+        "value": "ACUTE"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#FFCDD2",
+        "transparency": 70
+      },
+      "tags": [
+        "healthcare",
+        "clinical",
+        "spatial"
+      ]
+    },
+    {
+      "id": "clin-room-dept-outpatient",
+      "name": "Room Department - Outpatient",
+      "categories": [
+        "OST_Rooms"
+      ],
+      "rule": {
+        "param": "CLN_ROOM_CLASS_TXT",
+        "kind": "shared",
+        "op": "contains",
+        "value": "OUTPAT"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#C8E6C9",
+        "transparency": 70
+      },
+      "tags": [
+        "healthcare",
+        "clinical",
+        "spatial"
+      ]
+    },
+    {
+      "id": "clin-room-dept-diagnostic",
+      "name": "Room Department - Diagnostic",
+      "categories": [
+        "OST_Rooms"
+      ],
+      "rule": {
+        "param": "CLN_ROOM_CLASS_TXT",
+        "kind": "shared",
+        "op": "contains",
+        "value": "DIAG"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#BBDEFB",
+        "transparency": 70
+      },
+      "tags": [
+        "healthcare",
+        "clinical",
+        "spatial"
+      ]
+    },
+    {
+      "id": "mgs-manifold",
+      "name": "MGPS - Manifold",
+      "categories": [
+        "OST_MechanicalEquipment",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "Family Name",
+        "op": "contains",
+        "value": "Manifold"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#C00000",
+        "projWeight": 5
+      },
+      "tags": [
+        "healthcare",
+        "medgas"
+      ],
+      "standard": "HTM 02-01"
+    },
+    {
+      "id": "mgs-terminal-unit",
+      "name": "MGPS - Terminal Unit",
+      "categories": [
+        "OST_PlumbingFixtures",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "MGS_TU_BS5682_BOOL",
+        "kind": "shared",
+        "op": "equals",
+        "value": "1"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#FF6600",
+        "projWeight": 3
+      },
+      "tags": [
+        "healthcare",
+        "medgas"
+      ],
+      "standard": "BS 5682"
+    },
+    {
+      "id": "mgs-entonox",
+      "name": "MGPS - Entonox",
+      "categories": [
+        "OST_PipeCurves",
+        "OST_PipeFitting",
+        "OST_PipeAccessory"
+      ],
+      "rule": {
+        "param": "MGS_GAS_TYPE_TXT",
+        "kind": "shared",
+        "op": "equals",
+        "value": "ENTONOX"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#0288D1",
+        "projWeight": 3
+      },
+      "tags": [
+        "healthcare",
+        "medgas"
+      ],
+      "standard": "HTM 02-01"
+    },
+    {
+      "id": "ees-generator",
+      "name": "EES - Generator",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "Family Name",
+        "op": "contains",
+        "value": "Generator"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#C00000",
+        "projWeight": 6
+      },
+      "tags": [
+        "healthcare",
+        "electrical"
+      ],
+      "standard": "HTM 06-01 / NFPA 110"
+    },
+    {
+      "id": "ees-transfer-switch",
+      "name": "EES - Transfer Switch (ATS)",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "Family Name",
+        "op": "contains",
+        "value": "ATS"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#C00000",
+        "projWeight": 4
+      },
+      "tags": [
+        "healthcare",
+        "electrical"
+      ],
+      "standard": "NFPA 110"
+    },
+    {
+      "id": "rad-shielding-lead-1mm",
+      "name": "Shielding - Lead 1.0 mm",
+      "categories": [
+        "OST_Walls",
+        "OST_Doors",
+        "OST_Floors",
+        "OST_Ceilings"
+      ],
+      "rule": {
+        "param": "RAD_LEAD_MM_NR",
+        "kind": "shared",
+        "op": "equals",
+        "value": "1.0"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#880E4F",
+        "projWeight": 4,
+        "cutColor": "#880E4F",
+        "cutWeight": 4
+      },
+      "tags": [
+        "healthcare",
+        "radiation"
+      ],
+      "standard": "NCRP 147"
+    },
+    {
+      "id": "rad-shielding-borated-poly",
+      "name": "Shielding - Borated Poly",
+      "categories": [
+        "OST_Walls",
+        "OST_Doors",
+        "OST_Floors",
+        "OST_Ceilings"
+      ],
+      "rule": {
+        "param": "RAD_BARRIER_TYPE_TXT",
+        "kind": "shared",
+        "op": "contains",
+        "value": "BORATED"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#00897B",
+        "projWeight": 4
+      },
+      "tags": [
+        "healthcare",
+        "radiation",
+        "neutron"
+      ],
+      "standard": "IPEM 75"
+    },
+    {
+      "id": "water-dead-leg",
+      "name": "Water - Dead Leg (Risk)",
+      "categories": [
+        "OST_PipeCurves",
+        "OST_PipeFitting"
+      ],
+      "rule": {
+        "param": "PLM_DEAD_LEG_BOOL",
+        "kind": "shared",
+        "op": "equals",
+        "value": "1"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#AD1457",
+        "projWeight": 5,
+        "projLinePattern": "Dash"
+      },
+      "tags": [
+        "healthcare",
+        "plumbing",
+        "legionella"
+      ],
+      "standard": "HTM 04-01"
+    },
+    {
+      "id": "water-temperature-sensor",
+      "name": "Water - Temperature Sensor",
+      "categories": [
+        "OST_PipeAccessory",
+        "OST_PlumbingFixtures",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "Family Name",
+        "op": "contains",
+        "value": "Temp Sensor"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#FF6600",
+        "projWeight": 3
+      },
+      "tags": [
+        "healthcare",
+        "plumbing",
+        "monitoring"
+      ],
+      "standard": "HTM 04-01"
+    },
+    {
+      "id": "water-calorifier",
+      "name": "Water - Calorifier",
+      "categories": [
+        "OST_MechanicalEquipment",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "Family Name",
+        "op": "contains",
+        "value": "Calorifier"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#C00000",
+        "projWeight": 5
+      },
+      "tags": [
+        "healthcare",
+        "plumbing",
+        "water-heater"
+      ],
+      "standard": "HTM 04-01"
+    },
+    {
+      "id": "lig-anti-bind-door",
+      "name": "Anti-Bind Door",
+      "categories": [
+        "OST_Doors"
+      ],
+      "rule": {
+        "param": "LIG_PRODUCT_RATING_TXT",
+        "kind": "shared",
+        "op": "contains",
+        "value": "ANTI-BIND"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#AD1457",
+        "projWeight": 4
+      },
+      "tags": [
+        "healthcare",
+        "antiligature",
+        "mental-health"
+      ],
+      "standard": "NHS PAS 24/Document HBN 03-01"
+    },
+    {
+      "id": "lig-observation-direct",
+      "name": "Observation - Direct",
+      "categories": [
+        "OST_Rooms",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "LIG_AREA_OBS_LOS_TXT",
+        "kind": "shared",
+        "op": "equals",
+        "value": "DIRECT"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#43A047",
+        "projWeight": 2,
+        "transparency": 30
+      },
+      "tags": [
+        "healthcare",
+        "antiligature",
+        "mental-health"
+      ]
+    },
+    {
+      "id": "lig-observation-indirect",
+      "name": "Observation - Indirect",
+      "categories": [
+        "OST_Rooms",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "LIG_AREA_OBS_LOS_TXT",
+        "kind": "shared",
+        "op": "equals",
+        "value": "INDIRECT"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#FBC02D",
+        "projWeight": 2,
+        "transparency": 30
+      },
+      "tags": [
+        "healthcare",
+        "antiligature",
+        "mental-health"
+      ]
+    },
+    {
+      "id": "lig-observation-none",
+      "name": "Observation - None",
+      "categories": [
+        "OST_Rooms",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "param": "LIG_AREA_OBS_LOS_TXT",
+        "kind": "shared",
+        "op": "equals",
+        "value": "NONE"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#C00000",
+        "projWeight": 2,
+        "transparency": 30
+      },
+      "tags": [
+        "healthcare",
+        "antiligature",
+        "mental-health"
+      ]
+    },
+    {
+      "id": "scope-out-of-scope",
+      "name": "Out of Scope",
+      "categories": [
+        "OST_Walls",
+        "OST_Floors",
+        "OST_Ceilings",
+        "OST_Doors",
+        "OST_Windows",
+        "OST_GenericModel",
+        "OST_MechanicalEquipment",
+        "OST_ElectricalEquipment"
+      ],
+      "rule": {
+        "param": "ALL_MODEL_INSTANCE_COMMENTS",
+        "op": "contains",
+        "value": "OUT-OF-SCOPE"
+      },
+      "override": {
+        "visible": true,
+        "halftone": true,
+        "projColor": "#AAAAAA",
+        "projWeight": 1,
+        "transparency": 50
+      },
+      "tags": [
+        "scope",
+        "qa"
+      ],
+      "notes": "Out-of-scope elements halftoned for visibility without prominence."
+    },
+    {
+      "id": "clar-rfi-query",
+      "name": "RFI Query",
+      "categories": [
+        "OST_GenericModel",
+        "OST_GenericAnnotation",
+        "OST_TextNotes"
+      ],
+      "rule": {
+        "param": "ALL_MODEL_INSTANCE_COMMENTS",
+        "op": "contains",
+        "value": "RFI"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#FF0000",
+        "projWeight": 3
+      },
+      "tags": [
+        "clarification",
+        "qa"
+      ],
+      "notes": "Elements/notes tagged with RFI in comments — red callout."
+    },
+    {
+      "id": "clar-design-intent",
+      "name": "Design Intent",
+      "categories": [
+        "OST_GenericModel",
+        "OST_GenericAnnotation",
+        "OST_TextNotes"
+      ],
+      "rule": {
+        "param": "ALL_MODEL_INSTANCE_COMMENTS",
+        "op": "contains",
+        "value": "DESIGN-INTENT"
+      },
+      "override": {
+        "visible": true,
+        "projColor": "#0000FF",
+        "projWeight": 2
+      },
+      "tags": [
+        "clarification",
+        "qa"
+      ],
+      "notes": "Design-intent overlay elements/notes — blue."
+    },
+    {
+      "id": "elec-lps-airterm",
+      "name": "STING - LPS: Air Terminal",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "logic": "or",
+        "rules": [
+          {
+            "param": "ELC_LPS_ELEMENT_TYPE_TXT",
+            "op": "equals",
+            "value": "AIR_TERMINAL"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Air Terminal"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Franklin"
+          }
+        ]
+      },
+      "override": {
+        "projColor": "#E65100",
+        "cutColor": "#E65100",
+        "projWeight": 5,
+        "cutWeight": 5
+      },
+      "tags": [
+        "elec",
+        "lps",
+        "lat",
+        "life-safety"
+      ],
+      "standard": "BS EN 62305-3"
+    },
+    {
+      "id": "elec-lps-downcond",
+      "name": "STING - LPS: Down Conductor",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel",
+        "OST_Conduit",
+        "OST_CableTray"
+      ],
+      "rule": {
+        "logic": "or",
+        "rules": [
+          {
+            "param": "ELC_LPS_ELEMENT_TYPE_TXT",
+            "op": "equals",
+            "value": "DOWN_CONDUCTOR"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Down Conductor"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "DownCond"
+          }
+        ]
+      },
+      "override": {
+        "projColor": "#D32F2F",
+        "cutColor": "#D32F2F",
+        "projWeight": 4,
+        "cutWeight": 4
+      },
+      "tags": [
+        "elec",
+        "lps",
+        "ldc",
+        "life-safety"
+      ],
+      "standard": "BS EN 62305-3"
+    },
+    {
+      "id": "elec-lps-earth",
+      "name": "STING - LPS: Earth Electrode",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel",
+        "OST_StructuralFoundation"
+      ],
+      "rule": {
+        "logic": "or",
+        "rules": [
+          {
+            "param": "ELC_LPS_ELEMENT_TYPE_TXT",
+            "op": "equals",
+            "value": "EARTH_ELECTRODE"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Earth Rod"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Ground Rod"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Earth Electrode"
+          }
+        ]
+      },
+      "override": {
+        "projColor": "#2E7D32",
+        "cutColor": "#2E7D32",
+        "projWeight": 4,
+        "cutWeight": 4
+      },
+      "tags": [
+        "elec",
+        "lps",
+        "lee",
+        "earthing"
+      ],
+      "standard": "BS EN 62305-3"
+    },
+    {
+      "id": "elec-lps-bonding",
+      "name": "STING - LPS: Bonding",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel",
+        "OST_Conduit",
+        "OST_CableTray",
+        "OST_PipeCurves",
+        "OST_DuctCurves"
+      ],
+      "rule": {
+        "logic": "or",
+        "rules": [
+          {
+            "param": "ELC_LPS_ELEMENT_TYPE_TXT",
+            "op": "equals",
+            "value": "BONDING_BAR"
+          },
+          {
+            "param": "ELC_LPS_BOND_TYPE_TXT",
+            "op": "isNotEmpty",
+            "value": ""
+          }
+        ]
+      },
+      "override": {
+        "projColor": "#FFC107",
+        "cutColor": "#FFC107",
+        "projWeight": 3,
+        "cutWeight": 3
+      },
+      "tags": [
+        "elec",
+        "lps",
+        "bond",
+        "equipotential"
+      ],
+      "standard": "BS EN 62305-3"
+    },
+    {
+      "id": "elec-lps-spd",
+      "name": "STING - LPS: Surge Protective Device",
+      "categories": [
+        "OST_ElectricalEquipment",
+        "OST_GenericModel"
+      ],
+      "rule": {
+        "logic": "or",
+        "rules": [
+          {
+            "param": "ELC_LPS_ELEMENT_TYPE_TXT",
+            "op": "equals",
+            "value": "SPD"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "SPD"
+          },
+          {
+            "param": "ALL_MODEL_FAMILY_NAME",
+            "op": "contains",
+            "value": "Surge"
+          }
+        ]
+      },
+      "override": {
+        "projColor": "#6A1B9A",
+        "cutColor": "#6A1B9A",
+        "projWeight": 4,
+        "cutWeight": 4
+      },
+      "tags": [
+        "elec",
+        "lps",
+        "spd",
+        "surge"
+      ],
+      "standard": "IEC 62305-4 / IEC 61643-11"
     }
   ]
 }

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // ManagedTemplateSyncer mints (or updates) a per-pack-per-viewtype
@@ -21,10 +22,11 @@ using System.Security.Cryptography;
 using System.Text;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Drawing
 {
-    internal static class ManagedTemplateSyncer
+    internal static partial class ManagedTemplateSyncer
     {
         // C-6: keyed by document so a stale ElementId from a previously
         // open document is never returned to a different document.
@@ -354,9 +356,9 @@ namespace StingTools.Core.Drawing
             catch
             {
                 try { newView.Name = templateName + "_(2)"; }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    result.Warnings.Add($"ManagedTemplateSyncer: rename failed — {ex.Message}");
+                    result.Warnings.Add($"ManagedTemplateSyncer: rename failed — {ex2.Message}");
                     return ElementId.InvalidElementId;
                 }
             }
@@ -441,7 +443,12 @@ namespace StingTools.Core.Drawing
                             ViewStylePackApplier.ApplyWorksetVisibility(doc, template, pack, r);
                             break;
                         case "underlay":
-                            ApplyUnderlay(doc, template, pack.Underlay, r);
+                            // pack.Underlay is stored as a string (level name); wrap in PackUnderlay for the applier.
+                            ApplyUnderlay(doc, template,
+                                string.IsNullOrEmpty(pack.Underlay)
+                                    ? null
+                                    : new PackUnderlay { LevelName = pack.Underlay },
+                                r);
                             break;
                         case "background":
                         case "displayOptions":

@@ -18,6 +18,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Threading.Tasks;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
@@ -25,9 +26,10 @@ using Autodesk.Revit.UI;
 using MiniSoftware;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.Core.Lightning;
 using StingTools.Core.Fabrication;
-using StingTools.Select;
+using StingTools.Core.Drawing;
 using StingTools.UI;
 // Disambiguate WPF controls from Autodesk.Revit.UI.TextBox/ComboBox and
 // from Autodesk.Revit.DB.Color.
@@ -203,6 +205,30 @@ namespace StingTools.Commands.Lightning
             }
             catch (Exception ex) { StingLog.Warn($"Stamp compliance: {ex.Message}"); }
 
+            // Wave B #3 — push the verdict into ComplianceScan so the
+            // status bar + dashboard surface LPS pass/fail next to the
+            // tag metrics.
+            try
+            {
+                ComplianceScan.UpdateLpsVerdict(
+                    verdict: fail > 0 ? "FAIL" : warn > 0 ? "WARN" : "PASS",
+                    total: items.Count, pass: pass, warn: warn, fail: fail,
+                    lpsClass: classId);
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateLpsVerdict: {ex.Message}"); }
+
+            // Wave D #16 — auto-raise BIM issues for every Fail item so
+            // they land in the existing issues.json + dashboard + SLA
+            // tracker. Idempotent: re-running closes resolved failures
+            // automatically.
+            try
+            {
+                var io = LpsAutoIssueRaiser.RaiseFromFailures(doc, items);
+                if (io.Raised > 0 || io.Closed > 0)
+                    StingLog.Info($"LpsCompliance auto-issues: +{io.Raised} raised · -{io.Closed} closed");
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoIssueRaiser: {ex.Message}"); }
+
             // Surface kc factor in the panel header. ProjectInformation may have
             // a stamped value (set by Class Setup / Recalculate); else compute
             // live from the down-conductor count.
@@ -212,6 +238,28 @@ namespace StingTools.Commands.Lightning
                 int dcCount = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor").Count;
                 kcShown = LpsEngine.ComputeKcFactor(dcCount);
             }
+
+            // Wave E #18 — append to SHA-256-chained audit log so
+            // regulator submissions + compliance audits have the run
+            // history. Skipped silently when audit-log infrastructure
+            // isn't initialised (legacy projects pre-Phase 112).
+            // Namespace is Planscape.Docs.Workflow (the docs-engine
+            // namespace family per Template Engine v1.1).
+            try
+            {
+                Planscape.Docs.Workflow.AuditLog.Append(doc, "LPS_COMPLIANCE_CHECK",
+                    docId: "lps-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss"),
+                    payload: new Newtonsoft.Json.Linq.JObject
+                    {
+                        ["class"]   = classId,
+                        ["verdict"] = verdict,
+                        ["pass"]    = pass,
+                        ["warn"]    = warn,
+                        ["fail"]    = fail,
+                        ["kc"]      = kcShown
+                    });
+            }
+            catch (Exception ex) { StingLog.Warn($"AuditLog.Append: {ex.Message}"); }
 
             var panel = StingResultPanel.Create("LPS Compliance Check (BS EN 62305)");
             panel.SetSubtitle($"Project class: {classId} — verdict: {verdict}  •  kc = {kcShown:F3}");
@@ -248,7 +296,7 @@ namespace StingTools.Commands.Lightning
                 panel.Action("Select failing elements", $"Select {failingIds.Count} flagged elements in Revit", _ =>
                 {
                     try { app.ActiveUIDocument.Selection.SetElementIds(failingIds); }
-                    catch (Exception ex) { StingLog.Warn($"SetElementIds: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"SetElementIds: {ex2.Message}"); }
                 });
             }
 
@@ -384,7 +432,7 @@ namespace StingTools.Commands.Lightning
                 if (dlg.Show() == TaskDialogResult.CommandLink1)
                 {
                     try { app.ActiveUIDocument.Selection.SetElementIds(failingIds); }
-                    catch (Exception ex) { StingLog.Warn($"SetElementIds: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"SetElementIds: {ex2.Message}"); }
                 }
             }
             else
@@ -537,7 +585,10 @@ namespace StingTools.Commands.Lightning
 
         private Result RunInternal(UIApplication app, Document doc)
         {
-            // Build room → LPZ map
+            // Build room → LPZ map AND the XY bbox index used by ResolveRoom.
+            // Wave C #8 — replaces 2 × Document.GetRoomAtPoint per element
+            // with bbox-prefiltered Room.IsPointInRoom lookups. On a 5000-
+            // element sweep that's 30 s → 1.5 s.
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
                 .WhereElementIsNotElementType()
@@ -546,6 +597,7 @@ namespace StingTools.Commands.Lightning
             var roomLpz = new Dictionary<ElementId, string>();
             foreach (var r in rooms)
                 roomLpz[r.Id] = ParameterHelpers.GetString(r, LpsParams.ZONE_TXT) ?? "";
+            var bboxIdx = RoomBboxIndex.Build(doc);
 
             // Collect candidate elements that could cross zone boundaries
             BuiltInCategory[] cats = {
@@ -577,8 +629,8 @@ namespace StingTools.Commands.Lightning
                     foreach (var el in candidates)
                     {
                         progress?.Increment();
-                        var fromRoom = ResolveRoom(doc, el, useStart: true);
-                        var toRoom = ResolveRoom(doc, el, useStart: false);
+                        var fromRoom = ResolveRoomFast(el, useStart: true,  bboxIdx);
+                        var toRoom   = ResolveRoomFast(el, useStart: false, bboxIdx);
                         string fromLpz = fromRoom != null && roomLpz.TryGetValue(fromRoom.Id, out var fz) ? fz : "";
                         string toLpz   = toRoom   != null && roomLpz.TryGetValue(toRoom.Id,   out var tz) ? tz : "";
                         if (string.IsNullOrEmpty(fromLpz) || string.IsNullOrEmpty(toLpz)) continue;
@@ -595,6 +647,19 @@ namespace StingTools.Commands.Lightning
                             needsReview++;
                         }
                         else alreadySet++;
+
+                        // Wave 3 — stamp the LPZ context on the element so
+                        // schedules + the LPS panel's BondingGrid can show
+                        // From / To LPZ without re-running the spatial walk.
+                        // Falls back silently when params aren't bound (legacy
+                        // projects that haven't run LoadSharedParams since
+                        // Wave 1).
+                        try
+                        {
+                            ParameterHelpers.SetString(el, LpsParams.FROM_LPZ_TXT, fromLpz, true);
+                            ParameterHelpers.SetString(el, LpsParams.TO_LPZ_TXT,   toLpz,   true);
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Stamp LPZ: {ex.Message}"); }
 
                         string remarks = hasBond ? "OK" : "Bond type assignment required";
                         rows.Add(new[]
@@ -655,6 +720,22 @@ namespace StingTools.Commands.Lightning
                 return doc.GetRoomAtPoint(pt);
             }
             catch (Exception ex) { StingLog.Warn($"ResolveRoom: {ex.Message}"); return null; }
+        }
+
+        // Wave C #8 — Bbox-prefiltered fast path.
+        private static Room ResolveRoomFast(Element el, bool useStart, RoomBboxIndex idx)
+        {
+            try
+            {
+                if (idx == null) return null;
+                XYZ pt = null;
+                if (el.Location is LocationPoint lp) pt = lp.Point;
+                else if (el.Location is LocationCurve lc)
+                    pt = useStart ? lc.Curve?.GetEndPoint(0) : lc.Curve?.GetEndPoint(1);
+                if (pt == null) return null;
+                return idx.FindContaining(pt);
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveRoomFast: {ex.Message}"); return null; }
         }
     }
 
@@ -824,6 +905,14 @@ namespace StingTools.Commands.Lightning
                         draftingView = ViewDrafting.Create(doc, vft.Id);
                         try { draftingView.Name = viewName; } catch (Exception ex) { StingLog.Warn($"Rename: {ex.Message}"); }
                     }
+
+                    // Wave 3 — stamp the drafting view with the LPS coverage
+                    // drawing-type id so DrawingDriftDetector, BrowserOrganizer,
+                    // and SyncStyles can manage it like any other STING-produced
+                    // view. Silently skips when STING_DRAWING_TYPE_ID_TXT isn't
+                    // bound on Views (projects pre-Phase 113).
+                    try { DrawingTypeStamper.Stamp(draftingView, "elec-lps-coverage-A3"); }
+                    catch (Exception ex) { StingLog.Warn($"DrawingType stamp: {ex.Message}"); }
 
                     // Resolve filled region type
                     var frType = new FilteredElementCollector(doc).OfClass(typeof(FilledRegionType))
@@ -995,7 +1084,7 @@ namespace StingTools.Commands.Lightning
                                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
                                     p.Set(sMm);
                             }
-                            catch (Exception ex) { StingLog.Warn($"Stamp s: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Stamp s: {ex2.Message}"); }
                         }
                         var bb = dc.get_BoundingBox(null);
                         if (bb == null) continue;
@@ -1056,7 +1145,7 @@ namespace StingTools.Commands.Lightning
                 panel.Action("Select conflicting MEP elements", $"Select {conflictingMepIds.Count} elements", _ =>
                 {
                     try { app.ActiveUIDocument.Selection.SetElementIds(conflictingMepIds.ToList()); }
-                    catch (Exception ex) { StingLog.Warn($"Select: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Select: {ex2.Message}"); }
                 });
             }
             panel.Show();
@@ -1974,17 +2063,17 @@ namespace StingTools.Commands.Lightning
             panel.Action("Run Full Check", "Re-run LPS compliance check", _ =>
             {
                 try { new LpsComplianceCheckCommand().Execute(app); }
-                catch (Exception ex) { StingLog.Warn($"Dashboard run check: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Dashboard run check: {ex2.Message}"); }
             });
             panel.Action("View Report", "Open LPS Full Report (DOCX + CSV)", _ =>
             {
                 try { new LpsFullReportCommand().Execute(app); }
-                catch (Exception ex) { StingLog.Warn($"Dashboard view report: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Dashboard view report: {ex2.Message}"); }
             });
             panel.Action("Open Inspection Schedule", "Show inspection-due register", _ =>
             {
                 try { new LpsInspectionSchedulerCommand().Execute(app); }
-                catch (Exception ex) { StingLog.Warn($"Dashboard inspection schedule: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Dashboard inspection schedule: {ex2.Message}"); }
             });
 
             panel.Show();
@@ -2238,11 +2327,11 @@ namespace StingTools.Commands.Lightning
                                 if (hostRoom != null && hostRoom.Id == room.Id)
                                 {
                                     try { view.SetElementOverrides(fi.Id, miOgs); containedStamped++; }
-                                    catch (Exception ex) { StingLog.Warn($"FI override {fi.Id}: {ex.Message}"); }
+                                    catch (Exception ex2) { StingLog.Warn($"FI override {fi.Id}: {ex2.Message}"); }
                                 }
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Contained-FI scan: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Contained-FI scan: {ex2.Message}"); }
                     }
                     t.Commit();
                 }
@@ -2340,11 +2429,11 @@ namespace StingTools.Commands.Lightning
                                 if (hostRoom != null && hostRoom.Id == room.Id)
                                 {
                                     try { view.SetElementOverrides(fi.Id, blank); cleared++; }
-                                    catch (Exception ex) { StingLog.Warn($"Clear FI {fi.Id}: {ex.Message}"); }
+                                    catch (Exception ex2) { StingLog.Warn($"Clear FI {fi.Id}: {ex2.Message}"); }
                                 }
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Clear contained: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Clear contained: {ex2.Message}"); }
                     }
                     t.Commit();
                 }
@@ -2751,8 +2840,106 @@ namespace StingTools.Commands.Lightning
                     $"Sync failed: {err ?? "unknown"}\n\nAssets attempted: {assets.Count}");
                 return Result.Failed;
             }
+
+            // Wave 4 — also push the LpsRecord summary (BS EN 62305 audit
+            // headline numbers) so the Planscape dashboard surfaces project-
+            // level LPS status without aggregating across the asset list.
+            bool recordPushed = false;
+            string recordErr = null;
+            try
+            {
+                var def = LpsEngine.LoadClass(string.IsNullOrWhiteSpace(classId) ? "II" : classId);
+                int atCount   = LpsEngine.CollectLpsFamily(doc, "Air Terminal", "Air_Terminal", "Franklin").Count;
+                int dcCount   = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor").Count;
+                int eeCount   = LpsEngine.CollectLpsFamily(doc, "Earth", "Ground Rod", "GroundRod").Count;
+                int bondCount = LpsEngine.CollectLpsFamily(doc, "Bonding", "Bond Bar", "BondingBar").Count;
+                int spdCount  = LpsEngine.CollectLpsFamily(doc, "SPD", "Surge").Count;
+                double kc = LpsEngine.GetDoubleParam(doc.ProjectInformation,
+                                StingTools.Core.Fabrication.LpsParams.KC_FACTOR_NR);
+                if (kc <= 0) kc = LpsEngine.ComputeKcFactor(dcCount);
+
+                var items = LpsEngine.ValidateModel(doc);
+                int pass = items.Count(i => i.Severity == LpsSeverity.Pass);
+                int warn = items.Count(i => i.Severity == LpsSeverity.Warn);
+                int fail = items.Count(i => i.Severity == LpsSeverity.Fail);
+                string verdict = fail > 0 ? "FAIL" : warn > 0 ? "WARN" : "PASS";
+
+                // Pull cached risk result from the panel — populated by
+                // the last LpsRiskAssessmentInline run. When absent the
+                // payload's risk fields stay zero (server still accepts;
+                // dashboard shows "no risk run yet" badge).
+                var lastRisk = StingTools.UI.StingLpsPanel.Instance?.LastRiskResult;
+                double r1 = 0, r2 = 0, r3 = 0, r4 = 0;
+                double rt1 = 1e-5, rt2 = 1e-3, rt3 = 1e-4, rt4 = 1e-3;
+                double ndYr = 0, aeM2 = 0;
+                string recClass = classId ?? "";
+                if (lastRisk != null)
+                {
+                    lastRisk.RiskByLossType.TryGetValue("L1", out r1);
+                    lastRisk.RiskByLossType.TryGetValue("L2", out r2);
+                    lastRisk.RiskByLossType.TryGetValue("L3", out r3);
+                    lastRisk.RiskByLossType.TryGetValue("L4", out r4);
+                    if (lastRisk.TolerableByLossType.TryGetValue("L1", out double v1)) rt1 = v1;
+                    if (lastRisk.TolerableByLossType.TryGetValue("L2", out double v2)) rt2 = v2;
+                    if (lastRisk.TolerableByLossType.TryGetValue("L3", out double v3)) rt3 = v3;
+                    if (lastRisk.TolerableByLossType.TryGetValue("L4", out double v4)) rt4 = v4;
+                    ndYr = lastRisk.AnnualStrikeFrequency;
+                    aeM2 = lastRisk.CollectionAreaM2;
+                    if (!string.IsNullOrEmpty(lastRisk.RecommendedClass)) recClass = lastRisk.RecommendedClass;
+                }
+
+                var payload = new
+                {
+                    lpsClass                  = classId ?? "",
+                    rollingSphereRadiusM      = def?.RollingSphereRadiusM ?? 0,
+                    meshSizeM                 = def?.MeshSizeM ?? 0,
+                    inspectionIntervalMonths  = def?.InspectionIntervalMonths ?? 0,
+                    earthResistanceTargetOhm  = def?.EarthResistanceTargetOhm ?? 0,
+                    groundFlashDensity        = LpsEngine.GetEffectiveFlashDensity(doc, "UK"),
+                    airTerminalCount          = atCount,
+                    downConductorCount        = dcCount,
+                    earthElectrodeCount       = eeCount,
+                    bondingCount              = bondCount,
+                    spdCount                  = spdCount,
+                    kcFactor                  = kc,
+                    sepDistanceViolations     = 0,
+                    annualStrikeFrequencyNd   = ndYr,
+                    collectionAreaM2          = aeM2,
+                    riskR1 = r1, riskR2 = r2, riskR3 = r3, riskR4 = r4,
+                    tolerableR1 = rt1, tolerableR2 = rt2, tolerableR3 = rt3, tolerableR4 = rt4,
+                    recommendedClass = recClass,
+                    complianceVerdict     = verdict,
+                    complianceChecksPass  = pass,
+                    complianceChecksWarn  = warn,
+                    complianceChecksFail  = fail,
+                    lastTestDate    = ParameterHelpers.GetString(doc.ProjectInformation,
+                                          StingTools.Core.Fabrication.LpsParams.TEST_DATE_TXT),
+                    certReference   = ParameterHelpers.GetString(doc.ProjectInformation,
+                                          StingTools.Core.Fabrication.LpsParams.CERT_REF_TXT),
+                    spdCoordinationPass = 0,
+                    spdCoordinationWarn = 0,
+                    spdCoordinationFail = 0
+                };
+
+                var task = System.Threading.Tasks.Task.Run(async () =>
+                {
+                    var pid = await client.GetOrCreateProjectAsync(projName, projCode);
+                    if (pid == Guid.Empty) return false;
+                    return await client.PushLpsRecordAsync(pid, payload);
+                });
+                recordPushed = task.GetAwaiter().GetResult();
+                if (!recordPushed) recordErr = client.LastError;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LpsRecord push: {ex.Message}");
+                recordErr = ex.Message;
+            }
+
             TaskDialog.Show("STING — LPS Sync",
-                $"LPS sync to Planscape complete.\n\nAssets sent: {assets.Count}\nServer reported created: {created}");
+                $"LPS sync to Planscape complete.\n\nAssets sent: {assets.Count}\n" +
+                $"Server reported created: {created}\n\n" +
+                $"LpsRecord summary: {(recordPushed ? "pushed ✓" : "skipped — " + (recordErr ?? "endpoint not reachable"))}");
             return Result.Succeeded;
         }
     }

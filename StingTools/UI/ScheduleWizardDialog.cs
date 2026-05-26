@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.IO;
 using StingTools.Core;
 
 namespace StingTools.UI
@@ -70,6 +71,8 @@ namespace StingTools.UI
             public bool IsSelected { get; set; }
         }
 
+
+        private static readonly HashSet<string> _listOps = new HashSet<string> { OpCreateBatch, OpAudit, OpExportCsv, OpManage };
 
         /// <summary>
         /// Show the comprehensive scheduling dashboard.

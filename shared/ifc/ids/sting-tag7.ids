@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+
+  <info>
+    <title>STING — Tag7 narrative validation</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
+    <description>IDS encoding of the format-side rules from shared/ifc/psets/Pset_StingTag7.xml. Verifies length bounds on each of the 7 narrative parts (NarrativeFull + sub-sections A-F). The three behavioural rules (TAG7_NARRATIVE_CONSISTENT, TAG7_PARAGRAPH_STATE_EXCLUSIVE, TAG7_TECHNICAL_SPECS_BY_DISCIPLINE) are presentation-time contracts enforced by TAG7Builder on the host plugin — IDS v1.0 cannot reach them.</description>
+    <author>info@stingtools.io</author>
+    <date>2026-05-20</date>
+    <purpose>STING TAG7 rich narrative substrate validation</purpose>
+    <milestone>Stage_3_through_Stage_4</milestone>
+  </info>
+
+  <specifications>
+
+    <!-- ============================================================
+         Length bound on every narrative section.
+         Cardinality is optional throughout (TAG7 is opt-in per element),
+         but when set each section must be non-empty and below a sane
+         length cap so renderers don't choke on accidental novella-sized
+         payloads. 4096 chars is the corporate cap mirrored from
+         label-renderer defaults.
+         ============================================================
+    -->
+    <specification name="NarrativeFull_length_bound"
+                   identifier="40-TAG7-FULL-LEN"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE|SPACE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>NarrativeFull</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>NarrativeFull</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:minLength value="1"/>
+              <xs:maxLength value="4096"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="IdentityHeader_length_bound"
+                   identifier="41a-TAG7-A-LEN"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE|SPACE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>IdentityHeader</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>IdentityHeader</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:minLength value="1"/>
+              <xs:maxLength value="512"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="SystemFunction_length_bound"
+                   identifier="41b-TAG7-B-LEN"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE|SPACE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>SystemFunction</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>SystemFunction</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:minLength value="1"/>
+              <xs:maxLength value="512"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="SpatialContext_length_bound"
+                   identifier="41c-TAG7-C-LEN"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE|SPACE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>SpatialContext</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>SpatialContext</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:minLength value="1"/>
+              <xs:maxLength value="512"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="LifecycleStatus_length_bound"
+                   identifier="41d-TAG7-D-LEN"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE|SPACE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>LifecycleStatus</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>LifecycleStatus</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:minLength value="1"/>
+              <xs:maxLength value="512"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="TechnicalSpecs_length_bound"
+                   identifier="41e-TAG7-E-LEN"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE|SPACE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>TechnicalSpecs</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>TechnicalSpecs</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:minLength value="1"/>
+              <xs:maxLength value="1024"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="Classification_length_bound"
+                   identifier="41f-TAG7-F-LEN"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE|SPACE)"/></xs:restriction></name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>Classification</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="optional">
+          <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
+          <baseName><simpleValue>Classification</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:minLength value="1"/>
+              <xs:maxLength value="512"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+  </specifications>
+</ids>

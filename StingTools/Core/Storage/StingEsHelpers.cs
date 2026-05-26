@@ -1,3 +1,4 @@
+#nullable enable
 // Gap 2 / Phase 121 — Extensible Storage facade.
 //
 // One stop for every STING read-site that wants to honour ES-first,
@@ -18,6 +19,7 @@
 
 using System;
 using Autodesk.Revit.DB;
+using StingTools.Core;
 
 namespace StingTools.Core.Storage
 {
@@ -25,7 +27,7 @@ namespace StingTools.Core.Storage
     {
         // ─── Cluster ─────────────────────────────────────────────────
 
-        public static StingClusterSchema.ClusterData ReadCluster(Element el)
+        public static StingClusterSchema.ClusterData? ReadCluster(Element el)
         {
             if (el == null) return null;
             var fromEs = StingClusterSchema.Read(el);
@@ -110,7 +112,7 @@ namespace StingTools.Core.Storage
 
         // ─── Tag history ─────────────────────────────────────────────
 
-        public static StingTagHistorySchema.HistoryData ReadHistory(Element el)
+        public static StingTagHistorySchema.HistoryData? ReadHistory(Element el)
         {
             if (el == null) return null;
             var fromEs = StingTagHistorySchema.Read(el);

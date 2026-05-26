@@ -65,9 +65,9 @@ namespace StingTools.Presets
                             StingDockPanel.DispatchCommand(step.CommandTag);
                             ok++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
-                            StingLog.Warn($"Preset step {step.CommandTag} failed: {ex.Message}");
+                            StingLog.Warn($"Preset step {step.CommandTag} failed: {ex2.Message}");
                             if (!step.Optional) failed++;
                             else skipped++;
                         }
@@ -82,7 +82,7 @@ namespace StingTools.Presets
                     foreach (var step in preset.OnComplete)
                     {
                         try { StingDockPanel.DispatchCommand(step.CommandTag); }
-                        catch (Exception ex) { StingLog.Warn($"onComplete {step.CommandTag}: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"onComplete {step.CommandTag}: {ex2.Message}"); }
                     }
                 }
 

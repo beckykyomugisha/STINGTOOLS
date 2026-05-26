@@ -7,12 +7,12 @@ using Planscape.Infrastructure.Services;
 
 namespace Planscape.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-[Authorize]
 /// <summary>
 /// BIM project management — CRUD, settings, and dashboard.
 /// </summary>
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
 public class ProjectsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -157,7 +157,11 @@ public class ProjectsController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
+        return CreatedAtAction(nameof(GetProject), new { id = project.Id }, new
+        {
+            project.Id, project.Name, project.Code, project.Description,
+            project.Phase, project.Status, project.CreatedAt
+        });
     }
 
     /// <summary>Update project settings — name, phase, tag format, config JSON.</summary>

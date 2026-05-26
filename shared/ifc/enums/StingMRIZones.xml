@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingMRIZones</Name>
+    <Definition>MRI safety zone classification per ACR (American College of Radiology) MR Safe Practices. Drives MRI-suite spatial validation, the 5 Gauss line on plans, ferromagnetic-material exclusion in Zone IV, controlled access regimes, and shielding takedown.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4005-9000-00000000002d</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/acr/mr-safety/2020/class/zone</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>ACR Guidance Document on MR Safe Practices: 2020; MHRA DB 2021(03) (UK); IEC 60601-2-33</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Zone_I" sentinel="false">
+      <Definition>Zone I — freely accessible to general public. No screening required. Outside the MR-controlled environment.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Zone_II" sentinel="false">
+      <Definition>Zone II — interface between freely-accessible public and controlled MR areas. Patients screened here; reception, changing rooms.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Zone_III" sentinel="false">
+      <Definition>Zone III — restricted to MR-trained personnel + screened patients. Control room, magnet-adjacent corridors. Ferromagnetic objects prohibited.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Zone_IV" sentinel="false">
+      <Definition>Zone IV — inside the MR magnet room. Strictly MR-safe and MR-compatible materials only. Beyond the 5 Gauss line. Access requires zonal supervision.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>bd109d0380ff272ed471a43b559159df3892bc817a32340c764503b43112e6fe</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

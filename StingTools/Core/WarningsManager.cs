@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using RevitGroup = Autodesk.Revit.DB.Group;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
@@ -817,7 +818,7 @@ namespace StingTools.Core
                         Element el = doc.GetElement(new ElementId(kv.Key));
                         name = el != null ? $"{ParameterHelpers.GetCategoryName(el)} [{el.Id.Value}]" : $"[{kv.Key}]";
                     }
-                    catch (Exception ex) { StingLog.Warn($"Hotspot element name: {ex.Message}"); name = $"[{kv.Key}]"; }
+                    catch (Exception ex2) { StingLog.Warn($"Hotspot element name: {ex2.Message}"); name = $"[{kv.Key}]"; }
                     return (new ElementId(kv.Key), name, kv.Value);
                 })
                 .ToList();
@@ -1737,7 +1738,7 @@ namespace StingTools.Core
                             }
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings parse: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"CreateIssuesFromWarnings parse: {ex2.Message}"); }
                 }
 
                 // Determine next issue ID — scan for max existing numeric suffix
@@ -2857,6 +2858,121 @@ namespace StingTools.Core
 
     // ══════════════════════════════════════════════════════════════════
     //  COMMANDS (8 IExternalCommand classes)
+        // ══════════════════════════════════════════════════════════════
+        // Phase 55: AUTO-ISSUE CREATION FROM CRITICAL WARNINGS
+        // Cross-system automation: warning → issue pipeline
+        // ══════════════════════════════════════════════════════════════
+
+    /// <summary>Extended warnings engine: auto-issue creation from critical warnings.</summary>
+    internal static class WarningsEngineExt
+    {
+        /// <summary>
+        /// Auto-create issues from CRITICAL/HIGH severity warnings.
+        /// Bridges the gap between Revit warnings (alerts) and STING issues (work orders).
+        /// </summary>
+        internal static int AutoCreateIssuesFromWarnings(Document doc, WarningReport report,
+            WarningSeverity minSeverity = WarningSeverity.Critical)
+        {
+            if (doc == null || report == null || report.Warnings.Count == 0) return 0;
+
+            int created = 0;
+            try
+            {
+                // Load existing issues to check for duplicates
+                string issuesPath = Path.Combine(
+                    Path.GetDirectoryName(doc.PathName ?? "") ?? "",
+                    "_bim_manager", "issues.json");
+
+                var existingIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (File.Exists(issuesPath))
+                {
+                    try
+                    {
+                        string json = File.ReadAllText(issuesPath);
+                        var arr = Newtonsoft.Json.Linq.JArray.Parse(json);
+                        foreach (var item in arr)
+                        {
+                            string desc = item["description"]?.ToString() ?? "";
+                            existingIssues.Add(desc);
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Load issues for dedup: {ex.Message}"); }
+                }
+
+                // Filter warnings by minimum severity
+                var targetWarnings = report.Warnings.Where(w =>
+                    w.Severity <= minSeverity && // Critical=0, High=1, so <= works
+                    !string.IsNullOrEmpty(w.Description));
+
+                // Group by description to avoid creating 50 issues for same warning type
+                var grouped = targetWarnings
+                    .GroupBy(w => w.Description.Length > 80 ? w.Description.Substring(0, 80) : w.Description)
+                    .Take(20); // Cap at 20 issue types
+
+                var newIssues = new List<object>();
+                int nextId = existingIssues.Count + 1;
+
+                foreach (var group in grouped)
+                {
+                    string desc = $"[AUTO] {group.Key}";
+                    if (existingIssues.Contains(desc)) continue; // Already tracked
+
+                    var first = group.First();
+                    string issueType = first.Severity == WarningSeverity.Critical ? "NCR" : "SI";
+                    string priority = first.Severity == WarningSeverity.Critical ? "CRITICAL" : "HIGH";
+
+                    var elementIds = group.SelectMany(w => w.FailingElements ?? Enumerable.Empty<ElementId>())
+                        .Select(id => id.Value.ToString()).Distinct().Take(10).ToList();
+
+                    newIssues.Add(new
+                    {
+                        id = $"{issueType}-{nextId:D4}",
+                        title = desc,
+                        description = $"{group.Count()} warning(s): {group.Key}",
+                        type = issueType,
+                        priority = priority,
+                        status = "OPEN",
+                        discipline = first.Discipline ?? "GEN",
+                        assignee = "BIM Manager",
+                        created_date = DateTime.Now.ToString("o"),
+                        created_by = "STING Auto",
+                        auto_created = true,
+                        warning_category = first.Category.ToString(),
+                        affected_elements = elementIds,
+                        element_count = group.Sum(w => (w.FailingElements?.Count ?? 0))
+                    });
+                    nextId++;
+                    created++;
+                }
+
+                if (newIssues.Count > 0)
+                {
+                    // Append to issues.json
+                    string dir = Path.GetDirectoryName(issuesPath) ?? "";
+                    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                    Newtonsoft.Json.Linq.JArray arr;
+                    if (File.Exists(issuesPath))
+                    {
+                        try { arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath)); }
+                        catch (Exception ex) { StingLog.Warn($"ParseJArray: {ex.Message}"); arr = new Newtonsoft.Json.Linq.JArray(); }
+                    }
+                    else arr = new Newtonsoft.Json.Linq.JArray();
+
+                    foreach (var issue in newIssues)
+                        arr.Add(Newtonsoft.Json.Linq.JObject.FromObject(issue));
+
+                    File.WriteAllText(issuesPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    StingLog.Info($"AutoCreateIssuesFromWarnings: created {created} issues from {minSeverity}+ warnings");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoCreateIssuesFromWarnings: {ex.Message}"); }
+            return created;
+        }
+    } // end WarningsEngineExt
+
+    // ══════════════════════════════════════════════════════════════════
+    //  COMMANDS (8 IExternalCommand classes)
     // ══════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -3425,7 +3541,7 @@ namespace StingTools.Core
 
                 // Penalty for excessive model groups
                 int groups = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Group))
+                    .OfClass(typeof(Autodesk.Revit.DB.Group))
                     .GetElementCount();
                 if (groups > 100) perfScore -= 3;
 
@@ -4094,7 +4210,7 @@ namespace StingTools.Core
                                 cloudsByRevId2[rid2] = cnt2 + 1;
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Revision cloud count failed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Revision cloud count failed: {ex2.Message}"); }
                     }
                     foreach (var rev in revisions2)
                     {
@@ -4746,6 +4862,40 @@ namespace StingTools.Core
                         catch (Exception ex) { StingLog.Warn($"PlanscapeOpenWebDashboard: {ex.Message}"); }
                         return;
                     }
+
+                    // BCC's "Connect" button on the Planscape Native Collaboration Hub
+                    // dispatches PlanscapeConnect (and its alias tags) here. Previously
+                    // this fell through to DispatchCoordAction which bounced through a
+                    // second ExternalEvent (StingDockPanel.DispatchCommand) — when the
+                    // dock panel handler wasn't initialised, or the second event was
+                    // dropped, the user saw "Action 'PlanscapeConnect' is not handled".
+                    // Run the command inline so it executes in this ExternalEvent's
+                    // own call context with no further indirection.
+                    case "PlanscapeConnect":
+                    case "PlanscapeAddMember":
+                    case "PlanscapeRemoveMember":
+                    case "PlanscapeLinkProject":
+                    case "PlanscapeTestConnection":
+                        RunBccPlanscapeCommand<BIMManager.PlanscapeConnectCommand>(action);
+                        return;
+                    case "PlanscapeSyncNow":
+                    case "PlanscapeOpenBrowser":
+                        RunBccPlanscapeCommand<BIMManager.PlatformSyncCommand>(action);
+                        return;
+                    case "PublishModelToPlanscape":
+                        RunBccPlanscapeCommand<BIMManager.PublishModelCommand>(action);
+                        return;
+                    case "PlanscapeExportTeam":
+                    case "PlanscapeExportConfig":
+                        RunBccPlanscapeCommand<BIMManager.ExportCoordLogCommand>(action);
+                        return;
+                    case "PlanscapeShareReport":
+                        RunBccPlanscapeCommand<BIMManager.GenerateDashboardCommand>(action);
+                        return;
+                    case "PlanscapeQR":
+                    case "PlanscapeQRCode":
+                        RunBccPlanscapeCommand<Tags.QRCodeCommand>(action);
+                        return;
                     case "EscalateActions":
                         EscalateOverdueActions(doc);
                         return;
@@ -5519,6 +5669,7 @@ namespace StingTools.Core
                 { "PlanscapeClearCredentials", "PlanscapeDisconnect" },
                 { "PlanscapeOpenBrowser",      "PlanscapeOpenWebDashboard" },
                 { "PublishModelToPlanscape",   "PublishModelToPlanscape" },
+                { "PlanscapeCreateProject",    "PlanscapeCreateProject" },
 
                 // Workflow actions
                 { "RunWorkflowPreset", "WorkflowPreset" },

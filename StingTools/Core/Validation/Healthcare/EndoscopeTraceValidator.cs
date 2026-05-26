@@ -1,7 +1,10 @@
+using StingTools.Core.Validation;
+using System;
 // Healthcare Pack H-26 — HTM 01-06 endoscope traceability validator.
 using Autodesk.Revit.DB;
 using System.Collections.Generic;
 using System.Linq;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Core.Validation.Healthcare
 {
@@ -9,6 +12,10 @@ namespace StingTools.Core.Validation.Healthcare
     {
         public override string Name => "EndoscopeTraceValidator";
         private const string Tag = "EndoscopeTraceValidator";
+
+        // Hc.EndoMinReaders slider override. Default 4 mirrors HTM 01-06
+        // (soak / AER / drying / storage chain).
+        public int MinReaders { get; set; } = 4;
 
         public override List<ValidationResult> Validate(Document doc)
         {
@@ -38,9 +45,9 @@ namespace StingTools.Core.Validation.Healthcare
                     }
                     return false;
                 });
-                if (roomReaders < 4)
+                if (roomReaders < MinReaders)
                     res.Add(new ValidationResult(room.Id, ValidationSeverity.Warning, "ENDO.READER.LOW",
-                        $"{room.Name} has {roomReaders} RFID readers — HTM 01-06 chain needs at minimum 4 (soak / AER / drying / storage)", Tag));
+                        $"{room.Name} has {roomReaders} RFID readers — chain needs at minimum {MinReaders} (HTM 01-06: soak / AER / drying / storage)", Tag));
             }
             return res;
         }

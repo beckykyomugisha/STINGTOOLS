@@ -19,6 +19,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.Attributes;
@@ -247,6 +248,54 @@ namespace StingTools.Model
                 .Select(d => d.DY / 2.0).DefaultIfEmpty(10).First();
 
             return 4 * halfX * halfY; // Full tributary rectangle
+        }
+
+        /// <summary>
+        /// Close the calc → model loop on the column-load takedown: walk every
+        /// LoadPath, take the maximum cumulative load seen per column, and
+        /// stamp STRUCT_COL_AXIAL_LOAD_KN (existing param). Caller owns the
+        /// Transaction. Returns the number of columns stamped.
+        /// </summary>
+        public static int WriteBack(Document doc, LoadPathAnalysisResult result)
+        {
+            int written = 0;
+            if (doc == null || result?.Paths == null) return written;
+
+            // A single column may appear on multiple LoadPaths (different
+            // tributary slabs feed it). Take the largest cumulative load
+            // seen on that column across all paths.
+            var perColumnMax = new Dictionary<long, double>();
+            foreach (var path in result.Paths)
+            {
+                if (path?.Links == null) continue;
+                foreach (var link in path.Links)
+                {
+                    if (link?.ElementId == null
+                        || !string.Equals(link.ElementType, "Column", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    long id = link.ElementId.Value;
+                    double load = link.CumulativeLoadKN > 0 ? link.CumulativeLoadKN : link.LoadInKN;
+                    if (!perColumnMax.TryGetValue(id, out double prev) || load > prev)
+                        perColumnMax[id] = load;
+                }
+            }
+
+            foreach (var kv in perColumnMax)
+            {
+                try
+                {
+                    var el = doc.GetElement(new ElementId(kv.Key));
+                    if (el == null) continue;
+                    if (StingTools.Core.ParameterHelpers.SetString(el, "STRUCT_COL_AXIAL_LOAD_KN",
+                            $"{kv.Value:F1}", overwrite: true))
+                        written++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"LoadPathTracer.WriteBack column {kv.Key}: {ex.Message}");
+                }
+            }
+            return written;
         }
     }
 

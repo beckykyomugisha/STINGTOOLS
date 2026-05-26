@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — family augmentation engine (Phase 175)
 //
 // Injects STING_SYMBOL_ID / STING_SYMBOL_STANDARD / STING_HOST_ELEMENT_ID
@@ -165,7 +166,7 @@ namespace StingTools.Core.Symbols
                                 if (string.IsNullOrEmpty(fm.CurrentType?.AsString(idParam)))
                                     fm.Set(idParam, r.ConceptId);
                             }
-                            catch (Exception ex) { StingTools.Core.StingLog.Warn($"AugmentFamily set type: {ex.Message}"); }
+                            catch (Exception ex2) { StingTools.Core.StingLog.Warn($"AugmentFamily set type: {ex2.Message}"); }
                         }
                     }
                     tx.Commit();
@@ -174,14 +175,14 @@ namespace StingTools.Core.Symbols
                 famDoc.LoadFamily(doc, new ReuseLoadOptions());
                 r.Success = true;
             }
-            catch (Exception ex)
+            catch (Exception ex2)
             {
-                r.Warning = ex.Message;
-                StingTools.Core.StingLog.Warn($"AugmentFamily {fam.Name}: {ex.Message}");
+                r.Warning = ex2.Message;
+                StingTools.Core.StingLog.Warn($"AugmentFamily {fam.Name}: {ex2.Message}");
             }
             finally
             {
-                try { famDoc?.Close(false); } catch (Exception ex) { StingTools.Core.StingLog.Warn($"AugmentFamily close: {ex.Message}"); }
+                try { famDoc?.Close(false); } catch (Exception ex2) { StingTools.Core.StingLog.Warn($"AugmentFamily close: {ex2.Message}"); }
             }
             return r;
         }
@@ -219,7 +220,7 @@ namespace StingTools.Core.Symbols
             }
             finally
             {
-                try { famDoc?.Close(false); } catch (Exception ex) { StingTools.Core.StingLog.Warn($"Rollback close: {ex.Message}"); }
+                try { famDoc?.Close(false); } catch (Exception ex2) { StingTools.Core.StingLog.Warn($"Rollback close: {ex2.Message}"); }
             }
         }
 

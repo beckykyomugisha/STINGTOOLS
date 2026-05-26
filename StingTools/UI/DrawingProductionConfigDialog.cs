@@ -22,20 +22,20 @@
 // can land in a follow-up.
 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
+using StingTools.Core;
 using StingTools.Core.Drawing;
-// Resolve type collisions between WPF and Revit API:
-//   System.Windows.Controls.Grid vs Autodesk.Revit.DB.Grid
-//   System.Windows.Visibility    vs Autodesk.Revit.DB.WorksetVisibility ("Visibility" prefix)
+using Button     = System.Windows.Controls.Button;
+using ComboBox   = System.Windows.Controls.ComboBox;
 using Grid       = System.Windows.Controls.Grid;
+using TextBox    = System.Windows.Controls.TextBox;
 using Visibility = System.Windows.Visibility;
-
 namespace StingTools.UI
 {
     public sealed class DrawingProductionConfigDialog : Window

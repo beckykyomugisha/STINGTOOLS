@@ -14,6 +14,7 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
 using Autodesk.Revit.DB;
+using StingTools.Core;
 
 namespace StingTools.Core.Electrical
 {
@@ -33,6 +34,7 @@ namespace StingTools.Core.Electrical
         public string SourceEquipmentId { get; set; } = "";
         public string DestEquipmentId   { get; set; } = "";
         public List<long> RouteTrayIds  { get; set; } = new List<long>();
+        public List<long> JunctionBoxIds { get; set; } = new List<long>();
         public double TotalLengthM     { get; set; }
         public double VoltageDropPct   { get; set; }
 

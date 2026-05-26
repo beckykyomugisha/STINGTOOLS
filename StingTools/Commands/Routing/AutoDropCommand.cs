@@ -14,6 +14,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Routing;
 using StingTools.UI;
+using StingTools.Core.Placement;
 
 namespace StingTools.Commands.Routing
 {
@@ -34,6 +35,15 @@ namespace StingTools.Commands.Routing
         public static string ConduitInstallMethod { get; set; } = "CLIPPED";
         public static string DuctSeamType       { get; set; } = "A";
         public static string PipeHangerType     { get; set; } = "CLEVIS_ROD";
+
+        /// <summary>When true the auto-drop engines emit hanger / support
+        /// families after routing, per BS 5572 / MSS SP-58 spacing rules.</summary>
+        public static bool   EmitSupports       { get; set; } = false;
+
+        /// <summary>Mounting context passed to the support placer so it can
+        /// choose the right hanger family variant (e.g. "SUSPENDED",
+        /// "SURFACE_MOUNT", "CHASED").</summary>
+        public static string MountingContext    { get; set; } = string.Empty;
     }
 
     [Transaction(TransactionMode.Manual)]

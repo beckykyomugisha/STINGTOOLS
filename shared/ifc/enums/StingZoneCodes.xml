@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1"
+                          version="1.0.0"
+                          schema_version="1">
+
+  <Identity>
+    <Name>StingZoneCodes</Name>
+    <Definition>Zone codes for the third segment (ZONE) of the STING 8-segment tag. This is a PROJECT-SCOPED TEMPLATE — values are replaced per project via &lt;project&gt;/_BIM_COORD/enums/StingZoneCodes.xml. Per-element ZONE values must additionally reference an IfcZone via IfcRelAssignsToGroup whose Pset_StingSpatialCodes.ZoneCode matches (cross-entity IDS rule). Zone categories include fire compartments, acoustic zones, clinical zones, pressure regimes, HVAC zones — projects choose their semantic.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4001-9000-000000000006</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>project_template</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape) — template only</Maintainer>
+    <StandardsBasis>ISO 19650-2 §5.3 spatial structure; BS 9999 (fire compartmentation); HTM 03-01 (clinical pressure regimes); CIBSE Guide A (HVAC zoning); cross-bound to IfcZone via Pset_StingSpatialCodes</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Z01" sentinel="false">
+      <Definition>PLACEHOLDER — Zone 1. Projects replace with site-specific zone names (e.g. WARD-A, OR-SUITE, ATRIUM).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Z02" sentinel="false">
+      <Definition>PLACEHOLDER — Zone 2.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Z03" sentinel="false">
+      <Definition>PLACEHOLDER — Zone 3.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Z04" sentinel="false">
+      <Definition>PLACEHOLDER — Zone 4.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Z05" sentinel="false">
+      <Definition>PLACEHOLDER — Zone 5.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Z06" sentinel="false">
+      <Definition>PLACEHOLDER — Zone 6.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Z07" sentinel="false">
+      <Definition>PLACEHOLDER — Zone 7.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Z08" sentinel="false">
+      <Definition>PLACEHOLDER — Zone 8.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ZZ" sentinel="false">
+      <Definition>Project-wide / multi-zone. Reserved code for elements that genuinely cross every zone (e.g. main vertical risers).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned. IDS fails at Stage 3+.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="*" sentinel="true">
+      <Definition>Wildcard for routing rules. Never tagged on an element.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <!-- No CorporateLock — project-scoped template. -->
+
+</StingPropertyEnumeration>

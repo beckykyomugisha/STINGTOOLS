@@ -12,9 +12,9 @@
 //   await client.disconnect();
 
 import * as signalR from '@microsoft/signalr';
+import { getBaseUrl } from '../api/client';
 import { secureStorage } from './secureStorage';
-
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.planscape.app';
+import { apiClient } from './apiClient';
 
 export interface ArchiCADElement {
   kind:         'Added' | 'Changed' | 'Deleted';
@@ -49,10 +49,13 @@ export class ArchiCADLiveClient {
 
   async connect(projectId: string): Promise<void> {
     this._projectId = projectId;
-    const token = await secureStorage.getToken();
+    const [token, baseUrl] = await Promise.all([
+      secureStorage.getToken(),
+      getBaseUrl(),
+    ]);
 
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${BASE_URL}/hubs/archicad`, {
+      .withUrl(`${baseUrl}/hubs/archicad`, {
         accessTokenFactory: () => token ?? '',
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
@@ -71,10 +74,35 @@ export class ArchiCADLiveClient {
 
     this.connection.onreconnected(async () => {
       await this.connection?.invoke('JoinProject', projectId);
+      // Re-fetch recent events after reconnect so we don't miss changes
+      // that arrived while the connection was down.
+      await this._fetchRecentEvents(projectId);
     });
 
     await this.connection.start();
     await this.connection.invoke('JoinProject', projectId);
+
+    // Gap L — late-join catch-up: replay the server-side ring buffer (up to 200 events)
+    // so the client is immediately up to date without waiting for the next push.
+    await this._fetchRecentEvents(projectId);
+  }
+
+  /** Fetch and replay the server-side ArchiCAD event ring buffer. */
+  private async _fetchRecentEvents(projectId: string): Promise<void> {
+    try {
+      const data = await apiClient.get<{ events: ArchiCADElement[] }>(
+        `/api/archicad/${projectId}/events/recent?count=200`
+      );
+      if (data?.events?.length) {
+        // Replay in chronological order (oldest first so handlers see the right sequence).
+        const sorted = [...data.events].sort(
+          (a, b) => new Date(a.timestampUtc).getTime() - new Date(b.timestampUtc).getTime()
+        );
+        sorted.forEach(ev => this._emit(ev));
+      }
+    } catch {
+      // Non-fatal — live events will fill the gap as they arrive.
+    }
   }
 
   async disconnect(): Promise<void> {

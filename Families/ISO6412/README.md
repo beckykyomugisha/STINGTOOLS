@@ -1,202 +1,194 @@
-# ISO 6412 Detail Symbol Library — Family Contract
+# Families/ISO6412 — Seed Symbol Families
 
-This directory holds the `.rfa` detail-component families that
-`StingTools.Core.Fabrication.IsoSymbolPlacer` drops onto fabrication
-shop drawings (the ISO 6412 axonometric created by
-`AssemblyViewBuilder` for every spool / assembly).
+This folder holds **hand-drafted, standard-accurate Revit annotation families** (`.rfa`) for
+ISO 6412 / BS 308 Part 3 piping, duct, and conduit spool symbols.
 
-The placer is invoked two ways:
+---
 
-1. **Auto** — `Generate Fabrication Package` runs the placer for every
-   generated assembly when `FabricationOptions.PlaceISO6412Symbols` is
-   on (Fabrication tab → "Place ISO 6412 symbols" checkbox).
-2. **Manual** — the standalone `Place ISO 6412 Symbols` command
-   (`Fabrication_PlaceISOSymbols`) re-runs the placer against the
-   active assembly view or a selection of `AssemblyInstance`s, useful
-   when this folder is updated after the package was generated.
+## Why this folder exists
 
-## Catalogue
+STING can **auto-generate** symbol families from the JSON definitions in
+`StingTools/Data/Symbols/STING_ISO6412_SYMBOLS.json`. Those generated families are marked
+`"status": "draft"` — their geometry is a reasonable approximation of the standard but has
+**not** been dimensionally verified. They are useful as placeholders while proper seed families
+are being authored.
 
-The catalogue lives in `StingTools/Data/Fabrication/STING_ISO_SYMBOLS_INDEX.csv`
-(188 rows). Each row maps:
+When a seed `.rfa` is placed here, `MepSymbolEngine` picks it up at **search tier 1** (highest
+priority) and uses it instead of the generated family. The JSON generator is never called for
+that symbol.
 
-| Column           | Purpose                                                   |
-|------------------|-----------------------------------------------------------|
-| `symbol_code`    | Uppercase keyword matched against assembly member names   |
-| `family_filename`| `.rfa` to load — must live in **this** directory          |
-| `category`       | `Pipe` / `Duct` / `Conduit` / etc. (used as fallback)     |
-| `description`    | Human-readable description (not used at runtime)          |
+---
 
-Lookup order in `IsoSymbolPlacer.ResolveSymbol`:
+## File Naming Convention
 
-1. Substring match: member name (uppercase) **contains** `symbol_code`.
-2. Category fallback: `member.Category.Name == row.Category` (first row wins).
+Every file **must** be named exactly as the `id` field in the JSON definition, with `.rfa` extension.
 
-## Family contract
-
-Every family in this folder MUST satisfy the following so the placer
-can use it without per-family special cases:
-
-### File naming
-
-* Filename matches `family_filename` in the CSV exactly, **including**
-  case on case-sensitive filesystems.
-* Extension is `.rfa`.
-* Convention: `STING_FAM_<DISCIPLINE>_<KIND>.rfa`, e.g.
-  `STING_FAM_PIPE_ELBOW_90_BW.rfa`.
-
-### Family template
-
-* **Detail Item** family (`Metric Detail Item.rft` or your local
-  equivalent) — NOT a 3D model component. The placer calls
-  `doc.Create.NewFamilyInstance(point, fs, view)` with a 2D detail
-  view, so the family must accept that overload (Detail Item families
-  do; Generic Model 3D families do not).
-* The placer validates `Family.FamilyCategory` at load time and warns
-  (once per session per family) when the category is not Detail Item
-  or Generic Annotation. Hosted families, 3D Generic Models, and MEP
-  families will trigger the warning — placement may still proceed but
-  the symbol can render at the wrong scale or fail to position
-  correctly. Re-author from the Detail Item template.
-* Drawn **at the family origin**. The placer puts the symbol at the
-  member's `LocationPoint` (or first `LocationCurve` endpoint) — there
-  is no per-symbol offset, so author the linework so the visual
-  centre is at (0,0).
-* Symbols are 2D linework only (Symbolic Lines, Filled Regions,
-  Detail Lines). No 3D extrusions, no host requirements.
-
-### Required parameters
-
-All listed parameters are **optional** — the placer's `LookupParameter`
-calls are guarded by null-checks — but adding them unlocks features:
-
-| Parameter name                          | Storage  | Purpose                                                  |
-|-----------------------------------------|----------|----------------------------------------------------------|
-| `Symbol Scale`                          | Integer  | View scale (50 for a 1:50 view). Placer only writes when current value is at the convention default of 50, so families authored at non-default scales aren't overwritten. |
-| `Symbol Scale`                          | Double   | Same — placer accepts either storage type.              |
-| `STING_ISO_SYMBOL_SCALE_IN`             | Double   | STING-namespaced parallel param.                        |
-| `STING_PLACED_BY_SYMBOL_PLACER_BOOL`    | Integer  | **Required for idempotency.** Set to 1 by the placer; used to detect "already placed" instances in NewOnly mode and to find purge targets in Replace mode. |
-| `STING_PLACER_ASSY_ID_TXT`              | String   | Owning assembly's ElementId.                            |
-| `STING_PLACER_MEMBER_ID_TXT`            | String   | Source member's ElementId — keyed for idempotency.      |
-| `STING_PLACER_SYMBOL_CODE_TXT`          | String   | Resolved CSV `symbol_code`.                             |
-
-**Without** the stamp parameters above, re-running the placer will
-create duplicates because the placer can't tell that a member was
-already symbolised. Add them as instance shared parameters in every
-family in this folder.
-
-If you parameterise linework size by `Symbol Scale`, a 1:25 detail and
-a 1:50 spool render the same plotted millimetres.
-
-### Leaders
-
-When the 8-quadrant collision-avoidance pass displaces a symbol from
-its true anchor (because another symbol is already there), the placer
-draws a straight `DetailCurve` leader from the displaced symbol back
-toward the member anchor. The leader stops a half-step short of the
-symbol so it doesn't pass through the symbol body. Co-located symbols
-(no displacement) skip the leader since the symbol overlay is its own
-visual cue per ISO 6412.
-
-Leader detail curves carry the same placer stamps as the symbols, so:
-
-* Replace mode purges them with the symbols.
-* `FabricationUndoManager` rolls them back as part of the package.
-
-### Placement modes
-
-`FabricationOptions.SymbolPlacementMode` is a tri-state read by both
-auto and manual paths:
-
-| Mode      | Behaviour                                                           |
-|-----------|--------------------------------------------------------------------|
-| `Off`     | Skip the placer entirely.                                          |
-| `NewOnly` | (default) Skip members whose `STING_PLACER_MEMBER_ID_TXT` already matches a placed instance on the view — idempotent re-runs. |
-| `Replace` | Purge every placer-stamped instance on the view first, then re-place all members from scratch. |
-
-Per-discipline gates (`FabricationOptions.PlaceISOPipe / PlaceISODuct
-/ PlaceISOElectrical`) further restrict which fabricators emit symbols.
-
-### Authoring checklist
-
-- [ ] Detail Item family template
-- [ ] Linework centred at origin
-- [ ] 8 × 8 mm bounding box at 1:50 (scale via `Symbol Scale`)
-- [ ] No 3D, no host
-- [ ] No reference planes named `Center (Front/Back)` etc. that
-      collide with annotation symbol-host expectations
-- [ ] `Symbol Scale` instance parameter (Integer, default 50)
-- [ ] Family filename matches CSV exactly
-- [ ] Test: load into a project, place on a Section view → renders
-      cleanly at 1:50 and 1:25
-
-## Missing families
-
-If a family listed in the CSV is not present in this directory:
-
-* `IsoSymbolPlacer.ResolveFamilySymbol` logs a single warning per
-  family per session (`StingLog.Warn` → `StingTools.log`).
-* The missing filename is added to `FabricationResult.MissingFamilies`
-  and surfaced in the `FabricationResultDialog`'s "ISO 6412 symbols"
-  card so the user sees exactly what to author next.
-* The element is silently skipped — placement continues for other
-  members.
-
-## Recommended authoring order
-
-The 188-row catalogue is long; ship a placeholder pack of the highest-
-frequency symbols first to validate the wiring, then fill in the long
-tail. The top-20 quick-win set:
-
-| Discipline | Symbol codes |
+| JSON id | Required filename |
 |---|---|
-| Pipe | `ELBOW_90_BW`, `ELBOW_45_BW`, `TEE_EQ`, `TEE_RED`, `RED_CONC`, `RED_ECC`, `COUPLING`, `UNION`, `CAP`, `FLANGE_WN`, `FLANGE_SO`, `VALVE_GATE`, `VALVE_BALL`, `VALVE_CHECK` |
-| Duct  | `DUCT_ELBOW_90`, `DUCT_TEE`, `DUCT_RED`, `DAMPER_VOLUME` |
-| Conduit | `CDT_ELBOW_90`, `CDT_BOX_4SQ` |
+| `ISO6412_ELBOW_90_BW` | `ISO6412_ELBOW_90_BW.rfa` |
+| `ISO6412_GATE_VALVE_FS` | `ISO6412_GATE_VALVE_FS.rfa` |
+| `ISO6412_WELD_BW` | `ISO6412_WELD_BW.rfa` |
 
-Author those 20 first, regenerate a fabrication package against a test
-project, and verify symbols render on the ISO views before committing
-to the long tail.
+The full list of 164 expected filenames is in the [Quick Reference table](../../docs/guides/ISO6412_WORKFLOW_AND_DRAFTING_GUIDE.md#quick-reference).
 
-## Project overrides
+---
 
-The CSV itself can be overridden per project. `IsoSymbolPlacer` reads
-the bundled file via `StingToolsApp.FindDataFile(...)`, which prefers
-project-local copies — drop a customised `STING_ISO_SYMBOLS_INDEX.csv`
-into the project's data folder to add or remap symbols without
-shipping a new plugin build.
+## Family Template
 
-## View identification
+All seed families must use the **Generic Annotation** template:
 
-Every ISO 6412 view created by `AssemblyViewBuilder.CreateIso6412Section`
-is renamed to:
+- Revit template: `Generic Annotation.rft`
+- Family Category: `Generic Annotations`
+- Subcategory: `ISO6412` (create if absent — Manage → Object Styles → Annotation Objects → New)
+
+Do **not** use Detail Component, Detail Item, or any 3D template.
+
+---
+
+## Required Shared Parameters
+
+Every seed family must bind these shared parameters from
+`Families/ISO6412/STING_ISO_SYMBOL_TEMPLATE.params.txt`:
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `Symbol Scale` | Integer | Runtime scale modifier (wire to geometry in family) |
+| `STING_PLACED_BY_SYMBOL_PLACER_BOOL` | Yes/No | Set by IsoSymbolPlacer on placement |
+| `STING_PLACER_ASSY_ID_TXT` | Text | Assembly ID that placed this instance |
+| `STING_PLACER_MEMBER_ID_TXT` | Text | Member element ID |
+| `STING_PLACER_SYMBOL_CODE_TXT` | Text | Symbol code for back-reference |
+| `STING_ISO_SYMBOL_SCALE_IN` | Number | Internal scale factor |
+| `STING_FINALIZATION_CHECKLIST` | Integer | Quality gate bitmask |
+
+---
+
+## Line Weight Specification
+
+Line weights follow **ISO 128-20** and **BS 8888** for technical drawing:
+
+| Use | Pen weight | Revit line weight number* |
+|---|---|---|
+| Main symbol outline | 0.35 mm | 3 |
+| Pipe centreline (run) | 0.25 mm | 2 |
+| Hidden / secondary lines | 0.18 mm | 1 |
+| Weld symbols | 0.50 mm | 4 |
+| Filled regions (solid valve bodies) | 0.25 mm outline | 2 |
+
+\* Revit line weight numbers depend on the project's line weight table. Calibrate to your
+corporate standard. The numbers above assume the STING corporate line weight table where
+number 1 = 0.18 mm, 2 = 0.25 mm, 3 = 0.35 mm, 4 = 0.5 mm.
+
+Assign line weights **by subcategory** in the family (Manage → Object Styles inside the family
+document), not per-element. This allows project-wide override via Object Styles.
+
+---
+
+## Scale Behaviour
+
+Spool isometric drawings use `view.Scale = 1` (paper scale = model scale).
+At scale 1:1 a symbol drawn at 6 mm in the family appears 6 mm on paper.
+
+**To make symbols resizable** — wire the `Symbol Scale` integer parameter to a reference
+parameter that multiplies all geometry lengths. Pattern:
 
 ```
-STING ISO 6412 - {assemblyTypeName} ::{assemblyElementId}
+Geometry length formula = <base_length_ft> * (Symbol Scale / 100)
 ```
 
-The trailing `::id` is parsed back by `PlaceIsoSymbolsCommand` so the
-standalone command can find the right view from a selected
-`AssemblyInstance` (and vice-versa). Don't rename these views —
-renaming breaks the link and the standalone command falls back to a
-slow `GetAssociatedAssemblyViews()` scan that won't return the
-hand-rolled section.
+Default `Symbol Scale = 100` = 100% = nominal size. `Symbol Scale = 150` = 50% larger.
 
-## Audit trail
+---
 
-Every placement run appends to `STING_v4_iso_symbols.csv` in the
-project's output directory:
+## Symbol Geometry Conventions
 
 ```
-assembly_id, assembly_name, view_id, view_name, member_id,
-member_category, member_name, family_name, symbol_code,
-family_file, resolved
+      +Y (branch up)
+       |
+−X ────┼──── +X  (pipe run, flow left → right)
+       |
+      −Y
 ```
 
-`resolved = 1` rows show what got matched; `resolved = 0` rows show
-which members fell through the resolution chain — useful for extending
-the catalogue.
+- Pipe centreline runs along **Y = 0**
+- Inlet on the left (`x = −0.5`), outlet on the right (`x = +0.5`)
+- All coordinates normalised −0.5 to +0.5 over the symbol bounding box
+- Actual size set by `symbolSize` mm (6 mm for pipe/valves/flanges, 8 mm for duct, 4 mm for welds)
 
-Placed `FamilyInstance` ids are added to `FabricationResult.SymbolIds`
-and persisted by `FabricationUndoManager`, so the standard
-`Undo Fabrication Package` command rolls back symbols too.
+---
+
+## Controlling Colour and Line Weight in Projects
+
+Because all symbols share the `ISO6412` subcategory, overrides are easy:
+
+| Scope | Where |
+|---|---|
+| **All symbols, all views** | Manage → Object Styles → Annotation Objects → ISO6412 |
+| **All symbols, one view** | View → Visibility/Graphics → Annotation Categories → ISO6412 row |
+| **One symbol instance** | Right-click → Override Graphics in View → By Element |
+
+---
+
+## How to Submit a Corrected Family
+
+1. **Draft the family** against the actual ISO 6412 / BS 308 Part 3 plate. Use the coordinate
+   conventions and line weight spec above.
+2. **Checklist** — run through the relevant checklist in
+   `docs/guides/ISO6412_WORKFLOW_AND_DRAFTING_GUIDE.md §5` before submitting.
+3. **Name the file** exactly as the JSON `id` (see naming convention above).
+4. **Add to this folder** and commit on a feature branch:
+   ```
+   git add Families/ISO6412/ISO6412_GATE_VALVE_FS.rfa
+   git commit -m "Add seed family: ISO6412_GATE_VALVE_FS (BS 308 Pt3 verified)"
+   ```
+5. **Update JSON status** — change `"status": "draft"` to `"status": "reviewed"` for that
+   symbol in `STING_ISO6412_SYMBOLS.json`.
+6. Once accepted and the family is committed, update to `"status": "final"`.
+
+---
+
+## Finalization Gate
+
+A symbol is considered **final** when ALL of the following are true:
+
+- [ ] `.rfa` file committed to this folder with correct name
+- [ ] Geometry verified against ISO 6412 / BS 308 Part 3 plate
+- [ ] Line weights set by subcategory (not by element)
+- [ ] `Symbol Scale` parameter wired to geometry
+- [ ] All 7 shared parameters bound
+- [ ] JSON `"status"` updated to `"final"`
+- [ ] `STING_FINALIZATION_CHECKLIST` bitmask set to `127` (all 7 bits)
+
+---
+
+## Current Status
+
+**261 symbols** defined in `STING_ISO6412_SYMBOLS.json` (164 baseline + 97 added
+in the Phase 188 symbol review): pipe fittings, flanges, 19 valve variants,
+22 ductwork fittings, 8 BS 4568 conduit bodies, 3 cable-tray fittings, 15
+ISO 2553 weld marks (including 5 NDT types), 7 MSS SP-58 hangers, 4
+penetrations, and 18 drafting-annotation symbols.
+
+**0 seed `.rfa` families committed.** All symbols are currently
+`"status": "draft"` — `IsoSymbolPlacer` falls back to the runtime-generated
+families produced by `SymbolLibraryCreator`.
+
+See the [Quick Reference](../../docs/guides/ISO6412_WORKFLOW_AND_DRAFTING_GUIDE.md#quick-reference)
+for the full list of symbol IDs, categories, and symbol sizes.
+
+---
+
+## Dual-Naming Convention (Important for Placer Authors)
+
+`IsoSymbolPlacer.ResolveFamilySymbol` checks family names in two tiers,
+which avoids the "index says X, JSON produces Y" mismatch that an early
+audit flagged as a bug:
+
+| Tier | Family name searched | Source |
+|---|---|---|
+| 1 | `STING_FAM_<code>` (e.g. `STING_FAM_PIPE_ELBOW_90_BW`) | `FamilyFile` column in `Data/Fabrication/STING_ISO_SYMBOLS_INDEX.csv` — used when a hand-drafted seed `.rfa` lives in this folder |
+| 2 | `ISO6412_<code>` (e.g. `ISO6412_ELBOW_90_BW`) | JSON `id` from `STING_ISO6412_SYMBOLS.json` — used for runtime-generated families under `<project>/_BIM_COORD/Families/Symbols/ISO6412/` |
+
+When you ship a seed `.rfa`, use the **`STING_FAM_*` name from the CSV** so
+the placer prefers it over the auto-generated equivalent. When the placer
+fails to find either name it logs once per family and adds an entry to
+`FabricationResult.MissingFamilies`.

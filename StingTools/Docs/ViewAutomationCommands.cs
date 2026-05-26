@@ -95,7 +95,7 @@ namespace StingTools.Docs
                         newName = $"{baseName} Copy {suffix++}";
                     }
                     try { newView.Name = newName; }
-                    catch (Exception ex) { StingLog.Warn($"DuplicateView rename: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"DuplicateView rename: {ex2.Message}"); }
                 }
 
                 tx.Commit();
@@ -517,9 +517,9 @@ namespace StingTools.Docs
                                     source.GetFilterVisibility(filterId));
                                 filtersCopied++;
                             }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
-                                StingLog.Warn($"Copy filter to '{target.Name}': {ex.Message}");
+                                StingLog.Warn($"Copy filter to '{target.Name}': {ex2.Message}");
                             }
                         }
 

@@ -176,13 +176,13 @@ namespace StingTools.BIMManager
                     {
                         // Always release lock
                         try { if (File.Exists(lockFile)) File.Delete(lockFile); }
-                        catch (Exception ex) { StingLog.Warn($"SyncLock cleanup: {ex.Message}"); }
+                        catch (Exception exLock) { StingLog.Warn($"SyncLock cleanup: {exLock.Message}"); }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Error($"SyncToCentral: {ex.Message}", ex);
-                    return CollaborationResult.Failed($"Sync failed: {ex.Message}");
+                    StingLog.Error($"SyncToCentral: {ex2.Message}", ex2);
+                    return CollaborationResult.Failed($"Sync failed: {ex2.Message}");
                 }
             }
         }

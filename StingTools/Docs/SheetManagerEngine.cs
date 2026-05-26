@@ -700,9 +700,9 @@ namespace StingTools.Docs
                         {
                             viewIdToPlace = view.Duplicate(config.DuplicateMode);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
-                            StingLog.Warn($"Could not duplicate view '{view.Name}': {ex.Message}");
+                            StingLog.Warn($"Could not duplicate view '{view.Name}': {ex2.Message}");
                             continue;
                         }
                     }
@@ -721,12 +721,12 @@ namespace StingTools.Docs
                             if (typeId != ElementId.InvalidElementId)
                             {
                                 try { newVp.ChangeTypeId(typeId); }
-                                catch (Exception ex) { StingLog.Warn($"Type not available: {ex.Message}"); }
+                                catch (Exception ex2) { StingLog.Warn($"Type not available: {ex2.Message}"); }
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
-                            StingLog.Warn($"Could not place viewport for '{view.Name}' on cloned sheet: {ex.Message}");
+                            StingLog.Warn($"Could not place viewport for '{view.Name}' on cloned sheet: {ex2.Message}");
                         }
                     }
                 }
@@ -746,9 +746,9 @@ namespace StingTools.Docs
                     {
                         ScheduleSheetInstance.Create(doc, newSheet.Id, ssi.ScheduleId, ssi.Point);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
-                        StingLog.Warn($"Could not copy schedule to cloned sheet: {ex.Message}");
+                        StingLog.Warn($"Could not copy schedule to cloned sheet: {ex2.Message}");
                     }
                 }
             }

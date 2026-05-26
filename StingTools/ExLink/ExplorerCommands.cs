@@ -455,10 +455,10 @@ namespace StingTools.ExLink
                                 unplacedRooms++;
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"UnusedElements room: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"UnusedElements room: {ex2.Message}"); }
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"UnusedElements rooms scan: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"UnusedElements rooms scan: {ex2.Message}"); }
 
                 // --- Empty groups ---
                 int emptyGroups = 0;
@@ -484,10 +484,10 @@ namespace StingTools.ExLink
                                 emptyGroups++;
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"UnusedElements group: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"UnusedElements group: {ex2.Message}"); }
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"UnusedElements groups scan: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"UnusedElements groups scan: {ex2.Message}"); }
 
                 // --- Report ---
                 var summary = $"Unused Families: {unusedFamilies}\n" +

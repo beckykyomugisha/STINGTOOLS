@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — BendRadiusValidator.
 //
 // Post-create validation that every conduit fitting in a created

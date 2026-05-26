@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Commands.Standards;
 using StingTools.Core;
+using StingTools.Core.Mep;
 using StingTools.Standards;
 using StingTools.UI;
 
@@ -71,10 +72,10 @@ namespace StingTools.Commands.MepDesign
                             }
                             else skipped++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             skipped++;
-                            warnings.Add($"circuit {el?.Id}: {ex.Message}");
+                            warnings.Add($"circuit {el?.Id}: {ex2.Message}");
                         }
                     }
                     tx.Commit();
@@ -386,9 +387,8 @@ namespace StingTools.Commands.MepDesign
                 foreach (var el in new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_DuctCurves).WhereElementIsNotElementType())
                 {
-                    double cfm = ReadBip(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                    if (cfm <= 0) continue;
-                    double lps = cfm * 0.4719;
+                    double lps = MepUnits.ReadBuiltInFlowLs(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
+                    if (lps <= 0) continue;
                     branches.Add(($"D{el.Id}", lps, 0.1, el.Id, true));
                 }
                 foreach (var el in new FilteredElementCollector(doc)
@@ -422,7 +422,7 @@ namespace StingTools.Commands.MepDesign
             using (var tx = new Transaction(doc, "STING MEP-A-12 balance apply"))
             {
                 try { tx.Start(); }
-                catch (Exception ex) { MepPanel.Build("MEP-A-12 Balance apply", "tx failed").AddSection("").Text(ex.Message).Show(); return Result.Failed; }
+                catch (Exception ex2) { MepPanel.Build("MEP-A-12 Balance apply", "tx failed").AddSection("").Text(ex2.Message).Show(); return Result.Failed; }
                 try
                 {
                     foreach (var b in branches)
@@ -434,9 +434,17 @@ namespace StingTools.Commands.MepDesign
                         {
                             if (b.IsDuct)
                             {
-                                double cfm = outcome.ActualFlowLs / 0.4719;
+                                // Write the balanced flow back through UnitUtils so the
+                                // value lands in whatever internal unit Revit expects
+                                // for AirFlow rather than assuming raw CFM.
                                 var p = el.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double) { p.Set(cfm); written++; }
+                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
+                                {
+                                    double internalVal = UnitUtils.ConvertToInternalUnits(
+                                        outcome.ActualFlowLs, UnitTypeId.LitersPerSecond);
+                                    p.Set(internalVal);
+                                    written++;
+                                }
                                 else skipped++;
                             }
                             else
@@ -446,14 +454,14 @@ namespace StingTools.Commands.MepDesign
                                 else skipped++;
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
+                        catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); skipped++; }
                     }
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    StingLog.Warn($"BalanceApply commit: {ex.Message}");
+                    StingLog.Warn($"BalanceApply commit: {ex3.Message}");
                 }
             }
 

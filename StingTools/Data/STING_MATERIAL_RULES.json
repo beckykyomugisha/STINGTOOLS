@@ -1,0 +1,44 @@
+{
+  "_comment": "STING auto-apply material rules — corporate baseline.",
+  "_help": [
+    "First-match-wins. Each rule supports:",
+    "  category       — Revit category name as shown in the Categories dialog (e.g. 'Walls', 'Floors', 'Roofs').",
+    "  familyPattern  — regex matched against the family/type name (optional).",
+    "  levelPattern   — regex matched against the level name (optional).",
+    "  phasePattern   — regex matched against the PHASE_CREATED name (optional).",
+    "  material       — the Material name to apply if the rule matches.",
+    "Missing patterns are wildcard. Override at <project>/_BIM_COORD/material_rules.json.",
+    "Auto-apply is OFF by default — toggle from the MAT tab once your rules + materials are in place."
+  ],
+  "rules": [
+    { "category": "Walls",      "familyPattern": "^Basic.*Concrete",     "material": "BLE_Concrete_C40" },
+    { "category": "Walls",      "familyPattern": "^Basic.*Block",        "material": "BLE_Block_Heavy" },
+    { "category": "Walls",      "familyPattern": "^Basic.*Brick",        "material": "BLE_Brick_Standard" },
+    { "category": "Walls",      "familyPattern": "^Basic.*Partition",    "material": "BLE_Plasterboard_Standard" },
+    { "category": "Walls",      "familyPattern": "^Curtain",             "material": "BLE_Glass_Glazing" },
+    { "category": "Floors",     "familyPattern": "^Concrete.*",          "material": "BLE_Concrete_C30" },
+    { "category": "Floors",     "familyPattern": "^Timber.*",            "material": "BLE_Timber_Softwood" },
+    { "category": "Floors",     "familyPattern": "^Generic.*",           "material": "BLE_Concrete_C30" },
+    { "category": "Roofs",      "familyPattern": "^Basic.*Concrete",     "material": "BLE_Concrete_C30" },
+    { "category": "Roofs",      "familyPattern": "^Steel.*|^Metal.*",    "material": "BLE_Steel_S355" },
+    { "category": "Ceilings",   "familyPattern": "^Compound.*",          "material": "BLE_Plasterboard_Standard" },
+    { "category": "Ceilings",   "familyPattern": "^Basic.*",             "material": "BLE_Plasterboard_Standard" },
+
+    { "category": "Doors",      "familyPattern": "^M_?Single.*Wood",     "material": "BLE_Timber_Hardwood" },
+    { "category": "Doors",      "familyPattern": "^M_?.*Glass",          "material": "BLE_Glass_Glazing" },
+    { "category": "Doors",      "familyPattern": "^M_?.*Metal|^M_?.*Steel", "material": "BLE_Steel_Galvanised" },
+    { "category": "Windows",    "familyPattern": "^M_?.*",               "material": "BLE_Glass_Glazing" },
+
+    { "category": "Columns",                  "familyPattern": "^Concrete.*", "material": "BLE_Concrete_C40" },
+    { "category": "Structural Columns",       "familyPattern": "^Concrete.*", "material": "BLE_Concrete_C40" },
+    { "category": "Structural Columns",       "familyPattern": "^UC.*|^Steel.*|^W-Wide.*", "material": "BLE_Steel_S355" },
+    { "category": "Structural Framing",       "familyPattern": "^UB.*|^Steel.*|^W-Wide.*", "material": "BLE_Steel_S355" },
+    { "category": "Structural Framing",       "familyPattern": "^Concrete.*", "material": "BLE_Concrete_C40" },
+    { "category": "Structural Foundations",   "familyPattern": ".*",          "material": "BLE_Concrete_C30" },
+
+    { "category": "Pipes",       "familyPattern": ".*",  "material": "MEP_Pipe_Copper_TypeL" },
+    { "category": "Ducts",       "familyPattern": ".*",  "material": "MEP_Duct_Galvanised_Steel" },
+    { "category": "Conduits",    "familyPattern": ".*",  "material": "MEP_Conduit_PVC_Rigid" },
+    { "category": "Cable Trays", "familyPattern": ".*",  "material": "MEP_CableTray_Galv_Steel" }
+  ]
+}

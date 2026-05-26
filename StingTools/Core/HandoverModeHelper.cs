@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
+using System.Linq;
 
 namespace StingTools.Core
 {
@@ -42,7 +43,13 @@ namespace StingTools.Core
                 { "Custom",             "HANDOVER_MODE_CUSTOM_BOOL" },
             };
 
-        private static readonly string[] Disciplines = { "ARCH", "GEN", "MEP", "STR" };
+        // HEALTH ships only as the canonical (mode-less) STING_TAG_CONFIG_v5_0_HEALTH.csv —
+        // no DesignConstruction sibling exists, so GetTagConfigCsv falls through to
+        // the Handover default and the variant resolver harmlessly returns the same
+        // file across all modes. The HEALTH CSV uses the TAG_FAMILY,name,disc,cat,…
+        // row format which TagConfigCsvReader.Parse treats as plan-less family
+        // declarations (no per-family T4-T10 tier rows to author).
+        private static readonly string[] Disciplines = { "ARCH", "GEN", "MEP", "STR", "HEALTH" };
 
         /// <summary>
         /// Read HANDOVER_MODE from project_config.json next to the document.

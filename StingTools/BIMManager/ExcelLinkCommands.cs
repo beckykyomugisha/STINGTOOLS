@@ -11,6 +11,7 @@ using Autodesk.Revit.UI;
 using ClosedXML.Excel;
 using StingTools.Core;
 using StingTools.UI;
+using System.Text.RegularExpressions;
 
 namespace StingTools.BIMManager
 {
@@ -394,7 +395,7 @@ namespace StingTools.BIMManager
             foreach (var kvp in ParamColumnMap)
             {
                 string paramName = null;
-                try { paramName = kvp.Value(); } catch (Exception ex) { StingLog.Warn($"Param column map evaluation failed for {kvp.Key}: {ex.Message}"); }
+                try { paramName = kvp.Value(); } catch (Exception ex2) { StingLog.Warn($"Param column map evaluation failed for {kvp.Key}: {ex2.Message}"); }
                 row[kvp.Key] = string.IsNullOrEmpty(paramName)
                     ? ""
                     : ParameterHelpers.GetString(el, paramName);
@@ -1580,7 +1581,7 @@ namespace StingTools.BIMManager
 
                         string sUserName = "";
                         try { sUserName = doc.Application.Username ?? ""; }
-                        catch (Exception ex) { StingLog.Warn($"Username lookup failed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Username lookup failed: {ex2.Message}"); }
                         if (streamResult.AllChanges.Count > 0)
                             ExcelLinkEngine.WriteChangeLog(filePath, streamResult.AllChanges, sUserName);
 
@@ -1693,11 +1694,11 @@ namespace StingTools.BIMManager
                         (applied, skipped, failed) = ExcelLinkEngine.ApplyChanges(doc, changes, trans, forceInvalid);
                         trans.Commit();
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         if (trans.HasStarted())
                             trans.RollBack();
-                        throw new InvalidOperationException($"Transaction failed: {ex.Message}", ex);
+                        throw new InvalidOperationException($"Transaction failed: {ex2.Message}", ex2);
                     }
                 }
 
@@ -1804,9 +1805,9 @@ namespace StingTools.BIMManager
                                     }
                                     rebuilt++;
                                 }
-                                catch (Exception ex)
+                                catch (Exception ex2)
                                 {
-                                    StingLog.Warn($"ExcelLink tag rebuild failed for {eid}: {ex.Message}");
+                                    StingLog.Warn($"ExcelLink tag rebuild failed for {eid}: {ex2.Message}");
                                 }
                             }
                             rebuildTrans.Commit();
@@ -1814,10 +1815,10 @@ namespace StingTools.BIMManager
                             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                             catch (Exception ssEx) { StingLog.Warn($"ExcelLink Import SaveSeqSidecar: {ssEx.Message}"); }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
-                            StingLog.Error("ExcelLink tag rebuild transaction failed", ex);
+                            StingLog.Error("ExcelLink tag rebuild transaction failed", ex2);
                         }
                     }
                 }
@@ -1826,7 +1827,7 @@ namespace StingTools.BIMManager
                 } // end try
                 catch (Exception tgEx)
                 {
-                    try { tg.RollBack(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { tg.RollBack(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     StingLog.Error("ExcelLink import TransactionGroup rolled back", tgEx);
                     throw;
                 }
@@ -2049,7 +2050,7 @@ namespace StingTools.BIMManager
 
                         string sUserName = "";
                         try { sUserName = doc.Application.Username ?? ""; }
-                        catch (Exception ex) { StingLog.Warn($"Username lookup failed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Username lookup failed: {ex2.Message}"); }
                         if (streamResult.AllChanges.Count > 0)
                             ExcelLinkEngine.WriteChangeLog(outputPath, streamResult.AllChanges, sUserName);
 
@@ -2119,11 +2120,11 @@ namespace StingTools.BIMManager
                         (applied, skipped, failed) = ExcelLinkEngine.ApplyChanges(doc, changes, trans, forceInvalid);
                         trans.Commit();
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         if (trans.HasStarted())
                             trans.RollBack();
-                        throw new InvalidOperationException($"Transaction failed: {ex.Message}", ex);
+                        throw new InvalidOperationException($"Transaction failed: {ex2.Message}", ex2);
                     }
                 }
 
@@ -2230,9 +2231,9 @@ namespace StingTools.BIMManager
                                     }
                                     rebuilt++;
                                 }
-                                catch (Exception ex)
+                                catch (Exception ex2)
                                 {
-                                    StingLog.Warn($"ExcelLink RoundTrip tag rebuild failed for {eid}: {ex.Message}");
+                                    StingLog.Warn($"ExcelLink RoundTrip tag rebuild failed for {eid}: {ex2.Message}");
                                 }
                             }
                             rebuildTrans.Commit();
@@ -2240,10 +2241,10 @@ namespace StingTools.BIMManager
                             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                             catch (Exception ssEx) { StingLog.Warn($"ExcelLink RoundTrip SaveSeqSidecar: {ssEx.Message}"); }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
-                            StingLog.Error("ExcelLink RoundTrip tag rebuild failed", ex);
+                            StingLog.Error("ExcelLink RoundTrip tag rebuild failed", ex2);
                         }
                     }
                 }

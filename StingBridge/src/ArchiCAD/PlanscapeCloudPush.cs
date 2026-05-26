@@ -45,16 +45,24 @@ namespace StingBridge.ArchiCAD
         private readonly string      _serverBase;
         private readonly string      _projectId;
         private readonly string      _bridgeKey;
+        private readonly string      _authorName;
+        private readonly string      _authorEmail;
 
         private readonly ConcurrentQueue<ArchiCADChangeEvent> _queue = new();
         private readonly Timer _flushTimer;
+        // Prevents concurrent FlushAsync invocations if a flush takes longer than the period.
+        private readonly SemaphoreSlim _flushGate = new(1, 1);
+        private readonly string _queuePath;
         private bool _disposed;
 
-        public PlanscapeCloudPush(string serverBase, string projectId, string bridgeKey)
+        public PlanscapeCloudPush(string serverBase, string projectId, string bridgeKey,
+            string authorName = "", string authorEmail = "")
         {
-            _serverBase = serverBase.TrimEnd('/');
-            _projectId  = projectId;
-            _bridgeKey  = bridgeKey;
+            _serverBase  = serverBase.TrimEnd('/');
+            _projectId   = projectId;
+            _bridgeKey   = bridgeKey;
+            _authorName  = authorName;
+            _authorEmail = authorEmail;
 
             _http = new HttpClient();
             _http.DefaultRequestHeaders.Add("X-StingBridge-Key", bridgeKey);
@@ -62,17 +70,29 @@ namespace StingBridge.ArchiCAD
 
             // Flush queued events every 500 ms — gives a smooth live feel
             // without hammering the server on rapid successive changes.
+            // The SemaphoreSlim gate ensures only one flush runs at a time even
+            // if a slow network response causes the period to be exceeded.
             _flushTimer = new Timer(_ => _ = FlushAsync(), null,
                 TimeSpan.FromMilliseconds(500),
                 TimeSpan.FromMilliseconds(500));
+
+            _queuePath = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "stingbridge_queue",
+                $"{_projectId}.json");
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(_queuePath)!);
+            // Reload any events that were persisted before a previous crash.
+            LoadPersistedQueue();
         }
 
         // Queue an element change. Thread-safe — call from any thread.
         public void Enqueue(ArchiCADChangeEvent ev) => _queue.Enqueue(ev);
 
         // Send a heartbeat so Planscape Web can show the "LIVE" indicator.
-        public async Task SendStatusAsync(string authorName, string authorEmail)
+        // authorName/authorEmail default to the values set in the constructor.
+        public async Task SendStatusAsync(string? authorName = null, string? authorEmail = null)
         {
+            authorName  ??= _authorName;
+            authorEmail ??= _authorEmail;
             try
             {
                 var payload = new
@@ -90,26 +110,41 @@ namespace StingBridge.ArchiCAD
         {
             if (_queue.IsEmpty) return;
 
-            var batch = new System.Collections.Generic.List<ArchiCADChangeEvent>();
-            while (_queue.TryDequeue(out var ev)) batch.Add(ev);
-            if (batch.Count == 0) return;
-
+            // Skip this tick if a previous flush is still in flight.
+            if (!await _flushGate.WaitAsync(0)) return;
             try
             {
-                var payload = new { events = batch, authorInfo = (object?)null };
-                var response = await _http.PostAsJsonAsync(
-                    $"{_serverBase}/api/archicad/{_projectId}/push", payload);
+                var batch = new System.Collections.Generic.List<ArchiCADChangeEvent>();
+                while (_queue.TryDequeue(out var ev)) batch.Add(ev);
+                if (batch.Count == 0) return;
 
-                if (!response.IsSuccessStatusCode)
-                    StingLog.Warn($"PlanscapeCloudPush: server returned {(int)response.StatusCode}");
-                else
-                    StingLog.Info($"PlanscapeCloudPush: pushed {batch.Count} event(s) → {_projectId}");
+                try
+                {
+                    // Include author info when available so the Planscape Web "LIVE"
+                    // indicator can show which ArchiCAD user is actively editing.
+                    object? authorInfo = string.IsNullOrWhiteSpace(_authorName) ? null
+                        : new { name = _authorName, email = _authorEmail, version = "ArchiCAD" };
+                    var payload = new { events = batch, authorInfo };
+                    var response = await _http.PostAsJsonAsync(
+                        $"{_serverBase}/api/archicad/{_projectId}/push", payload);
+
+                    if (!response.IsSuccessStatusCode)
+                        StingLog.Warn($"PlanscapeCloudPush: server returned {(int)response.StatusCode}");
+                    else
+                        StingLog.Info($"PlanscapeCloudPush: pushed {batch.Count} event(s) → {_projectId}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PlanscapeCloudPush.Flush: {ex.Message}");
+                    // Re-queue on failure so events are not lost in memory.
+                    foreach (var ev in batch) _queue.Enqueue(ev);
+                    // Also persist to disk so events survive a process restart.
+                    PersistQueueToDisk();
+                }
             }
-            catch (Exception ex)
+            finally
             {
-                StingLog.Warn($"PlanscapeCloudPush.Flush: {ex.Message}");
-                // Re-queue on failure so events are not lost.
-                foreach (var ev in batch) _queue.Enqueue(ev);
+                _flushGate.Release();
             }
         }
 
@@ -118,7 +153,37 @@ namespace StingBridge.ArchiCAD
             if (_disposed) return;
             _disposed = true;
             _flushTimer.Dispose();
+            _flushGate.Dispose();
+            if (!_queue.IsEmpty) PersistQueueToDisk();
             _http.Dispose();
+        }
+
+        private void LoadPersistedQueue()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(_queuePath)) return;
+                string json = System.IO.File.ReadAllText(_queuePath);
+                var events = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.List<ArchiCADChangeEvent>>(json);
+                if (events != null)
+                {
+                    foreach (var ev in events) _queue.Enqueue(ev);
+                    StingLog.Info($"PlanscapeCloudPush: reloaded {events.Count} persisted event(s) for project {_projectId}");
+                    System.IO.File.Delete(_queuePath);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlanscapeCloudPush.LoadPersistedQueue: {ex.Message}"); }
+        }
+
+        private void PersistQueueToDisk()
+        {
+            try
+            {
+                var snapshot = _queue.ToArray();
+                string json = System.Text.Json.JsonSerializer.Serialize(snapshot);
+                System.IO.File.WriteAllText(_queuePath, json);
+            }
+            catch (Exception ex) { StingLog.Warn($"PlanscapeCloudPush.PersistQueueToDisk: {ex.Message}"); }
         }
     }
 }

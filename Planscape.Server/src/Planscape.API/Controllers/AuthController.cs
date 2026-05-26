@@ -14,11 +14,11 @@ using System.Text;
 
 namespace Planscape.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
 /// <summary>
 /// Authentication — login, registration, password management, and licence activation.
 /// </summary>
+[ApiController]
+[Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
     // SEC-EA-03 — Access token lifetime is SECURITY-SENSITIVE. Do NOT

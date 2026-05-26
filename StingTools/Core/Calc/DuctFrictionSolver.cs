@@ -23,6 +23,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace StingTools.Core.Calc
 {
@@ -56,6 +57,9 @@ namespace StingTools.Core.Calc
         public const double AirViscosityPaS    = 1.813e-5;
         public const double GalvRoughnessM     = 9.0e-5;
         public const double AluminumRoughnessM = 3.0e-5;
+        // ASHRAE Handbook 2021 Ch.21 fully-extended flex: ε ≈ 3 mm. Installed
+        // flex with slight sag runs ~1.5 mm; projects can pass the lower
+        // value to Solve() for a less-conservative friction estimate.
         public const double FlexRoughnessM     = 3.0e-3;
 
         /// <summary>
@@ -136,8 +140,11 @@ namespace StingTools.Core.Calc
 
         /// <summary>
         /// Curated SMACNA fitting-loss coefficients. Reference: SMACNA
-        /// HVAC Systems Duct Design, 4th ed., Appendix A. Extensible by
-        /// editing Data/Routing/STING_SMACNA_FITTINGS.csv.
+        /// HVAC Systems Duct Design, 4th ed., Appendix A.
+        ///
+        /// This is the corporate-baseline fallback. Projects override
+        /// individual entries via STING_MEP_SIZING_RULES.json
+        /// (duct.fittingLossCoefficients) — see <see cref="LookupC"/>.
         /// </summary>
         public static readonly IReadOnlyDictionary<string, double> SmacnaCoefficients
             = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
@@ -165,6 +172,22 @@ namespace StingTools.Core.Calc
             // Flex connection penalty
             { "FLEX_PER_METRE",        1.00 }, // multiplied by flex length m
         };
+
+        /// <summary>
+        /// Resolve a fitting-loss coefficient C by name, preferring a
+        /// project-override entry (from MepSizingRegistry) over the
+        /// baked-in SMACNA baseline. Returns 0 for unknown fitting types
+        /// — callers should treat 0 as "no loss assigned" and skip.
+        /// </summary>
+        public static double LookupC(string fittingName,
+            IReadOnlyDictionary<string, double> projectOverrides = null)
+        {
+            if (string.IsNullOrEmpty(fittingName)) return 0;
+            if (projectOverrides != null &&
+                projectOverrides.TryGetValue(fittingName, out double pv) && pv > 0)
+                return pv;
+            return SmacnaCoefficients.TryGetValue(fittingName, out double cv) ? cv : 0;
+        }
 
         /// <summary>
         /// Apply the CIBSE Guide B3 velocity limits to a friction result

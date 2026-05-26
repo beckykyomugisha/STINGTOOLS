@@ -1,3 +1,4 @@
+using StingTools.Core;
 // AabbSweep.cs — global broad-phase via R-tree over element AABBs.
 // Returns candidate element pairs for narrow-phase processing.
 using System;

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
+using System.Threading.Tasks;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -102,168 +103,102 @@ namespace StingTools.BIMManager
             ["HANDOVER"]            = (980, "Handover — Snagging & Defects", 21)
         };
 
-        // ── Default Unit Cost Rates (GBP per unit, approximate) ──
-        internal static readonly Dictionary<string, (double ratePerUnit, string unit, string description)> DefaultCostRates =
-            new Dictionary<string, (double, string, string)>
+        // ── Default Unit Cost Rates ──
+        //
+        // Phase 184d: data moved out of the C# initializer into
+        // Data/STING_DEFAULT_COST_RATES.csv so a QS can edit the baseline
+        // without a code rebuild. DefaultCostRates is now a lazy-loaded
+        // view over the CSV. All existing callers (line 736/815/909 in
+        // GenerateCostEstimate, line 1593 in the template exporter, and
+        // BOQ.Rates.DefaultRateProvider) continue to work unchanged.
+        //
+        // A small built-in fallback covers the case where the CSV is
+        // missing — defensive only; the CSV is shipped with the plugin.
+        private static Dictionary<string, (double ratePerUnit, string unit, string description)>? _defaultCostRatesCache;
+        private static readonly object _defaultCostRatesLock = new object();
+
+        internal static Dictionary<string, (double ratePerUnit, string unit, string description)> DefaultCostRates
         {
-            // ── Structure ──────────────────────────────────────────────
-            ["Structural Foundations"]          = (250, "m³", "RC foundations"),
-            ["Structural Framing"]              = (180, "m", "Steel/RC beams"),
-            ["Structural Columns"]              = (350, "each", "Columns"),
-            ["Columns"]                         = (400, "each", "Architectural columns"),
-            ["Structural Stiffeners"]           = (50, "each", "Steel stiffeners"),
-            ["Structural Trusses"]              = (800, "each", "Roof/floor trusses"),
-            ["Structural Connections"]          = (45, "each", "Bolted/welded connections"),
-            ["Structural Beam Systems"]         = (200, "m", "Beam systems"),
-            ["Structural Rebar"]                = (1.2, "kg", "Reinforcement bar"),
-            ["Structural Rebar Couplers"]       = (15, "each", "Rebar couplers"),
-            ["Structural Area Reinforcement"]   = (25, "m²", "Mesh reinforcement"),
-            ["Structural Path Reinforcement"]   = (8, "m", "Path reinforcement"),
-            ["Structural Fabric Reinforcement"] = (12, "m²", "Fabric reinforcement"),
+            get
+            {
+                if (_defaultCostRatesCache != null) return _defaultCostRatesCache;
+                lock (_defaultCostRatesLock)
+                {
+                    if (_defaultCostRatesCache != null) return _defaultCostRatesCache;
+                    _defaultCostRatesCache = LoadDefaultCostRatesCsv();
+                    return _defaultCostRatesCache;
+                }
+            }
+        }
 
-            // ── Architecture — Enclosure ───────────────────────────────
-            ["Floors"]                 = (120, "m²", "Floor slabs"),
-            ["Walls"]                  = (85, "m²", "Internal/external walls"),
-            ["Roofs"]                  = (150, "m²", "Roofing system"),
-            ["Windows"]                = (450, "each", "Window units"),
-            ["Doors"]                  = (350, "each", "Door sets"),
-            ["Ceilings"]               = (45, "m²", "Suspended ceilings"),
-            ["Curtain Panels"]         = (350, "m²", "Curtain wall panels"),
-            ["Curtain Wall Mullions"]  = (120, "m", "Curtain wall mullions"),
-            ["Curtain Systems"]        = (400, "m²", "Curtain wall systems"),
-            ["Wall Sweeps"]            = (25, "m", "Wall sweep profiles"),
-            ["Slab Edges"]             = (15, "m", "Slab edge profiles"),
-            ["Roof Soffits"]           = (45, "m²", "Roof soffits"),
-            ["Fascia"]                 = (30, "m", "Fascia boards"),
-            ["Gutter"]                 = (25, "m", "Rainwater gutters"),
-            ["Pads"]                   = (200, "m²", "Foundation pads"),
+        /// <summary>Force a reload from disk — called by Cost_ReloadRules.</summary>
+        internal static void InvalidateDefaultCostRates()
+        {
+            lock (_defaultCostRatesLock) { _defaultCostRatesCache = null; }
+        }
 
-            // ── Architecture — Interior ────────────────────────────────
-            ["Rooms"]                  = (0, "each", "Room objects (no direct cost)"),
-            ["Furniture"]              = (300, "each", "General furniture"),
-            ["Furniture Systems"]      = (500, "each", "Workstation systems"),
-            ["Casework"]               = (200, "m", "Fitted joinery/casework"),
-            ["Food Service Equipment"] = (2000, "each", "Kitchen equipment"),
-            ["Signage"]                = (150, "each", "Signage items"),
+        private static Dictionary<string, (double ratePerUnit, string unit, string description)> LoadDefaultCostRatesCsv()
+        {
+            // Start from the emergency fallback (5 entries — keeps the
+            // worst-case behaviour usable). CSV entries override inline
+            // ones and supply the full ~120-entry table.
+            var rates = new Dictionary<string, (double, string, string)>(
+                _emergencyFallback, StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string path = StingToolsApp.FindDataFile("STING_DEFAULT_COST_RATES.csv");
+                if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+                {
+                    StingLog.Warn(
+                        $"Scheduling4DEngine.LoadDefaultCostRatesCsv: STING_DEFAULT_COST_RATES.csv NOT FOUND. " +
+                        $"Falling back to {rates.Count} emergency entries — most categories will resolve to zero rate. " +
+                        $"Restore data/STING_DEFAULT_COST_RATES.csv or run Cost_ReloadRules after restoring.");
+                    return rates;
+                }
+                bool headerSeen = false;
+                foreach (string raw in System.IO.File.ReadAllLines(path))
+                {
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    string line = raw.TrimStart();
+                    if (line.StartsWith("#")) continue;
+                    var cols = StingToolsApp.ParseCsvLine(raw);
+                    if (cols == null || cols.Length < 3) continue;
+                    if (!headerSeen)
+                    {
+                        // First non-comment line is the header.
+                        headerSeen = true;
+                        if (cols[0].Equals("Category", StringComparison.OrdinalIgnoreCase)) continue;
+                    }
+                    string cat = cols[0].Trim();
+                    if (!double.TryParse(cols[1], System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double rate))
+                        continue;
+                    string unit = cols[2].Trim();
+                    string desc = cols.Length > 3 ? cols[3].Trim() : cat;
+                    rates[cat] = (rate, unit, desc);
+                }
+                StingLog.Info($"Scheduling4DEngine.LoadDefaultCostRatesCsv: merged CSV → {rates.Count} default cost rates ({System.IO.Path.GetFileName(path)} + inline).");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Scheduling4DEngine.LoadDefaultCostRatesCsv: {ex.Message}");
+            }
+            return rates;
+        }
 
-            // ── Architecture — Circulation ─────────────────────────────
-            ["Stairs"]                 = (1200, "each", "Staircases"),
-            ["Stair Runs"]             = (800, "each", "Stair runs"),
-            ["Stair Landings"]         = (400, "each", "Stair landings"),
-            ["Stair Supports"]         = (200, "each", "Stair supports"),
-            ["Railings"]               = (85, "m", "Balustrades/railings"),
-            ["Handrails"]              = (45, "m", "Handrails"),
-            ["Top Rails"]              = (35, "m", "Top rail profiles"),
-            ["Ramps"]                  = (150, "m²", "Ramps"),
-            ["Vertical Circulation"]   = (25000, "each", "Lifts/escalators"),
-
-            // ── Architecture — Site/Misc ───────────────────────────────
-            ["Parking"]                = (25000, "each", "Parking spaces"),
-            ["Planting"]               = (50, "each", "Planting/landscaping"),
-            ["Hardscape"]              = (80, "m²", "Hard landscaping"),
-            ["Roads"]                  = (120, "m²", "Roadways/paths"),
-            ["Site"]                   = (0, "each", "Site elements"),
-            ["Entourage"]              = (0, "each", "Entourage/people (no cost)"),
-            ["Temporary Structures"]   = (500, "each", "Temporary works"),
-            ["Areas"]                  = (0, "each", "Area objects (no direct cost)"),
-            ["Spaces"]                 = (0, "each", "Space objects (no direct cost)"),
-
-            // ── MEP — Mechanical (HVAC) ────────────────────────────────
-            ["Ducts"]                              = (55, "m", "Ductwork"),
-            ["Duct Accessories"]                   = (75, "each", "Dampers/valves/accessories"),
-            ["Duct Fittings"]                      = (45, "each", "Duct bends/tees/reducers"),
-            ["Duct Insulation"]                    = (18, "m²", "Duct insulation"),
-            ["Duct Lining"]                        = (22, "m²", "Internal duct lining"),
-            ["Flex Ducts"]                         = (35, "m", "Flexible ductwork"),
-            ["Air Terminals"]                      = (65, "each", "Grilles/diffusers"),
-            ["Mechanical Equipment"]               = (2500, "each", "Plant/AHU/FCU"),
-            ["Mechanical Control Devices"]         = (250, "each", "BMS sensors/controllers"),
-            ["Mechanical Equipment Sets"]          = (3500, "each", "Packaged plant sets"),
-
-            // ── MEP — Pipework ─────────────────────────────────────────
-            ["Pipes"]                  = (35, "m", "Pipework"),
-            ["Pipe Fittings"]          = (25, "each", "Pipe bends/tees/reducers"),
-            ["Pipe Accessories"]       = (55, "each", "Valves/strainers/gauges"),
-            ["Pipe Insulation"]        = (15, "m", "Pipe insulation"),
-            ["Flex Pipes"]             = (30, "m", "Flexible pipework"),
-
-            // ── MEP — Plumbing ─────────────────────────────────────────
-            ["Plumbing Fixtures"]      = (450, "each", "Sanitary ware"),
-            ["Plumbing Equipment"]     = (1200, "each", "Pumps/tanks/heaters"),
-
-            // ── MEP — Electrical ───────────────────────────────────────
-            ["Electrical Equipment"]   = (1500, "each", "DB/switchgear"),
-            ["Electrical Fixtures"]    = (35, "each", "Sockets/switches"),
-            ["Electrical Connectors"]  = (20, "each", "Electrical connectors"),
-            ["Lighting Fixtures"]      = (120, "each", "Luminaires"),
-            ["Lighting Devices"]       = (80, "each", "Lighting controls/sensors"),
-            ["Cable Trays"]            = (28, "m", "Cable management"),
-            ["Cable Tray Fittings"]    = (15, "each", "Cable tray bends/tees"),
-            ["Conduits"]               = (15, "m", "Conduit runs"),
-            ["Conduit Fittings"]       = (8, "each", "Conduit bends/boxes"),
-
-            // ── MEP — Fire Protection ──────────────────────────────────
-            ["Sprinklers"]             = (85, "each", "Sprinkler heads"),
-            ["Fire Alarm Devices"]     = (45, "each", "Detectors/sounders"),
-            ["Fire Protection"]        = (95, "each", "Fire protection equipment"),
-
-            // ── MEP — Low Voltage / ICT ────────────────────────────────
-            ["Communication Devices"]  = (75, "each", "Data/comms points"),
-            ["Security Devices"]       = (120, "each", "CCTV/access control"),
-            ["Data Devices"]           = (85, "each", "Data outlets/switches"),
-            ["Nurse Call Devices"]     = (150, "each", "Nurse call points"),
-            ["Telephone Devices"]      = (65, "each", "Telephone outlets"),
-            ["Audio Visual Devices"]   = (350, "each", "AV equipment"),
-
-            // ── MEP — Fabrication ──────────────────────────────────────
-            ["MEP Fabrication Containment"]          = (35, "m", "Fabrication containment"),
-            ["MEP Fabrication Ductwork"]             = (65, "m", "Fabrication ductwork"),
-            ["MEP Fabrication Ductwork Stiffeners"]  = (10, "each", "Ductwork stiffeners"),
-            ["MEP Fabrication Hangers"]              = (25, "each", "Support hangers"),
-            ["MEP Fabrication Pipework"]             = (45, "m", "Fabrication pipework"),
-            ["MEP Ancillary"]                        = (30, "each", "MEP ancillary items"),
-
-            // ── Generic ────────────────────────────────────────────────
-            ["Generic Models"]         = (200, "each", "Generic model elements"),
-            ["Specialty Equipment"]    = (1500, "each", "Specialist equipment"),
-            ["Medical Equipment"]      = (5000, "each", "Medical equipment"),
-            ["Parts"]                  = (0, "each", "Model parts (no direct cost)"),
-            ["Assemblies"]             = (0, "each", "Assembly containers (no direct cost)"),
-            ["Mass"]                   = (0, "each", "Massing elements (no direct cost)"),
-            ["Detail Items"]           = (0, "each", "Detail items (annotation, no cost)"),
-            ["Model Groups"]           = (0, "each", "Model groups (container, no cost)"),
-            ["Materials"]              = (0, "each", "Material definitions (no direct cost)"),
-            ["Profiles"]               = (0, "each", "Profile definitions (no direct cost)"),
-            ["RVT Links"]              = (0, "each", "Linked models (no direct cost)"),
-            ["Zones"]                  = (0, "each", "Zone objects (no direct cost)"),
-
-            // ── Architecture — Site / Topo ────────────────────────────
-            ["Toposolid"]              = (60, "m²", "Topographic solid surfaces"),
-            ["Toposolid Links"]        = (0, "each", "Linked topo surfaces (no direct cost)"),
-            ["Wash"]                   = (15, "m²", "Wash/drainage surfaces"),
-            ["Property Lines"]         = (0, "each", "Property boundary lines (no cost)"),
-            ["Property Line Segments"] = (0, "each", "Property boundary segments (no cost)"),
-
-            // ── MEP — Analytical ──────────────────────────────────────
-            ["Analytical Duct Segments"] = (0, "each", "Analytical duct segments (no direct cost)"),
-            ["Analytical Pipe Segments"] = (0, "each", "Analytical pipe segments (no direct cost)"),
-
-            // ── Structure — Analytical ────────────────────────────────
-            ["Analytical Members"]     = (0, "each", "Analytical members (no direct cost)"),
-            ["Analytical Nodes"]       = (0, "each", "Analytical nodes (no direct cost)"),
-            ["Analytical Links"]       = (0, "each", "Analytical links (no direct cost)"),
-            ["Analytical Openings"]    = (0, "each", "Analytical openings (no direct cost)"),
-            ["Analytical Panels"]      = (0, "each", "Analytical panels (no direct cost)"),
-
-            // ── Structure — Loads ─────────────────────────────────────
-            ["Area Based Loads"]       = (0, "each", "Area-based loads (analytical, no cost)"),
-            ["Area Loads"]             = (0, "each", "Area loads (analytical, no cost)"),
-            ["Line Loads"]             = (0, "each", "Line loads (analytical, no cost)"),
-            ["Point Loads"]            = (0, "each", "Point loads (analytical, no cost)"),
-            ["Internal Area Loads"]    = (0, "each", "Internal area loads (analytical, no cost)"),
-            ["Internal Line Loads"]    = (0, "each", "Internal line loads (analytical, no cost)"),
-            ["Internal Point Loads"]   = (0, "each", "Internal point loads (analytical, no cost)")
+        // Emergency fallback — 5 most-common categories. Used only when
+        // STING_DEFAULT_COST_RATES.csv is missing or corrupt. The full
+        // ~120-entry table now lives in the CSV (Phase 184e).
+        private static readonly Dictionary<string, (double, string, string)> _emergencyFallback =
+            new Dictionary<string, (double, string, string)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Walls"]                = (85,  "m²",   "Internal/external walls"),
+            ["Floors"]               = (120, "m²",   "Floor slabs"),
+            ["Doors"]                = (350, "each", "Door sets"),
+            ["Windows"]              = (450, "each", "Window units"),
+            ["Mechanical Equipment"] = (2500, "each", "Plant / AHU / FCU"),
         };
+
 
         // ═══════════════════════════════════════════════════════════
         //  4D Auto-Schedule Generation
@@ -764,6 +699,15 @@ namespace StingTools.BIMManager
                 catList.Add(el);
             }
 
+            // Phase 184 / P3 — route through the pluggable rate provider
+            // registry so 4D and 5D consume the same rate source the BOQ
+            // engine uses. Live BOQ overrides still win at the top of
+            // the chain; the registry covers everything below.
+            double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+            var rateRegistry = StingTools.BOQ.Rates.RateProviderRegistry.Get(
+                doc, costRates, new Dictionary<string, string>(), ugxPerUsd, ugxPerGbp);
+
             foreach (var kv in byCategory.OrderBy(x => x.Key))
             {
                 string cat = kv.Key;
@@ -777,17 +721,38 @@ namespace StingTools.BIMManager
                     rate = bqVal.rate;
                     unit = bqVal.unit;
                 }
-                else if (costRates != null && costRates.TryGetValue(cat, out var crVal))
+                else
                 {
-                    rate = crVal.rate;
-                    unit = crVal.unit;
+                    // Phase 184 / P3 — single rate source for 4D + 5D + BOQ.
+                    var lookup = rateRegistry.Resolve(new StingTools.BOQ.Rates.RateRequest
+                    {
+                        CategoryName = cat,
+                        Discipline = TagConfig.DiscMap.TryGetValue(cat, out var d) ? d : "X",
+                        CurrencyCode = "UGX",
+                        AsOf = DateTime.UtcNow,
+                        // No representative element here; the param-override
+                        // + ES providers will skip but CSV / COBie / default
+                        // providers still resolve.
+                        Element = elems.FirstOrDefault()
+                    });
+                    if (lookup != null && lookup.UnitRate > 0)
+                    {
+                        rate = lookup.UnitRate;
+                        unit = lookup.Unit;
+                    }
+                    else if (costRates != null && costRates.TryGetValue(cat, out var crVal))
+                    {
+                        // Final fallback — caller-supplied custom rates.
+                        rate = crVal.rate;
+                        unit = crVal.unit;
+                    }
+                    else if (DefaultCostRates.TryGetValue(cat, out var dcrVal))
+                    {
+                        rate = dcrVal.ratePerUnit;
+                        unit = dcrVal.unit;
+                    }
+                    else continue;
                 }
-                else if (DefaultCostRates.TryGetValue(cat, out var dcrVal))
-                {
-                    rate = dcrVal.ratePerUnit;
-                    unit = dcrVal.unit;
-                }
-                else continue;
 
                 // Extract actual measured quantity based on unit type instead of just counting elements.
                 // For area-based items (m²), sum actual element areas; for linear items (m), sum lengths;
@@ -919,7 +884,61 @@ namespace StingTools.BIMManager
         /// <summary>
         /// Generate S-curve cash flow by distributing cost across 4D schedule timeline.
         /// </summary>
+        /// <summary>
+        /// Phase 184p / caveat #4 — sum the EOT days from approved
+        /// variations under <project>/_bim_manager/variations/. Returns
+        /// total calendar-day EOT entitlement that the 4D programme
+        /// should absorb. Reads JSON sidecars directly to avoid a
+        /// circular reference back into the Variation namespace.
+        /// </summary>
+        internal static int GetApprovedEotDays(Document doc)
+        {
+            if (doc == null) return 0;
+            try
+            {
+                string dir = System.IO.Path.Combine(
+                    BIMManagerEngine.GetBIMManagerDir(doc), "variations");
+                if (!System.IO.Directory.Exists(dir)) return 0;
+                int total = 0;
+                foreach (string file in System.IO.Directory.EnumerateFiles(dir, "*.json"))
+                {
+                    try
+                    {
+                        var obj = JObject.Parse(System.IO.File.ReadAllText(file));
+                        string status = obj.Value<string>("Status") ?? "";
+                        // Only honour approved + incorporated VOs.
+                        if (!string.Equals(status, "Approved", StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(status, "Incorporated", StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        int eot = obj.Value<int?>("EotDays") ?? 0;
+                        if (eot > 0) total += eot;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"GetApprovedEotDays {System.IO.Path.GetFileName(file)}: {ex.Message}");
+                    }
+                }
+                return total;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetApprovedEotDays: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Convenience — apply approved EOT days to a baseline project
+        /// completion date. Used by the cash-flow generator to surface
+        /// both the baseline and EOT-adjusted completion side by side.
+        /// </summary>
+        internal static DateTime ApplyEotToCompletion(DateTime baselineCompletion, Document doc)
+            => baselineCompletion.AddDays(GetApprovedEotDays(doc));
+
         internal static JObject GenerateCashFlow(JObject schedule4D, JObject costEstimate)
+            => GenerateCashFlow(schedule4D, costEstimate, doc: null);
+
+        internal static JObject GenerateCashFlow(JObject schedule4D, JObject costEstimate, Document doc)
         {
             var cashFlow = new JObject();
             cashFlow["generated_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
@@ -929,6 +948,20 @@ namespace StingTools.BIMManager
             DateTime.TryParse(schedule4D["project_end"]?.ToString(), out DateTime projEnd);
             if (projStart == DateTime.MinValue) projStart = DateTime.Now;
             if (projEnd == DateTime.MinValue) projEnd = projStart.AddMonths(12);
+
+            // Phase 184p / caveat #4 — surface approved-EOT impact on
+            // the cashflow header. Doesn't redistribute the existing
+            // curve (that requires per-task EOT allocation, which lives
+            // in the programme tool); just reports the adjusted
+            // completion so a QS can sanity-check.
+            int eotDays = doc != null ? GetApprovedEotDays(doc) : 0;
+            if (eotDays > 0)
+            {
+                cashFlow["eot_days_total"] = eotDays;
+                cashFlow["completion_baseline"] = projEnd.ToString("yyyy-MM-dd");
+                cashFlow["completion_eot_adjusted"] =
+                    projEnd.AddDays(eotDays).ToString("yyyy-MM-dd");
+            }
 
             double grandTotal = (double)(costEstimate["grand_total"] ?? 0);
             if (grandTotal <= 0) grandTotal = 0;
@@ -978,6 +1011,56 @@ namespace StingTools.BIMManager
                     lastMonth["cumulative"] = Math.Round(grandTotal, 2);
                     lastMonth["percent_complete"] = 100.0;
                 }
+            }
+
+            // Phase 184q / caveat #4 closure — when approved EOT > 0,
+            // emit a parallel monthly_eot_adjusted curve that spreads
+            // the same grand total across the longer EOT-adjusted
+            // duration. Uses the same normalised-sigmoid distribution
+            // so the curve shape is comparable to the baseline. The QS
+            // sees both curves side by side; full per-task EOT
+            // redistribution still requires P6 / MSP round-trip and is
+            // out of scope for the Revit plugin.
+            if (eotDays > 0 && grandTotal > 0)
+            {
+                DateTime adjustedEnd = projEnd.AddDays(eotDays);
+                int eotMonths = Math.Max(1, (int)Math.Ceiling((adjustedEnd - projStart).TotalDays / 30.0));
+                var eotMonthly = new JArray();
+                double eotCumulative = 0;
+                double eotPrevSCurve = 0;
+                for (int m = 0; m < eotMonths; m++)
+                {
+                    double t = (double)(m + 1) / eotMonths;
+                    double rawSig = 1.0 / (1.0 + Math.Exp(-10 * (t - 0.5)));
+                    double sCurve = (rawSig - sigAt0) / sigRange;
+                    double monthlySpend = grandTotal * (sCurve - eotPrevSCurve);
+                    if (monthlySpend < 0) monthlySpend = 0;
+                    eotPrevSCurve = sCurve;
+                    eotCumulative += monthlySpend;
+
+                    DateTime monthStart = projStart.AddMonths(m);
+                    eotMonthly.Add(new JObject
+                    {
+                        ["month"] = monthStart.ToString("yyyy-MM"),
+                        ["month_name"] = monthStart.ToString("MMM yyyy"),
+                        ["planned_spend"] = Math.Round(monthlySpend, 2),
+                        ["cumulative"] = Math.Round(eotCumulative, 2),
+                        ["percent_complete"] = Math.Round(eotCumulative / grandTotal * 100, 1)
+                    });
+                }
+                // Same last-month fix as the baseline curve.
+                if (eotMonthly.Count > 0 && Math.Abs(eotCumulative - grandTotal) > 0.01)
+                {
+                    var lastM = (JObject)eotMonthly[eotMonthly.Count - 1];
+                    double lastSpend = (double)(lastM["planned_spend"] ?? 0) + (grandTotal - eotCumulative);
+                    if (lastSpend >= 0)
+                    {
+                        lastM["planned_spend"] = Math.Round(lastSpend, 2);
+                        lastM["cumulative"] = Math.Round(grandTotal, 2);
+                        lastM["percent_complete"] = 100.0;
+                    }
+                }
+                cashFlow["monthly_eot_adjusted"] = eotMonthly;
             }
 
             cashFlow["monthly"] = monthly;
@@ -1692,7 +1775,7 @@ namespace StingTools.BIMManager
                 return Result.Failed;
             }
 
-            var cashFlow = Scheduling4DEngine.GenerateCashFlow(schedule, estimate);
+            var cashFlow = Scheduling4DEngine.GenerateCashFlow(schedule, estimate, doc);
 
             // Save
             string cashFlowPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "cash_flow_5d.json");
@@ -2426,6 +2509,24 @@ namespace StingTools.BIMManager
                         // silently failed because LookupParameter returned null, and no
                         // reader anywhere in the codebase consumed them. The Phase 91
                         // BOQ-aligned CST_* writes below are the authoritative cost data.
+
+                        // ── Phase 91 gap closures (G1 / G2 / G3 / G9) ──
+                        // Populate the BOQ-aligned parameters that the BOQ panel,
+                        // Excel exporter and live dashboard all read from. Stays
+                        // consistent with BOQCostManager.WriteElementParameters
+                        // so Cost Trace and BOQ Build remain interchangeable.
+                        ParameterHelpers.SetString(el, "CST_UNIT_RATE_UGX",
+                            rate.UnitRate.ToString("F0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
+                        double exRate = Core.TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+                        double rateUsd = exRate > 0 ? System.Math.Round(rate.UnitRate / exRate, 2) : 0;
+                        ParameterHelpers.SetString(el, "CST_UNIT_RATE_USD",
+                            rateUsd.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
+                        ParameterHelpers.SetString(el, "CST_QTY_MEASURED",
+                            $"{qty:F3} {rate.Unit}", overwrite: true);
+                        ParameterHelpers.SetString(el, "CST_RATE_SOURCE", "CSV", overwrite: true);
+                        Parameter totalP = el.LookupParameter("CST_MODELED_TOTAL_UGX");
+                        if (totalP != null && !totalP.IsReadOnly && totalP.StorageType == StorageType.Double)
+                            totalP.Set(subtotal);
 
                         // ── Phase 91 gap closures (G1 / G2 / G3 / G9) ──
                         // Populate the BOQ-aligned parameters that the BOQ panel,

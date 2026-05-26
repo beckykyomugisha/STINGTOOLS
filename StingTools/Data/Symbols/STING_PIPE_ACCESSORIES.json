@@ -11,25 +11,92 @@
       "subcategory": "Valve",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true },
-        { "name": "RATING", "type": "Text", "shared": true, "default": "PN16" },
-        { "name": "SERVICE_LABEL", "type": "Text", "shared": true }
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "RATING",
+          "type": "Text",
+          "shared": true,
+          "default": "PN16",
+          "instance": false
+        },
+        {
+          "name": "SERVICE_LABEL",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.25, "y1": 0, "x2": 0.0, "y2": 0.25 },
-          { "x1":  0.0, "y1": 0.25, "x2": 0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2": 0.0, "y2": -0.25 },
-          { "x1":  0.0, "y1": -0.25, "x2": -0.25, "y2": 0 },
-          { "x1":  0.0, "y1": 0.25, "x2": 0.0, "y2": 0.4 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": 0,
+            "x2": 0.0,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.25,
+            "x2": 0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.0,
+            "y2": -0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.25,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.25,
+            "x2": 0.0,
+            "y2": 0.4
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_GLOBE_VALVE",
@@ -40,20 +107,65 @@
       "subcategory": "Valve",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": 0, "y1": 0.25, "x2": 0, "y2": 0.4 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0.25,
+            "x2": 0,
+            "y2": 0.4
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_BALL_VALVE",
@@ -64,21 +176,71 @@
       "subcategory": "Valve",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.25, "y1": 0, "x2":  0.25, "y2": 0 },
-          { "x1": 0, "y1": 0.25, "x2": 0.18, "y2": 0.25 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": 0,
+            "x2": 0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0.25,
+            "x2": 0.18,
+            "y2": 0.25
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_BUTTERFLY_VALVE",
@@ -89,20 +251,65 @@
       "subcategory": "Valve",
       "symbolSize": 4.5,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.18, "y1": -0.05, "x2":  0.18, "y2":  0.05 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.18,
+            "y1": -0.05,
+            "x2": 0.18,
+            "y2": 0.05
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_CHECK_VALVE",
@@ -115,16 +322,53 @@
       "parameters": [],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1":  0.2, "y1": 0, "x2":  0.0, "y2":  0.15 },
-          { "x1":  0.0, "y1":  0.15, "x2":  0.0, "y2": -0.15 },
-          { "x1":  0.0, "y1": -0.15, "x2":  0.2, "y2": 0 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.0,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.15,
+            "x2": 0.0,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.15,
+            "x2": 0.2,
+            "y2": 0
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_GATE_VALVE_INDICATING",
@@ -135,24 +379,86 @@
       "subcategory": "Valve",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.25, "y1": 0, "x2": 0.0, "y2": 0.25 },
-          { "x1":  0.0, "y1": 0.25, "x2": 0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2": 0.0, "y2": -0.25 },
-          { "x1":  0.0, "y1": -0.25, "x2": -0.25, "y2": 0 },
-          { "x1":  0.0, "y1": 0.25, "x2": 0.0, "y2": 0.5 },
-          { "x1": -0.05, "y1": 0.5, "x2": 0.05, "y2": 0.5 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": 0,
+            "x2": 0.0,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.25,
+            "x2": 0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.0,
+            "y2": -0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.25,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.25,
+            "x2": 0.0,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.5,
+            "x2": 0.05,
+            "y2": 0.5
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 100, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_NEEDLE_VALVE",
@@ -164,19 +470,69 @@
       "symbolSize": 3.5,
       "parameters": [],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": 0, "y1": 0.25, "x2": 0, "y2": 0.4 },
-          { "x1": -0.05, "y1":  0.0, "x2":  0.0, "y2": -0.1 },
-          { "x1":  0.05, "y1":  0.0, "x2":  0.0, "y2": -0.1 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0.25,
+            "x2": 0,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.0,
+            "x2": 0.0,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.05,
+            "y1": 0.0,
+            "x2": 0.0,
+            "y2": -0.1
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 15, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 15, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_DIAPHRAGM_VALVE",
@@ -189,19 +545,74 @@
       "parameters": [],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2": -0.15 },
-          { "x1":  0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
-          { "x1":  0.25, "y1":  0.15, "x2": -0.25, "y2":  0.15 },
-          { "x1": -0.25, "y1":  0.15, "x2": -0.25, "y2": -0.15 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": -0.15
+          }
         ],
-        "arcs": [ { "cx": 0, "cy": -0.05, "r": 0.18, "startDeg": 0, "endDeg": 180 } ]
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.05,
+            "r": 0.18,
+            "startDeg": 0,
+            "endDeg": 180
+          }
+        ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 32, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 32, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 32,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 32,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_SOLENOID_VALVE",
@@ -212,25 +623,93 @@
       "subcategory": "Valve",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "VOLTAGE", "type": "Text", "shared": true, "default": "230VAC" }
+        {
+          "name": "VOLTAGE",
+          "type": "Text",
+          "shared": true,
+          "default": "230VAC",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2": -0.15 },
-          { "x1":  0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
-          { "x1":  0.25, "y1":  0.15, "x2": -0.25, "y2":  0.15 },
-          { "x1": -0.25, "y1":  0.15, "x2": -0.25, "y2": -0.15 },
-          { "x1": -0.05, "y1": 0.15, "x2": -0.05, "y2": 0.4 },
-          { "x1":  0.05, "y1": 0.15, "x2":  0.05, "y2": 0.4 },
-          { "x1": -0.1, "y1": 0.4, "x2": 0.1, "y2": 0.4 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.15,
+            "x2": -0.05,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.05,
+            "y1": 0.15,
+            "x2": 0.05,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.4,
+            "x2": 0.1,
+            "y2": 0.4
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_PRESSURE_REDUCING",
@@ -241,24 +720,86 @@
       "subcategory": "Valve",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "SET_PRESSURE_BAR", "type": "Text", "shared": true }
+        {
+          "name": "SET_PRESSURE_BAR",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2": -0.15 },
-          { "x1":  0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
-          { "x1":  0.25, "y1":  0.15, "x2": -0.25, "y2":  0.15 },
-          { "x1": -0.25, "y1":  0.15, "x2": -0.25, "y2": -0.15 },
-          { "x1": -0.1, "y1":  0.15, "x2":  0.0, "y2":  0.0 },
-          { "x1":  0.0, "y1":  0.0, "x2":  0.1, "y2":  0.15 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.15,
+            "x2": 0.0,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.0,
+            "x2": 0.1,
+            "y2": 0.15
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_PRESSURE_SUSTAINING",
@@ -271,20 +812,77 @@
       "parameters": [],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2": -0.15 },
-          { "x1":  0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
-          { "x1":  0.25, "y1":  0.15, "x2": -0.25, "y2":  0.15 },
-          { "x1": -0.25, "y1":  0.15, "x2": -0.25, "y2": -0.15 },
-          { "x1": -0.1, "y1": -0.15, "x2":  0.0, "y2":  0.0 },
-          { "x1":  0.0, "y1":  0.0, "x2":  0.1, "y2": -0.15 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.15,
+            "x2": 0.0,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.0,
+            "x2": 0.1,
+            "y2": -0.15
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_FLOW_CONTROL",
@@ -297,21 +895,83 @@
       "parameters": [],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2": -0.15 },
-          { "x1":  0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
-          { "x1":  0.25, "y1":  0.15, "x2": -0.25, "y2":  0.15 },
-          { "x1": -0.25, "y1":  0.15, "x2": -0.25, "y2": -0.15 },
-          { "x1": -0.2, "y1":  0.0, "x2":  0.2, "y2":  0.0 },
-          { "x1":  0.2, "y1":  0.0, "x2":  0.1, "y2":  0.05 },
-          { "x1":  0.2, "y1":  0.0, "x2":  0.1, "y2": -0.05 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.0,
+            "x2": 0.2,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.0,
+            "x2": 0.1,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.0,
+            "x2": 0.1,
+            "y2": -0.05
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 32, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 32, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 32,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 32,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_Y_STRAINER",
@@ -324,20 +984,77 @@
       "parameters": [],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2": -0.15 },
-          { "x1":  0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
-          { "x1":  0.25, "y1":  0.15, "x2": -0.25, "y2":  0.15 },
-          { "x1": -0.25, "y1":  0.15, "x2": -0.25, "y2": -0.15 },
-          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
-          { "x1": -0.25, "y1":  0.15, "x2":  0.25, "y2": -0.15 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.15,
+            "x2": 0.25,
+            "y2": -0.15
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_BASKET_STRAINER",
@@ -350,22 +1067,89 @@
       "parameters": [],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.3, "y2": 0 },
-          { "x1":  0.3, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.3, "y1": -0.2, "x2":  0.3, "y2": -0.2 },
-          { "x1":  0.3, "y1": -0.2, "x2":  0.3, "y2":  0.2 },
-          { "x1":  0.3, "y1":  0.2, "x2": -0.3, "y2":  0.2 },
-          { "x1": -0.3, "y1":  0.2, "x2": -0.3, "y2": -0.2 },
-          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
-          { "x1": -0.25, "y1":  0.15, "x2":  0.25, "y2": -0.15 },
-          { "x1": -0.15, "y1": -0.18, "x2":  0.15, "y2":  0.18 },
-          { "x1": -0.15, "y1":  0.18, "x2":  0.15, "y2": -0.18 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.15,
+            "x2": 0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.18,
+            "x2": 0.15,
+            "y2": 0.18
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.18,
+            "x2": 0.15,
+            "y2": -0.18
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 80, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 80, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 80,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 80,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_FLEXIBLE_COUPLING",
@@ -378,20 +1162,71 @@
       "parameters": [],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.4, "y2": 0 },
-          { "x1":  0.4, "y1": 0, "x2":  0.5, "y2": 0 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.4,
+            "y2": 0
+          },
+          {
+            "x1": 0.4,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
         ],
         "arcs": [
-          { "cx": -0.3, "cy": 0, "r": 0.1, "startDeg": 0, "endDeg": 180 },
-          { "cx": -0.1, "cy": 0, "r": 0.1, "startDeg": 180, "endDeg": 360 },
-          { "cx":  0.1, "cy": 0, "r": 0.1, "startDeg": 0, "endDeg": 180 },
-          { "cx":  0.3, "cy": 0, "r": 0.1, "startDeg": 180, "endDeg": 360 }
+          {
+            "cx": -0.3,
+            "cy": 0,
+            "r": 0.1,
+            "startDeg": 0,
+            "endDeg": 180
+          },
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.1,
+            "startDeg": 180,
+            "endDeg": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.1,
+            "startDeg": 0,
+            "endDeg": 180
+          },
+          {
+            "cx": 0.3,
+            "cy": 0,
+            "r": 0.1,
+            "startDeg": 180,
+            "endDeg": 360
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_EXPANSION_JOINT",
@@ -404,21 +1239,83 @@
       "parameters": [],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.3, "y2": 0 },
-          { "x1":  0.3, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.3, "y1": -0.15, "x2": -0.3, "y2":  0.15 },
-          { "x1": -0.2, "y1": -0.15, "x2": -0.2, "y2":  0.15 },
-          { "x1": -0.1, "y1": -0.15, "x2": -0.1, "y2":  0.15 },
-          { "x1":  0.0, "y1": -0.15, "x2":  0.0, "y2":  0.15 },
-          { "x1":  0.1, "y1": -0.15, "x2":  0.1, "y2":  0.15 },
-          { "x1":  0.2, "y1": -0.15, "x2":  0.2, "y2":  0.15 },
-          { "x1":  0.3, "y1": -0.15, "x2":  0.3, "y2":  0.15 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.15,
+            "x2": -0.3,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": -0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.15,
+            "x2": -0.1,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.15,
+            "x2": 0.0,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.15,
+            "x2": 0.1,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.15,
+            "x2": 0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.15,
+            "x2": 0.3,
+            "y2": 0.15
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 80, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 80, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 80,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 80,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_PRESSURE_GAUGE",
@@ -429,20 +1326,68 @@
       "subcategory": "Instrument",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "RANGE_BAR", "type": "Text", "shared": true, "default": "0-10" }
+        {
+          "name": "RANGE_BAR",
+          "type": "Text",
+          "shared": true,
+          "default": "0-10",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": 0, "y1": 0, "x2": 0, "y2": 0.2 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.2
+          }
         ],
-        "arcs": [ { "cx": 0, "cy": 0.4, "r": 0.2, "startDeg": 0, "endDeg": 360 } ],
-        "text": [ { "x": 0, "y": 0.4, "value": "P", "heightMm": 1.5 } ]
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.4,
+            "r": 0.2,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0.4,
+            "value": "P",
+            "heightMm": 1.5
+          }
+        ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_TEMPERATURE_GAUGE",
@@ -453,20 +1398,68 @@
       "subcategory": "Instrument",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "RANGE_C", "type": "Text", "shared": true, "default": "0-100" }
+        {
+          "name": "RANGE_C",
+          "type": "Text",
+          "shared": true,
+          "default": "0-100",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": 0, "y1": 0, "x2": 0, "y2": 0.2 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.2
+          }
         ],
-        "arcs": [ { "cx": 0, "cy": 0.4, "r": 0.2, "startDeg": 0, "endDeg": 360 } ],
-        "text": [ { "x": 0, "y": 0.4, "value": "T", "heightMm": 1.5 } ]
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.4,
+            "r": 0.2,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0.4,
+            "value": "T",
+            "heightMm": 1.5
+          }
+        ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_FLOW_METER",
@@ -477,20 +1470,67 @@
       "subcategory": "Instrument",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
-        "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 }
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
-        "text": [ { "x": 0, "y": 0, "value": "F", "heightMm": 1.5 } ]
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "F",
+            "heightMm": 1.5
+          }
+        ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "PIPE_PUMP",
@@ -501,24 +1541,88 @@
       "subcategory": "Equipment",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
-        { "name": "FLOW_LS", "type": "Text", "shared": true },
-        { "name": "HEAD_M", "type": "Text", "shared": true }
+        {
+          "name": "EQUIPMENT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "FLOW_LS",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "HEAD_M",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.35, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.35,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.35, "y2": 0 },
-          { "x1":  0.35, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.2, "y1": -0.15, "x2": 0.2, "y2": 0.0 },
-          { "x1": -0.2, "y1":  0.15, "x2": 0.2, "y2": 0.0 },
-          { "x1": -0.2, "y1": -0.15, "x2": -0.2, "y2": 0.15 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.35,
+            "y2": 0
+          },
+          {
+            "x1": 0.35,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": 0.2,
+            "y2": 0.0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.15,
+            "x2": 0.2,
+            "y2": 0.0
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": -0.2,
+            "y2": 0.15
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "Hydronic", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     }
   ]
 }

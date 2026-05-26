@@ -28,6 +28,8 @@ using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.DB.Structure;
+using StingTools.Core;
+using StingTools.Core.Plumbing;
 
 namespace StingTools.Core.Calc
 {
@@ -118,6 +120,14 @@ namespace StingTools.Core.Calc
             HangerSpacingQuery q = BuildQuery(el);
             if (q == null) return;
             var spacing = HangerSpacingTable.Query(q);
+            if (spacing.NoHangersRequired)
+            {
+                // Buried / bedded mains — skip placement quietly; not a defect
+                // so don't add a warning. RunsScanned is already incremented
+                // wholesale via Plan(...) before this loop runs, so no count
+                // is lost.
+                return;
+            }
             if (spacing.MaxSpanMm <= 0)
             {
                 result.Warnings.Add($"Run {el.Id}: no spacing table match (kind={q.Kind}, dia={q.DiameterMm:F0}mm)");
@@ -239,7 +249,16 @@ namespace StingTools.Core.Calc
             if (el is Pipe p)
             {
                 double d = p.Diameter * FtToMm;
-                string mat = ReadParam(p, "PLM_PPE_MAT_TXT", "STEEL").ToUpperInvariant();
+                // Per-pipe stamp wins; fall back to the project's
+                // PlumbingSystemConfig material for the pipe's MEP system
+                // (Drainage / Storm / Vent / DHW / DCW) so projects that
+                // don't write PLM_PPE_MAT_TXT on every pipe still drive
+                // material-specific hanger logic (buried mains skipped,
+                // plastic vs steel spacing, etc.). Hardcoded "STEEL" stays
+                // as the last-resort default.
+                string mat = ReadParam(p, "PLM_PPE_MAT_TXT", "").ToUpperInvariant();
+                if (string.IsNullOrEmpty(mat))
+                    mat = ResolveMaterialFromSystemConfig(p)?.ToUpperInvariant() ?? "STEEL";
                 return new HangerSpacingQuery
                 {
                     Kind         = HangerRunKind.Pipe,
@@ -385,6 +404,96 @@ namespace StingTools.Core.Calc
                 };
             }
             catch { return def; }
+        }
+
+        // ── PlumbingSystemConfig fallback for missing pipe materials ───
+        // PlumbingSystemConfig.Load reads from disk on every call; cache by
+        // ProjectConfigPath so a hanger run across hundreds of pipes parses
+        // the JSON once per document. Per-path dict (not LRU-1) so projects
+        // with two documents open simultaneously don't thrash between runs.
+        // Path key is case-insensitive (Windows file system convention).
+        // No mtime invalidation — stale values within a single hanger run
+        // are acceptable; the user can re-run after saving system config.
+
+        private static readonly object _cfgLock = new object();
+        private static readonly Dictionary<string, PlumbingSystemConfig> _cfgByPath
+            = new Dictionary<string, PlumbingSystemConfig>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Clears the PlumbingSystemConfig cache. Call after saving
+        /// the SYSTEM config inside the same Revit session to force fresh
+        /// rates on the next hanger run.</summary>
+        public static void InvalidatePlumbingConfigCache()
+        {
+            lock (_cfgLock) _cfgByPath.Clear();
+        }
+
+        private static string ResolveMaterialFromSystemConfig(Pipe p)
+        {
+            try
+            {
+                if (p?.Document == null) return null;
+                string sys;
+                try { sys = (p.MEPSystem?.Name ?? "").ToUpperInvariant(); }
+                catch { return null; }
+                if (string.IsNullOrEmpty(sys)) return null;
+
+                string path = PlumbingSystemConfig.ProjectConfigPath(p.Document) ?? "";
+                PlumbingSystemConfig cfg;
+                lock (_cfgLock)
+                {
+                    if (!_cfgByPath.TryGetValue(path, out cfg))
+                    {
+                        cfg = PlumbingSystemConfig.Load(p.Document);
+                        if (cfg != null) _cfgByPath[path] = cfg;
+                    }
+                }
+                if (cfg == null) return null;
+
+                string svc = ResolveServiceKind(sys);
+                return string.IsNullOrEmpty(svc) ? null : cfg.MaterialFor(svc);
+            }
+            catch { return null; }
+        }
+
+        // Map common Revit MEP-system names to PlumbingSystemConfig.Materials
+        // keys (DCW / DHW / Drainage / Storm / Vent). Drain / storm / vent
+        // patterns are tested BEFORE the supply patterns so a system named
+        // "Cold Water (Drain)" classifies as drainage rather than DCW.
+        // Synonyms cover UK / US / EU naming conventions; one-line additions
+        // are fine when a project uses an unusual term.
+        private static string ResolveServiceKind(string sysNameUpper)
+        {
+            // Drainage: sanitary / foul / soil / waste / effluent / sewer /
+            // grey-water / black-water / combined.
+            if (sysNameUpper.Contains("DRAIN")    || sysNameUpper.Contains("SAN")     ||
+                sysNameUpper.Contains("WASTE")    || sysNameUpper.Contains("FOUL")    ||
+                sysNameUpper.Contains("SOIL")     || sysNameUpper.Contains("EFFLUENT")||
+                sysNameUpper.Contains("SEWER")    || sysNameUpper.Contains("GREY")    ||
+                sysNameUpper.Contains("GRAY")     || sysNameUpper.Contains("BLACKWATER") ||
+                sysNameUpper.Contains("BLACK WATER") || sysNameUpper.Contains("COMBINED"))
+                return "Drainage";
+            // Storm: rainwater / surface water / RWP / RWO / siphonic.
+            if (sysNameUpper.Contains("STORM") || sysNameUpper.Contains("RAIN")    ||
+                sysNameUpper.Contains("RWP")   || sysNameUpper.Contains("RWO")     ||
+                sysNameUpper.Contains("SURFACE WATER")                              ||
+                sysNameUpper.Contains("SIPHONIC"))
+                return "Storm";
+            // Vent: vent / AAV.
+            if (sysNameUpper.Contains("VENT")  || sysNameUpper.Contains("AAV"))
+                return "Vent";
+            // DHW: hot water + recirc patterns.
+            if (sysNameUpper.Contains("HOT")    || sysNameUpper.Contains("DHW")    ||
+                sysNameUpper.Contains("HWS")    || sysNameUpper.Contains("RECIRC") ||
+                sysNameUpper.Contains("DOMESTIC HOT"))
+                return "DHW";
+            // DCW: cold water + fresh water + mains supply.
+            if (sysNameUpper.Contains("COLD")     || sysNameUpper.Contains("DCW")  ||
+                sysNameUpper.Contains("MAINS")    || sysNameUpper.Contains("CWS")  ||
+                sysNameUpper.Contains("DOMESTIC COLD")                              ||
+                sysNameUpper.Contains("POTABLE")  || sysNameUpper.Contains("FRESH WATER") ||
+                sysNameUpper.Contains("FRESHWATER"))
+                return "DCW";
+            return null;
         }
     }
 }

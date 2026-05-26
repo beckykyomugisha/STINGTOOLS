@@ -858,3 +858,839 @@ The architecture-level review lives in [`PLACEMENT_CENTRE_REVIEW.md`](PLACEMENT_
 
 *End of guide. If something here was unclear, file an issue against the
 `docs/PLACEMENT_CENTRE_GUIDE.md` file — the language can always improve.*
+
+---
+
+## 12. Phase 139 — Placement Centre v2 (April 2026)
+
+The Centre received a major v2 expansion in Phase 139. Five additive
+changes — the entire Phase 128 workflow above still works unchanged —
+plus four new toolbar buttons and one new dialog tab.
+
+### 12.1 What changed at a glance
+
+| Area | Phase 128 (v1) | Phase 139 (v2) |
+|---|---|---|
+| Rule schema | ~30 fields | ~60 fields (`SourcePack`, `BuildingTypes`, `ApplicableStandards`, `GuaranteeCoverage`, `MinCoverageRatio`, `WetZoneExclusion`, `MaintenanceAccessRadiusMm`, `RoutingPreference`, `LinearAnchorMode`, `WindowSillCategory`, `DensityModifier`, `PostPlacementAuditRules`, …) |
+| Shipped rule count | ~43 baseline + 4 packs | ~260 (43 baseline + 217 across 7 new packs) |
+| Anchor types | ~20 | ~42 (22 new) |
+| Validators | 5 stubs + 3 implemented | 8 implemented + 2 new |
+| Building context | implicit | explicit `placement_profile.json` per project |
+| Excel I/O | none | full export + import roundtrip |
+| Scoring threshold | 0.40 | 0.35 (lowered, plus `CoverageContribution` weight) |
+
+### 12.2 The seven new rule packs (217 rules)
+
+The ~43 baseline rules now ship alongside seven discipline / context
+packs. Each pack tags its rules with `SourcePack` so the Centre can
+filter the rule grid by pack. Packs ship in `StingTools/Data/Placement/`:
+
+| Pack JSON file | Rules | Covers |
+|---|---|---|
+| `STING_PLACEMENT_RULES.windows-glazing.json` | 30 | Trickle vents, restrictors, blinds, sills, bay-window seating, restrictor cables, child-safety latches |
+| `STING_PLACEMENT_RULES.routing.json` | 15 | Containment routing — cable tray riser, conduit drop, duct riser, pipe loop, dado trunking, perimeter trunking |
+| `STING_PLACEMENT_RULES.medical-gases.json` | 15 | HTM 02-01 — bedhead trunking, oxygen / vacuum / nitrous outlets, AGSS, terminal units, isolation valves |
+| `STING_PLACEMENT_RULES.accessibility.json` | 20 | BS 8300-2 / Approved Doc M — WC reach ranges, grab rails, hearing loops, induction signage, AT-WC transfer space |
+| `STING_PLACEMENT_RULES.commissioning.json` | 20 | T&C / FM — test points, balancing valves, pressure gauges, flow meters, witness-test access tags |
+| `STING_PLACEMENT_RULES.baseline-extensions.json` | 40 | Office / education extensions — desk pods, IFP whiteboards, pinboards, projectors, AV racks, hot-desk hubs |
+| `STING_PLACEMENT_RULES.baseline-extensions2.json` | 77 | Healthcare / hospitality / retail / industrial extensions — nurse call, dirty utility, clean utility, kitchen pass, server-rack PDU, retail merchandiser plinth |
+
+> **Layman tip:** every shipped rule already names the BS / EN / HTM /
+> HBN clause it satisfies (`StandardRef`). When you filter the rule
+> grid by `SourcePack = medical-gases`, every visible row already
+> cites HTM 02-01.
+
+### 12.3 The 22 new anchors
+
+`PlacementScorer.AnchorTypes.cs` (a partial-class extension) adds 22
+anchors covering windows, doors, structure, ceiling tiles, escape
+routes, MEP system nodes and zone boundaries:
+
+| Anchor | Plain English | Used for |
+|---|---|---|
+| `WINDOW_SILL_KITCHEN` | Sill of a window in a kitchen room | Tap, bin sensor, splash-back socket |
+| `WINDOW_SILL_WET_ROOM` | Sill in a bathroom / WC | Anti-condensation heater, mirror demister |
+| `WINDOW_SILL_RESIDENTIAL` | Sill in a residential dwelling | Trickle vent, child-safety latch, restrictor |
+| `WINDOW_SILL_COMMERCIAL` | Sill in a commercial space | Office trickle vent (Doc F), motorised blind |
+| `WINDOW_SILL_HOSPITAL` | Sill in a healthcare bedroom | HBN 04-01 vent + curtain track |
+| `WINDOW_HEAD` | Top of a window | Curtain track, blind motor, head-flashing detail |
+| `DOOR_STRIKE_SIDE` | Latch / strike side of door | Access-control reader, MCP, panic strike |
+| `DOOR_CLOSER_ZONE` | Top centre of door + 50 mm clearance | Door closer, hold-open magnet |
+| `BEAM_SOFFIT` | Underside of nearest structural beam | Cable tray hanger, suspended luminaire eye-bolt |
+| `COLUMN_FACE_NEAREST` | Closest face of nearest structural column | Local isolator, fire extinguisher bracket |
+| `CEILING_TILE_CORNER` | Nearest 600 × 600 ceiling-tile corner | Suspended diffuser, recessed downlight, smoke detector |
+| `CURTAIN_PANEL_CENTRE` | Centre of a curtain-wall panel | Spider fitting, photovoltaic film mount |
+| `SLAB_PERIMETER_EDGE` | Perimeter of a slab edge | Edge trim, drip detail, perimeter heater |
+| `ESCAPE_DOOR_BOTH_SIDES` | Both sides of every fire-rated escape door | Exit signs (paired), emergency luminaires |
+| `STAIR_LANDING_EDGE` | Outer edge of every stair landing | Hand-rail return, photoluminescent strip |
+| `STAIR_FLIGHT_MID` | Mid-point of a stair flight | Mid-flight luminaire (BS 5266-1 §5) |
+| `CORRIDOR_JUNCTION` | Centre of every corridor T- or X-junction | Directional exit signs, smoke detector |
+| `FIRE_EXTINGUISHER_TRAVEL` | 30 m max-travel grid (BS 5306-8) | Fire extinguisher cabinet |
+| `CALL_POINT_TRAVEL` | 45 m max-travel grid (BS 5839-1) | MCP call point |
+| `RAISED_FLOOR_TILE_EDGE` | Edge of nearest 600 mm raised-access tile | Floor-box edge mount |
+| `NEAREST_MEP_SYSTEM_NODE` | XYZ of nearest connector on a named MEP system | Co-located access valve, drain point |
+| `ZONE_BOUNDARY` | Boundary of an HVAC / fire / acoustic zone | VAV terminal, fire damper, zone shut-off |
+
+Pick any of these from the **Anchor** dropdown in the rule editor's
+Rule Core card. Each anchor produces a different candidate-XYZ pattern;
+combine with `OffsetX/Y/Z`, `Side` and `MountingReference` to land
+fixtures exactly where the standard demands.
+
+### 12.4 Four new placement algorithms
+
+`Core/Placement/` ships four new helper engines the rule pipeline can
+delegate to. They become available the moment a rule sets the relevant
+field (`RoutingPreference`, `MinCoverageRatio`, `MaintenanceAccessRadiusMm`,
+`WetZoneExclusion`).
+
+| Algorithm | File | What it does |
+|---|---|---|
+| **WallFollowerRouter** | `WallFollowerRouter.cs` | Walks every wall in a room, returns continuous candidate-XYZs at fixed step. Used by perimeter trunking, dado, skirting. Honours `RoutingPreference` (`Perimeter`, `Inset`, `Centreline`, `Diagonal`). |
+| **CoverageGridGenerator** | `CoverageGridGenerator.cs` | Lays a uniform grid over the room polygon, returns one candidate per grid cell. Used by `MinCoverageRatio` rules so the engine can guarantee 100 % spatial coverage (smoke detection, lighting). |
+| **TravelDistanceSolver** | `TravelDistanceSolver.cs` | Dijkstra over the room graph; returns candidates within travel-distance from anchor (BS 5306-8 30 m, BS 5839-1 45 m). Backs `FIRE_EXTINGUISHER_TRAVEL` and `CALL_POINT_TRAVEL` anchors. |
+| **WetZoneExclusionChecker** | `WetZoneExclusionChecker.cs` | Hard-rejects candidates inside BS 7671 §701 wet zones (Z0 inside bath, Z1 0–225 mm above bath, Z2 within 600 mm). Used automatically when `WetZoneExclusion = true`. |
+
+Two previously-stubbed validators are now implemented:
+
+| Validator | File | Checks |
+|---|---|---|
+| **UniformityValidator** | `UniformityValidator.cs` | BS EN 12464-1 uniformity ratio across the lit grid (Emin / Eaverage ≥ 0.6 for offices, ≥ 0.7 for surgery) |
+| **MaintenanceAccessValidator** | `MaintenanceAccessValidator.cs` | Confirms every fixture has a clear cylinder of `MaintenanceAccessRadiusMm` for service technician reach |
+
+`AccessibilityAuditor` was upgraded to read from
+`STING_HEIGHT_STANDARDS.json` (18 entries — BS 8300-2, Approved Doc M,
+BS 5839-1, BS 5266-1, HTM 02-01, BB103, BS 6465 reach ranges) so reach
+audits cite the right clause for the right room type.
+
+### 12.5 Project Building Profile
+
+Until v2 the Centre had no idea *what kind of building* it was placing
+fixtures in. A hospital rule (HBN 04-01 bedhead trunking) would
+happily fire in an office model if the room name matched, producing a
+nonsensical placement. Phase 139 fixes that with an explicit
+**building profile** persisted per project.
+
+#### 12.5.1 The profile file
+
+`<project>/_BIM_COORD/placement_profile.json` — created once per
+project. Fields:
+
+| Field | Plain English | Example |
+|---|---|---|
+| `BuildingType` | Single string from a closed enum | `Office`, `School`, `Hospital`, `Hotel`, `Retail`, `Residential`, `Industrial`, `Laboratory`, `Mixed` |
+| `ApplicableStandards` | List of standard codes the project must obey | `["BS 8300-2","Approved Doc M","BS 5839-1","BS 5266-1","BS 7671"]` |
+| `ProjectStage` | RIBA stage | `4` |
+| `OccupancyMode` | Day / 24-hr / shift | `24h` |
+| `FireStrategyRef` | Reference to the project's fire engineer's strategy | `FS-2026-Rev2` |
+
+#### 12.5.2 How rules consume the profile
+
+Each rule carries two new fields:
+
+| Field | Behaviour |
+|---|---|
+| `BuildingTypes` | List of building types where the rule is allowed. Empty = any. A medical-gases rule lists `["Hospital","Laboratory"]`; a school rule lists `["School"]`. |
+| `ApplicableStandards` | List of standard codes the rule satisfies. The Centre filters out rules whose `ApplicableStandards` are not in the project's `ApplicableStandards` list. |
+
+`PlacementRuleLoader.FilterByProfile` runs once at load time and
+**hides** non-matching rules from the engine entirely. The Centre's
+status bar reports `260 rule(s); 198 hidden by profile`.
+
+#### 12.5.3 Editing the profile
+
+For now, edit `placement_profile.json` in any text editor — a UI card
+in the Centre's Run Options group is tracked as Phase 139.5. The
+existing rule grid `Search` box accepts `pack:medical-gases` to filter
+by `SourcePack`, so you can still inspect every hospital rule even
+without the UI.
+
+### 12.6 Updated scoring model
+
+The candidate scorer was rebalanced:
+
+| Component | v1 weight | v2 weight | Why |
+|---|---|---|---|
+| Geometry fit | 0.45 | 0.35 | Shared with new Coverage component |
+| Anchor distance | 0.25 | 0.20 | Slightly less aggressive |
+| Side preference | 0.15 | 0.15 | Unchanged |
+| Min spacing | 0.10 | 0.15 | More important for uniformity |
+| Standard compliance | 0.05 | 0.05 | Unchanged |
+| **Coverage contribution** | – | **0.10** | **NEW**: rewards candidates that close coverage gaps |
+
+The rejection threshold dropped from `0.40` to `0.35` so marginal
+candidates squeak through (especially in awkward corner rooms). Any
+rule with `GuaranteeCoverage = true` (smoke detection, emergency
+lighting) **never rejects a candidate** — the engine accepts the best
+it has even if the score is low, because losing coverage is worse
+than placing slightly off-anchor.
+
+> **Layman version:** the engine used to be stricter than the standards.
+> Now it is exactly as strict as the standards, and it never bails on
+> mandatory coverage rules.
+
+### 12.7 Excel I/O
+
+Two new toolbar buttons (right of `Save Project`):
+
+| Button | What it does |
+|---|---|
+| **Export to Excel…** | `PlacementRulesExcelExporter` writes every rule (in priority order) to a styled `.xlsx`. One worksheet per `SourcePack`. Header row frozen, conditional formatting on `Priority`, `MinSpacingMm`, validator-fail count. Use to share with non-BIM stakeholders or to bulk-edit in Excel. |
+| **Import from Excel…** | `PlacementRulesExcelImporter` round-trips the file. Imported rules write to `<project>/STING_PLACEMENT_RULES.project.json` (the Layer-4 project overlay, see §8). Conflicts on `RuleId` show the user a 3-pane diff (Excel value / project value / corporate value) and ask which side to keep. |
+
+The Excel format is the same shape as the Phase 139.5 future bulk-import
+tool, so today's exports are forward-compatible.
+
+#### Workflow — round-trip with a discipline lead
+
+```
+1. Centre ▸ Export to Excel…
+2. Send STING_PLACEMENT_RULES_<project>.xlsx to the discipline lead
+3. Lead edits MountingHeightMm / MinSpacingMm / Priority across 50 rows
+4. Lead returns the file
+5. Centre ▸ Import from Excel… → 3-pane diff → accept all
+6. Centre ▸ Save Project
+```
+
+Done. The 50 rows land in the project overlay and override the
+shipped baseline.
+
+### 12.8 Two new worked walk-throughs
+
+#### 12.8.1 *"Place medical-gas terminal units in every hospital bedroom per HTM 02-01"*
+
+1. One-off setup: edit `<project>/_BIM_COORD/placement_profile.json`:
+   ```json
+   {
+     "BuildingType": "Hospital",
+     "ApplicableStandards": ["HTM 02-01","HBN 04-01","BS EN ISO 7396-1"],
+     "ProjectStage": "4"
+   }
+   ```
+2. Open the Centre. Status bar reports `~32 rules; ~228 hidden by profile`.
+3. Search box: `pack:medical-gases` filters the grid to the 15 medical-gas rules.
+4. Pick `med-gas-bedhead-trunking-01` — anchor `WALL_MIDPOINT`, side `EITHER`,
+   mount height `1300 mm`, min spacing `2400 mm` (one bay per bed),
+   StandardRef `HTM 02-01 §6`.
+5. Run Options ▸ Scope = Project.
+6. Click `Preview`. Teal crosses appear at every bed position in every
+   ward and bedroom.
+7. `Run Placement` → bedhead trunking lands; co-place rules
+   (`med-gas-O2-outlet`, `med-gas-VAC-outlet`, `med-gas-AGSS`,
+   `med-gas-N2O-outlet`) chain on automatically.
+8. `Validate` → `MaintenanceAccessValidator` confirms 600 mm clear
+   reach in front of every terminal.
+
+Time: ~2 minutes from open-project to issued model.
+
+#### 12.8.2 *"Guarantee 100 % smoke-detection coverage on a complex floor"*
+
+1. Centre ▸ search `smoke detector`. Pick `fire-smoke-detector-route`.
+2. Confirm:
+   - `Anchor = CEILING_TILE_CORNER`
+   - `MinSpacingMm = 10500` (BS 5839-1 §22.5)
+   - `MountingReference = CEILING`
+   - `MountHeightMm = 0`
+   - **`GuaranteeCoverage = true`**
+   - **`MinCoverageRatio = 1.0`** (100 %)
+3. Run Options ▸ Scope = Active view.
+4. `Preview` → `CoverageGridGenerator` lays a 7.5 m radius grid;
+   detector candidates appear at every uncovered cell centroid.
+5. `Run Placement`.
+6. `Validate` → `UniformityValidator` confirms zero gaps.
+
+Even in awkward L-shaped rooms or corridor / atrium combinations,
+the coverage grid forces the engine to never leave a gap. If a
+candidate's score sits below 0.35, the rule's `GuaranteeCoverage`
+flag accepts it anyway — better a slightly-off detector than a
+missing one.
+
+### 12.9 Updated file map
+
+| Concern | Code path |
+|---|---|
+| Rule POCO (60+ fields) | `StingTools/Core/Placement/PlacementRule.cs` |
+| Anchor types (legacy + Phase 139) | `StingTools/Core/Placement/PlacementScorer.cs`, `PlacementScorer.AnchorTypes.cs` |
+| Routing engine | `StingTools/Core/Placement/WallFollowerRouter.cs` |
+| Coverage grid | `StingTools/Core/Placement/CoverageGridGenerator.cs` |
+| Travel-distance solver | `StingTools/Core/Placement/TravelDistanceSolver.cs` |
+| Wet-zone check | `StingTools/Core/Placement/WetZoneExclusionChecker.cs` |
+| Building profile | `StingTools/Core/Placement/ProjectBuildingProfile.cs` |
+| Height standards table | `StingTools/Core/Placement/HeightStandardsTable.cs` (loads `STING_HEIGHT_STANDARDS.json`) |
+| Validators | `StingTools/Core/Validation/UniformityValidator.cs`, `MaintenanceAccessValidator.cs`, `AccessibilityAuditor.cs` |
+| Excel I/O | `StingTools/Core/Placement/Excel/PlacementRulesExcelExporter.cs`, `PlacementRulesExcelImporter.cs` |
+| Excel commands | `StingTools/UI/PlacementCenter/PlacementExcelCommands.cs` |
+| Loader (with profile filter + pack tagging) | `StingTools/Core/Placement/PlacementRuleLoader.cs` |
+| Seven new rule packs | `StingTools/Data/Placement/STING_PLACEMENT_RULES.{windows-glazing,routing,medical-gases,accessibility,commissioning,baseline-extensions,baseline-extensions2}.json` |
+| Building profile (per project) | `<project>/_BIM_COORD/placement_profile.json` |
+
+### 12.10 Migration notes
+
+Opening an existing project in v2 is automatic and idempotent:
+
+1. Layer 4 / Layer 3 rule files are loaded as before.
+2. Any rule missing v2 fields gets sensible defaults (`GuaranteeCoverage = false`, `MinCoverageRatio = 0`, empty `BuildingTypes`/`ApplicableStandards`).
+3. The first time the Centre runs against a project that has no `placement_profile.json`, the file is **not** auto-created — the Centre treats every rule as in-scope. Add the profile manually when you want to start gating by building type.
+4. The `Preview`, `Run Placement`, `Validate`, `Undo last run`, `Push to Families` toolbar buttons all work identically; no muscle memory lost.
+
+> **Layman version:** v2 adds power without taking anything away. Old
+> rules still work. New rules give you 4× the coverage, building-type
+> awareness, Excel round-trip and 22 new anchors — opt in when you
+> need them.
+
+---
+
+*End of v2 update. v1 of this guide (sections 0 – 11) is the primary
+reference for everyday work; this v2 section is what changed.*
+
+---
+
+## 13. Phase 139.2–139.6 — MK alignment, in-wall chase routing, setup audit (April 2026)
+
+Phase 139.2 onward grew out of MK Electric's BIM library and the
+shop-floor reality that designers needed three new things at the same
+time:
+
+* **Manufacturer-true placement** — the engine should land an MK
+  socket exactly where the data-sheet says, not at the rule's hard-
+  coded centroid.
+* **Conduiting phase awareness** — first-fix boxes need to land in
+  one phase, second-fix devices in another, and the matcher must
+  survive the project's coordination model getting swapped.
+* **In-wall pipe chases** — designers wanted a one-click way to
+  route a 15 mm cold-water pipe inside a wall *parallel to the wall*
+  with auto-sleeves, structural avoidance, and a depth-fits sanity
+  check.
+
+This chapter walks every new field, command, anchor, and engine.
+For the deeper background see `CHANGELOG.md` Phase 139.2 → 139.6.
+
+### 13.1 At a glance
+
+| Phase | What landed |
+|---|---|
+| 139.2 | MK manufacturer catalogue, compound cluster placer, plaster-offset resolver, two-phase box placer, ceiling tile snap, 8 new anchor types, 70 new rules across 3 packs (mk-electrical, ceiling-pendants, conduiting-phase). |
+| 139.3 | Structural awareness adapter (load-bearing + junction + opening), in-wall chase router, 5 chase rules (cold/hot water, radiator, waste, conduit), HTM healthcare FCU, BS 5306 sprinkler separation, workset-keyed two-phase matching. |
+| 139.4 | 12-finding workflow audit pass, auto-sleeve via SleeveEngine, density-rule cap safety, post-placement hooks for two-phase, duplicate-RuleId detection, density / routing rule loader validation, manufacturer category check, OfCategory pre-filter. |
+| 139.5 | Curved-wall midpoints + corners, Linear cap from perimeter ÷ PerLinearMetre, two-phase backward-compat, Revit 2024+ phase API, sandwich-panel chase depth, Substrate guard, arc-length cluster slots, sprinkler nudge-not-drop, batched sleeve mode, regex-pre-bucketed rule iteration. |
+| 139.6 | RotationDeg honoured + auto-flip wall-hosted toward room, MinSpacing enforced in lux grid, RoomFilter regexes word-bounded, Placement Setup Audit command, this guide section. |
+
+### 13.2 New rule fields (PlacementRule)
+
+Phase 139.2 added nine field blocks to `PlacementRule`. Each is
+optional; rules that don't set them keep working unchanged.
+
+#### 13.2.1 Manufacturer hint
+
+| Field | What it does |
+|---|---|
+| `ManufacturerCode` | "MK", "Schneider", "Generic" — keyed against `STING_MANUFACTURER_CATALOGUE.json`. |
+| `CatalogueRef` | SKU code (e.g. `SP7781ALM`). |
+| `BoxDepthMm` | Flush-box recess depth. |
+| `ModulePitchMm` | 25.4 mm for MK Grid Plus; 0 for ordinary plates. |
+| `GangCount` | 1, 2, 3 … |
+| `MountType` | `Flush` / `Surface` / `Ceiling` / `Floor`. |
+| `IpRatingMin` | `IP2X` / `IP44` / `IP66`. |
+| `InsertionOrigin` | `FixingCentreMidpoint` / `BoxCentre` — tells the router where the family origin is. |
+
+#### 13.2.2 Two-phase conduiting
+
+| Field | What it does |
+|---|---|
+| `TwoPhaseEnabled` | Switch on the first-fix → second-fix routing pass. |
+| `ConstructionPhase` | Phase name where first-fix boxes land. |
+| `CompletionPhase` | Phase name where second-fix devices land. |
+| `BoxFamilyTypeRegex` | Regex matching the first-fix family/type names. |
+| `BoxLocationIdParam` | Shared parameter linking first-fix to second-fix (default `STING_BOX_LOCATION_ID`). |
+
+#### 13.2.3 Compound cluster
+
+| Field | What it does |
+|---|---|
+| `IsClusterMember` | Mark this rule as part of a multi-module frame. |
+| `ClusterGroupId` | Identifier shared by every member of the same frame. |
+| `ClusterSlotIndex` | 0-based position of this module within the frame. |
+| `ClusterTotalSlots` | Total module count in the frame (used for centring math). |
+| `ClusterFrameWidthMm` | `ClusterTotalSlots × ModulePitchMm` (informational). |
+
+Example use: an MK Grid Plus 4-module bedhead in a hospital ward —
+slot 0 power, slot 1 data, slot 2 nurse-call, slot 3 dimmer.
+
+#### 13.2.4 Plaster / finish-face offset
+
+| Field | What it does |
+|---|---|
+| `PlasterOffsetMode` | `Auto` (read compound structure), `Fixed` (use `PlasterOffsetFixedMm`), `None`. |
+| `PlasterOffsetFixedMm` | Fixed offset for `Fixed` mode. |
+
+`Auto` walks `Wall.WallType.GetCompoundStructure()`, sums interior
+finish layers (Function = `Finish1` / `Finish2` / `Membrane`, or a
+material name matching `\b(plaster|skim|render|plasterboard|gypsum|MF\s+ceiling|MF\s+lining)\b`), and pushes the family origin out by
+that distance along the wall normal.
+
+Phase 139.5 added a Substrate guard: layers flagged
+`Function = Substrate` (steel-stud drywall partitions) only count as
+finish when the material name explicitly matches the regex above —
+otherwise the studs are skipped, so sockets don't push 100 mm into
+the wall.
+
+#### 13.2.5 Ceiling tile snap
+
+| Field | What it does |
+|---|---|
+| `CeilingTileSnap` | After the lumen-method grid is computed, snap each point to the nearest ceiling tile centre. |
+| `TileGridSpacingXMm` | Tile X dimension (default 600 or 1200). |
+| `TileGridSpacingYMm` | Tile Y dimension (default 600). |
+
+Office rooms with a 1200×600 plasterboard tile grid get pendants on
+the long edge of the tile; classrooms with 600×600 tiles get one
+luminaire per cell. Rules that set `CeilingTileSnap = true` should
+also set `Document.Settings.Categories.Ceilings` properly so the
+calculator can detect the grid origin.
+
+#### 13.2.6 Structural fixing check
+
+| Field | What it does |
+|---|---|
+| `StructuralFixingCheck` | Find a joist within `JoistClearanceMm` for every grid point. |
+| `JoistClearanceMm` | Max distance to the nearest joist (default 300 mm). |
+| `EmitNogginRequirement` | When no joist found, write `STING_NOGGIN_REQUIRED = 1` so the noggin export picks it up. |
+
+Use the **`Placement_ExportNogginRequirements`** command to dump a
+CSV of every pendant needing a structural noggin — the site team
+fits the noggins before the false ceiling goes up.
+
+#### 13.2.7 Wet-zone exclusion
+
+| Field | What it does |
+|---|---|
+| `WetZoneExclude` | When true, reject placement within the rule's `WetZoneClass` (BS 7671 Part 7-701). |
+| `WetZoneClass` | `Zone0` / `Zone1` / `Zone2` / `Zone3`. |
+
+Sockets and switches with `WetZoneExclude = true` automatically skip
+the bath / shower zones in residential plumbing rooms.
+
+#### 13.2.8 Height standard alias
+
+| Field | What it does |
+|---|---|
+| `HeightStandardRef` | Key into `STING_HEIGHT_STANDARDS.json` (e.g. `BS7671_SOCKET_STD`, `HTM0601_BEDHEAD_SOCKET`). |
+
+When the rule's `MountingHeightMm` is 0, the engine reads the
+preferred height from the standards table; saves repeating the
+500 mm / 1350 mm number across thirty residential rules.
+
+#### 13.2.9 Coverage & manufacturer scoring (already in 139.0)
+
+* `CoverageRadiusMm` — engine fills room to 100 % coverage when
+  `GuaranteeCoverage = true`.
+* `MaxSpacingMm` — upper bound on centre-to-centre spacing.
+* Phase 139.4 added a `ScoreManufacturerResolution` component to the
+  composite score; rules whose `CatalogueRef` resolves to a loaded
+  family score 1.0, mismatched-category families score 0.5, missing
+  catalogue scores 0.
+
+### 13.3 Eight new anchor types
+
+Phase 139.2 added eight anchors to the existing Phase 139 set.
+
+| Anchor | Use case |
+|---|---|
+| `STRUCTURAL_SOFFIT` | BESA box for a pendant — point on the structural slab top above the room centroid. |
+| `CEILING_TILE_CENTRE` | Single pendant or detector on the nearest tile centre. |
+| `WALL_FACE_OFFSET` | Wall-mounted device with `PlasterOffsetMode = Auto` applied along the inward wall normal. |
+| `DOOR_LATCH_SIDE` | Light switch on the latch side, 150 mm from the frame. |
+| `DOOR_HINGE_SIDE_150` | Two-way switch on the hinge side, 150 mm from the frame. |
+| `CONDUIT_BOX_MATCHED` | Second-fix pass: anchor against an already-placed first-fix box that has `STING_BOX_LOCATION_ID` set. |
+| `CEILING_VOID_ABOVE_BOX` | Junction box at ceiling void above the mid-span of two outlet positions. |
+| `FLOOR_SLAB_PENETRATION` | Floor box on the structural slab top. |
+
+Phase 139.5 then made `EmitWallMidpoints` / `EmitWallCorners` work
+on **curved walls** (Arc / NurbSpline boundary segments) — they used
+to silently drop, leaving curved-wall rooms with zero anchors.
+
+### 13.4 Six new engines
+
+Phase 139.2–139.6 added six new engine classes. Each is small,
+stateless from the caller's perspective, and never throws — failure
+collects warnings.
+
+#### 13.4.1 ManufacturerCatalogueRegistry
+
+`Core/Placement/ManufacturerCatalogueRegistry.cs`
+
+Loads `STING_MANUFACTURER_CATALOGUE.json` (27 entries shipping with
+the plug-in: MK Logic Plus 1G/2G/3G flush + surface, Grid Plus 2/4/6/8
+modules, Metal Clad IP2X/IP66, BESA round 36/47, square outlet 44/57,
+MK junction boxes). Each entry carries `BoxDepthMm`,
+`BoxExternalLMm`, `BoxExternalWMm`, `FixingCentresMm`, `ModulePitchMm`,
+`IpRating`, `RevitFamilyName`, `RevitTypeName`, `InsertionOrigin`,
+`FaceplateStandard`.
+
+Key APIs:
+
+* `Resolve(manufacturerCode, catalogueRef)` — returns the entry or null.
+* `GetForRule(rule)` — convenience wrapper.
+* `AutoPopulateFromFamilies(doc)` — walks every loaded `FamilySymbol`,
+  reads the `MK_*` shared parameters, upserts entries to disk. Run
+  this once after loading the MK content library.
+* `Reload()` — force a re-read after editing the JSON externally.
+
+The registry is per-document via path resolution; opening project A
+then project B drops the cache and re-resolves automatically (Phase
+139.3 fix).
+
+#### 13.4.2 PlasterOffsetResolver
+
+`Core/Placement/PlasterOffsetResolver.cs`
+
+Reads the host wall's compound structure, sums the interior finish
+layers, returns the offset in feet. Three modes:
+
+* `Auto` — walk the wall's `CompoundStructure.GetLayers()` from
+  the interior side, accumulate finish/membrane layers, stop at
+  `Function = Structure` or the structural-core layer index.
+* `Fixed` — return `PlasterOffsetFixedMm × MmToFt`.
+* `None` — return 0.
+
+Applied at placement time by the engine when the rule's anchor is a
+wall anchor (`WALL_FACE_OFFSET`, `WALL_MIDPOINT`, etc.).
+
+#### 13.4.3 CompoundClusterPlacer
+
+`Core/Placement/CompoundClusterPlacer.cs`
+
+Distributes multi-module frame slots along the wall location curve.
+Three modes:
+
+* Straight wall — slots offset along the wall tangent at
+  `(slot − (totalSlots − 1) / 2) × ModulePitchMm`.
+* Curved wall (Arc / NurbSpline) — Phase 139.5 added arc-length
+  parameter sampling around the frame centre so slots follow the
+  curve instead of walking off-tangent.
+* Pitch-less group — collapses every slot to the frame centre.
+
+Used by every rule whose `IsClusterMember = true`.
+
+#### 13.4.4 TwoPhaseBoxPlacer
+
+`Core/Placement/TwoPhaseBoxPlacer.cs`
+
+Orchestrates the conduiting-phase workflow:
+
+1. **Pre-flight** — `ValidateSharedParams(doc, rules)` warns
+   (doesn't fail) when `STING_BOX_LOCATION_ID` isn't bound.
+2. **Pass 1 (Construction phase)** — `PlaceFirstFixBoxes(doc, roomIds, rules, result)`
+   places every box for `TwoPhaseEnabled` rules and stamps each with
+   a fresh GUID. Phase 139.3 added a `|ws=<workset>` suffix so
+   coordination-model swaps survive workset changes; Phase 139.5
+   added the second-fix matcher's `|ws=*` strip for backward compat
+   with pre-139.3 first-fix boxes.
+3. **Pass 2 (Completion phase)** — `PlaceSecondFixDevices(doc, roomIds, rules, firstFixIndex, result)`
+   matches by XYZ proximity within `ToleranceMm` (default 50 mm),
+   pre-bucketed by containing room (Phase 139.4 fix turning the
+   match from O(rules × rooms × boxes) to O(boxes-in-room) per
+   rule).
+
+Both passes call `PostPlacementHooks.RunFor` on every placed box
+(Phase 139.4 fix), so two-phase output gets the same data-tag /
+COBie / system pipeline as a normal Place run.
+
+#### 13.4.5 StructuralAwareness
+
+`Core/Placement/StructuralAwareness.cs`
+
+Wraps the existing `StructuralModelingEngine.AnalyzeLoadPaths` and
+`StructuralCADPipeline.DetectJunctions` plus a live-model
+`Wall.FindInserts` lookup:
+
+* `IsLoadBearing(el)` — true for columns, beams, foundations, and
+  walls flagged `StructuralWallUsage != NonBearing`.
+* `IsNearJunction(point, clearanceFt)` — true when a beam-junction
+  cluster or column centre sits within range.
+* `GetWallOpenings(wall)` — returns world-AABB of every door /
+  window / opening in the wall.
+* `PointIsInOpening(wall, point)` — chase router uses this to permit
+  routing through openings.
+* `SegmentIsRoutable(hostWall, a, b, clearanceFt)` — composite
+  routing check.
+
+Used by `InWallChaseRouter` and (optionally) by future placement
+rules that want to avoid placing on load-bearing structure.
+
+#### 13.4.6 InWallChaseRouter
+
+`Core/Placement/InWallChaseRouter.cs`
+
+Routes Pipe / Conduit segments parallel to a host wall's location
+curve at a controllable inset from the room finish face. Workflow:
+
+1. **Compound-structure depth check** — read the wall's layer
+   stack, sum interior finishes, reject if (pipe OD + 2 × insulation
+   + clearance) > available chase depth. Phase 139.5 distinguishes
+   "no compound structure" (warn-and-continue) from "pipe doesn't
+   fit" (reject). Phase 139.5 also stops summing at the
+   `CompoundStructure.StructuralMaterialIndex` for sandwich panels.
+2. **Project endpoints onto the wall location curve** — true
+   parallel; not centroid-biased like the older `WallFollowerRouter`.
+3. **Apply the rule's `MountingHeightMm`** — Phase 139.5 fix; Z is
+   set to wall level + height instead of preserving the picked Z.
+4. **Validate every segment** — `StructuralAwareness.SegmentIsRoutable`
+   rejects segments through load-bearing zones; segments that span
+   wall openings (door head, window cripple) are allowed.
+5. **Create pipe/conduit segments** — falls back to `Conduit.Create`
+   when `RouteSegmentCategory = "Conduit"`.
+6. **Auto-sleeve** — `SleeveEngine.PlaceSleeves` cuts the host wall
+   and drops a `STING_SLEEVE_ROUND` family at every penetration.
+   Phase 139.5 added `BatchSleevesAtEnd` + `FlushSleeves()` so an
+   engine-level run with 50 chase routes makes one sleeve pass
+   instead of 50.
+
+Reported on `ChaseRouteResult`:
+`CreatedSegments`, `RejectedSegments`, `SleevesPlaced`,
+`AvailableChaseDepthMm`, `RequiredChaseDepthMm`, `Warnings`.
+
+Run it with the **`Placement_RunWallChase`** command (Section
+13.5.3).
+
+#### 13.4.7 LightingGridCalculator extensions
+
+The lumen-method calculator picked up four post-process passes:
+
+1. `SnapToCeilingTileGrid(room, r, rule)` — Phase 139.2; nudges each
+   computed grid point to the nearest ceiling-tile centre (active
+   when `rule.CeilingTileSnap = true`).
+2. `CheckStructuralFixing(room, r, rule)` — Phase 139.2; for every
+   point, find a joist within `JoistClearanceMm`. When none and
+   `EmitNogginRequirement = true`, the point is added to
+   `r.NogginRequiredPoints` and stamped on the placed instance.
+3. `CheckSprinklerSeparation(room, r)` — Phase 139.3; BS 5306-2 /
+   BS EN 12845 ≥ 600 mm rule. Phase 139.5 changed the algorithm from
+   "drop conflicting points" to "nudge tangentially first, drop
+   only if no clear position exists" so the grid keeps its fixture
+   count.
+4. `EnforceMinSpacing(r, rule)` — Phase 139.6; drops points closer
+   than `rule.MinSpacingMm`. Stops lights stacking in narrow
+   rooms.
+
+Plus `ComputeUniformityRatio` runs at the end to estimate Uo and
+warn when below BS EN 12464-1's 0.40 minimum for general areas.
+
+### 13.5 Five new commands
+
+All five are dispatched through `StingCommandHandler` and invocable
+from the BIM ribbon's Placement group.
+
+#### 13.5.1 `Placement_AutoPopulateCatalogue`
+
+Walks every `FamilySymbol` in the document, harvests the `MK_*`
+shared parameters, and upserts entries into
+`STING_MANUFACTURER_CATALOGUE.json`. Run this once after loading
+your MK BIM library; the registry then resolves catalogue refs
+against the loaded families for every placement run.
+
+Output: TaskDialog showing `<n> new`, `<m> updated`, top 20
+contributing families.
+
+#### 13.5.2 `Placement_ExportNogginRequirements`
+
+Collects every `Lighting Fixtures` / `Electrical Fixtures` /
+`Lighting Devices` instance with `STING_NOGGIN_REQUIRED = 1`,
+writes a CSV (`Room, Level, X_mm, Y_mm, Z_mm, BoxType,
+CatalogueRef, FixingDate`), and optionally drops a
+`STING_NogginMarker` generic-model element at each point if the
+family is loaded.
+
+Output: TaskDialog with the row count + CSV path.
+
+#### 13.5.3 `Placement_RunWallChase`
+
+Pick a host wall + two endpoints. Phase 139.4 added a preview pass
+inside a rolled-back TransactionGroup before committing — the user
+gets a "Created N pipes, M sleeves, depth available X / required Y;
+commit?" Yes/No before any geometry is committed.
+
+#### 13.5.4 `Placement_ExportRulesExcel` / `Placement_ImportRulesExcel`
+
+Round-trip the active rule set through Excel. The exporter writes one
+worksheet per `SourcePack` (Baseline / MK_Electrical / Ceiling_Pendants
+/ Conduiting_Phase / InWall_Chase / Architecture / Mechanical /
+Electrical / etc.) plus a SCHEMA worksheet listing every column type.
+
+The importer reads the workbook back, validates on field types, and
+upserts into `STING_PLACEMENT_RULES.project.json` next to the .rvt.
+
+Use this to hand a discipline lead the rules in a workbook, get
+edits back, and merge them without dropping into JSON.
+
+#### 13.5.5 `Placement_AuditSetup` (Phase 139.6)
+
+Walks the active document and reports every gap from the authoring
+checklist (Section 13.6). Five passes:
+
+* Shared parameters bound (`STING_BOX_LOCATION_ID`,
+  `STING_NOGGIN_REQUIRED`, `STING_FIXTURE_VARIANT_TXT`,
+  `MK_CATALOGUE_REF`).
+* Critical families loaded (BESA round box, square outlet, MK Logic
+  Plus / Grid Plus / Metal Clad, sleeves, junction boxes).
+* Critical category symbols present (Sprinklers, Fire Alarm Devices,
+  Air Terminals, Lighting Fixtures).
+* Phases declared (`Construction`, `Handover`).
+* Manufacturer catalogue populated, rule packs load, view-style pack
+  discoverable.
+
+Output: TaskDialog grouped by Error / Warning / Info (top 40), and a
+**CSV deliverable** at
+`OutputLocationHelper.GetOutputPath(doc, "PlacementSetupAudit")` so
+the audit can be committed to the federation model record.
+
+**Run this BEFORE the first Place Fixtures run on any project.**
+
+### 13.6 Family-Authoring Requirements — STING Auto-Placement
+
+This is the single source of truth for how every Revit family must be
+authored before the auto-placement engine, the lux grid, the
+two-phase conduiting workflow, and the in-wall chase router can land
+the geometry cleanly.
+
+If you only read one section in this chapter, read this one.
+
+The full reference (with worked examples) lives in
+[`PLACEMENT_FAMILY_AUTHORING.md`](PLACEMENT_FAMILY_AUTHORING.md).
+
+#### 13.6.1 Universal authoring rules (every category)
+
+| Requirement | Why |
+|---|---|
+| Family origin = the rule's expected insertion point (NOT geometry centre). For a wall socket, the fixing-centre midpoint, not the box back. | `CompoundClusterPlacer` and `WALL_FACE_OFFSET` offset from the family origin. |
+| Reference Plane `Center (Front/Back)` = wall-face plane, `Defines Origin = Yes`, `Reference = Strong`. | Lets `WALL_FACE_OFFSET` apply `PlasterOffsetMode = Auto` against the right datum. |
+| `Always Vertical = Yes` for vertical fittings; `Cuts with Voids When Loaded = Yes` for sleeves, anchors, pendants. | `SleeveEngine` won't cut the wall otherwise. |
+| Shared parameters loaded: `STING_BOX_LOCATION_ID`, `STING_NOGGIN_REQUIRED`, `STING_AUTO_PLACED_BOOL`, the `MK_*` catalogue params. | Required for two-phase matching, noggin export, catalogue auto-populate. |
+| `STING_FIXTURE_VARIANT_TXT` = rule's `VariantHint` ("FLUSH", "DIMMER", "IP65"). | `FixturePlacementEngine.ResolveSymbol` chains on this value. |
+| Type name starts with the gang/size/IP code — e.g. `1G_25mm_IP2X_FlushWhite`. | `FamilyTypeRegex` patterns rely on the type name. |
+
+#### 13.6.2 Per-category authoring matrix
+
+| Category | Hosting | Origin / facing | Required reference planes | Key parameters | Engine rotation | Common mistake |
+|---|---|---|---|---|---|---|
+| **Electrical Fixtures** (sockets, FCUs) | Wall-Hosted | Fixing-centre midpoint of front face; faceplate normal points into room | `Center (Front/Back)` = wall face, `Center (Left/Right)` symmetry | `MK_BOX_DEPTH_MM`, `MK_FIXING_CENTRES_MM`, `MK_GANG_COUNT`, `MK_CATALOGUE_REF`, `STING_FIXTURE_VARIANT_TXT` | Auto-flip facing to inward room normal (Phase 139.6) | Origin at box back → socket sits 25 mm into wall |
+| **Lighting Devices** (switches, dimmers) | Wall-Hosted | Faceplate midpoint; rocker faces room | `Center (Front/Back)` = wall face | `MK_BOX_DEPTH_MM`, `STING_FIXTURE_VARIANT_TXT` (`DIMMER`/`DALI`/`2-WAY`); `Family Placement Type = One Level Based Hosted` | Auto-rotate so rocker faces room | Family not `Always Vertical` → switch lies flat at door head |
+| **Lighting Fixtures** (pendants, downlights, panels) | Ceiling-Hosted (surface), Face-Based (soffit), Floor/Roof-hosted (slab pendants) | Visible drop centre; photometric axis −Z | `Ceiling`, `Defines Origin = Yes` | `MK_CATALOGUE_REF`, `STING_PHOTOMETRIC_LM`, IES file, `IS_INDIVIDUAL_LUMINAIRE = Yes` | None (face-based families inherit ceiling normal) | Pendant authored as un-hosted `OneLevelBased` → engine drops to room centre and stacks |
+| **Plumbing Fixtures** (WC, basin, shower) | Wall-Hosted (WC/basin), Floor-Based (shower trays) | Footprint centre, not bowl | `Center (Left/Right)`, `Center (Front/Back)`, `Reference = Strong` | `IS_FIXTURE_BACK_TO_WALL = Yes`, `STING_FIXTURE_VARIANT_TXT` (`WC`/`BASIN`/`SHOWER`) | None | Origin on bowl rather than footprint → chase pipe lands inside cistern |
+| **Communication / Data Devices** | Wall-Hosted | Faceplate midpoint, faces room | Same as Electrical Fixtures | `STING_FIXTURE_VARIANT_TXT` (`HDMI`/`USB-C`/`RJ45`/`RJ12`); `MK_MODULE_PITCH_MM = 25.4` for Grid Plus | Inward room normal | Authored as Generic Model → category filter rejects |
+| **Fire Alarm Devices** | Wall-Hosted (MCP, sounder, beacon), Ceiling-Hosted (smoke, heat) | Faceplate or sensor head | `Center (Front/Back)` | `BS5839_DEVICE_KIND` (`MCP`/`SOUNDER`/`SMOKE`/`HEAT`), `STING_FIXTURE_VARIANT_TXT`; smoke `Coverage Radius = 7500 mm`, heat = `5300 mm` | MCP/sounder face room; smoke/heat point down | Smoke as Wall-Hosted → no ceiling host found, all coverage rules skip |
+| **Sprinklers** | Ceiling-Hosted (or Face-Based) | Deflector centre; K-factor in type | `Ceiling`, `Defines Origin = Yes` | `BS_5306_K_FACTOR`, `Coverage Radius`, `STING_FIXTURE_VARIANT_TXT` (`UPRIGHT`/`PENDANT`/`CONCEALED`) | Down for pendants, up for upright | Family not loaded → 600 mm BS 5306 separation check is silent no-op |
+| **Conduits** (first-fix square / BESA round) | Wall-Hosted (square box), Face-Based (BESA on slab soffit) | Box centre | `Center (Front/Back)` = wall face / soffit face | `STING_BOX_LOCATION_ID`, `MK_CATALOGUE_REF`. Family name MUST match `BoxFamilyTypeRegex` (`Conduit_BESA_Round`, `Conduit_Square_Outlet`) | Match host face | Family naming mismatch → "no first-fix box family matched" warnings |
+| **Junction Boxes** | Face-Based (slab soffit / wall) | Box centre | `Ceiling` or `Wall` reference plane | `STING_FIXTURE_VARIANT_TXT` (`5A_3T`/`20A_5T`/`30A_3T`/`20A_WP_IP66`), `MK_CATALOGUE_REF` | Default | Authored as Generic Model rather than Junction Boxes / Electrical Fixtures |
+| **Air Terminals** | Face-Based (ceiling / wall) | Diffuser centre; throw axis along longest dimension | `Diffuser face` = `Defines Origin` | `STING_FIXTURE_VARIANT_TXT` (`LINEAR_SLOT`/`4-WAY`/`JET`/`EXTRACT`), `Air Flow` | 4-way none; linear slots align to longest wall | Family not loaded → all Mechanical-pack rules skip silently |
+| **Pipes** (chase / waste / cold-water) | Self-hosted segments | n/a | n/a | `Pipe Outer Diameter`, `Insulation Thickness`, `Connection Type`. PipeType MUST have Routing Preferences elbow/tee/cross fittings configured. | n/a | Default PipeType missing fittings → segments don't auto-elbow at corners → orphan runs |
+
+#### 13.6.3 Project setup checklist
+
+| Item | What it does | Symptom if missing |
+|---|---|---|
+| Run `Placement_AutoPopulateCatalogue` after loading MK families | Walks every loaded `FamilySymbol`, harvests `MK_*` shared params | `ScoreManufacturerResolution` returns 0/0.5 for every rule |
+| Bind `STING_BOX_LOCATION_ID` to MEP / Lighting / Electrical / Junction-Box categories | Two-phase first-fix → second-fix matching | Engine warns "Two-phase matching will run in degraded mode" |
+| Bind `STING_NOGGIN_REQUIRED` (Yes/No) to Lighting Fixtures | Noggin export tracks pendants needing structural fixings | `NogginRequirementExportCommand` returns zero rows |
+| Load BESA round box family (`Conduit_BESA_Round`, types `57D_36mm`, `57D_47mm`) | First-fix box for every pendant / downlight | 14 rules silently skipped |
+| Load `STING_SLEEVE_ROUND` family | `InWallChaseRouter.AutoSleeve` post-step | `SleeveEngine` falls back to dry-run; chase pipes leave uncut walls |
+| Add Phases `Construction` and `Handover` | Two-phase routing decoupling | First-fix and second-fix both land in active phase — coordination breaks |
+| Set Project `BuildingType` (Residential / Office / Healthcare / Education) via Centre profile | Filters discipline packs at load time | Healthcare HTM rules fire on residential projects |
+
+Run **`Placement_AuditSetup`** to cross-check every item on this list against the live model before the first Place Fixtures run. The
+audit writes a CSV deliverable so the gap list can be tracked.
+
+### 13.7 The recommended setup workflow
+
+The first time you point the Centre at a project:
+
+1. **Load the family library.** MK content from NBS or BIMobject for
+   sockets / switches / Grid Plus; the BESA round box family
+   (`Conduit_BESA_Round`); the square outlet family
+   (`Conduit_Square_Outlet`); your standard lux-method luminaires;
+   `STING_SLEEVE_ROUND` for chase routing.
+2. **Bind shared parameters.** Either run the existing
+   `Tags > Load Shared Parameters` command or manually bind
+   `STING_BOX_LOCATION_ID`, `STING_NOGGIN_REQUIRED`,
+   `STING_FIXTURE_VARIANT_TXT`, `MK_CATALOGUE_REF` to MEP /
+   Lighting / Electrical / Junction Boxes / Plumbing categories.
+3. **Add phases.** Manage > Phases > New: `Construction` and
+   `Handover` if not already present.
+4. **Run `Placement_AutoPopulateCatalogue`.** Once.
+5. **Run `Placement_AuditSetup`.** Read the CSV. Fix every Error
+   and as many Warnings as you can.
+6. **Set the Project Building Profile** in the Centre's profile
+   selector (Residential / Office / Healthcare / Education / etc.).
+7. **Open the Placement Centre.** Verify the rule pack count in
+   the toolbar matches what you expect (should be 200+ across all
+   discipline packs).
+8. **Run a Preview** on one room before doing the whole project.
+9. **Run Placement.** Tag the audit CSV onto the run record.
+
+### 13.8 Phase 139.6 troubleshooting
+
+If your Place run produces messy output, walk this list before
+filing a bug.
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Switches landing facing up at door centre | Family not Always Vertical, or anchor isn't a wall anchor | Set `Always Vertical = Yes` on the family; verify rule's `AnchorType` is one of `WALL_*` or `DOOR_*`. Phase 139.6 auto-flips facing toward the room. |
+| Lights stack vertically with no spacing | Rule's `MinSpacingMm` is 0 | Set `MinSpacingMm` to the realistic minimum (e.g. 1500 mm for office pendants); Phase 139.6 enforces it. |
+| Toilets in walk-in closets / wardrobes | Loose RoomFilter regex | Phase 139.6 word-bounded the baseline. If you wrote a custom rule, use `(?i)\b(wc\|toilet\|bathroom\|en-suite)\b`. |
+| "TwoPhase: no first-fix box family matched" | BESA / square outlet family not loaded | Load `Conduit_BESA_Round.rfa` and `Conduit_Square_Outlet.rfa`. Run `Placement_AuditSetup` to confirm. |
+| "STING_BOX_LOCATION_ID not bound" | Shared parameter not bound | Bind to MEP / Lighting / Electrical / Junction Boxes / Plumbing categories. |
+| "No FamilySymbol found for category 'Sprinklers'" | Sprinkler family not loaded | Load any sprinkler family — needed for the BS 5306 separation check even if you don't place sprinklers. |
+| Chase router rejected with "exceeds available chase depth" | Wall is too thin for the pipe + insulation + clearance | Either thicken the wall, switch to a thinner pipe via the catalogue, or set `PlasterOffsetMode = Fixed` with a known offset. |
+| Chase pipes leave uncut walls | Sleeve family not loaded | Load `STING_SLEEVE_ROUND.rfa`. The router falls back to dry-run sleeve placement and warns. |
+| Curved-wall room produces zero anchors | Pre-139.5 only — Arc/NurbSpline boundaries were dropped | Pull current main; Phase 139.5 routes any boundary curve through `Curve.Evaluate(0.5, true)`. |
+
+### 13.9 Updated file map (Phase 139.2 → 139.6)
+
+```
+StingTools/Core/Placement/
+├── ManufacturerCatalogueEntry.cs       — POCO
+├── ManufacturerCatalogueRegistry.cs    — JSON-backed catalogue
+├── PlasterOffsetResolver.cs            — compound-structure walker
+├── CompoundClusterPlacer.cs            — multi-module frame distributor
+├── TwoPhaseBoxPlacer.cs                — first-fix / second-fix workflow
+├── StructuralAwareness.cs              — load-bearing + junction + opening adapter
+├── InWallChaseRouter.cs                — chase pipe routing + auto-sleeve
+└── (plus the earlier Phase 139 files, unchanged)
+
+StingTools/Commands/Placement/
+├── ManufacturerCatalogueAutoPopulateCommand.cs
+├── NogginRequirementExportCommand.cs
+├── PlacementRulesExcelCommands.cs       — export + import
+├── RunWallChaseCommand.cs
+└── PlacementSetupAuditCommand.cs        — Phase 139.6
+
+StingTools/Data/Placement/
+├── STING_MANUFACTURER_CATALOGUE.json    — 27 SKUs
+├── STING_PLACEMENT_RULES.mk-electrical.json     — 36 rules
+├── STING_PLACEMENT_RULES.ceiling-pendants.json  — 20 rules
+├── STING_PLACEMENT_RULES.conduiting-phase.json  — 16 rules
+├── STING_PLACEMENT_RULES.in-wall-chase.json     — 5 rules
+└── STING_HEIGHT_STANDARDS.json                  — 33 keys
+
+StingTools/Data/
+└── STING_VIEW_STYLE_PACKS.json          — Lighting Devices, Junction Boxes, STING-First-Fix-Phase, STING-Noggin-Required filter rules added in Phase 139.3
+
+docs/
+├── PLACEMENT_CENTRE_GUIDE.md            — this file
+├── PLACEMENT_FAMILY_AUTHORING.md        — Phase 139.6 reference (Section 13.6 mirrors this)
+├── PLACEMENT_CENTRE_REVIEW.md
+└── CHANGELOG.md                         — Phase 139.2 → 139.6 entries
+```
+
+### 13.10 Migration notes
+
+* **No JSON breaking changes.** Pre-139.2 rule packs continue to load
+  unchanged; the new fields default to safe values (cluster off,
+  two-phase off, plaster auto-on for any rule that sets it).
+* **Existing first-fix boxes (pre-139.3 BoxLocationId)** still match
+  on second-fix because Phase 139.5 strips the `|ws=*` workset
+  suffix before stamping.
+* **Old `WallFollowerRouter`** is preserved alongside the new
+  `InWallChaseRouter`. Use whichever fits: WallFollow routes on the
+  face (containment / surface conduit), InWallChase routes inside
+  the wall finishes (chase pipes / first-fix conduit). Future
+  unification is on the deferred list.

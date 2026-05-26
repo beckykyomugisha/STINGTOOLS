@@ -805,7 +805,7 @@ namespace StingTools.BIMManager
 
                 string revision = "";
                 try { revision = Core.PhaseAutoDetect.DetectProjectRevision(doc); }
-                catch (Exception ex) { StingLog.Warn($"AutoRaiseHandoverGapIssues revision: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"AutoRaiseHandoverGapIssues revision: {ex2.Message}"); }
 
                 var issue = new JObject
                 {
@@ -1740,6 +1740,20 @@ namespace StingTools.BIMManager
                 Core.StingLog.Warn($"SidecarVersioning.ReadSidecar: {ex.Message}");
                 return (null, null);
             }
+        }
+    }
+
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    [Autodesk.Revit.Attributes.Regeneration(Autodesk.Revit.Attributes.RegenerationOption.Manual)]
+    public class TeamWorkloadCommand : Autodesk.Revit.UI.IExternalCommand
+    {
+        public Autodesk.Revit.UI.Result Execute(
+            Autodesk.Revit.UI.ExternalCommandData data, ref string message,
+            Autodesk.Revit.DB.ElementSet elements)
+        {
+            Autodesk.Revit.UI.TaskDialog.Show("STING – Team Workload",
+                "Team Workload reporting is not yet available in this build.");
+            return Autodesk.Revit.UI.Result.Succeeded;
         }
     }
 }

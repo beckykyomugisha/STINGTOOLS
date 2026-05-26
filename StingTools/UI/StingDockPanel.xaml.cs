@@ -5,8 +5,20 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Threading.Tasks;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Placement;
+using StingTools.Select;
+
+// Autodesk.Revit.UI ships TextBox + ComboBox types that collide with
+// System.Windows.Controls equivalents used by the WPF dockable panel.
+// Alias the WPF types so this file's controls code compiles without
+// having to fully-qualify every call site.
+using TextBox = System.Windows.Controls.TextBox;
+using ComboBox = System.Windows.Controls.ComboBox;
+using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using System.Text.RegularExpressions;
 
 // Autodesk.Revit.UI ships TextBox + ComboBox types that collide with
 // System.Windows.Controls equivalents used by the WPF dockable panel.
@@ -22,6 +34,16 @@ namespace StingTools.UI
     /// Code-behind for the STING Tools dockable panel.
     /// Unified 6-tab layout: SELECT, ORGANISE, DOCS, TEMP, CREATE, VIEW.
     /// All button clicks dispatched via IExternalEventHandler for thread safety.
+    ///
+    /// ━━ HVAC FENCE ━━
+    /// This panel must NOT carry an HVAC top-level tab. HVAC lives on its own
+    /// dockable surface: <see cref="StingHvacPanel"/> (registered by
+    /// <see cref="Core.StingToolsApp"/> Phase 180, toggled by
+    /// <see cref="Core.ToggleHvacPanelCommand"/>). Do not add tabHvac /
+    /// BuildHvacTab / HvacContent fields or a TabItem Header="HVAC" — the
+    /// dock-panel-vs-panel separation is intentional and was the precedent
+    /// that fixed the duplicate-Categories revert loop.
+    /// ━━━━━━━━━━━━━━━━━
     ///
     /// CRASH FIX: Implements lazy tab content loading to prevent WPF stack overflow.
     /// The full visual tree (493 buttons, 652 StaticResources) would exhaust the
@@ -72,9 +94,20 @@ namespace StingTools.UI
         public StingDockPanel()
         {
             InitializeComponent();
-            // Register this panel as the theme target before seeding resources
-            ThemeManager.RegisterTarget(this);
-            ThemeManager.InitialiseResources();
+            // Register this panel as the theme target before seeding resources.
+            // Any failure during seed → fall back to Corporate so the panel
+            // never renders against an empty resource dictionary.
+            try
+            {
+                ThemeManager.RegisterTarget(this);
+                ThemeManager.InitialiseResources();
+            }
+            catch (Exception exTheme)
+            {
+                StingLog.Error("StingDockPanel: theme init failed — forcing Corporate", exTheme);
+                try { ThemeManager.ApplyTheme(ThemeManager.FallbackTheme); }
+                catch { /* nothing more we can do */ }
+            }
 
             // CRASH FIX: Immediately after XAML parsing, detach content from all
             // non-active tabs BEFORE the first WPF layout pass (Measure/Arrange).
@@ -83,7 +116,10 @@ namespace StingTools.UI
             DeferNonActiveTabContent();
 
             BuildColorSwatches();
-            _instance = this;
+
+            // Subscribe to PlacementResultBus so Fixtures and Routing result strips
+            // update automatically after any placement/routing run.
+            PlacementResultBus.ResultPublished += OnPlacementResultBus;
 
             // Pack 0 — reflect current offline state the moment the panel is realised.
             try { UpdateOfflineStatus(StingTools.Core.StingOfflineConfig.IsOffline, StingTools.Core.StingOfflineConfig.Source); }
@@ -257,13 +293,36 @@ namespace StingTools.UI
                     SetCategoryFilterParams();
                 }
 
-                // Handle theme cycling directly in WPF thread (no Revit API needed)
+                // Handle theme cycling directly in WPF thread (no Revit API needed).
+                // Wrapped in try/catch with a Corporate fallback per the
+                // "if theme switching fails, default to Corporate" rule —
+                // any WPF resource resolution glitch in the hosted pane is
+                // contained here rather than crashing the panel.
                 if (cmdTag == "CycleTheme")
                 {
-                    string next = ThemeManager.CycleTheme();
-                    // Force WPF to re-evaluate DynamicResource bindings in Revit's hosted pane
-                    InvalidateVisual();
-                    UpdateLayout();
+                    string next;
+                    try
+                    {
+                        next = ThemeManager.CycleTheme();
+                    }
+                    catch (Exception exTheme)
+                    {
+                        StingLog.Error("StingDockPanel: CycleTheme failed — forcing Corporate", exTheme);
+                        try { ThemeManager.ApplyTheme(ThemeManager.FallbackTheme); } catch { /* no-op */ }
+                        next = ThemeManager.CurrentTheme;
+                    }
+                    // Force WPF to re-evaluate DynamicResource bindings in Revit's hosted pane.
+                    // Revit's WPF host occasionally drops DynamicResource updates if the
+                    // visual tree is not invalidated explicitly, so do both passes.
+                    try
+                    {
+                        InvalidateVisual();
+                        UpdateLayout();
+                    }
+                    catch (Exception exRefresh)
+                    {
+                        StingLog.Warn($"StingDockPanel: theme refresh failed: {exRefresh.Message}");
+                    }
                     UpdateStatus($"Theme: {next}");
                     return;
                 }
@@ -274,6 +333,16 @@ namespace StingTools.UI
                 if (cmdTag.StartsWith("Placement_"))  SetV4PlacementOptions();
                 if (cmdTag.StartsWith("Routing_"))    SetV4RoutingOptions();
                 if (cmdTag.StartsWith("Fabrication_")) SetV4FabricationOptions();
+
+                // Healthcare tab — flush every Hc.* control state into
+                // SetExtraParam so commands can read user choices. Init is
+                // idempotent; if the user clicks before TabMain_SelectionChanged
+                // fired the lazy init this catches up.
+                if (cmdTag.StartsWith("Healthcare_"))
+                {
+                    InitializeHealthcareTab();
+                    SetHealthcareOptions();
+                }
 
                 _handler?.SetCommand(cmdTag);
                 var result = _externalEvent?.Raise() ?? ExternalEventRequest.Denied;
@@ -292,6 +361,19 @@ namespace StingTools.UI
                     UpdateStatus("Busy — try again...");
                 }
             }
+        }
+
+        /// <summary>
+        /// Healthcare → Specialist sub-tab Run button. Re-tags itself based on
+        /// the selected specialist combo and re-enters Cmd_Click so the standard
+        /// pre-dispatch flush runs.
+        /// </summary>
+        private void HcSpecialistRun_Click(object sender, RoutedEventArgs e)
+        {
+            if (btnHcSpecialistRun == null) return;
+            string kind = SelectedComboTag(cmbHcSpecialistKind, "HybridOr");
+            btnHcSpecialistRun.Tag = "Healthcare_" + kind;
+            Cmd_Click(btnHcSpecialistRun, e);
         }
 
         /// <summary>FIX-4.1: Read Leader &amp; Elbow sliders and pass as ExtraParams.</summary>
@@ -355,6 +437,19 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("Scale500Mm",  (sldScale500?.Value  ?? 12.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
                 StingCommandHandler.SetExtraParam("Scale1000Mm", (sldScale1000?.Value ?? 20.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
                 StingCommandHandler.SetExtraParam("OffsetCapFt", (sldOffsetCap?.Value ?? 30.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+
+                // Phase 165 — per-category scale multipliers (previously orphaned).
+                // Read by ApplyScaleTiersCommand and persisted to project_config.json
+                // under SCALE_CATEGORY_MULTIPLIERS so SmartTagPlacementCommand can
+                // multiply the base offset by the per-category factor at placement time.
+                if (FindName("sldMultDucts") is System.Windows.Controls.Slider mD)
+                    StingCommandHandler.SetExtraParam("MultDucts", mD.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultPipes") is System.Windows.Controls.Slider mP)
+                    StingCommandHandler.SetExtraParam("MultPipes", mP.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultEquipment") is System.Windows.Controls.Slider mE)
+                    StingCommandHandler.SetExtraParam("MultEquipment", mE.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultFixtures") is System.Windows.Controls.Slider mF)
+                    StingCommandHandler.SetExtraParam("MultFixtures", mF.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
             }
             catch (Exception ex) { StingLog.Warn($"Read Scale tab sliders failed: {ex.Message}"); }
         }
@@ -514,47 +609,34 @@ namespace StingTools.UI
         }
 
         /// <summary>
-        /// ORPHAN-FIX: Read the Categories sub-tab selection and push it as
-        /// ExtraParams so <see cref="Core.StingAutoTagger.CreateMultiCategoryFilterStatic"/>
-        /// can apply the user's include/exclude list.
-        /// Silently no-ops when the Categories sub-tab has not been loaded yet —
-        /// downstream helper treats an empty TagCategoryFilter as "accept all".
+        /// Read the merged Categories sub-tab state and push it as ExtraParams so
+        /// <see cref="Core.StingAutoTagger.CreateMultiCategoryFilterStatic"/> can
+        /// apply the user's include/exclude selection.
+        /// Silently no-ops when the sub-tab has not been built yet — the downstream
+        /// helper treats an empty TagCategoryFilter as "accept all".
         /// </summary>
         private void SetCategoryFilterParams()
         {
             try
             {
-                if (!(FindName("lstTagCategories") is System.Windows.Controls.ListBox lstInc))
+                if (_catIncludeCheckboxes.Count == 0)
                 {
-                    // Sub-tab not loaded — clear any stale filter so the default list is used.
                     StingCommandHandler.ClearExtraParam("TagCategoryFilter");
                     StingCommandHandler.ClearExtraParam("TagCategoryExclusions");
                     StingCommandHandler.ClearExtraParam("TagCategoryMode");
                     return;
                 }
-                var inc = new List<string>();
-                foreach (var item in lstInc.SelectedItems)
-                {
-                    if (item is System.Windows.Controls.ListBoxItem lbi
-                        && lbi.Tag is string bic && !string.IsNullOrEmpty(bic))
-                    {
-                        inc.Add(bic);
-                    }
-                }
-                StingCommandHandler.SetExtraParam("TagCategoryFilter", string.Join(",", inc));
 
-                var exc = new List<string>();
-                if (FindName("lstExcludeCategories") is System.Windows.Controls.ListBox lstExc)
-                {
-                    foreach (var item in lstExc.SelectedItems)
-                    {
-                        if (item is System.Windows.Controls.ListBoxItem lbi
-                            && lbi.Tag is string bic && !string.IsNullOrEmpty(bic))
-                        {
-                            exc.Add(bic);
-                        }
-                    }
-                }
+                var inc = _catIncludeCheckboxes
+                    .Where(kvp => kvp.Value.IsChecked == true)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+                var exc = _catExcludeCheckboxes
+                    .Where(kvp => kvp.Value.IsChecked == true)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+
+                StingCommandHandler.SetExtraParam("TagCategoryFilter",     string.Join(",", inc));
                 StingCommandHandler.SetExtraParam("TagCategoryExclusions", string.Join(",", exc));
                 StingCommandHandler.SetExtraParam("TagCategoryMode",
                     inc.Count > 0 ? "Include" : (exc.Count > 0 ? "Exclude" : ""));
@@ -692,6 +774,19 @@ namespace StingTools.UI
             return def;
         }
 
+        // Phase 139.7 — read a named RadioButton's IsChecked state.
+        private static bool RadState(DependencyObject root, string name, bool def)
+        {
+            if (root == null) return def;
+            try
+            {
+                var rb = FindVisualChild<System.Windows.Controls.RadioButton>(root, name);
+                if (rb != null) return rb.IsChecked == true;
+            }
+            catch { }
+            return def;
+        }
+
         private static bool RadioState(DependencyObject root, string name, bool def)
         {
             if (root == null) return def;
@@ -735,6 +830,17 @@ namespace StingTools.UI
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludePlumbingFixtures     = ChkState(root, "chkFxPlm",     true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludeAirTerminals         = ChkState(root, "chkFxHvac",    true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludeSprinklers           = ChkState(root, "chkFxSpr",     true);
+
+                // Phase 139.7 — Fixtures scope radios. Default to
+                // SelectedRooms so an unset state preserves historic
+                // behaviour. The radios are mutually exclusive
+                // (GroupName = "FxScope") so the first checked wins.
+                if (RadState(root, "rbFxScopeView", false))
+                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.ActiveView;
+                else if (RadState(root, "rbFxScopeAll", false))
+                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.AllRooms;
+                else
+                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.SelectedRooms;
 
                 StingTools.Commands.Placement.PlaceFixturesOptions.EnforceDocM    = ChkState(root, "chkFxDocM",    true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.EnforceBS7671  = ChkState(root, "chkFxBS7671",  true);
@@ -1066,6 +1172,14 @@ namespace StingTools.UI
                                 tab.Content = content;
                                 _deferredTabContent.Remove(capturedIdx);
                                 Core.StingLog.Info($"Tab {capturedIdx} content loaded (lazy)");
+                            }
+
+                            // Healthcare tab: now that the named controls are
+                            // realised, seed the validator grid and wire combo
+                            // change handlers. Idempotent.
+                            if (tab.Header is string hdr && string.Equals(hdr, "HEALTHCARE", StringComparison.OrdinalIgnoreCase))
+                            {
+                                InitializeHealthcareTab();
                             }
                         }
                         catch (Exception ex)
@@ -1506,16 +1620,23 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"Non-critical UI update: {ex.Message}"); }
         }
 
-        // ── Categories sub-tab (ORPHAN-FIX) ──────────────────────────────────
+        // ── Categories sub-tab — consolidated checkbox + persistence editor ──
+        //
+        // Single source of truth for which Revit categories the tagging pipeline
+        // treats as taggable. The XAML used to ship TWO tabs ("TAG THESE
+        // CATEGORIES" with ListBox multi-select and "CATEGORIES TO TAG" with
+        // checkboxes) that kept reverting after each merge. They have been
+        // merged here: divided Include + Exclude panels with checkboxes,
+        // wired to the transient ExtraParams pipeline AND a Save & Apply
+        // button that persists the selection to project_config.json.
+        //
+        // Do NOT re-introduce lstTagCategories / lstExcludeCategories /
+        // pnlTagCategories / BuildCategoryList / SaveCategorySkip_Click —
+        // their removal is what stops the ORPHAN-FIX re-instatement loop.
+        //
+        // ─────────────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Build lists of tag-eligible Revit categories. Mirrors the default
-        /// set in <see cref="Core.StingAutoTagger.CreateMultiCategoryFilterStatic"/>
-        /// plus common architectural and structural categories so a BIM
-        /// coordinator can include/exclude them without editing code.
-        /// Items store the BuiltInCategory name (e.g. "OST_PlumbingFixtures")
-        /// in <see cref="System.Windows.Controls.ListBoxItem.Tag"/>.
-        /// </summary>
+        /// <summary>Tag-eligible Revit categories (label / BuiltInCategory / discipline group).</summary>
         private static readonly (string Label, string Bic, string Group)[] _catRows =
         {
             ("Mechanical Equipment",    "OST_MechanicalEquipment",  "MEP"),
@@ -1554,83 +1675,108 @@ namespace StingTools.UI
         };
 
         private bool _catListsBuilt;
+        // BIC → CheckBox lookup so SetCategoryFilterParams / quick-picks / search
+        // don't have to walk visual children. Keyed by BuiltInCategory name.
+        private readonly Dictionary<string, System.Windows.Controls.CheckBox> _catIncludeCheckboxes =
+            new Dictionary<string, System.Windows.Controls.CheckBox>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, System.Windows.Controls.CheckBox> _catExcludeCheckboxes =
+            new Dictionary<string, System.Windows.Controls.CheckBox>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Populate the include/exclude lists on first access so the sub-tab
-        /// costs nothing when never opened. Called from the quick-select,
-        /// selection-changed and search handlers.
+        /// Populate both checkbox panels on first access so the sub-tab costs
+        /// nothing when never opened. Initial tick state matches the persisted
+        /// CATEGORY_SKIP list (a row is ticked in Include when it is NOT in
+        /// the skip list, ticked in Exclude when it IS).
         /// </summary>
         private void EnsureCategoryListsBuilt()
         {
             if (_catListsBuilt) return;
             try
             {
-                var lstInc = FindName("lstTagCategories") as System.Windows.Controls.ListBox;
-                var lstExc = FindName("lstExcludeCategories") as System.Windows.Controls.ListBox;
-                if (lstInc == null && lstExc == null) return;
+                var pnlInc = FindName("pnlCatInclude") as System.Windows.Controls.Panel;
+                var pnlExc = FindName("pnlCatExclude") as System.Windows.Controls.Panel;
+                if (pnlInc == null && pnlExc == null) return;
+
+                pnlInc?.Children.Clear();
+                pnlExc?.Children.Clear();
+                _catIncludeCheckboxes.Clear();
+                _catExcludeCheckboxes.Clear();
+
+                var skipSet = StingTools.Core.TagConfig.CategorySkipList
+                    ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var row in _catRows)
                 {
-                    if (lstInc != null)
+                    bool isSkipped = skipSet.Contains(row.Bic);
+                    string content = $"{row.Label}  ({row.Group})";
+
+                    if (pnlInc != null)
                     {
-                        lstInc.Items.Add(new System.Windows.Controls.ListBoxItem
+                        var cbInc = new System.Windows.Controls.CheckBox
                         {
-                            Content = $"{row.Label}  ({row.Group})",
-                            Tag = row.Bic,
-                            ToolTip = row.Bic,
-                        });
+                            Content   = content,
+                            Tag       = row.Bic,
+                            IsChecked = !isSkipped,
+                            FontSize  = 10,
+                            Margin    = new Thickness(2, 1, 2, 1),
+                            ToolTip   = $"{row.Bic} — ticked = include this category in tagging",
+                        };
+                        cbInc.Checked   += CatCheckbox_Changed;
+                        cbInc.Unchecked += CatCheckbox_Changed;
+                        pnlInc.Children.Add(cbInc);
+                        _catIncludeCheckboxes[row.Bic] = cbInc;
                     }
-                    if (lstExc != null)
+
+                    if (pnlExc != null)
                     {
-                        lstExc.Items.Add(new System.Windows.Controls.ListBoxItem
+                        var cbExc = new System.Windows.Controls.CheckBox
                         {
-                            Content = $"{row.Label}  ({row.Group})",
-                            Tag = row.Bic,
-                            ToolTip = row.Bic,
-                        });
+                            Content   = content,
+                            Tag       = row.Bic,
+                            IsChecked = false, // exclusions default off; ticked = hard skip
+                            FontSize  = 10,
+                            Margin    = new Thickness(2, 1, 2, 1),
+                            ToolTip   = $"{row.Bic} — ticked = always skip even when ticked above",
+                        };
+                        cbExc.Checked   += CatCheckbox_Changed;
+                        cbExc.Unchecked += CatCheckbox_Changed;
+                        pnlExc.Children.Add(cbExc);
+                        _catExcludeCheckboxes[row.Bic] = cbExc;
                     }
                 }
                 _catListsBuilt = true;
+                UpdateCatStatus();
             }
             catch (Exception ex) { StingLog.Warn($"Build Categories sub-tab failed: {ex.Message}"); }
         }
+
+        private void CatCheckbox_Changed(object sender, RoutedEventArgs e) => UpdateCatStatus();
 
         private void CatSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
             EnsureCategoryListsBuilt();
             string filter = (sender as System.Windows.Controls.TextBox)?.Text?.Trim().ToLowerInvariant() ?? "";
-            FilterCatList(FindName("lstTagCategories") as System.Windows.Controls.ListBox, filter);
-            FilterCatList(FindName("lstExcludeCategories") as System.Windows.Controls.ListBox, filter);
+            FilterCatCheckboxes(_catIncludeCheckboxes, filter);
+            FilterCatCheckboxes(_catExcludeCheckboxes, filter);
         }
 
-        private static void FilterCatList(System.Windows.Controls.ListBox lb, string filter)
+        private static void FilterCatCheckboxes(
+            Dictionary<string, System.Windows.Controls.CheckBox> map, string filter)
         {
-            if (lb == null) return;
-            foreach (var item in lb.Items)
+            foreach (var cb in map.Values)
             {
-                if (item is System.Windows.Controls.ListBoxItem lbi)
-                {
-                    string label = lbi.Content?.ToString()?.ToLowerInvariant() ?? "";
-                    lbi.Visibility = (string.IsNullOrEmpty(filter) || label.Contains(filter))
-                        ? Visibility.Visible : Visibility.Collapsed;
-                }
+                string label = cb.Content?.ToString()?.ToLowerInvariant() ?? "";
+                cb.Visibility = (string.IsNullOrEmpty(filter) || label.Contains(filter))
+                    ? Visibility.Visible : Visibility.Collapsed;
             }
-        }
-
-        private void CatSelection_Changed(object sender, SelectionChangedEventArgs e)
-        {
-            EnsureCategoryListsBuilt();
-            UpdateCatStatus();
         }
 
         private void UpdateCatStatus()
         {
             try
             {
-                var lstInc = FindName("lstTagCategories") as System.Windows.Controls.ListBox;
-                var lstExc = FindName("lstExcludeCategories") as System.Windows.Controls.ListBox;
-                int inc = lstInc?.SelectedItems.Count ?? 0;
-                int exc = lstExc?.SelectedItems.Count ?? 0;
+                int inc = _catIncludeCheckboxes.Values.Count(cb => cb.IsChecked == true);
+                int exc = _catExcludeCheckboxes.Values.Count(cb => cb.IsChecked == true);
                 if (FindName("txtCatStatus") is TextBlock tb)
                 {
                     string note = (inc == 0 && exc == 0) ? "defaults in use" : "filter active";
@@ -1640,224 +1786,101 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"Category status update failed: {ex.Message}"); }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Categories sub-tab (tagging-category-selection-XDngT merge) —
-        // checkbox-based CATEGORY_SKIP editor. Handlers wired from StingDockPanel.xaml
-        // ─────────────────────────────────────────────────────────────────────
-
-        private bool _categoryListBuilt;
-        private readonly Dictionary<string, System.Windows.Controls.CheckBox> _categoryCheckboxes =
-            new Dictionary<string, System.Windows.Controls.CheckBox>(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>Populate the scrollable checkbox list from ParamRegistry.CategoryEnumMap.
-        /// Ticked = "tag this category"; unticked = "skip" (goes into TagConfig.CategorySkipList on save).</summary>
-        private void BuildCategoryList()
+        /// <summary>
+        /// Quick-pick buttons (All / None / Invert / MEP only / Arch only /
+        /// Struct only / Plumbing only). Operates on the Include panel; the
+        /// Exclude panel is untouched (user toggles exclusions explicitly).
+        /// </summary>
+        private void CatQuick_Click(object sender, RoutedEventArgs e)
         {
-            if (_categoryListBuilt) return;
-            if (pnlTagCategories == null) return;
+            EnsureCategoryListsBuilt();
+            if (_catIncludeCheckboxes.Count == 0) return;
+            string tag = (sender as Button)?.Tag as string ?? "";
 
-            var allCats = StingTools.Core.ParamRegistry.CategoryEnumMap.Keys
-                .Where(k => !string.IsNullOrWhiteSpace(k))
-                .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            pnlTagCategories.Children.Clear();
-            _categoryCheckboxes.Clear();
-
-            foreach (string cat in allCats)
+            string GroupFor(string mode) => mode switch
             {
-                bool isSkipped = StingTools.Core.TagConfig.CategorySkipList != null
-                    && StingTools.Core.TagConfig.CategorySkipList.Contains(cat);
-                string disc = (StingTools.Core.TagConfig.DiscMap != null
-                    && StingTools.Core.TagConfig.DiscMap.TryGetValue(cat, out string d)) ? d : "";
+                "CatMEP"  => "MEP",
+                "CatArch" => "ARCH",
+                "CatStr"  => "STR",
+                "CatPlb"  => "PLUMBING",
+                _          => "",
+            };
+            string targetGroup = GroupFor(tag);
 
-                var cb = new System.Windows.Controls.CheckBox
+            foreach (var kvp in _catIncludeCheckboxes)
+            {
+                // Skip rows hidden by the search filter so quick-picks honour the
+                // current view (matches the Tab #2 semantics the user expected).
+                if (kvp.Value.Visibility != Visibility.Visible) continue;
+
+                bool set = tag switch
                 {
-                    Content = string.IsNullOrEmpty(disc) ? cat : $"{cat}  ({disc})",
-                    Tag = cat,
-                    IsChecked = !isSkipped,
-                    FontSize = 10,
-                    Margin = new Thickness(2, 1, 2, 1),
-                    ToolTip = string.IsNullOrEmpty(disc)
-                        ? $"{cat} — included in batch tagging when ticked"
-                        : $"{cat} — discipline {disc} — included in batch tagging when ticked",
+                    "CatAll"  => true,
+                    "CatNone" => false,
+                    "CatInv"  => kvp.Value.IsChecked != true,
+                    _         => !string.IsNullOrEmpty(targetGroup)
+                                  && _catRows.Any(r => r.Bic == kvp.Key && r.Group == targetGroup),
                 };
-                cb.Checked += CategoryCheckbox_Changed;
-                cb.Unchecked += CategoryCheckbox_Changed;
-                pnlTagCategories.Children.Add(cb);
-                _categoryCheckboxes[cat] = cb;
+                kvp.Value.IsChecked = set;
             }
-
-            _categoryListBuilt = true;
-            UpdateCategoryCount();
-            StingLog.Info($"Tag Categories sub-tab built with {_categoryCheckboxes.Count} categories " +
-                $"({StingTools.Core.TagConfig.CategorySkipList?.Count ?? 0} currently skipped)");
+            UpdateCatStatus();
         }
 
-        private void CategoryCheckbox_Changed(object sender, RoutedEventArgs e) => UpdateCategoryCount();
-
-        private void UpdateCategoryCount()
+        /// <summary>Persist current checkbox state to CATEGORY_SKIP in project_config.json.</summary>
+        private void SaveCategoryConfig_Click(object sender, RoutedEventArgs e)
         {
-            if (txtCategoryCount == null) return;
-            int total = _categoryCheckboxes.Count;
-            int enabled = 0, visible = 0, visibleEnabled = 0;
-            foreach (var cb in _categoryCheckboxes.Values)
-            {
-                if (cb.IsChecked == true) enabled++;
-                if (cb.Visibility == Visibility.Visible)
-                {
-                    visible++;
-                    if (cb.IsChecked == true) visibleEnabled++;
-                }
-            }
-            string filter = txtCategoryFilter?.Text ?? string.Empty;
-            txtCategoryCount.Text = string.IsNullOrEmpty(filter)
-                ? $"{enabled} of {total} enabled"
-                : $"{visibleEnabled} of {visible} enabled in filter ({enabled} of {total} overall)";
-        }
-
-        private void CategoryFilter_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
-        {
-            if (!_categoryListBuilt) BuildCategoryList();
-            string needle = (txtCategoryFilter?.Text ?? string.Empty).Trim();
-            foreach (var kvp in _categoryCheckboxes)
-            {
-                bool match = string.IsNullOrEmpty(needle)
-                    || kvp.Key.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
-                kvp.Value.Visibility = match ? Visibility.Visible : Visibility.Collapsed;
-            }
-            UpdateCategoryCount();
-        }
-
-        private void ClearCategoryFilter_Click(object sender, RoutedEventArgs e)
-        {
-            if (txtCategoryFilter != null) txtCategoryFilter.Text = string.Empty;
-        }
-
-        private void SelectAllCategories_Click(object sender, RoutedEventArgs e)
-        {
-            if (!_categoryListBuilt) BuildCategoryList();
-            foreach (var cb in _categoryCheckboxes.Values)
-                if (cb.Visibility == Visibility.Visible) cb.IsChecked = true;
-            UpdateCategoryCount();
-        }
-
-        private void SelectNoCategories_Click(object sender, RoutedEventArgs e)
-        {
-            if (!_categoryListBuilt) BuildCategoryList();
-            foreach (var cb in _categoryCheckboxes.Values)
-                if (cb.Visibility == Visibility.Visible) cb.IsChecked = false;
-            UpdateCategoryCount();
-        }
-
-        /// <summary>Additive discipline multi-select — toggles only the categories whose
-        /// TagConfig.DiscMap matches this checkbox's Tag; leaves other disciplines alone.</summary>
-        private void DiscCheck_Changed(object sender, RoutedEventArgs e)
-        {
-            if (!_categoryListBuilt) BuildCategoryList();
-            if (!(sender is System.Windows.Controls.CheckBox cb) || !(cb.Tag is string disc) || string.IsNullOrEmpty(disc))
-                return;
-
-            bool targetState = cb.IsChecked == true;
-            var discMap = StingTools.Core.TagConfig.DiscMap;
-            if (discMap == null) return;
-
-            int affected = 0;
-            foreach (var kvp in _categoryCheckboxes)
-            {
-                if (discMap.TryGetValue(kvp.Key, out string d)
-                    && string.Equals(d, disc, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (kvp.Value.IsChecked != targetState)
-                    {
-                        kvp.Value.IsChecked = targetState;
-                        affected++;
-                    }
-                }
-            }
-            UpdateCategoryCount();
-            string verb = targetState ? "ticked" : "unticked";
-            UpdateStatus($"Categories: {verb} {affected} {disc}-discipline categories");
-        }
-
-        private void SaveCategorySkip_Click(object sender, RoutedEventArgs e)
-        {
-            if (!_categoryListBuilt)
+            EnsureCategoryListsBuilt();
+            if (_catIncludeCheckboxes.Count == 0)
             {
                 UpdateStatus("Categories: nothing to save (list not opened)");
                 return;
             }
             try
             {
-                var skip = new List<string>();
-                foreach (var kvp in _categoryCheckboxes)
+                // A category is skipped if it is unticked in Include OR ticked in Exclude.
+                var skip = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kvp in _catIncludeCheckboxes)
                     if (kvp.Value.IsChecked != true) skip.Add(kvp.Key);
+                foreach (var kvp in _catExcludeCheckboxes)
+                    if (kvp.Value.IsChecked == true) skip.Add(kvp.Key);
 
-                StingTools.Core.TagConfig.CategorySkipList = new HashSet<string>(skip, StringComparer.OrdinalIgnoreCase);
-                StingTools.Core.TagConfig.SetConfigValue("CATEGORY_SKIP", skip);
+                StingTools.Core.TagConfig.CategorySkipList =
+                    new HashSet<string>(skip, StringComparer.OrdinalIgnoreCase);
+                StingTools.Core.TagConfig.SetConfigValue("CATEGORY_SKIP", skip.ToList());
 
                 try { StingTools.Core.ComplianceScan.InvalidateCache(); }
                 catch (Exception ex) { StingLog.Warn($"ComplianceScan.InvalidateCache failed: {ex.Message}"); }
                 try { StingTools.Core.StingAutoTagger.InvalidateContext(); }
                 catch (Exception ex) { StingLog.Warn($"StingAutoTagger.InvalidateContext failed: {ex.Message}"); }
 
-                int kept = _categoryCheckboxes.Count - skip.Count;
-                StingLog.Info($"CATEGORY_SKIP saved: {kept} included, {skip.Count} skipped (of {_categoryCheckboxes.Count} categories)");
+                int kept = _catIncludeCheckboxes.Count - skip.Count;
+                StingLog.Info($"CATEGORY_SKIP saved: {kept} included, {skip.Count} skipped (of {_catIncludeCheckboxes.Count})");
                 UpdateStatus($"Categories: saved — {kept} tag, {skip.Count} skip");
+                UpdateCatStatus();
             }
             catch (Exception ex)
             {
-                StingLog.Error("SaveCategorySkip failed", ex);
+                StingLog.Error("SaveCategoryConfig failed", ex);
                 UpdateStatus($"Categories: save failed — {ex.Message}");
             }
         }
 
-        private void ReloadCategorySkip_Click(object sender, RoutedEventArgs e)
+        /// <summary>Discard pending edits and reload checkbox state from CATEGORY_SKIP.</summary>
+        private void ReloadCategoryConfig_Click(object sender, RoutedEventArgs e)
         {
-            if (!_categoryListBuilt)
+            if (!_catListsBuilt)
             {
-                BuildCategoryList();
+                EnsureCategoryListsBuilt();
                 return;
             }
             var skipSet = StingTools.Core.TagConfig.CategorySkipList
                 ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var kvp in _categoryCheckboxes)
+            foreach (var kvp in _catIncludeCheckboxes)
                 kvp.Value.IsChecked = !skipSet.Contains(kvp.Key);
-            UpdateCategoryCount();
-            UpdateStatus($"Categories: reloaded ({_categoryCheckboxes.Count - skipSet.Count} tag, {skipSet.Count} skip)");
-        }
-
-        private void CatQuick_Click(object sender, RoutedEventArgs e)
-        {
-            EnsureCategoryListsBuilt();
-            if (!(FindName("lstTagCategories") is System.Windows.Controls.ListBox lstInc)) return;
-            string tag = (sender as Button)?.Tag as string ?? "";
-
-            bool Match(string bic, string mode) => mode switch
-            {
-                "CatMEP"  => _catRows.Any(r => r.Bic == bic && r.Group == "MEP"),
-                "CatArch" => _catRows.Any(r => r.Bic == bic && r.Group == "ARCH"),
-                "CatStr"  => _catRows.Any(r => r.Bic == bic && r.Group == "STR"),
-                "CatPlb"  => _catRows.Any(r => r.Bic == bic && r.Group == "PLUMBING"),
-                _          => false,
-            };
-
-            lstInc.SelectedItems.Clear();
-            foreach (var item in lstInc.Items)
-            {
-                if (item is System.Windows.Controls.ListBoxItem lbi && lbi.Tag is string bic)
-                {
-                    bool select = tag switch
-                    {
-                        "CatAll"  => true,
-                        "CatNone" => false,
-                        "CatInv"  => !lbi.IsSelected,
-                        _         => Match(bic, tag),
-                    };
-                    if (select) lstInc.SelectedItems.Add(lbi);
-                }
-            }
+            foreach (var kvp in _catExcludeCheckboxes)
+                kvp.Value.IsChecked = false; // exclusions are always a fresh override layer
             UpdateCatStatus();
+            UpdateStatus($"Categories: reloaded ({_catIncludeCheckboxes.Count - skipSet.Count} tag, {skipSet.Count} skip)");
         }
 
         // ── Warning level radio → ToggleWarningVisibilityCommand ─────────────
@@ -1969,6 +1992,415 @@ namespace StingTools.UI
         {
             if (FindName(controlName) is System.Windows.Controls.TextBlock tb)
                 tb.Text = text;
+        }
+
+        /// <summary>
+        /// Returns the wire style name currently selected in the Electrical
+        /// sub-panel's wire-style ComboBox, or null/empty when no selection
+        /// has been made or the control is not present.
+        /// </summary>
+        public string GetSelectedWireStyle()
+        {
+            try
+            {
+                // Try the Electrical embedded panel first
+                if (FindName("cbWireStyle") is ComboBox cb)
+                    return (cb.SelectedItem as ComboBoxItem)?.Content?.ToString()
+                        ?? cb.SelectedItem?.ToString();
+                // Fallback: look inside StingElectricalPanel
+                var ep = FindName("ElectricalPanel") as System.Windows.FrameworkElement
+                    ?? FindVisualChild<StingTools.UI.StingElectricalPanel>(this);
+                if (ep != null)
+                {
+                    var inner = ep.FindName("cbWireStyle") as ComboBox
+                        ?? FindVisualChild<ComboBox>(ep, c => c.Name == "cbWireStyle");
+                    if (inner != null)
+                        return (inner.SelectedItem as ComboBoxItem)?.Content?.ToString()
+                            ?? inner.SelectedItem?.ToString();
+                }
+            }
+            catch (System.Exception ex)
+            { StingTools.Core.StingLog.Warn("GetSelectedWireStyle: " + ex.Message); }
+            return null;
+        }
+
+        private static T FindVisualChild<T>(System.Windows.DependencyObject parent,
+            System.Func<T, bool> predicate = null) where T : System.Windows.DependencyObject
+        {
+            if (parent == null) return null;
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t && (predicate == null || predicate(t))) return t;
+                var found = FindVisualChild<T>(child, predicate);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Handler for <see cref="PlacementResultBus.ResultPublished"/>.
+        /// Updates the inline result strips in the Fixtures and Routing sub-tabs of
+        /// the TAGS tab based on the source of the published summary.
+        /// </summary>
+        private void OnPlacementResultBus(PlacementRunSummary summary)
+        {
+            if (summary == null) return;
+            Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    if (summary.Source == "Tags" || summary.Source == "Fixtures")
+                    {
+                        var strip = FindName("bdrFixturesResult") as System.Windows.Controls.Border;
+                        var lbl   = FindName("txtFixturesResultHeadline") as System.Windows.Controls.TextBlock;
+                        if (strip != null && lbl != null)
+                        {
+                            lbl.Text = summary.Headline;
+                            strip.Visibility = System.Windows.Visibility.Visible;
+                        }
+                    }
+                    if (summary.Source == "Routing" || summary.Source == "Symbols")
+                    {
+                        var strip = FindName("bdrRoutingResult") as System.Windows.Controls.Border;
+                        var lbl   = FindName("txtRoutingResultHeadline") as System.Windows.Controls.TextBlock;
+                        if (strip != null && lbl != null)
+                        {
+                            lbl.Text = summary.Headline;
+                            strip.Visibility = System.Windows.Visibility.Visible;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"OnPlacementResultBus UI update: {ex.Message}");
+                }
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // COMMAND BAR — NLP / AI entry point
+        // ════════════════════════════════════════════════════════════════════════
+
+        private bool _cmdBarHasFocus;
+
+        private void CommandBar_GotFocus(object sender, RoutedEventArgs e)
+        {
+            _cmdBarHasFocus = true;
+            if (txtCmdPlaceholder != null)
+                txtCmdPlaceholder.Visibility = string.IsNullOrEmpty(txtCommandBar?.Text)
+                    ? Visibility.Visible : Visibility.Collapsed;
+            UpdateCommandBarSuggestions();
+        }
+
+        private void CommandBar_LostFocus(object sender, RoutedEventArgs e)
+        {
+            _cmdBarHasFocus = false;
+            // Delay collapse so a click on a suggestion registers first
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!_cmdBarHasFocus && popSuggestions != null)
+                    popSuggestions.IsOpen = false;
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        private void CommandBar_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (txtCmdPlaceholder != null)
+                txtCmdPlaceholder.Visibility = string.IsNullOrEmpty(txtCommandBar?.Text)
+                    ? Visibility.Visible : Visibility.Collapsed;
+            UpdateCommandBarSuggestions();
+        }
+
+        private void CommandBar_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case System.Windows.Input.Key.Down:
+                    if (popSuggestions?.IsOpen == true && lstSuggestions?.Items.Count > 0)
+                    {
+                        lstSuggestions.Focus();
+                        lstSuggestions.SelectedIndex = 0;
+                    }
+                    e.Handled = true;
+                    break;
+
+                case System.Windows.Input.Key.Enter:
+                    if (lstSuggestions?.SelectedItem is SuggestionItem selected)
+                        ExecuteFromCommandBar(selected.CommandName);
+                    else if (!string.IsNullOrWhiteSpace(txtCommandBar?.Text))
+                        ExecuteFromCommandBar(txtCommandBar.Text);
+                    e.Handled = true;
+                    break;
+
+                case System.Windows.Input.Key.Escape:
+                    if (popSuggestions != null) popSuggestions.IsOpen = false;
+                    txtCommandBar?.Clear();
+                    e.Handled = true;
+                    break;
+            }
+        }
+
+        private void Suggestions_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter && lstSuggestions?.SelectedItem is SuggestionItem sel)
+            {
+                ExecuteFromCommandBar(sel.CommandName);
+                e.Handled = true;
+            }
+            else if (e.Key == System.Windows.Input.Key.Escape)
+            {
+                if (popSuggestions != null) popSuggestions.IsOpen = false;
+                txtCommandBar?.Focus();
+                e.Handled = true;
+            }
+        }
+
+        private void Suggestion_MouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (lstSuggestions?.SelectedItem is SuggestionItem sel)
+                ExecuteFromCommandBar(sel.CommandName);
+        }
+
+        // ── SuggestionItem ───────────────────────────────────────────────────────
+        // Simple view-model for the two-line command suggestion card
+        private sealed class SuggestionItem
+        {
+            public string CommandName { get; set; }
+            public string Description { get; set; }
+            public override string ToString() => CommandName;
+        }
+
+        private static readonly SuggestionItem[] _commandBarHints = new[]
+        {
+            new SuggestionItem { CommandName = "TagAndCombine",        Description = "One-click tag and combine all" },
+        };
+
+        private void UpdateCommandBarSuggestions()
+        {
+            var text = txtCommandBar?.Text ?? "";
+            if (lstSuggestions == null || popSuggestions == null) return;
+
+            lstSuggestions.Items.Clear();
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                if (_cmdBarHasFocus)
+                {
+                    foreach (var hint in _commandBarHints)
+                        lstSuggestions.Items.Add(hint);
+                    popSuggestions.IsOpen = true;
+                }
+                else popSuggestions.IsOpen = false;
+                return;
+            }
+
+            // Rule-based suggestions — ranked: tag prefix > tag contains > intent > description
+            var suggestions = Tags.NLPEngine.GetSuggestions(text);
+            var seenTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (tag, desc) in suggestions)
+            {
+                if (seenTags.Add(tag))
+                    lstSuggestions.Items.Add(new SuggestionItem { CommandName = tag, Description = desc });
+            }
+
+            // Supplement with ProcessQuery when few tag-prefix hits
+            if (suggestions.Count < 4)
+            {
+                var results = Tags.NLPEngine.ProcessQuery(text);
+                foreach (var r in results.Take(6))
+                {
+                    if (seenTags.Add(r.CommandTag))
+                        lstSuggestions.Items.Add(new SuggestionItem { CommandName = r.CommandTag, Description = r.Description });
+                }
+            }
+
+            popSuggestions.IsOpen = lstSuggestions.Items.Count > 0;
+        }
+
+        private void ExecuteFromCommandBar(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return;
+
+            // input is always a clean tag when dispatched from a SuggestionItem;
+            // keep the split as a safety net for any manually typed "Tag  —  Desc" text
+            string tag = input.Contains("  —  ")
+                ? input.Split(new[] { "  —  " }, StringSplitOptions.None)[0].Trim()
+                : input.Trim();
+
+            if (popSuggestions != null) popSuggestions.IsOpen = false;
+            txtCommandBar?.Clear();
+
+            // Natural-language phrase (spaces, no underscores) → run through NLP engine
+            bool isNlQuery = tag.Contains(" ") && !tag.Contains("_");
+            if (isNlQuery)
+            {
+                var results = Tags.NLPEngine.ProcessQuery(tag);
+                if (results.Count == 0)
+                {
+                    DispatchAIQuery(tag, isDesignBrief: false);
+                    return;
+                }
+
+                // Auto-execute when one result dominates (≥0.80 confidence, 15+ pt gap to runner-up)
+                bool clearWinner = results[0].Confidence >= 0.80 &&
+                                   (results.Count == 1 || results[1].Confidence <= results[0].Confidence - 0.15);
+
+                if (clearWinner)
+                {
+                    tag = results[0].CommandTag;
+                }
+                else
+                {
+                    // Ambiguous — let the user pick from the top matches
+                    tag = ShowCommandPickerDialog(results);
+                    if (tag == null) return; // user cancelled
+                }
+            }
+
+            _handler?.SetCommand(tag);
+            _externalEvent?.Raise();
+            StingTools.Core.StingLog.Info($"CommandBar dispatched: {tag}");
+            UpdateStatus($"Running: {tag}");
+        }
+
+        // Shows a compact chooser when multiple NLP results are close in confidence.
+        // Uses TaskDialog CommandLinks (≤3 options) or StingListPicker (4+ options).
+        private string ShowCommandPickerDialog(List<Tags.NLPEngine.IntentResult> options)
+        {
+            if (options == null || options.Count == 0) return null;
+
+            const int MaxLinks = 3;
+            var top = options.Take(MaxLinks + 1).ToList();
+
+            if (top.Count <= MaxLinks)
+            {
+                // Compact TaskDialog with one CommandLink per option
+                var td = new TaskDialog("Choose a command");
+                td.MainInstruction = "Multiple commands match — which did you mean?";
+                td.MainContent     = "Select the action you want to run:";
+                var linkIds = new[]
+                {
+                    TaskDialogCommandLinkId.CommandLink1,
+                    TaskDialogCommandLinkId.CommandLink2,
+                    TaskDialogCommandLinkId.CommandLink3,
+                };
+                for (int i = 0; i < top.Count; i++)
+                    td.AddCommandLink(linkIds[i], top[i].CommandTag, top[i].Description);
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var result = td.Show();
+                if (result == TaskDialogResult.Cancel) return null;
+                int idx = Array.IndexOf(linkIds, result);
+                return (idx >= 0 && idx < top.Count) ? top[idx].CommandTag : null;
+            }
+            else
+            {
+                // More than 3 — use StingListPicker with search filter
+                var items = options
+                    .Select(r => new StingListPicker.ListItem
+                    {
+                        Label  = r.CommandTag,
+                        Detail = $"{r.Description}  ({r.Confidence:P0} match)",
+                    })
+                    .ToList();
+                var sel = StingListPicker.Show("Choose a command",
+                    "Multiple commands match — select the one you want:", items);
+                return sel?.FirstOrDefault()?.Label;
+            }
+        }
+
+        private void AskAI_Click(object sender, RoutedEventArgs e)
+        {
+            string query = txtCommandBar?.Text?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                // Show AI capabilities menu
+                var dlg = new TaskDialog("STING AI Assistant");
+                dlg.MainInstruction = "What would you like AI help with?";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Design brief",
+                    "e.g. \"I have 230M UGX, design a 3 bedroom modern house\"");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "BIM knowledge Q&A",
+                    "e.g. \"What does ISO 19650 say about suitability codes?\"");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Draft document",
+                    "e.g. \"Draft a transmittal for the drawings I just issued\"");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var result = dlg.Show();
+                if (result == TaskDialogResult.Cancel) return;
+                if (result == TaskDialogResult.CommandLink1)
+                    query = "Design brief: ";
+                else if (result == TaskDialogResult.CommandLink2)
+                    query = "What is ";
+                else if (result == TaskDialogResult.CommandLink3)
+                    query = "Draft a transmittal: ";
+                if (txtCommandBar != null) { txtCommandBar.Text = query; txtCommandBar.Focus(); txtCommandBar.CaretIndex = query.Length; }
+                return;
+            }
+            DispatchAIQuery(query, isDesignBrief: query.Contains("UGX") || query.Contains("shilling") || query.Contains("bedroom") || query.Contains("design") && query.Contains("house"));
+        }
+
+        private void DispatchAIQuery(string query, bool isDesignBrief)
+        {
+            // Route to LLM service — runs async, result shown in TaskDialog
+            // The LLM picks a command tag; validated through whitelist before execution
+            UpdateStatus("AI thinking…");
+            StingTools.Core.StingLog.Info($"AI query: {query}");
+
+            System.Threading.Tasks.Task.Run(async () =>
+            {
+                try
+                {
+                    var llm = StingTools.Core.StingLlmService.Instance;
+                    string response;
+                    string commandTag = null;
+
+                    if (isDesignBrief)
+                    {
+                        var brief = await llm.ParseDesignBriefAsync(query);
+                        response = brief.Summary;
+                        commandTag = brief.SuggestedCommandTag;
+                    }
+                    else if (query.StartsWith("Draft", StringComparison.OrdinalIgnoreCase) ||
+                             query.StartsWith("Write", StringComparison.OrdinalIgnoreCase))
+                    {
+                        response = await llm.DraftDocumentAsync(query);
+                        commandTag = null;
+                    }
+                    else
+                    {
+                        response = await llm.AskBimQuestionAsync(query);
+                        commandTag = null;
+                    }
+
+                    Dispatcher.Invoke(() =>
+                    {
+                        UpdateStatus("Ready");
+                        if (commandTag != null && StingTools.Core.StingLlmService.IsValidCommandTag(commandTag))
+                        {
+                            var td = new TaskDialog("AI Suggestion");
+                            td.MainInstruction = response;
+                            td.MainContent = $"Suggested action: {commandTag}";
+                            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Run: {commandTag}", "Execute the suggested command");
+                            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+                            if (td.Show() == TaskDialogResult.CommandLink1)
+                                ExecuteFromCommandBar(commandTag);
+                        }
+                        else
+                        {
+                            TaskDialog.Show("AI Response", response);
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        UpdateStatus("Ready");
+                        TaskDialog.Show("AI Unavailable", $"AI service unreachable — using rule-based NLP only.\n\n{ex.Message}");
+                    });
+                }
+            });
         }
     }
 }

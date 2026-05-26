@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
@@ -28,17 +29,20 @@ public class TransmittalsController : ControllerBase
     // server-side broadcasts had been missed in the original wiring.
     private readonly IHubContext<NotificationHub> _notifHub;
     private readonly ISequenceCounterService _seq;
+    // Gap 6/7 — push notifications to named recipient on send / acknowledge / respond.
+    private readonly IPushNotificationService _push;
 
     // Phase 175 audit P1-15-tx — single counter key per project. Bump
     // the suffix when a different code series is introduced (e.g.
     // "tx:rev2") so the SeqCounter row stays unique-per-format.
     private const string TransmittalCounterKey = "transmittal:tx";
 
-    public TransmittalsController(PlanscapeDbContext db, IHubContext<NotificationHub> notifHub, ISequenceCounterService seq)
+    public TransmittalsController(PlanscapeDbContext db, IHubContext<NotificationHub> notifHub, ISequenceCounterService seq, IPushNotificationService push)
     {
         _db = db;
         _notifHub = notifHub;
         _seq = seq;
+        _push = push;
     }
 
     /// <summary>
@@ -109,20 +113,36 @@ public class TransmittalsController : ControllerBase
             updatedBy: User.FindFirst("display_name")?.Value,
             ct: HttpContext.RequestAborted);
 
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
         var transmittal = new Transmittal
         {
-            ProjectId = projectId,
+            ProjectId       = projectId,
             TransmittalCode = $"TX-{nextNum:D4}",
-            Recipient = req.Recipient,
-            Notes = req.Notes,
-            DocumentIdsJson = req.DocumentIdsJson,
-            CreatedBy = User.FindFirst("display_name")?.Value ?? "Unknown"
+            Recipient       = req.Recipient,
+            Notes           = req.Notes,
+            DocumentIdsJson = req.DocumentIdsJson, // kept for backward compat
+            CreatedBy       = User.FindFirst("display_name")?.Value ?? "Unknown",
+            // Gap 6 — store named recipient for targeted push on send.
+            RecipientUserId = req.RecipientUserId,
+            // Fix: store sender ID so Acknowledge/Respond can push back without a fragile DisplayName lookup.
+            SenderUserId    = userId,
+            SlaDeadline     = req.SlaDeadline,
         };
 
         _db.Transmittals.Add(transmittal);
 
-        // Audit trail for transmittal creation
-        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        // Gap 5 — snapshot document versions at transmittal creation so the
+        // record remains accurate even after subsequent uploads / revisions.
+        int snapshotSkippedNotPublished = 0;
+        if (req.DocumentIds != null && req.DocumentIds.Length > 0)
+        {
+            var (_, skippedNP, _) = await SnapshotTransmittalDocumentsAsync(
+                transmittal, projectId, tenantId, req.DocumentIds,
+                HttpContext.RequestAborted);
+            snapshotSkippedNotPublished = skippedNP;
+        }
+
+        // Audit trail for transmittal creation (userId already resolved above)
         _db.AuditLogs.Add(new AuditLog
         {
             TenantId = tenantId,
@@ -146,7 +166,12 @@ public class TransmittalsController : ControllerBase
             projectId, kind = "created"
         });
 
-        return CreatedAtAction(nameof(GetTransmittals), new { projectId }, transmittal);
+        return CreatedAtAction(nameof(GetTransmittals), new { projectId }, new
+        {
+            transmittal.Id, transmittal.TransmittalCode, transmittal.Recipient,
+            transmittal.Status, transmittal.CreatedAt,
+            skippedDocumentsNotPublished = snapshotSkippedNotPublished
+        });
     }
 
     /// <summary>
@@ -178,6 +203,105 @@ public class TransmittalsController : ControllerBase
             updatedBy: User.FindFirst("display_name")?.Value,
             ct: HttpContext.RequestAborted);
         int nextNum = lastNum - reqs.Count + 1;
+
+        var createdBy = User.FindFirst("display_name")?.Value ?? "Unknown";
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+
+        var rows = new List<Transmittal>(reqs.Count);
+        foreach (var req in reqs)
+        {
+            var t = new Transmittal
+            {
+                ProjectId       = projectId,
+                TransmittalCode = $"TX-{nextNum:D4}",
+                Recipient       = req.Recipient,
+                Notes           = req.Notes,
+                DocumentIdsJson = req.DocumentIdsJson,
+                CreatedBy       = createdBy,
+                RecipientUserId = req.RecipientUserId,
+                SenderUserId    = userId,
+                SlaDeadline     = req.SlaDeadline,
+            };
+            nextNum++;
+            rows.Add(t);
+            _db.Transmittals.Add(t);
+
+            // Gap 5 — version snapshot per transmittal in the bulk batch.
+            if (req.DocumentIds != null && req.DocumentIds.Length > 0)
+            {
+                await SnapshotTransmittalDocumentsAsync(
+                    t, projectId, tenantId, req.DocumentIds,
+                    HttpContext.RequestAborted);
+                // Skipped-not-published counts are not surfaced in the bulk response
+                // to keep the response compact; callers should use single-create for
+                // per-document feedback.
+            }
+
+            _db.AuditLogs.Add(new AuditLog
+            {
+                TenantId = tenantId,
+                ProjectId = projectId,
+                UserId = userId,
+                Action = "transmittal_created",
+                EntityType = "Transmittal",
+                EntityId = t.Id.ToString(),
+                DetailsJson = JsonSerializer.Serialize(new { t.TransmittalCode, t.Recipient, bulk = true }),
+                Timestamp = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — single bulk-event with the count + first/last code,
+        // not one event per row. A 200-row bulk would otherwise spam every
+        // subscribed client with 200 individual messages.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("TransmittalUpdated", new
+        {
+            projectId,
+            kind = "bulk_created",
+            count = rows.Count,
+            firstCode = rows.FirstOrDefault()?.TransmittalCode,
+            lastCode  = rows.LastOrDefault()?.TransmittalCode,
+        });
+
+        return Ok(new
+        {
+            created = rows.Count,
+            items = rows.Select(r => new { r.Id, r.TransmittalCode, r.Recipient, r.Status, r.CreatedAt })
+        });
+    }
+
+    /// <summary>
+    /// Phase 142 — bulk-create endpoint so the offline queue and the
+    /// plugin's PlanscapeServerClient can flush a backlog in one round-trip
+    /// instead of N. Caps at 200 per call to keep request bodies bounded;
+    /// caller must chunk larger batches. The TX code sequence is computed
+    /// once and incremented in-memory to avoid scanning N times.
+    /// </summary>
+    [HttpPost("bulk")]
+    public async Task<ActionResult> BulkCreate(Guid projectId, [FromBody] List<CreateTransmittalRequest> reqs)
+    {
+        if (reqs == null) return BadRequest("Body must be a JSON array");
+        if (reqs.Count == 0) return Ok(new { created = 0, items = Array.Empty<object>() });
+        if (reqs.Count > 200) return BadRequest("Maximum 200 transmittals per bulk operation");
+
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        var existingCodes = await _db.Transmittals
+            .Where(t => t.ProjectId == projectId)
+            .Select(t => t.TransmittalCode)
+            .ToListAsync();
+
+        int nextNum = 1;
+        foreach (var code in existingCodes)
+        {
+            var parts = code.Split('-');
+            if (parts.Length == 2 && int.TryParse(parts[1], out int n) && n >= nextNum)
+                nextNum = n + 1;
+        }
 
         var createdBy = User.FindFirst("display_name")?.Value ?? "Unknown";
         var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
@@ -240,8 +364,37 @@ public class TransmittalsController : ControllerBase
         if (tx == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
+        // Gap 11 — state machine guard: only DRAFT transmittals can be sent.
+        if (tx.Status != "DRAFT")
+            return BadRequest(new { message = $"Transmittal is already {tx.Status} and cannot be sent again." });
+
         tx.Status = "SENT";
         tx.SentAt = DateTime.UtcNow;
+
+        // GAP-14 — re-snapshot FilePathAtTransmittal for any rows that still hold
+        // the path from creation time, so the final send captures the current HEAD
+        // file of each linked document (could differ if a version was uploaded after
+        // the document was first added to the transmittal).
+        var tdRows = await _db.TransmittalDocuments
+            .Where(td => td.TransmittalId == txId)
+            .ToListAsync();
+        if (tdRows.Count > 0)
+        {
+            var docIds = tdRows.Select(td => td.DocumentId).Distinct().ToArray();
+            var docPaths = await _db.Documents
+                .Where(d => docIds.Contains(d.Id))
+                .Select(d => new { d.Id, d.FilePath })
+                .ToDictionaryAsync(x => x.Id, x => x.FilePath);
+
+            foreach (var td in tdRows)
+            {
+                if (docPaths.TryGetValue(td.DocumentId, out var latestPath)
+                    && !string.IsNullOrEmpty(latestPath))
+                {
+                    td.FilePathAtTransmittal = latestPath;
+                }
+            }
+        }
 
         // Audit trail for transmittal sent
         var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
@@ -268,11 +421,287 @@ public class TransmittalsController : ControllerBase
             projectId, kind = "sent"
         });
 
+        // Gap 6 — targeted push to the named recipient when a transmittal is sent.
+        if (tx.RecipientUserId.HasValue)
+        {
+            _ = _push.SendToUserAsync(tx.RecipientUserId.Value, new PushPayload
+            {
+                Title = "New Transmittal Received",
+                Body = $"{tx.TransmittalCode} from {tx.CreatedBy}" +
+                       (tx.SlaDeadline.HasValue ? $" · respond by {tx.SlaDeadline.Value:d MMM}" : ""),
+                Channel = "transmittals",
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "transmittal_sent",
+                    ["transmittalId"] = tx.Id.ToString(),
+                    ["projectId"] = projectId.ToString()
+                }
+            });
+        }
+
         return Ok(tx);
+    }
+
+    /// <summary>
+    /// Gap 7 — recipient acknowledges receipt of a SENT transmittal.
+    /// Transitions SENT → ACKNOWLEDGED and pushes back to the sender.
+    /// </summary>
+    [HttpPut("{txId}/acknowledge")]
+    public async Task<ActionResult> Acknowledge(Guid projectId, Guid txId)
+    {
+        var tenantId = GetTenantId();
+        var tx = await _db.Transmittals
+            .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId);
+        if (tx == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        if (tx.Status != "SENT")
+            return BadRequest(new { message = $"Only SENT transmittals can be acknowledged (current: {tx.Status})." });
+
+        var actorName = User.FindFirst("display_name")?.Value ?? "Unknown";
+        tx.Status = "ACKNOWLEDGED";
+        tx.AcknowledgedAt = DateTime.UtcNow;
+        tx.AcknowledgedBy = actorName;
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId, ProjectId = projectId, UserId = userId,
+            Action = "transmittal_acknowledged", EntityType = "Transmittal",
+            EntityId = txId.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { tx.TransmittalCode, acknowledgedBy = actorName }),
+            Timestamp = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("TransmittalUpdated", new
+        {
+            tx.Id, tx.TransmittalCode, tx.Status, tx.AcknowledgedAt, projectId, kind = "acknowledged"
+        });
+
+        // Push back to the sender so they know the transmittal was received.
+        if (tx.SenderUserId.HasValue)
+        {
+            _ = _push.SendToUserAsync(tx.SenderUserId.Value, new PushPayload
+            {
+                Title = "Transmittal Acknowledged",
+                Body = $"{tx.TransmittalCode} acknowledged by {actorName}",
+                Channel = "transmittals",
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "transmittal_acknowledged",
+                    ["transmittalId"] = tx.Id.ToString(),
+                    ["projectId"] = projectId.ToString()
+                }
+            });
+        }
+
+        return Ok(new { tx.Id, tx.TransmittalCode, tx.Status, tx.AcknowledgedAt, tx.AcknowledgedBy });
+    }
+
+    /// <summary>
+    /// Gap 7 — recipient formally responds to an ACKNOWLEDGED transmittal.
+    /// Transitions ACKNOWLEDGED → RESPONDED and pushes back to the sender.
+    /// </summary>
+    [HttpPut("{txId}/respond")]
+    public async Task<ActionResult> Respond(Guid projectId, Guid txId, [FromBody] TransmittalRespondRequest req)
+    {
+        var tenantId = GetTenantId();
+        var tx = await _db.Transmittals
+            .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId);
+        if (tx == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        if (tx.Status != "ACKNOWLEDGED")
+            return BadRequest(new { message = $"Only ACKNOWLEDGED transmittals can be responded to (current: {tx.Status})." });
+
+        var actorName = User.FindFirst("display_name")?.Value ?? "Unknown";
+        tx.Status = "RESPONDED";
+        tx.RespondedAt = DateTime.UtcNow;
+        tx.RespondedBy = actorName;
+        tx.ResponseNotes = req.ResponseNotes;
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId, ProjectId = projectId, UserId = userId,
+            Action = "transmittal_responded", EntityType = "Transmittal",
+            EntityId = txId.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { tx.TransmittalCode, respondedBy = actorName }),
+            Timestamp = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("TransmittalUpdated", new
+        {
+            tx.Id, tx.TransmittalCode, tx.Status, tx.RespondedAt, tx.ResponseNotes,
+            projectId, kind = "responded"
+        });
+
+        // Push back to sender so they can act on the response.
+        if (tx.SenderUserId.HasValue)
+        {
+            _ = _push.SendToUserAsync(tx.SenderUserId.Value, new PushPayload
+            {
+                Title = "Transmittal Response Received",
+                Body = $"{tx.TransmittalCode} responded by {actorName}" +
+                       (string.IsNullOrWhiteSpace(tx.ResponseNotes) ? "" : $": {tx.ResponseNotes[..Math.Min(60, tx.ResponseNotes.Length)]}"),
+                Channel = "transmittals",
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "transmittal_responded",
+                    ["transmittalId"] = tx.Id.ToString(),
+                    ["projectId"] = projectId.ToString()
+                }
+            });
+        }
+
+        return Ok(new { tx.Id, tx.TransmittalCode, tx.Status, tx.RespondedAt, tx.RespondedBy, tx.ResponseNotes });
+    }
+
+    /// <summary>
+    /// POST /{txId}/documents — add documents (with version snapshot) to an existing
+    /// DRAFT transmittal. Once the transmittal is SENT the document list is frozen.
+    /// </summary>
+    [HttpPost("{txId}/documents")]
+    public async Task<ActionResult> AddDocuments(Guid projectId, Guid txId, [FromBody] Guid[] documentIds)
+    {
+        if (documentIds == null || documentIds.Length == 0)
+            return BadRequest("documentIds must be a non-empty array");
+        if (documentIds.Length > 200)
+            return BadRequest("Maximum 200 documents per request");
+
+        var tenantId = GetTenantId();
+        var tx = await _db.Transmittals
+            .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId);
+        if (tx == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        if (tx.Status == "SENT")
+            return Conflict("Documents cannot be added to a SENT transmittal");
+
+        var (added, skippedNotPublished, skippedAlreadyLinked) = await SnapshotTransmittalDocumentsAsync(
+            tx, projectId, tenantId, documentIds, HttpContext.RequestAborted);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            when (ex.InnerException?.Message.Contains("IX_TransmittalDocuments_TransmittalId_DocumentId",
+                      StringComparison.OrdinalIgnoreCase) == true
+                  || ex.InnerException?.Message.Contains("unique", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            // GAP-04 — unique constraint on (TransmittalId, DocumentId): return 409 rather than 500.
+            return Conflict(new { message = "One or more documents are already linked to this transmittal." });
+        }
+
+        return Ok(new { added, skippedNotPublished, skippedAlreadyLinked });
+    }
+
+    /// <summary>GET /{txId}/documents — list the version-snapshot rows for a transmittal (GAP-12).</summary>
+    [HttpGet("{txId}/documents")]
+    public async Task<ActionResult> GetDocuments(Guid projectId, Guid txId, CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        var tx = await _db.Transmittals
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId, ct);
+        if (tx == null) return NotFound();
+
+        // Use a join to avoid an N+1 subquery per row.
+        var docs = await _db.TransmittalDocuments
+            .AsNoTracking()
+            .Where(td => td.TransmittalId == txId)
+            .Join(_db.Documents.AsNoTracking(),
+                  td => td.DocumentId,
+                  d  => d.Id,
+                  (td, d) => new
+                  {
+                      td.Id,
+                      td.DocumentId,
+                      td.DocumentVersionId,
+                      td.CdeStateAtTransmittal,
+                      td.SuitabilityAtTransmittal,
+                      td.FilePathAtTransmittal,
+                      td.AddedAt,
+                      d.FileName
+                  })
+            .OrderBy(td => td.AddedAt)
+            .ToListAsync(ct);
+
+        return Ok(new { transmittalId = txId, count = docs.Count, items = docs });
+    }
+
+    /// <summary>
+    /// Snapshots each document's current version into TransmittalDocument rows so
+    /// the transmittal record remains accurate even after subsequent uploads.
+    /// Returns (added: rows created, skippedNotPublished: IDs that weren't PUBLISHED,
+    /// skippedAlreadyLinked: IDs already on this transmittal).
+    /// </summary>
+    private async Task<(int added, int skippedNotPublished, int skippedAlreadyLinked)>
+        SnapshotTransmittalDocumentsAsync(
+            Transmittal transmittal,
+            Guid projectId,
+            Guid tenantId,
+            Guid[] documentIds,
+            CancellationToken ct)
+    {
+        // GAP-10 — only PUBLISHED (S4) documents should be attached to a transmittal.
+        // Non-PUBLISHED docs are counted and reported so callers can inform the user.
+        var publishedDocs = await _db.Documents
+            .Where(d => documentIds.Contains(d.Id) && d.ProjectId == projectId && d.TenantId == tenantId
+                     && d.CdeStatus == "PUBLISHED")
+            .Include(d => d.Versions.OrderByDescending(v => v.VersionNumber).Take(1))
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        int skippedNotPublished = documentIds.Length - publishedDocs.Count;
+
+        // Existing snapshot IDs to avoid duplicates on the AddDocuments re-call path.
+        // EF Core has no ToHashSetAsync — materialise the list first then ToHashSet().
+        var alreadyLinkedList = await _db.TransmittalDocuments
+            .Where(td => td.TransmittalId == transmittal.Id)
+            .Select(td => td.DocumentId)
+            .ToListAsync(ct);
+        var alreadyLinked = alreadyLinkedList.ToHashSet();
+
+        int created = 0;
+        int skippedAlreadyLinked = 0;
+        foreach (var doc in publishedDocs)
+        {
+            if (alreadyLinked.Contains(doc.Id)) { skippedAlreadyLinked++; continue; }
+
+            var latestVersion = doc.Versions.FirstOrDefault();
+            _db.TransmittalDocuments.Add(new TransmittalDocument
+            {
+                TransmittalId            = transmittal.Id,
+                DocumentId               = doc.Id,
+                DocumentVersionId        = latestVersion?.Id,
+                CdeStateAtTransmittal    = doc.CdeStatus,
+                SuitabilityAtTransmittal = doc.SuitabilityCode,
+                FilePathAtTransmittal    = latestVersion?.FilePath ?? doc.FilePath,
+            });
+            created++;
+        }
+        return (created, skippedNotPublished, skippedAlreadyLinked);
     }
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 }
 
-public record CreateTransmittalRequest(string Recipient, string? Notes, string? DocumentIdsJson);
+public record CreateTransmittalRequest(
+    string Recipient,
+    string? Notes,
+    string? DocumentIdsJson,
+    Guid[]? DocumentIds = null,
+    // Gap 6 — named recipient for targeted push notification on send.
+    Guid? RecipientUserId = null,
+    // Gap 7 — optional SLA deadline by which recipient must acknowledge.
+    DateTime? SlaDeadline = null);
+
+// Gap 7 — response body for the Respond endpoint.
+public record TransmittalRespondRequest(string? ResponseNotes);

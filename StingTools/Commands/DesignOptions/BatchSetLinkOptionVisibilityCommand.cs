@@ -142,10 +142,10 @@ namespace StingTools.Commands.DesignOptions
                             linkOps++;
                             didSomething = true;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             failed++;
-                            StingLog.Warn($"BatchSetLinkOption '{v.Name}' / link {li.Id}: {ex.Message}");
+                            StingLog.Warn($"BatchSetLinkOption '{v.Name}' / link {li.Id}: {ex2.Message}");
                         }
                     }
                     if (didSomething) viewsTouched++;

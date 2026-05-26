@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using ClosedXML.Excel;
+using StingTools.Core;
 
 namespace StingTools.Core.Placement.Excel
 {
@@ -66,9 +67,9 @@ namespace StingTools.Core.Placement.Excel
                     if (string.IsNullOrEmpty(raw)) continue;
                     anyValue = true;
                     try { SetProperty(rule, prop, raw); }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
-                        errors.Add($"Sheet '{ws.Name}' row {r} column '{header}': {ex.Message}");
+                        errors.Add($"Sheet '{ws.Name}' row {r} column '{header}': {ex2.Message}");
                     }
                 }
                 if (!anyValue) continue;

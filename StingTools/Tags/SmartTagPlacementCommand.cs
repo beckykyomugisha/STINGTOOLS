@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using StingTools.Core;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Tags
 {
@@ -27,8 +29,84 @@ namespace StingTools.Tags
     /// </summary>
     internal static class TagPlacementEngine
     {
-        /// <summary>ENH-03: Default clearance margin (in feet) for leader elbow avoidance.</summary>
-        private const double LeaderClearanceMargin = 0.5;
+        /// <summary>
+        /// ENH-03 / GAP-PLACE-01: Clearance margin (feet) for leader elbow avoidance.
+        /// Configurable via LEADER_CLEARANCE_MARGIN_FT in project_config.json (default 0.5 ft).
+        /// Projects with dense annotations can reduce this; plant rooms may need 2–3 ft.
+        /// </summary>
+        private static double LeaderClearanceMargin
+            => TagConfig.GetConfigDouble("LEADER_CLEARANCE_MARGIN_FT", 0.5);
+
+        // ── B-1 SpatialGrid view cache ───────────────────────────────────
+        // Memoise the (existing-tag) SpatialGrid per (docKey, viewId) so two
+        // back-to-back placement runs against the same view don't both walk
+        // every IndependentTag and rebuild a 300-entry grid. TTL of 30 s is
+        // sufficient for sequential command runs and falls back to a fresh
+        // build when the user makes intervening edits.
+        private static readonly object _spatialGridCacheLock = new object();
+        private static readonly Dictionary<(string docKey, long viewId), (SpatialGrid grid, DateTime stamp, double cellSize, int tagCount)>
+            _spatialGridCache = new Dictionary<(string, long), (SpatialGrid, DateTime, double, int)>();
+        private static readonly TimeSpan _spatialGridTtl = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// B-1: invalidate the cached SpatialGrid for a given view (or for the
+        /// whole document when viewId is invalid). Public so external callers
+        /// can flush after non-trivial tag edits.
+        /// </summary>
+        public static void InvalidateViewCache(Document doc, ElementId viewId)
+        {
+            string docKey = doc?.PathName ?? doc?.Title ?? "";
+            lock (_spatialGridCacheLock)
+            {
+                if (viewId == null || viewId == ElementId.InvalidElementId)
+                {
+                    var keysToRemove = _spatialGridCache.Keys
+                        .Where(k => string.Equals(k.docKey, docKey, StringComparison.Ordinal))
+                        .ToList();
+                    foreach (var k in keysToRemove) _spatialGridCache.Remove(k);
+                }
+                else
+                {
+                    var key = (docKey, viewId.Value);
+                    if (_spatialGridCache.ContainsKey(key)) _spatialGridCache.Remove(key);
+                }
+            }
+        }
+
+        internal static bool TryGetCachedSpatialGrid(Document doc, View view, double cellSize, int existingTagCount, out SpatialGrid grid)
+        {
+            grid = null;
+            if (doc == null || view == null) return false;
+            string docKey = doc.PathName ?? doc.Title ?? "";
+            var key = (docKey, view.Id.Value);
+            lock (_spatialGridCacheLock)
+            {
+                if (_spatialGridCache.TryGetValue(key, out var entry))
+                {
+                    bool fresh = (DateTime.UtcNow - entry.stamp) < _spatialGridTtl;
+                    bool cellMatch = Math.Abs(entry.cellSize - cellSize) < 1e-9;
+                    bool countMatch = entry.tagCount == existingTagCount;
+                    if (fresh && cellMatch && countMatch)
+                    {
+                        grid = entry.grid;
+                        return true;
+                    }
+                    _spatialGridCache.Remove(key);
+                }
+            }
+            return false;
+        }
+
+        internal static void StoreSpatialGrid(Document doc, View view, double cellSize, int existingTagCount, SpatialGrid grid)
+        {
+            if (doc == null || view == null || grid == null) return;
+            string docKey = doc.PathName ?? doc.Title ?? "";
+            var key = (docKey, view.Id.Value);
+            lock (_spatialGridCacheLock)
+            {
+                _spatialGridCache[key] = (grid, DateTime.UtcNow, cellSize, existingTagCount);
+            }
+        }
 
         // ── B-1 SpatialGrid view cache ───────────────────────────────────
         // Memoise the (existing-tag) SpatialGrid per (docKey, viewId) so two
@@ -427,20 +505,6 @@ namespace StingTools.Tags
             set { /* cap is config-driven now; setter kept for API back-compat */ }
         }
 
-        /// <summary>
-        /// Scale-tier-aware offset. Tier mm and cap come from
-        /// <see cref="Core.ScaleTiers"/>, which resolves per-project
-        /// overrides then the bundled SCALE_TIERS.json then a hardcoded
-        /// fallback. Result is mm → ft × viewScale, clamped to the cap.
-        /// </summary>
-        public static int ReadTagPriority(Element host)
-        {
-            int viewScale = (view != null && view.Scale > 0) ? view.Scale : 100;
-            Core.ScaleTiers.Tier tier = Core.ScaleTiers.ForView(view);
-            double offsetFt = (tier.OffsetMm / 304.8) * viewScale;
-            return Math.Min(offsetFt, Core.ScaleTiers.OffsetCapFt);
-        }
-
         /// <summary>Get element center point in view coordinates.</summary>
         public static XYZ GetElementCenter(Element elem, View view)
         {
@@ -710,6 +774,60 @@ namespace StingTools.Tags
             _tagTypeCache = (null, null);
         }
 
+        // ── Pack / DrawingType helpers ─────────────────────────────────
+
+        /// <summary>
+        /// Resolves the ViewStylePack associated with the DrawingType stamped on
+        /// the given view. Returns null when the view has no stamp or the pack is
+        /// not registered.
+        /// </summary>
+        public static StingTools.Core.Drawing.ViewStylePack ResolvePackForView(Document doc, View view)
+        {
+            if (doc == null || view == null) return null;
+            try
+            {
+                string dtId = StingTools.Core.Drawing.DrawingTypeStamper.Read(view);
+                if (string.IsNullOrWhiteSpace(dtId)) return null;
+                var dt = StingTools.Core.Drawing.DrawingTypeRegistry.Get(doc, dtId);
+                if (dt == null || string.IsNullOrWhiteSpace(dt.ViewStylePackId)) return null;
+                return StingTools.Core.Drawing.DrawingTypeRegistry.TryGetPack(doc, dt.ViewStylePackId);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"[TagPlacementEngine] ResolvePackForView: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Given a category name and a ViewStylePack, try to find a FamilySymbol
+        /// whose Family.Name contains the style preset name from CategoryTagStyles.
+        /// Falls back to null when no match is found.
+        /// </summary>
+        internal static FamilySymbol FindTagTypeFromPack(
+            Document doc, string catName, StingTools.Core.Drawing.ViewStylePack pack)
+        {
+            if (pack?.CategoryTagStyles == null || string.IsNullOrWhiteSpace(catName)) return null;
+            string styleName = null;
+            foreach (var kv in pack.CategoryTagStyles)
+            {
+                if (string.Equals(kv.Key, catName, StringComparison.OrdinalIgnoreCase))
+                { styleName = kv.Value; break; }
+            }
+            if (string.IsNullOrWhiteSpace(styleName)) return null;
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .FirstOrDefault(fs =>
+                        fs.Category != null &&
+                        fs.Category.CategoryType == CategoryType.Annotation &&
+                        (fs.Family?.Name ?? "").IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+            catch (Exception ex) { StingLog.Warn($"FindTagTypeFromPack({catName}): {ex.Message}"); return null; }
+        }
+
         public static FamilySymbol FindTagType(Document doc, Category elementCategory)
         {
             if (elementCategory == null) return null;
@@ -909,7 +1027,7 @@ namespace StingTools.Tags
                     }
                     return !string.Equals(elDisc, disc, StringComparison.OrdinalIgnoreCase);
                 }
-                catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] DrawingType discipline filter: {ex.Message}"); return false; }
+                catch (Exception ex2) { StingLog.Warn($"[TagPlacementEngine] DrawingType discipline filter: {ex2.Message}"); return false; }
             });
             return before - elements.Count;
         }
@@ -1122,7 +1240,7 @@ namespace StingTools.Tags
                         if (variantId != ElementId.InvalidElementId) tagTypeId = variantId;
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"ResolveTagTypeForPlacement: {ex2.Message}"); }
 
                 string catName = elem.Category?.Name ?? "";
                 // Apply per-category scale multiplier to offset
@@ -1172,7 +1290,7 @@ namespace StingTools.Tags
                 }
 
                 // Leader length clamping: enforce min/max distance from element center
-                double leaderMinFt = 3.0;
+                double leaderMinFt = LeaderClearanceMargin;
                 double leaderMaxFt = 40.0;
                 double distToBest = bestPos.DistanceTo(center);
                 if (distToBest > 0.001)
@@ -1196,7 +1314,7 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(segMask))
                         StingLog.Info($"PlaceTagsInView: element {elem.Id} has TAG_SEG_MASK_TXT={segMask}");
                 }
-                catch (Exception ex) { StingLog.Warn($"Read TAG_SEG_MASK_TXT for element {elem.Id}: {ex.Message}"); }
+                catch (Exception ex3) { StingLog.Warn($"Read TAG_SEG_MASK_TXT for element {elem.Id}: {ex3.Message}"); }
 
                 var finalBox = Box2D.EstimateTag(bestPos, tagWidth, tagHeight);
                 if (grid.HasOverlap(finalBox)) collisions++;
@@ -1228,10 +1346,10 @@ namespace StingTools.Tags
                     sb.TagCreationFailed++; skipped++;
                     StingLog.Info($"SmartPlace skip (tag creation failed): element {elem.Id} - {iopEx.Message}");
                 }
-                catch (Exception ex)
+                catch (Exception ex4)
                 {
                     sb.OtherException++; skipped++;
-                    StingLog.Warn($"Tag placement failed for {elem.Id}: {ex.Message}");
+                    StingLog.Warn($"Tag placement failed for {elem.Id}: {ex4.Message}");
                 }
             }
 
@@ -1334,6 +1452,47 @@ namespace StingTools.Tags
             }
 
             return (placed, skipped, collisions);
+        }
+
+        /// <summary>
+        /// Returns a scale-appropriate model-space offset (in feet) to use as the
+        /// base clearance between a tag head and the nearest element boundary.
+        /// Derived from the view's scale: tighter at large scale (1:50), wider at
+        /// small scale (1:500). Falls back to 0.25 ft (~75 mm) when scale is
+        /// unavailable.
+        /// </summary>
+        public static double GetModelOffset(View view)
+        {
+            if (view == null) return 0.25;
+            try
+            {
+                int scale = view.Scale;
+                if (scale <= 0) return 0.25;
+                // 1 mm on paper = scale mm in model = scale/304.8 ft in model.
+                // Use 2 mm paper clearance as the baseline annotation clearance.
+                double paperMm = 2.0;
+                double modelFt = paperMm * scale / 304.8;
+                return Math.Max(0.1, Math.Min(modelFt, 5.0));
+            }
+            catch { return 0.25; }
+        }
+
+        /// <summary>
+        /// B-3: Estimate a bounding box for a tag whose get_BoundingBox() returned null.
+        /// Uses the tag's head position and the caller-supplied width/height estimates
+        /// (derived from view scale) so the SpatialGrid still reserves space for it.
+        /// </summary>
+        private static Box2D EstimateTagBoxFallback(IndependentTag tag, View view, double tagWidth, double tagHeight)
+        {
+            try
+            {
+                XYZ head = tag.TagHeadPosition;
+                if (head == null) return new Box2D(0, 0, 0, 0);
+                double hw = tagWidth  / 2.0;
+                double hh = tagHeight / 2.0;
+                return new Box2D(head.X - hw, head.Y - hh, head.X + hw, head.Y + hh);
+            }
+            catch { return new Box2D(0, 0, 0, 0); }
         }
     }
 
@@ -1604,8 +1763,8 @@ namespace StingTools.Tags
             for (int i = 1; i < tags.Count; i++)
             {
                 double prevY, thisY;
-                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read prev TagHeadPosition.Y: {ex.Message}"); prevY = 0; }
-                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read this TagHeadPosition.Y: {ex.Message}"); thisY = 0; }
+                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex2) { StingLog.Warn($"[AlignTagBands] Read prev TagHeadPosition.Y: {ex2.Message}"); prevY = 0; }
+                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex3) { StingLog.Warn($"[AlignTagBands] Read this TagHeadPosition.Y: {ex3.Message}"); thisY = 0; }
 
                 if (Math.Abs(thisY - prevY) <= tagHeightEstimate * 1.2)
                     current.Add(tags[i]);
@@ -1620,7 +1779,7 @@ namespace StingTools.Tags
             int moved = 0;
             foreach (var group in groups)
             {
-                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read group TagHeadPosition.Y: {ex.Message}"); return 0.0; } })
+                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex2) { StingLog.Warn($"[AlignTagBands] Read group TagHeadPosition.Y: {ex2.Message}"); return 0.0; } })
                     .OrderBy(y => y).ToList();
                 double medianY = ys[ys.Count / 2];
                 foreach (var tag in group)
@@ -1634,7 +1793,7 @@ namespace StingTools.Tags
                             moved++;
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"Align tag band position for tag {tag.Id}: {ex.Message}"); }
+                    catch (Exception ex3) { StingLog.Warn($"Align tag band position for tag {tag.Id}: {ex3.Message}"); }
                 }
             }
             return moved;
@@ -1685,16 +1844,17 @@ namespace StingTools.Tags
                             tag.LeaderEndCondition = LeaderEndCondition.Free;
                             tag.SetLeaderElbow(tagRef, elbowCandidate);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Set leader elbow position: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Set leader elbow position: {ex2.Message}"); }
                         return;
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex2)
             {
-                StingLog.Warn($"AdjustLeaderElbow: {ex.Message}");
+                StingLog.Warn($"AdjustLeaderElbow: {ex2.Message}");
             }
         }
+
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -1730,6 +1890,17 @@ namespace StingTools.Tags
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
             int placed, skipped, collisions;
+
+            // Resolve ViewStylePack for the active view so CategoryTagStyles +
+            // CategoryDepths can inform tag family selection and depth stamping.
+            var currentPack = TagPlacementEngine.ResolvePackForView(doc, view);
+            string currentDtId = "";
+            try { currentDtId = StingTools.Core.Drawing.DrawingTypeStamper.Read(view) ?? ""; }
+            catch { /* non-fatal */ }
+
+            // Accumulate placed tag ElementIds for PlacementResultBus publish.
+            var placedTagIds = new List<ElementId>();
+            var runWarnings  = new List<string>();
 
             if (selectedOnly)
             {
@@ -1789,9 +1960,12 @@ namespace StingTools.Tags
                         if (elem?.Category == null) { skipped++; continue; }
 
                         ElementId catId = elem.Category.Id;
+                        string catName = elem.Category?.Name ?? "";
                         if (!tagTypeCache.TryGetValue(catId, out ElementId tagTypeId))
                         {
-                            FamilySymbol tagType = TagPlacementEngine.FindTagType(doc, elem.Category);
+                            // Prefer a tag family from the active ViewStylePack's CategoryTagStyles
+                            FamilySymbol packTagType = TagPlacementEngine.FindTagTypeFromPack(doc, catName, currentPack);
+                            FamilySymbol tagType = packTagType ?? TagPlacementEngine.FindTagType(doc, elem.Category);
                             tagTypeId = tagType?.Id ?? ElementId.InvalidElementId;
                             tagTypeCache[catId] = tagTypeId;
                         }
@@ -1815,7 +1989,6 @@ namespace StingTools.Tags
                         // off the host element's family type and shifts the whole 16-candidate
                         // ring. Elements with no anchor behave exactly as before.
                         var offsets = TagPlacementEngine.GetCandidateOffsetsWithAnchor(offset, elem);
-                        string catName = elem.Category?.Name ?? "";
                         int preferred = TagPlacementEngine.GetPreferredSide(catName);
 
                         // UI-08: Override preferred position from dockable panel compass
@@ -1851,7 +2024,26 @@ namespace StingTools.Tags
                                 BoundingBoxXYZ tagBB = tag.get_BoundingBox(view);
                                 if (tagBB != null)
                                     occupied.Add(TagPlacementEngine.Box2D.FromBoundingBox(tagBB));
+                                placedTagIds.Add(tag.Id);
                                 placed++;
+
+                                // Apply paragraph depth from ViewStylePack.CategoryDepths
+                                if (currentPack?.CategoryDepths != null)
+                                {
+                                    try
+                                    {
+                                        int depth = 0;
+                                        foreach (var kv in currentPack.CategoryDepths)
+                                        {
+                                            if (string.Equals(kv.Key, catName, StringComparison.OrdinalIgnoreCase))
+                                            { depth = kv.Value; break; }
+                                        }
+                                        if (depth > 0)
+                                            ParameterHelpers.SetInt(tag, "TAG_PARA_DEPTH_INT", depth);
+                                    }
+                                    catch (Exception depEx)
+                                    { StingLog.Warn($"CategoryDepths apply for {tag.Id}: {depEx.Message}"); }
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -1909,6 +2101,31 @@ namespace StingTools.Tags
             StingAutoTagger.InvalidateContext();
 
             sw.Stop();
+
+            // Publish result to PlacementResultBus so dock panel strips can update.
+            if (collisions > 0) runWarnings.Add($"{collisions} position overlap(s) — best-effort placement used");
+            try
+            {
+                StingTools.Core.Placement.PlacementResultBus.Publish(
+                    new StingTools.Core.Placement.PlacementRunSummary
+                    {
+                        Source        = "Tags",
+                        DrawingTypeId = currentDtId,
+                        PackId        = currentPack?.Id ?? "",
+                        Headline      = $"Smart placement: {placed} tags placed, {skipped} skipped",
+                        Metrics       = new List<string>
+                        {
+                            $"Placed: {placed}",
+                            $"Skipped: {skipped}",
+                            $"Warnings: {runWarnings.Count}",
+                            $"Time: {sw.Elapsed.TotalSeconds:F1}s",
+                        },
+                        Warnings      = runWarnings,
+                        AffectedIds   = placedTagIds,
+                    });
+            }
+            catch (Exception busEx) { StingLog.Warn($"PlacementResultBus.Publish (SmartPlace): {busEx.Message}"); }
+
             var report = new StringBuilder();
             report.AppendLine($"Placed: {placed} annotation tags");
             if (skipped > 0)
@@ -2155,14 +2372,14 @@ namespace StingTools.Tags
                     doc.Delete(idsToDelete);
                     removed = idsToDelete.Count;
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Error($"RemoveAnnotationTags: batch delete failed, falling back to one-by-one", ex);
+                    StingLog.Error($"RemoveAnnotationTags: batch delete failed, falling back to one-by-one", ex2);
                     // Fallback: delete individually
                     foreach (var id in idsToDelete)
                     {
                         try { doc.Delete(id); removed++; }
-                        catch (Exception ex2) { StingLog.Warn($"Could not delete tag {id}: {ex2.Message}"); }
+                        catch (Exception ex22) { StingLog.Warn($"Could not delete tag {id}: {ex22.Message}"); }
                     }
                 }
 
@@ -2955,7 +3172,7 @@ namespace StingTools.Tags
                         }
                         catch (Exception esEx) { StingLog.Warn($"ES dual-write TAG_POS on {typeId}: {esEx.Message}"); }
                     }
-                    catch (Exception ex) { StingLog.Warn($"Set TAG_POS on type {typeId}: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Set TAG_POS on type {typeId}: {ex2.Message}"); }
                 }
                 tx.Commit();
             }

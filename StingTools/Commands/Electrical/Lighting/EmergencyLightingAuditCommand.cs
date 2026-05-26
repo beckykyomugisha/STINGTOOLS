@@ -15,7 +15,7 @@ namespace StingTools.Commands.Electrical.Lighting
 {
     /// <summary>
     /// Per-room emergency-lighting audit. A fixture is treated as emergency
-    /// when its family / type-mark / ELC_EMERG_TYPE matches a known pattern.
+    /// when its family / type-mark / LTG_FIX_TYPE_CLASSIFICATION_TXT matches an emergency-style pattern.
     /// Rooms with normal-only fixtures get amber; rooms with no emergency
     /// at all get red; rooms where an emergency is on the same circuit as
     /// a normal fixture get the SAME_CIRCUIT warning.
@@ -80,7 +80,7 @@ namespace StingTools.Commands.Electrical.Lighting
                             if (status == "NONE") view.SetElementOverrides(r.Id, ogsRed);
                             else if (status == "SAME_CIRCUIT") view.SetElementOverrides(r.Id, ogsAmber);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     }
 
                     rows.Add(new EmergAuditRow
@@ -125,8 +125,15 @@ namespace StingTools.Commands.Electrical.Lighting
                 if (EmergPatterns.Any(p => fname.Contains(p))) return true;
                 string tm = (fi.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString() ?? "").ToLowerInvariant();
                 if (tm.StartsWith("em")) return true;
-                string emergType = ParameterHelpers.GetString(fi, "ELC_EMERG_TYPE");
-                if (!string.IsNullOrEmpty(emergType)) return true;
+                // Canonical via MR_PARAMETERS: LTG_FIX_TYPE_CLASSIFICATION_TXT
+                // is the project-wide fixture type discriminator (Phase 188 fix
+                // — earlier ELC_EMERG_TYPE literal had no canonical mapping).
+                // Match emergency-style classifications (e.g. "Emergency",
+                // "Self-contained EM", "Maintained EM") rather than any non-empty
+                // value, since the param now also carries non-emergency types.
+                string emergType = ParameterHelpers.GetString(fi, "LTG_FIX_TYPE_CLASSIFICATION_TXT");
+                if (!string.IsNullOrEmpty(emergType) &&
+                    emergType.IndexOf("emerg", StringComparison.OrdinalIgnoreCase) >= 0) return true;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;

@@ -525,6 +525,12 @@
                                     <Button Content="▶ Auto-Upsize Failing" Style="{StaticResource ElecActionBtn}"
                                             Tag="Calc_UpsizeWires" Click="Cmd_Click"
                                             ToolTip="Auto-upsize conductors on circuits exceeding the VD threshold. Reviews before applying."/>
+                                    <Button Content="✕ Clear Overrides" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Elec_ClearOverrides" Click="Cmd_Click"
+                                            ToolTip="Reset any colour / halftone overrides applied by Flag Exceedances, Arc Flash, Emergency Audit or LPD checks on the active view."/>
+                                    <Button Content="▶ Load + Demand Audit" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Calc_LoadDemandAudit" Click="Cmd_Click"
+                                            ToolTip="Phase 185 — applies BS 7671 App 1 / IEE OSG diversity factors per circuit category (lighting 90%, small power 75%, HVAC 100%, etc.), reports per-panel spare capacity (target 25% commercial, 30% industrial, 35% healthcare), recommends harmonics-aware neutral CSA, sizes a project-wide PFC capacitor bank with payback estimate."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Expander>
@@ -633,6 +639,33 @@
                             </StackPanel>
                         </Expander>
 
+                        <Expander Header="BS 7671 COMPLIANCE (Zs / Adiabatic / RCD)" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Earthing system" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbEarthingSystem" FontSize="10" SelectedIndex="1"
+                                          SelectionChanged="EarthingSystem_Changed">
+                                    <ComboBoxItem Content="TN-S"/>
+                                    <ComboBoxItem Content="TN-C-S"/>
+                                    <ComboBoxItem Content="TT"/>
+                                    <ComboBoxItem Content="IT"/>
+                                </ComboBox>
+                                <WrapPanel Margin="0,4">
+                                    <Button Content="▶ Run BS 7671 Audit" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Bs7671_Audit" Click="Cmd_Click"
+                                            ToolTip="Audits every power circuit for earth-fault loop impedance Zs (Table 41.1), adiabatic conductor verification (k·S)² ≥ I²·t per §434.5.2, and RCD strategy per §411.3.3 / 411.3.4 / 522.6.202. Writes a colour-coded Excel pack."/>
+                                    <Button Content="▶ Loop Calc Sheet" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Bs7671_LoopCalcSheet" Click="Cmd_Click"
+                                            ToolTip="One A4 sheet per circuit: Ze + R1 + R2, Zs vs Zs_max, OCPD trip current, k·S vs I·t, derating factors. Designed for the design pack."/>
+                                    <Button Content="📜 Certificate (Appendix 6)" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Bs7671_Certificate" Click="Cmd_Click"
+                                            ToolTip="Generates a BS 7671:2018+A2:2022 Appendix 6 Initial Verification Certificate template (.xlsx) with cover, schedule of inspections, circuit details, schedule of test results — pre-filled from project info + latest audit, blank columns for the inspecting electrician to write in measured Zs / RCD trip times."/>
+                                    <Button Content="📐 Working Clearance" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Bs7671_WorkingClearance" Click="Cmd_Click"
+                                            ToolTip="BS 7671 §132.12 / IEC 60364-7-729 / NEC 110.26 — checks 1000 mm front + 750 mm side + 2000 mm headroom around every panel against walls / columns / furniture / ducts / pipes / cable trays / doors. Reports each intrusion."/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Expander>
+
                         <Expander Header="ARC FLASH (IEEE 1584-2018)" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
                                 <Button Content="⚡ Arc Flash Calc" Style="{StaticResource ElecPrimaryBtn}"
@@ -644,6 +677,12 @@
                                 <Button Content="📋 Arc Flash Schedule" Style="{StaticResource ElecActionBtn}"
                                         Tag="Elec_ArcFlashSched" Click="Cmd_Click"
                                         ToolTip="Creates a Revit ViewSchedule of OST_ElectricalEquipment with arc flash columns."/>
+                                <Button Content="⭕ Boundary Circles" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ArcFlashBoundary" Click="Cmd_Click"
+                                        ToolTip="Drops a coloured detail circle at every panel on the active plan view sized to its arc-flash boundary distance (ELC_ARC_FLASH_BD). Red/orange/yellow/green by PPE category."/>
+                                <Button Content="📈 TCC Curve Plot" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_TccPlot" Click="Cmd_Click"
+                                        ToolTip="SVG time-current coordination curves on log-log axes for every cascaded OCPD pair in the TCC database. Drops in &lt;output&gt;/electrical/tcc/ for shop-drawing inclusion."/>
                             </StackPanel>
                         </Expander>
 
@@ -982,6 +1021,88 @@
                                         Tag="SLD_UpdateRiser" Click="Cmd_Click"/>
                             </StackPanel>
                         </Expander>
+
+                        <!-- INLINE ANNOTATIONS expander -->
+                        <Expander Header="INLINE ANNOTATIONS" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Place data labels directly on SLD elements. Stamps are tracked so they update when parameters change."
+                                           FontSize="9" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                                <!-- Master -->
+                                <Button Content="▶ Annotate All (full set)" Margin="0,0,0,4"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="SldAnnotate_All" Click="Cmd_Click"
+                                        ToolTip="Place cable / rating / voltage / load / fault / diversity annotations on every SLD element in the active view"/>
+
+                                <!-- Format selector -->
+                                <TextBlock Text="Annotation format" Style="{StaticResource ElecLabel}"/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <Button Content="Compact" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Format_Compact" Click="Cmd_Click"
+                                            ToolTip="4mm² / 32A / B32 — concise inline label"/>
+                                    <Button Content="Full" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Format_Full" Click="Cmd_Click"
+                                            ToolTip="Cable: 4 mm² | Rating: 32 A | Breaker: B32 — verbose with field labels"/>
+                                    <Button Content="Reference" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Format_Reference" Click="Cmd_Click"
+                                            ToolTip="DB-L1.3 — panel + circuit ref only"/>
+                                </WrapPanel>
+
+                                <!-- Per-field row 1 -->
+                                <TextBlock Text="Per-field annotations" Style="{StaticResource ElecLabel}"/>
+                                <UniformGrid Columns="3" Margin="0,0,0,4">
+                                    <Button Content="Voltage" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Voltage" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_VOLTAGE_TXT — e.g. 230 V"/>
+                                    <Button Content="Current" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Current" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_DESIGN_CURRENT_TXT — e.g. 16 A"/>
+                                    <Button Content="Fault kA" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Fault" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_FAULT_LEVEL_TXT — e.g. 3.2 kA"/>
+                                </UniformGrid>
+                                <UniformGrid Columns="3" Margin="0,0,0,4">
+                                    <Button Content="Cable CSA" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Cable" Click="Cmd_Click"
+                                            ToolTip="ELC_CABLE_CSA_TXT — e.g. 4 mm²"/>
+                                    <Button Content="Phase" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Phase" Click="Cmd_Click"
+                                            ToolTip="Phase conductor annotation from circuit data"/>
+                                    <Button Content="Load W" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Load" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_DESIGN_LOAD_TXT — e.g. 3680 W"/>
+                                </UniformGrid>
+                                <UniformGrid Columns="3" Margin="0,0,0,4">
+                                    <Button Content="Reference" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Reference" Click="Cmd_Click"
+                                            ToolTip="ELC_PNL_NAME_TXT + ELC_CIR_REF_TXT — e.g. DB-L1.3"/>
+                                    <Button Content="Impedance" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Impedance" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_ZS_TXT — loop impedance Zs"/>
+                                    <Button Content="Diversity" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Diversity" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_DIVERSITY_FACTOR_TXT — e.g. 0.65"/>
+                                </UniformGrid>
+
+                                <!-- Management row -->
+                                <TextBlock Text="Manage annotations" Style="{StaticResource ElecLabel}"/>
+                                <WrapPanel Margin="0,0,0,2">
+                                    <Button Content="Update from calcs" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_UpdateCalcs" Click="Cmd_Click"
+                                            ToolTip="Re-read ELC_* parameters and refresh all existing annotation TextNotes in place"/>
+                                    <Button Content="Toggle visible" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Toggle" Click="Cmd_Click"
+                                            ToolTip="Show / hide all STING SLD annotations in the active view"/>
+                                    <Button Content="Clear all" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Clear" Click="Cmd_Click"
+                                            ToolTip="Delete all STING SLD annotation TextNotes from the active view"/>
+                                    <Button Content="Audit" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Audit" Click="Cmd_Click"
+                                            ToolTip="Report which elements have annotations, which are missing, and which have stale data"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Expander>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -1043,6 +1164,18 @@
                                 <Button Content="▶ Update from connected load data"
                                         Style="{StaticResource ElecActionBtn}" Margin="0,4,0,0"
                                         Tag="Lite_UpdateTargets" Click="Cmd_Click"/>
+                                <Button Content="▶ Quick Lux (CIBSE LG10)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Lite_QuickLuxEstimate" Click="Cmd_Click"
+                                        ToolTip="Coarse first-pass illuminance estimate via CIBSE LG10 Lumen Method (E = nΦ·UF·MF/A) — answers 'do we need 12 fixtures or 8?' before committing to a DIALux round-trip. Excel pack with target lux from STING_LUX_TARGETS.json + recommended ±N fixtures per room."/>
+                                <Button Content="▶ Control Zones (Part L 2021)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Lite_ControlZones" Click="Cmd_Click"
+                                        ToolTip="Auto-derives lighting control zones per Part L 2021 / ASHRAE 90.1 §9.4.1 / Title 24 — splits perimeter daylight zone (within 6 m of windows) from core zone, occupancy sensing for offices ≥ 10 m² + WCs/storage, scene control for meeting rooms. Excel control schedule + ELC_LITE_CONTROL_ZONE stamp on each fixture."/>
+                                <Button Content="📄 Lighting Calc Sheets" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Lite_LightingCalcSheet" Click="Cmd_Click"
+                                        ToolTip="One A4 worksheet per room with the full Lumen Method derivation: room geometry, surface reflectances, luminaire data + Φ/n, room index k, UF (LG10 Table 6), MF, estimated lux vs target, designer/checker sign-off. Mirror of the BS 7671 loop calc sheet — for the design pack."/>
+                                <Button Content="📚 Luminaire Registry" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Lite_LuminaireRegistry" Click="Cmd_Click"
+                                        ToolTip="Project-scoped CSV mapping each luminaire family/type to manufacturer / model / .ies path / lumens / watts / CCT / CRI. First run scaffolds the CSV from placed types; second run stamps registry values onto matching family TYPES so AssignPhotometric, Quick Lux, and Calc Sheets all pick them up automatically. Lives at &lt;project&gt;/_BIM_COORD/luminaire_registry.csv."/>
                             </StackPanel>
                         </Expander>
 
@@ -1244,6 +1377,23 @@
                                 </Grid>
                                 <Button Content="▶ Export Circuit Register" Style="{StaticResource ElecPrimaryBtn}"
                                         Tag="Rprt_CircuitExport" Click="Cmd_Click"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="CABLE PULL LIST + EQUIPMENT SCHEDULE" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <Button Content="▶ Cable Pull List" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Rprt_CablePullList" Click="Cmd_Click"
+                                        ToolTip="Construction document for the install team. One row per cable with from-panel, to-load, route metres, cable type/CSA, drum allocation (FFD packing), weight estimate. Excel export, A4 landscape print."/>
+                                <Button Content="▶ Equipment Schedule" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Rprt_EquipSchedule" Click="Cmd_Click"
+                                        ToolTip="Project-wide nameplate schedule covering switchgear, transformers, panels, UPS, generators. kVA, voltage, fault rating, IP, weight, manufacturer/model, location."/>
+                                <Button Content="🌍 Carbon Rollup (Op + Embodied)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_CarbonRollup" Click="Cmd_Click"
+                                        ToolTip="Annual operational kWh + scope-2 carbon at the BEIS 2024 grid factor (0.207 kgCO₂e/kWh) plus embodied A1-A3 carbon for cables (ICE v3.0 weighted) + panels/transformers/UPS/generators (EPD-derived). Year-1 + 60-year LCA totals for RIBA 2030 / BS EN 15978 reporting."/>
+                                <Button Content="🔣 Drawing Symbols Legend" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_DrawingLegend" Click="Cmd_Click"
+                                        ToolTip="Auto-builds an Electrical Symbols Legend drafting/Legend view per IEC 60617 / IEEE 315 / NFPA 170 / CIBSE / BS 1553. Walks every electrical family instance (lighting / lighting controls / power equipment / outlets / fire alarm / data / comms / security), groups by family/type, shows discipline-coloured swatch + concept ID + standard reference + placement count. Drag onto sheets via Project Browser or use DOCS → Place on All Sheets."/>
                             </StackPanel>
                         </Expander>
 

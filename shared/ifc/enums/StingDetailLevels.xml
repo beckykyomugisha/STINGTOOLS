@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingDetailLevels</Name>
+    <Definition>View detail-level codes used by the Drawing Type registry and the per-host view-template apply step. Maps directly to Revit ViewDetailLevel (Coarse / Medium / Fine) and to equivalent settings in BlenderBIM's draw style and ArchiCAD's view detail switches.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4002-9000-000000000010</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>Revit API ViewDetailLevel enum; STING DrawingType.DetailLevel field</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Coarse" sentinel="false">
+      <Definition>Coarse — schematic representation, line work only. Used for small-scale plans, site, key plans.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Medium" sentinel="false">
+      <Definition>Medium — STING default. Shows construction layers / connectors / fittings at production scales.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Fine" sentinel="false">
+      <Definition>Fine — full graphic detail. Used for details, sections at 1:20 / 1:10 / 1:5, fabrication spool drawings.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>32d418c964cafcc4675cf0ca1219d47151173d755334a4a175cb95388b859bf5</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

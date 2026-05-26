@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — SLD generator façade (Phase 175 + Phase 179 enhancements)
 //
 // Coordinates traverser → layout → annotation to produce a drafting view
@@ -23,26 +24,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using Autodesk.Revit.DB;
 using StingTools.Core.Symbols;
 using StingTools.Commands.Electrical.Coordination;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Core.SLD
 {
-    /// <summary>
-    /// Options that control what extra information is generated when
-    /// building an SLD or riser diagram view.
-    /// </summary>
-    public sealed class SLDGeneratorOptions
-    {
-        /// <summary>Annotate feeder cable CSA on every connection line.</summary>
-        public bool ShowFeederCsa { get; set; }
-        /// <summary>Annotate fault-level (kA) on panel boxes.</summary>
-        public bool ShowFaultKa { get; set; }
-        /// <summary>Annotate loading percentage on panel boxes.</summary>
-        public bool ShowLoadingPct { get; set; }
-    }
-
     public sealed class SLDResult
     {
         public bool Success { get; set; }
@@ -67,7 +56,7 @@ namespace StingTools.Core.SLD
             annotOpts  = annotOpts  ?? SLDAnnotationOptions.Default;
 
             var result = new SLDResult();
-            if (doc == null) { result.Warnings.Add("no document"); return result; }
+            if (doc == null) { result.Warning = "no document"; return result; }
             try
             {
                 var roots = SLDCircuitTraverser.BuildHierarchyAll(doc);
@@ -242,7 +231,7 @@ namespace StingTools.Core.SLD
                         && doc.GetElement(stampedLabelId) is TextNote)
                     {
                         try { doc.Delete(stampedLabelId); }
-                        catch (Exception ex) { StingLog.Warn($"Refresh delete stamped: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Refresh delete stamped: {ex2.Message}"); }
                     }
                     else
                     {
@@ -311,42 +300,6 @@ namespace StingTools.Core.SLD
 
         // ── Helpers ──────────────────────────────────────────────────────────
 
-        // SLD-14: pre-flight — collect required family names and warn for any not loaded
-        private static void EnsureSymbolFamiliesLoaded(Document doc, SLDNode root,
-            string standard, SLDResult result)
-        {
-            try
-            {
-                var needed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var stack = new Stack<SLDNode>();
-                stack.Push(root);
-                while (stack.Count > 0)
-                {
-                    var n = stack.Pop();
-                    if (!string.IsNullOrEmpty(n.ConceptId))
-                    {
-                        string fam = SymbolConceptRegistry.GetAnnotationFamilyName(n.ConceptId, standard);
-                        if (!string.IsNullOrEmpty(fam)) needed.Add(fam);
-                    }
-                    foreach (var c in n.Children) stack.Push(c);
-                }
-
-                var loaded = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilySymbol))
-                    .Cast<FamilySymbol>()
-                    .Select(s => s.FamilyName)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                foreach (var fam in needed)
-                    if (!loaded.Contains(fam))
-                        result.Warnings.Add($"SLD symbol family not loaded: '{fam}' — load the family to show this symbol type.");
-            }
-            catch (Exception ex)
-            {
-                StingTools.Core.StingLog.Warn($"EnsureSymbolFamiliesLoaded: {ex.Message}");
-            }
-        }
-
         private static void PlaceSymbols(Document doc, ViewDrafting view, SLDNode node,
             SLDLayout layout, string standard, SLDResult result,
             IDictionary<ElementId, ElementId> nodeToInstance = null)
@@ -357,43 +310,17 @@ namespace StingTools.Core.SLD
                 if (layout.SymbolPositions.TryGetValue(node.ElementId, out var pos)
                     && !string.IsNullOrEmpty(node.ConceptId))
                 {
-                    // SLD-13: route compound concepts through CompoundSymbolPlacer
-                    var concept = SymbolConceptRegistry.GetConcept(node.ConceptId);
-                    bool isCompound = concept?.CompoundComponents != null
-                                      && concept.CompoundComponents.Count > 0;
-
-                    if (isCompound)
+                    var fam = SymbolConceptRegistry.GetAnnotationFamilyName(node.ConceptId, standard);
+                    if (!string.IsNullOrEmpty(fam))
                     {
                         var sym = FindOrLoadFamilySymbol(doc, fam);
                         if (sym != null)
                         {
-                            result.SymbolsPlaced++;
-                            if (nodeToInstance != null)
-                                nodeToInstance[node.ElementId] = ids[0];
-                            // Stamp the first placed component with the element back-reference
-                            var first = doc.GetElement(ids[0]) as FamilyInstance;
-                            if (first != null)
+                            if (!sym.IsActive) sym.Activate();
+                            try
                             {
-                                StampParam(first, "STING_SYMBOL_ID", node.ConceptId);
-                                StampParam(first, "STING_SLD_ELEMENT_ID", node.ElementId.Value.ToString());
-                            }
-                        }
-                    }
-                    else
-                    {
-                        var fam = SymbolConceptRegistry.GetAnnotationFamilyName(node.ConceptId, standard);
-                        if (!string.IsNullOrEmpty(fam))
-                        {
-                            var sym = new FilteredElementCollector(doc)
-                                .OfClass(typeof(FamilySymbol))
-                                .Cast<FamilySymbol>()
-                                .FirstOrDefault(s =>
-                                    string.Equals(s.Name, fam, StringComparison.OrdinalIgnoreCase)
-                                    || string.Equals(s.FamilyName, fam, StringComparison.OrdinalIgnoreCase));
-                            if (sym != null)
-                            {
-                                if (!sym.IsActive) sym.Activate();
-                                try
+                                var inst = doc.Create.NewFamilyInstance(pos, sym, view);
+                                if (inst != null)
                                 {
                                     StampParam(inst, "STING_SYMBOL_ID", node.ConceptId,
                                         result.Warnings);
@@ -694,9 +621,9 @@ namespace StingTools.Core.SLD
                                 (secPos.Y + nodePos.Y) / 2.0 + boxHFt * 0.3,
                                 0);
                             try { TextNote.Create(doc, view.Id, mid, "E", tnt); }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
-                                StingLog.Warn($"DrawEmergencyFeedNotation E label: {ex.Message}");
+                                StingLog.Warn($"DrawEmergencyFeedNotation E label: {ex2.Message}");
                             }
                         }
                     }
@@ -781,9 +708,9 @@ namespace StingTools.Core.SLD
                                 ptA.Y + boxHFt * 0.4,
                                 0);
                             try { TextNote.Create(doc, view.Id, mid, "BC/NOP", tnt); }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
-                                StingLog.Warn($"DrawBusCouplerNotation TextNote: {ex.Message}");
+                                StingLog.Warn($"DrawBusCouplerNotation TextNote: {ex2.Message}");
                             }
                         }
                     }

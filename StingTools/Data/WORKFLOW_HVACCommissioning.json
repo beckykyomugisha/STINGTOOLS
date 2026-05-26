@@ -1,0 +1,21 @@
+{
+  "id": "HVACCommissioning",
+  "label": "HVAC — Commissioning pass",
+  "description": "CIBSE TM39 commissioning sequence — proportional flow balance, vibro-acoustic check, ventilation audit, full validator run. Used at handover when the model represents the as-built rather than the design intent.",
+  "discipline": "Mechanical",
+  "icon": "❄",
+  "steps": [
+    { "commandTag": "Hvac_SystemAudit",      "label": "System topology audit" },
+    { "commandTag": "Hvac_HardyCross",       "label": "Proportional balance (CIBSE TM39)" },
+    { "commandTag": "Hvac_ValidateFills",    "label": "Validate connector flows vs design" },
+    { "commandTag": "Hvac_NcPredict",        "label": "NC prediction (Phase 187 — VDI 2081 / ASHRAE A48)" },
+    { "commandTag": "Hvac_PressureClassAudit","label": "Pressure-class audit (DW/144)" },
+    { "commandTag": "Hvac_Ventilation",      "label": "OA / ventilation audit (ADF1 / ASHRAE 62.1 / BB101)" },
+    { "commandTag": "Hvac_AutoFireDamper",   "label": "Verify fire dampers at compartment boundaries" },
+    { "commandTag": "Hvac_RunAllValidators", "label": "Run v4 + healthcare validators" }
+  ],
+  "notes": [
+    "Run after the contractor's TAB (testing, adjusting, balancing) results are entered.",
+    "PressureRegimeValidator activates automatically when the healthcare profile is on."
+  ]
+}

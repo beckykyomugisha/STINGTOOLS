@@ -9,6 +9,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.UI;
+using System.Text.RegularExpressions;
 
 namespace StingTools.BIMManager
 {
@@ -474,7 +475,7 @@ namespace StingTools.BIMManager
                     totalBytes -= sz;
                     deleted++;
                 }
-                catch (Exception ex) { StingLog.Warn($"PruneSnapshots size: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"PruneSnapshots size: {ex2.Message}"); }
                 files.RemoveAt(files.Count - 1);
             }
 
@@ -642,7 +643,18 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
 
-                // WF-03: Pre-revision compliance gate — warn if tag compliance is below threshold
+                // Phase 103: the stepped Pre-Revision Compliance Gate TaskDialog
+                // has been REMOVED. Revit TaskDialogs parent to the main Revit
+                // window, not to BCC, so they opened behind the coordination
+                // centre and broke the user's flow. The BCC Revisions tab now
+                // shows an inline compliance banner before the user clicks
+                // Create (with a checkbox "Create anyway if below threshold"),
+                // so the decision is made IN the inline panel with no popup.
+                //
+                // When this command is invoked with an ACK flag
+                // (UI.StingCommandHandler.GetExtraParam("RevisionComplianceAck")
+                // == "true") we skip the gate entirely; otherwise we still
+                // emit a warning to the STING log for audit traceability.
                 try
                 {
                     var preRevScan = ComplianceScan.Scan(doc);
@@ -786,10 +798,11 @@ namespace StingTools.BIMManager
                     using (var revTx = new Transaction(doc, "STING Propagate REV"))
                     {
                         revTx.Start();
+                        var catEnums = SharedParamGuids.AllCategoryEnums;
                         var allTagged = new FilteredElementCollector(doc)
-                            .WhereElementIsNotElementType()
-                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
-                            .ToList();
+                            .WhereElementIsNotElementType();
+                        if (catEnums != null && catEnums.Length > 0)
+                            allTagged.WherePasses(new ElementMulticategoryFilter(catEnums));
                         foreach (var el in allTagged)
                         {
                             string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -802,6 +815,10 @@ namespace StingTools.BIMManager
                     StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
                 }
                 catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
+
+                // Invalidate compliance cache ONCE after all rev-related transactions
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
 
                 // NTF-03: Notify team that revision is open
                 try
@@ -988,7 +1005,7 @@ namespace StingTools.BIMManager
                             if (cloudIds.Count > 0)
                             {
                                 try { uidoc.Selection.SetElementIds(cloudIds); }
-                                catch (Exception ex) { StingLog.Warn($"Select clouds: {ex.Message}"); }
+                                catch (Exception ex2) { StingLog.Warn($"Select clouds: {ex2.Message}"); }
                                 dlg.SetStatus($"Selected {cloudIds.Count} revision clouds");
                             }
                             else dlg.SetStatus("No clouds for selected revision(s)");
@@ -1009,7 +1026,7 @@ namespace StingTools.BIMManager
                             File.WriteAllLines(csvPath, csvLines);
                             dlg.SetStatus($"Exported to {csvPath}");
                         }
-                        catch (Exception ex) { dlg.SetStatus($"Export failed: {ex.Message}"); }
+                        catch (Exception ex2) { dlg.SetStatus($"Export failed: {ex2.Message}"); }
                     }
                 };
 

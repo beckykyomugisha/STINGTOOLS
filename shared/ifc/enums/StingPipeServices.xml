@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingPipeServices</Name>
+    <Definition>Pipe service codes — the canonical name for the fluid / gas a pipe carries. Drives MepAutoSizePipeCommand sizing rules, velocity limits, friction limits, material compatibility (water + copper, gas + black steel, refrigerant + brazed copper / pre-charged liquid line). One code per service so balancing engine and sizing rule registry stay aligned across hosts.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-00000000001f</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BS EN 806 (water); CIBSE Guide G (plumbing); CIBSE Guide B1 (heating); BS 1710 (pipe identification); ASME B31 (process piping)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="CHW" sentinel="false">
+      <Definition>Chilled Water — primary cooling distribution. Typical 6/12 °C flow/return.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CHWR" sentinel="false">
+      <Definition>Chilled Water Return.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HWS" sentinel="false">
+      <Definition>Heating Hot Water Supply (LPHW). Typical 80/60 °C flow/return.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HWR" sentinel="false">
+      <Definition>Heating Hot Water Return (LPHW).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="LHW" sentinel="false">
+      <Definition>Low-temperature Hot Water — heat pump / underfloor primary. Typical 45/35 °C.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MTHW" sentinel="false">
+      <Definition>Medium-Temperature Hot Water — 95/70 °C flow/return.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HTHW" sentinel="false">
+      <Definition>High-Temperature Hot Water — 120/80 °C; pressurised circuits.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DCW" sentinel="false">
+      <Definition>Domestic Cold Water — potable cold supply per BS EN 806.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DHW" sentinel="false">
+      <Definition>Domestic Hot Water flow.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DHWR" sentinel="false">
+      <Definition>Domestic Hot Water Return — anti-Legionella recirculation per HTM 04-01.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Condensate" sentinel="false">
+      <Definition>Condensate drain from cooling coils / AHUs / steam.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RefrigGas" sentinel="false">
+      <Definition>Refrigerant Gas line (suction side of compressor).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RefrigLiq" sentinel="false">
+      <Definition>Refrigerant Liquid line (condenser → expansion device).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Steam" sentinel="false">
+      <Definition>Steam — saturated or superheated, per ASME B31.1 / BS EN 13480.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SteamCondensate" sentinel="false">
+      <Definition>Steam Condensate return.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NaturalGas" sentinel="false">
+      <Definition>Natural Gas distribution per IGEM/UP/2.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="LPG" sentinel="false">
+      <Definition>Liquefied Petroleum Gas distribution.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FuelOil" sentinel="false">
+      <Definition>Fuel oil supply to boilers / generators.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CompressedAir" sentinel="false">
+      <Definition>Compressed Air (process / instrument), not medical. Use StingMGSGasTypes for medical air.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ProcessWater" sentinel="false">
+      <Definition>Process Water — RO, deionised, lab-grade water.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Soil" sentinel="false">
+      <Definition>Soil pipe — toilet / WC discharge.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Waste" sentinel="false">
+      <Definition>Waste pipe — lavatory / sink / shower discharge.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Vent" sentinel="false">
+      <Definition>Vent pipe — soil/waste stack ventilation per BS EN 12056.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Rainwater" sentinel="false">
+      <Definition>Rainwater drainage — gravity or syphonic per BS EN 12056-3.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>bdf64cd8ffc82f16f49843f88922abf026380487261db8a6042d91385965550c</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

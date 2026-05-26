@@ -74,7 +74,7 @@ namespace StingTools.Docs
                         if (File.Exists(exe)) return _cachedExePath = exe;
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             }
 
             // 3) Registry — ODA's installer drops an Uninstall entry that includes InstallLocation.

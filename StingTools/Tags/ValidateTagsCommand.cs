@@ -293,7 +293,7 @@ namespace StingTools.Tags
                 try
                 {
                     Element typeForDepth = null;
-                    try { typeForDepth = doc.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { typeForDepth = doc.GetElement(el.GetTypeId()); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     // Null guard: GetTypeId() can return InvalidElementId for view-specific elements
                     // and family-less instances; skip tier check rather than crashing in
                     // ReadActiveParagraphDepth, but let the TAG_2-6 container check below still run.
@@ -311,9 +311,9 @@ namespace StingTools.Tags
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Warn($"ValidateTags T4-T10 check failed for {el?.Id}: {ex.Message}");
+                    StingLog.Warn($"ValidateTags T4-T10 check failed for {el?.Id}: {ex2.Message}");
                 }
 
                 // Check TAG_2-6 containers
@@ -676,10 +676,10 @@ namespace StingTools.Tags
                         string resolveMsg = "";
                         resolver.Execute(commandData, ref resolveMsg, elements);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
-                        StingLog.Error("ValidateTagsCommand: ResolveAllIssues failed", ex);
-                        TaskDialog.Show("Validate Tags", $"Auto-fix failed: {ex.Message}");
+                        StingLog.Error("ValidateTagsCommand: ResolveAllIssues failed", ex2);
+                        TaskDialog.Show("Validate Tags", $"Auto-fix failed: {ex2.Message}");
                     }
                 });
             }

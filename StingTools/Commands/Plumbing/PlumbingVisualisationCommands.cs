@@ -16,6 +16,7 @@ using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Plumbing;
+using StingTools.UI;
 
 namespace StingTools.Commands.Plumbing
 {
@@ -336,11 +337,11 @@ namespace StingTools.Commands.Plumbing
 
                         t.Commit();
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         t.RollBack();
-                        message = $"Pressure zone colouring failed: {ex.Message}";
-                        StingLog.Error("PlumbPressureZoneCommand", ex);
+                        message = $"Pressure zone colouring failed: {ex2.Message}";
+                        StingLog.Error("PlumbPressureZoneCommand", ex2);
                         return Result.Failed;
                     }
                 }
@@ -622,6 +623,98 @@ namespace StingTools.Commands.Plumbing
                 StingLog.Warn($"FindCriticalPath: {ex.Message}");
                 return new List<PipeEdge>();
             }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // PlumbSupplySchematicCommand
+    // Tag: Plumb_SupplySchematic
+    // Phase 187 — supply-side companion to Plumb_DrainageSchematic, borrowed
+    // from Plumber (HidraSoftware). Generates an index-leg riser with PRV /
+    // water-meter / pump symbols, kPa labels at each fixture, optional DXF.
+    // ══════════════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PlumbSupplySchematicCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+                              ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.Doc == null) { message = "No active document."; return Result.Failed; }
+            var doc = ctx.Doc;
+
+            // Scope picker
+            var scopeDlg = new TaskDialog("Supply Schematic")
+            {
+                MainInstruction = "Generate Water Supply Schematic",
+                MainContent     = "Choose scope and outputs for the supply schematic.",
+                CommonButtons   = TaskDialogCommonButtons.Cancel
+            };
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Schematic only (drafting view)");
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Schematic + export DXF",
+                "Drops a .dxf into <project>/_BIM_COORD/exports/ alongside the view.");
+            var pick = scopeDlg.Show();
+            if (pick == TaskDialogResult.Cancel) return Result.Cancelled;
+            bool exportDxf = pick == TaskDialogResult.CommandLink2;
+
+            // Read inlet pressure + DXF target version from project config
+            var cfg = PlumbingSystemConfig.Load(doc);
+            double inletKpa = Math.Max(0, cfg.SupplyPressureBarAtEntry) * 100.0;
+
+            var opts = new SupplySchematicOptions
+            {
+                SystemNameFilter     = "",            // all supply systems
+                InletPressureKpa     = inletKpa > 0 ? inletKpa : 300.0,
+                ExportDxf            = exportDxf,
+                DxfAutoCadVersion    = string.IsNullOrWhiteSpace(cfg.DxfAutoCadVersion)
+                                          ? "R2010" : cfg.DxfAutoCadVersion,
+                ShowDnLabels         = true,
+                ShowPressureLabels   = true,
+                ShowAccessorySymbols = true
+            };
+
+            SupplySchematicResult result;
+            try
+            {
+                using (var tx = new Transaction(doc, "STING Supply Schematic"))
+                {
+                    tx.Start();
+                    result = SupplySchematicGenerator.Generate(doc, opts);
+                    tx.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlumbSupplySchematic", ex);
+                message = "Supply schematic failed: " + ex.Message;
+                return Result.Failed;
+            }
+
+            var panel = StingResultPanel.Create("Supply Schematic");
+            panel.SetSubtitle($"Inlet pressure: {opts.InletPressureKpa:F0} kPa");
+            panel.AddSection("SUMMARY")
+                 .Metric("Pipes drawn",       result.PipesDrawn.ToString())
+                 .Metric("Accessories drawn", result.AccessoriesDrawn.ToString())
+                 .Metric("Fixtures drawn",    result.FixturesDrawn.ToString());
+            if (!string.IsNullOrEmpty(result.DxfPath))
+                panel.AddSection("EXPORT").Text("DXF: " + result.DxfPath);
+            if (result.Warnings.Count > 0)
+            {
+                panel.AddSection("WARNINGS");
+                foreach (var w in result.Warnings.Take(20)) panel.Text("⚠ " + w);
+            }
+            panel.Show();
+
+            if (result.ViewId != null && result.ViewId != ElementId.InvalidElementId)
+            {
+                try { ctx.UIDoc.ActiveView = doc.GetElement(result.ViewId) as View; }
+                catch (Exception ex) { StingLog.Warn($"ActivateView: {ex.Message}"); }
+            }
+            return Result.Succeeded;
         }
     }
 }

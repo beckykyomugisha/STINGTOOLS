@@ -1,0 +1,36 @@
+RawPattern,Canonical
+# A-1 — MaterialClass canonical-name mapping. First-match-wins regex.
+# Project override at <project>/_BIM_COORD/material_class_normaliser.csv.
+(?i)^concrete(\s*[-,]?\s*c\s*\d+)?$,Concrete
+(?i)^reinforced.?concrete$,Concrete
+(?i)^cement(\s|$),Concrete
+(?i)^steel($|\s*[-,]|\s*sections?$),Steel
+(?i)^stainless.?steel$,Steel
+(?i)^galv.*steel$,Steel
+(?i)^carbon.?steel$,Steel
+(?i)^aluminium|^aluminum,Aluminium
+(?i)^copper,Copper
+(?i)^brass,Brass
+(?i)^lead,Lead
+(?i)^zinc,Zinc
+(?i)^timber|^wood|^hardwood|^softwood,Timber
+(?i)^plywood|^OSB|^MDF|^chipboard,Wood-based panel
+(?i)^brick,Brick
+(?i)^block,Block
+(?i)^masonry,Masonry
+(?i)^plaster|^gypsum|^drywall,Plaster
+(?i)^glass|^glazing,Glass
+(?i)^mineral.?wool|^rockwool|^stone.?wool|^glass.?wool,Mineral wool
+(?i)^PIR|^polyurethane,PIR insulation
+(?i)^EPS|^expanded.polystyrene,EPS insulation
+(?i)^XPS|^extruded.polystyrene,XPS insulation
+(?i)^cellulose,Cellulose insulation
+(?i)^bitumen|^asphalt,Bitumen
+(?i)^stone|^granite|^marble|^limestone|^sandstone,Stone
+(?i)^tile|^ceramic|^porcelain,Ceramic
+(?i)^carpet,Carpet
+(?i)^rubber|^EPDM|^neoprene,Rubber
+(?i)^PVC|^vinyl,PVC
+(?i)^HDPE|^MDPE|^polyethylene,Polyethylene
+(?i)^paint|^coating,Paint
+(?i)^resin|^epoxy,Resin

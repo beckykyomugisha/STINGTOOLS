@@ -1,14 +1,14 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "name": "STING Corporate View Style Packs",
-  "description": "Single-source-of-truth visual presentation packs. Every pack except the root extends corp-base; only fields that override the parent need to be set. Drawing-type recipes reference packs by id (extendsChain resolved at runtime).",
+  "description": "Single-source-of-truth visual presentation packs. Every pack except the root extends corp-base; only fields that override the parent need to be set. VG standards aligned to BS 1192:2007+A2:2016 + ISO 13567 + CIBSE discipline colours.",
   "namespace": "Planscape Limited",
-  "lastUpdated": "2026-04-25",
+  "lastUpdated": "2026-04-27",
   "stylePacks": [
     {
       "id": "corp-base",
       "name": "Corporate Base (root of extends chain)",
-      "description": "All other packs extend this. Only set fields here that are invariant across every corporate output — house line weights, text/dim styles, hatch palette, and the universal filter rules.",
+      "description": "All other packs extend this. Comprehensive 60+ category VG baseline aligned to BS 1192 + ISO 13567 + CIBSE. Discipline-neutral defaults plus the 5 universal phase / construction filter rules.",
       "extends": null,
       "origin": "corporate",
       "appearance": {
@@ -18,62 +18,238 @@
         "hatchPalette": "ISO 13567 monochrome"
       },
       "filterRules": [
-        { "name": "Existing - Halftone", "visible": true,  "halftone": true,  "projColor": "#808080", "projWeight": 1, "cutColor": "#808080", "cutWeight": 1, "transparency": 0 },
-        { "name": "Demolished - Red",    "visible": true,  "halftone": true,  "projColor": "#C00000", "projWeight": 1, "cutColor": "#C00000", "cutWeight": 1, "transparency": 30 },
-        { "name": "New Construction",    "visible": true,  "halftone": false, "projColor": "#000000", "projWeight": 4, "cutColor": "#000000", "cutWeight": 5, "transparency": 0 },
-        { "name": "Temporary Works",     "visible": true,  "halftone": true,  "projColor": "#FF6600", "projWeight": 1, "cutColor": "#FF6600", "cutWeight": 1, "transparency": 0 },
-        { "name": "Out of Scope",        "visible": true,  "halftone": true,  "projColor": "#AAAAAA", "projWeight": 1, "cutColor": "#AAAAAA", "cutWeight": 1, "transparency": 50 }
+        {
+          "name": "STING - Phase: Existing",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1,
+          "cutColor": "#808080",
+          "cutWeight": 1,
+          "transparency": 0
+        },
+        {
+          "name": "STING - Phase: Demolished",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#C00000",
+          "projWeight": 1,
+          "cutColor": "#C00000",
+          "cutWeight": 1,
+          "transparency": 30
+        },
+        {
+          "name": "STING - Phase: New Construction",
+          "visible": true,
+          "halftone": false,
+          "projColor": "#000000",
+          "projWeight": 4,
+          "cutColor": "#000000",
+          "cutWeight": 5,
+          "transparency": 0
+        },
+        {
+          "name": "STING - Phase: Temporary",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#FF6600",
+          "projWeight": 1,
+          "cutColor": "#FF6600",
+          "cutWeight": 1,
+          "transparency": 0
+        },
+        {
+          "name": "Out of Scope",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#AAAAAA",
+          "projWeight": 1,
+          "cutColor": "#AAAAAA",
+          "cutWeight": 1,
+          "transparency": 50
+        }
       ],
       "vgOverrides": {
-        "Grids":                { "visible": true,  "projColor": "#808080", "projWeight": 3 },
-        "Levels":               { "visible": true,  "projColor": "#808080", "projWeight": 3 },
-        "Scope Boxes":          { "visible": true,  "projColor": "#1976D2", "projWeight": 1, "transparency": 50 },
-        "Reference Planes":     { "visible": false },
-        "Reference Lines":      { "visible": false },
-        "Matchline":            { "visible": true,  "projColor": "#000000", "projWeight": 4 },
-        "Section Boxes":        { "visible": false },
-        "Dimensions":           { "visible": true,  "projColor": "#000000", "projWeight": 1 },
-        "Text Notes":           { "visible": true,  "projColor": "#000000", "projWeight": 1 },
-        "Generic Annotations":  { "visible": true,  "projColor": "#000000", "projWeight": 1 }
+        "Grids": {
+          "visible": true,
+          "projColor": "#808080",
+          "projWeight": 3
+        },
+        "Levels": {
+          "visible": true,
+          "projColor": "#808080",
+          "projWeight": 3
+        },
+        "Scope Boxes": {
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 1,
+          "transparency": 50
+        },
+        "Reference Planes": {
+          "visible": false
+        },
+        "Reference Lines": {
+          "visible": false
+        },
+        "Matchline": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 4
+        },
+        "Section Boxes": {
+          "visible": false
+        },
+        "Dimensions": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 1
+        },
+        "Text Notes": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 1
+        },
+        "Generic Annotations": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 1
+        }
       }
     },
     {
       "id": "corp-standard-plan",
       "name": "Corporate Plan",
-      "description": "1:100 architectural plan. Walls bold, floors halftoned, ceilings hidden, grids un-halftoned.",
+      "description": "1:100 architectural plan. Walls cut bold, MEP halftoned as background, ceilings halftoned, grids un-halftoned.",
       "extends": "corp-base",
       "origin": "corporate",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
+      "discipline": "Architectural",
+      "visualStyle": "HiddenLine",
+      "tagColorScheme": "STING Discipline",
       "viewTemplate": "STING - Architectural Plan",
       "detailLevel": "Medium",
       "scaleHint": "1:100",
       "colorScheme": "Monochrome",
       "vgOverrides": {
-        "Walls":                  { "visible": true, "halftone": false, "projColor": "#000000", "projWeight": 5, "cutColor": "#000000", "cutWeight": 5 },
-        "Doors":                  { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Windows":                { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Floors":                 { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
-        "Ceilings":               { "visible": false },
-        "Structural Columns":     { "visible": true, "projColor": "#000000", "projWeight": 5, "cutColor": "#000000", "cutWeight": 5 },
-        "Structural Framing":     { "visible": true, "projColor": "#000000", "projWeight": 3 },
-        "Rooms":                  { "visible": true, "projColor": "#1976D2", "projWeight": 1, "transparency": 80 },
-        "Furniture":              { "visible": true, "projColor": "#666666", "projWeight": 1 },
-        "Casework":               { "visible": true, "projColor": "#666666", "projWeight": 1 },
-        "Stairs":                 { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Railings":               { "visible": true, "projColor": "#000000", "projWeight": 1 },
-        "Curtain Panels":         { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Curtain Wall Mullions":  { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Grids":                  { "visible": true, "halftone": false, "projColor": "#808080", "projWeight": 3 },
-        "Mechanical Equipment":   { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
-        "Electrical Equipment":   { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
-        "Plumbing Fixtures":      { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
-        "Pipes":                  { "visible": false },
-        "Ducts":                  { "visible": false }
+        "Walls": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#000000",
+          "projWeight": 5,
+          "cutColor": "#000000",
+          "cutWeight": 5
+        },
+        "Doors": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Floors": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Structural Columns": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 5,
+          "cutColor": "#000000",
+          "cutWeight": 5
+        },
+        "Structural Framing": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 3
+        },
+        "Rooms": {
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 1,
+          "transparency": 80
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#666666",
+          "projWeight": 1
+        },
+        "Casework": {
+          "visible": true,
+          "projColor": "#666666",
+          "projWeight": 1
+        },
+        "Stairs": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Railings": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 1
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Grids": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#808080",
+          "projWeight": 3
+        },
+        "Mechanical Equipment": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Electrical Equipment": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Plumbing Fixtures": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Pipes": {
+          "visible": false
+        },
+        "Ducts": {
+          "visible": false
+        }
       }
     },
     {
       "id": "corp-standard-rcp",
       "name": "Corporate RCP",
-      "description": "Reflected ceiling plan, extends Corporate Plan. Walls halftoned, ceilings shown, lights un-halftoned.",
+      "description": "Reflected ceiling plan, extends Corporate Plan. Walls halftoned, ceilings shown bold, lights / air terminals / sprinklers un-halftoned.",
       "extends": "corp-standard-plan",
       "origin": "corporate",
       "viewTemplate": "STING - Ceiling RCP",
@@ -81,19 +257,45 @@
       "scaleHint": "1:100",
       "colorScheme": "Monochrome",
       "vgOverrides": {
-        "Walls":                { "halftone": true, "projWeight": 2, "cutWeight": 2 },
-        "Floors":               { "visible": false },
-        "Ceilings":             { "visible": true, "halftone": false, "projColor": "#000000", "projWeight": 3 },
-        "Rooms":                { "visible": false },
-        "Lighting Fixtures":    { "visible": true, "projColor": "#000000", "projWeight": 2 },
-        "Air Terminals":        { "visible": true, "projColor": "#1976D2", "projWeight": 2 },
-        "Mechanical Equipment": { "visible": true, "halftone": false, "projColor": "#1976D2", "projWeight": 1 }
+        "Walls": {
+          "halftone": true,
+          "projWeight": 2,
+          "cutWeight": 2
+        },
+        "Floors": {
+          "visible": false
+        },
+        "Ceilings": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#000000",
+          "projWeight": 3
+        },
+        "Rooms": {
+          "visible": false
+        },
+        "Lighting Fixtures": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Air Terminals": {
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 2
+        },
+        "Mechanical Equipment": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#1976D2",
+          "projWeight": 1
+        }
       }
     },
     {
       "id": "corp-standard-section",
       "name": "Corporate Section",
-      "description": "1:50 building section. Cut elements bold, beyond elements halftoned.",
+      "description": "1:50 building section. Cut elements bold, beyond elements halftoned to LW 4.",
       "extends": "corp-base",
       "origin": "corporate",
       "viewTemplate": "STING - Working Section",
@@ -101,20 +303,46 @@
       "scaleHint": "1:50",
       "colorScheme": "Monochrome",
       "vgOverrides": {
-        "Walls":               { "projWeight": 5, "cutWeight": 5, "cutColor": "#000000" },
-        "Floors":              { "projWeight": 4, "cutWeight": 4 },
-        "Structural Columns":  { "projWeight": 5, "cutWeight": 5 },
-        "Structural Framing":  { "projWeight": 4, "cutWeight": 4 },
-        "Ceilings":            { "visible": true, "projWeight": 2, "halftone": true },
-        "Insulation":          { "visible": true, "projColor": "#808080", "projWeight": 1, "halftone": true },
-        "Rooms":               { "visible": false },
-        "Furniture":           { "visible": false }
+        "Walls": {
+          "projWeight": 5,
+          "cutWeight": 5,
+          "cutColor": "#000000"
+        },
+        "Floors": {
+          "projWeight": 4,
+          "cutWeight": 4
+        },
+        "Structural Columns": {
+          "projWeight": 5,
+          "cutWeight": 5
+        },
+        "Structural Framing": {
+          "projWeight": 4,
+          "cutWeight": 4
+        },
+        "Ceilings": {
+          "visible": true,
+          "projWeight": 2,
+          "halftone": true
+        },
+        "Insulation": {
+          "visible": true,
+          "projColor": "#808080",
+          "projWeight": 1,
+          "halftone": true
+        },
+        "Rooms": {
+          "visible": false
+        },
+        "Furniture": {
+          "visible": false
+        }
       }
     },
     {
       "id": "corp-standard-elevation",
       "name": "Corporate Elevation",
-      "description": "1:100 elevation. Outline bold, internal lines fine, topo halftoned.",
+      "description": "1:100 elevation. Wall outline bold, mullions LW 5; MEP / structural / rooms halftoned.",
       "extends": "corp-base",
       "origin": "corporate",
       "viewTemplate": "STING - Working Elevation",
@@ -122,13 +350,30 @@
       "scaleHint": "1:100",
       "colorScheme": "Monochrome",
       "vgOverrides": {
-        "Walls":                  { "projWeight": 3 },
-        "Structural Columns":     { "projWeight": 4 },
-        "Roofs":                  { "projWeight": 2 },
-        "Curtain Panels":         { "projWeight": 2 },
-        "Curtain Wall Mullions":  { "projWeight": 2 },
-        "Stairs":                 { "projWeight": 2 },
-        "Topography":             { "visible": true, "projColor": "#808080", "projWeight": 1, "halftone": true }
+        "Walls": {
+          "projWeight": 3
+        },
+        "Structural Columns": {
+          "projWeight": 4
+        },
+        "Roofs": {
+          "projWeight": 2
+        },
+        "Curtain Panels": {
+          "projWeight": 2
+        },
+        "Curtain Wall Mullions": {
+          "projWeight": 2
+        },
+        "Stairs": {
+          "projWeight": 2
+        },
+        "Topography": {
+          "visible": true,
+          "projColor": "#808080",
+          "projWeight": 1,
+          "halftone": true
+        }
       }
     },
     {
@@ -141,15 +386,26 @@
       "detailLevel": "Fine",
       "scaleHint": "1:20",
       "colorScheme": "Monochrome",
-      "appearance": {
-        "lineWeightScale": 1.0,
-        "textStyleName": "STING - 2.0mm"
-      },
       "vgOverrides": {
-        "Walls":                       { "projWeight": 6, "cutWeight": 6 },
-        "Structural Framing":          { "projWeight": 5, "cutWeight": 5 },
-        "Structural Rebar":            { "visible": true, "projColor": "#FF0000", "projWeight": 2 },
-        "Insulation":                  { "visible": true, "projColor": "#808080", "halftone": true, "projWeight": 1 }
+        "Walls": {
+          "projWeight": 6,
+          "cutWeight": 6
+        },
+        "Structural Framing": {
+          "projWeight": 5,
+          "cutWeight": 5
+        },
+        "Structural Rebar": {
+          "visible": true,
+          "projColor": "#FF0000",
+          "projWeight": 2
+        },
+        "Insulation": {
+          "visible": true,
+          "projColor": "#808080",
+          "halftone": true,
+          "projWeight": 1
+        }
       }
     },
     {
@@ -158,6 +414,7 @@
       "description": "RFI / clarification mark-up. Red callouts, design-intent overlay.",
       "extends": "corp-base",
       "origin": "corporate",
+      "tagColorScheme": "RAG Status",
       "viewTemplate": "STING - Clarification",
       "detailLevel": "Medium",
       "scaleHint": "1:50",
@@ -166,129 +423,2446 @@
         "textStyleName": "STING - 2.5mm"
       },
       "filterRules": [
-        { "name": "RFI Query",     "visible": true, "halftone": false, "projColor": "#FF0000", "projWeight": 3, "transparency": 0 },
-        { "name": "Design Intent", "visible": true, "halftone": false, "projColor": "#0000FF", "projWeight": 2, "transparency": 0 }
+        {
+          "name": "RFI Query",
+          "visible": true,
+          "halftone": false,
+          "projColor": "#FF0000",
+          "projWeight": 3,
+          "transparency": 0
+        },
+        {
+          "name": "Design Intent",
+          "visible": true,
+          "halftone": false,
+          "projColor": "#0000FF",
+          "projWeight": 2,
+          "transparency": 0
+        }
       ],
       "vgOverrides": {
-        "Generic Annotations": { "projColor": "#FF0000", "projWeight": 2 },
-        "Text Notes":          { "projColor": "#FF0000", "projWeight": 2 }
+        "Generic Annotations": {
+          "projColor": "#FF0000",
+          "projWeight": 2
+        },
+        "Text Notes": {
+          "projColor": "#FF0000",
+          "projWeight": 2
+        }
       }
     },
     {
       "id": "corp-coordination",
       "name": "MEP Coordination",
-      "description": "Multi-discipline clash plan. Mechanical blue / Plumbing green / Electrical amber / Fire red / Structural purple.",
+      "description": "Multi-discipline clash plan. Mechanical / Electrical / Plumbing un-halftoned in their CIBSE colours; architectural and structural backgrounds halftoned at 50% transparency.",
       "extends": "corp-base",
       "origin": "corporate",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
+      "discipline": "Coordination",
+      "visualStyle": "Wireframe",
       "viewTemplate": "STING - MEP Coordination",
       "detailLevel": "Fine",
       "scaleHint": "1:50",
       "colorScheme": "Discipline",
       "vgOverrides": {
-        "Ducts":                  { "projColor": "#1976D2", "projWeight": 3, "transparency": 20 },
-        "Duct Fittings":          { "projColor": "#1976D2", "projWeight": 2, "transparency": 20 },
-        "Duct Accessories":       { "projColor": "#1976D2", "projWeight": 1 },
-        "Air Terminals":          { "projColor": "#1976D2", "projWeight": 2 },
-        "Pipes":                  { "projColor": "#2E7D32", "projWeight": 3, "transparency": 20 },
-        "Pipe Fittings":          { "projColor": "#2E7D32", "projWeight": 2, "transparency": 20 },
-        "Pipe Accessories":       { "projColor": "#2E7D32", "projWeight": 1 },
-        "Plumbing Fixtures":      { "projColor": "#2E7D32", "projWeight": 2 },
-        "Electrical Equipment":   { "projColor": "#F57F17", "projWeight": 3 },
-        "Electrical Fixtures":    { "projColor": "#F57F17", "projWeight": 2 },
-        "Lighting Fixtures":      { "projColor": "#F57F17", "projWeight": 2 },
-        "Conduits":               { "projColor": "#F57F17", "projWeight": 2 },
-        "Cable Trays":            { "projColor": "#F57F17", "projWeight": 2 },
-        "Mechanical Equipment":   { "projColor": "#880E4F", "projWeight": 3 },
-        "Fire Alarm Devices":     { "projColor": "#C00000", "projWeight": 3 },
-        "Sprinklers":             { "projColor": "#C00000", "projWeight": 2 },
-        "Structural Columns":     { "projColor": "#4A148C", "projWeight": 4, "halftone": true },
-        "Structural Framing":     { "projColor": "#4A148C", "projWeight": 3, "halftone": true },
-        "Walls":                  { "halftone": true, "projColor": "#808080", "projWeight": 2 }
+        "Ducts": {
+          "projColor": "#1976D2",
+          "projWeight": 3,
+          "transparency": 20
+        },
+        "Duct Fittings": {
+          "projColor": "#1976D2",
+          "projWeight": 2,
+          "transparency": 20
+        },
+        "Duct Accessories": {
+          "projColor": "#1976D2",
+          "projWeight": 1
+        },
+        "Air Terminals": {
+          "projColor": "#1976D2",
+          "projWeight": 2
+        },
+        "Pipes": {
+          "projColor": "#2E7D32",
+          "projWeight": 3,
+          "transparency": 20
+        },
+        "Pipe Fittings": {
+          "projColor": "#2E7D32",
+          "projWeight": 2,
+          "transparency": 20
+        },
+        "Pipe Accessories": {
+          "projColor": "#2E7D32",
+          "projWeight": 1
+        },
+        "Plumbing Fixtures": {
+          "projColor": "#2E7D32",
+          "projWeight": 2
+        },
+        "Electrical Equipment": {
+          "projColor": "#F57F17",
+          "projWeight": 3
+        },
+        "Electrical Fixtures": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Lighting Fixtures": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Conduits": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Cable Trays": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Mechanical Equipment": {
+          "projColor": "#880E4F",
+          "projWeight": 3
+        },
+        "Fire Alarm Devices": {
+          "projColor": "#C00000",
+          "projWeight": 3
+        },
+        "Sprinklers": {
+          "projColor": "#C00000",
+          "projWeight": 2
+        },
+        "Structural Columns": {
+          "projColor": "#4A148C",
+          "projWeight": 4,
+          "halftone": true
+        },
+        "Structural Framing": {
+          "projColor": "#4A148C",
+          "projWeight": 3,
+          "halftone": true
+        },
+        "Walls": {
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 2
+        }
       }
     },
     {
       "id": "corp-fabrication-shop",
       "name": "Fabrication Shop Drawing",
-      "description": "Workshop-floor look. Bold MEP, walls/structural hidden, ordinate dimensions.",
-      "extends": "corp-coordination",
+      "description": "Workshop-floor look. Bold mono pipework / ductwork; structural and walls halftoned; ordinate dimensions.",
+      "extends": "corp-base",
       "origin": "corporate",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
+      "discipline": "Coordination",
+      "visualStyle": "Wireframe",
       "viewTemplate": "STING - Fabrication Shop",
       "detailLevel": "Fine",
       "scaleHint": "1:50",
       "colorScheme": "Monochrome",
-      "appearance": {
-        "lineWeightScale": 1.0,
-        "textStyleName": "STING - 2.0mm Shop",
-        "dimensionStyleName": "STING - Ordinate"
-      },
       "vgOverrides": {
-        "Pipes":              { "projWeight": 5 },
-        "Pipe Fittings":      { "projWeight": 4 },
-        "Ducts":              { "projWeight": 5 },
-        "Duct Fittings":      { "projWeight": 4 },
-        "Walls":              { "visible": false },
-        "Structural Framing": { "visible": false },
-        "Dimensions":         { "projColor": "#000000", "projWeight": 2 }
+        "Pipes": {
+          "projWeight": 5
+        },
+        "Pipe Fittings": {
+          "projWeight": 4
+        },
+        "Ducts": {
+          "projWeight": 5
+        },
+        "Duct Fittings": {
+          "projWeight": 4
+        },
+        "Walls": {
+          "visible": false
+        },
+        "Structural Framing": {
+          "visible": false
+        },
+        "Dimensions": {
+          "projColor": "#000000",
+          "projWeight": 2
+        }
       }
     },
     {
       "id": "corp-presentation-rich",
       "name": "Technical Presentation",
-      "description": "Internal IDR / TDR. Rich colours, bold outlines, suppressed annotations.",
-      "extends": "corp-standard-plan",
+      "description": "Internal IDR / TDR. Rich material colours, bold outlines, suppressed annotations, MEP / structural / grids halftoned.",
+      "extends": "corp-base",
       "origin": "corporate",
+      "tagColorScheme": "Discipline",
       "viewTemplate": "STING - Presentation Section",
       "detailLevel": "Medium",
       "scaleHint": "1:50",
       "colorScheme": "PresentationRich",
-      "appearance": {
-        "textStyleName": "STING - 3.0mm Presentation"
-      },
       "vgOverrides": {
-        "Walls":               { "projColor": "#263238", "projWeight": 6, "cutColor": "#263238", "cutWeight": 6 },
-        "Structural Columns":  { "projColor": "#263238", "projWeight": 6 },
-        "Floors":              { "halftone": false, "projColor": "#ECEFF1", "projWeight": 1 },
-        "Ceilings":            { "visible": false },
-        "Rooms":               { "visible": true, "projColor": "#B0BEC5", "transparency": 60 },
-        "Furniture":           { "visible": true, "projColor": "#546E7A", "projWeight": 1 },
-        "Topography":          { "visible": true, "projColor": "#A5D6A7", "projWeight": 1, "transparency": 30 },
-        "Grids":               { "visible": false },
-        "Dimensions":          { "visible": false },
-        "Text Notes":          { "projColor": "#263238" }
+        "Walls": {
+          "projColor": "#263238",
+          "projWeight": 6,
+          "cutColor": "#263238",
+          "cutWeight": 6
+        },
+        "Structural Columns": {
+          "projColor": "#263238",
+          "projWeight": 6
+        },
+        "Floors": {
+          "halftone": false,
+          "projColor": "#ECEFF1",
+          "projWeight": 1
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Rooms": {
+          "visible": true,
+          "projColor": "#B0BEC5",
+          "transparency": 60
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#546E7A",
+          "projWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projColor": "#A5D6A7",
+          "projWeight": 1,
+          "transparency": 30
+        },
+        "Grids": {
+          "visible": false
+        },
+        "Dimensions": {
+          "visible": false
+        },
+        "Text Notes": {
+          "projColor": "#263238"
+        }
       }
     },
     {
       "id": "corp-presentation-mono",
       "name": "Client Presentation",
-      "description": "Greyscale client presentation derived from Technical Presentation.",
+      "description": "Greyscale client presentation derived from Technical Presentation. All colours mapped to greyscale (#000000, #404040, #808080, #C0C0C0); transparency cleared; halftone disabled.",
       "extends": "corp-presentation-rich",
       "origin": "corporate",
+      "tagColorScheme": "Mono",
       "viewTemplate": "STING - Presentation Elevation",
       "detailLevel": "Medium",
       "scaleHint": "1:50",
-      "colorScheme": "Monochrome",
+      "colorScheme": "PresentationMono",
       "vgOverrides": {
-        "Walls":              { "projColor": "#000000", "cutColor": "#000000" },
-        "Structural Columns": { "projColor": "#000000" },
-        "Floors":             { "projColor": "#E0E0E0" },
-        "Rooms":              { "projColor": "#BDBDBD" },
-        "Furniture":          { "projColor": "#9E9E9E" },
-        "Topography":         { "projColor": "#BDBDBD" }
+        "Walls": {
+          "projColor": "#000000",
+          "cutColor": "#000000"
+        },
+        "Structural Columns": {
+          "projColor": "#000000"
+        },
+        "Floors": {
+          "projColor": "#E0E0E0"
+        },
+        "Rooms": {
+          "projColor": "#BDBDBD"
+        },
+        "Furniture": {
+          "projColor": "#9E9E9E"
+        },
+        "Topography": {
+          "projColor": "#BDBDBD"
+        }
+      }
+    },
+    {
+      "id": "corp-demolition-phase",
+      "name": "Demolition Phase",
+      "description": "Demolition drawings. Existing-to-remain halftoned, demolished elements bold red dashed, new construction hidden.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Demolition Plan",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "Monochrome",
+      "phaseFilter": "Show Demo + New",
+      "filterRules": [
+        {
+          "name": "STING - Phase: Existing",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1,
+          "cutColor": "#808080",
+          "cutWeight": 1,
+          "transparency": 0
+        },
+        {
+          "name": "STING - Phase: Demolished",
+          "visible": true,
+          "halftone": false,
+          "projColor": "#C00000",
+          "projWeight": 4,
+          "cutColor": "#C00000",
+          "cutWeight": 4,
+          "transparency": 0,
+          "projLinePattern": "Dash"
+        },
+        {
+          "name": "STING - Phase: New Construction",
+          "visible": false
+        }
+      ],
+      "vgOverrides": {
+        "Walls": {
+          "halftone": true,
+          "projWeight": 2
+        },
+        "Doors": {
+          "halftone": true,
+          "projWeight": 1
+        },
+        "Windows": {
+          "halftone": true,
+          "projWeight": 1
+        },
+        "Floors": {
+          "halftone": true,
+          "projWeight": 1
+        },
+        "Furniture": {
+          "visible": false
+        },
+        "Casework": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "id": "corp-healthcare-clinical",
+      "name": "Healthcare Clinical",
+      "description": "Generic clinical plan / RCP / equipment. Beds, scrub stations, pendants, medical FF&E and BS 8300 access shown in healthcare blue with NHS room data palette.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Clinical",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "Discipline",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter",
+        "tagColorScheme",
+        "defaultTagStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - CEQ: Clinical Asset",
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 3,
+          "cutColor": "#0066CC",
+          "cutWeight": 3
+        },
+        {
+          "name": "Bedhead Service Units",
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 4
+        },
+        {
+          "name": "Pendants - Ceiling",
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - Lig: LOW Risk",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 3
+        },
+        {
+          "name": "Scrub Stations",
+          "visible": true,
+          "projColor": "#0288D1",
+          "projWeight": 3
+        },
+        {
+          "name": "Accessible Routes",
+          "visible": true,
+          "projColor": "#43A047",
+          "projWeight": 2,
+          "transparency": 50
+        },
+        {
+          "name": "Room Department - Acute",
+          "visible": true,
+          "projColor": "#FFCDD2",
+          "transparency": 70
+        },
+        {
+          "name": "Room Department - Outpatient",
+          "visible": true,
+          "projColor": "#C8E6C9",
+          "transparency": 70
+        },
+        {
+          "name": "Room Department - Diagnostic",
+          "visible": true,
+          "projColor": "#BBDEFB",
+          "transparency": 70
+        }
+      ],
+      "vgOverrides": {
+        "Specialty Equipment": {
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 3
+        },
+        "Medical Equipment": {
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 3
+        },
+        "Rooms": {
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 1,
+          "transparency": 60
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#5E35B1",
+          "projWeight": 1
+        },
+        "Plumbing Fixtures": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#2E7D32",
+          "projWeight": 2
+        },
+        "Casework": {
+          "visible": true,
+          "projColor": "#37474F",
+          "projWeight": 2
+        }
+      },
+      "tagColorScheme": "Discipline",
+      "defaultTagStyle": "2.5NOM_BLACK"
+    },
+    {
+      "id": "corp-healthcare-mgs",
+      "name": "Healthcare Medical Gas",
+      "description": "HTM 02-01 medical gas pipeline distribution. O2 white, N2O blue, AIR-4 black/white, AIR-7 black/white, VAC yellow, AGSS purple/yellow. Manifolds, area valve service units, terminal units highlighted.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare MGPS",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "MedicalGas",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - MGS: O2",
+          "visible": true,
+          "projColor": "#FFFFFF",
+          "projWeight": 4,
+          "cutColor": "#FFFFFF",
+          "cutWeight": 4
+        },
+        {
+          "name": "STING - MGS: N2O",
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - MGS: MA4",
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - MGS: MA7",
+          "visible": true,
+          "projColor": "#404040",
+          "projWeight": 4,
+          "projLinePattern": "Dash"
+        },
+        {
+          "name": "STING - MGS: VAC",
+          "visible": true,
+          "projColor": "#FFD600",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - MGS: AGS",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 4,
+          "projLinePattern": "Dash Dot"
+        },
+        {
+          "name": "MGPS - Entonox",
+          "visible": true,
+          "projColor": "#0288D1",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - MGS: CO2",
+          "visible": true,
+          "projColor": "#2E7D32",
+          "projWeight": 3
+        },
+        {
+          "name": "MGPS - Manifold",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 5
+        },
+        {
+          "name": "STING - MGS: Zone Valve Box",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 4
+        },
+        {
+          "name": "MGPS - Terminal Unit",
+          "visible": true,
+          "projColor": "#FF6600",
+          "projWeight": 3
+        }
+      ],
+      "vgOverrides": {
+        "Pipes": {
+          "projWeight": 4
+        },
+        "Pipe Fittings": {
+          "projWeight": 3
+        },
+        "Pipe Accessories": {
+          "projWeight": 3,
+          "projColor": "#C00000"
+        },
+        "Mechanical Equipment": {
+          "projColor": "#0066CC",
+          "projWeight": 3
+        },
+        "Walls": {
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        }
+      },
+      "tagColorScheme": "MedicalGas",
+      "defaultTagStyle": "2.5BOLD_BLACK"
+    },
+    {
+      "id": "corp-healthcare-pressure",
+      "name": "Healthcare Pressure Regime",
+      "description": "HTM 03-01 / SHTM 03-01 ventilation pressure cascades. Positive zones blue, negative red, neutral grey, with door arrows showing flow direction.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Pressure",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "Pressure",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - Clin: Pressure Positive",
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 1,
+          "transparency": 50
+        },
+        {
+          "name": "STING - Clin: Pressure Positive",
+          "visible": true,
+          "projColor": "#64B5F6",
+          "projWeight": 1,
+          "transparency": 50
+        },
+        {
+          "name": "STING - Clin: Pressure Neutral",
+          "visible": true,
+          "projColor": "#BDBDBD",
+          "projWeight": 1,
+          "transparency": 70
+        },
+        {
+          "name": "STING - Clin: Pressure Negative",
+          "visible": true,
+          "projColor": "#EF5350",
+          "projWeight": 1,
+          "transparency": 50
+        },
+        {
+          "name": "STING - Clin: Pressure Negative",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 1,
+          "transparency": 50
+        },
+        {
+          "name": "STING - Clin: AIIR",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 3
+        }
+      ],
+      "vgOverrides": {
+        "Rooms": {
+          "visible": true,
+          "projWeight": 1,
+          "transparency": 0
+        },
+        "Doors": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 3
+        },
+        "Air Terminals": {
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 2
+        },
+        "Ducts": {
+          "visible": false
+        },
+        "Pipes": {
+          "visible": false
+        }
+      },
+      "tagColorScheme": "Pressure",
+      "defaultTagStyle": "2.5NOM_BLACK"
+    },
+    {
+      "id": "corp-healthcare-ees",
+      "name": "Healthcare Essential Electrical Services",
+      "description": "HTM 06-01 / NFPA 99 / NFPA 110 essential electrical services. Type A (life safety, <0.5s) red, Type B (critical, <15s) orange, Type C (equipment, <40s) yellow, normal supply grey.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare EES",
+      "detailLevel": "Fine",
+      "scaleHint": "1:100",
+      "colorScheme": "ElectricalSupply",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - EES: Life Safety",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 5
+        },
+        {
+          "name": "STING - EES: Critical",
+          "visible": true,
+          "projColor": "#F57F17",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - EES: Equipment",
+          "visible": true,
+          "projColor": "#FFD600",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - EES: Normal",
+          "visible": true,
+          "projColor": "#808080",
+          "projWeight": 2
+        },
+        {
+          "name": "EES - Generator",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 6
+        },
+        {
+          "name": "STING - Elec: UPS",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 5
+        },
+        {
+          "name": "STING - EES: Isolated Power",
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 4
+        },
+        {
+          "name": "EES - Transfer Switch (ATS)",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 4
+        }
+      ],
+      "vgOverrides": {
+        "Electrical Equipment": {
+          "projColor": "#F57F17",
+          "projWeight": 3
+        },
+        "Electrical Fixtures": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Conduits": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Cable Trays": {
+          "projColor": "#F57F17",
+          "projWeight": 2
+        },
+        "Walls": {
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        }
+      },
+      "tagColorScheme": "ElectricalSupply",
+      "defaultTagStyle": "2.5BOLD_BLACK"
+    },
+    {
+      "id": "corp-healthcare-fire",
+      "name": "Healthcare Fire Strategy",
+      "description": "HTM 05-02 / BS 9999 fire compartmentation. 30/60/90/120-min fire-rated walls colour-coded; smoke barriers green dashed; sub-compartments solid red.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Fire",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "FireRating",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - Arch: Fire 120 min Walls",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 6,
+          "cutColor": "#7B1FA2",
+          "cutWeight": 6
+        },
+        {
+          "name": "STING - Arch: Fire 90 min Walls",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 5,
+          "cutColor": "#C00000",
+          "cutWeight": 5
+        },
+        {
+          "name": "STING - Arch: Fire 60 min Walls",
+          "visible": true,
+          "projColor": "#F57F17",
+          "projWeight": 4,
+          "cutColor": "#F57F17",
+          "cutWeight": 4
+        },
+        {
+          "name": "STING - Arch: Fire 30 min Walls",
+          "visible": true,
+          "projColor": "#FFD600",
+          "projWeight": 3,
+          "cutColor": "#FFD600",
+          "cutWeight": 3
+        },
+        {
+          "name": "STING - Fire: Smoke Compartments",
+          "visible": true,
+          "projColor": "#43A047",
+          "projWeight": 3,
+          "projLinePattern": "Dash"
+        },
+        {
+          "name": "STING - Fire: Compartment Tagged",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 2,
+          "transparency": 70
+        },
+        {
+          "name": "STING - Fire: Primary Escape Route",
+          "visible": true,
+          "projColor": "#43A047",
+          "projWeight": 2
+        },
+        {
+          "name": "STING - Arch: FD60 Doors",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 4
+        }
+      ],
+      "vgOverrides": {
+        "Walls": {
+          "visible": true,
+          "projWeight": 2
+        },
+        "Doors": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 2
+        },
+        "Furniture": {
+          "visible": false
+        },
+        "Casework": {
+          "visible": false
+        },
+        "Fire Alarm Devices": {
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 3
+        },
+        "Sprinklers": {
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 2
+        }
+      },
+      "tagColorScheme": "FireRating",
+      "defaultTagStyle": "2.5BOLD_BLACK"
+    },
+    {
+      "id": "corp-healthcare-shielding",
+      "name": "Healthcare Radiation Shielding",
+      "description": "NCRP 147 / IPEM 75 / IAEA SRS 47 radiation shielding. Lead-equivalent walls bold magenta, controlled/supervised zones colour-banded, dose monitoring positions marked.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Shielding",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "Radiation",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "Shielding - Lead 1.0 mm",
+          "visible": true,
+          "projColor": "#880E4F",
+          "projWeight": 4,
+          "cutColor": "#880E4F",
+          "cutWeight": 4
+        },
+        {
+          "name": "STING - Rad: Primary Barrier",
+          "visible": true,
+          "projColor": "#AD1457",
+          "projWeight": 5,
+          "cutColor": "#AD1457",
+          "cutWeight": 5
+        },
+        {
+          "name": "STING - Rad: Primary Barrier",
+          "visible": true,
+          "projColor": "#C2185B",
+          "projWeight": 6,
+          "cutColor": "#C2185B",
+          "cutWeight": 6
+        },
+        {
+          "name": "STING - Rad: Secondary Barrier",
+          "visible": true,
+          "projColor": "#5D4037",
+          "projWeight": 6,
+          "cutColor": "#5D4037",
+          "cutWeight": 6
+        },
+        {
+          "name": "Shielding - Borated Poly",
+          "visible": true,
+          "projColor": "#00897B",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - Rad: Controlled Area",
+          "visible": true,
+          "projColor": "#FFD600",
+          "projWeight": 1,
+          "transparency": 60
+        },
+        {
+          "name": "STING - Rad: Uncontrolled (1 mGy/yr)",
+          "visible": true,
+          "projColor": "#FFEB3B",
+          "projWeight": 1,
+          "transparency": 75
+        },
+        {
+          "name": "STING - Rad: MRI Zone 4",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - Rad: MRI Zone 3",
+          "visible": true,
+          "projColor": "#9C27B0",
+          "projWeight": 2,
+          "transparency": 50
+        },
+        {
+          "name": "STING - Rad: MRI Zone 2",
+          "visible": true,
+          "projColor": "#CE93D8",
+          "projWeight": 1,
+          "transparency": 70
+        }
+      ],
+      "vgOverrides": {
+        "Walls": {
+          "projWeight": 3
+        },
+        "Doors": {
+          "visible": true,
+          "projColor": "#880E4F",
+          "projWeight": 3
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projColor": "#880E4F",
+          "projWeight": 4
+        },
+        "Furniture": {
+          "visible": false
+        }
+      },
+      "tagColorScheme": "Radiation",
+      "defaultTagStyle": "2.5BOLD_BLACK"
+    },
+    {
+      "id": "corp-healthcare-ligature",
+      "name": "Healthcare Anti-Ligature",
+      "description": "Mental health / dementia / paediatric anti-ligature audit drawings. Ligature-resistant fittings highlighted purple, anti-bind doors magenta, observation lines from staff base shown.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Anti-Ligature",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "AntiLigature",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - Lig: LOW Risk",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - Lig: HIGH Risk",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 5
+        },
+        {
+          "name": "Anti-Bind Door",
+          "visible": true,
+          "projColor": "#AD1457",
+          "projWeight": 4
+        },
+        {
+          "name": "Observation - Direct",
+          "visible": true,
+          "projColor": "#43A047",
+          "projWeight": 2,
+          "transparency": 30
+        },
+        {
+          "name": "Observation - Indirect",
+          "visible": true,
+          "projColor": "#FBC02D",
+          "projWeight": 2,
+          "transparency": 30
+        },
+        {
+          "name": "Observation - None",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 2,
+          "transparency": 30
+        },
+        {
+          "name": "STING - Lig: MED Risk",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - Lig: MED Risk",
+          "visible": true,
+          "projColor": "#9C27B0",
+          "projWeight": 2,
+          "transparency": 60
+        }
+      ],
+      "vgOverrides": {
+        "Doors": {
+          "visible": true,
+          "projColor": "#000000",
+          "projWeight": 3
+        },
+        "Plumbing Fixtures": {
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 3
+        },
+        "Lighting Fixtures": {
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 2
+        },
+        "Casework": {
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#9E9E9E",
+          "projWeight": 1
+        },
+        "Windows": {
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 2
+        }
+      },
+      "tagColorScheme": "AntiLigature",
+      "defaultTagStyle": "2.5NOM_BLACK"
+    },
+    {
+      "id": "corp-healthcare-water",
+      "name": "Healthcare Water Safety",
+      "description": "HTM 04-01 water safety / Legionella control. DCW blue, DHW red, DHWR yellow, dead-leg risk magenta, TMV mixed-water green, temp-monitor sensors highlighted.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Water",
+      "detailLevel": "Fine",
+      "scaleHint": "1:100",
+      "colorScheme": "WaterSafety",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "vgOverrides",
+        "filters"
+      ],
+      "filterRules": [
+        {
+          "name": "STING - Plumb: Domestic Cold Water (DCW)",
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - Plumb: Domestic Hot Water Supply (DHWS)",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - Plumb: DHW Return",
+          "visible": true,
+          "projColor": "#FFD600",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - PLM: TMV3 (Augmented Care)",
+          "visible": true,
+          "projColor": "#2E7D32",
+          "projWeight": 3
+        },
+        {
+          "name": "Water - Dead Leg (Risk)",
+          "visible": true,
+          "projColor": "#AD1457",
+          "projWeight": 5,
+          "projLinePattern": "Dash"
+        },
+        {
+          "name": "STING - PLM: Augmented Care Outlet",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 4
+        },
+        {
+          "name": "Water - Temperature Sensor",
+          "visible": true,
+          "projColor": "#FF6600",
+          "projWeight": 3
+        },
+        {
+          "name": "Water - Calorifier",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 5
+        }
+      ],
+      "vgOverrides": {
+        "Pipes": {
+          "projWeight": 4
+        },
+        "Pipe Fittings": {
+          "projWeight": 3
+        },
+        "Pipe Accessories": {
+          "projWeight": 3
+        },
+        "Plumbing Fixtures": {
+          "visible": true,
+          "projColor": "#0066CC",
+          "projWeight": 3
+        },
+        "Mechanical Equipment": {
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 3
+        },
+        "Walls": {
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        }
+      },
+      "tagColorScheme": "WaterSafety",
+      "defaultTagStyle": "2.5NOM_BLACK"
+    },
+    {
+      "id": "pres-burgund-green",
+      "name": "Presentation — Burgundy / Green",
+      "description": "Client-facing presentation pack. Burgundy walls + dark-green topo on cream paper. Hand-rendered hatch palette.",
+      "extends": "corp-presentation-rich",
+      "origin": "corporate",
+      "viewTemplate": "STING - Presentation Burgundy",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "PresentationRich",
+      "appearance": {
+        "textStyleName": "STING - 3.0mm Presentation",
+        "hatchPalette": "Hand-rendered"
+      },
+      "vgOverrides": {
+        "Walls": {
+          "projColor": "#5D1A2D",
+          "cutColor": "#5D1A2D",
+          "projWeight": 6,
+          "cutWeight": 6
+        },
+        "Structural Columns": {
+          "projColor": "#5D1A2D",
+          "projWeight": 6
+        },
+        "Floors": {
+          "halftone": false,
+          "projColor": "#F5E6D3",
+          "projWeight": 1
+        },
+        "Rooms": {
+          "visible": true,
+          "projColor": "#F5E6D3",
+          "transparency": 40
+        },
+        "Topography": {
+          "visible": true,
+          "projColor": "#2E5D3A",
+          "projWeight": 1,
+          "transparency": 20
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#8D6E63",
+          "projWeight": 1
+        },
+        "Curtain Panels": {
+          "projColor": "#5D1A2D",
+          "projWeight": 2
+        }
+      }
+    },
+    {
+      "id": "pres-interior-sage",
+      "name": "Presentation — Interior Sage",
+      "description": "Interior elevation presentation. Sage walls, warm wood casework, soft ambient palette. Suppressed grids/dimensions.",
+      "extends": "corp-presentation-rich",
+      "origin": "corporate",
+      "viewTemplate": "STING - Presentation Interior",
+      "detailLevel": "Medium",
+      "scaleHint": "1:50",
+      "colorScheme": "PresentationRich",
+      "appearance": {
+        "textStyleName": "STING - 2.5mm Presentation"
+      },
+      "vgOverrides": {
+        "Walls": {
+          "projColor": "#7A8B6E",
+          "cutColor": "#7A8B6E",
+          "projWeight": 4,
+          "cutWeight": 4
+        },
+        "Casework": {
+          "visible": true,
+          "projColor": "#A0826D",
+          "projWeight": 3
+        },
+        "Furniture": {
+          "visible": true,
+          "projColor": "#8B6F47",
+          "projWeight": 2
+        },
+        "Floors": {
+          "projColor": "#E8DCC4",
+          "projWeight": 1
+        },
+        "Lighting Fixtures": {
+          "visible": true,
+          "projColor": "#FFA726",
+          "projWeight": 2
+        },
+        "Plumbing Fixtures": {
+          "visible": true,
+          "projColor": "#90A4AE",
+          "projWeight": 2
+        },
+        "Doors": {
+          "visible": true,
+          "projColor": "#5D4037",
+          "projWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projColor": "#A0826D",
+          "projWeight": 2
+        },
+        "Grids": {
+          "visible": false
+        },
+        "Dimensions": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "id": "proj-arch-presentation",
+      "name": "Project Architectural Presentation",
+      "description": "Project-level pack — managed; pastel tags; lighter line weights for client presentation.",
+      "extends": "corp-presentation-rich",
+      "origin": "project",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
+      "discipline": "Architectural",
+      "visualStyle": "Consistent Colors",
+      "tagColorScheme": "Pastel",
+      "defaultTagStyle": "2.5NOM_BLUE",
+      "lineWeightScale": 0.75,
+      "textStyle": null,
+      "dimensionStyle": null,
+      "hatchPalette": null
+    },
+    {
+      "id": "proj-mep-coordination",
+      "name": "Project MEP Coordination",
+      "description": "Project-level pack — managed; thin lines for clash review.",
+      "extends": "corp-coordination",
+      "origin": "project",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
+      "discipline": "Mechanical",
+      "visualStyle": "Wireframe",
+      "tagColorScheme": "STING Discipline",
+      "lineWeightScale": 0.5,
+      "textStyle": null,
+      "dimensionStyle": null,
+      "hatchPalette": null
+    },
+    {
+      "id": "proj-structural",
+      "name": "Project Structural",
+      "description": "Project-level pack — external (uses project's existing structural template).",
+      "extends": "corp-structural-plan",
+      "origin": "project",
+      "templateMode": "external",
+      "discipline": "Structural",
+      "visualStyle": "HiddenLine"
+    },
+    {
+      "id": "pres-base",
+      "name": "Presentation Base (parent of all pres-* packs)",
+      "description": "Parent for every presentation pack. Turns off MEP, structural framing/foundations/connections, rebar, conduits/cable trays, fire/comms/security devices, scope boxes/grids/levels/reference planes — every category that does not contribute to a presentation drawing. Themed pres-* children extend this and only add colour overrides on the categories that actually paint the building.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "vgOverrides": {
+        "Ducts": {
+          "visible": false
+        },
+        "Duct Fittings": {
+          "visible": false
+        },
+        "Duct Accessories": {
+          "visible": false
+        },
+        "Pipes": {
+          "visible": false
+        },
+        "Pipe Fittings": {
+          "visible": false
+        },
+        "Pipe Accessories": {
+          "visible": false
+        },
+        "Conduits": {
+          "visible": false
+        },
+        "Conduit Fittings": {
+          "visible": false
+        },
+        "Cable Trays": {
+          "visible": false
+        },
+        "Cable Tray Fittings": {
+          "visible": false
+        },
+        "Mechanical Equipment": {
+          "visible": false
+        },
+        "Electrical Equipment": {
+          "visible": false
+        },
+        "Electrical Fixtures": {
+          "visible": false
+        },
+        "Lighting Fixtures": {
+          "visible": false
+        },
+        "Lighting Devices": {
+          "visible": false
+        },
+        "Fire Alarm Devices": {
+          "visible": false
+        },
+        "Sprinklers": {
+          "visible": false
+        },
+        "Communication Devices": {
+          "visible": false
+        },
+        "Data Devices": {
+          "visible": false
+        },
+        "Nurse Call Devices": {
+          "visible": false
+        },
+        "Security Devices": {
+          "visible": false
+        },
+        "Structural Framing": {
+          "visible": false
+        },
+        "Structural Foundations": {
+          "visible": false
+        },
+        "Structural Connections": {
+          "visible": false
+        },
+        "Structural Rebar": {
+          "visible": false
+        },
+        "Grids": {
+          "visible": false
+        },
+        "Levels": {
+          "visible": false
+        },
+        "Reference Planes": {
+          "visible": false
+        },
+        "Scope Boxes": {
+          "visible": false
+        },
+        "Dimensions": {
+          "visible": false
+        },
+        "Generic Annotations": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "id": "pres-pink-teal",
+      "name": "Presentation — Pink / Teal",
+      "description": "Architecture A (Hidden Line). Soft pink building line work against a flat teal #5BA8A0 background. Walls render in pink #E890BC over white surfaces with a horizontal-cladding pattern (STING-Pres-HorizontalCladding @ #F0B8D4); roofs use STING-Pres-RoofHatch @ #F090C0; floors solid pink #F090C0. Topography in a teal herringbone (STING-Pres-Herringbone @ #B8DED8) on white. Ground base sub-element (Generic Models:STING-PresGround) is white-filled with a teal #2A8A80 outline weight 5. Furniture/Casework/Specialty Equipment halftoned pink. Set view background to flat teal in Graphic Display Options.",
+      "extends": "pres-base",
+      "origin": "corporate",
+      "vgOverrides": {
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#E890BC",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#E870A8",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#D060A0",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#D060A0",
+          "cutLineWeight": 2
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#E870A8",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#E870A8",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#D060A0",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#D060A0",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#E890BC",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#E870A8",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#E890BC",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#E870A8",
+          "cutLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#E890BC",
+          "projectionLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projectionLineColor": "#E890BC",
+          "projectionLineWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#2A8A80",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#2A8A80",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#F090C0",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#F090C0",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#F090C0",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#2A8A80",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#2A8A80",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#2A8A80",
+          "projectionLineWeight": 5,
+          "cutLineColor": "#2A8A80",
+          "cutLineWeight": 5
+        }
+      }
+    },
+    {
+      "id": "pres-blue-line",
+      "name": "Presentation — Blue Line",
+      "description": "Architecture A (Hidden Line). All building line work in blue #1B6EA8. Light grey #F0F0F0 background. Floors washed pale blue #C8DCF0; walls white with light-blue cladding lines (STING-Pres-HorizontalCladding @ #90B8D8); ground base sub-element solid blue #1B6EA8 with weight 4 outline. Site herringbone in #90B8D8 on white. Large trees ghost white #FFFFFF with blue outline; small shrubs blue outline only (no fill).",
+      "extends": "pres-base",
+      "origin": "corporate",
+      "vgOverrides": {
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 2
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#90B8D8",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#90B8D8",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#90B8D8",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#1B6EA8",
+          "projectionLineWeight": 4,
+          "cutLineColor": "#1B6EA8",
+          "cutLineWeight": 4
+        }
+      }
+    },
+    {
+      "id": "pres-red-mint",
+      "name": "Presentation — Red / Mint",
+      "description": "Architecture A (Hidden Line). Building line work in red #B81818 against a mint #8FCEC0 background. Floors washed salmon #F0A0A0; walls white with red cladding lines (STING-Pres-HorizontalCladding @ #E89090). Site herringbone in #EEB0B0 on white; ground base sub-element solid red #B81818 with weight 4 outline. Large trees solid white #FFFFFF with teal outline #6ABCB0; small shrubs teal outline only — designed to recede into the mint backdrop. Set view background to flat mint in Graphic Display Options.",
+      "extends": "pres-base",
+      "origin": "corporate",
+      "vgOverrides": {
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 2
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#6ABCB0",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#6ABCB0",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#E89090",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#E89090",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#E89090",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#6ABCB0",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#6ABCB0",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#B81818",
+          "projectionLineWeight": 4,
+          "cutLineColor": "#B81818",
+          "cutLineWeight": 4
+        }
+      }
+    },
+    {
+      "id": "pres-salmon",
+      "name": "Presentation — Salmon",
+      "description": "Architecture A (Hidden Line). Salmon/peach #E8B8A8 background. All building line work in terracotta salmon #C06040 over light-salmon #E8A898 floor washes; walls white with horizontal-cladding pattern (STING-Pres-HorizontalCladding @ #E8C0B0). Ground base sub-element solid dark terracotta #A03818 with weight 4 outline. Site herringbone in #E0B8A8 on white. Large trees white solid with salmon outline; small shrubs light-salmon outline only.",
+      "extends": "pres-base",
+      "origin": "corporate",
+      "vgOverrides": {
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 2
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 1,
+          "transparency": 20
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#E8A898",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#E8A898",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#E8A898",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#C06040",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#E8C0B0",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 4,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 4
+        }
+      }
+    },
+    {
+      "id": "pres-burgund-green",
+      "name": "Presentation — Rosewood / Sage",
+      "description": "Architecture A (Hidden Line). Dual-colour semantic palette on a cream #EDE8DF background. Burgundy #7B3535 = ground-plane and structural cuts; sage green #8BAF85 = floors, roofs, and active surfaces. Walls render with horizontal cladding (STING-Pres-HorizontalCladding @ #C4A0A0); roofs use STING-Pres-RoofHatch @ #8BAF85 over white; topography uses STING-Pres-Herringbone @ #D8C0B8 on cream. Ground base sub-element solid burgundy with #5A2020 outline weight 4. Large trees solid white with burgundy outline; small shrubs burgundy outline only.",
+      "extends": "pres-base",
+      "origin": "corporate",
+      "vgOverrides": {
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#7B3535",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#6A8C65",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#6A8C65",
+          "cutLineWeight": 2
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#5A7C55",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#5A7C55",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#6A8C65",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#6A8C65",
+          "projectionLineWeight": 1
+        },
+        "Structural Columns": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#7B3535",
+          "cutLineWeight": 3
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#7B3535",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 1,
+          "transparency": 20
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#C4A0A0",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#7B3535",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#C4A0A0",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#7B3535",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#5A2020",
+          "projectionLineWeight": 4,
+          "cutLineColor": "#5A2020",
+          "cutLineWeight": 4
+        }
+      }
+    },
+    {
+      "id": "pres-yellow-fill",
+      "name": "Presentation — Yellow Fill",
+      "description": "Architecture B (Consistent Colors). Entire building overridden to solid yellow #F0C020 — semantic distinction (floor vs wall vs roof) emerges from face direction and sun-study shading rather than from line work. Set visual style to Consistent Colors with Sun Study ON in Graphic Display Options. Windows remain white #FFFFFF (transparent in shaded preview). Ground base sub-element solid black #000000 with weight 5 outline. Site is white with grey-outlined entourage casting grey shadows.",
+      "extends": "pres-base",
+      "origin": "corporate",
+      "visualStyle": "Consistent Colors",
+      "vgOverrides": {
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 1
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 2
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1
+        },
+        "Structural Columns": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 2
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 1
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#000000",
+          "projectionLineWeight": 5,
+          "cutLineColor": "#000000",
+          "cutLineWeight": 5
+        }
+      }
+    },
+    {
+      "id": "pres-black-night",
+      "name": "Presentation — Black Night",
+      "description": "Architecture A (Hidden Line) on a pure black background. White building silhouette with all line work in white #FFFFFF at varying weights; floors and roof fills are inverted (solid black) so they read as voids. Cut wall faces solid white. Site is white with very-light-grey #D0D0D0 herringbone (STING-Pres-Herringbone). Large trees solid white with no outline; small shrubs light-grey #C0C0C0 outline only. Set view background to Solid Black + silhouettes weight 5 white in Graphic Display Options (these settings cannot be applied via VG and must be set manually or by a Graphic Display Options step).",
+      "extends": "pres-base",
+      "origin": "corporate",
+      "vgOverrides": {
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 1
+        },
+        "Roofs": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 2
+        },
+        "Stairs": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1
+        },
+        "Railings": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#D0D0D0",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 2
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#C0C0C0",
+          "projectionLineWeight": 1,
+          "halftone": true
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#C0C0C0",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#FFFFFF",
+          "projectionLineWeight": 5,
+          "cutLineColor": "#FFFFFF",
+          "cutLineWeight": 5
+        }
+      }
+    },
+    {
+      "id": "pres-grey-shadow",
+      "name": "Presentation — Grey Shadow",
+      "description": "Architecture C (Consistent Colors with sun study). No category overrides on the building — Revit materials provide the natural greyscale. Set visual style to Consistent Colors, enable Shadows (cast + ambient) in Graphic Display Options, and apply the STING Presentation Sun preset (azimuth 225°, altitude 35°). Background gradient grey sky — top #B0B0B0, horizon #D8D8D8 — set in Graphic Display Options. Ground base sub-element solid mid-grey #A8A8A8 with grey weight 3 outline. Topography near-white #F5F5F5 with #E0E0E0 herringbone (STING-Pres-Herringbone). Large trees solid white with grey outline; small shrubs grey outline only.",
+      "extends": "pres-base",
+      "origin": "corporate",
+      "visualStyle": "Consistent Colors",
+      "vgOverrides": {
+        "Topography": {
+          "visible": true,
+          "projectionLineColor": "#A0A0A0",
+          "projectionLineWeight": 1
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#808080",
+          "projectionLineWeight": 1,
+          "transparency": 100
+        },
+        "STING-PresGround": {
+          "visible": true,
+          "projectionLineColor": "#A8A8A8",
+          "projectionLineWeight": 3,
+          "cutLineColor": "#A8A8A8",
+          "cutLineWeight": 3
+        }
+      }
+    },
+    {
+      "id": "pres-interior-terracotta",
+      "name": "Presentation — Interior Terracotta",
+      "description": "Architecture C (Realistic). Interior commercial spaces, semantic rule: architecture = terracotta, furniture = white. Set visual style to Realistic. Walls render in terracotta #C47060; columns in dark terracotta #7A3018; floors use STING-Pres-Herringbone @ #D48060 over a #E8C0B0 background. Furniture/casework/specialty equipment all overridden to white #FFFFFF to contrast with the architecture. Interior planting in orange-terracotta #C86030; exterior trees seen through glazing render solid white with light-grey outline.",
+      "extends": "pres-base",
+      "origin": "corporate",
+      "visualStyle": "Realistic",
+      "vgOverrides": {
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#C47060",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#7A3018",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#A03818",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#A03818",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": true,
+          "projectionLineColor": "#C47060",
+          "projectionLineWeight": 1
+        },
+        "Structural Columns": {
+          "visible": true,
+          "projectionLineColor": "#7A3018",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#7A3018",
+          "cutLineWeight": 3
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#A0A0A0",
+          "projectionLineWeight": 1
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#A0A0A0",
+          "projectionLineWeight": 1
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#A0A0A0",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#7A3018",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#7A3018",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#7A3018",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#7A3018",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#A0A0A0",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#C86030",
+          "projectionLineWeight": 1
+        }
+      }
+    },
+    {
+      "id": "pres-interior-sage",
+      "name": "Presentation — Interior Sage",
+      "description": "Architecture C (Realistic). Interior commercial spaces, semantic rule: architecture = grey, furniture = sage green. Set visual style to Realistic. Walls render mid-grey #A0A8A4; ceilings slightly lighter #B8BEB8; columns dark grey #505050; floors use STING-Pres-Herringbone @ #B8BEB8 over a #D0D4D0 background. All furniture, casework, specialty equipment, and interior plants overridden to sage green #8BAF85; large interior plants forest green #4A7A4A. Glazing transparent with dark grey #505050 frame. Exterior trees seen through glazing render solid white with light-grey outline.",
+      "extends": "pres-base",
+      "origin": "corporate",
+      "visualStyle": "Realistic",
+      "vgOverrides": {
+        "Walls": {
+          "visible": true,
+          "projectionLineColor": "#A0A8A4",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#505050",
+          "cutLineWeight": 3
+        },
+        "Floors": {
+          "visible": true,
+          "projectionLineColor": "#A0A8A4",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#505050",
+          "cutLineWeight": 2
+        },
+        "Ceilings": {
+          "visible": true,
+          "projectionLineColor": "#B8BEB8",
+          "projectionLineWeight": 1
+        },
+        "Structural Columns": {
+          "visible": true,
+          "projectionLineColor": "#505050",
+          "projectionLineWeight": 2,
+          "cutLineColor": "#505050",
+          "cutLineWeight": 3
+        },
+        "Furniture": {
+          "visible": true,
+          "projectionLineColor": "#8BAF85",
+          "projectionLineWeight": 1
+        },
+        "Casework": {
+          "visible": true,
+          "projectionLineColor": "#8BAF85",
+          "projectionLineWeight": 1
+        },
+        "Specialty Equipment": {
+          "visible": true,
+          "projectionLineColor": "#8BAF85",
+          "projectionLineWeight": 1
+        },
+        "Doors": {
+          "visible": true,
+          "projectionLineColor": "#505050",
+          "projectionLineWeight": 1,
+          "cutLineColor": "#505050",
+          "cutLineWeight": 2
+        },
+        "Windows": {
+          "visible": true,
+          "projectionLineColor": "#505050",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "Curtain Panels": {
+          "visible": true,
+          "projectionLineColor": "#505050",
+          "projectionLineWeight": 1,
+          "transparency": 30
+        },
+        "Curtain Wall Mullions": {
+          "visible": true,
+          "projectionLineColor": "#505050",
+          "projectionLineWeight": 1
+        },
+        "STING-LargeTree": {
+          "visible": true,
+          "projectionLineColor": "#A8A8A8",
+          "projectionLineWeight": 1
+        },
+        "STING-SmallShrub": {
+          "visible": true,
+          "projectionLineColor": "#4A7A4A",
+          "projectionLineWeight": 1
+        }
       }
     }
   ],
   "routing": [
-    { "purpose": "Spool",      "discipline": "*",    "stylePackId": "corp-fabrication-shop" },
-    { "purpose": "Coord",      "discipline": "*",    "stylePackId": "corp-coordination" },
-    { "purpose": "Plan",       "discipline": "ARCH", "stylePackId": "corp-standard-plan" },
-    { "purpose": "Plan",       "discipline": "MEP",  "stylePackId": "corp-coordination" },
-    { "purpose": "RCP",        "discipline": "*",    "stylePackId": "corp-standard-rcp" },
-    { "purpose": "Section",    "discipline": "*",    "stylePackId": "corp-standard-section" },
-    { "purpose": "Elevation",  "discipline": "*",    "stylePackId": "corp-standard-elevation" },
-    { "purpose": "Detail",     "discipline": "*",    "stylePackId": "corp-standard-detail" },
-    { "purpose": "Clarification","discipline":"*",   "stylePackId": "corp-clarification" },
-    { "purpose": "ClientReview","discipline":"*",    "stylePackId": "corp-presentation-mono" },
-    { "purpose": "DesignReview","discipline":"*",    "stylePackId": "corp-presentation-rich" },
-    { "purpose": "*",          "discipline": "*",    "stylePackId": "corp-base" }
+    {
+      "purpose": "Spool",
+      "discipline": "*",
+      "stylePackId": "corp-fabrication-shop"
+    },
+    {
+      "purpose": "Coord",
+      "discipline": "*",
+      "stylePackId": "corp-coordination"
+    },
+    {
+      "purpose": "Plan",
+      "discipline": "ARCH",
+      "stylePackId": "corp-standard-plan"
+    },
+    {
+      "purpose": "Plan",
+      "discipline": "MEP",
+      "stylePackId": "corp-coordination"
+    },
+    {
+      "purpose": "RCP",
+      "discipline": "*",
+      "stylePackId": "corp-standard-rcp"
+    },
+    {
+      "purpose": "Section",
+      "discipline": "*",
+      "stylePackId": "corp-standard-section"
+    },
+    {
+      "purpose": "Elevation",
+      "discipline": "*",
+      "stylePackId": "corp-standard-elevation"
+    },
+    {
+      "purpose": "Detail",
+      "discipline": "*",
+      "stylePackId": "corp-standard-detail"
+    },
+    {
+      "purpose": "Clarification",
+      "discipline": "*",
+      "stylePackId": "corp-clarification"
+    },
+    {
+      "purpose": "ClientReview",
+      "discipline": "*",
+      "stylePackId": "corp-presentation-mono"
+    },
+    {
+      "purpose": "DesignReview",
+      "discipline": "*",
+      "stylePackId": "corp-presentation-rich"
+    },
+    {
+      "purpose": "*",
+      "discipline": "*",
+      "stylePackId": "corp-base"
+    },
+    {
+      "viewStylePackId": "corp-elec-lps",
+      "disciplineMatches": "^E$",
+      "purposeMatches": "^(Plan|Coordination)$",
+      "drawingTypeMatches": "^elec-lps-.*$"
+    }
   ]
 }

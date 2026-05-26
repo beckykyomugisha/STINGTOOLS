@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — CeilingAwareSnapper.
 //
 // When a drop's intercept Z passes through a Ceiling element, the
@@ -33,6 +34,7 @@
 
 using System;
 using Autodesk.Revit.DB;
+using System.Linq;
 
 namespace StingTools.Core.Routing
 {

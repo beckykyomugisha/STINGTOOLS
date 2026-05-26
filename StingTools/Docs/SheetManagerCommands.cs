@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.IO;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -431,10 +433,10 @@ namespace StingTools.Docs
                         // Create sheet
                         var sheet = ViewSheet.Create(doc, tbSym.Id);
                         try { sheet.SheetNumber = row.SheetNumber; }
-                        catch (Exception ex) { StingLog.Warn($"Sheet number conflict '{row.SheetNumber}': {ex.Message}"); }
+                        catch (Exception exNr) { StingLog.Warn($"Sheet number conflict '{row.SheetNumber}': {exNr.Message}"); }
 
                         try { sheet.Name = row.SheetName; }
-                        catch (Exception ex) { StingLog.Warn($"Sheet name conflict '{row.SheetName}': {ex.Message}"); }
+                        catch (Exception exNm) { StingLog.Warn($"Sheet name conflict '{row.SheetName}': {exNm.Message}"); }
 
                         // Write custom shared parameter values
                         if (row.CustomParams != null && row.CustomParams.Count > 0)
@@ -448,7 +450,7 @@ namespace StingTools.Docs
                                     if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
                                         p.Set(kvp.Value);
                                 }
-                                catch (Exception ex) { StingLog.Warn($"Failed to set param '{kvp.Key}': {ex.Message}"); }
+                                catch (Exception ex4) { StingLog.Warn($"Failed to set param '{kvp.Key}': {ex4.Message}"); }
                             }
                         }
 
@@ -462,7 +464,7 @@ namespace StingTools.Docs
                                 if (scopeParam != null && !scopeParam.IsReadOnly)
                                     scopeParam.Set(sb.Id);
                             }
-                            catch (Exception ex) { StingLog.Warn($"Scope box assignment failed: {ex.Message}"); }
+                            catch (Exception ex4) { StingLog.Warn($"Scope box assignment failed: {ex4.Message}"); }
                         }
 
                         // Place dependent views if requested
@@ -483,16 +485,16 @@ namespace StingTools.Docs
                                         // Remove from lookup so it can't be placed twice
                                         viewLookup.Remove(vName);
                                     }
-                                    catch (Exception ex) { StingLog.Warn($"Failed to place view '{vName}': {ex.Message}"); }
+                                    catch (Exception ex4) { StingLog.Warn($"Failed to place view '{vName}': {ex4.Message}"); }
                                 }
                             }
                         }
 
                         created++;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
-                        StingLog.Error($"Failed to create sheet '{row.SheetNumber}': {ex.Message}");
+                        StingLog.Error($"Failed to create sheet '{row.SheetNumber}': {ex2.Message}");
                         errors++;
                     }
                 }

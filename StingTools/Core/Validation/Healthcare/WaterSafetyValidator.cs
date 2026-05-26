@@ -1,3 +1,5 @@
+using StingTools.Core.Validation;
+using System;
 using Autodesk.Revit.DB;
 using StingTools.Standards.HTM;
 using System.Collections.Generic;
@@ -10,6 +12,9 @@ namespace StingTools.Core.Validation.Healthcare
     {
         public override string Name => "WaterSafetyValidator";
         private const string Tag = "WaterSafetyValidator";
+
+        // Hc.DeadLegMaxM slider override. Default mirrors HTM 04-01.
+        public double DeadLegMaxM { get; set; } = HTMStandards.DeadLegSentinelMaxM;
 
         public override List<ValidationResult> Validate(Document doc)
         {
@@ -31,11 +36,11 @@ namespace StingTools.Core.Validation.Healthcare
                 // Sentinel dead-leg check.
                 var sentinel = GetParamBool(el, "PLM_SENTINEL_BOOL");
                 var deadLegM = GetParamDouble(el, "PLM_DEAD_LEG_M_NR");
-                if (sentinel && deadLegM.HasValue && deadLegM.Value > HTMStandards.DeadLegSentinelMaxM)
+                if (sentinel && deadLegM.HasValue && deadLegM.Value > DeadLegMaxM)
                 {
                     res.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
                         "PLM.DEADLEG.OVER",
-                        $"{el.Name} sentinel point dead-leg {deadLegM:F2} m > HTM 04-01 max {HTMStandards.DeadLegSentinelMaxM} m",
+                        $"{el.Name} sentinel point dead-leg {deadLegM:F2} m > max {DeadLegMaxM} m [HTM 04-01]",
                         Tag));
                 }
 

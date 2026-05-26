@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — AutoConduitDrop.
 //
 // For each selected fixture with an electrical connector, finds the
@@ -65,6 +66,13 @@ namespace StingTools.Core.Routing
 
         /// <summary>Fabrication method; typically "SITE" for drops.</summary>
         public string FabMethod { get; set; } = "SITE";
+
+        /// <summary>
+        /// When true, use an A* pathfinder to route conduit drops around
+        /// obstacles instead of the default straight L/Z path.
+        /// Opt-in; disabled by default for performance safety.
+        /// </summary>
+        public bool UsePathfinder { get; set; } = false;
 
         /// <summary>
         /// When true, fixtures whose host is a Wall and whose
@@ -232,9 +240,9 @@ namespace StingTools.Core.Routing
             using (var tx = new Transaction(Doc, "STING v4 Auto-conduit drop"))
             {
                 try { tx.Start(); }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    result.Warnings.Add($"Transaction start failed: {ex.Message}");
+                    result.Warnings.Add($"Transaction start failed: {ex2.Message}");
                     return result;
                 }
 
@@ -263,18 +271,18 @@ namespace StingTools.Core.Routing
                                     fx, BuiltInCategory.OST_Conduit, SearchRadiusMm, result);
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex3)
                         {
                             result.FailedCount++;
-                            result.Warnings.Add($"Drop from {fx?.Id}: {ex.Message}");
+                            result.Warnings.Add($"Drop from {fx?.Id}: {ex3.Message}");
                         }
                     }
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    result.Warnings.Add($"AutoConduitDrop fatal: {ex.Message}");
+                    result.Warnings.Add($"AutoConduitDrop fatal: {ex3.Message}");
                 }
             }
 

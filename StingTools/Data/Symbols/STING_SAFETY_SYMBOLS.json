@@ -1,0 +1,1658 @@
+{
+  "version": "1.0",
+  "standard": "ISO 7010:2019",
+  "description": "Safety signage pictograms — fire equipment (F), safe condition (E), prohibition (P), mandatory (M), warning (W)",
+  "symbols": [
+    {
+      "id": "ISO7010_F001",
+      "name": "Fire Extinguisher (F001)",
+      "category": "Fire Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Fire Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.3,
+            "x2": 0.05,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.2,
+            "x2": 0.05,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.05,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.2,
+            "x2": -0.1,
+            "y2": 0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": -0.3
+              },
+              {
+                "x": 0.1,
+                "y": -0.3
+              },
+              {
+                "x": 0.1,
+                "y": 0.2
+              },
+              {
+                "x": -0.1,
+                "y": 0.2
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_F002",
+      "name": "Fire Hose Reel (F002)",
+      "category": "Fire Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Fire Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.15,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.3,
+                "y": 0.2
+              },
+              {
+                "x": -0.1,
+                "y": 0.2
+              },
+              {
+                "x": -0.1,
+                "y": -0.1
+              },
+              {
+                "x": -0.3,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_F003",
+      "name": "Fire Ladder (F003)",
+      "category": "Fire Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Fire Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.4,
+            "x2": -0.15,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.15,
+            "y1": -0.4,
+            "x2": 0.15,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.2,
+            "x2": 0.15,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.2,
+            "x2": 0.15,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_F004",
+      "name": "Collection of Fire-Fighting Equipment (F004)",
+      "category": "Fire Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Fire Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.2,
+                "y": -0.3
+              },
+              {
+                "x": -0.1,
+                "y": -0.3
+              },
+              {
+                "x": -0.1,
+                "y": 0.1
+              },
+              {
+                "x": -0.2,
+                "y": 0.1
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.1,
+                "y": -0.3
+              },
+              {
+                "x": 0.2,
+                "y": -0.3
+              },
+              {
+                "x": 0.2,
+                "y": 0.1
+              },
+              {
+                "x": 0.1,
+                "y": 0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_F005",
+      "name": "Fire Alarm Call Point (F005)",
+      "category": "Fire Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Fire Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.3,
+            "x2": 0.15,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.15,
+            "y1": -0.3,
+            "x2": 0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.3,
+            "x2": -0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.3,
+            "x2": -0.15,
+            "y2": -0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": -0.2
+              },
+              {
+                "x": 0.05,
+                "y": -0.2
+              },
+              {
+                "x": 0.05,
+                "y": 0.2
+              },
+              {
+                "x": -0.05,
+                "y": 0.2
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_F006",
+      "name": "Fire Telephone (F006)",
+      "category": "Fire Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Fire Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": -0.2,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 90
+          },
+          {
+            "cx": 0.2,
+            "cy": 0.2,
+            "r": 0.1,
+            "startAngle": 180,
+            "endAngle": 270
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_E001",
+      "name": "Emergency Exit Left (E001)",
+      "category": "Safe Condition",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Safe Condition",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.3,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 0.25
+              },
+              {
+                "x": 0,
+                "y": -0.25
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0,
+                "y": -0.1
+              },
+              {
+                "x": 0.3,
+                "y": -0.1
+              },
+              {
+                "x": 0.3,
+                "y": 0.1
+              },
+              {
+                "x": 0,
+                "y": 0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_E002",
+      "name": "Emergency Exit Right (E002)",
+      "category": "Safe Condition",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Safe Condition",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0.3,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 0.25
+              },
+              {
+                "x": 0,
+                "y": -0.25
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0,
+                "y": -0.1
+              },
+              {
+                "x": -0.3,
+                "y": -0.1
+              },
+              {
+                "x": -0.3,
+                "y": 0.1
+              },
+              {
+                "x": 0,
+                "y": 0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_E003",
+      "name": "First Aid Kit (E003)",
+      "category": "Safe Condition",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Safe Condition",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": -0.3
+              },
+              {
+                "x": 0.1,
+                "y": -0.3
+              },
+              {
+                "x": 0.1,
+                "y": 0.3
+              },
+              {
+                "x": -0.1,
+                "y": 0.3
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.3,
+                "y": -0.1
+              },
+              {
+                "x": 0.3,
+                "y": -0.1
+              },
+              {
+                "x": 0.3,
+                "y": 0.1
+              },
+              {
+                "x": -0.3,
+                "y": 0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_E004",
+      "name": "Emergency Telephone (E004)",
+      "category": "Safe Condition",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Safe Condition",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": -0.2,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 90
+          },
+          {
+            "cx": 0.2,
+            "cy": 0.2,
+            "r": 0.1,
+            "startAngle": 180,
+            "endAngle": 270
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_E007",
+      "name": "Assembly Point (E007)",
+      "category": "Safe Condition",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Safe Condition",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.2,
+                "y": 0.2
+              },
+              {
+                "x": 0.2,
+                "y": 0.2
+              },
+              {
+                "x": 0,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_P001",
+      "name": "No General Prohibition (P001)",
+      "category": "Prohibition",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Prohibition",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": 0.3,
+            "y2": -0.3,
+            "style": "Wide Lines"
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_P002",
+      "name": "No Smoking (P002)",
+      "category": "Prohibition",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Prohibition",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_P003",
+      "name": "No Open Flame (P003)",
+      "category": "Prohibition",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Prohibition",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": -0.2
+              },
+              {
+                "x": 0,
+                "y": 0.2
+              },
+              {
+                "x": 0.1,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_P004",
+      "name": "No Mobile Phones (P004)",
+      "category": "Prohibition",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Prohibition",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.2,
+            "x2": -0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_M001",
+      "name": "General Mandatory (M001)",
+      "category": "Mandatory",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Mandatory",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_M002",
+      "name": "Wear Eye Protection (M002)",
+      "category": "Mandatory",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Mandatory",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_M003",
+      "name": "Wear Ear Protection (M003)",
+      "category": "Mandatory",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Mandatory",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.18,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 90,
+            "endAngle": 270
+          },
+          {
+            "cx": 0.18,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 270,
+            "endAngle": 90
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_M004",
+      "name": "Wear Eye Protection (Welding) (M004)",
+      "category": "Mandatory",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Mandatory",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": -0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_M008",
+      "name": "Wear Safety Footwear (M008)",
+      "category": "Mandatory",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Mandatory",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.2,
+                "y": -0.15
+              },
+              {
+                "x": 0.2,
+                "y": -0.15
+              },
+              {
+                "x": 0.2,
+                "y": -0.05
+              },
+              {
+                "x": 0.05,
+                "y": -0.05
+              },
+              {
+                "x": 0.05,
+                "y": 0.1
+              },
+              {
+                "x": -0.2,
+                "y": 0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_W001",
+      "name": "General Warning (W001)",
+      "category": "Warning",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Warning",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.45,
+            "y1": -0.3,
+            "x2": 0.45,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.45
+          },
+          {
+            "x1": 0,
+            "y1": 0.45,
+            "x2": -0.45,
+            "y2": -0.3
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.2,
+            "x2": 0.05,
+            "y2": -0.2
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.03,
+                "y": -0.2
+              },
+              {
+                "x": 0.03,
+                "y": -0.2
+              },
+              {
+                "x": 0.03,
+                "y": -0.1
+              },
+              {
+                "x": -0.03,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_W002",
+      "name": "Explosive Material (W002)",
+      "category": "Warning",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Warning",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.45,
+            "y1": -0.3,
+            "x2": 0.45,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.45
+          },
+          {
+            "x1": 0,
+            "y1": 0.45,
+            "x2": -0.45,
+            "y2": -0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0,
+                "y": 0.1
+              },
+              {
+                "x": -0.1,
+                "y": -0.1
+              },
+              {
+                "x": 0.1,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_W003",
+      "name": "Radiation Hazard (W003)",
+      "category": "Warning",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Warning",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.45,
+            "y1": -0.3,
+            "x2": 0.45,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.45
+          },
+          {
+            "x1": 0,
+            "y1": 0.45,
+            "x2": -0.45,
+            "y2": -0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.2,
+                "y": 0.2
+              },
+              {
+                "x": -0.1,
+                "y": -0.05
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.2,
+                "y": 0.2
+              },
+              {
+                "x": 0.1,
+                "y": -0.05
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.1,
+                "y": -0.2
+              },
+              {
+                "x": 0.1,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_W005",
+      "name": "Biohazard (W005)",
+      "category": "Warning",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Warning",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.45,
+            "y1": -0.3,
+            "x2": 0.45,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.45
+          },
+          {
+            "x1": 0,
+            "y1": 0.45,
+            "x2": -0.45,
+            "y2": -0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.08,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.15,
+            "cy": 0.15,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.15,
+            "cy": 0.15,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": -0.15,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    },
+    {
+      "id": "ISO7010_W012",
+      "name": "Electricity Hazard (W012)",
+      "category": "Warning",
+      "familyType": "GenericAnnotation",
+      "discipline": "Safety",
+      "subcategory": "Warning",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.45,
+            "y1": -0.3,
+            "x2": 0.45,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.45
+          },
+          {
+            "x1": 0,
+            "y1": 0.45,
+            "x2": -0.45,
+            "y2": -0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0.1,
+                "y": 0.2
+              },
+              {
+                "x": -0.05,
+                "y": 0.05
+              },
+              {
+                "x": 0.05,
+                "y": 0
+              },
+              {
+                "x": -0.1,
+                "y": -0.2
+              },
+              {
+                "x": 0.05,
+                "y": -0.05
+              },
+              {
+                "x": -0.05,
+                "y": 0
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "ISO 7010",
+      "status": "draft"
+    }
+  ]
+}

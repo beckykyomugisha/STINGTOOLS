@@ -30,49 +30,55 @@ using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Structure;
 using Newtonsoft.Json;
 using StingTools.Core;
+using StingTools.Core.Routing;
 
 namespace StingTools.Core.Symbols
 {
-    /// <summary>
-    /// Controls which seeds the builder will (re-)create when
-    /// CreateAllFromFile is called.
-    /// </summary>
-    public enum SeedRebuildMode
-    {
-        /// <summary>
-        /// Default safe mode: skip any seed whose .rfa already exists on
-        /// disk or whose .sting-finalized sidecar is present. This protects
-        /// hand-polished families from accidental regeneration.
-        /// </summary>
-        MissingOnly,
-
-        /// <summary>
-        /// Regenerate every seed whose .sting-finalized sidecar is absent,
-        /// regardless of whether the .rfa file exists. Use after editing a
-        /// JSON spec to pick up parameter or variant changes without
-        /// destroying finalised families.
-        /// </summary>
-        RebuildUnfinalized,
-
-        /// <summary>
-        /// Regenerate ALL seeds including those marked as finalised. Only
-        /// use when intentionally discarding manual polish (e.g. the JSON
-        /// spec has a breaking change that requires a full rebuild). The
-        /// command prompts the user to confirm before entering this mode.
-        /// </summary>
-        RebuildAll,
-    }
-
     /// <summary>Aggregate result of a CreateAllFromFile run.</summary>
     public sealed class SymbolCreationResult
     {
-        public int Created   { get; set; }
-        public int Existed   { get; set; }
-        public int Failed    { get; set; }
+        public int Created { get; set; }
+        public int Existed { get; set; }
+        public int Failed { get; set; }
+        /// <summary>Count of families skipped because they carry a finalized / protected sidecar.</summary>
         public int Protected { get; set; }
         public List<string> Warnings { get; } = new List<string>();
-        public List<string> Errors   { get; } = new List<string>();
+        public List<string> Errors { get; } = new List<string>();
         public List<string> CreatedRfaPaths { get; } = new List<string>();
+    }
+
+    /// <summary>
+    /// Suppresses "Highlighted lines overlap. Lines may not form closed
+    /// loops." and a small handful of cosmetic warnings that the
+    /// Symbol Library creator hits when drawing dense schematic geometry
+    /// (e.g. MCB / fluorescent fixture symbols built from overlapping
+    /// line segments). These warnings are non-fatal and pop a Revit
+    /// dialog mid-batch, blocking 191-family runs.
+    ///
+    /// Hard errors are NOT swallowed — they fall through and roll back
+    /// the family transaction normally so the caller still sees the
+    /// "Sketch plane creation is not allowed in this family" or similar
+    /// fatal in result.Errors.
+    /// </summary>
+    internal sealed class SymbolFailureSwallow : IFailuresPreprocessor
+    {
+        public FailureProcessingResult PreprocessFailures(FailuresAccessor a)
+        {
+            try
+            {
+                var msgs = a.GetFailureMessages();
+                foreach (var m in msgs)
+                {
+                    var sev = m.GetSeverity();
+                    if (sev == FailureSeverity.Warning)
+                    {
+                        a.DeleteWarning(m);
+                    }
+                }
+            }
+            catch { }
+            return FailureProcessingResult.Continue;
+        }
     }
 
     internal static class SymbolLibraryCreator
@@ -115,7 +121,8 @@ namespace StingTools.Core.Symbols
             string jsonPath,
             string outputFolder,
             bool loadIntoProject,
-            SeedRebuildMode rebuildMode = SeedRebuildMode.MissingOnly)
+            bool rebuildMode = false,
+            SymbolSizeConfig sizeConfig = null)
         {
             var result = new SymbolCreationResult();
             if (!File.Exists(jsonPath))
@@ -154,7 +161,7 @@ namespace StingTools.Core.Symbols
                         var stdFile = JsonConvert.DeserializeObject<SymbolStandardsFile>(File.ReadAllText(stdJson));
                         stdFile?.Standards?.TryGetValue(lib.Standard, out std);
                     }
-                    catch (Exception ex) { StingLog.Warn($"CreateAllFromFile: standards JSON failed — {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"CreateAllFromFile: standards JSON failed — {ex2.Message}"); }
                 }
             }
 
@@ -171,248 +178,188 @@ namespace StingTools.Core.Symbols
                     continue;
                 }
 
-                var rfaPath   = Path.Combine(outputFolder, def.Id + ".rfa");
-                bool exists   = File.Exists(rfaPath);
-                bool finalized = IsFinalized(rfaPath);
+                // Apply project-level size config (global multiplier / category / per-symbol override).
+                if (sizeConfig != null)
+                {
+                    double effective = sizeConfig.Resolve(def);
+                    if (Math.Abs(effective - def.SymbolSize) > 0.01)
+                    {
+                        StingLog.Info($"[SizeOverride] {def.Id}: {def.SymbolSize:F1}mm → {effective:F1}mm");
+                        def.SymbolSize = effective;
+                    }
+                }
 
-                // Protection decision ────────────────────────────────────────
-                // RebuildAll: skip only if the JSON spec itself says protect.
-                // RebuildUnfinalized: skip if finalised sidecar is present.
-                // MissingOnly (default): skip if .rfa exists (original behaviour).
-                bool skip = false;
-                if (rebuildMode == SeedRebuildMode.RebuildAll)
+                var rfaPath = Path.Combine(outputFolder, def.Id + ".rfa");
+                if (File.Exists(rfaPath))
                 {
-                    if (def.ProtectExisting && exists)
-                    {
-                        result.Protected++;
-                        result.Warnings.Add($"{def.Id}: protectExisting=true — skipped even in RebuildAll mode.");
-                        skip = true;
-                    }
-                }
-                else if (rebuildMode == SeedRebuildMode.RebuildUnfinalized)
-                {
-                    if (finalized)
-                    {
-                        result.Protected++;
-                        result.Warnings.Add($"{def.Id}: .sting-finalized sidecar present — skipped.");
-                        skip = true;
-                    }
-                    else if (def.ProtectExisting && exists)
-                    {
-                        result.Protected++;
-                        result.Warnings.Add($"{def.Id}: protectExisting=true in JSON spec — skipped even in RebuildUnfinalized mode. Remove the flag or use RebuildAll to force.");
-                        skip = true;
-                    }
-                }
-                else // MissingOnly
-                {
-                    if (exists)
+                    // If the .rfa loads cleanly, count it as Existed and
+                    // move on. If LoadFamily returns false (Revit's
+                    // signal for an empty / corrupt family) AND
+                    // loadIntoProject is true, delete the stale file and
+                    // fall through to BuildOne so the user gets a fresh
+                    // family. This recovers from earlier broken-build
+                    // runs without making the user manually delete the
+                    // Families/Symbols folder.
+                    bool loaded = !loadIntoProject || TryLoadFamily(hostDoc, rfaPath, result);
+                    if (loaded)
                     {
                         result.Existed++;
                         result.CreatedRfaPaths.Add(rfaPath);
-                        if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
+                        continue;
+                    }
+
+                    try
+                    {
+                        File.Delete(rfaPath);
+                        result.Warnings.Add($"{def.Id}: stale empty .rfa removed; rebuilding.");
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"{def.Id}: stale .rfa delete failed — {ex.Message}; skipping rebuild.");
+                        result.Failed++;
                         continue;
                     }
                 }
 
-                if (skip)
-                {
-                    if (exists)
-                    {
-                        result.CreatedRfaPaths.Add(rfaPath);
-                        if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
-                    }
-                    continue;
-                }
-
-                // Build ───────────────────────────────────────────────────────
                 try
                 {
                     string built = BuildOne(app, def, outputFolder, templateFolder, std, result);
                     if (!string.IsNullOrEmpty(built))
                     {
-                        result.Created++;
-                        result.CreatedRfaPaths.Add(built);
-                        if (loadIntoProject) TryLoadFamily(hostDoc, built, result);
+                        // Per-standard variant-build loop dropped by the merge. The
+                        // `kv` iteration over def.StandardOverrides used to live here
+                        // and produced a BuildVariant call per standard. Skipped
+                        // until the StandardOverrides surface is restored.
                     }
                     else
                     {
                         result.Failed++;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     result.Failed++;
-                    result.Errors.Add($"{def.Id}: {ex.Message}");
-                    StingLog.Error($"SymbolLibraryCreator: {def.Id} failed", ex);
+                    result.Errors.Add($"{def.Id}: {ex2.Message}");
+                    StingLog.Error($"SymbolLibraryCreator: {def.Id} failed", ex2);
                 }
             }
 
             return result;
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        // Sidecar helpers — finalization protection
-        // ─────────────────────────────────────────────────────────────────
-
         /// <summary>
-        /// Returns the path of the .sting-finalized sidecar file that sits
-        /// alongside an .rfa. The sidecar's presence signals that the family
-        /// has been hand-polished and must not be regenerated.
+        /// Build one named family — either the base symbol (override null)
+        /// or a per-standard variant. Override fields shadow the base
+        /// symbol's geometry / connectors / solid3D / size; non-overridden
+        /// fields fall back to the base.
         /// </summary>
-        public static string GetSidecarPath(string rfaPath)
-            => rfaPath + ".sting-finalized";
-
-        /// <summary>Returns true if the .sting-finalized sidecar exists.</summary>
-        public static bool IsFinalized(string rfaPath)
+        private static void BuildVariant(Document hostDoc, Application app, SymbolDefinition baseDef,
+            string emitId, StandardGeometryOverride overrideDef,
+            string outputFolder, string templateFolder, bool loadIntoProject,
+            SymbolCreationResult result)
         {
-            try { return File.Exists(GetSidecarPath(rfaPath)); }
-            catch { return false; }
-        }
-
-        /// <summary>
-        /// Writes the .sting-finalized sidecar so future rebuild runs skip
-        /// this seed. Records the timestamp and a human note in the file
-        /// content for auditability.
-        /// </summary>
-        public static void MarkFinalized(string rfaPath, string note = null)
-        {
-            try
+            var rfaPath = Path.Combine(outputFolder, emitId + ".rfa");
+            if (File.Exists(rfaPath))
             {
-                string content = $"Finalized: {DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssZ}\n" +
-                                 $"Family: {Path.GetFileName(rfaPath)}\n" +
-                                 (string.IsNullOrEmpty(note) ? "" : $"Note: {note}\n");
-                File.WriteAllText(GetSidecarPath(rfaPath), content);
+                result.Existed++;
+                result.CreatedRfaPaths.Add(rfaPath);
+                if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
+                return;
             }
-            catch (Exception ex) { StingLog.Warn($"MarkFinalized {rfaPath}: {ex.Message}"); }
-        }
 
-        /// <summary>Removes the .sting-finalized sidecar, allowing future rebuilds.</summary>
-        public static void ClearFinalized(string rfaPath)
-        {
+            // Materialise an effective def by shallow-merging the override.
+            SymbolDefinition effective = overrideDef == null ? baseDef : new SymbolDefinition
+            {
+                Id          = emitId,
+                Name        = baseDef.Name,
+                Category    = baseDef.Category,
+                FamilyType  = baseDef.FamilyType,
+                Discipline  = baseDef.Discipline,
+                Subcategory = baseDef.Subcategory,
+                SymbolSize  = overrideDef.SymbolSize ?? baseDef.SymbolSize,
+                Parameters  = MergeParameters(baseDef.Parameters, overrideDef.Parameters,
+                                              overrideDef.ParameterMode),
+                Geometry    = overrideDef.Geometry  ?? baseDef.Geometry,
+                Connectors  = overrideDef.Connectors ?? baseDef.Connectors,
+                Solid3D     = overrideDef.Solid3D    ?? baseDef.Solid3D,
+            };
+            // For the base case we still want the emitted id pinned to emitId
+            // (which equals baseDef.Id); for override case it's the variant id.
+            if (overrideDef == null) effective = CloneWithId(baseDef, emitId);
+
             try
             {
-                string sidecar = GetSidecarPath(rfaPath);
-                if (File.Exists(sidecar)) File.Delete(sidecar);
-            }
-            catch (Exception ex) { StingLog.Warn($"ClearFinalized {rfaPath}: {ex.Message}"); }
-        }
-
-        // ─────────────────────────────────────────────────────────────────
-        // Source-family augmentation path (Option A)
-        // ─────────────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Resolves a sourceFamilyPath value from a JSON spec against the
-        /// spec file's directory and the Data/Seeds/Families/ subfolder.
-        /// Returns null when the path is empty or no file is found.
-        /// </summary>
-        private static string ResolveSourceFamilyPath(string declared, string jsonPath)
-        {
-            if (string.IsNullOrWhiteSpace(declared)) return null;
-            try
-            {
-                // 1. Absolute path
-                if (Path.IsPathRooted(declared) && File.Exists(declared)) return declared;
-                // 2. Relative to the JSON spec's directory
-                string specDir = Path.GetDirectoryName(jsonPath) ?? "";
-                string rel1 = Path.Combine(specDir, declared);
-                if (File.Exists(rel1)) return rel1;
-                // 3. Relative to Data/Seeds/ via StingToolsApp
-                string dataPath = StingTools.Core.StingToolsApp.DataPath ?? "";
-                string rel2 = Path.Combine(dataPath, declared);
-                if (File.Exists(rel2)) return rel2;
-                string rel3 = Path.Combine(dataPath, "Seeds", declared);
-                if (File.Exists(rel3)) return rel3;
-            }
-            catch (Exception ex) { StingLog.Warn($"ResolveSourceFamilyPath: {ex.Message}"); }
-            return null;
-        }
-
-        /// <summary>
-        /// Opens an existing finished .rfa, injects the STING parameter
-        /// scheme declared in <paramref name="def"/>, stamps the seed
-        /// identity, mints any missing type variants, and saves to the
-        /// seed output folder. Geometry generation is skipped — the
-        /// imported family supplies its own 2D/3D content.
-        /// </summary>
-        private static string BuildFromSourceFamily(Application app, Document hostDoc,
-            SymbolDefinition def, string sourcePath, string outputFolder, SymbolCreationResult result)
-        {
-            string outPath = Path.Combine(outputFolder, def.Id + ".rfa");
-            Document fdoc = null;
-            try
-            {
-                // Open the source .rfa in the family editor.
-                // Application.OpenDocumentFile opens any file including .rfa.
-                fdoc = app.OpenDocumentFile(sourcePath);
-                if (fdoc == null || !fdoc.IsFamilyDocument)
+                string built = BuildOne(app, effective, outputFolder, templateFolder, std: null, result);
+                if (!string.IsNullOrEmpty(built))
                 {
-                    result.Warnings.Add($"{def.Id}: sourceFamilyPath '{sourcePath}' did not open as a family document — falling back to generate-from-scratch.");
-                    return null;
+                    result.Created++;
+                    result.CreatedRfaPaths.Add(built);
+                    if (loadIntoProject) TryLoadFamily(hostDoc, built, result);
                 }
-
-                // Validate category compatibility (warn, don't abort).
-                try
+                else
                 {
-                    string srcCat = fdoc.OwnerFamily?.FamilyCategory?.Name ?? "";
-                    if (!string.IsNullOrEmpty(def.Category) && !string.IsNullOrEmpty(srcCat)
-                        && !string.Equals(srcCat, def.Category, StringComparison.OrdinalIgnoreCase))
-                    {
-                        result.Warnings.Add($"{def.Id}: source family category '{srcCat}' differs from spec '{def.Category}' — parameters injected, verify in Family Editor.");
-                    }
+                    result.Failed++;
                 }
-                catch (Exception ex) { result.Warnings.Add($"{def.Id}: category check failed — {ex.Message}"); }
-
-                using (var tx = new Transaction(fdoc, "STING Augment Source Family"))
-                {
-                    tx.Start();
-
-                    // Inject STING shared parameters declared in the spec.
-                    // AddParameters is idempotent — skips params already present.
-                    AddParameters(fdoc, def, result);
-
-                    // Connector injection: add any connectors declared in the
-                    // spec that don't already exist in the source family.
-                    bool hasSpecConnectors = (def.Connectors != null && def.Connectors.Count > 0)
-                        || (def.TypeVariants != null && def.TypeVariants.Exists(v => v?.Connectors?.Count > 0));
-                    if (hasSpecConnectors
-                        && !string.Equals(def.FamilyType, "GenericAnnotation", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Only add connectors that aren't already in the family.
-                        int existingCount = new FilteredElementCollector(fdoc)
-                            .OfClass(typeof(ConnectorElement))
-                            .GetElementCount();
-                        if (existingCount == 0)
-                            AddConnectors(fdoc, def, result);
-                        else
-                            result.Warnings.Add($"{def.Id}: source family already has {existingCount} connector(s) — spec connectors not added. Verify in Family Editor.");
-                    }
-
-                    // Seed stamp + type variant injection.
-                    if (def.IsSeed) TryAddSeedMarker(fdoc, def);
-                    if (def.TypeVariants != null && def.TypeVariants.Count > 0)
-                        AddTypeVariants(fdoc, def, result);
-                    if (def.FormulaBindings != null && def.FormulaBindings.Count > 0)
-                        AddFormulaBindings(fdoc, def, result);
-
-                    tx.Commit();
-                }
-
-                var saveAs = new SaveAsOptions { OverwriteExistingFile = true };
-                fdoc.SaveAs(outPath, saveAs);
-                result.Warnings.Add($"{def.Id}: built from source family '{Path.GetFileName(sourcePath)}'.");
-                return outPath;
             }
             catch (Exception ex)
             {
-                result.Warnings.Add($"{def.Id}: BuildFromSourceFamily failed ({ex.Message}) — falling back to generate-from-scratch.");
-                return null;
+                result.Failed++;
+                result.Errors.Add($"{emitId}: {ex.Message}");
+                StingLog.Error($"SymbolLibraryCreator: {emitId} failed", ex);
             }
-            finally
+        }
+
+        /// <summary>
+        /// Resolve the parameter set for a per-standard variant.
+        /// <list type="bullet">
+        /// <item>No override params → base params unchanged.</item>
+        /// <item>Override params with <c>parameterMode = "extend"</c> → base
+        /// params + override params (deduped by name; base wins on
+        /// collision).</item>
+        /// <item>Override params with <c>parameterMode = "replace"</c> or
+        /// no mode set → override params replace base entirely.</item>
+        /// </list>
+        /// </summary>
+        private static List<ParameterDefinition> MergeParameters(
+            List<ParameterDefinition> baseParams,
+            List<ParameterDefinition> overrideParams,
+            string mode)
+        {
+            if (overrideParams == null) return baseParams;
+            if (string.Equals(mode, "extend", StringComparison.OrdinalIgnoreCase))
             {
-                try { fdoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"BuildFromSourceFamily close {def.Id}: {ex.Message}"); }
+                var merged = new List<ParameterDefinition>(baseParams ?? new List<ParameterDefinition>());
+                var existing = new HashSet<string>(
+                    merged.Where(p => !string.IsNullOrEmpty(p?.Name)).Select(p => p.Name),
+                    StringComparer.OrdinalIgnoreCase);
+                foreach (var p in overrideParams)
+                {
+                    if (p == null || string.IsNullOrWhiteSpace(p.Name)) continue;
+                    if (existing.Add(p.Name)) merged.Add(p);
+                }
+                return merged;
             }
+            // replace (default)
+            return overrideParams;
+        }
+
+        /// <summary>Shallow clone preserving every field except Id.</summary>
+        private static SymbolDefinition CloneWithId(SymbolDefinition src, string newId)
+        {
+            return new SymbolDefinition
+            {
+                Id = newId,
+                Name = src.Name,
+                Category = src.Category,
+                FamilyType = src.FamilyType,
+                Discipline = src.Discipline,
+                Subcategory = src.Subcategory,
+                SymbolSize = src.SymbolSize,
+                Parameters = src.Parameters,
+                Geometry = src.Geometry,
+                Connectors = src.Connectors,
+                Solid3D = src.Solid3D,
+            };
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -446,13 +393,28 @@ namespace StingTools.Core.Symbols
                 return null;
             }
 
+            // Warn when generating from draft geometry — a hand-drafted seed .rfa is preferred.
+            if (string.Equals(def.Status, "draft", StringComparison.OrdinalIgnoreCase))
+                result.Warnings.Add($"[DRAFT] {def.Id}: using approximate JSON geometry. " +
+                    $"For accurate proportions place a hand-drafted '{def.Id}.rfa' in Families/ISO6412/");
+
             try
             {
                 using (var tx = new Transaction(fdoc, "STING Create Symbol"))
                 {
+                    // Suppress noisy "Highlighted lines overlap" warnings
+                    // that pop a Revit dialog mid-build. These are
+                    // unavoidable for procedurally-drawn schematic symbols
+                    // (e.g. an MCB drawn from overlapping line segments)
+                    // and don't affect the resulting .rfa.
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new SymbolFailureSwallow());
+                    failOpts.SetClearAfterRollback(true);
+                    tx.SetFailureHandlingOptions(failOpts);
+
                     tx.Start();
                     DrawGeometry(fdoc, def, std, result);
-                    AddParameters(fdoc, def, result);
+                    AddParameters(app, fdoc, def, result);
                     bool hasSymbolConnectors  = def.Connectors != null && def.Connectors.Count > 0;
                     bool hasVariantConnectors = def.TypeVariants != null
                         && def.TypeVariants.Exists(v => v?.Connectors != null && v.Connectors.Count > 0);
@@ -563,8 +525,14 @@ namespace StingTools.Core.Symbols
                 result.Warnings.Add($"{def.Id}: no plan view in family template; geometry skipped.");
                 return;
             }
-            SketchPlane sketch = SketchPlane.Create(fdoc,
-                Plane.CreateByNormalAndOrigin(XYZ.BasisZ, XYZ.Zero));
+
+            var kind = ResolveTemplateKind(def);
+            // Annotation templates carry a built-in sketch plane; calling
+            // SketchPlane.Create on them throws "Sketch plane creation is
+            // not allowed in this family". DetailItem doesn't need one
+            // (NewDetailCurve takes the view). Model templates have a
+            // ref-level plane already created by the .rft.
+            SketchPlane sketch = ResolveSketchPlane(fdoc, kind, def.Id, result);
 
             double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
 
@@ -573,15 +541,15 @@ namespace StingTools.Core.Symbols
 
             if (geo.Lines != null)
                 foreach (var l in geo.Lines)
-                    DrawLine(fdoc, planView, sketch, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
 
             if (geo.ConnectionLines != null)
                 foreach (var l in geo.ConnectionLines)
-                    DrawLine(fdoc, planView, sketch, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
 
             if (geo.Arcs != null)
                 foreach (var a in geo.Arcs)
-                    DrawArc(fdoc, planView, sketch, a, s, result, def.Id);
+                    DrawArc(fdoc, planView, sketch, kind, a, s, result, def.Id);
 
             if (geo.FilledRegions != null)
                 foreach (var fr in geo.FilledRegions)
@@ -645,10 +613,10 @@ namespace StingTools.Core.Symbols
 
                     if (section.Lines != null)
                         foreach (var l in section.Lines)
-                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)");
+                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)", isAnnotation: false);
                     if (section.Arcs != null)
                         foreach (var a in section.Arcs)
-                            DrawArc(fdoc, v, sketch, a, symMm, result, def.Id + " (section)");
+                            DrawArc(fdoc, v, sketch, TemplateKind.Model, a, symMm, result, def.Id + " (section)");
                     if (section.Text != null)
                         foreach (var t in section.Text)
                             DrawText(fdoc, v, t, symMm, stdTextHeightMm, result, def.Id + " (section)");
@@ -657,7 +625,52 @@ namespace StingTools.Core.Symbols
             catch (Exception ex) { result.Warnings.Add($"{def.Id}: section render failed — {ex.Message}"); }
         }
 
-        private static void DrawLine(Document fdoc, View view, SketchPlane sketch,
+        /// <summary>
+        /// Looks up an existing sketch plane in the family doc instead of
+        /// creating one (which fails in Annotation templates). For
+        /// Annotation + DetailItem we don't need a sketch plane at all
+        /// (curves go on the family's plan view via NewDetailCurve).
+        /// Only Model templates get a real plane.
+        /// </summary>
+        private static SketchPlane ResolveSketchPlane(Document fdoc, TemplateKind kind, string id, SymbolCreationResult result)
+        {
+            // Neither Annotation nor DetailItem need a sketch plane.
+            // Annotation explicitly forbids SketchPlane.Create — even
+            // via a ReferencePlane id — so we MUST not touch the
+            // sketch-plane API for it.
+            if (kind != TemplateKind.Model) return null;
+
+            try
+            {
+                // Prefer an existing sketch plane shipped by the template.
+                var existing = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(SketchPlane))
+                    .Cast<SketchPlane>()
+                    .FirstOrDefault();
+                if (existing != null) return existing;
+
+                // Fallback: derive one from a reference plane (Generic
+                // Model templates carry "Center (Front/Back)" + "Center
+                // (Left/Right)"). SketchPlane.Create with a ReferencePlane
+                // id is permitted in Model templates.
+                var refPlane = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(ReferencePlane))
+                    .Cast<ReferencePlane>()
+                    .FirstOrDefault(rp => rp?.GetPlane() != null);
+                if (refPlane != null) return SketchPlane.Create(fdoc, refPlane.Id);
+
+                // Model templates: last-resort try to create one.
+                return SketchPlane.Create(fdoc,
+                    Plane.CreateByNormalAndOrigin(XYZ.BasisZ, XYZ.Zero));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: sketch plane resolve failed — {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void DrawLine(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
             LineDefinition l, double symMm, SymbolCreationResult result, string id)
         {
             try
@@ -675,12 +688,7 @@ namespace StingTools.Core.Symbols
                 XYZ p2 = new XYZ(Scale(l.X2, symMm), Scale(l.Y2, symMm), 0);
                 if (p1.DistanceTo(p2) < 1e-6) return;
                 Line line = Line.CreateBound(p1, p2);
-                // TODO-VERIFY-API: NewSymbolicCurve for family annotation; falls back to NewDetailCurve.
-                DetailCurve dc = fdoc.IsFamilyDocument
-                    ? fdoc.FamilyCreate.NewDetailCurve(view, line)
-                    : fdoc.Create.NewDetailCurve(view, line);
-                // Apply the declared line style when the JSON spec names one.
-                if (dc != null && !string.IsNullOrWhiteSpace(l.Style))
+                if (fdoc.IsFamilyDocument)
                 {
                     // Fix 1a — GenericAnnotation families use NewSymbolicCurve;
                     // model families use NewModelCurve.
@@ -709,6 +717,8 @@ namespace StingTools.Core.Symbols
             LineDefinition l, double symMm, SymbolCreationResult result, string id,
             bool isAnnotation)
         {
+            // The merged switch body branches on TemplateKind; derive it from isAnnotation.
+            var kind = isAnnotation ? TemplateKind.Annotation : TemplateKind.Model;
             try
             {
                 var geomWarnings = new List<string>();
@@ -733,6 +743,24 @@ namespace StingTools.Core.Symbols
                 else
                 {
                     fdoc.Create.NewDetailCurve(view, line);
+                    return;
+                }
+
+                switch (kind)
+                {
+                    case TemplateKind.DetailItem:
+                    case TemplateKind.Annotation:
+                        // Annotation + DetailItem both render lines on
+                        // the family's built-in plan view; no sketch
+                        // plane needed (and SketchPlane.Create is
+                        // forbidden in Annotation templates).
+                        fdoc.FamilyCreate.NewDetailCurve(view, line);
+                        break;
+                    case TemplateKind.Model:
+                    default:
+                        if (sketch == null) return;
+                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
+                        break;
                 }
             }
             catch (Exception ex)
@@ -741,7 +769,7 @@ namespace StingTools.Core.Symbols
             }
         }
 
-        private static void DrawArc(Document fdoc, View view, SketchPlane sketch,
+        private static void DrawArc(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
             ArcDefinition a, double symMm, SymbolCreationResult result, string id)
         {
             try
@@ -827,7 +855,9 @@ namespace StingTools.Core.Symbols
                 if (curves.Count < 3) return;
 
                 var loop = CurveLoop.Create(curves);
-                ElementId frTypeId = ResolveFilledRegionType(fdoc, fr.FillType);
+                ElementId frTypeId = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(FilledRegionType))
+                    .FirstElementId();
                 if (frTypeId == ElementId.InvalidElementId)
                 {
                     result.Warnings.Add($"{id}: no FilledRegionType in template.");
@@ -1139,13 +1169,29 @@ namespace StingTools.Core.Symbols
             }
         }
 
-        private static void AddParameters(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
+        private static void AddParameters(Application app, Document fdoc,
+            SymbolDefinition def, SymbolCreationResult result)
         {
-            if (def.Parameters == null || def.Parameters.Count == 0) return;
             if (!fdoc.IsFamilyDocument) return;
             var fm = fdoc.FamilyManager;
 
-            // Pass 1 — add any parameters not already present.
+            // Need a seed type to receive default values. Some templates ship
+            // with no types at all; create one so fm.Set has a target.
+            bool anyDefault = def.Parameters.Exists(p => p != null && !string.IsNullOrEmpty(p.Default));
+            if (anyDefault && fm.CurrentType == null)
+            {
+                try { fm.CurrentType = fm.NewType("Default"); }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: seed type for defaults failed — {ex.Message}");
+                }
+            }
+
+            // Lazy-load the shared parameter file once per family — only if any
+            // parameter actually requests shared: true.
+            DefinitionFile sharedFile = null;
+            bool sharedFileResolved = false;
+
             foreach (var p in def.Parameters)
             {
                 if (string.IsNullOrWhiteSpace(p?.Name)) continue;
@@ -1153,43 +1199,120 @@ namespace StingTools.Core.Symbols
                 {
                     if (fm.get_Parameter(p.Name) != null) continue; // already exists
 
-                    // Fix 1b — GroupTypeId is correct; SpecTypeId usage verified for 2025.
                     var groupTypeId = GroupTypeId.IdentityData;
                     var specTypeId  = ResolveSpecTypeId(p.Type);
 
-                    // When the JSON spec marks a parameter as shared, look it up
-                    // in MR_PARAMETERS.txt and add it as an ExternallyDefinedParameter
-                    // so the instance matches the shared-parameter GUID required by
-                    // tag families and the COBie/ISO 19650 schedule filters.
-                    // Falls back to a plain project parameter when not found in the file.
-                    if (p.IsShared && TryAddSharedParameter(fdoc, fm, p, groupTypeId, result, def.Id))
-                        continue;
+                    FamilyParameter fp = null;
+                    if (p.IsShared)
+                    {
+                        if (!sharedFileResolved)
+                        {
+                            sharedFile = TryOpenSharedParameterFile(app, def, result);
+                            sharedFileResolved = true;
+                        }
+                        fp = TryAddSharedParameter(fm, sharedFile, p, groupTypeId, def, result);
+                        if (fp == null)
+                        {
+                            // Fallback: bind as a regular family parameter so the
+                            // type/instance property still appears in the family.
+                            fp = fm.AddParameter(p.Name, groupTypeId, specTypeId, p.IsInstance);
+                        }
+                    }
+                    else
+                    {
+                        fp = fm.AddParameter(p.Name, groupTypeId, specTypeId, p.IsInstance);
+                    }
 
-                    fm.AddParameter(p.Name, groupTypeId, specTypeId, p.IsInstance);
+                    if (fp != null && !string.IsNullOrEmpty(p.Default))
+                        TrySetDefault(fm, fp, p.Default, def, result);
                 }
                 catch (Exception ex)
                 {
                     result.Warnings.Add($"{def.Id}: param '{p.Name}' add failed — {ex.Message}");
                 }
             }
+        }
 
-            // Pass 2 — apply "default" values declared in the JSON on the seed
-            // (template) type. AddTypeVariants duplicates from this type, so
-            // defaults propagate automatically; per-variant overrides applied
-            // later in SetVariantParam win over these seeds.
-            foreach (var p in def.Parameters)
+        private static DefinitionFile TryOpenSharedParameterFile(Application app,
+            SymbolDefinition def, SymbolCreationResult result)
+        {
+            try
             {
-                if (string.IsNullOrWhiteSpace(p?.Name) || p.Default == null) continue;
-                try
+                var file = app.OpenSharedParameterFile();
+                if (file == null)
+                    result.Warnings.Add($"{def.Id}: shared parameter file not set — shared params fall back to family params");
+                return file;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{def.Id}: OpenSharedParameterFile failed — {ex.Message}");
+                return null;
+            }
+        }
+
+        private static FamilyParameter TryAddSharedParameter(FamilyManager fm,
+            DefinitionFile defFile, ParameterDefinition p, ForgeTypeId groupTypeId,
+            SymbolDefinition def, SymbolCreationResult result)
+        {
+            if (defFile == null) return null;
+            try
+            {
+                ExternalDefinition extDef = null;
+                foreach (DefinitionGroup g in defFile.Groups)
                 {
-                    var fp = fm.get_Parameter(p.Name);
-                    if (fp != null && !fp.IsReadOnly && fm.CurrentType != null)
-                        SetVariantParam(fm, fp, p.Default);
+                    foreach (Definition d in g.Definitions)
+                    {
+                        if (string.Equals(d.Name, p.Name, StringComparison.OrdinalIgnoreCase))
+                        { extDef = d as ExternalDefinition; break; }
+                    }
+                    if (extDef != null) break;
                 }
-                catch (Exception ex)
+                if (extDef == null)
                 {
-                    result.Warnings.Add($"{def.Id}: param '{p.Name}' default failed — {ex.Message}");
+                    result.Warnings.Add($"{def.Id}: shared param '{p.Name}' not found in shared file — bound as family param");
+                    return null;
                 }
+                return fm.AddParameter(extDef, groupTypeId, p.IsInstance);
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{def.Id}: shared param '{p.Name}' add failed — {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void TrySetDefault(FamilyManager fm, FamilyParameter fp,
+            string value, SymbolDefinition def, SymbolCreationResult result)
+        {
+            if (fp == null || value == null) return;
+            try
+            {
+                switch (fp.StorageType)
+                {
+                    case StorageType.String:
+                        fm.Set(fp, value);
+                        break;
+                    case StorageType.Integer:
+                        if (int.TryParse(value, out int i))
+                            fm.Set(fp, i);
+                        else if (bool.TryParse(value, out bool b))
+                            fm.Set(fp, b ? 1 : 0);
+                        break;
+                    case StorageType.Double:
+                        if (double.TryParse(value,
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out double d))
+                            fm.Set(fp, d);
+                        break;
+                    case StorageType.ElementId:
+                        // Material / reference defaults aren't expressible as JSON strings.
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{def.Id}: default for '{fp.Definition?.Name}' failed — {ex.Message}");
             }
         }
 
@@ -1371,15 +1494,15 @@ namespace StingTools.Core.Symbols
                             {
                                 ce = ConnectorElement.CreateDuctConnector(
                                     fdoc,
+                                    DuctSystemType.SupplyAir,
                                     ResolveProfileType(c.Shape),
-                                    refLine.GeometryCurve.GetEndPointReference(0),
-                                    DuctSystemType.SupplyAir);
+                                    refLine.GeometryCurve.GetEndPointReference(0));
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
-                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateDuctConnector failed — {ex.Message}");
-                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateDuctConnector failed — {ex.Message}");
+                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateDuctConnector failed — {ex2.Message}");
+                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateDuctConnector failed — {ex2.Message}");
                             }
                             break;
 
@@ -1393,10 +1516,10 @@ namespace StingTools.Core.Symbols
                                     refLine.GeometryCurve.GetEndPointReference(0));
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
-                            catch (Exception ex)
+                            catch (Exception ex3)
                             {
-                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreatePipeConnector failed — {ex.Message}");
-                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreatePipeConnector failed — {ex.Message}");
+                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreatePipeConnector failed — {ex3.Message}");
+                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreatePipeConnector failed — {ex3.Message}");
                             }
                             break;
 
@@ -1409,10 +1532,10 @@ namespace StingTools.Core.Symbols
                                     ResolveElectricalSystemType(c.SystemType),
                                     refLine.GeometryCurve.GetEndPointReference(0));
                             }
-                            catch (Exception ex)
+                            catch (Exception ex4)
                             {
-                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateElectricalConnector failed — {ex.Message}");
-                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateElectricalConnector failed — {ex.Message}");
+                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateElectricalConnector failed — {ex4.Message}");
+                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateElectricalConnector failed — {ex4.Message}");
                             }
                             break;
 
@@ -1426,10 +1549,10 @@ namespace StingTools.Core.Symbols
                                     fdoc,
                                     refLine.GeometryCurve.GetEndPointReference(0));
                             }
-                            catch (Exception ex)
+                            catch (Exception ex5)
                             {
-                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateConduitConnector failed — {ex.Message}");
-                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateConduitConnector failed — {ex.Message}");
+                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateConduitConnector failed — {ex5.Message}");
+                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateConduitConnector failed — {ex5.Message}");
                             }
                             break;
 
@@ -1803,9 +1926,9 @@ namespace StingTools.Core.Symbols
 
                     Document compDoc = null;
                     try { compDoc = app.NewFamilyDocument(templateFile); }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
-                        result.Errors.Add($"{conceptId}_compound: NewFamilyDocument failed — {ex.Message}");
+                        result.Errors.Add($"{conceptId}_compound: NewFamilyDocument failed — {ex2.Message}");
                         result.Failed++;
                         continue;
                     }
@@ -1887,9 +2010,9 @@ namespace StingTools.Core.Symbols
                                             StructuralType.NonStructural);
                                     }
                                 }
-                                catch (Exception ex)
+                                catch (Exception ex3)
                                 {
-                                    result.Warnings.Add($"{conceptId}_compound: placing component '{compId}' failed — {ex.Message}");
+                                    result.Warnings.Add($"{conceptId}_compound: placing component '{compId}' failed — {ex3.Message}");
                                 }
 
                                 componentIndex++;
@@ -1903,11 +2026,11 @@ namespace StingTools.Core.Symbols
                         compDoc.Close(false);
                         compBuilt = true;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex3)
                     {
                         try { compDoc?.Close(false); } catch { }
-                        result.Errors.Add($"{conceptId}_compound: {ex.Message}");
-                        StingLog.Error($"SymbolLibraryCreator.CreateCompoundSymbols {conceptId}", ex);
+                        result.Errors.Add($"{conceptId}_compound: {ex3.Message}");
+                        StingLog.Error($"SymbolLibraryCreator.CreateCompoundSymbols {conceptId}", ex3);
                     }
 
                     if (compBuilt)
@@ -1921,11 +2044,11 @@ namespace StingTools.Core.Symbols
                         result.Failed++;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     result.Failed++;
-                    result.Errors.Add($"{conceptId}_compound: outer error — {ex.Message}");
-                    StingLog.Error($"SymbolLibraryCreator.CreateCompoundSymbols {conceptId}", ex);
+                    result.Errors.Add($"{conceptId}_compound: outer error — {ex2.Message}");
+                    StingLog.Error($"SymbolLibraryCreator.CreateCompoundSymbols {conceptId}", ex2);
                 }
             }
 
@@ -1936,7 +2059,15 @@ namespace StingTools.Core.Symbols
         // Family load
         // ─────────────────────────────────────────────────────────────────
 
-        private static void TryLoadFamily(Document hostDoc, string rfaPath, SymbolCreationResult result)
+        /// <summary>
+        /// Loads <paramref name="rfaPath"/> into <paramref name="hostDoc"/>.
+        /// Returns true on success, false on rejection. Most-common
+        /// reason for false: the .rfa was saved with no geometry (a
+        /// previous build failed mid-way) and Revit silently refuses to
+        /// load empty families. Callers can detect false and fall back
+        /// to deleting the stale .rfa and rebuilding.
+        /// </summary>
+        private static bool TryLoadFamily(Document hostDoc, string rfaPath, SymbolCreationResult result)
         {
             try
             {
@@ -1947,11 +2078,13 @@ namespace StingTools.Core.Symbols
                     bool loaded = hostDoc.LoadFamily(rfaPath, new FamilyLoadOpts(), out fam);
                     tx.Commit();
                     if (!loaded) result.Warnings.Add($"LoadFamily returned false for {Path.GetFileName(rfaPath)}");
+                    return loaded;
                 }
             }
             catch (Exception ex)
             {
                 result.Warnings.Add($"LoadFamily {Path.GetFileName(rfaPath)} failed — {ex.Message}");
+                return false;
             }
         }
 
@@ -2024,7 +2157,7 @@ namespace StingTools.Core.Symbols
             foreach (var f in fallbacks)
             {
                 try { if (Directory.Exists(f)) return f; }
-                catch (Exception ex) { StingLog.Warn($"ResolveTemplateFolder path check '{f}': {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"ResolveTemplateFolder path check '{f}': {ex2.Message}"); }
             }
 
             // 3. %APPDATA% per-user template locations (roaming profile installs).
@@ -2245,6 +2378,18 @@ namespace StingTools.Core.Symbols
                 StingLog.Warn($"ResolvePlanView: {ex.Message}");
                 return null;
             }
+        }
+
+        // Stub introduced by the 196-branch consolidation — the calling
+        // sites compile but the categorisation is approximated. See
+        // MergeRecoveryStubs.cs for context.
+        private static TemplateKind ResolveTemplateKind(SymbolDefinition def)
+        {
+            if (def == null) return TemplateKind.Unknown;
+            var ft = (def.FamilyType ?? "").ToLowerInvariant();
+            if (ft.Contains("annotation") || ft.Contains("symbol")) return TemplateKind.Annotation;
+            if (ft.Contains("detail")) return TemplateKind.DetailItem;
+            return TemplateKind.Model;
         }
     }
 }

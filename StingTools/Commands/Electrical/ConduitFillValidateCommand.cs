@@ -95,16 +95,16 @@ namespace StingTools.Commands.Electrical
                         {
                             failed++;
                             if (activeView != null)
-                                try { activeView.SetElementOverrides(el.Id, ogsRed); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                                try { activeView.SetElementOverrides(el.Id, ogsRed); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                             if (pct > worstFill) { worstFill = pct; worstName = el.Name ?? ""; }
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"Fill compute: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Fill compute: {ex2.Message}"); }
                 }
                 tx.Commit();
             }
             StingElectricalCommandHandler.LastConduitFills = results;
-            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             string worstStr = string.IsNullOrEmpty(worstName) ? "—" : $"{worstName} ({worstFill:0.0}%)";
             TaskDialog.Show("STING Conduit Fill",
                 $"Checked {results.Count} containment element(s). Passing: {passed}. Failing: {failed}.\nWorst: {worstStr}.");
@@ -150,9 +150,9 @@ namespace StingTools.Commands.Electrical
                                         upsized++;
                                     }
                                 }
-                                catch (Exception ex) { StingLog.Warn($"Upsize {r.ConduitId}: {ex.Message}"); }
+                                catch (Exception ex2) { StingLog.Warn($"Upsize {r.ConduitId}: {ex2.Message}"); }
                             }
-                            catch (Exception ex) { StingLog.Warn($"AutoUpsize loop: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"AutoUpsize loop: {ex2.Message}"); }
                         }
                         txUp.Commit();
                     }

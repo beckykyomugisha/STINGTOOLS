@@ -83,7 +83,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                             var pos = new XYZ(x + Ft(MarginMm), y - Ft(MarginMm), 0);
                             TextNote.Create(doc, view.Id, pos, r.LabelText, textType.Id);
                         }
-                        catch (Exception ex) { StingLog.Warn($"TextNote: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"TextNote: {ex2.Message}"); }
                     }
                     col++;
                     if (col >= LabelsPerRow) { col = 0; row++; }

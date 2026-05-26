@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — base class for auto-drop engines.
 //
 // Shared behaviour for AutoConduitDrop / AutoPipeDrop / AutoDuctDrop:
@@ -42,7 +43,7 @@ namespace StingTools.Core.Routing
     /// Base class for the three drop engines. Lifetime: one instance
     /// per command invocation; not thread-safe.
     /// </summary>
-    public abstract class DropEngineBase
+    public abstract partial class DropEngineBase
     {
         protected const double MmToFt = 1.0 / 304.8;
         protected const double ConnectorProximityFt = 0.01; // ~3mm tolerance
@@ -80,6 +81,22 @@ namespace StingTools.Core.Routing
         /// and logs any BS EN 50174-2 violations to DropResult.Warnings.
         /// </summary>
         public bool EnforceSeparation { get; set; } = true;
+
+        /// <summary>
+        /// When true, the scoring in FindNearestContainment biases toward
+        /// containment elements that participate in an existing connector
+        /// network (i.e. have neighbours), reducing the risk of routing to
+        /// isolated stubs. Default true.
+        /// </summary>
+        public bool PreferConnectedTrays { get; set; } = true;
+
+        /// <summary>
+        /// When true, the drop engine iterates every connector on the
+        /// fixture rather than just the best free connector, emitting one
+        /// drop per unique unconnected service connector. Useful when a
+        /// fixture hosts both a hot-water and a cold-water connection.
+        /// </summary>
+        public bool MultiServiceMode { get; set; } = false;
 
         protected DropEngineBase(Document doc)
         {
@@ -336,6 +353,43 @@ namespace StingTools.Core.Routing
                 result.Warnings.Add($"NewTakeoffFitting failed: {ex.Message}");
             }
             return ElementId.InvalidElementId;
+        }
+
+        /// <summary>
+        /// Multi-service variant of <see cref="TryDropFromFixture"/>: iterates
+        /// every free connector on the fixture and calls <see cref="TryDropFromFixture"/>
+        /// once per unconnected connector that matches <see cref="ConnectorDomain"/>.
+        /// Returns true when at least one drop succeeded.
+        /// </summary>
+        protected bool TryDropFromFixtureAllConnectors(
+            Element fixtureEl,
+            BuiltInCategory containmentCat,
+            double maxSearchMm,
+            DropResult result)
+        {
+            if (fixtureEl == null) { result.SkippedCount++; return false; }
+            bool anyOk = false;
+            bool any = false;
+            foreach (var c in GetAllConnectors(fixtureEl))
+            {
+                bool connected;
+                try { connected = c.IsConnected; } catch { continue; }
+                if (connected) continue;
+                Domain d;
+                try { d = c.Domain; } catch { d = Domain.DomainUndefined; }
+                if (ConnectorDomain != Domain.DomainUndefined && d != ConnectorDomain) continue;
+                any = true;
+                // Temporarily narrow origin to this connector so TryDropFromFixture
+                // uses its position. We do this by delegating directly.
+                bool ok = TryDropFromFixture(fixtureEl, containmentCat, maxSearchMm, result);
+                if (ok) anyOk = true;
+            }
+            if (!any)
+            {
+                // No matching connectors — fall back to normal single drop.
+                return TryDropFromFixture(fixtureEl, containmentCat, maxSearchMm, result);
+            }
+            return anyOk;
         }
 
         /// <summary>

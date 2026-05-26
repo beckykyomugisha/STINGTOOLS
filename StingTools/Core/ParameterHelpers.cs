@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
@@ -701,6 +702,12 @@ namespace StingTools.Core
         private static DateTime _roomCacheStamp;
         private static Dictionary<ElementId, Room> _roomCacheIndex;
 
+        // ── Batch-session pin ───────────────────────────────────────────────
+        // During a large batch operation (e.g. 500-element tagging run) the
+        // TTL-based room index expiry could fire mid-loop if the build takes
+        // longer than 30 s. BeginBatchSession / EndBatchSession bracket the
+        // run so the cache is held for the duration regardless of wall time.
+
         /// <summary>
         /// Invalidate the cached room index — called by
         /// <c>StingAutoTagger</c> when a Room changes so the next spatial
@@ -710,9 +717,53 @@ namespace StingTools.Core
         {
             lock (_roomCacheLock)
             {
+                // Skip invalidation while in a batch session so the cache
+                // stays warm across many per-element calls in the same batch.
+                if (_inBatchSession) return;
                 _roomCacheDocKey = null;
                 _roomCacheIndex = null;
             }
+        }
+
+        private static bool _inBatchSession = false;
+
+        public static void BeginBatchSession()
+        {
+            lock (_roomCacheLock) { _inBatchSession = true; }
+        }
+
+        public static void EndBatchSession()
+        {
+            lock (_roomCacheLock) { _inBatchSession = false; }
+        }
+
+        /// <summary>
+        /// Phase 165 — Issue #21. Public alias for <see cref="InvalidateRoomIndex"/>
+        /// so post-batch callers can use the more descriptive name. Ensures the
+        /// next BuildRoomIndex call rebuilds the cache.
+        /// </summary>
+        public static void ForceRefresh() => InvalidateRoomIndex();
+
+        // Phase 165 — Issue #21. During an explicit PopulationContext session
+        // the TTL is bumped further (90s) so 500-element batches can't expire
+        // the cache mid-loop. PopulationContext.Build flips this on; the
+        // post-batch ForceRefresh / Invalidate flips it off.
+        private static volatile bool _batchSessionActive;
+        private static readonly TimeSpan _roomCacheBatchTtl = TimeSpan.FromSeconds(90);
+
+        /// <summary>
+        /// Phase 165 — Issue #21. Marks an active batch session so the room
+        /// index uses the longer TTL until <see cref="EndBatchSession"/> is
+        /// called. Idempotent — multiple BeginBatchSession calls without
+        /// matching End calls are safe.
+        /// </summary>
+        public static void BeginBatchSession() { _batchSessionActive = true; }
+
+        /// <summary>End an active batch session and force-refresh the cache.</summary>
+        public static void EndBatchSession()
+        {
+            _batchSessionActive = false;
+            ForceRefresh();
         }
 
         /// <summary>
@@ -723,15 +774,21 @@ namespace StingTools.Core
         public static Dictionary<ElementId, Room> BuildRoomIndex(Document doc)
         {
             string key = doc?.PathName ?? doc?.Title ?? "";
+            // Phase 165 — Issue #21. Pick TTL based on whether a batch session
+            // is active. Outside a batch: 30 s (covers back-to-back commands).
+            // Inside a batch: 90 s so 500-element loops never expire mid-pass.
+            TimeSpan ttl = _batchSessionActive ? _roomCacheBatchTtl : _roomCacheTtl;
             lock (_roomCacheLock)
             {
                 if (_roomCacheIndex != null
                     && string.Equals(_roomCacheDocKey, key, StringComparison.Ordinal)
-                    && (DateTime.UtcNow - _roomCacheStamp) < _roomCacheTtl)
+                    && (DateTime.UtcNow - _roomCacheStamp) < ttl)
                 {
+                    StingLog.RecordHit(StingLog.CacheKind.RoomIndex); // E-1
                     return _roomCacheIndex;
                 }
             }
+            StingLog.RecordMiss(StingLog.CacheKind.RoomIndex); // E-1
 
             var index = new Dictionary<ElementId, Room>();
             try
@@ -1053,6 +1110,7 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"Grid reference detection failed: {ex.Message}"); return null; }
         }
+
     }
 
     /// <summary>
@@ -1428,6 +1486,13 @@ namespace StingTools.Core
             /// <summary>GAP-019: Configurable default REV (from project_config.json or "P01").</summary>
             public string DefaultRev { get; set; } = "P01";
 
+            /// <summary>EFF-05 (Phase 149b): per-batch memo of type-level LOC/ZONE
+            /// overrides so PopulateAll doesn't pay a Document.GetElement +
+            /// 2× GetString per instance when most types don't have overrides
+            /// set. Key is type ElementId; null tuple value means "no override".</summary>
+            public Dictionary<ElementId, (string Loc, string Zone)> TypeOverrideCache { get; set; }
+                = new Dictionary<ElementId, (string, string)>();
+
             /// <summary>Phase 39: Validate that the context has all required data for reliable token population.
             /// Returns true if all critical fields are initialized. Use after Build() to catch partial init
             /// on corrupted documents (missing levels, rooms, phases, etc.).</summary>
@@ -1447,6 +1512,39 @@ namespace StingTools.Core
                 $"Rooms={RoomIndex?.Count ?? 0}, Categories={KnownCategories?.Count ?? 0}, " +
                 $"Phases={CachedPhases?.Count ?? 0}, Grids={CachedGrids?.Count ?? 0}, " +
                 $"LOC={ProjectLoc ?? "null"}, REV={ProjectRev ?? "null"}";
+
+            // TAG-PREFLIGHT-DUP-01: Per-document cached PopulationContext so consecutive
+            // commands (e.g. PreTagAudit followed by BatchTag) reuse the spatial / room /
+            // phase / grid indices instead of rebuilding them from scratch each time.
+            // 30 s TTL matches the room index cache; the cache is invalidated on document
+            // close, on TagConfig reload, and after any tagging command via PostTagCleanup.
+            private static (string docKey, DateTime time, PopulationContext ctx) _cached;
+            private static readonly object _cacheLock = new object();
+            private static readonly TimeSpan _cacheTtl = TimeSpan.FromSeconds(30);
+
+            /// <summary>
+            /// TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext. Call from
+            /// PostTagCleanup, document close, and TagConfig reload paths.
+            /// </summary>
+            /// <summary>
+            /// Phase 165 follow-up — explicit teardown helper. Ends the
+            /// SpatialAutoDetect batch session opened by <see cref="Build"/>
+            /// so the room-index TTL drops back to 30 s. Idempotent and
+            /// safe to call when no session is active.
+            ///
+            /// Usage pattern in batch commands:
+            ///   var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
+            ///   try { ... } finally { TokenAutoPopulator.PopulationContext.EndSession(); }
+            /// </summary>
+            public static void EndSession() => SpatialAutoDetect.EndBatchSession();
+
+            public static void InvalidateCache()
+            {
+                lock (_cacheLock)
+                {
+                    _cached = default;
+                }
+            }
 
             /// <summary>
             /// Phase 165 perf — cached active TagMode for the duration of a
@@ -2074,15 +2172,21 @@ namespace StingTools.Core
             }
 
             // STATUS — phase-aware (4-layer detection using cached phases for batch perf)
+            // GAP-STATUS-01: AutoCorrectStatusFromPhase forces phase-derived STATUS even when
+            // element already has a value, preventing drift when Revit phases are reorganised.
             string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
-            if (string.IsNullOrEmpty(existingStatus) || overwrite)
+            bool statusNeedsWrite = string.IsNullOrEmpty(existingStatus)
+                || overwrite
+                || TagConfig.AutoCorrectStatusFromPhase;
+            if (statusNeedsWrite)
             {
                 // Use cached phase data when available (batch), fall back to uncached (single element)
                 string status = (ctx.CachedPhases != null)
                     ? PhaseAutoDetect.DetectStatusCached(doc, el, ctx.CachedPhases, ctx.LastPhaseId)
                     : PhaseAutoDetect.DetectStatus(doc, el);
                 if (string.IsNullOrEmpty(status)) status = ctx.DefaultStatus;
-                if (overwrite)
+                bool forceWrite = overwrite || TagConfig.AutoCorrectStatusFromPhase;
+                if (forceWrite)
                 {
                     if (ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true))
                     {
@@ -2541,7 +2645,7 @@ namespace StingTools.Core
                         written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                             dept.AsString() ?? "");
                 }
-                catch (Exception ex) { StingLog.Warn($"Room department mapping failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Room department mapping failed: {ex2.Message}"); }
             }
 
             // ── Dimensional parameters (BLE_ schedule fields) ──────────────────
@@ -3990,9 +4094,9 @@ namespace StingTools.Core
                             if (TokenParamMap.TryGetValue(kvp.Key, out string paramName))
                             {
                                 try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
-                                catch (Exception lockEx)
+                                catch (Exception lockEx2)
                                 {
-                                    StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
+                                    StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx2.Message}");
                                 }
                             }
                         }
@@ -4076,11 +4180,11 @@ namespace StingTools.Core
                 try
                 {
                     if (!string.IsNullOrEmpty(_prevTag))
-                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", _prevTag, overwrite: true);
+                        ParameterHelpers.SetString(el, ParamRegistry.TAG_PREV, _prevTag, overwrite: true);
                     // F-09: Use cached timestamp (refreshed once per second) to avoid per-element allocation
-                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
+                    ParameterHelpers.SetString(el, ParamRegistry.TAG_MODIFIED_DT,
                         GetCachedTimestamp(), overwrite: true);
-                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", Environment.UserName, overwrite: true);
+                    ParameterHelpers.SetString(el, ParamRegistry.TAG_MODIFIED_BY, Environment.UserName, overwrite: true);
 
                     // Pack 122 / Gap A — dual-write to Extensible Storage. Schema
                     // landed in Phase 121; this is the deferred hot-path wire-up.
@@ -4166,6 +4270,15 @@ namespace StingTools.Core
                 stats?.RecordEmptyTokens(
                     ParameterHelpers.GetString(el, ParamRegistry.FUNC),
                     ParameterHelpers.GetString(el, ParamRegistry.PROD));
+
+                // Phase 184d / P3.1 — Opt-in cost write-back. Off by
+                // default; turn on via project_config.json
+                // WRITE_COST_ON_TAG=1. Safe to call unconditionally —
+                // CostStamp returns immediately when the flag is unset.
+                // No feedback-loop risk: StingCostStaleMarker IUpdater
+                // only listens for geometry + element addition changes,
+                // not parameter writes.
+                StingTools.BOQ.CostStamp.WriteIfEnabled(doc, el);
 
                 return true;
             }

@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Drawing
 {
@@ -100,6 +101,25 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(ruleValue) || ruleValue == "*") return true;
             if (string.IsNullOrEmpty(actual)) return false;
             return string.Equals(ruleValue, actual, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Splits the DrawingType.TitleBlockFamily string into a
+        /// (familyName, symbolName) pair. If the value contains a colon
+        /// (e.g. "A1 Title Block:Portrait") the left side is the family
+        /// name and the right side is the type/symbol name. When no colon
+        /// is present the whole string is treated as the family name and
+        /// the symbol name is empty (caller falls back to first loaded type).
+        /// Returns ("", "") when dt is null or TitleBlockFamily is empty.
+        /// </summary>
+        public static (string family, string symbol) ResolveTitleBlockVariant(DrawingType dt)
+        {
+            if (dt == null) return ("", "");
+            var raw = dt.TitleBlockFamily ?? "";
+            if (string.IsNullOrWhiteSpace(raw)) return ("", "");
+            var idx = raw.IndexOf(':');
+            if (idx < 0) return (raw.Trim(), "");
+            return (raw.Substring(0, idx).Trim(), raw.Substring(idx + 1).Trim());
         }
     }
 }

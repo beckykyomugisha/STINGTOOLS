@@ -225,6 +225,41 @@ class ArchiCadClient:
         )
         return result.get("detailsOfElements", [])
 
+    # ── publisher / IFC export trigger ───────────────────────────────────────
+
+    def get_publisher_sets(self) -> list[dict]:
+        """Return all Publisher Set definitions (name, rootType, saveLocation)."""
+        result = self.call("API.GetPublisherSets")
+        return result.get("publisherSets", [])
+
+    def trigger_publisher(self, publisher_set_name: str) -> bool:
+        """
+        Fire a named Publisher Set synchronously.  Returns True on success.
+        Equivalent to clicking Publish in ArchiCAD's Publisher palette.
+        publisher_set_name: exact name as shown in ArchiCAD Publisher palette.
+        """
+        try:
+            self.call("API.PublishPublisherSet", {"publisherSetName": publisher_set_name})
+            return True
+        except ArchiCadError as e:
+            log.warning("trigger_publisher(%r) failed: %s", publisher_set_name, e)
+            return False
+
+    def find_ifc_publisher_set(self) -> str | None:
+        """
+        Return the name of the first Publisher Set whose saveLocation
+        ends with a known IFC drop-folder pattern (_ifc_drop, IFC_DROP,
+        ifc_export).  Returns None if nothing matches.
+        """
+        import os
+        _IFC_PATTERNS = ("_ifc_drop", "ifc_drop", "IFC_DROP", "ifc_export", "IFC_EXPORT")
+        for pset in self.get_publisher_sets():
+            loc: str = pset.get("saveLocation", "") or ""
+            name: str = pset.get("name", "")
+            if any(pat in loc for pat in _IFC_PATTERNS) or any(pat.lower() in name.lower() for pat in ("ifc", "Planscape")):
+                return name
+        return None
+
     # ── batch helper ─────────────────────────────────────────────────────────
 
     def batch_guids(self, guids: list[str], size: int = 100):

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // DrawingProducer is the engine that turns a (DrawingType, Context)
@@ -14,6 +15,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Core.Drawing
 {
@@ -574,10 +576,10 @@ namespace StingTools.Core.Drawing
                         dt.Discipline ?? "", dt.IsoNaming?.Volume ?? "");
                     used = true;
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     seq = 0;
-                    StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next: {ex.Message}");
+                    StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next: {ex2.Message}");
                 }
                 if (!used)
                 {
@@ -613,7 +615,7 @@ namespace StingTools.Core.Drawing
                     foreach (var w in tbResult.Warnings)
                         result.Warnings.Add("TitleBlockParams: " + w);
                 }
-                catch (Exception ex) { result.Warnings.Add($"TitleBlockParams: {ex.Message}"); }
+                catch (Exception ex2) { result.Warnings.Add($"TitleBlockParams: {ex2.Message}"); }
             }
 
             return sheet.Id;

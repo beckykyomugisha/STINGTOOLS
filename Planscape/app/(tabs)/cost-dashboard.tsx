@@ -13,11 +13,49 @@ import {
   RefreshControl,
   ActivityIndicator,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '@/utils/theme';
 import { getBoqSnapshot, listProjects } from '@/api/endpoints';
 import type { BoqDisciplineRow, BoqSnapshotResponse } from '@/api/endpoints';
 import { realtime } from '@/services/realtimeClient';
+
+// Phase 184m — quick-nav tile to the variation / payment-cert screens.
+// Phase 184r — swapped emoji icons (📃 / 📝) for Feather glyphs to match
+// the rest of the app's iconography (which uses Feather throughout).
+function CostQuickNav({ onVariations, onPaymentCerts }: {
+  onVariations: () => void;
+  onPaymentCerts: () => void;
+}) {
+  return (
+    <View style={navStyles.row}>
+      <TouchableOpacity style={navStyles.tile} onPress={onPaymentCerts}>
+        <Feather name="file-text" size={26} color="#0a7d2e" />
+        <Text style={navStyles.tileLabel}>Payment certs</Text>
+        <Text style={navStyles.tileSub}>Agree / dispute</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={navStyles.tile} onPress={onVariations}>
+        <Feather name="edit-3" size={26} color="#1c70d8" />
+        <Text style={navStyles.tileLabel}>Variations</Text>
+        <Text style={navStyles.tileSub}>Approve / reject</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const navStyles = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, marginBottom: 12, marginTop: 4 },
+  tile: {
+    flex: 1, padding: 14, borderRadius: 10, backgroundColor: 'white',
+    alignItems: 'center',
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 }, elevation: 1,
+  },
+  tileLabel: { fontSize: 14, fontWeight: '600', marginTop: 6 },
+  tileSub: { fontSize: 11, color: '#5a5a5a', marginTop: 2 },
+});
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +117,7 @@ function SummaryCard({
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function CostDashboardScreen() {
+  const router = useRouter();
   const [data, setData]         = useState<BoqSnapshotResponse | null>(null);
   const [loading, setLoading]   = useState(true);
   const [refreshing, setRefresh]= useState(false);
@@ -177,6 +216,12 @@ export default function CostDashboardScreen() {
       }
       ListHeaderComponent={
         <View>
+          {/* ── Quick-nav tiles to variations + payment certs (Phase 184m) ── */}
+          <CostQuickNav
+            onVariations={() => router.push('/variations')}
+            onPaymentCerts={() => router.push('/payment-certs')}
+          />
+
           {/* ── Summary cards ── */}
           <View style={styles.summaryRow}>
             <SummaryCard label="Estimated" value={fmt(latest.totalEstimated)} />

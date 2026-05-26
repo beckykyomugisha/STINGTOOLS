@@ -12,13 +12,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { theme, getRAGColor, getPriorityColor } from '@/utils/theme';
 import {
+  listProjects,
   getProjectDashboard,
   getMyActions,
   getFederationStatus,
   listSyncConflicts,
   type FederationStatus,
 } from '@/api/endpoints';
-import type { DashboardData, BimIssue } from '@/types/api';
+import type { DashboardData, Project, BimIssue } from '@/types/api';
 import { useProjectStore } from '@/stores/projectStore';
 import { useInboxStore } from '@/stores/inboxStore';
 import { SitePhotoFab } from '@/components/SitePhotoFab';
@@ -26,12 +27,13 @@ import { SitePhotoFab } from '@/components/SitePhotoFab';
 export default function DashboardScreen() {
   const router = useRouter();
 
-  // Dashboard reads the active project from the shared store. The Projects tab
-  // (app/projects/index.tsx) sets it when the user taps a row; this screen
-  // fetches that project's dashboard data. If no project is active yet we
-  // prompt the user to go pick one from the Projects tab.
-  const activeProject = useProjectStore((s) => s.active);
+  // P9 — promote activeProject out of local state into the shared Zustand store so
+  // /models, /issues, and any future screen pick up the same selection without
+  // prop-drilling. `setActive(null)` clears it cleanly on logout.
+  const activeProject = useProjectStore((s) => s.active) as Project | null;
+  const setActiveInStore = useProjectStore((s) => s.setActive);
 
+  const [projects, setProjects] = useState<Project[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,11 +49,7 @@ export default function DashboardScreen() {
   // Persisted so the user's preference survives cold-starts.
   const [projectViewMode, setProjectViewMode] = useState<'chip' | 'list'>('chip');
 
-  const loadData = useCallback(async () => {
-    if (!activeProject) {
-      setLoading(false);
-      return;
-    }
+  const loadData = useCallback(async (projectId?: string) => {
     try {
       setError(null);
       const data = await getProjectDashboard(activeProject.id);
@@ -87,7 +85,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeProject]);
+  }, [activeProject?.id, setActiveInStore]);
 
   useEffect(() => {
     loadData();
@@ -125,28 +123,7 @@ export default function DashboardScreen() {
 
   function onRefresh() {
     setRefreshing(true);
-    loadData();
-  }
-
-  // No active project yet — the user has not tapped a project from the
-  // Projects tab. Show a clear prompt rather than a confusing empty state.
-  if (!activeProject) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.noProjectIcon}>🏗</Text>
-        <Text style={styles.noProjectTitle}>No project selected</Text>
-        <Text style={styles.noProjectSub}>
-          Go to the Projects tab and tap a project to load its dashboard here.
-        </Text>
-        <TouchableOpacity
-          style={styles.goToProjectsBtn}
-          onPress={() => router.push('/projects' as any)}
-          accessibilityLabel="Go to Projects"
-        >
-          <Text style={styles.goToProjectsBtnText}>Browse Projects</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    loadData(activeProject?.id);
   }
 
   function toggleProjectViewMode() {
@@ -176,11 +153,11 @@ export default function DashboardScreen() {
     );
   }
 
-  if (!dashboard) {
+  if (!dashboard || !activeProject) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyText}>No data for this project.</Text>
-        <Text style={styles.emptySubtext}>Pull to refresh or check your connection.</Text>
+        <Text style={styles.emptyText}>No projects found.</Text>
+        <Text style={styles.emptySubtext}>Create a project in the Planscape web portal to get started.</Text>
       </View>
     );
   }
@@ -349,14 +326,11 @@ export default function DashboardScreen() {
         <QuickAction label="Meetings" emoji="📅" onPress={() => router.push('/meetings' as any)} />
         <QuickAction label="Transmittals" emoji="📤" onPress={() => router.push('/transmittals' as any)} />
         <QuickAction label="Warnings" emoji="⚠️" onPress={() => router.push('/warnings' as any)} />
-        <QuickAction label="Clashes" emoji="💥" onPress={() => router.push('/clashes' as any)} />
         <QuickAction label="Healthcare" emoji="🏥" onPress={() => router.push('/healthcare' as any)} />
+        <QuickAction label="HVAC" emoji="❄️" onPress={() => router.push('/hvac' as any)} />
         {/* T3-6 — Punchlist mode entry point. Lives next to Diary/Meetings
             so on-site supervisors find it on the same row of muscle memory. */}
         <QuickAction label="Punchlist" emoji="🎯" onPress={() => router.push('/punchlist' as any)} />
-        {/* BCC parity — Team roster and QA dashboard shortcut buttons. */}
-        <QuickAction label="Team" emoji="👥" onPress={() => router.push('/members' as any)} />
-        <QuickAction label="QA" emoji="✅" onPress={() => router.push('/qa' as any)} />
       </View>
 
       {/* Discipline breakdown */}
@@ -517,48 +491,15 @@ const styles = StyleSheet.create({
     fontSize: 48,
     marginBottom: theme.spacing.md,
   },
-  noProjectTitle: {
-    fontSize: theme.fontSize.xl,
+  projectName: {
+    fontSize: theme.fontSize.xxl,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: theme.spacing.sm,
   },
-  noProjectSub: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: theme.spacing.lg,
-    maxWidth: 280,
-  },
-  goToProjectsBtn: {
-    backgroundColor: theme.colors.accent,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.sm,
-  },
-  goToProjectsBtnText: {
-    color: theme.colors.surface,
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-  },
-
-  // Breadcrumb — active project name + tap to go back to list
-  breadcrumb: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  breadcrumbChevron: {
-    fontSize: theme.fontSize.xl,
-    color: theme.colors.accent,
-    marginRight: theme.spacing.xs,
-    lineHeight: 22,
-  },
-  breadcrumbProject: {
-    flex: 1,
+  projectCode: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.accent,
-    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    marginTop: 2,
   },
 
   // Compliance gauge

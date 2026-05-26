@@ -588,7 +588,7 @@ public class MeetingsController : ControllerBase
         {
             _ = _push.SendToUserAsync(assigneeUser.Id, new PushPayload
             {
-                Title = $"Action Item: {item.Description.Length > 40 ? item.Description[..40] + "…" : item.Description}",
+                Title = $"Action Item: {(item.Description.Length > 40 ? item.Description[..40] + "…" : item.Description)}",
                 Body = $"From: {meeting.Title}{(item.DueDate.HasValue ? $" · due {item.DueDate.Value:d MMM}" : "")}",
                 Channel = "meetings",
                 Data = new Dictionary<string, string>
@@ -648,7 +648,7 @@ public class MeetingsController : ControllerBase
             {
                 _ = _push.SendToUserAsync(newAssignee.Id, new PushPayload
                 {
-                    Title = $"Action Reassigned: {action.Description.Length > 40 ? action.Description[..40] + "…" : action.Description}",
+                    Title = $"Action Reassigned: {(action.Description.Length > 40 ? action.Description[..40] + "…" : action.Description)}",
                     Body = $"From: {action.Meeting?.Title ?? "meeting"}{(action.DueDate.HasValue ? $" · due {action.DueDate.Value:d MMM}" : "")}",
                     Channel = "meetings",
                     Data = new Dictionary<string, string>
@@ -663,6 +663,25 @@ public class MeetingsController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
+
+        // Gap 13 — notify the meeting creator/chair when an action item is completed.
+        if ((req.Status == "COMPLETE" || req.Status == "CLOSED") && action.Meeting?.CreatedByUserId.HasValue == true)
+        {
+            _ = _push.SendToUserAsync(action.Meeting.CreatedByUserId.Value, new PushPayload
+            {
+                Title = "Action Item Completed",
+                Body = $"{action.Assignee ?? "Someone"} completed: " +
+                       (action.Description.Length > 60 ? action.Description[..60] + "…" : action.Description),
+                Channel = "meetings",
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "action_completed",
+                    ["meetingId"] = meetingId.ToString(),
+                    ["actionId"] = actionId.ToString(),
+                    ["projectId"] = projectId.ToString()
+                }
+            });
+        }
 
         _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("MeetingUpdated", new
         {

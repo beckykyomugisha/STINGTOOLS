@@ -1,3 +1,4 @@
+using StingTools.Core;
 // PlumbingSystemConfig — Phase 179a foundation.
 //
 // Project-scoped configuration that every other plumbing engine reads:
@@ -54,7 +55,28 @@ namespace StingTools.Core.Plumbing
         public double SupplyPressureBarAtEntry { get; set; } = 3.0;
         public double MaxPressureDropPaPerM     { get; set; } = 300.0;
         public double FittingsEquivLengthFactor { get; set; } = 1.30;
+
+        // Phase 187 — supply hydraulic configuration borrowed from Plumber.
+        // HeadLossMethod: HAZEN-WILLIAMS | DARCY-WEISBACH
+        // SupplySizingStrategy: VELOCITY | HEAD-LOSS
+        // KinViscM2s: kinematic viscosity at design temp (water 20°C ≈ 1e-6).
+        // DxfAutoCadVersion: target ACAD file version for schematic exports.
+        //   Accepts R2000 / R2004 / R2007 / R2010 / R2013 / R2018 / DEFAULT.
+        //   R2010 is the safest middle-ground (works on every AutoCAD 2010+).
+        public string HeadLossMethod         { get; set; } = "HAZEN-WILLIAMS";
+        public string SupplySizingStrategy   { get; set; } = "VELOCITY";
+        public double KinViscM2s             { get; set; } = 1.004e-6;
+        public string DxfAutoCadVersion      { get; set; } = "R2010";
         public string LastSavedUtc  { get; set; } = "";
+
+        // BOQ default rates used by PlumbingBOQEnricher for the categories
+        // BOQCostManager doesn't cover (insulation, sleeves, hangers). Rates
+        // here override TagConfig keys; cost_rates_5d.csv still wins when a
+        // matching row is present so the QS pack stays authoritative.
+        public double BoqDefaultPipeInsulationUgxPerM { get; set; } = 55_500;
+        public double BoqDefaultDuctInsulationUgxPerM { get; set; } = 74_000;
+        public double BoqDefaultSleeveUgxEach         { get; set; } = 185_000;
+        public double BoqDefaultHangerUgxEach         { get; set; } = 111_000;
 
         // ── Defaults ──
         public static PlumbingSystemConfig Defaults() => new PlumbingSystemConfig();
@@ -65,16 +87,33 @@ namespace StingTools.Core.Plumbing
             c.BuildingType = buildingType ?? "Office";
             switch ((buildingType ?? "").ToUpperInvariant())
             {
+                // K = 0.5 — intermittent low-frequency use
                 case "DWELLING":
-                case "OFFICE":      c.KFactor = 0.5; break;
+                case "OFFICE":
+                case "WAREHOUSE":
+                case "DATACENTRE":
+                case "RETAIL":      c.KFactor = 0.5; break;
+
+                // K = 0.7 — frequent commercial / institutional
                 case "HOSPITAL":
                 case "SCHOOL":
-                case "HOTEL":       c.KFactor = 0.7; break;
+                case "HOTEL":
+                case "CAREHOME":
+                case "LABORATORY":
+                case "PRISON":
+                case "MIXEDUSE":    c.KFactor = 0.7; break;
+
+                // K = 1.0 — congested / high-frequency
                 case "RESTAURANT":
                 case "FACTORY":
-                case "SPORTS":      c.KFactor = 1.0; break;
+                case "SPORTS":
+                case "AIRPORT":
+                case "STADIUM":     c.KFactor = 1.0; break;
+
+                // K = 1.2 — peak-event public sanitary
                 case "PUBLICWC":
                 case "PUBLIC WC":   c.KFactor = 1.2; break;
+
                 default:            c.KFactor = 0.7; break;
             }
             return c;

@@ -93,6 +93,13 @@ export default function TabLayout() {
         issue pre-fill from a scanned asset tag, or punchlist check-in.
       */}
       <Tabs.Screen
+        name="models"
+        options={{
+          title: 'Models',
+          tabBarIcon: ({ focused }) => <TabIcon label="🧊" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="scanner"
         options={{
           title: 'Scanner',
@@ -100,13 +107,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/*
-        Tab 4 — My Actions inbox. Aggregates issues assigned to me, meeting
-        action items, and pending document approvals so a BIM/Construction
-        Manager lands here at morning stand-up without hunting through tabs.
-        The content lives in app/inbox/ (its own Stack navigator) outside of
-        (tabs)/; we point href to that route rather than creating a duplicate.
-      */}
+      {/* My Actions inbox */}
       <Tabs.Screen
         name="myactions"
         options={{
@@ -116,11 +117,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/*
-        Hidden screens — still routable via router.push() but absent from the
-        tab bar. Documents, Models, and Settings are accessible from inside the
-        project dashboard (app/projects/[id].tsx navigation grid).
-      */}
+      {/* Hidden screens — routable but absent from tab bar */}
       <Tabs.Screen
         name="documents"
         options={{
@@ -135,6 +132,15 @@ export default function TabLayout() {
           title: 'Models',
         }}
       />
+      {/* Gap H — coordinate alignment management screen */}
+      <Tabs.Screen
+        name="alignment"
+        options={{
+          title: 'Alignment',
+          href: '/alignment' as any,
+          tabBarIcon: ({ focused }) => <TabIcon label="🔧" focused={focused} />,
+        }}
+      />
       <Tabs.Screen
         name="settings"
         options={{
@@ -142,7 +148,13 @@ export default function TabLayout() {
           title: 'Settings',
         }}
       />
-
+      <Tabs.Screen
+        name="ifc"
+        options={{
+          title: 'IFC',
+          tabBarIcon: ({ focused }) => <TabIcon label="🗄" focused={focused} />,
+        }}
+      />
       {/*
         Phase 94 — issue-detail is routable via router.push('/issue-detail?id=<id>')
         but hidden from the bottom tab bar (`href: null`). Tab bar stays visible
@@ -165,6 +177,19 @@ export default function TabLayout() {
           title: 'Photos',
           href: '/site-photos/gallery' as any,
           tabBarIcon: ({ focused }) => <TabIcon label="📸" focused={focused} />,
+        }}
+      />
+      {/*
+        Phase 94 — issue-detail is routable via router.push('/issue-detail?id=<id>')
+        but hidden from the bottom tab bar (`href: null`). Tab bar stays visible
+        while coordinators drill into an issue so they can bounce to Dashboard or
+        Scanner without popping the stack.
+      */}
+      <Tabs.Screen
+        name="issue-detail"
+        options={{
+          href: null,
+          title: 'Issue',
         }}
       />
     </Tabs>

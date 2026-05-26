@@ -10,7 +10,12 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Controls.Primitives;
 using System.Windows.Shapes;
+using Autodesk.Revit.UI;
 using StingTools.Core;
+using MenuItem    = System.Windows.Controls.MenuItem;
+using ContextMenu = System.Windows.Controls.ContextMenu;
+using ComboBox    = System.Windows.Controls.ComboBox;
+using TextBox     = System.Windows.Controls.TextBox;
 
 namespace StingTools.UI
 {
@@ -89,6 +94,11 @@ namespace StingTools.UI
 
         // Slice 4a — Site Photos review surface (14th tab). See UI/SitePhotosTab.cs.
         private const string TabSitePhotos     = "SITE PHOTOS";
+
+        // Phase 183 — HVAC project status mirror (read-only). See UI/HvacTab.cs.
+        // Gated on PRJ_ORG_DISCIPLINES_TXT containing "Mechanical" so non-MEP
+        // projects don't get a dead tab.
+        private const string TabHvac           = "HVAC";
 
         // ── Data ──
         internal CoordData _data;
@@ -524,7 +534,7 @@ namespace StingTools.UI
         // Layout-only tabs (PLATFORM, 4D/5D, DELIVERABLES, PERMISSIONS, COORD LOG, TEAM, MEETINGS) are cached.
         private static readonly HashSet<string> _liveDataTabs = new HashSet<string>(StringComparer.Ordinal)
             { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabWorkflows, TabQA,
-              TabSitePhotos, TabHealthcare };
+              TabSitePhotos, TabHealthcare, TabHvac };
 
         /// <summary>Result action tag returned to the command handler.</summary>
         public string ResultAction { get; set; }
@@ -971,6 +981,13 @@ namespace StingTools.UI
         private BIMCoordinationCenter(CoordData data)
         {
             _data = data;
+            // Make sure the ThemeManager has at least Corporate seeded before
+            // we start baking palette colours into the visual tree below — a
+            // freshly-launched session may open the BCC before the dock panel
+            // (which normally calls InitialiseResources) has been shown.
+            try { ThemeManager.EnsureInitialised(); }
+            catch (Exception exTheme) { StingLog.Warn($"BCC theme init: {exTheme.Message}"); }
+
             // Phase 104: Rebranded — drop "STING" prefix per user request. The window is now
             // titled just "BIM Coordination Center" so it reads as a role-based tool rather
             // than a product feature. "STINGTOOLS BCC" appears in logs/audit trail only.
@@ -1353,6 +1370,22 @@ namespace StingTools.UI
                 TabMeetings, TabProjectMembers, TabCoordLog, TabSitePhotos
             };
             if (isHealthcare) tabsList.Add(TabHealthcare);
+
+            // Phase 183 — HVAC tab gated on PRJ_ORG_DISCIPLINES_TXT.
+            bool isHvac = false;
+            try
+            {
+                var dp = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document
+                    ?.ProjectInformation?.LookupParameter("PRJ_ORG_DISCIPLINES_TXT");
+                if (dp?.HasValue == true && dp.StorageType == Autodesk.Revit.DB.StorageType.String)
+                {
+                    string discs = (dp.AsString() ?? "").ToUpperInvariant();
+                    isHvac = discs.Contains("MECH") || discs.Contains("HVAC") || discs.Contains("MEP");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"HVAC discipline detect: {ex.Message}"); }
+            if (isHvac) tabsList.Add(TabHvac);
+
             string[] tabs = tabsList.ToArray();
             int memberCount = _data.Roles.Count + _data.TeamMembers.Count;
             var badgesList = new System.Collections.Generic.List<string> {
@@ -1410,11 +1443,14 @@ namespace StingTools.UI
                 sp.Children.Add(badgeBorder);
             }
 
+            // Add a 4px left-edge accent stripe (transparent when inactive,
+            // accent-colour when selected) so the active nav has a clear
+            // visual marker beyond a flat fill colour.
             var btn = new Button
             {
                 Content = sp, Tag = label,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
-                Height = 36, Padding = new Thickness(16, 0, 8, 0),
+                Height = 36, Padding = new Thickness(12, 0, 8, 0),
                 Margin = new Thickness(0, 1, 0, 1),
                 Background = Brushes.Transparent, Foreground = Br(CHeaderFg),
                 BorderThickness = new Thickness(0), FontSize = 12,
@@ -1450,12 +1486,15 @@ namespace StingTools.UI
                     nb.FontWeight = FontWeights.Normal;
                 }
             }
-            // Highlight active
+            // Highlight active: subtle hover-level fill + 4px accent stripe
+            // on the left edge so the selected nav reads as a marker, not
+            // just a flat colour swap.
             foreach (var child in _navPanel.Children)
             {
                 if (child is Button nb && nb.Tag as string == tabName)
                 {
-                    nb.Background = Br(CNavSelected);
+                    nb.Background = Br(CNavHover);
+                    nb.BorderBrush = Br(CNavSelected);
                     nb.Foreground = Brushes.White;
                     nb.FontWeight = FontWeights.Bold;
                     _activeNav = nb;
@@ -1487,6 +1526,7 @@ namespace StingTools.UI
                     TabCoordLog       => BuildCoordLogTab(),
                     TabSitePhotos     => BuildSitePhotosTab(),
                     TabHealthcare     => BuildHealthcareTab(),
+                    TabHvac           => HvacTab.BuildTab(this),
                     _               => new TextBlock { Text = $"Unknown tab: {tabName}" }
                 };
                 _tabCache[tabName] = tabContent;
@@ -1644,6 +1684,8 @@ namespace StingTools.UI
                 "Capture model compliance state for meeting record — saves tag %, warnings, stale count to snapshots.json"));
             actionsWrap.Children.Add(MakeActionButton("Validate Tags", "ValidateTags", Br(CGreen),
                 "Run ISO 19650 tag validation — checks all tokens, cross-validates DISC/SYS, reports 4-bucket compliance"));
+            actionsWrap.Children.Add(MakeActionButton("📡 Publish 3D Model", "Publish3DModel", Br(CHeaderBg),
+                "Publish the active 3D model — pick Speckle stream, Autodesk Construction Cloud, or IFC export."));
             stack.Children.Add(actionsWrap);
 
             // Phase 106: Coordination checks — surface rule-based clash, clearance and naming audits
@@ -3099,7 +3141,7 @@ namespace StingTools.UI
                 copyLinkMi.Click += (s2, e2) =>
                 {
                     var r = CtxRow();
-                    if (r != null) { try { Clipboard.SetText($"planscape://issue/{r.Id}"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
+                    if (r != null) { try { Clipboard.SetText($"planscape://issue/{r.Id}"); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); } }
                 };
                 var selectMi = new MenuItem { Header = "Select Linked Elements" };
                 selectMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"SelectIssue_{r.Id}"); };
@@ -4151,6 +4193,26 @@ namespace StingTools.UI
             handoverWrap2.Children.Add(MakeActionButton("BOQ Export",    "BOQExport",            Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Export Bill of Quantities XLSX"));
             handoverWrap2.Children.Add(MakeActionButton("COBie Stream",  "COBieExport",          Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "COBie V2.4 FM handover export"));
             outerStack.Children.Add(handoverWrap2);
+
+            // ── MODEL PUBLISH section ──
+            outerStack.Children.Add(new Border { Height = 1, Background = Br(CBorder), Margin = new Thickness(16, 8, 16, 8) });
+            var publishHeader = MakeSectionHeader("MODEL PUBLISH");
+            publishHeader.Margin = new Thickness(16, 4, 16, 4);
+            outerStack.Children.Add(publishHeader);
+            var publishWrap = new WrapPanel { Margin = new Thickness(16, 0, 16, 8) };
+            publishWrap.Children.Add(MakeActionButton(
+                "📡 Publish 3D Model", "Publish3DModel", Br(CHeaderBg),
+                "Publish the active 3D model — pick Speckle stream, Autodesk Construction Cloud, or IFC export."));
+            publishWrap.Children.Add(MakeActionButton(
+                "Speckle Send",    "SpeckleSend",   Br(CAccent),
+                "Send the active model to a Speckle stream for browser-based 3D viewing."));
+            publishWrap.Children.Add(MakeActionButton(
+                "ACC Publish",     "ACCPublish",    Br(Color.FromRgb(0x15, 0x65, 0xC0)),
+                "Package the model for Autodesk Construction Cloud / BIM 360 publishing."));
+            publishWrap.Children.Add(MakeActionButton(
+                "IFC Export",      "IFCExport",     Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+                "Export the model as IFC 2x3 / IFC 4 into the project's 05_MODELS folder."));
+            outerStack.Children.Add(publishWrap);
 
             // ── BCF section ──
             outerStack.Children.Add(new Border { Height = 1, Background = Br(CBorder), Margin = new Thickness(16, 0, 16, 8) });
@@ -7234,6 +7296,10 @@ namespace StingTools.UI
         // Phase 78 Section 10.6: Proper resource cleanup on window close
         private void OnClosed(object sender, EventArgs e)
         {
+            // Detach the ThemeChanged subscription added in the constructor —
+            // otherwise a closed BCC keeps a static reference alive and reopens
+            // would stack handlers.
+            try { ThemeManager.ThemeChanged -= OnThemeChanged; } catch { /* best effort */ }
             ActionDispatcher = null;
             CurrentInstance = null;
             _tabCache.Clear();
@@ -7869,10 +7935,10 @@ namespace StingTools.UI
                 ctxResolve.Click += (s, e) => { var r = CtxDelRow(); if (r != null) DispatchAction("ApproveDeliverable_" + r.Code); };
                 dgCtx.Items.Add(ctxResolve);
                 var ctxCopyId = new MenuItem { Header = "📋 Copy ID" };
-                ctxCopyId.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText(r.Code ?? string.Empty); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } };
+                ctxCopyId.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText(r.Code ?? string.Empty); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); } } };
                 dgCtx.Items.Add(ctxCopyId);
                 var ctxCopyLink = new MenuItem { Header = "🔗 Copy permalink" };
-                ctxCopyLink.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText($"planscape://deliverable/{r.Code}"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } };
+                ctxCopyLink.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText($"planscape://deliverable/{r.Code}"); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); } } };
                 dgCtx.Items.Add(ctxCopyLink);
                 dgCtx.Items.Add(new Separator());
                 var ctxCDE = new MenuItem { Header = "Update CDE Status" };
@@ -8098,8 +8164,8 @@ namespace StingTools.UI
                 }
 
                 var groups = Newtonsoft.Json.JsonConvert.DeserializeObject<
-                    List<Docs.Workflow.DistributionGroup>>(System.IO.File.ReadAllText(groupsPath))
-                    ?? new List<Docs.Workflow.DistributionGroup>();
+                    List<Planscape.Docs.Workflow.DistributionGroup>>(System.IO.File.ReadAllText(groupsPath))
+                    ?? new List<Planscape.Docs.Workflow.DistributionGroup>();
 
                 if (groups.Count == 0)
                 {
@@ -8686,8 +8752,9 @@ namespace StingTools.UI
             var tabDStack = new StackPanel { Margin = new Thickness(8) };
 
             // Build workload rows from TeamWorkloadEngine
-            var workloadRows = new List<TeamWorkloadEngine.WorkloadRow>();
-            try { workloadRows = TeamWorkloadEngine.Build(_doc); }
+            var workloadRows = new List<StingTools.BIMManager.TeamWorkloadEngine.WorkloadRow>();
+            var _workloadDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+            try { workloadRows = StingTools.BIMManager.TeamWorkloadEngine.Build(_workloadDoc); }
             catch (Exception ex) { StingLog.Warn($"BCC workload tab: {ex.Message}"); }
 
             if (workloadRows.Count == 0)
@@ -8761,15 +8828,16 @@ namespace StingTools.UI
             {
                 try
                 {
-                    string rows2 = TeamWorkloadEngine.Build(_doc)
+                    var exportDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                    string rows2 = StingTools.BIMManager.TeamWorkloadEngine.Build(exportDoc)
                         .OrderByDescending(r => r.Critical * 3 + r.High * 2 + r.OpenTotal)
                         .Select(r => $"{r.Assignee},{r.OpenTotal},{r.Critical},{r.High},{r.Overdue},{r.OldestDays}")
                         .Aggregate("Assignee,Open,Critical,High,Overdue,OldestDays\n", (a, b) => a + b + "\n");
-                    string path = Path.Combine(OutputLocationHelper.GetOutputDirectory(_doc), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
+                    string path = System.IO.Path.Combine(OutputLocationHelper.GetOutputDirectory(exportDoc), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
                     File.WriteAllText(path, rows2);
                     TaskDialog.Show("STING — Team Workload", $"Exported to:\n{path}");
                 }
-                catch (Exception ex) { StingLog.Warn($"Workload export: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Workload export: {ex2.Message}"); }
             };
             tabDStack.Children.Add(wExportBtn);
 
@@ -9009,6 +9077,7 @@ namespace StingTools.UI
                 "FullComplianceDashboard" => "Full project compliance report with per-discipline breakdown",
                 "DocumentManager" => "Open Document Management Center — folders, issues, revisions, CDE",
                 "RepeatLastWorkflow" => $"Re-run last workflow preset",
+                "Publish3DModel" => "Publish the active 3D model — pick Speckle stream, Autodesk Construction Cloud, or IFC export",
                 // Model Health
                 "RefreshHealth" => "Refresh model health metrics (warnings, tags, stale elements)",
                 "ExportHealth" => "Export model health report to CSV/HTML",

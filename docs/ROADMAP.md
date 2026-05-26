@@ -6,6 +6,7 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 
 - [`PLACEMENT_CENTRE_GUIDE.md`](PLACEMENT_CENTRE_GUIDE.md) — plain-English user guide to the Placement Centre: every button, every editor field, background concepts (anchors, regex, mounting reference, provenance, standards), worked walk-throughs, troubleshooting and a cheat-sheet (2026-04-25).
 - [`PLACEMENT_CENTRE_REVIEW.md`](PLACEMENT_CENTRE_REVIEW.md) — flexibility / functionality / automation gap audit of the Placement Centre with PC-01..PC-25 backlog and a recommended ≈ 25-category baseline catalogue (2026-04-25).
+- [`HEALTHCARE_PACK_DESIGN.md`](HEALTHCARE_PACK_DESIGN.md) — multi-phase design document for the Healthcare / Hospital Design pack covering HTM / HBN / FGI / NFPA 99 / NCRP 147 / ASHRAE 170 / ISO 14644 / USP 797-800 / SFG20-Healthcare integration. Defines ~140 new shared parameters, 60 filters, 16 drawing types, 4 ViewStylePacks, 8 validators, COBie-Healthcare overlay, RDS template engine, MGPS package, radiation calc, adjacency analyser, anti-ligature pack, behavioural-health pack, digital-twin / IoT bridge, mobile commissioning app and server APIs. Phased H-1..H-22 with file-by-file integration map (2026-05-08).
 
 ## How to use this file
 
@@ -316,6 +317,70 @@ in `CHANGELOG.md`).
 |-----|----------|--------|
 | `TPL-FOLLOW-01` `.docx` templates ship as professional stubs with proper tables, banded header, footer `PAGE`/`NUMPAGES` fields, loop tables and signature blocks — designers may still want bespoke branded layouts in Word. | `StingTools/Docs/_template_sources/*.docx` | Open — non-blocking (stubs render cleanly). |
 | `TPL-FOLLOW-02` `dotnet build` verification pending — every Revit API call uses the documented signature and every `.cs` file was brace-balanced after stripping strings and comments. | All 22 new `.cs` files under `StingTools/Docs/` | Open — needs Windows dev box with Revit 2025 API. |
-| `TPL-FOLLOW-03` "My queue" sub-section in BCC Deliverables tab (S12 v1.1) — `WorkflowEngine.GetMyQueue(userEmail)` is implemented but no UI binding yet. | `StingTools/UI/BIMCoordinationCenter.cs` | Open — data layer ready. |
+| `TPL-FOLLOW-03` "My queue" sub-section in BCC Deliverables tab (S12 v1.1) — `WorkflowEngine.GetMyQueue(userEmail)` is implemented but no UI binding yet. | `StingTools/UI/BIMCoordinationCenter.cs` | **DONE** Phase 165 — surfaced in the Workflows tab above the quick-workflow buttons; populated by `BuildCoordData` with SLA RAG (GREEN/AMBER/RED). |
 | `TPL-FOLLOW-04` "Recipient matrix" view in BCC Deliverables tab (S18) — `DistributionGroups.SuggestFor(deliverable)` and group persistence are implemented; matrix view not yet drawn. | `StingTools/UI/BIMCoordinationCenter.cs` | Open — data layer ready. |
 | `TPL-FOLLOW-05` Faceted filter pills + saved-searches combo in Document Manager filter bar (S17). `DocumentIndex.Search` + `SavedSearchStore` implemented; dialog bar still uses the legacy free-text box. | `StingTools/UI/DocumentManagementDialog.cs` | Open — data layer ready. |
+
+---
+
+### General Tagging Functionality Review — 2026-05-17 Audit
+
+A holistic review of the tagging subsystem was performed covering the full pipeline (`TagPipelineHelper.RunFullPipeline`), the auto-tagger IUpdater, NLP processor, placement presets, style rules, and supporting data files. The review identified seven actionable gaps, all of which were fixed in this session on branch `claude/review-tagging-functionality-0yYY5`.
+
+#### Fixed Gaps (Phase 177 — 2026-05-17)
+
+| ID | Gap | File(s) Changed | Resolution |
+|----|-----|-----------------|------------|
+| GAP-STATUS-01 | STATUS token can drift from Revit phase model after phases are reorganised post-tagging. When phases are renamed or elements moved to a different phase, existing STATUS values become stale — but `PopulateAll` only writes STATUS when the token is empty (unless `overwrite=true`). | `TagConfig.cs`, `ParameterHelpers.cs` | Added `AutoCorrectStatusFromPhase` boolean property to `TagConfig` loaded from `AUTO_CORRECT_STATUS_FROM_PHASE` in `project_config.json` (default `false` for backwards compatibility). When `true`, `TokenAutoPopulator.PopulateAll` re-derives STATUS from Revit phase data and overwrites the existing value even without the `overwrite` flag. ISO 19650 projects reorganising phases mid-project should enable this key. |
+| GAP-PLACE-01 / ENH-03 | Leader clearance margin for elbow avoidance (`LeaderClearanceMargin` in `SmartTagPlacementCommand`) was a `const double = 0.5` — no way to tune it without recompiling. Dense plant rooms or tight service corridors need 2–3 ft; sparse office floors may only need 0.1 ft. | `SmartTagPlacementCommand.cs` | Changed `const double LeaderClearanceMargin` to a computed property reading `TagConfig.GetConfigDouble("LEADER_CLEARANCE_MARGIN_FT", 0.5)`. Projects set this via `project_config.json`. Added `"LEADER_CLEARANCE_MARGIN_FT"` to `TagConfig.knownKeys` to suppress "unknown key" warnings. |
+| GAP-AT-02 | Elements tagged asynchronously by `StingAutoTagger` (element placement or deferred replay) were indistinguishable from manually tagged elements in the `ASS_TAG_MODIFIED_BY_TXT` audit trail. ISO 19650-2 §A.5 requires traceability of the person/process responsible. | `StingAutoTagger.cs` | After every successful `RunFullPipeline` call in `ProcessBatch`, the auto-tagger now prepends `[AUTO_TAGGER]` to `ASS_TAG_MODIFIED_BY_TXT` if not already present, preserving any existing user name from a prior manual edit. |
+| GAP-NLP-01 | `NLPCommandProcessor.IntentPatterns` lacked coverage for ~15 common user intents: ISO validation commands (`validate tags`, `check ISO`, `full compliance check`, `dry run tag`), token-level setters (`set level`, `set system`, `set function`, `set product`), placement resolution (`fix overlap`, `resolve collision`, `reset position`, `lock position`, `align horizontal/vertical`, `stack tags`, `learn placement`, `apply template`, `batch place`), 3D tagging (`tag 3d`), and repair commands (`repair duplicate seq`, `decluster tags`). | `NLPCommandProcessor.cs` | Added ~15 new regex → intent mappings covering all identified missing patterns. |
+| GAP-STYLE-01 | `TAG_STYLE_RULES.json` had 7 named presets (Default through Zone Highlight) covering only DISC-based and system-based colour switching. Missing were: stale-element highlighting, revision-code colouring, per-level identification, per-location colour coding, completeness QA (complete / partial / missing tiers), combined discipline+system+function rules for HVAC/electrical/FP, and auto-tagger audit visibility. | `TAG_STYLE_RULES.json` | Added 8 new named presets: `Stale`, `Revision`, `Level`, `Location`, `Completeness QA`, `Discipline + System`, `Auto-Tagger Audit`, each with appropriate condition arrays and type mappings. |
+| GAP-DATA-01 | `TAG_PLACEMENT_PRESETS_DEFAULT.json` had rules for only 17 categories (12 standard MEP/arch + 5 STING-LPS). The smart placement engine uses category name as a lookup key, so any category not listed falls through to a generic default with no tuning. Missing categories included: Plumbing Fixtures, Conduits, Cable Trays, all Communication/Data/Security/Nurse-Call device types, Structural Columns, Structural Framing, Structural Foundations, Walls, Floors, Ceilings, Stairs, Furniture, Casework, Parking, MEP Spaces, Duct / Pipe Accessories & Fittings, Flex Ducts/Pipes, Mass, Curtain Panels, Mullions, Structural Rebar, Planting, Site, Topography, plus healthcare-specific STING tags. | `TAG_PLACEMENT_PRESETS_DEFAULT.json` | Expanded from 17 rules to 67 rules (50 new categories added). Each new rule has a calibrated `preferredSide` (0=above, 1=right, 2=left, 3=below), `offsetX/Y`, `addLeader`, `orientation`, and `leaderThreshold` based on industry annotation conventions (BS 1192, CIBSE, HTM). Added healthcare STING tags: Medical Gas Outlet, Medical Gas Manifold, Emergency Equipment, HVAC Sensor, Fire Door, Tie-In Point, Waste Container, Radiation Shielding. |
+| GAP-DATA-02 | No machine-readable registry of valid PROD codes existed. `TagConfig.GetFamilyAwareProdCode()` contains ~35 hardcoded `if/else` branches that are invisible to auditing tools and cannot be extended without code changes. No way to validate PROD codes against a known catalogue or report coverage gaps. | `StingTools/Data/STING_PROD_CODES.csv` (new file) | Created a 165-row PROD code registry CSV (`PROD_CODE, CATEGORY, FAMILY_PATTERN, DESCRIPTION, DISCIPLINE, SYSTEM, STANDARD_REF`) covering all MEP, structural, healthcare, fire protection, and site categories. Intended as the single source of truth for `ValidateProdForDisc()` coverage audits and future refactoring of `GetFamilyAwareProdCode()` to be data-driven. |
+| GAP-DATA-03 | The SYS→FUNC validation matrix (`_validFuncsForSys` in `TagConfig.cs`) was entirely hardcoded — ~25 systems each with a hardcoded array of valid FUNC codes. Any extension required a code change and recompilation. The matrix was not visible to QA processes or project configuration tooling. | `StingTools/Data/STING_FUNC_SYS_MATRIX.csv` (new file) | Created a 130-row SYS/FUNC matrix CSV (`SYS_CODE, SYS_DESCRIPTION, FUNC_CODE, FUNC_DESCRIPTION, DISCIPLINE, CIBSE_REF, ISO_19650_VALID`) covering: HVAC, HWS, DCW, DHW, SAN, RWD, GAS, FP, LV, HV, FA, ICT, COM, NCL, SEC, BMS, MGS, LPS, RAD, ARC, STR, GEN. Includes CIBSE / BS standard references per row. Intended as the source for a future data-driven `ValidateFuncForSys()` loader and `STING_FUNC_SYS_MATRIX` NLP command. |
+
+#### False Positives Identified and Ruled Out
+
+| Reported Gap | Verdict |
+|---|---|
+| `CommissioningChecklistCommand` missing | **False positive** — exists at `IoTMaintenanceCommands.cs:374`, wired in `StingCommandHandler.cs:2916`. |
+| `ValidateProdForDisc` always returns null | **False positive** — method has real implementation with 35+ category branches; not null. |
+
+#### Data Files Created This Session
+
+| File | Rows | Purpose |
+|------|------|---------|
+| `StingTools/Data/STING_PROD_CODES.csv` | 165 | Machine-readable PROD code registry for coverage auditing and future data-driven refactor |
+| `StingTools/Data/STING_FUNC_SYS_MATRIX.csv` | 130 | Editable SYS→FUNC validation matrix replacing hardcoded `_validFuncsForSys` dictionary |
+
+#### Remaining Open Items (not implemented — require further investigation)
+
+| ID | Gap | Why Deferred |
+|----|-----|--------------|
+| GAP-REFACTOR-01 | Refactor `GetFamilyAwareProdCode()` to load from `STING_PROD_CODES.csv` at startup | Requires testing the CSV loader path against all 165 rows and updating the `knownKeys` / config infrastructure. Medium-complexity refactor. |
+| GAP-REFACTOR-02 | Refactor `_validFuncsForSys` to load from `STING_FUNC_SYS_MATRIX.csv` | Same loader pattern as above. Both refactors should land together to avoid two separate data-loading PRs. |
+| GAP-NLP-02 | NLP patterns for healthcare commands added in Phase 176 ("run pressure audit", "mgps verify", etc.) | 19 patterns were added to NLPCommandProcessor in the Healthcare Pack. Verify they are still present after this session's append. |
+| GAP-UI-01 | No UI surface for `AUTO_CORRECT_STATUS_FROM_PHASE` toggle | `ConfigEditorCommand` should expose this boolean alongside the existing toggle controls. Low risk but requires XAML + command handler changes. |
+| GAP-UI-02 | No UI surface for `LEADER_CLEARANCE_MARGIN_FT` | Same as above — could be added to the Smart Placement wizard or Config Editor as a numeric text box. |
+
+| GAP-STRUCT-01 | StructuralAnalysisEngine subchecks need per-subcheck phases | `StructuralAnalysisEngine` general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. (Note rescued during merge of `claude/stingtools-bim-research-8Kkwv` into `claude/continue-model-viewer-updates-4GJR4`; previously orphaned in a truncated CHANGELOG.md.) |
+
+#### Symbol library — Phase 188 closure status
+
+Closed in Phase 188 (this session):
+
+| ID | Gap | Status |
+|---|---|---|
+| ✅ GAP-SYM-01 | BS EN 60617 SLD parity (15 → 52) | **CLOSED** — `STING_SLD_SYMBOLS_BS.json` brought to IEC parity with 37 new symbols (transformers, generation, protection, switches, busbars, motors, meters, ATS, EV charger). |
+| ✅ GAP-SYM-02 | NFPA 70 / NEC US-style parity (13 → 47) | **CLOSED** — `STING_SLD_SYMBOLS_NFPA.json` extended with 34 NEC + NFPA 72 symbols (NEMA receptacles, NFPA 72 alarm devices, NEC panels/busways/breakers). |
+| ✅ GAP-SYM-03 | CIBSE building-services SLD content (14 → 36) | **CLOSED** — `STING_SLD_SYMBOLS_CIBSE.json` extended with 22 mechanical-services symbols (pumps, fans, heat exchangers, tanks, boilers/chillers/heat pumps, AHU/FCU, control valves, sensors). |
+| ✅ GAP-SYM-07 | Symbol coverage audit command | **CLOSED — pre-existing** — `SymbolCoverageAuditCommand` (`Commands/Symbols/SymbolMaintenanceCommands.cs:43`) already wraps `SymbolCoverageAuditor.GenerateCoverageReport`. Phase 188 audit had flagged this as missing; on inspection it is wired and functional. |
+
+Still open (cannot complete in Linux sandbox or out-of-scope for this session):
+
+| ID | Gap | Effort | Why open |
+|---|---|---|---|
+| GAP-SYM-04 | Verify and promote `status: draft` → `status: reviewed` for the 884 symbols by running each in Revit against its standard plate | 6–8 weeks (1 discipline/week × 8) | This is the path from "comprehensive draft" to "comprehensive verified". No symbol is `final` without (a) seed `.rfa` committed, (b) Revit-rendered comparison vs standard plate, (c) `STING_FINALIZATION_CHECKLIST` bitmask = 127. Cannot run in Linux sandbox. |
+| GAP-SYM-05 | Author hand-drafted seed `.rfa` families for the ISO 6412 priority symbols (5 elbows + 5 valves + 5 flanges + butt-weld + tee + cap = 18 families) | 3 days | Currently every ISO 6412 symbol resolves via the runtime generator. Hand-drafted seeds give pixel-perfect standard accuracy and let users hot-fix specific symbols without regenerating the whole pack. Requires Revit family editor. |
+| GAP-SYM-06 | Project-scoped overlay layer for symbol catalogues, mirroring the Drawing-Type project override mechanism (`<project>/_BIM_COORD/symbol_overrides.json`) | 1 week | Every symbol catalogue today loads directly from `StingTools/Data/Symbols/`. Organisations want to override specific glyphs (e.g. corporate sub-form of MCB) without forking the corporate baseline. Touches 5+ catalogue loaders so deferred for a focused refactor session. |

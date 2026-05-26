@@ -1708,6 +1708,313 @@ export function getSitePhotoDigestPreview(projectId: string): Promise<SitePhotoD
   return apiFetch(`/api/projects/${projectId}/photos/digest-preview`);
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+//  Phase 179 — site-photo workflow enhancements
+// ──────────────────────────────────────────────────────────────────────────────
+
+export type PhotoAlbum = {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  visibility: 'Internal' | 'Members' | 'Client' | 'Distribution';
+  kind?: string;
+  distributionGroupId?: string;
+  distributionGroupName?: string;
+  coverPhotoId?: string;
+  isLocked: boolean;
+  lockedAt?: string;
+  autoArchiveAfterDays?: number;
+  createdAt: string;
+  photoCount: number;
+};
+
+export type PhotoAlbumDetail = {
+  album: PhotoAlbum;
+  photos: { photoId: string; sortOrder: number; addedAt: string }[];
+};
+
+export function listPhotoAlbums(projectId: string, kind?: string, visibility?: string): Promise<PhotoAlbum[]> {
+  const qs = new URLSearchParams();
+  if (kind) qs.set('kind', kind);
+  if (visibility) qs.set('visibility', visibility);
+  const suffix = qs.toString() ? `?${qs}` : '';
+  return apiFetch(`/api/projects/${projectId}/photo-albums${suffix}`);
+}
+
+export function getPhotoAlbum(projectId: string, albumId: string): Promise<PhotoAlbumDetail> {
+  return apiFetch(`/api/projects/${projectId}/photo-albums/${albumId}`);
+}
+
+export function createPhotoAlbum(
+  projectId: string,
+  body: {
+    name: string;
+    description?: string;
+    visibility?: 'Internal' | 'Members' | 'Client' | 'Distribution';
+    distributionGroupId?: string;
+    kind?: string;
+    autoArchiveAfterDays?: number;
+  },
+): Promise<PhotoAlbum> {
+  return apiFetch(`/api/projects/${projectId}/photo-albums`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export function addPhotosToAlbum(projectId: string, albumId: string, photoIds: string[]): Promise<{ added: number; total: number }> {
+  return apiFetch(`/api/projects/${projectId}/photo-albums/${albumId}/photos`, {
+    method: 'POST',
+    body: JSON.stringify({ photoIds }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export function removePhotoFromAlbum(projectId: string, albumId: string, photoId: string): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/photo-albums/${albumId}/photos/${photoId}`, { method: 'DELETE' });
+}
+
+export function lockPhotoAlbum(projectId: string, albumId: string, locked: boolean): Promise<PhotoAlbum> {
+  return apiFetch(`/api/projects/${projectId}/photo-albums/${albumId}/${locked ? 'lock' : 'unlock'}`, {
+    method: 'POST',
+  });
+}
+
+export type DistributionGroup = {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  kind: 'Client' | 'Internal' | 'Mixed';
+  includeInDailyDigest: boolean;
+  forceRedacted: boolean;
+  memberCount: number;
+  createdAt: string;
+};
+
+export function listDistributionGroups(projectId: string): Promise<DistributionGroup[]> {
+  return apiFetch(`/api/projects/${projectId}/distribution-groups`);
+}
+
+export function createDistributionGroup(
+  projectId: string,
+  body: {
+    name: string;
+    description?: string;
+    kind?: 'Client' | 'Internal' | 'Mixed';
+    includeInDailyDigest?: boolean;
+    forceRedacted?: boolean;
+  },
+): Promise<DistributionGroup> {
+  return apiFetch(`/api/projects/${projectId}/distribution-groups`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export type PhotoChecklist = {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  kind?: string;
+  status: 'Draft' | 'Active' | 'Closed' | 'Archived';
+  levelCode?: string;
+  zoneCode?: string;
+  workPackageId?: string;
+  dueAt?: string;
+  createdAt: string;
+  closedAt?: string;
+  total: number;
+  done: number;
+};
+
+export type PhotoChecklistItem = {
+  id: string;
+  checklistId: string;
+  title: string;
+  description?: string;
+  sortOrder: number;
+  defaultReason: string;
+  isRequired: boolean;
+  isWaived: boolean;
+  waivedReason?: string;
+  fulfilledByPhotoId?: string;
+  fulfilledAt?: string;
+  fulfilledByUserId?: string;
+};
+
+export type PhotoChecklistDetail = {
+  checklist: PhotoChecklist;
+  items: PhotoChecklistItem[];
+};
+
+export function listPhotoChecklists(projectId: string, status?: string): Promise<PhotoChecklist[]> {
+  const suffix = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiFetch(`/api/projects/${projectId}/photo-checklists${suffix}`);
+}
+
+export function getPhotoChecklist(projectId: string, checklistId: string): Promise<PhotoChecklistDetail> {
+  return apiFetch(`/api/projects/${projectId}/photo-checklists/${checklistId}`);
+}
+
+export function fulfilChecklistItem(
+  projectId: string, checklistId: string, itemId: string, photoId: string,
+): Promise<PhotoChecklistItem> {
+  return apiFetch(`/api/projects/${projectId}/photo-checklists/${checklistId}/items/${itemId}/fulfil`, {
+    method: 'POST',
+    body: JSON.stringify({ photoId }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export type PhotoAnnotation = {
+  id: string;
+  photoId: string;
+  shapesJson: string;
+  summary?: string;
+  createdAt: string;
+  createdByName?: string;
+};
+
+export function listPhotoAnnotations(projectId: string, photoId: string): Promise<PhotoAnnotation[]> {
+  return apiFetch(`/api/projects/${projectId}/photos/${photoId}/annotations`);
+}
+
+export function createPhotoAnnotation(
+  projectId: string, photoId: string, shapesJson: string, summary?: string,
+): Promise<PhotoAnnotation> {
+  return apiFetch(`/api/projects/${projectId}/photos/${photoId}/annotations`, {
+    method: 'POST',
+    body: JSON.stringify({ shapesJson, summary }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export type PhotoVoiceNote = {
+  id: string;
+  photoId: string;
+  documentId: string;
+  transcriptText?: string;
+  durationSeconds: number;
+  createdAt: string;
+  createdBy?: string;
+};
+
+export async function uploadPhotoVoiceNote(
+  projectId: string,
+  photoId: string,
+  args: {
+    fileUri: string;
+    fileName?: string;
+    transcript?: string;
+    durationSeconds?: number;
+    language?: string;
+  },
+): Promise<PhotoVoiceNote> {
+  const fd = new FormData();
+  // RN typing for FormData file is awkward — cast to any to side-step.
+  fd.append('file', {
+    uri: args.fileUri,
+    name: args.fileName ?? `voice-${Date.now()}.m4a`,
+    type: 'audio/m4a',
+  } as unknown as Blob);
+  if (args.transcript) fd.append('transcript', args.transcript);
+  if (args.durationSeconds != null) fd.append('durationSeconds', String(args.durationSeconds));
+  if (args.language) fd.append('language', args.language);
+  return apiFetch(`/api/projects/${projectId}/photos/${photoId}/voice-notes`, {
+    method: 'POST',
+    body: fd as unknown as BodyInit,
+  });
+}
+
+export type PhotoShareLink = {
+  id: string;
+  projectId: string;
+  photoId?: string;
+  albumId?: string;
+  token: string;
+  label?: string;
+  expiresAt?: string;
+  forceRedacted: boolean;
+  maxFetches?: number;
+  fetchCount: number;
+  createdAt: string;
+  revokedAt?: string;
+};
+
+export function createPhotoShareLink(
+  projectId: string,
+  body: {
+    photoId?: string;
+    albumId?: string;
+    label?: string;
+    expiresAt?: string;
+    forceRedacted?: boolean;
+    maxFetches?: number;
+  },
+): Promise<PhotoShareLink> {
+  return apiFetch(`/api/projects/${projectId}/photo-share-links`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+// ── Phase 180 — Photo policy ─────────────────────────────────────────
+
+export type PhotoPolicy = {
+  id: string;
+  projectId: string;
+  allowedReasonsJson?: string;
+  defaultAudienceByReasonJson?: string;
+  watermarkLogoPath?: string;
+  watermarkFooterTemplate?: string;
+  watermarkRequired: boolean;
+  faceBlurRequired: boolean;
+  plateBlurRequired: boolean;
+  retentionDays?: number;
+  autoArchiveAfterHandover: boolean;
+  geofenceWkt?: string;
+  offsiteAudience?: string;
+  digestHourLocal: number;
+  digestDistributionGroupId?: string;
+  approvalChain: string;
+  enforceChecklistOnShiftEnd: boolean;
+  defaultAlbumByReasonJson?: string;
+  ndaText?: string;
+  updatedAt: string;
+};
+
+export function getPhotoPolicy(projectId: string): Promise<PhotoPolicy> {
+  return apiFetch(`/api/projects/${projectId}/photo-policy`);
+}
+
+// ── Phase 179.2 — NDA acceptance ─────────────────────────────────────
+
+export type PhotoNdaAcceptance = {
+  photoId: string;
+  userId: string;
+  acceptedAt: string;
+  ipAddress?: string;
+  userAgent?: string;
+  acceptedTextSha256?: string;
+};
+
+/** Idempotent — re-posting returns the existing acceptance row. */
+export function acceptPhotoNda(
+  projectId: string, photoId: string, acceptedTextSha256?: string,
+): Promise<PhotoNdaAcceptance> {
+  return apiFetch(`/api/projects/${projectId}/photos/${photoId}/accept-nda`, {
+    method: 'POST',
+    body: JSON.stringify({ acceptedTextSha256 }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 // ── Healthcare Pack H-22 ──
 
 export type HealthcarePressureLog = {
@@ -1795,6 +2102,67 @@ export function postAntiLigatureAudit(projectId: string, body: HealthcareAntiLig
 
 export function getRdsSnapshot(projectId: string, roomBimId: string): Promise<unknown> {
   return apiFetch(`/api/projects/${projectId}/healthcare/rds/${encodeURIComponent(roomBimId)}`);
+}
+
+// ── Phase 188 (Tier 3) — HVAC snapshots from the desktop plugin. ──
+
+export type HvacCard = {
+  latest: string | null;
+  rag: 'R' | 'A' | 'G';
+  inspected: number;
+  pass: number;
+  warn: number;
+  fail: number;
+  totalKw: number;
+  worstValue: number;
+};
+
+export type HvacDashboard = {
+  loads:   HvacCard;
+  balance: HvacCard;
+  drift:   HvacCard;
+  carbon:  HvacCard;
+  sizing:  HvacCard;
+  last30d: { kind: string; total: number; pass: number; warn: number; fail: number }[];
+};
+
+export function getHvacDashboard(projectId: string): Promise<HvacDashboard> {
+  return apiFetch(`/api/projects/${projectId}/hvac/dashboard`);
+}
+
+export type HvacSnapshotSummary = {
+  id: string;
+  kind: string;
+  capturedAt: string;
+  rag: 'R' | 'A' | 'G';
+  inspected: number;
+  pass: number;
+  warn: number;
+  fail: number;
+  totalKw: number;
+  worstValue: number;
+};
+
+export function listHvacSnapshots(
+  projectId: string,
+  kind?: string,
+  take: number = 50,
+): Promise<HvacSnapshotSummary[]> {
+  const qs = new URLSearchParams();
+  if (kind) qs.set('kind', kind);
+  qs.set('take', String(take));
+  return apiFetch(`/api/projects/${projectId}/hvac/snapshots?${qs.toString()}`);
+}
+
+export type HvacSnapshotDetail = HvacSnapshotSummary & {
+  payloadJson: string;
+};
+
+export function getHvacSnapshot(
+  projectId: string,
+  snapshotId: string,
+): Promise<HvacSnapshotDetail> {
+  return apiFetch(`/api/projects/${projectId}/hvac/snapshots/${snapshotId}`);
 }
 
 // ── Phase 178f — penetration commissioning sign-off (FRP / damper / acoustic seal). ──
@@ -2084,4 +2452,131 @@ export function listModelCheckRuns(projectId: string): Promise<ModelCheckRun[]> 
 
 export function getModelCheckRun(projectId: string, runId: string): Promise<ModelCheckRun> {
   return apiFetch(`/api/projects/${projectId}/model-checks/runs/${runId}`);
+}
+
+// ── Gap B/E: Model transform endpoints ───────────────────────────────────
+
+export interface ModelTransform {
+  id?: string;
+  projectModelId: string;
+  translationX: number;
+  translationY: number;
+  translationZ: number;
+  rotationDeg: number;
+  scaleFactor: number;
+  isConfirmed: boolean;
+  notes?: string | null;
+  updatedAt?: string;
+  updatedBy?: string | null;
+}
+
+export function getModelTransform(projectId: string, modelId: string): Promise<ModelTransform> {
+  return apiFetch(`/api/projects/${projectId}/models/${modelId}/transform`);
+}
+
+export function upsertModelTransform(
+  projectId: string,
+  modelId: string,
+  body: {
+    translationX: number; translationY: number; translationZ: number;
+    rotationDeg: number; scaleFactor: number;
+    isConfirmed: boolean; notes?: string;
+  },
+): Promise<ModelTransform> {
+  return apiFetch(`/api/projects/${projectId}/models/${modelId}/transform`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function resetModelTransform(projectId: string, modelId: string): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/models/${modelId}/transform`, { method: 'DELETE' });
+}
+
+// ── Gap F: Auto-align ─────────────────────────────────────────────────────
+
+export interface AutoAlignResult {
+  success: boolean;
+  translationX: number;
+  translationY: number;
+  translationZ: number;
+  rotationDeg: number;
+  scaleFactor: number;
+  referenceModelId?: string | null;
+  message?: string | null;
+}
+
+export function autoAlignModel(projectId: string, modelId: string): Promise<AutoAlignResult> {
+  return apiFetch(`/api/projects/${projectId}/models/${modelId}/alignment/auto-align`, {
+    method: 'POST',
+  });
+}
+
+// ── Gap G: Federated coherence ────────────────────────────────────────────
+
+export interface CoherenceScanResult {
+  projectId: string;
+  scannedAt: string;
+  modelCount: number;
+  issuesFound: number;
+  issues: Array<{
+    severity: 'INFO' | 'WARN' | 'FAIL';
+    code: string;
+    message: string;
+    modelIds?: string[];
+    fixHint?: string;
+  }>;
+  verdict: 'PASS' | 'WARN' | 'FAIL';
+}
+
+export function runCoherenceScan(projectId: string): Promise<CoherenceScanResult> {
+  return apiFetch(`/api/projects/${projectId}/alignment/coherence`, { method: 'POST' });
+}
+
+// ── Gap A: Coordinate system ──────────────────────────────────────────────
+
+export interface ProjectCoordinateSystem {
+  id?: string;
+  projectId: string;
+  crsEpsgCode?: string | null;
+  crsName?: string | null;
+  originEasting?: number | null;
+  originNorthing?: number | null;
+  originElevation?: number | null;
+  trueNorthDeg: number;
+  lengthUnit: string;
+  referenceModelId?: string | null;
+  notes?: string | null;
+  updatedAt?: string;
+  updatedBy?: string | null;
+}
+
+export function getCoordinateSystem(projectId: string): Promise<ProjectCoordinateSystem> {
+  return apiFetch(`/api/projects/${projectId}/coordinate-system`);
+}
+
+// G11 fix: server POST returns 409 if CRS already exists; fall back to PUT.
+export async function upsertCoordinateSystem(
+  projectId: string,
+  body: {
+    crsEpsgCode?: string; crsName?: string;
+    originEasting?: number; originNorthing?: number; originElevation?: number;
+    trueNorthDeg: number; lengthUnit: string;
+    referenceModelId?: string; notes?: string;
+  },
+): Promise<ProjectCoordinateSystem> {
+  try {
+    return await apiFetch(`/api/projects/${projectId}/coordinate-system`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  } catch (err: any) {
+    if (err?.status === 409) {
+      return apiFetch(`/api/projects/${projectId}/coordinate-system`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      });
+    }
+    throw err;
+  }
 }

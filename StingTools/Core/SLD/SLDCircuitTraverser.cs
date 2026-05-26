@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — SLD circuit traverser (Phase 175 + Phase 179 enhancements)
 //
 // Walks the project's electrical hierarchy starting from root panels.
@@ -225,8 +226,6 @@ namespace StingTools.Core.SLD
                                 }
                                 else
                                 {
-                                    // SLD-02: detect protection devices
-                                    bool isProtection = IsProtectionDevice(child);
                                     var leaf = new SLDNode
                                     {
                                         ElementId      = child.Id,
@@ -393,10 +392,10 @@ namespace StingTools.Core.SLD
                             if (rt > 0) node.RuntimeMin = rt;
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"ReadElementParams runtime: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"ReadElementParams runtime: {ex2.Message}"); }
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"ReadElementParams: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"ReadElementParams: {ex2.Message}"); }
         }
 
         // ── Symbol concept resolution ────────────────────────────────────────
@@ -419,14 +418,6 @@ namespace StingTools.Core.SLD
                 var concept = Symbols.SymbolConceptRegistry
                     .GetConceptsForCategory(el.Category?.Name)
                     .FirstOrDefault();
-
-                // SLD-15: warn when no concept binding found
-                if (concept == null)
-                    StingTools.Core.StingLog.Warn(
-                        $"SLD: no STING_SYMBOL_ID and no concept for " +
-                        $"category='{el.Category?.Name}' element='{el.Name}'. " +
-                        $"Bind STING_SYMBOL_ID shared parameter to fix this.");
-
                 return concept?.ConceptId;
             }
             catch (Exception ex)

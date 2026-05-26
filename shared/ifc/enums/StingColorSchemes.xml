@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingColorSchemes</Name>
+    <Definition>Named colour schemes used by ColorByParameter, drawing-type Print overrides, and view-style-pack PrintOverride.ColorScheme. Each scheme maps an element's parameter value to a colour using a documented palette. Drives both element graphic overrides and tag-text colour switching.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4002-9000-000000000011</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING ColorHelper palettes (Select/ColorCommands.cs); STING TagStyleEngine ColorScheme catalogue; STING DrawingType PrintOverride.ColorScheme</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Discipline" sentinel="false">
+      <Definition>Colour by discipline — M=blue, E=yellow, P=green, A=grey, S=red, FP=orange, LV=purple, G=brown, H=teal, MG=cyan, RP=magenta.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RAG" sentinel="false">
+      <Definition>Red / Amber / Green status — used for compliance, completeness, condition-rating views.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Spectral" sentinel="false">
+      <Definition>Spectral / rainbow gradient — used for continuous-value parameters (load, temperature, dB).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Warm" sentinel="false">
+      <Definition>Warm palette — reds, oranges, yellows. Heat / fire / cooking-load mapping.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Cool" sentinel="false">
+      <Definition>Cool palette — blues, cyans, teals. Cooling / flow / water mapping.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Monochrome" sentinel="false">
+      <Definition>Monochrome — black / grey / white only. Print-friendly, photocopier-safe.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HighContrast" sentinel="false">
+      <Definition>High contrast — saturated primaries with strong outlines. QA / checking views.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Accessible" sentinel="false">
+      <Definition>Colourblind-safe palette (viridis-like). Universal accessibility for client presentations.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PresentationRich" sentinel="false">
+      <Definition>Rich presentation palette — full saturation, material-true colours. Client-facing rendered drawings.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PresentationMono" sentinel="false">
+      <Definition>Monochrome presentation — burgundy / sage / cream variants. Client-facing minimalist drawings.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ClarificationRed" sentinel="false">
+      <Definition>Clarification / RFI palette — red markup callouts on greyscale base. Used by all clarification-pack drawing types.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>3cd455064ee876a85e3c870607d7d7b1d48a047ce5fa107eb13cb8fdef98d7df</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

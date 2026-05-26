@@ -10,6 +10,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.UI;
+using System.Threading;
 
 namespace StingTools.Core
 {
@@ -495,10 +496,10 @@ namespace StingTools.Core
                     _cachedHasStale = staleCollector.Any(e =>
                         {
                             try { var p = e.LookupParameter(ParamRegistry.STALE); return p != null && p.AsInteger() == 1; }
-                            catch (Exception ex) { StingLog.Warn($"Stale check element {e?.Id}: {ex.Message}"); return false; }
+                            catch (Exception ex2) { StingLog.Warn($"Stale check element {e?.Id}: {ex2.Message}"); return false; }
                         });
                 }
-                catch (Exception ex) { StingLog.Warn($"Stale element check failed: {ex.Message}"); _cachedHasStale = false; }
+                catch (Exception ex2) { StingLog.Warn($"Stale element check failed: {ex2.Message}"); _cachedHasStale = false; }
                 return _cachedHasStale.Value;
             }
 
@@ -508,7 +509,7 @@ namespace StingTools.Core
             {
                 if (_cachedCompliancePct.HasValue) return _cachedCompliancePct.Value;
                 try { var cs = ComplianceScan.Scan(doc); _cachedCompliancePct = cs?.CompliancePercent ?? 0; }
-                catch (Exception ex) { StingLog.Warn($"Compliance scan failed: {ex.Message}"); _cachedCompliancePct = 0; }
+                catch (Exception ex2) { StingLog.Warn($"Compliance scan failed: {ex2.Message}"); _cachedCompliancePct = 0; }
                 return _cachedCompliancePct.Value;
             }
 
@@ -657,7 +658,7 @@ namespace StingTools.Core
                                 int warnCount = doc.GetWarnings()?.Count ?? 0;
                                 if (warnCount == 0) { RecordSkip("no warnings"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_warnings check: {ex2.Message}"); }
                         }
                         if (cond == "has_critical_warnings")
                         {
@@ -667,7 +668,7 @@ namespace StingTools.Core
                                 int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
                                 if (critical == 0) { RecordSkip("no critical warnings"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_critical_warnings check: {ex2.Message}"); }
                         }
                         if (cond == "has_open_issues")
                         {
@@ -681,7 +682,7 @@ namespace StingTools.Core
                                 int openCount = issuesArr.Count(i => (string)i["status"] == "OPEN");
                                 if (openCount == 0) { RecordSkip("no open issues"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_open_issues check: {ex2.Message}"); }
                         }
                         // Phase 75: has_overdue_issues — skip if no SLA-breaching issues
                         if (cond == "has_overdue_issues")
@@ -691,7 +692,150 @@ namespace StingTools.Core
                                 bool hasOverdue = EvaluateSingleCondition(doc, "has_overdue_issues", cachedCompliancePct, cachedHasStale);
                                 if (!hasOverdue) { RecordSkip("no overdue issues"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_overdue_issues check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_overdue_issues check: {ex2.Message}"); }
+                        }
+
+                        // HIGH-04: has_untagged and has_placeholders share a single collector pass
+                        if (cond == "has_untagged" || cond == "has_placeholders")
+                        {
+                            bool hasUntagged = false;
+                            bool hasPlaceholders = false;
+                            try
+                            {
+                                var catEnums = SharedParamGuids.AllCategoryEnums;
+                                var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                                if (catEnums != null && catEnums.Length > 0)
+                                    coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                                foreach (var e in coll)
+                                {
+                                    string t = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
+                                    if (string.IsNullOrEmpty(t)) hasUntagged = true;
+                                    else if (TagConfig.TagHasPlaceholders(t)) hasPlaceholders = true;
+                                    if (hasUntagged && hasPlaceholders) break; // both found — early exit
+                                }
+                            }
+                            catch (Exception ex2) { StingLog.Warn($"{cond} condition check: {ex2.Message}"); }
+                            if (cond == "has_untagged" && !hasUntagged) { RecordSkip("no untagged elements"); continue; }
+                            if (cond == "has_placeholders" && !hasPlaceholders) { RecordSkip("no placeholder tokens"); continue; }
+                        }
+                        if (cond == "has_container_gaps")
+                        {
+                            try
+                            {
+                                var scan = ComplianceScan.Scan(doc);
+                                double containerPct = scan?.ContainerCompletePct ?? 100;
+                                if (containerPct >= 95)
+                                { RecordSkip($"containers {containerPct:F0}% complete"); continue; }
+                            }
+                            catch (Exception ex2) { StingLog.Warn($"has_container_gaps check: {ex2.Message}"); }
+                        }
+                        if (cond == "compliance_above_90")
+                        {
+                            double pct = cachedCompliancePct();
+                            if (pct >= 90)
+                            { RecordSkip($"compliance {pct:F0}% ≥ 90%"); continue; }
+                        }
+                        if (cond == "compliance_below_50")
+                        {
+                            double pct = cachedCompliancePct();
+                            if (pct >= 50)
+                            { RecordSkip($"compliance {pct:F0}% ≥ 50%"); continue; }
+                        }
+                    }
+
+                    // Phase 69: Compound condition evaluation (AND/OR logic)
+                    if (step.Conditions != null && step.Conditions.Count > 0)
+                    {
+                        bool isOr = string.Equals(step.ConditionLogic, "OR", StringComparison.OrdinalIgnoreCase);
+                        var results = new List<bool>();
+                        foreach (var cond in step.Conditions)
+                        {
+                            results.Add(EvaluateSingleCondition(doc, cond, cachedCompliancePct, cachedHasStale));
+                        }
+
+                        bool compoundResult = isOr ? results.Any(r => r) : results.All(r => r);
+                        if (!compoundResult)
+                        {
+                            string logic = isOr ? "OR" : "AND";
+                            RecordSkip($"compound {logic}: {string.Join(", ", step.Conditions)}");
+                            continue;
+                        }
+                        // GAP-02: Extended condition engine for workflow steps
+                        if (cond == "has_links")
+                        {
+                            bool hasLinks = new FilteredElementCollector(doc)
+                                .OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
+                            if (!hasLinks) { RecordSkip("no linked models"); continue; }
+                        }
+                        if (cond == "has_cad_imports")
+                        {
+                            bool hasCad = new FilteredElementCollector(doc)
+                                .OfClass(typeof(ImportInstance)).GetElementCount() > 0;
+                            if (!hasCad) { RecordSkip("no CAD imports"); continue; }
+                        }
+                        if (cond == "has_stale")
+                        {
+                            if (!cachedHasStale()) { RecordSkip("no stale elements"); continue; }
+                        }
+                        // Phase 39: WorkflowStep.RequiresWorksharedModel condition
+                        if (step.RequiresWorksharedModel && !doc.IsWorkshared)
+                        { RecordSkip("not workshared"); continue; }
+                        // Phase 39: Element count range condition (cached — count doesn't change between steps)
+                        if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
+                        {
+                            cachedElemCount ??= new FilteredElementCollector(doc)
+                                .WhereElementIsNotElementType().GetElementCount();
+                            int elemCount = cachedElemCount.Value;
+                            if (step.MinElementCount.HasValue && elemCount < step.MinElementCount.Value)
+                            { RecordSkip($"{elemCount} elements < min {step.MinElementCount.Value}"); continue; }
+                            if (step.MaxElementCount.HasValue && elemCount > step.MaxElementCount.Value)
+                            { RecordSkip($"{elemCount} elements > max {step.MaxElementCount.Value}"); continue; }
+                        }
+
+                        // Phase 47: Warning-aware workflow conditions
+                        if (cond == "has_warnings")
+                        {
+                            try
+                            {
+                                int warnCount = doc.GetWarnings()?.Count ?? 0;
+                                if (warnCount == 0) { RecordSkip("no warnings"); continue; }
+                            }
+                            catch (Exception ex2) { StingLog.Warn($"has_warnings check: {ex2.Message}"); }
+                        }
+                        if (cond == "has_critical_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
+                                if (critical == 0) { RecordSkip("no critical warnings"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_spatial_warnings check: {ex.Message}"); }
+                        }
+                        if (cond == "has_open_issues")
+                        {
+                            try
+                            {
+                                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                                string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
+                                if (!File.Exists(issuesPath)) { RecordSkip("no issues file"); continue; }
+                                // WE-HIGH-01: Use JSON parsing instead of naive string split for accuracy
+                                var issuesArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath));
+                                int openCount = issuesArr.Count(i => (string)i["status"] == "OPEN");
+                                if (openCount == 0) { RecordSkip("no open issues"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_mep_warnings check: {ex.Message}"); }
+                        }
+                        // Phase 75: has_overdue_issues — skip if no SLA-breaching issues
+                        if (cond == "has_overdue_issues")
+                        {
+                            try
+                            {
+                                bool hasOverdue = EvaluateSingleCondition(doc, "has_overdue_issues", cachedCompliancePct, cachedHasStale);
+                                if (!hasOverdue) { RecordSkip("no overdue issues"); continue; }
+                            }
+                            catch (Exception ex2) { StingLog.Warn($"has_untagged condition check: {ex2.Message}"); }
+                            if (!hasUntagged) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no untagged elements)"); continue; }
                         }
 
                         // HIGH-04: has_untagged and has_placeholders share a single collector pass
@@ -755,90 +899,12 @@ namespace StingTools.Core
                         bool compoundResult = isOr ? results.Any(r => r) : results.All(r => r);
                         if (!compoundResult)
                         {
+                            skipped++;
                             string logic = isOr ? "OR" : "AND";
-                            RecordSkip($"compound {logic}: {string.Join(", ", step.Conditions)}");
+                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compound {logic}: {string.Join(", ", step.Conditions)})");
+                            previousStepSkipped = true;
+                            stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "SKIPPED" });
                             continue;
-                        }
-                        // GAP-02: Extended condition engine for workflow steps
-                        if (step.Condition == "has_links")
-                        {
-                            bool hasLinks = new FilteredElementCollector(doc)
-                                .OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
-                            if (!hasLinks) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no linked models)"); continue; }
-                        }
-                        if (step.Condition == "has_cad_imports")
-                        {
-                            bool hasCad = new FilteredElementCollector(doc)
-                                .OfClass(typeof(ImportInstance)).GetElementCount() > 0;
-                            if (!hasCad) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no CAD imports)"); continue; }
-                        }
-                        if (step.Condition == "has_stale")
-                        {
-                            if (!cachedHasStale()) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)"); continue; }
-                        }
-                        // Phase 39: WorkflowStep.RequiresWorksharedModel condition
-                        if (step.RequiresWorksharedModel && !doc.IsWorkshared)
-                        {
-                            skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)"); continue;
-                        }
-                        // Phase 39: Element count range condition
-                        if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
-                        {
-                            int elemCount = new FilteredElementCollector(doc)
-                                .WhereElementIsNotElementType().GetElementCount();
-                            if (step.MinElementCount.HasValue && elemCount < step.MinElementCount.Value)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements < min {step.MinElementCount.Value})"); continue; }
-                            if (step.MaxElementCount.HasValue && elemCount > step.MaxElementCount.Value)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements > max {step.MaxElementCount.Value})"); continue; }
-                        }
-
-                        // Phase 47: Warning-aware workflow conditions
-                        if (step.Condition == "has_warnings")
-                        {
-                            try
-                            {
-                                int warnCount = doc.GetWarnings()?.Count ?? 0;
-                                if (warnCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no warnings)"); continue; }
-                            }
-                            catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
-                        }
-                        if (step.Condition == "has_critical_warnings")
-                        {
-                            try
-                            {
-                                var warnReport = WarningsEngine.ScanWarnings(doc);
-                                int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
-                                if (critical == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no critical warnings)"); continue; }
-                            }
-                            catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
-                        }
-                        if (step.Condition == "has_open_issues")
-                        {
-                            try
-                            {
-                                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
-                                string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
-                                if (!File.Exists(issuesPath)) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no issues file)"); continue; }
-                                string raw = File.ReadAllText(issuesPath);
-                                int openCount = raw.Split(new[] { "\"OPEN\"" }, StringSplitOptions.None).Length - 1;
-                                if (openCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no open issues)"); continue; }
-                            }
-                            catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
-                        }
-
-                        if (step.Condition == "has_untagged")
-                        {
-                            bool hasUntagged = false;
-                            try
-                            {
-                                var catEnums = SharedParamGuids.AllCategoryEnums;
-                                var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-                                if (catEnums != null && catEnums.Length > 0)
-                                    coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
-                                hasUntagged = coll.Any(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
-                            }
-                            catch (Exception ex) { StingLog.Warn($"has_untagged condition check: {ex.Message}"); }
-                            if (!hasUntagged) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no untagged elements)"); continue; }
                         }
                     }
 
@@ -876,6 +942,50 @@ namespace StingTools.Core
                                 if (mep == 0) { RecordSkip("no MEP warnings"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_mep_warnings check: {ex.Message}"); }
+                        }
+                        if (cond68 == "tag_compliance_below_threshold")
+                        {
+                            double pct = cachedCompliancePct();
+                            double threshold = step.MinCompliancePct ?? 90;
+                            if (pct >= threshold)
+                            { RecordSkip($"compliance {pct:F0}% meets threshold {threshold:F0}%"); continue; }
+                        }
+                    }
+
+                    // Phase 69: Data drop level gate
+                    if (step.MinDataDrop.HasValue)
+                    {
+                        int currentDD = CalculateCurrentDataDrop(doc, cachedCompliancePct());
+                        if (currentDD < step.MinDataDrop.Value)
+                        {
+                            RecordSkip($"current DD{currentDD} < required DD{step.MinDataDrop.Value}");
+                            continue;
+                        }
+                    }
+
+                    // WE-CRIT-01 FIX: Phase 68 conditions moved out of MinDataDrop block and using RecordSkip()
+                    if (step.Condition != null)
+                    {
+                        string cond68 = step.Condition.Trim().ToLowerInvariant();
+                        if (cond68 == "has_spatial_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int spatial = warnReport.ByCategory.GetValueOrDefault(WarningCategory.Spatial);
+                                if (spatial == 0) { RecordSkip("no spatial warnings"); continue; }
+                            }
+                            catch (Exception ex2) { StingLog.Warn($"has_spatial_warnings check: {ex2.Message}"); }
+                        }
+                        if (cond68 == "has_mep_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int mep = warnReport.ByCategory.GetValueOrDefault(WarningCategory.MEP);
+                                if (mep == 0) { RecordSkip("no MEP warnings"); continue; }
+                            }
+                            catch (Exception ex2) { StingLog.Warn($"has_mep_warnings check: {ex2.Message}"); }
                         }
                         if (cond68 == "tag_compliance_below_threshold")
                         {
@@ -1055,7 +1165,7 @@ namespace StingTools.Core
                             break;
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         sw.Stop();
 
@@ -1097,15 +1207,15 @@ namespace StingTools.Core
 
                         if (!fallbackSucceeded)
                         {
-                            report.AppendLine($"  {stepNum,2}. {step.Label} — FAILED: {ex.Message}");
-                            StingLog.Error($"Workflow step {stepNum}: {step.Label}", ex);
+                            report.AppendLine($"  {stepNum,2}. {step.Label} — FAILED: {ex2.Message}");
+                            StingLog.Error($"Workflow step {stepNum}: {step.Label}", ex2);
 
                             // Phase 39: Record failed step with error detail
                             stepResults.Add(new WorkflowStepResult
                             {
                                 CommandTag = step.CommandTag, Label = step.Label,
                                 Status = "FAILED", DurationMs = sw.ElapsedMilliseconds,
-                                ErrorMessage = ex.Message
+                                ErrorMessage = ex2.Message
                             });
 
                             if (step.Optional)
@@ -1207,12 +1317,12 @@ namespace StingTools.Core
                     // R4-C WF-GAP-04: Record trend snapshot after workflow, not just on document open
                     ComplianceTrendTracker.RecordSnapshot(doc, scan);
                 }
-                catch (Exception ex) { StingLog.Warn($"Post-workflow compliance scan failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Post-workflow compliance scan failed: {ex2.Message}"); }
 
                 // Phase 39: Capture username from environment for audit trail
                 string userName = "";
                 try { userName = Environment.UserName ?? ""; }
-                catch (Exception ex) { StingLog.Warn($"Username capture: {ex.Message}"); }
+                catch (Exception ex3) { StingLog.Warn($"Username capture: {ex3.Message}"); }
 
                 var record = new WorkflowRunRecord
                 {
@@ -1232,6 +1342,36 @@ namespace StingTools.Core
                 SaveRunRecord(record, doc);
                 // GAP-09: Save data hash sidecar after workflow to mark data as processed
                 SaveDataHashSidecar(doc);
+
+                // INT-04 / H7 — push the run record to Planscape so the server
+                // workflow trend graph reflects local activity. Fire-and-forget;
+                // the local jsonl record is the source of truth and we never
+                // block a workflow on the network.
+                try
+                {
+                    string cfgPath = System.IO.Path.Combine(
+                        System.IO.Path.GetDirectoryName(doc.PathName) ?? "",
+                        "_BIM_COORD", "planscape_link.json");
+                    Guid serverProjectId = StingTools.BIMManager.PlatformSyncCommand.LoadPlanscapeProjectId(cfgPath);
+                    if (serverProjectId != Guid.Empty)
+                    {
+                        var client = StingTools.BIMManager.PlanscapeServerClient.Instance;
+                        _ = client.LogWorkflowRunAsync(
+                            serverProjectId,
+                            preset.Name ?? "",
+                            preset.Steps.Count,
+                            passed,
+                            failed,
+                            skipped,
+                            record.DurationSeconds,
+                            record.ComplianceBefore,
+                            record.ComplianceAfter);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"WorkflowEngine: server push skipped — {ex.Message}");
+                }
 
                 // Pack 122 / Gap B — stamp the last-run scalars onto ES so the
                 // morning briefing, dock panel, and Idling SLA scanner can read
@@ -1473,13 +1613,21 @@ namespace StingTools.Core
                 case "Cable_BuildSchedule":      return new Commands.Electrical.Routing.CableScheduleBuilderCommand();
                 case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
                 case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
-                case "Symbols_CreateCompound":   return new Commands.Symbols.CreateCompoundSymbolsCommand();
-                case "Symbols_CreateSLD_IEEE":   return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
-                case "Symbols_CreateSLD_BS":     return new Commands.Symbols.CreateSLDSymbolsBSCommand();
-                case "Symbols_CreateSLD_NFPA":   return new Commands.Symbols.CreateSLDSymbolsNFPACommand();
-                case "Symbols_CreateCIBSE":      return new Commands.Symbols.CreateCIBSESymbolsCommand();
-                case "IFC_ArchiCADSync":         return new Commands.IFC.ArchiCADSyncCommand();
-                case "IFC_DropImport":           return new Commands.IFC.IfcDropImportCommand();
+                case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
+                case "Symbols_CreateSLD_IEEE":      return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
+                case "Symbols_CreateSLD_BS":        return new Commands.Symbols.CreateSLDSymbolsBSCommand();
+                case "Symbols_CreateSLD_NFPA":      return new Commands.Symbols.CreateSLDSymbolsNFPACommand();
+                case "Symbols_CreateCIBSE":         return new Commands.Symbols.CreateCIBSESymbolsCommand();
+                // Phase 175 — multi-standard model family symbol commands
+                case "Symbols_AuthorSymbols":       return new Commands.Symbols.AuthorFamilySymbolsCommand();
+                case "Symbols_SwitchProject":       return new Commands.Symbols.SwitchProjectStandardCommand();
+                case "Symbols_SwitchView":          return new Commands.Symbols.SwitchViewStandardCommand();
+                case "Symbols_Audit":               return new Commands.Symbols.SymbolStandardAuditCommand();
+                case "Symbols_PlaceView":           return new Commands.Symbols.PlaceSymbolsInViewCommand();
+                case "Symbols_PlaceAll":            return new Commands.Symbols.PlaceSymbolsProjectWideCommand();
+                case "Symbols_SetElementStandard":  return new Commands.Symbols.SetElementSymbolStandardCommand();
+                case "Symbols_SyncFilters":         return new Commands.Symbols.SyncViewFilterVisibilityCommand();
+                case "Symbols_SetProfile":          return new Commands.Symbols.SetMixedStandardProfileCommand();
                 case "Validation_BS7671":       return new Commands.Electrical.ElectricalStandardsValidatorCommand();
                 case "Circuit_AssignAuto":      return new Commands.Electrical.BatchAssignCircuitsCommand();
                 case "Lite_CreateSchedule":     return new Commands.Electrical.ElecLightingScheduleCommand();
@@ -1544,6 +1692,42 @@ namespace StingTools.Core
                 case "BOQSnapshotSave":        return new BOQ.BOQSnapshotSaveCommand();
                 case "BOQSnapshotCompare":     return new BOQ.BOQSnapshotCompareCommand();
                 case "BOQExportProfessional":  return new BOQ.BOQProfessionalExportCommand();
+                case "BOQPrepForExport":       return new BOQ.BOQPrepForExportCommand();
+
+                // Phase 184 — Cost management (P2)
+                case "Cost_ValidateAll":        return new Commands.Cost.CostValidateAllCommand();
+                case "Cost_ClearStale":         return new Commands.Cost.CostClearStaleCommand();
+                case "Cost_RunWorkflow":        return new Commands.Cost.CostRunWorkflowCommand();
+                case "Cost_ToggleStaleMarker":  return new Commands.Cost.CostToggleStaleMarkerCommand();
+                case "Cost_ReloadRules":        return new Commands.Cost.CostReloadRulesCommand();
+                case "Cost_MigrateCurrencyParams": return new Commands.Cost.CostMigrateCurrencyParamsCommand();
+                case "Cost_MigrateESEntities":     return new Commands.Cost.CostMigrateESEntitiesCommand();
+
+                // Phase 184f — P4 NRM1 cost plan
+                case "CostPlan_Create":            return new Commands.Cost.CostPlanCreateCommand();
+                case "CostPlan_Compare":           return new Commands.Cost.CostPlanCompareCommand();
+                case "CostPlan_Export":            return new Commands.Cost.CostPlanExportCommand();
+
+                // Phase 184g — P5.1 payment certs / P5.2 variations / P5.3 EVM
+                case "PaymentCert_Issue":          return new Commands.Cost.PaymentCertIssueCommand();
+                case "PaymentCert_Approve":        return new Commands.Cost.PaymentCertApproveCommand();
+                case "PaymentCert_Register":       return new Commands.Cost.PaymentCertRegisterCommand();
+                case "Variation_FromDiff":         return new Commands.Cost.VariationFromDiffCommand();
+                case "Variation_BuildStarRate":    return new Commands.Cost.VariationBuildStarRateCommand();
+                case "Variation_ExportRegister":   return new Commands.Cost.VariationExportRegisterCommand();
+                // Phase 184p — reclassify legacy default-Other variations
+                case "Variation_ReclassifyLegacy": return new Commands.Cost.VariationReclassifyLegacyCommand();
+                case "Evm_Calculate":              return new Commands.Cost.EvmCalculateCommand();
+                case "Evm_ImportActuals":          return new Commands.Cost.EvmImportActualsCommand();
+                case "Evm_ExportReport":           return new Commands.Cost.EvmExportReportCommand();
+
+                // Phase 184h — P6 multi-standard take-off
+                case "Cost_SetMeasurementStandard": return new Commands.Cost.CostSetMeasurementStandardCommand();
+                case "Cost_StandardInspect":        return new Commands.Cost.CostStandardInspectCommand();
+
+                // Phase 184j — P8 IFC Qto + ICMS3
+                case "Cost_StampIfcQuantities":     return new Commands.Cost.CostStampIfcQuantitiesCommand();
+                case "Cost_ExportIcms3Report":      return new Commands.Cost.CostExportIcms3ReportCommand();
                 case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
                 case "FamilyParamProcessor": return new Temp.FamilyParameterProcessorCommand();
 
@@ -1749,6 +1933,10 @@ namespace StingTools.Core
                 case "SpeckleSend":             return new BIMManager.SpeckleSendCommand();
                 case "SpeckleReceive":          return new BIMManager.SpeckleReceiveCommand();
                 case "SpeckleDiff":             return new BIMManager.SpeckleDiffCommand();
+                // Meta-action: pops a picker (Speckle / ACC / IFC) and routes
+                // to the chosen target. Wired here so BCC ExternalEvent +
+                // dock-panel paths resolve the same tag.
+                case "Publish3DModel":          return new BIMManager.Publish3DModelCommand();
                 case "ComplianceSnapshot":      return new Tags.CompletenessDashboardCommand();
                 case "WarningsSummary":         return new WarningsDashboardCommand();
 
@@ -2224,6 +2412,10 @@ namespace StingTools.Core
 
             // Remove any null entries from failed lookups
             presets.RemoveAll(p => p == null);
+
+            // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
+            _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
+            _cachedBuiltInPresetsDataPath = dataDir;
 
             // User-defined JSON files
             // Append user-defined JSON presets on top

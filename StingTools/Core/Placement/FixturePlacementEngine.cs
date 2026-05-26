@@ -11,10 +11,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
 using StingTools.Core;
+using StingTools.Core.Routing;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Placement
 {
@@ -247,12 +250,12 @@ namespace StingTools.Core.Placement
                 if (!string.IsNullOrEmpty(r.RoomFilter))
                 {
                     try { roomFilterRx[r.MergeKey] = new System.Text.RegularExpressions.Regex(r.RoomFilter, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled); }
-                    catch (Exception ex) { result.Warnings.Add($"Rule '{r.MergeKey}' RoomFilter regex: {ex.Message}"); }
+                    catch (Exception ex2) { result.Warnings.Add($"Rule '{r.MergeKey}' RoomFilter regex: {ex2.Message}"); }
                 }
                 if (!string.IsNullOrEmpty(r.ExcludeRoomFilter))
                 {
                     try { excludeFilterRx[r.MergeKey] = new System.Text.RegularExpressions.Regex(r.ExcludeRoomFilter, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled); }
-                    catch (Exception ex) { result.Warnings.Add($"Rule '{r.MergeKey}' ExcludeRoomFilter regex: {ex.Message}"); }
+                    catch (Exception ex2) { result.Warnings.Add($"Rule '{r.MergeKey}' ExcludeRoomFilter regex: {ex2.Message}"); }
                 }
             }
 
@@ -276,9 +279,9 @@ namespace StingTools.Core.Placement
                 }
                 catch (Exception fEx) { StingLog.Warn($"FailuresPreprocessor wire: {fEx.Message}"); }
                 try { tx.Start(); }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    result.Warnings.Add($"Transaction start failed: {ex.Message}");
+                    result.Warnings.Add($"Transaction start failed: {ex2.Message}");
                     return result;
                 }
             }
@@ -296,10 +299,16 @@ namespace StingTools.Core.Placement
                 int processed = 0;
                 int total = rooms.Count;
                 bool cancelled = false;
+                StingLog.Info($"FixturePlacementEngine: pre-flight finished in {swEngine.ElapsedMilliseconds} ms — entering per-room loop ({total} rooms).");
+                CurrentPhase = "Per-room loop";
                 foreach (var room in rooms)
                 {
+                    // Phase 139.5 Q21 — room name derived once per room for fast pre-filter.
+                    string roomName = SafeRoomName(room);
+
                     // PC-13 — per-room state so dependent rules see predecessors.
                     var roomState = new RoomState();
+                    string roomName = SafeRoomName(room);
                     foreach (var rule in ordered)
                     {
                         var diag = result.Diag(rule.MergeKey);
@@ -358,9 +367,9 @@ namespace StingTools.Core.Placement
                                 }
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
-                            result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: {ex.Message}");
+                            result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: {ex2.Message}");
                             result.SkippedCount++;
                         }
                     }
@@ -381,6 +390,14 @@ namespace StingTools.Core.Placement
                             result.Warnings.Add($"Progress callback: {pgEx.Message}");
                         }
                     }
+                }
+
+                // Phase 139.2 G — Step 3: place every second-fix device
+                // by GUID-proximity match to the first-fix index.
+                if (!dryRun && firstFixIndex != null && firstFixIndex.Count > 0)
+                {
+                    try { TwoPhaseBoxPlacer.PlaceSecondFixDevices(doc, roomIds, ordered, firstFixIndex, result); }
+                    catch (Exception ex) { result.Warnings.Add($"Two-phase second-fix: {ex.Message}"); }
                 }
 
                 if (!dryRun)
@@ -404,11 +421,11 @@ namespace StingTools.Core.Placement
                         foreach (var id in result.PlacedIds)
                         {
                             Element el = null;
-                            try { el = doc.GetElement(id); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Post-commit GetElement({id.Value}): {ex.Message}"); }
+                            try { el = doc.GetElement(id); } catch (Exception ex2) { StingLog.Warn($"[FixturePlacementEngine] Post-commit GetElement({id.Value}): {ex2.Message}"); }
                             if (el == null) { rolledBack++; continue; }
                             alive.Add(id);
                             string cat = "(uncategorised)";
-                            try { cat = el.Category?.Name ?? "(uncategorised)"; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read placed element category: {ex.Message}"); }
+                            try { cat = el.Category?.Name ?? "(uncategorised)"; } catch (Exception ex3) { StingLog.Warn($"[FixturePlacementEngine] Read placed element category: {ex3.Message}"); }
                             perCategoryAlive[cat] = perCategoryAlive.TryGetValue(cat, out var n) ? n + 1 : 1;
                         }
                         if (rolledBack > 0)
@@ -513,36 +530,54 @@ namespace StingTools.Core.Placement
         {
             string roomKey = $"{room.Id}::{SafeRoomName(room)}";
             int alreadyInRoom = result.CountsByRoom.ContainsKey(roomKey) ? result.CountsByRoom[roomKey] : 0;
+            // Phase 139.27 — per-rule diagnostic entry for this room+rule pair.
+            var diagRoom = result.Diag(rule.MergeKey);
+
+            // Phase 185 (footprint-aware spacing): when the rule opts in via
+            // FamilyBboxAware, resolve the family symbol BEFORE scoring and
+            // rebuild the rule with spacing fields scaled to the family's
+            // real footprint. Lets one rule serve 150 mm switches and
+            // 1200 mm AHUs without per-vendor JSON edits. No-op when the
+            // flag is false (legacy behaviour preserved).
+            PlacementRule effRule = rule;
+            if (rule.FamilyBboxAware && !dryRun)
+            {
+                var preSym = ResolveSymbol(doc, rule.CategoryFilter, rule, perCategorySymbol, result);
+                if (preSym != null)
+                {
+                    effRule = ScaleByFootprint(rule, preSym, result);
+                }
+            }
 
             var placedPoints = new List<XYZ>(); // for spacing scoring
 
             // PC-13 — RELATIVE_TO / EQUIPMENT_PAIR: short-circuit by stamping the
             // predecessor's last point as the only candidate.
-            string anchor = (rule.AnchorType ?? "").ToUpperInvariant();
+            string anchor = (effRule.AnchorType ?? "").ToUpperInvariant();
             List<PlacementCandidate> candidates;
             if ((anchor == "RELATIVE_TO" || anchor == "EQUIPMENT_PAIR")
-                && !string.IsNullOrEmpty(rule.DependsOn)
-                && state.LastPointByRule.TryGetValue(rule.DependsOn, out var prev))
+                && !string.IsNullOrEmpty(effRule.DependsOn)
+                && state.LastPointByRule.TryGetValue(effRule.DependsOn, out var prev))
             {
-                XYZ pt = new XYZ(prev.X + rule.OffsetXMm / 304.8,
-                                 prev.Y + rule.OffsetYMm / 304.8,
-                                 prev.Z + rule.OffsetZMm / 304.8);
+                XYZ pt = new XYZ(prev.X + effRule.OffsetXMm / 304.8,
+                                 prev.Y + effRule.OffsetYMm / 304.8,
+                                 prev.Z + effRule.OffsetZMm / 304.8);
                 candidates = new List<PlacementCandidate>
                 {
-                    new PlacementCandidate { Position = pt, RoomId = room.Id, Rule = rule, Score = 1.0 }
+                    new PlacementCandidate { Position = pt, RoomId = room.Id, Rule = effRule, Score = 1.0 }
                 };
                 result.CandidatesEvaluated += 1;
             }
             else
             {
-                candidates = scorer.Score(room, rule, placedPoints, alreadyInRoom);
+                candidates = scorer.Score(room, effRule, placedPoints, alreadyInRoom);
                 result.CandidatesEvaluated += candidates.Count;
             }
             if (candidates.Count == 0) return;
 
             // PC-12 — derive the count for Density / Linear rules from the room's
             // area, occupancy or perimeter, capped by MaxPerRoom when set.
-            int cap = ComputeCap(rule, room, candidates.Count, alreadyInRoom);
+            int cap = ComputeCap(effRule, room, candidates.Count, alreadyInRoom);
             if (cap == 0) return;
 
             var chosen = candidates.Take(cap).ToList();
@@ -567,8 +602,41 @@ namespace StingTools.Core.Placement
                 return;
             }
 
-            FamilySymbol symbol = ResolveSymbol(doc, rule.CategoryFilter, rule, perCategorySymbol, result);
+            FamilySymbol symbol = ResolveSymbol(doc, effRule.CategoryFilter, effRule, perCategorySymbol, result);
             if (symbol == null) return;
+
+            // Phase 139.18 — warn once per (rule, family) when a wall- or
+            // ceiling-anchored rule resolves to an un-hosted family. The
+            // engine still places it (post-placement wall-snap + rotation
+            // does its best), but designers should re-author the family
+            // as wall-hosted / ceiling-hosted for proper attachment.
+            try
+            {
+                string anchorPt = (rule.AnchorType ?? "").ToUpperInvariant();
+                bool wantsWallHost = anchorPt == "WALL_MIDPOINT" || anchorPt == "WALL_CORNER"
+                                  || anchorPt == "WALL_FACE_OFFSET"
+                                  || anchorPt.StartsWith("DOOR_")
+                                  || anchorPt.StartsWith("WINDOW_");
+                bool wantsCeilingHost = anchorPt == "CEILING_CENTRE"
+                                  || anchorPt == "CEILING_TILE_CENTRE"
+                                  || anchorPt == "LIGHTING_GRID"
+                                  || anchorPt == "LUX_GRID";
+                var fpt = symbol.Family?.FamilyPlacementType ?? FamilyPlacementType.Invalid;
+                bool isHosted = fpt == FamilyPlacementType.OneLevelBasedHosted;
+                if ((wantsWallHost || wantsCeilingHost) && !isHosted)
+                {
+                    string warnKey = "FamilyPlacementType:" + (symbol.Family?.Name ?? "?") + ":" + rule.MergeKey;
+                    if (!result.Warnings.Any(w => w.Contains(warnKey)))
+                    {
+                        result.Warnings.Add(
+                            $"{warnKey} — rule '{rule.MergeKey}' uses {anchorPt} but the resolved family " +
+                            $"'{symbol.Family?.Name}' is {fpt}, not OneLevelBasedHosted. Engine will place " +
+                            $"+ snap + rotate but the family won't attach to the wall/ceiling. " +
+                            $"Re-author the family as wall-hosted (or ceiling-hosted) for proper attachment.");
+                    }
+                }
+            }
+            catch { }
 
             if (!symbol.IsActive)
             {
@@ -595,7 +663,7 @@ namespace StingTools.Core.Placement
                         if (lst != null) existingNearby.AddRange(lst);
             }
             catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Collect existing PlacedByRule for dedup: {ex.Message}"); }
-            double dedupFt = Math.Max(rule.ToleranceMm, 25.0) * MmToFt;
+            double dedupFt = Math.Max(effRule.ToleranceMm, 25.0) * MmToFt;
             double dedupSq = dedupFt * dedupFt;
 
             foreach (var c in chosen)
@@ -624,7 +692,7 @@ namespace StingTools.Core.Placement
                     // when the placement type isn't supported, instead of
                     // silently creating a host-less ghost instance that
                     // schedules later miss in QTO / COBie.
-                    var pf = PlacementHostPreflight.Place(doc, symbol, room, c.Position, rule);
+                    var pf = PlacementHostPreflight.Place(doc, symbol, room, c.Position, effRule);
                     FamilyInstance fi = pf.Placed;
                     if (pf.Skipped || fi == null)
                     {
@@ -634,7 +702,7 @@ namespace StingTools.Core.Placement
                         continue;
                     }
 
-                    WriteAnchorParameters(fi, rule);
+                    WriteAnchorParameters(fi, effRule);
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
                     // audit can identify auto-created fixtures. Centre's
                     // "Stamp provenance" checkbox flips PlaceFixturesOptions.
@@ -652,6 +720,7 @@ namespace StingTools.Core.Placement
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
                     if (diagRoom != null) diagRoom.CandidatesPlaced++;
                     placedPoints.Add(c.Position);
+                    existingNearby.Add(c.Position); // Phase 139.25 — live dedup
 
                     // PC-13 — record placement on per-room state for downstream rules.
                     if (state != null)
@@ -666,13 +735,13 @@ namespace StingTools.Core.Placement
                     }
 
                     // PC-17 — optional post-placement hook: data-tag pipeline + COBie seed.
-                    try { PostPlacementHooks.RunFor(fi, rule); }
+                    try { PostPlacementHooks.RunFor(fi, effRule); }
                     catch (Exception hkEx) { result.Warnings.Add($"PC-17 post-place hook for {fi.Id}: {hkEx.Message}"); }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     result.SkippedCount++;
-                    result.Warnings.Add($"Place {rule.CategoryFilter} in {SafeRoomName(room)}: {ex.Message}");
+                    result.Warnings.Add($"Place {rule.CategoryFilter} in {SafeRoomName(room)}: {ex2.Message}");
                 }
             }
         }
@@ -702,24 +771,37 @@ namespace StingTools.Core.Placement
                         int occ = 0;
                         try
                         {
-                            var p = room.LookupParameter("STING_OCC_COUNT_INT");
+                            string occParam = string.IsNullOrEmpty(rule.OccupancyParamName)
+                                ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName;
+                            var p = room.LookupParameter(occParam);
                             if (p != null && p.HasValue && p.StorageType == StorageType.Integer) occ = p.AsInteger();
                         }
                         catch { }
                         if (occ > 0) byOcc = Math.Max(1, (int)Math.Ceiling((double)occ / rule.PerOccupant));
                     }
                     cap = Math.Max(byArea, byOcc);
+                    // Phase 139.4 — Density rule with neither PerAreaM2 nor PerOccupant
+                    // (or with both = 0) used to fall through with cap=1, then later
+                    // collapse to candidateCount once MaxPerRoom = 0. Treat the rule
+                    // as misconfigured: place at most one and warn upstream via the
+                    // rule-loader validation pass (#39 below).
                     if (cap == 0) cap = 1;
                     break;
                 }
                 case PlacementRuleKind.Linear:
                 {
+                    // Phase 139.5 Q15 — Linear cap was always candidateCount
+                    // regardless of PerLinearMetre. Now: perimeter (m) ÷
+                    // PerLinearMetre = required count, taken from the room's
+                    // boundary (or bbox fallback). When PerLinearMetre is 0,
+                    // fall through to candidateCount as before.
                     if (rule.PerLinearMetre > 0)
                     {
-                        // Perimeter is approximated from the bounding box; the
-                        // PERIMETER_OFFSET anchor already produces one candidate
-                        // per step, so we just take all candidates.
-                        cap = candidateCount;
+                        double perimeterM = ComputeRoomPerimeterMetres(room);
+                        if (perimeterM > 0)
+                            cap = Math.Max(1, (int)Math.Ceiling(perimeterM / rule.PerLinearMetre));
+                        else
+                            cap = candidateCount;
                     }
                     else cap = candidateCount;
                     break;
@@ -779,6 +861,7 @@ namespace StingTools.Core.Placement
                     return;
                 }
                 WriteAnchorParameters(pf.Placed, rule);
+                OrientPlacedInstance(doc, pf.Placed, rule, room);
                 if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
                 {
                     try { StingTools.Core.Storage.StingProvenanceSchema.Stamp(pf.Placed, "FixturePlacementEngine.CoPlace", rule.MergeKey ?? ""); } catch { }
@@ -841,7 +924,14 @@ namespace StingTools.Core.Placement
             int bestChainIndex = int.MaxValue;
             try
             {
-                var collector = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
+                // Phase 139.4 — apply OfCategory before OfClass so the
+                // collector pre-filters by category index (Revit's native
+                // index lookup) instead of walking every FamilySymbol.
+                BuiltInCategory bic = BuiltInCategory.INVALID;
+                try { bic = ResolveBuiltInCategoryByName(doc, categoryName); } catch { }
+                FilteredElementCollector collector = (bic != BuiltInCategory.INVALID)
+                    ? new FilteredElementCollector(doc).OfCategory(bic).OfClass(typeof(FamilySymbol))
+                    : new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
                 foreach (var el in collector)
                 {
                     if (!(el is FamilySymbol fs)) continue;
@@ -895,10 +985,12 @@ namespace StingTools.Core.Placement
 
             // PC-16 — auto-load missing families from the on-disk library so a
             // project that doesn't yet contain a sample of the rule's category
-            // can still be served by the engine.
+            // can still be served by the engine. Phase 185: when the rule
+            // sets TypeCatalogKey, the loader only mints the matching type
+            // (avoids loading 200-type fitting libraries).
             if (picked == null && firstForCategory == null)
             {
-                picked = TryAutoLoadFromLibrary(doc, categoryName, hint, result);
+                picked = TryAutoLoadFromLibrary(doc, categoryName, hint, result, rule?.TypeCatalogKey ?? "");
                 firstForCategory = picked;
             }
 
@@ -919,7 +1011,8 @@ namespace StingTools.Core.Placement
         /// document and returns its first symbol. Caller already owns a
         /// Transaction (the engine's "STING v4 Place Fixtures" tx).
         /// </summary>
-        private static FamilySymbol TryAutoLoadFromLibrary(Document doc, string categoryName, string hint, PlacementResult result)
+        private static FamilySymbol TryAutoLoadFromLibrary(
+            Document doc, string categoryName, string hint, PlacementResult result, string typeCatalogKey = "")
         {
             try
             {
@@ -947,6 +1040,16 @@ namespace StingTools.Core.Placement
                 {
                     try
                     {
+                        // Phase 185 — if the rule specifies a type-catalog key
+                        // AND a .txt sidecar exists, try the catalog path first
+                        // so only the matching type loads (avoids 200-type bloat).
+                        if (!string.IsNullOrEmpty(typeCatalogKey))
+                        {
+                            var catSym = TryLoadFromCatalog(doc, path, typeCatalogKey, categoryName, result);
+                            if (catSym != null) return catSym;
+                            // fall through to bulk LoadFamily — catalog miss is non-fatal
+                        }
+
                         Family loaded;
                         if (!doc.LoadFamily(path, out loaded) || loaded == null) continue;
                         FamilySymbol first = null;
@@ -972,6 +1075,194 @@ namespace StingTools.Core.Placement
                 }
             }
             catch (Exception ex) { StingLog.Warn($"PC-16 TryAutoLoadFromLibrary: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// Phase 185 — footprint-aware spacing. When a rule sets
+        /// <see cref="PlacementRule.FamilyBboxAware"/>, read the resolved
+        /// symbol's bounding-box footprint (max of X / Y extent in mm)
+        /// and rebuild the rule with spacing fields scaled to it.
+        /// scale = clamp( max(footprintMm, MinSymbolFootprintMm) /
+        ///                 ReferenceFootprintMm,
+        ///                1.0, MaxFootprintScale ).
+        /// Lower bound is 1.0 — bbox-aware never *shrinks* spacings below
+        /// the rule's authored value, only grows them when the real
+        /// family is bigger than the reference.
+        /// </summary>
+        private static PlacementRule ScaleByFootprint(
+            PlacementRule rule,
+            FamilySymbol symbol,
+            PlacementResult result)
+        {
+            if (rule == null || symbol == null) return rule;
+            try
+            {
+                double footprintMm = MeasureSymbolFootprintMm(symbol);
+                double floorMm = Math.Max(1.0, rule.MinSymbolFootprintMm);
+                double refMm   = Math.Max(1.0, rule.ReferenceFootprintMm);
+                double cap     = Math.Max(1.0, rule.MaxFootprintScale);
+                double scale = Math.Max(footprintMm, floorMm) / refMm;
+                if (scale < 1.0) scale = 1.0;           // never shrink
+                if (scale > cap) scale = cap;           // never explode
+                if (Math.Abs(scale - 1.0) < 1e-6) return rule; // nothing to do
+
+                var scaled = rule.Clone();
+                scaled.MinSpacingMm           *= scale;
+                scaled.CoverageRadiusMm       *= scale;
+                scaled.ObstructionClearanceMm *= scale;
+                scaled.WallClearanceMm        *= scale;
+                // Offsets scale too — a 1200 mm AHU placed with a 50 mm
+                // wall offset is wrong; the offset should also be ~8× larger.
+                scaled.OffsetXMm *= scale;
+                scaled.OffsetYMm *= scale;
+                // OffsetZMm is intentionally NOT scaled — mounting height
+                // is set by MountingHeightMm and MountingReference, not
+                // by the family footprint.
+
+                result.Warnings.Add(
+                    $"Phase 185 footprint-aware: rule '{rule.RuleId}' / category " +
+                    $"'{rule.CategoryFilter}' scaled spacings ×{scale:F2} " +
+                    $"(footprint {footprintMm:F0} mm vs reference {refMm:F0} mm).");
+                return scaled;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Phase 185 footprint scale for '{rule?.RuleId}': {ex.Message}");
+                return rule;
+            }
+        }
+
+        /// <summary>
+        /// Max of the symbol's plan bounding-box extent (mm). Falls back to
+        /// the family's own bbox via Symbol-then-Family probing.
+        /// </summary>
+        private static double MeasureSymbolFootprintMm(FamilySymbol symbol)
+        {
+            try
+            {
+                BoundingBoxXYZ bb = symbol?.get_BoundingBox(null);
+                if (bb != null && bb.Max != null && bb.Min != null)
+                {
+                    double dx = Math.Abs(bb.Max.X - bb.Min.X);
+                    double dy = Math.Abs(bb.Max.Y - bb.Min.Y);
+                    double footFt = Math.Max(dx, dy);
+                    return footFt * 304.8; // ft → mm
+                }
+            }
+            catch { }
+            return 0.0;
+        }
+
+        /// <summary>
+        /// Phase 185 — type-catalog loader. When a rule sets
+        /// <see cref="PlacementRule.TypeCatalogKey"/> and a `.txt` sidecar
+        /// exists next to the `.rfa`, only the matching type is loaded —
+        /// avoids bloating the project with 200-type valve / fittings
+        /// libraries.
+        ///
+        /// Returns the loaded FamilySymbol, or null when:
+        /// - TypeCatalogKey is empty (caller falls through to bulk LoadFamily)
+        /// - No `.txt` sidecar exists (caller falls through to bulk LoadFamily)
+        /// - No catalog row matches (caller falls through, with a warning)
+        ///
+        /// Catalog format (Revit standard, comma-delimited):
+        ///   ,Param1##type##unit,Param2##type##unit
+        ///   Type-A,value1,value2
+        ///   Type-B,value3,value4
+        /// First column = type name. Header row identified by leading comma.
+        /// </summary>
+        private static FamilySymbol TryLoadFromCatalog(
+            Document doc,
+            string rfaPath,
+            string typeCatalogKey,
+            string categoryName,
+            PlacementResult result)
+        {
+            if (string.IsNullOrEmpty(typeCatalogKey)) return null;
+            if (string.IsNullOrEmpty(rfaPath)) return null;
+            string txtPath;
+            try
+            {
+                string dir  = Path.GetDirectoryName(rfaPath) ?? "";
+                string name = Path.GetFileNameWithoutExtension(rfaPath) ?? "";
+                txtPath = Path.Combine(dir, name + ".txt");
+            }
+            catch { return null; }
+            if (!File.Exists(txtPath)) return null;
+
+            // Resolve the type name to load.
+            string matchedType = ResolveCatalogType(txtPath, typeCatalogKey, result);
+            if (string.IsNullOrEmpty(matchedType))
+            {
+                result.Warnings.Add(
+                    $"Type catalog '{Path.GetFileName(txtPath)}': no type matches " +
+                    $"TypeCatalogKey='{typeCatalogKey}' — falling back to bulk LoadFamily.");
+                return null;
+            }
+
+            try
+            {
+                FamilySymbol loaded;
+                if (doc.LoadFamilySymbol(rfaPath, matchedType, out loaded) && loaded != null)
+                {
+                    if (loaded.Category != null &&
+                        !string.IsNullOrEmpty(categoryName) &&
+                        !string.Equals(loaded.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Warnings.Add(
+                            $"Type catalog load: '{matchedType}' from '{Path.GetFileName(rfaPath)}' " +
+                            $"resolved category '{loaded.Category.Name}', expected '{categoryName}'.");
+                    }
+                    result.Warnings.Add(
+                        $"Phase 185 type-catalog: loaded '{matchedType}' from " +
+                        $"'{Path.GetFileName(rfaPath)}' (key='{typeCatalogKey}').");
+                    return loaded;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Phase 185 LoadFamilySymbol '{matchedType}' from '{rfaPath}': {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Read the type-catalog .txt and return the first type-name (first
+        /// column of a non-header row) whose name matches the key — either
+        /// exact case-insensitive, or via regex when the key looks regex-like.
+        /// </summary>
+        private static string ResolveCatalogType(string txtPath, string key, PlacementResult result)
+        {
+            try
+            {
+                bool regexMode = IsRegexLike(key);
+                System.Text.RegularExpressions.Regex rx = null;
+                if (regexMode)
+                {
+                    try { rx = new System.Text.RegularExpressions.Regex(key, System.Text.RegularExpressions.RegexOptions.IgnoreCase); }
+                    catch (Exception ex) { result?.Warnings.Add($"TypeCatalogKey regex '{key}': {ex.Message}"); return null; }
+                }
+                foreach (var raw in File.ReadAllLines(txtPath))
+                {
+                    if (string.IsNullOrEmpty(raw)) continue;
+                    // Header row starts with comma (no type name).
+                    if (raw.StartsWith(",")) continue;
+                    // First field = type name.
+                    int comma = raw.IndexOf(',');
+                    string typeName = (comma >= 0 ? raw.Substring(0, comma) : raw).Trim();
+                    if (string.IsNullOrEmpty(typeName)) continue;
+                    if (regexMode)
+                    {
+                        if (rx != null && rx.IsMatch(typeName)) return typeName;
+                    }
+                    else if (string.Equals(typeName, key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return typeName;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveCatalogType '{txtPath}': {ex.Message}"); }
             return null;
         }
 
@@ -1344,10 +1635,10 @@ namespace StingTools.Core.Placement
                                 if (bic != BuiltInCategory.INVALID)
                                     map[c.Name] = bic;
                             }
-                            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Category.Id -> BuiltInCategory cast: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"[FixturePlacementEngine] Category.Id -> BuiltInCategory cast: {ex2.Message}"); }
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"ResolveBuiltInCategoryByName: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"ResolveBuiltInCategoryByName: {ex2.Message}"); }
                     _bicByName[key] = map;
                 }
             }
@@ -1474,12 +1765,12 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] StructuralAudit GetElement({id.Value}): {ex.Message}"); }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex2) { StingLog.Warn($"[FixturePlacementEngine] StructuralAudit GetElement({id.Value}): {ex2.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
                 bool nearStructure = false;
-                try { nearStructure = sa.IsNearJunction(p, clearanceFt); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] StructuralAwareness.IsNearJunction: {ex.Message}"); }
+                try { nearStructure = sa.IsNearJunction(p, clearanceFt); } catch (Exception ex3) { StingLog.Warn($"[FixturePlacementEngine] StructuralAwareness.IsNearJunction: {ex3.Message}"); }
                 if (!nearStructure) continue;
                 conflicts++;
                 if (conflicts <= 10)
@@ -1634,7 +1925,7 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] AutoJoin GetElement({id.Value}): {ex.Message}"); }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex2) { StingLog.Warn($"[FixturePlacementEngine] AutoJoin GetElement({id.Value}): {ex2.Message}"); }
                 if (fi == null) continue;
                 var mgr = fi.MEPModel?.ConnectorManager;
                 if (mgr == null) continue;
@@ -1642,7 +1933,7 @@ namespace StingTools.Core.Placement
                 {
                     if (c == null || c.IsConnected) continue;
                     string sysKey = "?";
-                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.Description ?? c.Owner?.Category?.Name ?? ""); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Build connector sysKey: {ex.Message}"); }
+                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.Description ?? c.Owner?.Category?.Name ?? ""); } catch (Exception ex3) { StingLog.Warn($"[FixturePlacementEngine] Build connector sysKey: {ex3.Message}"); }
                     if (!openConns.TryGetValue(sysKey, out var list))
                     {
                         list = new List<(Connector, ElementId)>();
@@ -1705,10 +1996,10 @@ namespace StingTools.Core.Placement
                             if (a.IsConnected) { joined++; directJoins++; } else failed++;
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         failed++;
-                        StingLog.Warn($"AutoJoinMepConnectors {aid.Value}->{tid.Value}: {ex.Message}");
+                        StingLog.Warn($"AutoJoinMepConnectors {aid.Value}->{tid.Value}: {ex2.Message}");
                     }
                 }
             }
@@ -1856,7 +2147,7 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] DoorSwingAudit GetElement({id.Value}): {ex.Message}"); }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex2) { StingLog.Warn($"[FixturePlacementEngine] DoorSwingAudit GetElement({id.Value}): {ex2.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
@@ -1993,6 +2284,44 @@ namespace StingTools.Core.Placement
                     $"Cable derating: rule '{rule.MergeKey}' has up to {total} same-category instances within 300mm — " +
                     $"BS 7671 Table 4 derating ≈ {derate:F2}×. Verify cable size with the electrical engineer before issue.");
             }
+        }
+
+        // Phase 139.4 — resolve a Document.Settings.Categories entry to its
+        // BuiltInCategory enum so FilteredElementCollector.OfCategory can
+        // pre-filter family symbols. Cached per document on first hit.
+        private static readonly Dictionary<int, Dictionary<string, BuiltInCategory>> _bicByName
+            = new Dictionary<int, Dictionary<string, BuiltInCategory>>();
+        private static readonly object _bicByNameLock = new object();
+
+        private static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
+        {
+            if (doc == null || string.IsNullOrEmpty(categoryName)) return BuiltInCategory.INVALID;
+            int key = doc.GetHashCode();
+            Dictionary<string, BuiltInCategory> map;
+            lock (_bicByNameLock)
+            {
+                if (!_bicByName.TryGetValue(key, out map))
+                {
+                    map = new Dictionary<string, BuiltInCategory>(StringComparer.OrdinalIgnoreCase);
+                    try
+                    {
+                        foreach (Category c in doc.Settings.Categories)
+                        {
+                            if (c == null || string.IsNullOrEmpty(c.Name)) continue;
+                            try
+                            {
+                                var bic = (BuiltInCategory)c.Id.Value;
+                                if (bic != BuiltInCategory.INVALID)
+                                    map[c.Name] = bic;
+                            }
+                            catch { }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ResolveBuiltInCategoryByName: {ex.Message}"); }
+                    _bicByName[key] = map;
+                }
+            }
+            return map.TryGetValue(categoryName, out var hit) ? hit : BuiltInCategory.INVALID;
         }
     }
 }

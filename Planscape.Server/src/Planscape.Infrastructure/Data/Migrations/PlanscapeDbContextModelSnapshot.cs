@@ -816,6 +816,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .ValueGeneratedOnAdd()
                     .HasColumnType("uuid");
 
+                b.Property<string>("BridgeKeyHash")
+                    .HasColumnType("text");
+
                 b.Property<string>("Code")
                     .IsRequired()
                     .HasColumnType("text");
@@ -1770,6 +1773,24 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.Navigation("Tenant");
 
+                b.Navigation("User");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.UserNotificationPreferences", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.AppUser", "User")
+                    .WithMany()
+                    .HasForeignKey("UserId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
+                    .WithMany()
+                    .HasForeignKey("TenantId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Tenant");
                 b.Navigation("User");
             });
 

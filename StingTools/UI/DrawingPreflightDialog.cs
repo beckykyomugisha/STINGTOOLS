@@ -29,6 +29,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Threading.Tasks;
 using Autodesk.Revit.DB;
 using StingTools.Core.Drawing;
 
@@ -39,6 +40,7 @@ using Color     = System.Windows.Media.Color;
 using Colors    = System.Windows.Media.Colors;
 using Rectangle = System.Windows.Shapes.Rectangle;
 using Grid      = System.Windows.Controls.Grid;
+using ValidationSeverity = StingTools.Core.Drawing.ValidationSeverity;
 
 namespace StingTools.UI
 {

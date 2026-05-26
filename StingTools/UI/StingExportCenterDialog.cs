@@ -24,6 +24,8 @@ using Brushes = System.Windows.Media.Brushes;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using Orientation = System.Windows.Controls.Orientation;
 using SystemColors = System.Windows.SystemColors;
+using Newtonsoft.Json;
+using Autodesk.Revit.UI;
 
 namespace StingTools.UI
 {
@@ -498,7 +500,7 @@ namespace StingTools.UI
             return dock;
         }
 
-        private CheckBox AddFormatChip(Panel parent, string label, ExportFormats fmt)
+        private CheckBox AddFormatChip(System.Windows.Controls.Panel parent, string label, ExportFormats fmt)
         {
             var cb = new CheckBox
             {
@@ -856,7 +858,17 @@ namespace StingTools.UI
             var presetMap = _profile.Mode == ExportCenterMode.BIM ? ExportNamingPresets.BimMode : ExportNamingPresets.SimpleMode;
             foreach (var k in presetMap.Keys) preset.Items.Add(k);
             preset.Items.Add("Custom…");
-            preset.SelectedIndex = 0;
+            // Select the preset whose template matches the currently-loaded
+            // NamingTemplate, otherwise fall through to "Custom…" so the user
+            // sees their saved template instead of being silently overridden.
+            int matchIdx = -1;
+            int i = 0;
+            foreach (var kv in presetMap)
+            {
+                if (string.Equals(kv.Value, _profile.Output.NamingTemplate, StringComparison.Ordinal)) { matchIdx = i; break; }
+                i++;
+            }
+            preset.SelectedIndex = matchIdx >= 0 ? matchIdx : preset.Items.Count - 1; // "Custom…" is last
             preset.SelectionChanged += (_, __) =>
             {
                 string key = preset.SelectedItem?.ToString();
@@ -868,16 +880,30 @@ namespace StingTools.UI
             nSp.Children.Add(LabelFor("Preset", preset));
 
             _namingBox = new TextBox { Text = _profile.Output.NamingTemplate };
-            _namingBox.TextChanged += (_, __) => { _profile.Output.NamingTemplate = _namingBox.Text; RefreshNamingPreview(); };
+            _namingBox.TextChanged += (_, __) =>
+            {
+                _profile.Output.NamingTemplate = _namingBox.Text;
+                // Re-sync the preset combo when the user edits the template
+                // by hand — keeps the dropdown honest about what's active.
+                int newIdx = -1;
+                int j = 0;
+                foreach (var kv in presetMap)
+                {
+                    if (string.Equals(kv.Value, _namingBox.Text, StringComparison.Ordinal)) { newIdx = j; break; }
+                    j++;
+                }
+                preset.SelectedIndex = newIdx >= 0 ? newIdx : preset.Items.Count - 1;
+                RefreshNamingPreview();
+            };
             nSp.Children.Add(LabelFor("Template", _namingBox));
 
-            // Token palette
+            // Token palette. ISO 19650 tokens are surfaced in both modes —
+            // ExportCenterEngine.BuildTokenContext auto-populates them per sheet
+            // (sheet STING_* params → stamped DrawingType.IsoNaming → defaults).
             var tokens = new WrapPanel { Margin = new Thickness(0, 4, 0, 6) };
-            string[] common  = { "{SheetNumber}", "{SheetTitle}", "{Revision}", "{Discipline}", "{Date:yyyyMMdd}" };
-            string[] bimOnly = { "{Originator}", "{Volume}", "{Level}", "{Type}", "{Role}", "{Suitability}", "{ProjectCode}" };
+            string[] common = { "{SheetNumber}", "{SheetTitle}", "{Revision}", "{Discipline}", "{Date:yyyyMMdd}",
+                                "{ProjectCode}", "{Originator}", "{Volume}", "{Level}", "{Type}", "{Role}", "{Suitability}" };
             foreach (var t in common) tokens.Children.Add(MakeTokenPill(t));
-            if (_profile.Mode == ExportCenterMode.BIM)
-                foreach (var t in bimOnly) tokens.Children.Add(MakeTokenPill(t));
             nSp.Children.Add(tokens);
 
             _namingPreview = new TextBlock

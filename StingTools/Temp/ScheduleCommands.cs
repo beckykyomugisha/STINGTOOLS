@@ -1266,6 +1266,7 @@ namespace StingTools.Temp
             {
                 progress?.Close(); // AUTO-R4: Close progress dialog
             }
+            progress?.Close(); // AUTO-R4: Close progress dialog
             sw.Stop();
             // Save SEQ sidecar + invalidate caches after full auto-populate
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
@@ -1704,7 +1705,7 @@ namespace StingTools.Temp
                 // Remove old schedule if exists
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing title block schedule: {ex.Message}"); }
+                    try { doc.Delete(existing.Id); } catch (Exception ex2) { StingLog.Warn($"Delete existing title block schedule: {ex2.Message}"); }
                 }
 
                 // Create drafting view
@@ -1847,7 +1848,7 @@ namespace StingTools.Temp
                     foreach (var rev in revisions.TakeLast(10))
                     {
                         string revDate = "";
-                        try { revDate = rev.RevisionDate; } catch (Exception ex) { StingLog.Warn($"Read revision date: {ex.Message}"); }
+                        try { revDate = rev.RevisionDate; } catch (Exception ex2) { StingLog.Warn($"Read revision date: {ex2.Message}"); }
                         PlaceText($"  Rev {rev.SequenceNumber}: {rev.Description}  [{revDate}]",
                             smallTypeId, lineSpacing);
                     }
@@ -2044,7 +2045,7 @@ namespace StingTools.Temp
                                     ? "FOR INFORMATION" : "PRELIMINARY";
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"Read sheet revision data: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Read sheet revision data: {ex2.Message}"); }
                 }
 
                 if (string.IsNullOrEmpty(row.Status)) row.Status = "PRELIMINARY";

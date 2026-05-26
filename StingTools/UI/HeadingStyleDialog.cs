@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Collections.Generic;
 using StingTools.Core;
 
 namespace StingTools.UI
@@ -43,7 +44,7 @@ namespace StingTools.UI
         private static readonly Color CardBorder = Color.FromRgb(0xCF, 0xD8, 0xDC);
         private static readonly Color FgColor = Color.FromRgb(0x22, 0x22, 0x22);
         private static readonly Color SubtleColor = Color.FromRgb(0x66, 0x66, 0x66);
-        private static readonly Color PreviewBg = Color.FromRgb(0x1E, 0x1E, 0x1E);
+        private static readonly Color PreviewBg = Color.FromRgb(0x1A, 0x23, 0x7E);
 
         private HeadingStyleDialog(string currentTier2Style, string currentTier3Style)
         {

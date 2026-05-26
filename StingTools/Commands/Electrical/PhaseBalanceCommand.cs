@@ -222,7 +222,7 @@ namespace StingTools.Commands.Electrical
 
         private static double SafeLoadKW(ElectricalSystem s)
         {
-            try { return s.ApparentLoad / 1000.0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+            try { return s.ApparentLoad / 1000.0; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return 0; }
         }
 
         /// <summary>
@@ -251,7 +251,7 @@ namespace StingTools.Commands.Electrical
                     return "A";
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             return "A";
         }
 
@@ -262,7 +262,7 @@ namespace StingTools.Commands.Electrical
                 var p1 = s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_START_SLOT)?.AsDouble() ?? 0;
                 return s.PolesNumber == 2 && p1 > 0;
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return false; }
         }
     }
 }

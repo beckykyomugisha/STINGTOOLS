@@ -206,8 +206,12 @@ namespace StingTools.Docs
         public string CdeWorkflowPreset { get; set; } = "deliverable_issue_default";
         public bool CdeNotifyTeam { get; set; } = true;
 
-        // Naming
-        public string NamingTemplate { get; set; } = "{SheetNumber} - {SheetTitle}";
+        // Naming — default to ISO 19650-2 full template; ExportCenterEngine
+        // auto-populates {ProjectCode} / {Originator} / {Volume} / {Level} /
+        // {Type} / {Role} / {Suitability} / {Revision} from ProjectInformation,
+        // sheet STING_* params, and the stamped DrawingType (Phase 113).
+        public string NamingTemplate { get; set; } =
+            "{ProjectCode}-{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}";
         public string NamingSeparator { get; set; } = "-";
         public FilenameConflictMode ConflictMode { get; set; } = FilenameConflictMode.AutoRename;
         public string IllegalCharReplacement { get; set; } = "-";
@@ -350,6 +354,15 @@ namespace StingTools.Docs
                 Output = new OutputSettings { NamingTemplate = "{SheetNumber} - {SheetTitle}" },
             });
 
+            list.Add(new ExportProfile
+            {
+                Name = "ISO 19650 — PDF + DWG",
+                BuiltIn = true,
+                Mode = ExportCenterMode.BIM,
+                Formats = ExportFormats.PDF | ExportFormats.DWG,
+                Output = new OutputSettings { NamingTemplate = ExportNamingPresets.Iso19650Full },
+            });
+
             return list;
         }
 
@@ -378,8 +391,18 @@ namespace StingTools.Docs
 
     public static class ExportNamingPresets
     {
+        // ISO 19650-2 file naming: <Project>-<Originator>-<Volume>-<Level>-<Type>-<Role>-<Number>[-<Status>-<Revision>]
+        // Tokens are resolved per-sheet by ExportCenterEngine.BuildTokenContext.
+        public const string Iso19650Full    = "{ProjectCode}-{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}";
+        public const string Iso19650Compact = "{Originator}-{SheetNumber}-{Suitability}{Revision}";
+
+        // Default preset name used when no profile-specific preset is saved.
+        public const string DefaultKey = "ISO 19650 (full)";
+
         public static readonly Dictionary<string, string> SimpleMode = new()
         {
+            { "ISO 19650 (full)",       Iso19650Full },
+            { "ISO 19650 (compact)",    Iso19650Compact },
             { "US Standard",            "{SheetNumber} - {SheetTitle}" },
             { "UK Basic",               "{SheetNumber}_{SheetTitle}_Rev{Revision}" },
             { "Australia",              "{ProjectCode}-{SheetNumber}-{SheetTitle}" },
@@ -388,8 +411,8 @@ namespace StingTools.Docs
 
         public static readonly Dictionary<string, string> BimMode = new()
         {
-            { "ISO 19650 (full)",       "{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}" },
-            { "ISO 19650 (compact)",    "{Originator}-{SheetNumber}-{Suitability}{Revision}" },
+            { "ISO 19650 (full)",       Iso19650Full },
+            { "ISO 19650 (compact)",    Iso19650Compact },
             { "Issue + Date",           "{ProjectCode}-{SheetNumber}-{SheetTitle}-{Suitability}{Revision}_{Date:yyyyMMdd}" },
             { "Drawing No. only",       "{SheetNumber}" },
         };

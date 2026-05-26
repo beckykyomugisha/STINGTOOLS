@@ -1,3 +1,4 @@
+#nullable enable
 // Pack 10 — Extensible Storage schema builder.
 //
 // STING has about a dozen state variables stored as hidden shared parameters
@@ -26,6 +27,7 @@
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.ExtensibleStorage;
+using StingTools.Core;
 
 namespace StingTools.Core.Storage
 {
@@ -46,7 +48,7 @@ namespace StingTools.Core.Storage
         /// Resolve the stale-flag schema, creating it on first access per-document.
         /// Safe to call repeatedly — Schema.Lookup is cheap.
         /// </summary>
-        public static Schema GetOrCreateStaleSchema()
+        public static Schema? GetOrCreateStaleSchema()
         {
             try
             {

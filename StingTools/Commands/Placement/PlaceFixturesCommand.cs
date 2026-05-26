@@ -14,6 +14,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Placement;
 using StingTools.UI;
+using FixtureScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode;
 
 namespace StingTools.Commands.Placement
 {
@@ -25,8 +26,24 @@ namespace StingTools.Commands.Placement
     /// </summary>
     public static class PlaceFixturesOptions
     {
+        /// <summary>Defines which set of rooms the Place Fixtures command operates on.</summary>
+        public enum FixtureScopeMode
+        {
+            /// <summary>Only rooms on the currently active plan view level.</summary>
+            ActiveView,
+            /// <summary>Only rooms that were selected in the model when the command was invoked.</summary>
+            SelectedRooms,
+            /// <summary>All rooms in the entire project.</summary>
+            AllRooms,
+            /// <summary>Rooms explicitly filtered by room name / department criteria.</summary>
+            ByRoom,
+        }
+
         public static bool DryRunPreference { get; set; } = true;
         public static bool SnapTo300mmGrid  { get; set; } = true;
+
+        /// <summary>Determines which rooms the engine targets during a run.</summary>
+        public static FixtureScopeMode ScopeMode { get; set; } = FixtureScopeMode.SelectedRooms;
 
         // Category filters (from the Fixtures panel).
         public static bool IncludeElectricalFixtures  { get; set; } = true;
@@ -102,7 +119,7 @@ namespace StingTools.Commands.Placement
             string scopeLabel;
             switch (PlaceFixturesOptions.ScopeMode)
             {
-                case PlaceFixturesOptions.FixtureScopeMode.ActiveView:
+                case FixtureScopeMode.ActiveView:
                 {
                     var view = uidoc.ActiveView;
                     if (view == null)
@@ -145,13 +162,13 @@ namespace StingTools.Commands.Placement
                     scopeLabel = $"Active view ({selectedRoomIds.Count} room(s))";
                     break;
                 }
-                case PlaceFixturesOptions.FixtureScopeMode.AllRooms:
+                case FixtureScopeMode.AllRooms:
                 {
                     scopeLabel = "All rooms (entire project)";
                     // Leave selectedRoomIds empty — engine treats empty as "all rooms".
                     break;
                 }
-                case PlaceFixturesOptions.FixtureScopeMode.SelectedRooms:
+                case FixtureScopeMode.SelectedRooms:
                 default:
                 {
                     foreach (var id in uidoc.Selection.GetElementIds())
@@ -176,16 +193,16 @@ namespace StingTools.Commands.Placement
             bool dryRun;
             if (PlaceFixturesOptions.DryRunPreference)
             {
-                dryRun = PromptDryRunChoice(selectedRoomIds.Count);
+                dryRun = PromptDryRunChoice(scopeLabel);
             }
             else
             {
-                if (!ConfirmPlacement(selectedRoomIds.Count)) return Result.Cancelled;
+                if (!ConfirmPlacement(scopeLabel)) return Result.Cancelled;
                 dryRun = false;
             }
             if (dryRun == false
                 && PlaceFixturesOptions.DryRunPreference == false
-                && !ConfirmPlacement(selectedRoomIds.Count)) return Result.Cancelled;
+                && !ConfirmPlacement(scopeLabel)) return Result.Cancelled;
 
             // Category filter: discipline checkboxes from the Fixtures
             // panel restrict which PlacementRule.CategoryFilter values
@@ -227,6 +244,48 @@ namespace StingTools.Commands.Placement
                         "STING_PLACEMENT_RULES.json.");
                     return Result.Cancelled;
                 }
+
+                // Phase 139.7 — pre-flight: warn the user about checked
+                // categories that have ZERO loaded family symbols. Without
+                // this check the engine prints "No FamilySymbol found for
+                // category 'X' — skipping its rules" once and silently
+                // drops all rules in that category, leaving the designer
+                // wondering why no sockets / switches landed.
+                var emptyCats = new List<string>();
+                foreach (var cat in allowedCats)
+                {
+                    bool hasSymbol = false;
+                    try
+                    {
+                        foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
+                        {
+                            if (el is FamilySymbol fs && fs.Category != null
+                                && string.Equals(fs.Category.Name, cat, StringComparison.OrdinalIgnoreCase))
+                            { hasSymbol = true; break; }
+                        }
+                    }
+                    catch { }
+                    if (!hasSymbol) emptyCats.Add(cat);
+                }
+                if (emptyCats.Count > 0)
+                {
+                    var td2 = new TaskDialog("STING v4 — Categories without a placeable Type")
+                    {
+                        MainInstruction = $"{emptyCats.Count} ticked categor{(emptyCats.Count == 1 ? "y has" : "ies have")} no Family Type loaded",
+                        MainContent =
+                            "These categories have no Family Type (FamilySymbol) loaded into the project:\n  " +
+                            string.Join("\n  ", emptyCats.Take(15)) +
+                            (emptyCats.Count > 15 ? $"\n  + {emptyCats.Count - 15} more" : "") +
+                            "\n\nIn Revit a Family (.rfa) is the container; a Type (FamilySymbol) is one of the variants " +
+                            "inside it. The engine places instances of a Type, not the Family — a Family with none of its " +
+                            "Types loaded into the project drops every rule in its category.\n\n" +
+                            "Insert > Load Family, then drag at least one Type from the .rfa in Project Browser into a view, " +
+                            "and run Placement_AuditSetup for the full setup check. Continue anyway?",
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                        DefaultButton = TaskDialogResult.No,
+                    };
+                    if (td2.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+                }
             }
 
             PlacementResult res;
@@ -251,7 +310,7 @@ namespace StingTools.Commands.Placement
             if (!dryRun && res.PlacedIds.Count > 0)
             {
                 try { uidoc.Selection.SetElementIds(res.PlacedIds); }
-                catch (Exception ex) { StingLog.Warn($"PlaceFixturesCommand select failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"PlaceFixturesCommand select failed: {ex2.Message}"); }
             }
 
             return Result.Succeeded;
@@ -259,10 +318,6 @@ namespace StingTools.Commands.Placement
 
         private bool PromptDryRunChoice(string scopeLabel)
         {
-            string scope = selectedRoomCount > 0
-                ? $"{selectedRoomCount} selected room(s)"
-                : "ALL rooms in project";
-
             // Revit's TaskDialog.DefaultButton must refer to a button in CommonButtons —
             // it cannot point at a CommandLink. Leave DefaultButton unset so Revit picks
             // the first-added CommandLink as the default.

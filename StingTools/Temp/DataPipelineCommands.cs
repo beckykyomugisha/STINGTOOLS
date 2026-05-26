@@ -10,6 +10,9 @@ using ClosedXML.Excel;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Core.Validation;
+using System.Text.RegularExpressions;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Temp
 {
@@ -795,10 +798,10 @@ namespace StingTools.Temp
                                 failed++;
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         failed++;
-                        StingLog.Warn($"Bind '{paramName}': {ex.Message}");
+                        StingLog.Warn($"Bind '{paramName}': {ex2.Message}");
                     }
                 }
 
@@ -1362,7 +1365,7 @@ namespace StingTools.Temp
                                     }
                                 }
                             }
-                            catch (Exception ex) { StingLog.Warn($"Build BOQ description for '{sample.FamilyName}': {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Build BOQ description for '{sample.FamilyName}': {ex2.Message}"); }
                             if (string.IsNullOrEmpty(desc))
                             {
                                 desc = !string.IsNullOrEmpty(sample.Description)
@@ -1652,7 +1655,7 @@ namespace StingTools.Temp
                 catch (Exception ex2)
                 {
                     StingLog.Error($"BOQ fallback save failed: {ex2.Message}");
-                    TaskDialog.Show("BOQ Export", $"Could not save BOQ file.\n{ex.Message}\n{ex2.Message}");
+                    TaskDialog.Show("BOQ Export", $"Could not save BOQ file.\n{ex2.Message}\n{ex2.Message}");
                     return Result.Failed;
                 }
             }
@@ -4241,7 +4244,7 @@ namespace StingTools.Temp
                 try { wb.SaveAs(fallback); }
                 catch (Exception ex2)
                 {
-                    TaskDialog.Show("Excel Link", $"Could not save:\n{ex.Message}\n{ex2.Message}");
+                    TaskDialog.Show("Excel Link", $"Could not save:\n{ex2.Message}\n{ex2.Message}");
                     return Result.Failed;
                 }
             }

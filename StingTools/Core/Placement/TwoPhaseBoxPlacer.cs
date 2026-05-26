@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139.2 — Two-phase conduiting box placer.
 //
 // First-fix conduit boxes are placed in the Construction phase and
@@ -16,6 +17,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Placement
 {
@@ -122,7 +124,7 @@ namespace StingTools.Core.Placement
                                 if (doc.IsWorkshared && pf.Placed.WorksetId != null)
                                     wsTag = "|ws=" + pf.Placed.WorksetId.IntegerValue;
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                             string composite = guid + wsTag;
                             string paramName = string.IsNullOrEmpty(rule.BoxLocationIdParam)
                                 ? ParamRegistry.BOX_LOCATION_ID : rule.BoxLocationIdParam;
@@ -138,9 +140,9 @@ namespace StingTools.Core.Placement
                             try { PostPlacementHooks.RunFor(pf.Placed, rule); }
                             catch (Exception hkEx) { result?.Warnings.Add($"PostHook(first-fix): {hkEx.Message}"); }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
-                            result?.Warnings.Add($"TwoPhase.PlaceFirstFix {rule.MergeKey} in room {room.Id}: {ex.Message}");
+                            result?.Warnings.Add($"TwoPhase.PlaceFirstFix {rule.MergeKey} in room {room.Id}: {ex2.Message}");
                             if (result != null) result.SkippedCount++;
                         }
                     }
@@ -246,9 +248,9 @@ namespace StingTools.Core.Placement
                             try { PostPlacementHooks.RunFor(pf.Placed, rule); }
                             catch (Exception hkEx) { result?.Warnings.Add($"PostHook(second-fix): {hkEx.Message}"); }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
-                            result?.Warnings.Add($"TwoPhase.PlaceSecondFix {rule.MergeKey}: {ex.Message}");
+                            result?.Warnings.Add($"TwoPhase.PlaceSecondFix {rule.MergeKey}: {ex2.Message}");
                             if (result != null) result.SkippedCount++;
                         }
                     }

@@ -615,7 +615,7 @@ namespace StingTools.Temp
                 if (originalView != null)
                 {
                     try { uidoc.ActiveView = originalView; }
-                    catch (Exception ex) { StingLog.Warn($"Restore active view failed: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Restore active view failed: {ex2.Message}"); }
                 }
 
                 // ── Finalize ─────────────────────────────────────────
@@ -949,9 +949,9 @@ namespace StingTools.Temp
                     if (frParam != null && !frParam.IsReadOnly)
                         frParam.Set(data.FireConfig.FireRating);
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Warn($"Could not set FIRE_RATING: {ex.Message}");
+                    StingLog.Warn($"Could not set FIRE_RATING: {ex2.Message}");
                 }
             }
 
@@ -970,9 +970,9 @@ namespace StingTools.Temp
                             vParam.Set(numV);
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Warn($"Could not set ELC_VOLTAGE: {ex.Message}");
+                    StingLog.Warn($"Could not set ELC_VOLTAGE: {ex2.Message}");
                 }
             }
         }

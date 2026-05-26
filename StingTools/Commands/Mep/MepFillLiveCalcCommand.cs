@@ -62,10 +62,10 @@ namespace StingTools.Commands.Mep
                             if (WriteDouble(el, "ELC_CDT_CBL_FILL_PCT", fill)) updated++;
                             else skipped++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             skipped++;
-                            warnings.Add($"cdt {el?.Id}: {ex.Message}");
+                            warnings.Add($"cdt {el?.Id}: {ex2.Message}");
                         }
                     }
                     // Cable tray
@@ -84,10 +84,10 @@ namespace StingTools.Commands.Mep
                             if (WriteDouble(el, "ELC_CTR_FILL_PCT", fill)) updated++;
                             else skipped++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             skipped++;
-                            warnings.Add($"tray {el?.Id}: {ex.Message}");
+                            warnings.Add($"tray {el?.Id}: {ex2.Message}");
                         }
                     }
                     tx.Commit();

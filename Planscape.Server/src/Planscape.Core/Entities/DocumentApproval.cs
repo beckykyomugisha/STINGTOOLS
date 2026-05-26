@@ -18,11 +18,20 @@ public class DocumentApproval : ITenantScoped
     public string Status { get; set; } = "PENDING";
 
     public string RequestedBy { get; set; } = "";
+    /// <summary>User ID of the person who requested approval — used to push decision notifications.</summary>
+    public Guid? RequestedByUserId { get; set; }
     public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
 
     public string? DecidedBy { get; set; }
     public DateTime? DecidedAt { get; set; }
     public string? Comments { get; set; }
+
+    /// <summary>
+    /// The document revision at the time this approval was requested.
+    /// Scopes the approval gate so a reworked document (new revision) cannot
+    /// be published against an approval granted for an earlier revision.
+    /// </summary>
+    public string? RevisionSnapshot { get; set; }
 
     // Navigation
     public DocumentRecord? Document { get; set; }

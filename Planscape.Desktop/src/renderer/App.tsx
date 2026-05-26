@@ -1,72 +1,83 @@
-// Planscape Desktop — root renderer component.
-//
-// Layout: fixed left sidebar (nav) + main content area.
-// Shares the same API client and auth store as the mobile app
-// (symlinked or copied from Planscape/src/api/ at build time).
-//
-// Pages:
-//   /dashboard   — compliance gauge + project overview
-//   /issues      — issue list + create
-//   /documents   — CDE document browser
-//   /ifc         — IFC drop-folder status + manual import trigger
-//   /settings    — server URL, auth token, ifc_drop path
+import React, { useEffect } from 'react'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useAuthStore } from './stores/auth'
+import { useSyncStore } from './stores/sync'
+import Sidebar from './components/Sidebar'
+import SyncStatusBar from './components/SyncStatusBar'
+import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
+import Projects from './pages/Projects'
+import FolderSync from './pages/FolderSync'
+import Documents from './pages/Documents'
+import Issues from './pages/Issues'
+import Settings from './pages/Settings'
 
-import React, { useState } from 'react';
-import DashboardPage  from './pages/DashboardPage';
-import IssuesPage     from './pages/IssuesPage';
-import DocumentsPage  from './pages/DocumentsPage';
-import IfcPage        from './pages/IfcPage';
-import SettingsPage   from './pages/SettingsPage';
+function ProtectedLayout(): React.ReactElement {
+  const { addUploadJob, setWatcherEvent } = useSyncStore()
 
-type Page = 'dashboard' | 'issues' | 'documents' | 'ifc' | 'settings';
-
-const NAV: { id: Page; label: string; icon: string }[] = [
-  { id: 'dashboard',  label: 'Dashboard',  icon: '◈' },
-  { id: 'issues',     label: 'Issues',     icon: '⚑' },
-  { id: 'documents',  label: 'Documents',  icon: '⎗' },
-  { id: 'ifc',        label: 'IFC / ArchiCAD', icon: '⟁' },
-  { id: 'settings',   label: 'Settings',   icon: '⚙' },
-];
-
-export default function App() {
-  const [page, setPage] = useState<Page>('dashboard');
-
-  const pageComponent: Record<Page, React.ReactElement> = {
-    dashboard: <DashboardPage />,
-    issues:    <IssuesPage />,
-    documents: <DocumentsPage />,
-    ifc:       <IfcPage />,
-    settings:  <SettingsPage />,
-  };
+  useEffect(() => {
+    // Listen for file watcher events from main process
+    window.electron.on('watcher:file', (file: unknown) => {
+      setWatcherEvent(file as any)
+    })
+    // Listen for upload queue updates
+    window.electron.on('upload:queue', (queue: unknown) => {
+      addUploadJob(queue as any)
+    })
+    return () => {
+      window.electron.off('watcher:file', () => {})
+      window.electron.off('upload:queue', () => {})
+    }
+  }, [addUploadJob, setWatcherEvent])
 
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-      {/* Sidebar */}
-      <nav style={{
-        width: 200, background: '#1a1a2e', color: '#e0e0e0',
-        display: 'flex', flexDirection: 'column', padding: '16px 0',
-      }}>
-        <div style={{ padding: '0 16px 24px', fontSize: 18, fontWeight: 700, color: '#fff' }}>
-          Planscape
-        </div>
-        {NAV.map(n => (
-          <button key={n.id}
-            onClick={() => setPage(n.id)}
-            style={{
-              background: page === n.id ? '#16213e' : 'transparent',
-              border: 'none', color: page === n.id ? '#fff' : '#aaa',
-              textAlign: 'left', padding: '10px 16px', cursor: 'pointer',
-              fontSize: 14, borderLeft: page === n.id ? '3px solid #4f8ef7' : '3px solid transparent',
-            }}>
-            <span style={{ marginRight: 8 }}>{n.icon}</span>{n.label}
-          </button>
-        ))}
-      </nav>
-
-      {/* Main content */}
-      <main style={{ flex: 1, overflow: 'auto', background: '#f5f5f5', padding: 24 }}>
-        {pageComponent[page]}
-      </main>
+    <div className="flex h-screen overflow-hidden bg-ps-bg">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 overflow-auto">
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/sync" element={<FolderSync />} />
+            <Route path="/documents" element={<Documents />} />
+            <Route path="/issues" element={<Issues />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </main>
+        <SyncStatusBar />
+      </div>
     </div>
-  );
+  )
+}
+
+function AuthGuard({ children }: { children: React.ReactElement }): React.ReactElement {
+  const { token } = useAuthStore()
+  if (!token) return <Navigate to="/login" replace />
+  return children
+}
+
+export default function App(): React.ReactElement {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/*"
+          element={
+            <AuthGuard>
+              <ProtectedLayout />
+            </AuthGuard>
+          }
+        />
+      </Routes>
+    </HashRouter>
+  )
+}
+
+// Extend Window type for electron bridge
+declare global {
+  interface Window {
+    electron: import('../preload/index').IElectronAPI
+  }
 }

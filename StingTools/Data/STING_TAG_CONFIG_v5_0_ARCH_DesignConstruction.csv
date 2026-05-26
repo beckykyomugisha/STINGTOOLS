@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.4,CREATED=2026-03-16,UPDATED=2026-04-23,FAMILIES=142,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries),VARIANT=DesignConstruction
+#SCHEMA_VERSION=5.6,CREATED=2026-03-16,UPDATED=2026-05-20,FAMILIES=36,DISCIPLINE=ARCH,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.12(204_categories)+PARAMETER_REGISTRY.json_phase187(3163_params)+TagFamilyConfig.TotalFamilyCount=204,VARIANT=DesignConstruction
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -274,6 +274,9 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Walls
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,U > 0.70 W/m²K,Building Regs Part L2A / Uganda ES,Common,Text,⚠ Warning: Wall U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS, """")"
@@ -327,6 +330,9 @@ TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Floors
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,U > 0.25 W/m²K,Building Regs Part L2A,Common,Text,⚠ Warning: Floor U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS, """")"
@@ -376,6 +382,9 @@ TAG7: ARCH_TAG_7_PARA_CEIL_TXT  •  Category: Ceilings
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_CEILINGS,Fire rating < 0.5 hr,Building Regs Part B,Common,Text,⚠ Warning: Ceiling Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_CEILINGS, """")"
@@ -424,6 +433,9 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roofs
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,U > 0.20 W/m²K,Building Regs Part L2A,Common,Text,⚠ Warning: Roof U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS, """")"
@@ -476,6 +488,9 @@ TAG7: ARCH_TAG_7_PARA_DOOR_TXT  •  Category: Doors
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_DOORS,Fire door rating < required,Building Regs Part B / BS 476,Common,Text,⚠ Warning: Door Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_DOORS, """")"
@@ -525,6 +540,9 @@ TAG7: ARCH_TAG_7_PARA_WIN_TXT  •  Category: Windows
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_PER_THERM_U_VALUE_W_M2K_NR_WINDOWS,U > 2.00 W/m²K,Building Regs Part L2A,Common,Text,⚠ Warning: Window U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_WINDOWS, """")"
@@ -568,6 +586,9 @@ TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Rooms
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_HEADROOM_MM_NR_ROOMS,Headroom < 2100mm,Building Regs Part K / BS 8300,Common,Text,⚠ Warning: Room Headroom,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_HEADROOM_MM_NR_ROOMS, """")"
@@ -615,6 +636,9 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stairs
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_STAIR_RISER_MM_STAIRS,Riser > 220mm or < 150mm,Building Regs Part K,Common,Text,⚠ Warning: Stair Riser,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISER_MM_STAIRS, """")"
@@ -660,6 +684,9 @@ TAG7: ARCH_TAG_7_PARA_RAMP_TXT  •  Category: Ramps
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Slope > 1:12 (8.33%),Building Regs Part M / BS 8300-2,Common,Text,⚠ Warning: Ramp Slope,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAMP_SLOPE_PCT_RAMPS, """")"
@@ -703,6 +730,9 @@ TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Railings
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_RAILING_HEIGHT_MM_RAILINGS,Height < 1100mm (balustrade) or < 900mm (stair),Building Regs Part K,Common,Text,⚠ Warning: Railing Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAILING_HEIGHT_MM_RAILINGS, """")"
@@ -745,6 +775,9 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_BLE_FURNITURE_FIRE_FURNITURE,Furniture fire resistance not rated,BS 7176 / BS 5852 (upholstered),Common,Text,⚠ Warning: Furniture Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FURNITURE_FIRE_FURNITURE, """")"
@@ -787,6 +820,9 @@ TAG7: ARCH_TAG_7_PARA_CASEWORK_TXT  •  Category: Casework
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_CASEWORK_ACCESSIBLE_CASEWORK,Accessible unit clearance < 850mm,Building Regs Part M / BS 8300-2,Common,Text,⚠ Warning: Casework Accessibility,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CASEWORK_ACCESSIBLE_CASEWORK, """")"
@@ -829,6 +865,9 @@ TAG7: ARCH_TAG_7_PARA_CURTAIN_TXT  •  Category: Curtain Panels
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_PER_THERM_U_VALUE_W_M2K_NR_CURTAIN,U > 1.60 W/m²K,Building Regs Part L2A (curtain wall),Common,Text,⚠ Warning: Curtain Wall U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_CURTAIN, """")"
@@ -873,6 +912,9 @@ TAG7: ARCH_TAG_7_PARA_MULLION_TXT  •  Category: Curtain Wall Mullions
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_PER_THERM_U_VALUE_W_M2K_NR_MULLION,Mullion U-value > 2.20 W/m²K,Building Regs Part L2A (curtain wall),Common,Text,⚠ Warning: Mullion Thermal,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_MULLION, """")"
@@ -913,6 +955,9 @@ TAG7: ARCH_TAG_7_PARA_SIGNAGE_TXT  •  Category: Signage
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_SIGN_FIRE_EXIT_SIGNAGE,Fire exit sign not illuminated,Building Regs Part B / BS 5499-4,Common,Text,⚠ Warning: Fire Exit Sign,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_SIGN_FIRE_EXIT_SIGNAGE, """")"
@@ -955,6 +1000,9 @@ TAG7: ARCH_TAG_7_PARA_PARKING_TXT  •  Category: Parking
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_PARK_BAY_WIDTH_PARKING,Accessible bay width < 3600mm,Building Regs Part M / BS 8300-1,Common,Text,⚠ Warning: Accessible Bay Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_PARK_BAY_WIDTH_PARKING, """")"
@@ -989,6 +1037,9 @@ TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Areas
 13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_BLE_ROOM_AREA_SQ_M_AREAS,Area < minimum for designated use,Building Regs Approved Documents,Common,Text,⚠ Warning: Area Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_AREA_SQ_M_AREAS, """")"
@@ -1027,6 +1078,9 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Wall Sweeps
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,LOW,WARN_BLE_WALL_TYPE_WALL_SWEEPS,Wall sweep material not specified,BS 8000-2 / NBS,Common,Text,⚠ Warning: Wall Sweep Material,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WALL_TYPE_WALL_SWEEPS, """")"
@@ -1066,6 +1120,9 @@ TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Slab Edges
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_FLOOR_LOAD_KN_M2_SLAB_EDGES,Slab edge load not verified,BS EN 1992-1-1 / EC2,Common,Text,⚠ Warning: Slab Edge Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLOOR_LOAD_KN_M2_SLAB_EDGES, """")"
@@ -1104,6 +1161,9 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roof Soffits
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_BLE_CEILING_MATERIAL_ROOF_SOFFITS,Soffit material not fire-rated,Building Regs Part B,Common,Text,⚠ Warning: Soffit Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CEILING_MATERIAL_ROOF_SOFFITS, """")"
@@ -1142,6 +1202,9 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Fascia
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,LOW,WARN_BLE_ROOF_MATERIAL_FASCIA,Fascia material not specified,BS 8000-6 / NBS,Common,Text,⚠ Warning: Fascia Material,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOF_MATERIAL_FASCIA, """")"
@@ -1180,6 +1243,9 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Gutters
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_ROOF_DRAINAGE_GUTTERS,Gutter capacity insufficient for catchment area,BS EN 12056-3 / BS 6229,Common,Text,⚠ Warning: Gutter Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOF_DRAINAGE_GUTTERS, """")"
@@ -1218,6 +1284,9 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Mass
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,LOW,WARN_BLE_ROOM_AREA_SQ_M_MASS,Mass element area not verified,RIBA Plan of Work / NBS,Common,Text,⚠ Warning: Mass Area,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_AREA_SQ_M_MASS, """")"
@@ -1257,6 +1326,9 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture Systems
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_BLE_FURNITURE_FIRE_FURNITURE_SYS,Furniture system fire resistance not rated,BS 7176 / BS 5852,Common,Text,⚠ Warning: Furniture System Fire,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FURNITURE_FIRE_FURNITURE_SYS, """")"
@@ -1297,6 +1369,9 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Food Service Equipment
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_RGL_STD_FOOD_SERVICE,Food service equipment lacks NSF/HACCP approval,NSF International / HACCP,Common,Text,⚠ Warning: Food Service Compliance,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_STD_FOOD_SERVICE, """")"
@@ -1337,6 +1412,9 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Medical Equipment
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_RGL_STD_MEDICAL_EQUIP,Medical device lacks regulatory approval (MHRA/CE),MHRA / BS EN 60601-1,Common,Text,⚠ Warning: Medical Device Approval,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_STD_MEDICAL_EQUIP, """")"
@@ -1375,6 +1453,9 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Entourage
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,LOW,WARN_ASS_DESCRIPTION_ENTOURAGE,Entourage element has no description,RIBA Plan of Work,Common,Text,⚠ Warning: Entourage Description,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_DESCRIPTION_ENTOURAGE, """")"
@@ -1415,6 +1496,9 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Runs
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_STAIR_RISER_MM_STAIR_RUNS,Riser > 220mm or < 150mm,Building Regs Part K,Common,Text,⚠ Warning: Stair Run Riser,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISER_MM_STAIR_RUNS, """")"
@@ -1455,6 +1539,9 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Landings
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_STAIR_WIDTH_MM_LANDINGS,Landing width < stair width or < 1000mm,Building Regs Part B / Part K,Common,Text,⚠ Warning: Landing Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_WIDTH_MM_LANDINGS, """")"
@@ -1494,6 +1581,9 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Supports
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_STAIR_SUPPORTS,Stair support fire rating < 1.0 hr,Building Regs Part B,Common,Text,⚠ Warning: Stair Support Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_STAIR_SUPPORTS, """")"
@@ -1532,6 +1622,9 @@ TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Top Rails
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_RAILING_HEIGHT_MM_TOP_RAILS,Top rail height < 1100mm,Building Regs Part K / BS 6180,Common,Text,⚠ Warning: Top Rail Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAILING_HEIGHT_MM_TOP_RAILS, """")"
@@ -1572,6 +1665,9 @@ TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Handrails
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_RAILING_HEIGHT_MM_HANDRAILS,Handrail height < 900mm (stair) or < 1000mm (ramp),Building Regs Part K / BS 8300,Common,Text,⚠ Warning: Handrail Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAILING_HEIGHT_MM_HANDRAILS, """")"
@@ -1609,6 +1705,9 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Vertical Circulation
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_HEADROOM_MM_NR_VERT_CIRC,Headroom < 2000mm for lift/escalator,Building Regs Part K / BS EN 81,Common,Text,⚠ Warning: Vertical Circulation Headroom,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_HEADROOM_MM_NR_VERT_CIRC, """")"
@@ -1628,6 +1727,9 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Architectural discipline
 1,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
 2,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
 3,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+4,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+5,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SHT_NAMING_ARCH,Sheet name does not match ISO 19650 naming convention for architectural drawings,ISO 19650-2 / BS EN ISO 7200,Common,Text,⚠ Warning: Sheet Naming Convention,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_NAMING_ARCH, """")"
@@ -1673,8 +1775,39 @@ TAG7: ARCH_TAG_7_PARA_COLUMNS_TXT  •  Category: Columns — Architectural disc
 19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
 20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS,Fire rating < 1.0 hr for architectural column,Building Regs Part B / BS 9999 Table 10,Common,Text,⚠ Warning: Column Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS, """")"
 2,CRITICAL,WARN_BLE_COLUMN_SLENDERNESS,Column slenderness ratio exceeds limit,BS EN 1992-1-1 / EC2 5.8.3,Common,Text,⚠ Warning: Column Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_COLUMN_SLENDERNESS, """")"
 3,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH,Carbon > 500 kgCO₂/m² for architectural element,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH, """")"
+
+Tag Family #36: STING - LPS Natural Air Termination (Architectural Reuse) Tag
+# Category: Roofs, Walls, Wall Sweeps, Curtain Wall Mullions, Fascia, Gutter, Roof Soffits | PROD: ATR (Air Terminal — Natural) | SYS: LPS | FUNC: AT | DISC: A
+# Cross-discipline integration: metal roof / parapet / coping / metallic facade reused as a BS EN 62305-3 §5.2.5 natural air-termination component.
+# DC variant: T4-T10 use Design intent / Performance / Material / Installation / Coordination / Warranty / Classification.
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Roofs / Walls / Curtain Wall
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ELC_LPS_AIRTERM_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_CLASS_TXT,Class:,,0,✓,Common,Text,LPS Class,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CLASS_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_ZONE_TXT,LPZ:,,0,✓,Common,Text,Lightning Zone,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_CONDUCTOR_MATERIAL_TXT,Mat:,,0,✓,Common,Text,Sheet Material (Cu/Al/Steel/Zn/SS),"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CONDUCTOR_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,t:,mm,0,✓,Common,Text,Sheet Thickness (BS EN 62305-3 Tab 3),"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CONDUCTOR_CROSS_SECT_MM2, """")",NOM,BLACK,2.0,None,None
+
+★ TIER 3 — FULL SPECIFICATION (gated by TAG_PARA_STATE_3_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T3,ELC_LPS_BOND_TYPE_TXT,Bond:,,0,✓,Common,Text,Bonding Method to LPS Network,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_BOND_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+2,T3,ELC_LPS_RISK_ASSESSMENT_TXT,Risk:,,0,✓,Common,Text,Risk Assessment Ref,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_RISK_ASSESSMENT_TXT, """")",NOM,BLACK,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,Sheet thickness below natural-component minimum (BS EN 62305-3 Tab 3),BS EN 62305-3:2011 Tab 3,Common,Text,⚠ Warning: Sheet Thickness Below Min,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW, """")"
+2,HIGH,WARN_ELC_LPS_NO_BONDING,Bonding method to LPS network not specified — natural component is non-functional without continuity,BS EN 62305-3:2011 §5.2.5,Common,Text,⚠ Warning: No Bond to LPS Network,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, """")"
+3,CRITICAL,WARN_ELC_LPS_NO_CLASS,LPS class not assigned — required to verify natural-component thickness vs BS EN 62305-3 Tab 3,BS EN 62305-1:2011 §8,Common,Text,⚠ Warning: No LPS Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, """")"

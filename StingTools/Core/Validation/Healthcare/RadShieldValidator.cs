@@ -1,3 +1,5 @@
+using StingTools.Core.Validation;
+using System;
 using Autodesk.Revit.DB;
 using StingTools.Standards.NCRP147;
 using System.Collections.Generic;
@@ -9,6 +11,11 @@ namespace StingTools.Core.Validation.Healthcare
     {
         public override string Name => "RadShieldValidator";
         private const string Tag = "RadShieldValidator";
+
+        // Hc.RadRequireQe checkbox toggle. When false the per-element QE
+        // sign-off rule (RAD.QE.MISSING) is suppressed — useful for early
+        // design when the QE has not yet been engaged.
+        public bool RequireQeSignoff { get; set; } = true;
 
         public override List<ValidationResult> Validate(Document doc)
         {
@@ -58,7 +65,8 @@ namespace StingTools.Core.Validation.Healthcare
                     }
                 }
 
-                if (string.Equals(barrier, "PRIMARY", System.StringComparison.OrdinalIgnoreCase) &&
+                if (RequireQeSignoff &&
+                    string.Equals(barrier, "PRIMARY", System.StringComparison.OrdinalIgnoreCase) &&
                     string.IsNullOrEmpty(qe))
                 {
                     res.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,

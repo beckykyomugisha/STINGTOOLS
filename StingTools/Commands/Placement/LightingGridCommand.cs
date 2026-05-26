@@ -116,9 +116,9 @@ namespace StingTools.Commands.Placement
             {
                 LightingGridResult gr;
                 try { gr = calc.Compute(room, rule); }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Warn($"LightingGrid Compute room {room?.Id}: {ex.Message}");
+                    StingLog.Warn($"LightingGrid Compute room {room?.Id}: {ex2.Message}");
                     continue;
                 }
 
@@ -147,7 +147,7 @@ namespace StingTools.Commands.Placement
                         }
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"ObstructionIndex room {room?.Id}: {ex.Message}"); }
+                catch (Exception ex3) { StingLog.Warn($"ObstructionIndex room {room?.Id}: {ex3.Message}"); }
 
                 plans.Add(new RoomPlan { Room = room, Result = gr });
                 totalFixtures += gr.FixturesPlaced;
@@ -185,7 +185,7 @@ namespace StingTools.Commands.Placement
             using (var tx = new Transaction(doc, "STING Lighting Grid Placement"))
             {
                 tx.Start();
-                if (!symbol.IsActive) { try { symbol.Activate(); doc.Regenerate(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
+                if (!symbol.IsActive) { try { symbol.Activate(); doc.Regenerate(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); } }
                 foreach (var plan in plans)
                 {
                     var lvl = doc.GetElement(plan.Room.LevelId) as Level;
@@ -217,10 +217,10 @@ namespace StingTools.Commands.Placement
                                 ParameterHelpers.SetString(fi, "ELC_LIGHTING_ROOM_TYPE", plan.Result.RoomTypeCode, overwrite: false);
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex3)
                         {
                             failed++;
-                            StingLog.Warn($"LightingGrid place at room {plan.Room.Id}: {ex.Message}");
+                            StingLog.Warn($"LightingGrid place at room {plan.Room.Id}: {ex3.Message}");
                         }
                     }
                 }

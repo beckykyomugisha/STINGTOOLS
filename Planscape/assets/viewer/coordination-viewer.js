@@ -145,16 +145,20 @@
           Object.assign({ signal: controller.signal }, opts, { headers }));
         if (res.status === 401 && !authChallenged) {
           authChallenged = true;
-          // U8 — toast immediately, then redirect to /login after a short
-          // grace window so the user sees what happened. Embedders pass
-          // ?embed=1 to keep the viewer mounted and re-auth themselves.
+          // U8 — toast immediately, then redirect to the dashboard's login
+          // overlay (/index.html shows it automatically when there's no
+          // token in localStorage). Stash the viewer URL in sessionStorage
+          // so a future dashboard-side `?next=` handler can pick it up.
+          // Embedders pass ?embed=1 to keep the viewer mounted and
+          // re-auth themselves.
           toast('Sign-in expired — redirecting to login…', 'error');
           if (typeof localStorage !== 'undefined') {
             try { localStorage.removeItem('planscape_token'); } catch (_) {}
           }
           if (!embedMode) {
-            const next = encodeURIComponent(location.pathname + location.search);
-            setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+            const next = location.pathname + location.search;
+            try { sessionStorage.setItem('planscape_post_login_next', next); } catch (_) {}
+            setTimeout(() => { location.href = `${apiBase}/index.html`; }, 1500);
           }
         }
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -209,6 +213,7 @@
     setupBottomPanel();
     setupViewportOverlays();
     setupKeyboardShortcuts();
+    setupKeyNav();
     setupModalHandlers();
     setupNavControls();
     setupSectionCard();
@@ -304,8 +309,12 @@
             toast('Sign-in expired — redirecting to login…', 'error');
             try { localStorage.removeItem('planscape_token'); } catch (_) {}
             if (!embedMode) {
-              const next = encodeURIComponent(location.pathname + location.search);
-              setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+              // Same target as the api() helper above: dashboard's login
+              // overlay at /index.html (the bare /login path is a SPA hash,
+              // not a static page).
+              const next = location.pathname + location.search;
+              try { sessionStorage.setItem('planscape_post_login_next', next); } catch (_) {}
+              setTimeout(() => { location.href = `${apiBase}/index.html`; }, 1500);
             }
             return;
           }
@@ -1451,7 +1460,7 @@
         switchBottomTab('clashes'); state.selectedElementGuid = guid; renderClashes();
       });
       $('#actCopyTag', pane)?.addEventListener('click', () => copyText(tag));
-      $('#actLinkSheet', pane)?.addEventListener('click', () => toast('Sheet link — TODO', 'warn'));
+      $('#actLinkSheet', pane)?.addEventListener('click', () => openSheetLinkPicker({ guid, meta }));
       $$('.copy', pane).forEach(c => c.addEventListener('click', () => copyText(c.dataset.copy)));
     }
 
@@ -1537,6 +1546,105 @@
         });
         setTimeout(() => input.focus(), 30);
       });
+    }
+
+    // Phase 186A — "📌 Link to sheet" picker. The viewer has no element→sheet
+    // index of its own, so we filter the project document register down to
+    // documentType=SH (ISO 19650 Sheet) optionally narrowed by the element's
+    // discipline, and let the user pick. Open in a new tab via the existing
+    // download endpoint (which honours the same JWT + tenant headers as the
+    // viewer). Pre-auth / file:// hosts get a graceful toast.
+    async function openSheetLinkPicker({ guid, meta }) {
+      if (!apiEnabled || !projectId) {
+        toast('Sign in to a project to link sheets', 'warn');
+        return;
+      }
+      const disc = (meta && (meta.discipline || meta.DISC)) || '';
+      const params = new URLSearchParams({ documentType: 'SH', pageSize: '100' });
+      if (disc) params.set('discipline', disc);
+      let docs = [];
+      try {
+        const data = await api(`/api/projects/${projectId}/documents?${params.toString()}`);
+        docs = (data && Array.isArray(data.items)) ? data.items : [];
+      } catch (err) {
+        toast('Could not load sheets: ' + (err.message || err), 'error');
+        return;
+      }
+      // Fallback — if discipline filter returned 0, retry without it so the
+      // user always sees the sheets available rather than an empty list.
+      if (docs.length === 0 && disc) {
+        try {
+          const data2 = await api(`/api/projects/${projectId}/documents?documentType=SH&pageSize=100`);
+          docs = (data2 && Array.isArray(data2.items)) ? data2.items : [];
+        } catch (_) { /* swallow */ }
+      }
+      const back = el('div', { class: 'modal-backdrop open' });
+      const card = el('div', { class: 'modal', style: 'max-width:540px;width:90%' });
+      const head = el('div', { class: 'head' }, [
+        el('h2', {}, '📌 Link to sheet'),
+        el('button', { class: 'close', title: 'Close' }, '✕')
+      ]);
+      const body = el('div', { class: 'body' });
+      const tag = (meta && (meta.tag || meta.STING_TAG)) || '';
+      body.appendChild(el('div', { class: 'prop-section-label' },
+        tag ? `Sheets matching ${disc ? disc + ' · ' : ''}${tag}` : 'Project sheets'));
+      const search = el('input', { type: 'text', placeholder: 'Filter by name or number…', style: 'width:100%;margin-bottom:8px' });
+      body.appendChild(search);
+      const list = el('div', { class: 'sheet-link-list', style: 'max-height:360px;overflow-y:auto;border:1px solid var(--border, #2a3038);border-radius:6px' });
+      body.appendChild(list);
+
+      function paint(filter = '') {
+        list.innerHTML = '';
+        const f = filter.trim().toLowerCase();
+        const filtered = docs.filter(d => {
+          if (!f) return true;
+          return (d.fileName || '').toLowerCase().includes(f) ||
+                 (d.description || '').toLowerCase().includes(f) ||
+                 (d.revision || '').toLowerCase().includes(f);
+        });
+        if (filtered.length === 0) {
+          list.appendChild(el('div', { style: 'padding:16px;color:var(--muted,#888);text-align:center' },
+            docs.length === 0 ? 'No sheets in this project yet.' : 'No matches.'));
+          return;
+        }
+        filtered.forEach(d => {
+          const row = el('div', { class: 'sheet-link-row',
+            style: 'padding:8px 10px;border-bottom:1px solid var(--border,#2a3038);cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center' });
+          const left = el('div', { style: 'flex:1;min-width:0' }, [
+            el('div', { style: 'font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' },
+              d.fileName || '(unnamed)'),
+            el('div', { style: 'font-size:11px;color:var(--muted,#888);margin-top:2px' },
+              [d.discipline, d.revision && `Rev ${d.revision}`, d.cdeStatus].filter(Boolean).join(' · '))
+          ]);
+          const open = el('button', { class: 'btn subtle', style: 'flex:0 0 auto' }, 'Open');
+          row.appendChild(left); row.appendChild(open);
+          row.addEventListener('click', () => openSheet(d));
+          open.addEventListener('click', (e) => { e.stopPropagation(); openSheet(d); });
+          list.appendChild(row);
+        });
+      }
+      function openSheet(d) {
+        const url = `${apiBase}/api/projects/${projectId}/documents/${d.id}/download`
+                  + (token ? `?access_token=${encodeURIComponent(token)}` : '');
+        try { window.open(url, '_blank', 'noopener'); }
+        catch (_) { toast('Could not open sheet', 'error'); }
+        close();
+      }
+      search.addEventListener('input', () => paint(search.value));
+      paint('');
+
+      const foot = el('div', { class: 'foot' }, [
+        el('button', { class: 'btn subtle' }, 'Close')
+      ]);
+      card.appendChild(head); card.appendChild(body); card.appendChild(foot);
+      back.appendChild(card);
+      document.body.appendChild(back);
+      let done = false;
+      function close() { if (done) return; done = true; back.remove(); }
+      $('.close', head).addEventListener('click', close);
+      $('.btn.subtle', foot).addEventListener('click', close);
+      back.addEventListener('click', (e) => { if (e.target === back) close(); });
+      setTimeout(() => search.focus(), 30);
     }
 
     function copyText(t) {
@@ -3780,7 +3888,53 @@
           if (pinHits.length) return;
         }
         const hits = ray.intersectObject(V.modelRoot, true);
-        if (hits.length) lastClickPoint = hits[0].point.clone();
+        if (hits.length) {
+          lastClickPoint = hits[0].point.clone();
+          // Focus / Pivot mode — clicking the model sets the orbit pivot
+          // (ACC-style). Subsequent wheel-zoom + drag-rotate happen
+          // around that point. Plain pick-mode handlers keep their job
+          // (element selection, properties tab, etc.).
+          if (state.activeNav === 'focus') {
+            V.controls.target.copy(lastClickPoint);
+            V.controls.update();
+            toast('Orbit pivot set', 'success');
+          }
+        }
+      });
+
+      // Double-click anywhere on the model — set orbit pivot regardless
+      // of the active nav mode. Mirrors the Navisworks "F" / ACC dbl-tap
+      // pattern. Frame-fit on dblclick of an element bounding box is
+      // routed through the engine's existing fit() command for
+      // consistency with the keyboard 'F' shortcut.
+      dom.addEventListener('dblclick', (e) => {
+        if (!V.modelRoot) return;
+        const r = dom.getBoundingClientRect();
+        ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+        ray.setFromCamera(ptr, V.camera);
+        const hits = ray.intersectObject(V.modelRoot, true);
+        if (!hits.length) return;
+        // Shift+dblclick → fit camera to the clicked element's bounding
+        // box (instead of just setting pivot). Useful for jumping to
+        // small components inside a huge model.
+        if (e.shiftKey) {
+          const m = hits[0].object;
+          if (m && m.isMesh) {
+            const bb = new THREE_.Box3().setFromObject(m);
+            // Re-use the engine's fitCamera by calling it through the
+            // bridge with a synthetic 'fit' command — the engine reads
+            // modelBounds, so we temporarily widen it. Cleaner: call
+            // fitCamera(bb) directly via the exposed STING_VIEWER if
+            // available.
+            try { (window.STING_VIEWER && window.STING_VIEWER.fitCamera ? window.STING_VIEWER.fitCamera : null)?.(bb); }
+            catch (_) {}
+            return;
+          }
+        }
+        V.controls.target.copy(hits[0].point);
+        V.controls.update();
+        toast('Orbit pivot set', 'success');
       });
       // R13 — drop the standalone pin-click raycaster. The engine already
       // raycasts pinGroup on every click and emits 'pinTap' via the
@@ -4263,6 +4417,87 @@
     }
 
     // ── Keyboard shortcuts ─────────────────────────────────────────────
+    // Arrow-key + PageUp/Down navigation (ACC parity).
+    //   Arrows           → pan in screen-space (continuous while held)
+    //   Shift + arrows   → orbit around the current pivot
+    //   PageUp / PageDn  → dolly toward / away from the pivot
+    //   Home             → zoom to fit (alias of Space)
+    // Speed scales with the camera-to-pivot distance, so the same hold
+    // feels right on a 1 m room and a 1 km master-plan.
+    function setupKeyNav() {
+      const held = new Set();
+      let shiftDown = false;
+      const NAV_KEYS = new Set([
+        'ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown'
+      ]);
+      window.addEventListener('keydown', (e) => {
+        if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+        if ($('#issueModal')?.classList.contains('open')) return;
+        if (e.key === 'Shift') { shiftDown = true; return; }
+        if (e.key === 'Home')  { handleHostCommand({ type: 'fit' }); e.preventDefault(); return; }
+        if (NAV_KEYS.has(e.key)) {
+          held.add(e.key);
+          e.preventDefault();          // stop the page scrolling under us
+        }
+      });
+      window.addEventListener('keyup', (e) => {
+        if (e.key === 'Shift') { shiftDown = false; return; }
+        held.delete(e.key);
+      });
+      // Clear held keys if the user alt-tabs away — otherwise the camera
+      // drifts forever in the direction last pressed.
+      window.addEventListener('blur', () => { held.clear(); shiftDown = false; });
+
+      function tick() {
+        if (held.size) {
+          const cam = V.camera, target = V.controls.target;
+          const dist = cam.position.distanceTo(target) || 1;
+          const panStep   = dist * 0.018;     // pan amount per frame
+          const orbitStep = 0.025;             // radians per frame
+          const dollyStep = dist * 0.025;     // dolly amount per frame
+
+          // Screen-space basis. forward/right/up are recomputed every
+          // frame because the camera may have rotated since last call.
+          const forward = new THREE_.Vector3();
+          cam.getWorldDirection(forward);
+          const right = new THREE_.Vector3().crossVectors(forward, cam.up).normalize();
+          const up    = new THREE_.Vector3().crossVectors(right, forward).normalize();
+
+          let panX = 0, panY = 0, dolly = 0, orbX = 0, orbY = 0;
+          if (held.has('ArrowLeft'))  { if (shiftDown) orbX -= orbitStep; else panX -= panStep; }
+          if (held.has('ArrowRight')) { if (shiftDown) orbX += orbitStep; else panX += panStep; }
+          if (held.has('ArrowUp'))    { if (shiftDown) orbY -= orbitStep; else panY += panStep; }
+          if (held.has('ArrowDown'))  { if (shiftDown) orbY += orbitStep; else panY -= panStep; }
+          if (held.has('PageUp'))     dolly -= dollyStep;
+          if (held.has('PageDown'))   dolly += dollyStep;
+
+          if (panX || panY || dolly) {
+            const offset = new THREE_.Vector3()
+              .addScaledVector(right, panX)
+              .addScaledVector(up,    panY)
+              .addScaledVector(forward, -dolly);
+            cam.position.add(offset);
+            target.add(offset);
+          }
+          if (orbX || orbY) {
+            // Orbit camera position around the pivot, leaving target fixed.
+            const o = cam.position.clone().sub(target);
+            const sph = new THREE_.Spherical().setFromVector3(o);
+            sph.theta -= orbX;
+            sph.phi   -= orbY;
+            // Match controls.maxPolarAngle (π·0.95) so the camera never
+            // rolls under the model when held-arrow orbiting.
+            sph.phi = Math.max(0.05, Math.min(Math.PI * 0.95, sph.phi));
+            o.setFromSpherical(sph);
+            cam.position.copy(target).add(o);
+          }
+          V.controls.update();
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
     function setupKeyboardShortcuts() {
       document.addEventListener('keydown', (e) => {
         if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
@@ -4533,6 +4768,11 @@
         placePhotoPins();             // Slice 4b — photo pins after model bounds known
         const fab = $('#photoFab'); if (fab) fab.style.display = '';
         buildLevelStrip();           // re-run with real bounds for Y bands
+        // Auto-fit on first model load — Revit survey-coord models can
+        // have huge XY offsets (135 km in test data) which leave the
+        // default camera (10,10,10) outside the model entirely. fit
+        // recomputes camera near/far from bounds in the same call.
+        handleHostCommand({ type: 'fit' });
         clearInterval(bootObserver);
         // B1 — GLTFLoader has consumed the blob URL, free it now to avoid
         // pinning the original GLB bytes in memory for the rest of the

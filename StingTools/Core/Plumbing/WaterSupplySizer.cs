@@ -7,8 +7,10 @@
 // Hazen-Williams friction loss on the pipe at its current DN. Reports
 // recommended DN if velocity exceeds the configured limit.
 //
-// Pure design-intent — this engine never edits the model geometry. It
-// only writes calculated parameters when writeBack=true.
+// Closes the calc → model loop: when writeBack=true the engine stamps
+// PLM_SUP_* shared params *and* sets the native RBS_PIPE_DIAMETER_PARAM
+// to the recommended bore so schedules, exports and downstream commands
+// see the new size. Matches the MepAutoSizePipeCommand precedent.
 
 using System;
 using System.Collections.Generic;
@@ -46,6 +48,7 @@ namespace StingTools.Core.Plumbing
         public int    PipesVelocityFailed { get; set; }
         public int    PipesDpFailed { get; set; }
         public int    PipesWritten  { get; set; }
+        public int    PipesResized  { get; set; }  // native RBS_PIPE_DIAMETER_PARAM updated
         public List<SupplyPipeResult> Results { get; } = new List<SupplyPipeResult>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -94,6 +97,19 @@ namespace StingTools.Core.Plumbing
                         TryWriteDouble(p, ParamRegistry.PLM_SUP_DP,     res.DpPaPerM);
                         TryWriteInt   (p, ParamRegistry.PLM_SUP_DN_REQ, res.RecommendedDnMm);
                         r.PipesWritten++;
+
+                        // Close the calc → model loop: set the native pipe diameter
+                        // so geometry, schedules, exports and downstream commands
+                        // reflect the new bore. Only writes when the recommendation
+                        // differs from the current modelled diameter.
+                        if (res.RecommendedDnMm > 0
+                            && res.RecommendedDnMm != res.CurrentDnMm)
+                        {
+                            if (TryWriteNativeDiameterMm(p, res.RecommendedDnMm))
+                                r.PipesResized++;
+                            else
+                                r.Warnings.Add($"native diameter write skipped on pipe {p.Id} (read-only / constrained)");
+                        }
                     }
                     catch (Exception ex) { r.Warnings.Add($"writeBack pipe {p.Id}: {ex.Message}"); }
                 }
@@ -139,9 +155,27 @@ namespace StingTools.Core.Plumbing
                     var matKey = res.ServiceClass == "DHW" ? cfg.MaterialFor("DHW") : cfg.MaterialFor("DCW");
                     var mat    = PlumbingTables.GetMaterial(matKey);
                     double C   = mat?.HwC ?? 130;
-                    res.DpPaPerM = HazenWilliamsPaPerM(qm3s, diaM, C);
+                    double rough = mat?.RoughnessMm ?? 0.05;
+                    bool useDw = !string.IsNullOrEmpty(cfg.HeadLossMethod)
+                        && cfg.HeadLossMethod.IndexOf("DARCY", StringComparison.OrdinalIgnoreCase) >= 0;
+                    res.DpPaPerM = useDw
+                        ? DarcyWeisbachPaPerM(qm3s, diaM, rough, cfg.KinViscM2s)
+                        : HazenWilliamsPaPerM(qm3s, diaM, C);
 
-                    res.RecommendedDnMm = ResolveDnForVelocity(qm3s, ResolveVelMax(cfg, res.ServiceClass));
+                    // Sizing strategy: VELOCITY (default) or HEAD-LOSS. The latter
+                    // mirrors Plumber's "Design by Unitary Head Loss" workflow and
+                    // is the WRc / IPS norm for trunk mains.
+                    bool useHeadLoss = !string.IsNullOrEmpty(cfg.SupplySizingStrategy)
+                        && cfg.SupplySizingStrategy.IndexOf("HEAD", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (useHeadLoss)
+                    {
+                        res.RecommendedDnMm = ResolveDnForHeadLoss(
+                            qm3s, cfg.MaxPressureDropPaPerM, C, rough, cfg.KinViscM2s, cfg.HeadLossMethod);
+                    }
+                    else
+                    {
+                        res.RecommendedDnMm = ResolveDnForVelocity(qm3s, ResolveVelMax(cfg, res.ServiceClass));
+                    }
                     if (res.RecommendedDnMm < currentDn) res.RecommendedDnMm = currentDn;
                 }
                 else
@@ -155,6 +189,16 @@ namespace StingTools.Core.Plumbing
 
         private static (double lu, double wsfu) AccumulateLoadingUnits(Document doc, Pipe seed, string service)
         {
+            // Direction-aware BFS for supply: fixtures sit ABOVE the main, so
+            // from a given supply pipe we only sum fixtures at Z >= pipe.Z (minus
+            // a small slack). Without this filter the BFS reaches every fixture
+            // in the whole connected supply network and every pipe gets the same
+            // loading-unit total. Fixture nodes themselves are exempt from the
+            // Z-cutoff so a low-set utility sink off a horizontal branch still
+            // counts.
+            double seedZFt = SeedMidZ(seed);
+            const double zTolFt = 0.05; // ~15 mm slack for nearly-flat runs
+
             var visited = new HashSet<long>();
             var queue   = new Queue<Element>();
             visited.Add(seed.Id.Value);
@@ -177,10 +221,15 @@ namespace StingTools.Core.Plumbing
                         {
                             var owner = other.Owner;
                             if (owner == null || visited.Contains(owner.Id.Value)) continue;
-                            visited.Add(owner.Id.Value);
+
+                            double ownerZ = OwnerMidZ(owner);
                             var bic = (BuiltInCategory)(owner.Category?.Id?.Value ?? 0);
-                            if (bic == BuiltInCategory.OST_PlumbingFixtures
-                             || bic == BuiltInCategory.OST_MechanicalEquipment)
+                            bool isFixture = bic == BuiltInCategory.OST_PlumbingFixtures
+                                          || bic == BuiltInCategory.OST_MechanicalEquipment;
+                            if (!isFixture && ownerZ + zTolFt < seedZFt) continue;
+
+                            visited.Add(owner.Id.Value);
+                            if (isFixture)
                             {
                                 lu   += ReadDouble(owner, service == "DHW"
                                     ? ParamRegistry.PLM_SUP_LU_HW
@@ -195,6 +244,37 @@ namespace StingTools.Core.Plumbing
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return (lu, wsfu);
+        }
+
+        private static double SeedMidZ(Pipe pipe)
+        {
+            try
+            {
+                var lc = pipe.Location as LocationCurve;
+                if (lc?.Curve == null) return 0;
+                var s = lc.Curve.GetEndPoint(0);
+                var e = lc.Curve.GetEndPoint(1);
+                return (s.Z + e.Z) / 2.0;
+            }
+            catch { return 0; }
+        }
+
+        private static double OwnerMidZ(Element el)
+        {
+            try
+            {
+                if (el is MEPCurve mc && mc.Location is LocationCurve lc && lc.Curve != null)
+                {
+                    var s = lc.Curve.GetEndPoint(0);
+                    var e = lc.Curve.GetEndPoint(1);
+                    return (s.Z + e.Z) / 2.0;
+                }
+                if (el.Location is LocationPoint lp) return lp.Point.Z;
+                var bb = el.get_BoundingBox(null);
+                if (bb != null) return (bb.Min.Z + bb.Max.Z) / 2.0;
+            }
+            catch { }
+            return 0;
         }
 
         private static double ResolveVelMax(PlumbingSystemConfig cfg, string service)
@@ -216,12 +296,68 @@ namespace StingTools.Core.Plumbing
             return DnSeries[DnSeries.Length - 1];
         }
 
+        /// <summary>
+        /// Pick the smallest DN whose Pa/m head loss is at or below
+        /// <paramref name="dpMaxPaPerM"/> at design flow. Honours both
+        /// HAZEN-WILLIAMS and DARCY-WEISBACH per <paramref name="method"/>.
+        /// Borrowed from Plumber (HidraSoftware) — engineers familiar with
+        /// IPS / WRc methods expect unitary-head-loss as the sizing driver.
+        /// </summary>
+        public static int ResolveDnForHeadLoss(double qM3s, double dpMaxPaPerM,
+            double hwC, double roughnessMm, double kinViscM2s, string method)
+        {
+            if (qM3s <= 0) return DnSeries[0];
+            bool useDw = !string.IsNullOrEmpty(method)
+                && method.IndexOf("DARCY", StringComparison.OrdinalIgnoreCase) >= 0;
+            foreach (var dn in DnSeries)
+            {
+                double diaM = dn / 1000.0;
+                double dp = useDw
+                    ? DarcyWeisbachPaPerM(qM3s, diaM, roughnessMm, kinViscM2s)
+                    : HazenWilliamsPaPerM(qM3s, diaM, hwC);
+                if (dp <= dpMaxPaPerM) return dn;
+            }
+            return DnSeries[DnSeries.Length - 1];
+        }
+
         public static double HazenWilliamsPaPerM(double qM3s, double diaM, double C)
         {
             if (qM3s <= 0 || diaM <= 0) return 0;
             // Hazen–Williams head loss (m / m): h = 10.67 · Q^1.852 / (C^1.852 · D^4.87).
             double hPerM = 10.67 * Math.Pow(qM3s, 1.852) / (Math.Pow(C, 1.852) * Math.Pow(diaM, 4.87));
             return hPerM * 9810.0; // ρg = 9810 Pa per m head.
+        }
+
+        /// <summary>
+        /// Darcy-Weisbach friction-loss in Pa/m using the Swamee-Jain explicit
+        /// approximation to the Colebrook-White friction factor:
+        ///     f = 0.25 / [log10(ε/(3.7·D) + 5.74/Re^0.9)]²
+        /// then ΔP/L = f · (ρ/2) · v² / D.
+        /// Valid for 5·10³ &lt; Re &lt; 10⁸, ε/D &lt; 0.05.
+        /// </summary>
+        public static double DarcyWeisbachPaPerM(double qM3s, double diaM,
+            double roughnessMm, double kinViscM2s)
+        {
+            if (qM3s <= 0 || diaM <= 0) return 0;
+            const double rhoKgM3 = 998.2;   // water 20 °C
+            if (kinViscM2s <= 0) kinViscM2s = 1.004e-6;
+            double area = Math.PI * diaM * diaM / 4.0;
+            double v = qM3s / area;
+            double re = v * diaM / kinViscM2s;
+            double f;
+            if (re < 2300)
+            {
+                // Laminar — Hagen-Poiseuille
+                f = re > 1 ? 64.0 / re : 64.0;
+            }
+            else
+            {
+                double epsOverD = (roughnessMm > 0 ? roughnessMm : 0.05) / 1000.0 / diaM;
+                double term = epsOverD / 3.7 + 5.74 / Math.Pow(re, 0.9);
+                double logT = Math.Log10(Math.Max(term, 1e-12));
+                f = 0.25 / (logT * logT);
+            }
+            return f * (rhoKgM3 / 2.0) * v * v / diaM;
         }
 
         public static string ClassifyService(string systemName)
@@ -267,6 +403,29 @@ namespace StingTools.Core.Plumbing
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
+        }
+
+        /// <summary>
+        /// Set the native Revit pipe diameter (RBS_PIPE_DIAMETER_PARAM) to
+        /// the recommended bore in mm. Returns false if the parameter is
+        /// missing, read-only, or rejected by Revit (e.g. fitting constraint).
+        /// </summary>
+        private static bool TryWriteNativeDiameterMm(Pipe pipe, int dnMm)
+        {
+            if (pipe == null || dnMm <= 0) return false;
+            try
+            {
+                var p = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM);
+                if (p == null || p.IsReadOnly || p.StorageType != StorageType.Double) return false;
+                double valueFt = dnMm * (1.0 / (FtToM * 1000.0)); // mm → m → ft
+                p.Set(valueFt);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TryWriteNativeDiameterMm pipe={pipe?.Id} dn={dnMm}: {ex.Message}");
+                return false;
+            }
         }
 
         private static void TryWriteDouble(Element el, string name, double v)

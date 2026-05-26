@@ -1,0 +1,125 @@
+SYS_CODE,SYS_DESCRIPTION,FUNC_CODE,FUNC_DESCRIPTION,DISCIPLINE,CIBSE_REF,ISO_19650_VALID
+HVAC,Heating Ventilation & Air Conditioning,SUP,Supply / Delivery,M,CIBSE Guide B2,TRUE
+HVAC,Heating Ventilation & Air Conditioning,RTN,Return,M,CIBSE Guide B2,TRUE
+HVAC,Heating Ventilation & Air Conditioning,EXH,Exhaust / Extract,M,CIBSE Guide B2,TRUE
+HVAC,Heating Ventilation & Air Conditioning,OA,Outdoor Air / Fresh Air Intake,M,CIBSE Guide B2,TRUE
+HVAC,Heating Ventilation & Air Conditioning,GEN,General (mixed flow),M,CIBSE Guide B2,TRUE
+HVAC,Heating Ventilation & Air Conditioning,TRF,Transfer Air,M,CIBSE Guide B2,TRUE
+HVAC,Heating Ventilation & Air Conditioning,REL,Relief Air,M,CIBSE Guide B2,TRUE
+HVAC,Heating Ventilation & Air Conditioning,GRP,Group / Combined,M,CIBSE Guide B2,TRUE
+HWS,Hot Water Services,SUP,Supply,M,CIBSE Guide G,TRUE
+HWS,Hot Water Services,RTN,Return / Circulation Return,M,CIBSE Guide G,TRUE
+HWS,Hot Water Services,HTG,Heating,M,CIBSE Guide G,TRUE
+HWS,Hot Water Services,CND,Condensate,M,CIBSE Guide B,TRUE
+HWS,Hot Water Services,GEN,General,M,CIBSE Guide G,TRUE
+DCW,Domestic Cold Water,SUP,Supply,P,CIBSE Guide G,TRUE
+DCW,Domestic Cold Water,CLD,Cold Mains,P,CIBSE Guide G,TRUE
+DCW,Domestic Cold Water,GEN,General,P,CIBSE Guide G,TRUE
+DHW,Domestic Hot Water,SUP,Supply,P,CIBSE Guide G,TRUE
+DHW,Domestic Hot Water,RTN,Return,P,CIBSE Guide G,TRUE
+DHW,Domestic Hot Water,GEN,General,P,CIBSE Guide G,TRUE
+SAN,Sanitation / Drainage,SAN,Sanitary / Foul Drainage,P,CIBSE Guide G,TRUE
+SAN,Sanitation / Drainage,WAS,Waste,P,CIBSE Guide G,TRUE
+SAN,Sanitation / Drainage,SOI,Soil,P,CIBSE Guide G,TRUE
+SAN,Sanitation / Drainage,VNT,Ventilation Stack,P,CIBSE Guide G,TRUE
+SAN,Sanitation / Drainage,GEN,General,P,CIBSE Guide G,TRUE
+RWD,Rainwater / Storm Drainage,RWD,Rainwater Drainage,P,BS EN 12056-3,TRUE
+RWD,Rainwater / Storm Drainage,SRF,Surface Water,P,BS EN 12056-3,TRUE
+RWD,Rainwater / Storm Drainage,ATT,Attenuation,P,BS EN 12056-3,TRUE
+RWD,Rainwater / Storm Drainage,GEN,General,P,BS EN 12056-3,TRUE
+GAS,Gas,SUP,Supply,M,IGEM/UP/1,TRUE
+GAS,Gas,GEN,General,M,IGEM/UP/1,TRUE
+GAS,Gas,MED,Medium Pressure,M,IGEM/UP/1,TRUE
+GAS,Gas,LOW,Low Pressure,M,IGEM/UP/1,TRUE
+FP,Fire Protection / Suppression,SUP,Supply / Mains,FP,BS EN 12845,TRUE
+FP,Fire Protection / Suppression,SYS,Sprinkler System Distribution,FP,BS EN 12845,TRUE
+FP,Fire Protection / Suppression,WET,Wet System,FP,BS EN 12845,TRUE
+FP,Fire Protection / Suppression,DRY,Dry System,FP,BS EN 12845,TRUE
+FP,Fire Protection / Suppression,DEL,Deluge System,FP,BS EN 12845,TRUE
+FP,Fire Protection / Suppression,PRE,Pre-Action System,FP,BS EN 12845,TRUE
+FP,Fire Protection / Suppression,GAS,Gaseous Suppression,FP,BS EN 15004,TRUE
+FP,Fire Protection / Suppression,FOA,Foam Suppression,FP,BS EN 13565,TRUE
+FP,Fire Protection / Suppression,GEN,General,FP,BS EN 12845,TRUE
+LV,Low Voltage Electrical,PWR,Power / Distribution,E,BS 7671,TRUE
+LV,Low Voltage Electrical,LTG,Lighting,E,BS 7671,TRUE
+LV,Low Voltage Electrical,EMG,Emergency / Maintained Lighting,E,BS 7671,TRUE
+LV,Low Voltage Electrical,GEN,General,E,BS 7671,TRUE
+LV,Low Voltage Electrical,SML,Small Power,E,BS 7671,TRUE
+LV,Low Voltage Electrical,EAR,Earthing,E,BS 7671,TRUE
+LV,Low Voltage Electrical,UPS,UPS-protected Circuit,E,BS EN 62040,TRUE
+LV,Low Voltage Electrical,GNR,Generator-backed Circuit,E,BS 7671,TRUE
+HV,High Voltage Electrical,PWR,HV Power Distribution,E,BS EN 60947,TRUE
+HV,High Voltage Electrical,GEN,General HV,E,BS EN 60947,TRUE
+HV,High Voltage Electrical,TRF,HV Transformer,E,BS EN 60076,TRUE
+FA,Fire Alarm,DET,Detection (general),E,BS 5839-1,TRUE
+FA,Fire Alarm,MCP,Manual Call Point,E,BS 5839-1,TRUE
+FA,Fire Alarm,SND,Sounder / Alert,E,BS 5839-1,TRUE
+FA,Fire Alarm,AVD,Audible-Visual Device,E,BS 5839-1,TRUE
+FA,Fire Alarm,IO,Input / Output Module,E,BS 5839-1,TRUE
+FA,Fire Alarm,GEN,General,E,BS 5839-1,TRUE
+FA,Fire Alarm,SDA,Smoke Detection — Aspirating (ASD),E,BS 5839-1,TRUE
+FA,Fire Alarm,LDS,Linear Detector,E,BS 5839-1,TRUE
+ICT,Information & Communications Technology,NET,Network / Data,E,BS EN 50173,TRUE
+ICT,Information & Communications Technology,WAP,Wireless / WiFi,E,BS EN 301 893,TRUE
+ICT,Information & Communications Technology,FBR,Fibre Optic,E,BS EN 50173,TRUE
+ICT,Information & Communications Technology,GEN,General ICT,E,BS EN 50173,TRUE
+ICT,Information & Communications Technology,SER,Server / Data Centre,E,BS EN 50173,TRUE
+ICT,Information & Communications Technology,PTS,Pneumatic Tube System,E,BS EN 13094,TRUE
+COM,Communications / AV,PA,Public Address,E,BS 7671,TRUE
+COM,Communications / AV,TV,Television / Satellite,E,BS EN 60728,TRUE
+COM,Communications / AV,TEL,Telephone,E,BS EN 50173,TRUE
+COM,Communications / AV,AV,Audio-Visual,E,BS 7671,TRUE
+COM,Communications / AV,GEN,General,E,BS 7671,TRUE
+NCL,Nurse Call / Emergency Call,NCS,Nurse Call Station,E,BS EN ISO 11073,TRUE
+NCL,Nurse Call / Emergency Call,EMR,Emergency Call,E,BS EN ISO 11073,TRUE
+NCL,Nurse Call / Emergency Call,BDH,Bedhead Unit,E,HTM 08-03,TRUE
+NCL,Nurse Call / Emergency Call,GEN,General,E,BS EN ISO 11073,TRUE
+SEC,Security / Access Control,CCTV,CCTV Surveillance,E,BS EN 62676,TRUE
+SEC,Security / Access Control,ACC,Access Control,E,BS EN 60839,TRUE
+SEC,Security / Access Control,INT,Intruder Detection,E,BS EN 50131,TRUE
+SEC,Security / Access Control,DOR,Door Entry / Intercom,E,BS EN 60839,TRUE
+SEC,Security / Access Control,GEN,General Security,E,BS EN 60839,TRUE
+BMS,Building Management / BACS,MON,Monitoring Point,E,BS EN ISO 16484,TRUE
+BMS,Building Management / BACS,CTL,Control Point / Actuator,E,BS EN ISO 16484,TRUE
+BMS,Building Management / BACS,SNS,Sensor / Transmitter,E,BS EN ISO 16484,TRUE
+BMS,Building Management / BACS,FCT,Field Controller (DDC / PLC),E,BS EN ISO 16484,TRUE
+BMS,Building Management / BACS,GEN,General BMS,E,BS EN ISO 16484,TRUE
+MGS,Medical Gas Systems,O2,Oxygen,P,HTM 02-01,TRUE
+MGS,Medical Gas Systems,N2O,Nitrous Oxide,P,HTM 02-01,TRUE
+MGS,Medical Gas Systems,MAP,Medical Air,P,HTM 02-01,TRUE
+MGS,Medical Gas Systems,VAC,Medical Vacuum (MGPS),P,HTM 02-01,TRUE
+MGS,Medical Gas Systems,EVAC,Anaesthetic Gas Scavenging,P,HTM 02-01,TRUE
+MGS,Medical Gas Systems,N2,Surgical Nitrogen,P,HTM 02-01,TRUE
+MGS,Medical Gas Systems,CO2,Carbon Dioxide (medical),P,HTM 02-01,TRUE
+MGS,Medical Gas Systems,GEN,General Medical Gas,P,HTM 02-01,TRUE
+LPS,Lightning Protection System,AIR,Air Termination Network,E,BS EN 62305-3,TRUE
+LPS,Lightning Protection System,DOW,Down Conductor,E,BS EN 62305-3,TRUE
+LPS,Lightning Protection System,ERT,Earth Termination,E,BS EN 62305-3,TRUE
+LPS,Lightning Protection System,BND,Bonding,E,BS EN 62305-3,TRUE
+LPS,Lightning Protection System,SPD,Surge Protection Device,E,BS EN 62305-4,TRUE
+LPS,Lightning Protection System,TST,Test Joint / Clamp,E,BS EN 62305-3,TRUE
+LPS,Lightning Protection System,GEN,General LPS,E,BS EN 62305-3,TRUE
+RAD,Radiation Protection,SHD,Shielding Element,S,NCRP 147,TRUE
+RAD,Radiation Protection,ZNE,Radiation Zone Boundary,S,NCRP 147,TRUE
+RAD,Radiation Protection,MON,Radiation Monitor,E,NCRP 147,TRUE
+RAD,Radiation Protection,GEN,General Radiation Protection,S,NCRP 147,TRUE
+ARC,Architecture / General,WLL,Wall,A,BS EN 1996,TRUE
+ARC,Architecture / General,FLR,Floor,A,BS EN 1992,TRUE
+ARC,Architecture / General,CLG,Ceiling,A,BS EN 13964,TRUE
+ARC,Architecture / General,ROF,Roof,A,BS EN 1991,TRUE
+ARC,Architecture / General,DOR,Door,A,BS EN 14351,TRUE
+ARC,Architecture / General,WIN,Window,A,BS EN 14351,TRUE
+ARC,Architecture / General,STR,Stair,A,BS 5395,TRUE
+ARC,Architecture / General,RMP,Ramp,A,BS 8300,TRUE
+ARC,Architecture / General,FAS,Facade / Curtain Wall,A,BS EN 13830,TRUE
+ARC,Architecture / General,GEN,General,A,BS EN 1990,TRUE
+STR,Structure,COL,Column,S,BS EN 1992 / 1993,TRUE
+STR,Structure,BM,Beam,S,BS EN 1992 / 1993,TRUE
+STR,Structure,SLB,Slab,S,BS EN 1992,TRUE
+STR,Structure,FND,Foundation,S,BS EN 1997,TRUE
+STR,Structure,WLL,Structural Wall,S,BS EN 1992,TRUE
+STR,Structure,BRC,Bracing,S,BS EN 1993,TRUE
+STR,Structure,TRS,Truss,S,BS EN 1993,TRUE
+STR,Structure,RBR,Rebar / Reinforcement,S,BS EN 1992,TRUE
+STR,Structure,GEN,General Structure,S,BS EN 1990,TRUE
+GEN,General / Undefined,GEN,General,A,ISO 19650,TRUE

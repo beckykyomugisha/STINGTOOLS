@@ -4,9 +4,11 @@
 // produces an edge between those rooms. Used by adjacency / clean-dirty
 // flow analysis.
 
+using System;
 using Autodesk.Revit.DB;
 using System.Collections.Generic;
 using System.Linq;
+using StingTools.Core;
 
 namespace StingTools.Core.Adjacency
 {

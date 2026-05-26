@@ -220,7 +220,7 @@ namespace StingTools.Commands.Panels
                 {
                     string txt = "";
                     try { txt = psv.GetCellText(section, r, c) ?? ""; }
-                    catch (Exception ex) { StingLog.Warn($"GetCellText {section}[{r},{c}]: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"GetCellText {section}[{r},{c}]: {ex2.Message}"); }
                     ws.Cell(startRow + 1 + r, c + 1).Value = txt;
                 }
             }
@@ -259,6 +259,17 @@ namespace StingTools.Commands.Panels
     [Regeneration(RegenerationOption.Manual)]
     public class ImportPanelSchedulesFromExcelCommand : IExternalCommand
     {
+        /// <summary>
+        /// Snapshot of the most recent Excel import — populated at the end
+        /// of every successful Execute() so the RPRT tab's "Show Last Import
+        /// Diff" command (<see cref="StingTools.Commands.Electrical.Reports.ImportDiffViewerCommand"/>)
+        /// can surface it without re-running the import. Stays empty until
+        /// the first import of the session.
+        /// </summary>
+        public static List<string> LastImportDiff { get; private set; } = new List<string>();
+        public static DateTime LastImportTime { get; private set; }
+        public static string LastImportSource { get; private set; } = "";
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
@@ -312,10 +323,10 @@ namespace StingTools.Commands.Panels
                             string idStr = (ws.Cell(4, 2).GetString() ?? "").Trim();
                             long.TryParse(idStr, out elemId);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Sheet '{ws.Name}' missing ElementId in B4: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Sheet '{ws.Name}' missing ElementId in B4: {ex2.Message}"); }
 
                         string scheduleName = "";
-                        try { scheduleName = ws.Cell(2, 2).GetString(); } catch (Exception ex) { StingLog.Warn($"Sheet '{ws.Name}' missing schedule name: {ex.Message}"); }
+                        try { scheduleName = ws.Cell(2, 2).GetString(); } catch (Exception ex3) { StingLog.Warn($"Sheet '{ws.Name}' missing schedule name: {ex3.Message}"); }
 
                         PanelScheduleView psv = null;
                         if (elemId > 0 && byId.TryGetValue(elemId, out var p1)) psv = p1;
@@ -338,7 +349,7 @@ namespace StingTools.Commands.Panels
 
                         TableSectionData body;
                         try { body = psv.GetTableData()?.GetSectionData(SectionType.Body); }
-                        catch (Exception ex) { failures.Add($"{psv.Name}: GetSectionData failed: {ex.Message}"); continue; }
+                        catch (Exception ex4) { failures.Add($"{psv.Name}: GetSectionData failed: {ex4.Message}"); continue; }
                         if (body == null) { failures.Add($"{psv.Name}: Body section unavailable"); continue; }
 
                         int nRows = body.NumberOfRows;
@@ -346,7 +357,7 @@ namespace StingTools.Commands.Panels
 
                         int xlsxLastUsed = 0;
                         try { xlsxLastUsed = ws.LastColumnUsed()?.ColumnNumber() ?? 0; }
-                        catch (Exception ex) { StingLog.Warn($"LastColumnUsed: {ex.Message}"); }
+                        catch (Exception ex5) { StingLog.Warn($"LastColumnUsed: {ex5.Message}"); }
                         if (xlsxLastUsed > 0 && xlsxLastUsed < nCols)
                         {
                             colMismatchSheets++;
@@ -366,11 +377,11 @@ namespace StingTools.Commands.Panels
 
                                 string newVal;
                                 try { newVal = ws.Cell(xlRow, xlCol).GetString() ?? ""; }
-                                catch (Exception ex) { StingLog.Warn($"{psv.Name}[{r},{c}] read xlsx: {ex.Message}"); continue; }
+                                catch (Exception ex6) { StingLog.Warn($"{psv.Name}[{r},{c}] read xlsx: {ex6.Message}"); continue; }
 
                                 string oldVal = "";
                                 try { oldVal = psv.GetCellText(SectionType.Body, r, c) ?? ""; }
-                                catch (Exception ex) { StingLog.Warn($"{psv.Name}[{r},{c}] read revit: {ex.Message}"); }
+                                catch (Exception ex7) { StingLog.Warn($"{psv.Name}[{r},{c}] read revit: {ex7.Message}"); }
 
                                 if (string.Equals(newVal, oldVal, StringComparison.Ordinal))
                                 {
@@ -397,10 +408,10 @@ namespace StingTools.Commands.Panels
                                     body.SetCellText(r, c, newVal);
                                     written++;
                                 }
-                                catch (Exception ex)
+                                catch (Exception ex8)
                                 {
                                     rejected++;
-                                    StingLog.Warn($"{psv.Name}[{r},{c}] SetCellText '{newVal}': {ex.Message}");
+                                    StingLog.Warn($"{psv.Name}[{r},{c}] SetCellText '{newVal}': {ex8.Message}");
                                 }
                             }
                         }
@@ -452,6 +463,37 @@ namespace StingTools.Commands.Panels
                  .Text("Empty-cell guard: an xlsx cell that is blank where the Revit cell had content is preserved (prevents accidental erasure from column-shifted edits or truncated workbooks). To intentionally clear a cell, edit it inside Revit's Panel Schedule UI directly.")
                  .Text("Only the BODY section is imported. HEADER and SUMMARY edits in Excel are ignored.");
             panel.Show();
+
+            // Capture the diff for the RPRT tab's "Show Last Import Diff" command —
+            // surfaces every load-delta line plus the cell-write summary in one
+            // dialog without forcing the user to re-open StingTools.log.
+            try
+            {
+                var diff = new List<string>
+                {
+                    $"Sheets processed: {sheetsProcessed}",
+                    $"Cells written:    {cellsWritten}",
+                    $"Cells rejected:   {cellsRejected} (read-only / Revit-managed)",
+                    $"Cells preserved by blank-guard: {cellsBlankPreserved}",
+                    $"Cells skipped (out of schema):  {cellsSkipped}",
+                    ""
+                };
+                if (loadDeltas.Count > 0)
+                {
+                    diff.Add("LOAD CHANGES PER PANEL");
+                    diff.AddRange(loadDeltas);
+                    diff.Add("");
+                }
+                if (failures.Count > 0)
+                {
+                    diff.Add("WARNINGS");
+                    diff.AddRange(failures);
+                }
+                LastImportDiff = diff;
+                LastImportTime = DateTime.Now;
+                LastImportSource = inPath ?? "";
+            }
+            catch (Exception ex) { StingLog.Warn($"LastImportDiff capture: {ex.Message}"); }
 
             StingLog.Info($"PanelSchedule Excel import: sheets={sheetsProcessed} written={cellsWritten} rejected={cellsRejected} blankGuard={cellsBlankPreserved} skipped={cellsSkipped}");
             return Result.Succeeded;

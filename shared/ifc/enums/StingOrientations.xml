@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingOrientations</Name>
+    <Definition>Sheet orientation — landscape or portrait. Used by every drawing type in the Drawing Type registry; defaults to Landscape for production drawings and Portrait for A4 schedules and transmittals.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4002-9000-00000000000f</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING Drawing Template Manager defaults</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Landscape" sentinel="false">
+      <Definition>Landscape — long edge horizontal. STING default for production drawings.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Portrait" sentinel="false">
+      <Definition>Portrait — long edge vertical. STING default for A4 schedules and document-template letters.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>ae5dbb208966e314eef25d240acdf162980ab8e54164c8e1c98db015f0f9c79d</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

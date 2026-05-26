@@ -19,7 +19,7 @@ namespace StingTools.BIMManager;
 /// Handles authentication, automatic token refresh, and all sync/query operations.
 /// Thread-safe singleton — use PlanscapeServerClient.Instance.
 /// </summary>
-public sealed class PlanscapeServerClient : IDisposable
+public sealed partial class PlanscapeServerClient : IDisposable
 {
     // ── Singleton ──────────────────────────────────────────────────────────────
     private static PlanscapeServerClient? _instance;
@@ -305,6 +305,52 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return Guid.Empty; }
     }
 
+    /// <summary>
+    /// Create a new project on the server. Returns the new project id on
+    /// success. On 409 (duplicate code within tenant) or 400 (project limit
+    /// reached) returns ok=false with a human-readable error message so the
+    /// caller can surface the precise reason.
+    /// </summary>
+    public async Task<(bool ok, Guid id, string? error)> CreateProjectAsync(
+        string name, string code, string? phase = null, string? description = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, Guid.Empty, LastError ?? "Not authenticated");
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(code))
+            return (false, Guid.Empty, "Name and Code are required.");
+        try
+        {
+            var payload = new
+            {
+                name = name.Trim(),
+                code = code.Trim(),
+                phase = string.IsNullOrWhiteSpace(phase) ? null : phase.Trim(),
+                description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
+            };
+            var resp = await PostJsonAsync("/api/projects", payload);
+            if (resp.ok)
+            {
+                var json = JObject.Parse(resp.body);
+                var id = Guid.TryParse(json["id"]?.Value<string>(), out var g) ? g : Guid.Empty;
+                return (true, id, null);
+            }
+
+            // Friendlier mapping for the two errors the user is most likely to
+            // hit: 409 duplicate code, 400 project-limit reached.
+            string friendly = resp.status switch
+            {
+                409 => $"A project with code '{code}' already exists in this tenant.",
+                400 => resp.body, // server returns plain string for limit reached
+                402 => "Project quota exceeded for the current subscription tier.",
+                _   => $"HTTP {resp.status}: {resp.body}",
+            };
+            return (false, Guid.Empty, friendly);
+        }
+        catch (Exception ex)
+        {
+            return (false, Guid.Empty, ex.Message);
+        }
+    }
+
     /// <summary>Get project dashboard (issues, docs, recent workflows).</summary>
     public async Task<JObject?> GetDashboardAsync(Guid projectId)
     {
@@ -393,9 +439,7 @@ public sealed class PlanscapeServerClient : IDisposable
             });
             if (!resp.ok)
             {
-                LastError = $"Sync failed ({resp.status}): {resp.body}";
                 UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Error, LastError);
-                return new SyncResult { Success = false, Error = LastError };
             }
 
             var json = JObject.Parse(resp.body);
@@ -412,7 +456,6 @@ public sealed class PlanscapeServerClient : IDisposable
         }
         catch (Exception ex)
         {
-            LastError = ex.Message;
             StingLog.Error("Planscape: Sync failed", ex);
             UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Error, ex.Message);
             return new SyncResult { Success = false, Error = ex.Message };
@@ -897,6 +940,34 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return false; }
     }
 
+    // ── LPS record (Wave 4 — full server entity) ──────────────────────────────
+
+    /// <summary>
+    /// Pushes a Lightning Protection record to
+    /// POST /api/projects/{projectId}/lps. Payload must match the
+    /// PushLpsRecordRequest contract on the LpsController:
+    ///   lpsClass, rollingSphereRadiusM, meshSizeM, inspectionIntervalMonths,
+    ///   earthResistanceTargetOhm, groundFlashDensity,
+    ///   airTerminalCount, downConductorCount, earthElectrodeCount,
+    ///   bondingCount, spdCount,
+    ///   kcFactor, sepDistanceViolations,
+    ///   annualStrikeFrequencyNd, collectionAreaM2,
+    ///   riskR1..riskR4, tolerableR1..tolerableR4, recommendedClass,
+    ///   complianceVerdict, complianceChecksPass/Warn/Fail,
+    ///   lastTestDate, certReference,
+    ///   spdCoordinationPass/Warn/Fail.
+    /// </summary>
+    public async Task<bool> PushLpsRecordAsync(Guid projectId, object payload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/lps", payload);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
     // ── BOQ Snapshot (feature gap 3) ──────────────────────────────────────────
 
     /// <summary>
@@ -913,6 +984,76 @@ public sealed class PlanscapeServerClient : IDisposable
             return resp.ok;
         }
         catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ── BOQ Baseline (P1 of Cost Management Implementation Plan) ──────────────
+    //
+    //  Three new endpoints wire the plugin's BOQSnapshot save flow into the
+    //  server's BoqBaseline + QuantityLine domain model:
+    //
+    //    CreateBoqBaselineAsync   → POST /api/projects/{id}/boq/baselines
+    //    UpsertBoqLinesAsync      → POST /api/projects/{id}/boq/baselines/{bid}/lines
+    //    GetBoqBaselinesAsync     → GET  /api/projects/{id}/boq/baselines
+    //
+    //  Called by BoqSyncCoordinator on every SaveSnapshot.
+
+    /// <summary>
+    /// Create a baseline shell. Returns the server-assigned baseline id
+    /// on success, null on failure (LastError carries the detail).
+    /// </summary>
+    public async Task<Guid?> CreateBoqBaselineAsync(Guid projectId, object baselinePayload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/boq/baselines", baselinePayload);
+            if (!resp.ok) { LastError = resp.body; return null; }
+            var obj = JObject.Parse(resp.body);
+            string? idStr = obj.Value<string>("id") ?? obj.Value<string>("Id");
+            if (Guid.TryParse(idStr, out Guid id)) return id;
+            LastError = "Server response had no parseable baseline id.";
+            return null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    /// <summary>
+    /// Upsert quantity lines onto a baseline. The server-side handler
+    /// keys on IfcGlobalId (Revit UniqueId in our case) and returns
+    /// counts of created vs updated rows.
+    /// </summary>
+    public async Task<(bool ok, int created, int updated)> UpsertBoqLinesAsync(
+        Guid projectId, Guid baselineId, IEnumerable<object> lines)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, 0, 0);
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/boq/baselines/{baselineId}/lines",
+                lines);
+            if (!resp.ok) { LastError = resp.body; return (false, 0, 0); }
+            var obj = JObject.Parse(resp.body);
+            int created = obj.Value<int?>("created") ?? 0;
+            int updated = obj.Value<int?>("updated") ?? 0;
+            return (true, created, updated);
+        }
+        catch (Exception ex) { LastError = ex.Message; return (false, 0, 0); }
+    }
+
+    /// <summary>
+    /// List baselines for a project — used to surface server state in
+    /// the BOQ panel alongside the local snapshot list.
+    /// </summary>
+    public async Task<JArray?> GetBoqBaselinesAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/boq/baselines");
+            if (!resp.ok) { LastError = resp.body; return null; }
+            return JArray.Parse(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
     // ── P6 Live Link (feature gap 6) ──────────────────────────────────────────
@@ -1253,10 +1394,25 @@ public sealed class PlanscapeServerClient : IDisposable
             var items = json["items"] as JArray;
             if (items == null) return empty;
             var list = items.ToObject<List<SitePhotoDto>>();
+            // Phase 180 — surface ndaRequiredIds so callers can render
+            // a 🔒 lock badge on photos awaiting NDA acceptance.
+            var ndaIdsJson = json["ndaRequiredIds"] as JArray;
+            if (ndaIdsJson != null)
+            {
+                LastNdaRequiredIds = ndaIdsJson
+                    .Select(t => (string?)t)
+                    .Where(s => Guid.TryParse(s, out _))
+                    .Select(s => Guid.Parse(s!))
+                    .ToHashSet();
+            }
+            else
+            {
+            }
             return list ?? empty;
         }
         catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListSitePhotosAsync: {ex.Message}"); return empty; }
     }
+
 
     /// <summary>Download the redacted/watermarked photo bytes for thumbnail or full-size view.
     /// Returns null on failure (caller should render a placeholder).</summary>
@@ -1722,7 +1878,14 @@ public sealed class PlanscapeServerClient : IDisposable
                 }
                 var json = JObject.Parse(body);
                 var id = json["id"]?.Value<string>() ?? "";
-                return (true, Guid.TryParse(id, out var g) ? g : Guid.Empty, null, false);
+                // The server now answers 200 (not 409) for hash-deduped uploads
+                // and includes { duplicate: true, sidecarsRefreshed: bool } so
+                // re-published models can refresh their element-map sidecar
+                // even when the GLB itself is byte-identical. Old behaviour
+                // (409 with duplicate_content) is still handled above for
+                // back-compat with older server builds.
+                bool isDuplicate = json["duplicate"]?.Value<bool>() == true;
+                return (true, Guid.TryParse(id, out var g) ? g : Guid.Empty, null, isDuplicate);
             }
             finally
             {
@@ -1733,7 +1896,6 @@ public sealed class PlanscapeServerClient : IDisposable
         }
         catch (Exception ex)
         {
-            LastError = ex.Message;
             StingLog.Error("Planscape: UploadModelAsync failed", ex);
             return (false, Guid.Empty, ex.Message, false);
         }

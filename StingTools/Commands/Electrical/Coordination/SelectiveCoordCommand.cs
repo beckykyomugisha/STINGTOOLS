@@ -57,11 +57,11 @@ namespace StingTools.Commands.Electrical.Coordination
                 System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     var dlg = new SelectiveCoordDialog(root, violations, tcc);
-                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     dlg.ShowDialog();
                 });
             }
-            catch (Exception ex) { StingLog.Warn($"OpenSelectiveCoordDialog: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"OpenSelectiveCoordDialog: {ex2.Message}"); }
 
             return Result.Succeeded;
         }

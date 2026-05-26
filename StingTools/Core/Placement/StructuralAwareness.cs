@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139.3 — Structural-awareness adapter for the placement centre.
 //
 // Wraps the existing StingTools.Model engines (AnalyzeLoadPaths,

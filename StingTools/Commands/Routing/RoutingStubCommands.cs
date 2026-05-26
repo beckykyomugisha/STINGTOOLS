@@ -103,19 +103,19 @@ namespace StingTools.Commands.Routing
                                 var line = Line.CreateBound(path.Points[i], path.Points[i + 1]);
                                 doc.Create.NewDetailCurve(view, line);
                             }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
-                                StingLog.Warn($"GenerateLayoutCommand: DetailCurve draw failed at seg {i}: {ex.Message}");
+                                StingLog.Warn($"GenerateLayoutCommand: DetailCurve draw failed at seg {i}: {ex2.Message}");
                             }
                         }
                     }
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    StingLog.Error("GenerateLayoutCommand: transaction failed", ex);
-                    message = ex.Message;
+                    StingLog.Error("GenerateLayoutCommand: transaction failed", ex2);
+                    message = ex2.Message;
                     return Result.Failed;
                 }
             }

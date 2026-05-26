@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Events;
+using System.Linq;
 
 namespace StingTools.Core
 {
@@ -141,6 +142,46 @@ namespace StingTools.Core
     }
 
     /// <summary>
+    /// Single-shot job that pushes accumulated dirty-element geometry to the
+    /// Planscape federated-model endpoint. Runs once per enqueue on the next
+    /// quiet Idling tick so it never blocks the worksharing save callback.
+    /// </summary>
+    public class FullGeometrySyncJob : IIdlingJob
+    {
+        public string Name     => "FullGeometrySync";
+        public int    Priority => 4;
+        public int    BudgetMs => 50;
+
+        public bool Execute(UIApplication uiApp)
+        {
+            try
+            {
+                var doc = uiApp?.ActiveUIDocument?.Document;
+                if (doc == null) return true;
+                // Delegate to the server client's geometry-push path when available.
+                // Using reflection keeps a hard dependency on the BIMManager
+                // assembly out of the Core layer.
+                var t = Type.GetType("StingTools.BIMManager.PlanscapeServerClient, StingTools");
+                if (t != null)
+                {
+                    var m = t.GetMethod("PushDirtyGeometryAsync",
+                        new[] { typeof(Autodesk.Revit.DB.Document) });
+                    if (m != null) m.Invoke(null, new object[] { doc });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FullGeometrySyncJob: {ex.Message}"); }
+            return true; // one-shot
+        }
+    }
+
+    /// <summary>
+    /// Single-shot job that promotes the accumulated stale-element flag into
+    /// a BIM issue once the total stale count exceeds
+    /// <c>TagConfig.StaleWarningThreshold</c>. Fires after the IUpdater
+    /// transaction has committed so the document is read-safe.
+    /// </summary>
+
+    /// <summary>
     /// Pack 8 pilot consumer — compliance-scan refresh. Drops itself after
     /// a single tick so it only runs once per enqueue.
     /// </summary>
@@ -163,6 +204,52 @@ namespace StingTools.Core
                 StingLog.Warn($"ComplianceRefreshJob: {ex.Message}");
             }
             return true;
+        }
+    }
+
+    /// <summary>
+    /// TAG-STALE-WARN-01: Idling consumer that promotes stale-element flags into
+    /// the BIM issues register when the stale count crosses a threshold.
+    /// Runs ONCE per enqueue (returns true on completion). Dedupes against any
+    /// existing OPEN "stale" issue inside <see cref="WarningsEngineExt.AutoRaiseStaleIssues"/>.
+    /// </summary>
+    public class StaleWarningPromotionJob : IIdlingJob
+    {
+        public string Name => "StaleWarningPromotion";
+        public int Priority => 4;
+        public int BudgetMs => 30;
+
+        // Don't fire an issue for the first stale element — wait until a meaningful
+        // batch has accumulated to avoid issue noise from a single tweak. Configurable
+        // via TagConfig.StaleWarningThreshold (default 5).
+        private const int DefaultThreshold = 5;
+
+        public bool Execute(UIApplication uiApp)
+        {
+            try
+            {
+                var doc = uiApp?.ActiveUIDocument?.Document;
+                if (doc == null || doc.IsFamilyDocument) return true;
+
+                int threshold = TagConfig.StaleWarningThreshold > 0
+                    ? TagConfig.StaleWarningThreshold
+                    : DefaultThreshold;
+
+                var cached = ComplianceScan.GetCached() ?? ComplianceScan.Scan(doc);
+                if (cached == null || cached.StaleCount < threshold) return true;
+
+                int created = WarningsEngineExt.AutoRaiseStaleIssues(doc);
+                if (created > 0)
+                {
+                    StingLog.Info($"StaleWarningPromotionJob: created {created} stale-element issue(s) " +
+                        $"({cached.StaleCount} stale elements, threshold={threshold}).");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"StaleWarningPromotionJob: {ex.Message}");
+            }
+            return true; // single-shot
         }
     }
 }

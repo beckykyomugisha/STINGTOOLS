@@ -169,10 +169,10 @@ namespace StingTools.Commands.Electrical
 
                 if (byPanel)
                 {
-                    // Filter on RBS_PANEL_NAME equals filterValue.
+                    // Filter on RBS_ELEC_CIRCUIT_PANEL_PARAM equals filterValue.
                     var rule = ParameterFilterRuleFactory.CreateEqualsRule(
-                        new ElementId(BuiltInParameter.RBS_PANEL_NAME),
-                        filterValue, false);
+                        new ElementId(BuiltInParameter.RBS_ELEC_CIRCUIT_PANEL_PARAM),
+                        filterValue);
                     elemFilter = new ElementParameterFilter(rule);
                 }
                 else
@@ -182,7 +182,7 @@ namespace StingTools.Commands.Electrical
                     // We use a contains rule on circuit number as a broad net.
                     var rule = ParameterFilterRuleFactory.CreateContainsRule(
                         new ElementId(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER),
-                        filterValue, false);
+                        filterValue);
                     elemFilter = new ElementParameterFilter(rule);
                 }
 

@@ -67,19 +67,19 @@ namespace StingTools.Commands.Electrical.Busbar
                             ? BusbarSizerEngine.FillPercent(ductAreaMm2, result.CsaMm2, 3)
                             : 0;
 
-                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_CSA, $"{result.CsaMm2:0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_RATING, $"{result.RatingA:0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_FILL, $"{fillPct:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_CSA, $"{result.CsaMm2:0}", overwrite: true); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
+                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_RATING, $"{result.RatingA:0}", overwrite: true); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
+                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_FILL, $"{fillPct:0.0}", overwrite: true); } catch (Exception ex4) { StingLog.Warn($"Suppressed: {ex4.Message}"); }
 
                         if (fillPct > 80) ApplyRedOverride(doc, tray);
                         if (!result.Compliant) StingLog.Warn($"Busbar {tray.Name}: {result.Warning}");
                         sized++;
                     }
-                    catch (Exception ex) { StingLog.Warn($"BusbarModeling {tray.Name}: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"BusbarModeling {tray.Name}: {ex2.Message}"); }
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
 
             TaskDialog.Show("STING Busbar Sizing",
                 $"Busbar trunking sizing complete — {sized} run(s) assessed.\n" +

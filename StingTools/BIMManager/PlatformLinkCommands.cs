@@ -1080,12 +1080,6 @@ namespace StingTools.BIMManager
 
         public DeliverableFile(string filePath, string description, string docType, string suitability, string cdeState)
         {
-            FilePath = filePath;
-            Description = description;
-            DocType = docType;
-            Category = docType; // default Category to DocType
-            Suitability = suitability;
-            CDEState = cdeState;
         }
     }
 
@@ -2208,14 +2202,8 @@ namespace StingTools.BIMManager
             {
                 tagSync.Add(new Planscape.Shared.Models.TagElementSync
                 {
-                    RevitElementId  = p.RevitElementId,
-                    UniqueId        = p.UniqueId ?? "",
-                    Disc = p.Disc ?? "", Loc = p.Loc ?? "",
                     Zone = p.Zone ?? "", Lvl = p.Lvl ?? "",
-                    Sys  = p.Sys ?? "",  Func = p.Func ?? "",
                     Prod = p.Prod ?? "", Seq  = p.Seq ?? "",
-                    Tag1 = p.Tag1 ?? "", Tag7 = p.Tag7,
-                    CategoryName = p.CategoryName ?? "",
                     FamilyName   = p.FamilyName ?? "",
                     Status       = p.Status,
                     Rev          = p.Rev,
@@ -2824,5 +2812,61 @@ namespace StingTools.BIMManager
         }
     }
 
+    /// <summary>
+    /// Disconnects the current Planscape server session. Mirrors the inline
+    /// PlanscapeDisconnect handler in WarningsManager.ProcessAction so the
+    /// action can also be resolved via WorkflowEngine.GetCommandInstance
+    /// (Phase 167 dispatch-gap fix).
+    /// </summary>
+
     #endregion
+
+    // ── Publish 3D Model — meta command ────────────────────────────────────
+    // Pops a TaskDialog so the user picks a publish target (Speckle stream,
+    // Autodesk Construction Cloud, or IFC export) and routes to the existing
+    // per-platform command. Lives here as a real IExternalCommand so it can
+    // resolve through both StingCommandHandler (dock-panel path) and the
+    // BCC's WorkflowEngine.ResolveCommand dispatcher.
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class Publish3DModelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var pickDlg = new TaskDialog("Publish 3D Model")
+                {
+                    MainInstruction = "Choose where to publish the active 3D model.",
+                    CommonButtons = TaskDialogCommonButtons.Cancel
+                };
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Speckle Stream",
+                    "Send the model to a Speckle stream for browser-based 3D viewing.");
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Autodesk Construction Cloud (ACC)",
+                    "Package the model for ACC / BIM 360 publishing.");
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "IFC Export",
+                    "Export an IFC 2x3 / IFC 4 model into the project's 05_MODELS folder.");
+
+                IExternalCommand inner = pickDlg.Show() switch
+                {
+                    TaskDialogResult.CommandLink1 => new SpeckleSendCommand(),
+                    TaskDialogResult.CommandLink2 => new ACCPublishCommand(),
+                    TaskDialogResult.CommandLink3 => new StingTools.Temp.IFCExportCommand(),
+                    _ => null,
+                };
+                if (inner == null) return Result.Cancelled;
+                return inner.Execute(commandData, ref message, elements);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Publish3DModelCommand failed", ex);
+                TaskDialog.Show("Publish 3D Model", $"Failed: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+    }
 }

@@ -125,6 +125,10 @@ namespace Planscape.Docs.Templates
                 return new TemplateManifest();
             try
             {
+                // S3.6.1 — version gate (idempotent if the file is already current).
+                StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
+                    path, "planscape.template-manifest",
+                    StingTools.Core.PluginSchemaVersion.CurrentManifest);
                 string json = File.ReadAllText(path);
                 var m = JsonConvert.DeserializeObject<TemplateManifest>(json, _settings) ?? new TemplateManifest();
                 // Defensive: repopulate null collections so callers can add freely.

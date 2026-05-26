@@ -47,6 +47,12 @@ namespace StingTools.Tags
             public Application App { get; set; }
             public string SharedParamFile { get; set; }
             public bool PreserveHandEdits { get; set; }
+            /// <summary>
+            /// When true, warning-tier rows (tier 8+) are also subject to
+            /// hand-edit preservation; when false only T4-T7 tiers are
+            /// protected by <see cref="PreserveHandEdits"/>.
+            /// </summary>
+            public bool PreserveHandWarnings { get; set; }
             public string FamilyName { get; set; }
         }
 
@@ -72,6 +78,10 @@ namespace StingTools.Tags
             public int FormulasSkipped { get; set; }
             public int TiersPreserved { get; set; }
             public bool LabelRebound { get; set; }
+            /// <summary>Number of warning-row tier formulas applied.</summary>
+            public int WarningsApplied { get; set; }
+            /// <summary>Number of warning-row tier formulas skipped (hand-edit preserved).</summary>
+            public int WarningsSkipped { get; set; }
             public List<string> Warnings { get; } = new List<string>();
         }
 
@@ -285,7 +295,7 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(originalSpFile))
                         opts.App.SharedParametersFilename = originalSpFile;
                 }
-                catch (Exception ex) { StingLog.Warn($"restore SP file: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"restore SP file: {ex2.Message}"); }
             }
             return added;
         }

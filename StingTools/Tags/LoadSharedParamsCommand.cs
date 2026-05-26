@@ -158,6 +158,11 @@ namespace StingTools.Tags
             // The only safe fix is to detect these conflicts up-front and skip them.
             StingLog.Info("LoadSharedParams: step 3b — scanning SharedParameterElements for type conflicts");
             var existingSpecByGuid = new Dictionary<Guid, (string name, string typeId)>();
+            // Parallel name-keyed index. Catches the case where the project has a
+            // SharedParameterElement of the same NAME but a different GUID — this
+            // also produces an unrecoverable "cannot be added" Error modal because
+            // Revit treats name as a unique key inside a definition store.
+            var existingSpecByName = new Dictionary<string, (Guid guid, string typeId)>(StringComparer.OrdinalIgnoreCase);
             try
             {
                 var spes = new FilteredElementCollector(doc)
@@ -174,6 +179,8 @@ namespace StingTools.Tags
                         try { typeId = intDef?.GetDataType()?.TypeId; }
                         catch (Exception gdtEx) { StingLog.Warn($"GetDataType '{name}': {gdtEx.Message}"); }
                         existingSpecByGuid[g] = (name, typeId);
+                        if (!string.IsNullOrEmpty(name))
+                            existingSpecByName[name] = (g, typeId);
                     }
                     catch (Exception speEx) { StingLog.Warn($"Inspect SharedParameterElement: {speEx.Message}"); }
                 }
@@ -199,25 +206,50 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    // Skip if GUID exists with different name or different data type
-                    if (existingSpecByGuid.TryGetValue(d.GUID, out var existing))
+                    // Skip if a SharedParameterElement already holds this GUID
+                    // (or this name) in the project. Revit refuses to add a definition
+                    // whose GUID matches an existing one if name OR data type differs,
+                    // and the failure is severity=Error so BindingWarningSwallower
+                    // (warning-only) cannot dismiss the resulting modal.
+                    bool guidExists = existingSpecByGuid.TryGetValue(d.GUID, out var existing);
+                    bool nameAlreadyOnSomeGuid = existingSpecByName.TryGetValue(d.Name, out var existingByName);
+
+                    if (guidExists || nameAlreadyOnSomeGuid)
                     {
                         string newTypeId = null;
                         try { newTypeId = d.GetDataType()?.TypeId; }
                         catch (Exception gdtEx) { StingLog.Warn($"GetDataType def '{d.Name}': {gdtEx.Message}"); }
 
-                        bool nameMismatch = !string.Equals(existing.name, d.Name, StringComparison.OrdinalIgnoreCase);
-                        bool typeMismatch = existing.typeId != null && newTypeId != null
-                            && !string.Equals(existing.typeId, newTypeId, StringComparison.Ordinal);
+                        // Indeterminate type on either side → treat as conflict and skip.
+                        // Inserting blind risks Revit's unrecoverable "cannot be added"
+                        // Error-severity modal that the failure preprocessor can't eat.
+                        bool typeIndeterminate = guidExists
+                            ? (existing.typeId == null || newTypeId == null)
+                            : (existingByName.typeId == null || newTypeId == null);
 
-                        if (nameMismatch || typeMismatch)
+                        bool nameMismatch = guidExists
+                            && !string.Equals(existing.name, d.Name, StringComparison.OrdinalIgnoreCase);
+                        bool typeMismatch = guidExists
+                            ? (!typeIndeterminate && !string.Equals(existing.typeId, newTypeId, StringComparison.Ordinal))
+                            : (!typeIndeterminate && !string.Equals(existingByName.typeId, newTypeId, StringComparison.Ordinal));
+                        // Name-collision-with-different-GUID: also a hard conflict
+                        bool nameOwnedByOtherGuid = !guidExists && nameAlreadyOnSomeGuid
+                            && existingByName.guid != d.GUID;
+
+                        if (nameMismatch || typeMismatch || typeIndeterminate || nameOwnedByOtherGuid)
                         {
                             typeConflicts++;
                             if (typeConflictDetails.Count < 20)
                             {
-                                string reason = nameMismatch
-                                    ? $"'{d.Name}': GUID already held by '{existing.name}' in project"
-                                    : $"'{d.Name}': project has type {ShortTypeId(existing.typeId)}, MR file has {ShortTypeId(newTypeId)}";
+                                string reason;
+                                if (nameOwnedByOtherGuid)
+                                    reason = $"'{d.Name}': name held by a different GUID in project ({existingByName.guid})";
+                                else if (nameMismatch)
+                                    reason = $"'{d.Name}': GUID already held by '{existing.name}' in project";
+                                else if (typeMismatch)
+                                    reason = $"'{d.Name}': project has type {ShortTypeId(guidExists ? existing.typeId : existingByName.typeId)}, MR file has {ShortTypeId(newTypeId)}";
+                                else
+                                    reason = $"'{d.Name}': data type indeterminate on either side — skipping to avoid Revit's unrecoverable Error modal";
                                 typeConflictDetails.Add(reason);
                             }
                             continue;
@@ -251,9 +283,9 @@ namespace StingTools.Tags
                 {
                     (matRemovedOnly, matAddedOnly) = CleanMaterialBindings(doc, app);
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Error("CleanMaterialBindings (no-bind path) failed", ex);
+                    StingLog.Error("CleanMaterialBindings (no-bind path) failed", ex2);
                 }
 
                 var earlyMsg = new StringBuilder();
@@ -367,7 +399,7 @@ namespace StingTools.Tags
                 var (groupName, defs) = groupsToProcess[gi];
 
                 try { progress?.Increment($"Group {gi + 1}/{groupsToProcess.Count}: {groupName}"); }
-                catch (Exception ex) { StingLog.Warn($"Progress increment: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Progress increment: {ex2.Message}"); }
 
                 // Pick pre-built binding for this group
                 InstanceBinding binding = groupBindings.TryGetValue(groupName, out InstanceBinding gb)
@@ -414,7 +446,7 @@ namespace StingTools.Tags
                                 else
                                     skipped++;
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
+                            catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); skipped++; }
                         }
 
                         tx.Commit();
@@ -424,15 +456,15 @@ namespace StingTools.Tags
                         // Log AFTER transaction, not inside
                         StingLog.Info($"  → committed: {groupBound} bound, {defs.Count - groupBound} skipped");
                     }
-                    catch (Exception ex)
+                    catch (Exception ex3)
                     {
-                        StingLog.Error($"Group '{groupName}' transaction failed", ex);
+                        StingLog.Error($"Group '{groupName}' transaction failed", ex3);
                         if (tx.HasStarted() && !tx.HasEnded())
                             tx.RollBack();
 
                         skipped += defs.Count;
                         if (errors.Count < 10)
-                            errors.Add($"Group '{groupName}': {ex.Message}");
+                            errors.Add($"Group '{groupName}': {ex3.Message}");
                     }
                 }
             }
@@ -889,11 +921,11 @@ namespace StingTools.Tags
                                     StingLog.Warn($"ReInsert(InternalDef) failed for '{name}'");
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             removeFailed++;
                             if (removeFailed <= 5)
-                                StingLog.Warn($"Remove mat from '{name}': {ex.Message}");
+                                StingLog.Warn($"Remove mat from '{name}': {ex2.Message}");
                         }
                     }
 
@@ -931,19 +963,19 @@ namespace StingTools.Tags
                                     StingLog.Warn($"ReInsert(InternalDef) add-mat failed for '{name}'");
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             addFailed++;
                             if (addFailed <= 5)
-                                StingLog.Warn($"Add mat to '{name}': {ex.Message}");
+                                StingLog.Warn($"Add mat to '{name}': {ex2.Message}");
                         }
                     }
 
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Error("CleanMaterialBindings batch tx failed", ex);
+                    StingLog.Error("CleanMaterialBindings batch tx failed", ex2);
                     if (tx.HasStarted() && !tx.HasEnded())
                         tx.RollBack();
                 }
@@ -1217,9 +1249,13 @@ namespace StingTools.Tags
     }
 
     /// <summary>
-    /// Dismisses all warnings during parameter binding transactions.
-    /// Without this, Revit accumulates FailureMessage objects in memory
-    /// for each binding operation, causing slowdown and eventual crash.
+    /// Dismisses warnings during parameter binding transactions and resolves the
+    /// specific "shared parameter cannot be added — name/type conflicts with
+    /// existing" Error. The conflict is severity=Error (not Warning) so without
+    /// explicit handling Revit shows an unrecoverable modal listing every clash.
+    /// We resolve such Errors by skipping the offending element — the binding
+    /// just doesn't happen, which is the same effect as the upfront skip in
+    /// LoadSharedParamsCommand step 3b.
     /// </summary>
     internal class BindingWarningSwallower : IFailuresPreprocessor
     {
@@ -1229,11 +1265,36 @@ namespace StingTools.Tags
             {
                 var failures = failuresAccessor.GetFailureMessages();
                 if (failures == null) return FailureProcessingResult.Continue;
+                bool resolvedAny = false;
                 foreach (FailureMessageAccessor failure in failures)
                 {
-                    if (failure.GetSeverity() == FailureSeverity.Warning)
+                    var sev = failure.GetSeverity();
+                    if (sev == FailureSeverity.Warning)
+                    {
                         failuresAccessor.DeleteWarning(failure);
+                        continue;
+                    }
+                    if (sev != FailureSeverity.Error) continue;
+
+                    // Match Revit's "shared parameter ... cannot be added with name ...
+                    // because it conflicts with the existing name ... and type ..." message.
+                    string desc = "";
+                    try { desc = failure.GetDescriptionText() ?? ""; }
+                    catch (Exception descEx) { StingLog.Warn($"Failure desc read: {descEx.Message}"); }
+                    if (desc.IndexOf("shared parameter", StringComparison.OrdinalIgnoreCase) >= 0
+                        && desc.IndexOf("conflicts", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        try
+                        {
+                            failuresAccessor.DeleteWarning(failure);
+                            resolvedAny = true;
+                            StingLog.Warn($"BindingWarningSwallower: dismissed shared-parameter conflict — {desc}");
+                        }
+                        catch (Exception delEx) { StingLog.Warn($"Dismiss shared-param conflict: {delEx.Message}"); }
+                    }
                 }
+                if (resolvedAny)
+                    return FailureProcessingResult.ProceedWithCommit;
             }
             catch
             {

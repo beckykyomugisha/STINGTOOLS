@@ -2,8 +2,13 @@
 // Phase 178c. Reads the per-pipe DFU map from FixtureUnitAggregator,
 // looks up the minimum DN against the active project plumbing code
 // (BS-UK default, IPC-US toggle), then evaluates self-cleansing
-// velocity via Chezy-Manning. Optionally writes results back to
-// PLM_CALC_DN_MM and PLM_CALC_SLOPE_PCT.
+// velocity via Chezy-Manning.
+//
+// Closes the calc → model loop: when writeBack=true the sizer stamps
+// PLM_CALC_DN / PLM_CALC_SLOPE / PLM_VEL shared params *and* sets the
+// native RBS_PIPE_DIAMETER_PARAM to the recommended bore so geometry,
+// schedules, exports and downstream commands reflect the new size.
+// Matches the MepAutoSizePipeCommand precedent.
 
 using System;
 using System.Collections.Generic;
@@ -38,6 +43,7 @@ namespace StingTools.Core.Plumbing
         public int PipesSlopeInsufficient     { get; set; }
         public int PipesSelfCleansingFailed   { get; set; }
         public int PipesWritten               { get; set; }
+        public int PipesResized               { get; set; }  // native RBS_PIPE_DIAMETER_PARAM updated
         public string CodeUsed                { get; set; } = "BS-UK";
         public List<DrainageSizeResult> Results { get; } = new List<DrainageSizeResult>();
         public List<string> Warnings { get; } = new List<string>();
@@ -82,10 +88,23 @@ namespace StingTools.Core.Plumbing
                             TryWriteString(pipe, ParamRegistry.PLM_VEL,
                                 res.SelfCleansingVelocityMps.ToString("F3"));
                         r.PipesWritten++;
+
+                        // Close the calc → model loop: set the native pipe diameter
+                        // so geometry, schedules, exports and downstream commands
+                        // reflect the new bore. Only writes when the recommendation
+                        // differs from the current modelled diameter.
+                        if (res.RecommendedDnMm > 0
+                            && res.RecommendedDnMm != res.CurrentDnMm)
+                        {
+                            if (TryWriteNativeDiameterMm(pipe, res.RecommendedDnMm))
+                                r.PipesResized++;
+                            else
+                                r.Warnings.Add($"native diameter write skipped on pipe {pipe.Id} (read-only / constrained)");
+                        }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
-                        r.Warnings.Add($"writeBack pipe {pipe.Id}: {ex.Message}");
+                        r.Warnings.Add($"writeBack pipe {pipe.Id}: {ex2.Message}");
                     }
                 }
             }
@@ -128,6 +147,13 @@ namespace StingTools.Core.Plumbing
 
                 if (!res.IsStack)
                 {
+                    // BS EN 12056-2 §6.2.3 sizes drains at h/D ≈ 0.5 (half-full).
+                    // For a circular section flowing exactly half-full, hydraulic
+                    // radius rH = D/4 (same value as full-bore), so this
+                    // approximation gives the correct self-cleansing velocity
+                    // at the design fill level. For other fill ratios a partial-
+                    // flow rH calculation would be needed; flagged here so
+                    // future refinement is explicit.
                     double n = MannningNFor(pipe);
                     double diaM = currentDn / 1000.0;
                     double rH   = diaM / 4.0;
@@ -229,6 +255,29 @@ namespace StingTools.Core.Plumbing
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
+        }
+
+        /// <summary>
+        /// Set the native Revit pipe diameter (RBS_PIPE_DIAMETER_PARAM) to
+        /// the recommended bore in mm. Returns false if the parameter is
+        /// missing, read-only, or rejected by Revit (e.g. fitting constraint).
+        /// </summary>
+        private static bool TryWriteNativeDiameterMm(Pipe pipe, int dnMm)
+        {
+            if (pipe == null || dnMm <= 0) return false;
+            try
+            {
+                var p = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM);
+                if (p == null || p.IsReadOnly || p.StorageType != StorageType.Double) return false;
+                double valueFt = dnMm * (1.0 / (FtToM * 1000.0)); // mm → m → ft
+                p.Set(valueFt);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TryWriteNativeDiameterMm pipe={pipe?.Id} dn={dnMm}: {ex.Message}");
+                return false;
+            }
         }
     }
 }

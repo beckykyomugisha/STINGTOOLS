@@ -1,0 +1,69 @@
+{
+  "_comment": "STING sustainability-gate rules — LEED v5 / BREEAM v6 / EN 15978.",
+  "_help": [
+    "Each rule has a 'where' (filter — which materials it applies to)",
+    "and a 'fail' (predicate — what makes it trigger).",
+    "Both 'where' and 'fail' use the same predicate shape:",
+    "  nameRegex / classRegex / originIn",
+    "  carbonKgCo2eGreaterThan / carbonKgCo2eLessThan",
+    "  costGreaterThan / missingEpd / epdExpired",
+    "Severity: Info | Warning | Block (Block is reserved for transaction-time gating).",
+    "Override at <project>/_BIM_COORD/sustainability_gates.json."
+  ],
+  "rules": [
+    {
+      "id": "LEED_v5_Concrete_GWP",
+      "standard": "LEED v5",
+      "severity": "Warning",
+      "message": "Concrete embodied carbon > 410 kgCO2e/m3 — exceeds LEED v5 MR low-carbon credit threshold.",
+      "where": { "classRegex": "(?i)concrete" },
+      "fail":  { "carbonKgCo2eGreaterThan": 410 }
+    },
+    {
+      "id": "LEED_v5_Steel_GWP",
+      "standard": "LEED v5",
+      "severity": "Warning",
+      "message": "Steel embodied carbon > 2000 kgCO2e/m3 — exceeds LEED v5 MR low-carbon credit threshold for hot-rolled steel.",
+      "where": { "classRegex": "(?i)steel|metal" },
+      "fail":  { "carbonKgCo2eGreaterThan": 2000 }
+    },
+    {
+      "id": "EN15978_EPD_Expired",
+      "standard": "EN 15978",
+      "severity": "Warning",
+      "message": "EPD older than 5 years — refresh provenance before relying on the embodied carbon value.",
+      "fail":  { "epdExpired": true }
+    },
+    {
+      "id": "EN15978_EPD_Missing",
+      "standard": "EN 15978",
+      "severity": "Info",
+      "message": "No EPD source documented — carbon value (if any) is not certified.",
+      "fail":  { "missingEpd": true }
+    },
+    {
+      "id": "BREEAM_v6_Insulation_GWP",
+      "standard": "BREEAM v6",
+      "severity": "Warning",
+      "message": "Insulation embodied carbon > 600 kgCO2e/m3 — common BREEAM Mat 01 ceiling for thermal insulation.",
+      "where": { "classRegex": "(?i)insulation|mineral wool|pir|xps|eps" },
+      "fail":  { "carbonKgCo2eGreaterThan": 600 }
+    },
+    {
+      "id": "LEED_v5_Glass_GWP",
+      "standard": "LEED v5",
+      "severity": "Info",
+      "message": "Glazing embodied carbon > 700 kgCO2e/m3 — review for low-emissivity / recycled-content alternatives.",
+      "where": { "classRegex": "(?i)glass|glazing" },
+      "fail":  { "carbonKgCo2eGreaterThan": 700 }
+    },
+    {
+      "id": "STING_OffBaseline",
+      "standard": "STING corporate",
+      "severity": "Info",
+      "message": "Material is off the STING baseline (BLE_* / MEP_* / STING_*) — confirm spec before issuing.",
+      "where": { "originIn": ["Other"] },
+      "fail":  {}
+    }
+  ]
+}

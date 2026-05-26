@@ -19,6 +19,15 @@ using StingTools.UI;
 
 namespace StingTools.Commands.Plumbing
 {
+    // Local unit helpers — Revit internal length is feet. Centralised here so
+    // refactors of one site can't drift past the other (mm = ft·304.8,
+    // m = ft·0.3048).
+    internal static class PlumbingUnits
+    {
+        public const double FtToMm = 304.8;
+        public const double FtToM  = 0.3048;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Plumb_BuildNetwork
     // ─────────────────────────────────────────────────────────────────────────
@@ -188,6 +197,11 @@ namespace StingTools.Commands.Plumbing
             int adjusted = 0, alreadyOk = 0, skipped = 0;
             var log = new List<string>();
 
+            // Transaction lifecycle: when previewing we never start one (read
+            // only). When applying we wrap the whole batch in one Transaction
+            // but each per-pipe mutation gets its own SubTransaction so a
+            // Revit-side rejection on pipe N rolls back ONLY pipe N's change
+            // — pipes 0..N-1 stay committed, pipes N+1.. carry on.
             using (var tx = new Transaction(doc, "STING Plumbing Slope Automation"))
             {
                 if (!previewOnly) tx.Start();
@@ -202,14 +216,22 @@ namespace StingTools.Commands.Plumbing
                         var line = lc.Curve as Line;
                         if (line == null) { skipped++; continue; } // curved pipe — skip
 
-                        // Check connectivity — skip if both ends are connected
-                        int connCount = 0;
+                        // Decide which end we can safely move: we anchor the
+                        // CONNECTED end (so connectors don't break) and only
+                        // move the FREE end. If both ends are connected the
+                        // pipe is locked into the network; skip.
+                        Connector startConn = null, endConn = null;
                         foreach (Connector c in pipe.ConnectorManager.Connectors)
-                            if (c.IsConnected) connCount++;
-                        if (connCount >= 2) { skipped++; continue; }
+                        {
+                            if (c.Origin.IsAlmostEqualTo(line.GetEndPoint(0))) startConn = c;
+                            else if (c.Origin.IsAlmostEqualTo(line.GetEndPoint(1))) endConn = c;
+                        }
+                        bool startConnected = startConn?.IsConnected ?? false;
+                        bool endConnected   = endConn?.IsConnected   ?? false;
+                        if (startConnected && endConnected) { skipped++; continue; }
 
                         // DN from diameter (internal Revit units = feet)
-                        int dnMm = (int)Math.Round(pipe.Diameter * 304.8); // feet → mm
+                        int dnMm = (int)Math.Round(pipe.Diameter * PlumbingUnits.FtToMm);
                         double targetSlopePct = customSlope ? customPct : BsMinSlopePct(dnMm);
 
                         // Try to read an explicitly set slope first
@@ -230,19 +252,28 @@ namespace StingTools.Commands.Plumbing
                         XYZ startPt = line.GetEndPoint(0);
                         XYZ endPt   = line.GetEndPoint(1);
 
-                        // Identify upstream end (higher Z = upstream for gravity drainage)
-                        bool startIsUpstream = startPt.Z >= endPt.Z;
-                        XYZ upstream   = startIsUpstream ? startPt : endPt;
-                        XYZ downstream = startIsUpstream ? endPt   : startPt;
+                        // Anchor = connected end (or higher-Z end when both free).
+                        // Move-end = the other one. We force the slope by setting
+                        // the move-end Z to (anchor.Z − horizDrop) when anchor is
+                        // upstream, or (anchor.Z + horizDrop) when anchor is
+                        // downstream. This preserves the existing fitting
+                        // connection and only adjusts the geometrically free end.
+                        bool anchorIsStart;
+                        if (startConnected ^ endConnected) anchorIsStart = startConnected;
+                        else                               anchorIsStart = startPt.Z >= endPt.Z;
+
+                        XYZ anchor   = anchorIsStart ? startPt : endPt;
+                        XYZ moveEnd  = anchorIsStart ? endPt   : startPt;
+                        bool anchorIsUpstream = anchor.Z >= moveEnd.Z;
 
                         double hLen = Math.Sqrt(
-                            Math.Pow(upstream.X - downstream.X, 2) +
-                            Math.Pow(upstream.Y - downstream.Y, 2)); // ft (horizontal)
+                            Math.Pow(anchor.X - moveEnd.X, 2) +
+                            Math.Pow(anchor.Y - moveEnd.Y, 2)); // ft (horizontal)
 
                         if (hLen < 0.001) { skipped++; continue; } // vertical pipe
 
                         double targetDropFt = hLen * (targetSlopePct / 100.0);
-                        double currentDropFt = Math.Abs(upstream.Z - downstream.Z);
+                        double currentDropFt = Math.Abs(anchor.Z - moveEnd.Z);
                         double currentSlopePct = hLen > 0 ? (currentDropFt / hLen) * 100.0 : 0;
 
                         if (Math.Abs(currentSlopePct - targetSlopePct) < 0.05)
@@ -253,14 +284,34 @@ namespace StingTools.Commands.Plumbing
 
                         if (!previewOnly)
                         {
-                            XYZ newDownstream = new XYZ(downstream.X, downstream.Y,
-                                upstream.Z - targetDropFt);
-                            XYZ newStart = startIsUpstream ? upstream : newDownstream;
-                            XYZ newEnd   = startIsUpstream ? newDownstream : upstream;
-                            lc.Curve = Line.CreateBound(newStart, newEnd);
+                            double newMoveZ = anchorIsUpstream
+                                ? anchor.Z - targetDropFt
+                                : anchor.Z + targetDropFt;
+                            XYZ newMoveEnd = new XYZ(moveEnd.X, moveEnd.Y, newMoveZ);
+                            XYZ newStart = anchorIsStart ? anchor : newMoveEnd;
+                            XYZ newEnd   = anchorIsStart ? newMoveEnd : anchor;
+
+                            // Per-pipe SubTransaction: a Revit rejection rolls
+                            // back this pipe only; the batch carries on.
+                            using (var sub = new SubTransaction(doc))
+                            {
+                                try
+                                {
+                                    sub.Start();
+                                    lc.Curve = Line.CreateBound(newStart, newEnd);
+                                    sub.Commit();
+                                }
+                                catch (Exception subEx)
+                                {
+                                    if (sub.HasStarted() && !sub.HasEnded()) sub.RollBack();
+                                    StingLog.Warn($"PlumbSlopeAutomation pipe {pipe.Id} sub-tx: {subEx.Message}");
+                                    skipped++;
+                                    continue;
+                                }
+                            }
                         }
                         adjusted++;
-                        log.Add($"DN{dnMm} · was {currentSlopePct:F2}% → {targetSlopePct:F2}% · L {hLen * 0.3048:F1} m");
+                        log.Add($"DN{dnMm} · was {currentSlopePct:F2}% → {targetSlopePct:F2}% · L {hLen * PlumbingUnits.FtToM:F1} m");
                     }
                     catch (Exception ex)
                     {
@@ -444,15 +495,20 @@ namespace StingTools.Commands.Plumbing
                     {
                         double kpa = pressureMap.TryGetValue(pipe.Id.Value, out double p) ? p : 0.0;
 
-                        // Write PLM_PRESSURE_KPA if the parameter exists
+                        // Write PLM_PRESSURE_KPA via the registry. Storage type
+                        // is String in Phase 179d (mapped to PLM_PRESSURE_KPA),
+                        // but accept Double too for forward-compat.
                         try
                         {
-                            var prm = pipe.LookupParameter("PLM_PRESSURE_KPA");
-                            if (prm == null) prm = pipe.LookupParameter("PLM_PRESSURE_KPA_NR");
-                            if (prm != null && !prm.IsReadOnly && prm.StorageType == StorageType.Double)
+                            var prm = pipe.LookupParameter(ParamRegistry.PLM_PRESSURE_KPA);
+                            if (prm != null && !prm.IsReadOnly)
                             {
-                                prm.Set(kpa);
-                                written++;
+                                if (prm.StorageType == StorageType.Double)
+                                { prm.Set(kpa); written++; }
+                                else if (prm.StorageType == StorageType.String)
+                                { prm.Set(kpa.ToString("F1")); written++; }
+                                else if (prm.StorageType == StorageType.Integer)
+                                { prm.Set((int)Math.Round(kpa)); written++; }
                             }
                         }
                         catch { /* parameter may not be bound */ }
@@ -479,9 +535,9 @@ namespace StingTools.Commands.Plumbing
                         var ogs = ColorHelper.BuildOverride(color, solidFill);
                         view.SetElementOverrides(pipe.Id, ogs);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
-                        StingLog.Warn($"PlumbNetworkPressure pipe {pipe.Id}: {ex.Message}");
+                        StingLog.Warn($"PlumbNetworkPressure pipe {pipe.Id}: {ex2.Message}");
                     }
                 }
 

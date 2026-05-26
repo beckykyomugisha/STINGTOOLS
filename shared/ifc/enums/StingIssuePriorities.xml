@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingIssuePriorities</Name>
+    <Definition>Issue priority levels. Drives SLA tracking, escalation, and mobile inbox sort order. Critical / High priorities trigger immediate push notifications; Low / Informational are batched into the daily digest.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4003-9000-000000000014</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING BimIssue.Priority; Planscape SLA tracking conventions</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Critical" sentinel="false">
+      <Definition>Critical — programme-blocking or safety-critical. SLA: 4 hours. Push immediately.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="High" sentinel="false">
+      <Definition>High — significant impact, needs same-day attention. SLA: 24 hours. Push immediately.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Medium" sentinel="false">
+      <Definition>Medium — standard priority. SLA: 72 hours. Daily digest.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Low" sentinel="false">
+      <Definition>Low — minor / nice-to-resolve. SLA: 7 days. Weekly digest.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Informational" sentinel="false">
+      <Definition>Informational — for awareness only, no required action. No SLA.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>fbc04d06839a6ce0993fcd80155e2b9f15085c697afda1a2b30a44354237b505</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

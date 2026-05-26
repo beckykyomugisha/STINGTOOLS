@@ -1,9 +1,12 @@
+using StingTools.Core;
 // ClashMatrix.cs — pair-wise clash rules keyed by filter expressions.
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions;
+using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Clash
 {

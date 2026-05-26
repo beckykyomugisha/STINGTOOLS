@@ -253,15 +253,7 @@ namespace StingTools.Commands.Electrical
         }
 
         private static string LuxTargetFor(string roomName)
-        {
-            string n = (roomName ?? "").ToLowerInvariant();
-            if (n.Contains("office")) return "500";
-            if (n.Contains("corridor")) return "200";
-            if (n.Contains("store") || n.Contains("storage")) return "150";
-            if (n.Contains("plant") || n.Contains("server")) return "300";
-            if (n.Contains("toilet") || n.Contains("wc")) return "200";
-            return "300";
-        }
+            => StingTools.Photometrics.LuxTargetTable.Load().TargetFor(roomName).ToString("0");
 
         public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method)
         {
@@ -371,7 +363,7 @@ namespace StingTools.Commands.Electrical
                     return string.IsNullOrEmpty(v) ? "" : "A";
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             return "";
         }
 
@@ -389,7 +381,7 @@ namespace StingTools.Commands.Electrical
                     string v = p.AsValueString();
                     if (!string.IsNullOrEmpty(v)) return v;
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             }
             return "";
         }
@@ -404,7 +396,7 @@ namespace StingTools.Commands.Electrical
                     if (p.StorageType == StorageType.Integer) return p.AsInteger();
                     if (p.StorageType == StorageType.Double) return (int)p.AsDouble();
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             }
             return 0;
         }
@@ -419,7 +411,7 @@ namespace StingTools.Commands.Electrical
                     if (p.StorageType == StorageType.Double) return p.AsDouble();
                     if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             }
             return 0;
         }

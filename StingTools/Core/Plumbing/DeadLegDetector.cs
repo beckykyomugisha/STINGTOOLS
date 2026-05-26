@@ -124,7 +124,7 @@ namespace StingTools.Core.Plumbing
             double accLen = 0;
             var visited = new HashSet<long>();
             visited.Add(start.Id.Value);
-            try { accLen += start.LookupParameter("Length")?.AsDouble() * 0.3048 ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            accLen += PipeLengthM(start);
 
             Element current = start;
             int safety = 200;
@@ -153,7 +153,7 @@ namespace StingTools.Core.Plumbing
                                     foreach (Connector oc in ocm.Connectors)
                                         if (oc.IsConnected) neighbours++;
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                             if (neighbours >= 3) { junction = owner; break; }
                             if (owner is Pipe pp && potablePipeIds.Contains(pp.Id.Value)) { nextPipe = pp; break; }
                             if (owner.Category?.Id?.Value == (long)BuiltInCategory.OST_PipeFitting) { nextPipe = owner; break; }
@@ -161,18 +161,28 @@ namespace StingTools.Core.Plumbing
                         if (junction != null || nextPipe != null) break;
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); break; }
+                catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); break; }
 
                 if (junction != null) break;
                 if (nextPipe == null) break;
                 visited.Add(nextPipe.Id.Value);
-                if (nextPipe is Pipe np)
-                {
-                    try { accLen += np.LookupParameter("Length")?.AsDouble() * 0.3048 ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                }
+                if (nextPipe is Pipe np) accLen += PipeLengthM(np);
                 current = nextPipe;
             }
             return accLen;
+        }
+
+        // Use the built-in CURVE_ELEM_LENGTH so this works on non-English Revit
+        // installs where LookupParameter("Length") would return null.
+        private static double PipeLengthM(Pipe pipe)
+        {
+            try
+            {
+                var lp = pipe.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
+                if (lp != null && lp.HasValue) return lp.AsDouble() * 0.3048;
+            }
+            catch (Exception ex) { StingLog.Warn($"PipeLengthM {pipe?.Id}: {ex.Message}"); }
+            return 0;
         }
     }
 }

@@ -9,6 +9,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Select;
 using StingTools.UI;
+using StingTools.Core.Placement;
 
 namespace StingTools.Tags
 {
@@ -185,6 +186,16 @@ namespace StingTools.Tags
             public bool LoadOverwriteParameterValues { get; set; } = false;
 
             public List<string> ParamNames { get; set; } = new List<string>();
+
+            /// <summary>When true, run <see cref="FamilySymbolAuthor.AuthorSymbols"/> inside the same
+            /// transaction to wire view-type-aware symbolic geometry and connector parametrization.
+            /// Requires <see cref="InjectAutomationPack"/> = true on the same run (or the family must
+            /// already carry STING_LOD_*_VISIBLE params from a prior run).</summary>
+            public bool InjectSymbolGeometry { get; set; } = false;
+
+            /// <summary>Options forwarded to <see cref="FamilySymbolAuthor.AuthorSymbols"/> when
+            /// <see cref="InjectSymbolGeometry"/> is true. Lazily constructed with safe defaults.</summary>
+            public FamilySymbolAuthorOptions SymbolAuthorOpts { get; set; } = new FamilySymbolAuthorOptions();
         }
 
         /// <summary>Result of processing a single family file.</summary>
@@ -212,6 +223,17 @@ namespace StingTools.Tags
             public bool LoadedIntoProject { get; set; }
             public bool Success { get; set; }
             public string ErrorMessage { get; set; }
+            /// <summary>Result from the <see cref="FamilySymbolAuthor.AuthorSymbols"/> step.
+            /// Null when <see cref="ProcessOptions.InjectSymbolGeometry"/> was false.</summary>
+            public FamilySymbolAuthorResult SymbolAuthorResult { get; set; }
+            /// <summary>Total symbolic curves placed (plan + elevation + clearance + annotation).</summary>
+            public int SymbolCurvesCreated => SymbolAuthorResult == null ? 0 :
+                SymbolAuthorResult.PlanCurvesCreated + SymbolAuthorResult.ElevCurvesCreated +
+                SymbolAuthorResult.ClearanceCurvesCreated + SymbolAuthorResult.AnnotationSymbolCurvesCreated;
+            /// <summary>Connector size params created from the symbol author step.</summary>
+            public int ConnectorParamsCreated => SymbolAuthorResult?.ConnectorParamsCreated ?? 0;
+            /// <summary>STING_SYMBOL_STD + STING_SHOW_*_BOOL params injected for standard switching.</summary>
+            public int StandardParamsCreated  => SymbolAuthorResult?.StandardParamsCreated  ?? 0;
         }
 
         /// <summary>
@@ -1081,6 +1103,21 @@ namespace StingTools.Tags
                         result.AutomationPackSkipped = apSkipped;
                     }
 
+                    // Symbol geometry + connector parametrization.
+                    // Runs after InjectAutomationPack so STING_LOD_*_VISIBLE params are guaranteed present.
+                    if (opts.InjectSymbolGeometry)
+                    {
+                        try
+                        {
+                            var saResult = FamilySymbolAuthor.AuthorSymbols(
+                                famDoc, opts.SymbolAuthorOpts ?? new FamilySymbolAuthorOptions());
+                            result.SymbolAuthorResult = saResult;
+                            if (saResult.Warnings.Count > 0)
+                                StingLog.Warn($"SymbolAuthor '{Path.GetFileName(rfaPath)}': {string.Join("; ", saResult.Warnings)}");
+                        }
+                        catch (Exception ex) { StingLog.Warn($"InjectSymbolGeometry '{Path.GetFileName(rfaPath)}': {ex.Message}"); }
+                    }
+
                     tx.Commit();
                 }
 
@@ -1133,7 +1170,7 @@ namespace StingTools.Tags
             finally
             {
                 try { famDoc?.Close(false); }
-                catch (Exception ex) { StingLog.Warn($"Close family document: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Close family document: {ex2.Message}"); }
             }
 
             return result;
@@ -1369,6 +1406,11 @@ namespace StingTools.Tags
                 ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
                 ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS
             };
+            // I-8 — Inject Material Manager params on every family so a
+            // freshly-created family is ready for the auto-fill IUpdater
+            // and inline edits work without a separate Load-Shared-Params
+            // pass.
+            list.AddRange(ParamRegistry.AllMaterialParams);
 
             // Add TAG container param names
             var containers = ParamRegistry.AllContainers;
@@ -1485,6 +1527,19 @@ namespace StingTools.Tags
                         var (apAdded, apSkipped) = InjectAutomationPresentationPack(famDoc);
                         result.AutomationPackAdded = apAdded;
                         result.AutomationPackSkipped = apSkipped;
+                    }
+
+                    if (opts.InjectSymbolGeometry)
+                    {
+                        try
+                        {
+                            var saResult = FamilySymbolAuthor.AuthorSymbols(
+                                famDoc, opts.SymbolAuthorOpts ?? new FamilySymbolAuthorOptions());
+                            result.SymbolAuthorResult = saResult;
+                            if (saResult.Warnings.Count > 0)
+                                StingLog.Warn($"SymbolAuthor '{familyDisplayName}': {string.Join("; ", saResult.Warnings)}");
+                        }
+                        catch (Exception ex) { StingLog.Warn($"InjectSymbolGeometry '{familyDisplayName}': {ex.Message}"); }
                     }
 
                     tx.Commit();
@@ -1612,6 +1667,10 @@ namespace StingTools.Tags
                     { Label = "Single Family — Purge STING + Reinject (destructive)", Detail = "Remove every STING-registered shared param then re-inject. Use only for schema migrations.", Tag = "purge_single" },
                 new StingListPicker.ListItem
                     { Label = "Batch Folder — Purge STING + Reinject (destructive)", Detail = "Purge + reinject across folder. Use only for schema migrations.", Tag = "purge_batch" },
+                new StingListPicker.ListItem
+                    { Label = "Single Family — Symbol Geometry + Connector Params", Detail = "Inject STING subcategories, plan/elevation symbolic curves wired to LOD visibility params, annotation plan symbol, and MEP connector parametrization. Automation pack is added automatically.", Tag = "symbol_single" },
+                new StingListPicker.ListItem
+                    { Label = "Batch Folder — Symbol Geometry + Connector Params", Detail = "Symbol geometry and connector parametrization across every .rfa in the folder. Automation pack is added automatically.", Tag = "symbol_batch" },
             };
             var selected = StingListPicker.Show(
                 "STING — Tag Family Parameter Creator",
@@ -1624,6 +1683,7 @@ namespace StingTools.Tags
             bool cleanNonSting = mode.StartsWith("clean");
             bool purgeSting    = mode.StartsWith("purge");
             bool migrate       = mode.StartsWith("migrate") || purgeSting;
+            bool symbolGeom    = mode.StartsWith("symbol");
             bool isBatch       = mode.Contains("batch");
 
             // Ask whether to load the processed families into the active project after saving.
@@ -1649,14 +1709,17 @@ namespace StingTools.Tags
             // additionally removes STING-registered shared params before reinjection.
             var opts = new FamilyParamEngine.ProcessOptions
             {
-                InjectTagPos        = migrate,
-                InjectFormulas      = migrate,
-                CreatePositionTypes = migrate,
-                Purge               = purgeSting    ? PurgeMode.StingOnly
-                                    : cleanNonSting ? PurgeMode.NonSting
-                                    : PurgeMode.None,
-                LoadAfterSave       = loadAfterSave,
-                TargetProjectDoc    = loadAfterSave ? ctx.Doc : null,
+                InjectTagPos          = migrate,
+                InjectFormulas        = migrate,
+                CreatePositionTypes   = migrate,
+                Purge                 = purgeSting    ? PurgeMode.StingOnly
+                                      : cleanNonSting ? PurgeMode.NonSting
+                                      : PurgeMode.None,
+                LoadAfterSave         = loadAfterSave,
+                TargetProjectDoc      = loadAfterSave ? ctx.Doc : null,
+                InjectAutomationPack  = symbolGeom,  // symbol geometry requires LOD visibility params
+                InjectSymbolGeometry  = symbolGeom,
+                SymbolAuthorOpts      = symbolGeom ? new FamilySymbolAuthorOptions() : null,
             };
 
             // Get file(s) to process using file/folder browser dialogs
@@ -1761,6 +1824,8 @@ namespace StingTools.Tags
 
             int totalParamsPurged = results.Sum(r => r.ParamsPurged);
             int totalLoadedIntoProject = results.Count(r => r.LoadedIntoProject);
+            int totalSymbolCurves = results.Sum(r => r.SymbolCurvesCreated);
+            int totalConnParams   = results.Sum(r => r.ConnectorParamsCreated);
 
             var report = new StringBuilder();
             report.AppendLine($"Files: {processed} processed, {succeeded} succeeded, {failed} failed");
@@ -1771,6 +1836,8 @@ namespace StingTools.Tags
             report.AppendLine($"Position types created: {results.Sum(r => r.PositionTypesCreated)}");
             report.AppendLine($"Tokens seeded: {totalTokensSeeded}");
             if (totalCobieProps > 0) report.AppendLine($"COBie properties written: {totalCobieProps}");
+            if (totalSymbolCurves > 0) report.AppendLine($"Symbol curves created: {totalSymbolCurves}");
+            if (totalConnParams > 0)  report.AppendLine($"Connector params created: {totalConnParams}");
             if (opts.LoadAfterSave)
                 report.AppendLine($"Loaded into '{ctx.Doc?.Title}': {totalLoadedIntoProject}/{succeeded}");
             if (catBreakdown.Count > 0)
@@ -1788,12 +1855,14 @@ namespace StingTools.Tags
                     $"STING_FamilyParamCreator_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 var csv = new StringBuilder();
                 csv.AppendLine("SourcePath,OutputPath,Category,DiscCode,ParamsAdded,ParamsSkipped,ParamsPurged," +
-                    "TagPosInjected,FormulasInjected,PositionTypesCreated,TokensSeeded,CobiePropsWritten,LoadedIntoProject,Status,ErrorMessage");
+                    "TagPosInjected,FormulasInjected,PositionTypesCreated,TokensSeeded,CobiePropsWritten," +
+                    "SymbolCurvesCreated,ConnectorParamsCreated,LoadedIntoProject,Status,ErrorMessage");
                 foreach (var r in results)
                 {
                     csv.AppendLine($"\"{r.SourcePath}\",\"{r.OutputPath}\",\"{r.Category}\"," +
                         $"{r.DiscCode},{r.ParamsAdded},{r.ParamsSkipped},{r.ParamsPurged},{r.TagPosInjected}," +
-                        $"{r.FormulasInjected},{r.PositionTypesCreated},{r.TokensSeeded},{r.CobiePropsWritten},{r.LoadedIntoProject}," +
+                        $"{r.FormulasInjected},{r.PositionTypesCreated},{r.TokensSeeded},{r.CobiePropsWritten}," +
+                        $"{r.SymbolCurvesCreated},{r.ConnectorParamsCreated},{r.LoadedIntoProject}," +
                         $"{(r.Success ? "OK" : "FAILED")},\"{r.ErrorMessage ?? ""}\"");
                 }
                 File.WriteAllText(logPath, csv.ToString());

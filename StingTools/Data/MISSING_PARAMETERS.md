@@ -1,5 +1,34 @@
 # Missing Parameters Audit — Code vs Shared-Parameter Files
 
+> **Status (2026-05-19):** RE-VERIFIED on branch
+> `claude/review-parameter-alignment-riKvx`. The 25 net-new
+> parameters introduced by Phase 184 (cost / payment cert /
+> variation, P0.2 + P5) and Phase 182-183 (HVAC sizing
+> audit-trail + refrigerant / capacity) are now aligned across
+> **all eight data surfaces**:
+>
+> 1. `MR_PARAMETERS.txt` — pure 7-bit ASCII PARAM rows (no longer
+>    UTF-16 LE — see commit `dffa3a3e5` for the Revit-parser fix).
+> 2. `MR_PARAMETERS.csv` — CSV mirror with v6.3 header bump.
+> 3. `PARAMETER_REGISTRY.json` — registry entries (v5.12).
+> 4. `Core/ParamRegistry.cs` — `public const string` declarations.
+> 5. `CATEGORY_BINDINGS.csv` — 266 binding rows added (v3.3).
+> 6. `LABEL_DEFINITIONS.json` — tier_5 cost rows + tier_7 HVAC
+>    audit rows across 19 / 12 categories (v5.10).
+> 7. `STING_TAG_CONFIG_v5_0_{ARCH,GEN,MEP,STR}.csv` — regenerated
+>    via `regenerate_tag_config_csvs.py` (DEFAULT T5 + new
+>    `HVC_DUCT_AUDIT_T7` / `HVC_PIPE_AUDIT_T7` REPLACE sets).
+> 8. `FAMILY_PARAMETER_BINDINGS.csv` + `PARAMETER_CATEGORIES.csv`
+>    + `BINDING_COVERAGE_MATRIX.csv` — broader binding tables
+>    updated with 25 new rows (189 row inserts total).
+>
+> `PRJ_ORG_PRESSURE_PROFILE_TXT` is correctly absent from
+> `LABEL_DEFINITIONS.json` and tag CSVs because it is a
+> project-level parameter on `ProjectInformation`, not an
+> element-level parameter that needs tag-label coverage.
+>
+> ---
+>
 > **Status (2026-04-30):** SUPERSEDED. The 73 `v4-YYYY-xxxx` /
 > `v6-YYYY-xxxx` placeholder GUIDs documented below were replaced in
 > Phase 169 (commit `3d262e13`). 46 fab/LPS/cost rows now carry the

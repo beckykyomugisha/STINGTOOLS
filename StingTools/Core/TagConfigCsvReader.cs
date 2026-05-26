@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Text;
+using System.Linq;
 
 namespace StingTools.Core
 {
@@ -132,6 +134,33 @@ namespace StingTools.Core
                         T7 = TierState.Omit, T8 = TierState.Omit, T9 = TierState.Omit,
                         T10 = TierState.Omit,
                     };
+                    continue;
+                }
+
+                // STING_TAG_CONFIG_v5_0_HEALTH.csv uses a row-based family
+                // catalog: "TAG_FAMILY,<name>,<disc>,<cat>,..." with no
+                // associated T4-T10 tier rows. Register each row as a
+                // plan-less family declaration so callers can distinguish
+                // "CSV mentions this family, no tier customisation needed"
+                // from "CSV does not mention this family at all".
+                if (trimmed.StartsWith("TAG_FAMILY,", StringComparison.Ordinal))
+                {
+                    string[] cols;
+                    try { cols = ParseCsvLine(raw); }
+                    catch { continue; }
+                    if (cols.Length >= 2)
+                    {
+                        string famName = (cols[1] ?? string.Empty).Trim();
+                        if (!string.IsNullOrEmpty(famName) && !result.ContainsKey(famName))
+                        {
+                            result[famName] = new TierPlan
+                            {
+                                T4 = TierState.Omit, T5 = TierState.Omit, T6 = TierState.Omit,
+                                T7 = TierState.Omit, T8 = TierState.Omit, T9 = TierState.Omit,
+                                T10 = TierState.Omit,
+                            };
+                        }
+                    }
                     continue;
                 }
 

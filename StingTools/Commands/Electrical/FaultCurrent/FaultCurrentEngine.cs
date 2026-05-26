@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
+using StingTools.Core;
 
 namespace StingTools.Commands.Electrical.FaultCurrent
 {
@@ -27,14 +28,20 @@ namespace StingTools.Commands.Electrical.FaultCurrent
         /// </summary>
         public static double CableImpedanceMohm(WireTableSet wireTables,
             double csaMm2, string material, double lengthM,
-            double operatingTempC = 70.0)
+            double operatingTempC = 70.0,
+            string insulation = null)
         {
             if (wireTables == null || csaMm2 <= 0 || lengthM <= 0) return 0;
             double r = wireTables.GetMohmPerMetre(csaMm2, material);
             if (r <= 0) return 0;
+            // Resolve operating temperature: caller-supplied insulation wins
+            // (e.g. XLPE → 90 °C); falls back to the explicit operatingTempC.
+            double tempC = !string.IsNullOrEmpty(insulation)
+                ? StingTools.Commands.Electrical.VoltageDrop.VoltageDropEngine.OperatingTempForInsulation(insulation)
+                : operatingTempC;
             // Linear copper temperature coefficient α = 0.00393/K; aluminium 0.00403/K.
             double alpha = string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase) ? 0.00403 : 0.00393;
-            double rT = r * (1.0 + alpha * (operatingTempC - 20.0));
+            double rT = r * (1.0 + alpha * (tempC - 20.0));
             return rT * lengthM;
         }
 

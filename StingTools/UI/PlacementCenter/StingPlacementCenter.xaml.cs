@@ -18,12 +18,18 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Drawing;
 using StingTools.Core.Placement;
+using StingTools.Core.Routing;
+using PlacementResult = StingTools.Core.Placement.PlacementResult;
 using StingTools.Core.Validation;
 using StingTools.Core.Visualization;
+using ValidationSeverity = StingTools.Core.Validation.ValidationSeverity;
+using TextBox = System.Windows.Controls.TextBox;
 
 namespace StingTools.UI.PlacementCenter
 {
@@ -48,6 +54,10 @@ namespace StingTools.UI.PlacementCenter
         private DateTime? _lastRunUtc;
         private List<ElementId> _lastPlacedIds = new List<ElementId>();
 
+        // Phase 177 (Option A) — Run & Routing tab result state.
+        private List<ElementId> _runResultIds  = new List<ElementId>();
+        private string          _runReportText = string.Empty;
+
         public StingPlacementCenter(UIApplication uiApp)
         {
             // Pre-register the IsDirty → "●" converter before InitializeComponent
@@ -56,7 +66,32 @@ namespace StingTools.UI.PlacementCenter
 
             InitializeComponent();
             ThemeManager.RegisterTarget(this);
+            // Phase 139.21 — surface the assembly's build stamp on the
+            // window title bar. If the user runs two consecutive
+            // sessions and the stamp doesn't change, the plug-in DLL
+            // wasn't refreshed (extract_plugin.sh skipped the copy or
+            // Revit cached the old DLL).
+            try
+            {
+                this.Title = $"STING — Placement Centre  [build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp}  {StingTools.Core.Placement.FixturePlacementEngine.PhaseTag}]";
+            }
+            catch { }
             ThemeManager.InitialiseResources();
+
+        // Phase 139.10b — ExternalEvent.Create must be called from a
+            // Revit API context. Constructor runs inside the
+            // OpenPlacementCenterCommand.Execute, which IS an API context;
+            // the button-click handler is NOT. Create the event eagerly
+            // here so it's ready for OnRunPlacement_Click later.
+            try
+            {
+                _runHandler = new PlacementRunHandler(this);
+                _runEvent   = ExternalEvent.Create(_runHandler);
+            }
+            catch (Exception evEx)
+            {
+                StingLog.Warn($"PlacementCenter: ExternalEvent.Create at ctor: {evEx.Message}");
+            }
 
             VM = new PlacementRulesViewModel();
             _uiApp = uiApp;
@@ -64,13 +99,32 @@ namespace StingTools.UI.PlacementCenter
             _doc = _uiDoc?.Document;
 
             // Combo data sources
-            cmbCategory.ItemsSource   = VM.Categories;
-            cmbAnchor.ItemsSource     = VM.AnchorTypes;
-            cmbSide.ItemsSource       = VM.SideConstraints;
-            cmbVariant.ItemsSource    = VM.VariantHints;
-            cmbMountRef.ItemsSource   = VM.MountingReferences;
-            cmbRuleKind.ItemsSource   = VM.RuleKinds;
-            cmbRelativeTo.ItemsSource = VM.RelativeToOptions;
+            cmbCategory.ItemsSource          = VM.Categories;
+            cmbAnchor.ItemsSource            = VM.AnchorTypes;
+            cmbSide.ItemsSource              = VM.SideConstraints;
+            cmbVariant.ItemsSource           = VM.VariantHints;
+            cmbMountRef.ItemsSource          = VM.MountingReferences;
+            cmbRuleKind.ItemsSource          = VM.RuleKinds;
+            cmbRelativeTo.ItemsSource        = VM.RelativeToOptions;
+            cmbRoutingMode.ItemsSource       = new[] { "NONE", "AUTO_CONDUIT", "AUTO_PIPE", "AUTO_DUCT", "WALL_FOLLOWER" };
+            cmbRouteSegmentCategory.ItemsSource = new[] { "", "PIPE", "CONDUIT", "CABLE_TRAY", "DUCT" };
+            cmbConstructionPhase.ItemsSource = new[] { "FINISHED", "FIRST_FIX", "SECOND_FIX" };
+
+            // Phase 139 — pack-chip + new-card combobox sources.
+            if (cmbSourcePack != null)
+            {
+                cmbSourcePack.ItemsSource = VM.SourcePackChips;
+                cmbSourcePack.SelectedIndex = 0;
+            }
+            if (cmbProfileBuildingType != null)    cmbProfileBuildingType.ItemsSource = VM.BuildingTypes;
+            if (cmbBuildingType        != null)    cmbBuildingType.ItemsSource        = VM.BuildingTypes;
+            if (cmbWetZone             != null)    cmbWetZone.ItemsSource             = VM.WetZoneOptions;
+            if (cmbHeightStandard      != null)    cmbHeightStandard.ItemsSource      = VM.HeightStandardKeys;
+            if (cmbRoutingMode         != null)    cmbRoutingMode.ItemsSource         = VM.RoutingModes;
+            if (cmbRouteFace           != null)    cmbRouteFace.ItemsSource           = VM.RouteFaces;
+            if (cmbRouteSegmentCategory != null)   cmbRouteSegmentCategory.ItemsSource = VM.RouteSegmentCategories;
+            if (cmbGlazingSpec         != null)    cmbGlazingSpec.ItemsSource         = VM.GlazingSpecs;
+            if (cmbMaintenanceClearance != null)   cmbMaintenanceClearance.ItemsSource = VM.MaintenanceClearances;
 
             // Run-option two-way bindings
             chkProvenance.IsChecked  = VM.RunOpts.StampProvenance;
@@ -100,6 +154,10 @@ namespace StingTools.UI.PlacementCenter
             rbScopeView.Checked      += (_,__) => VM.RunOpts.Scope = "ActiveView";
             rbScopeSel.Checked       += (_,__) => VM.RunOpts.Scope = "Selection";
             rbScopeProj.Checked      += (_,__) => VM.RunOpts.Scope = "Project";
+
+            // Phase 139.8 — Auto-place category checklist toggles.
+            btnCatAll.Click  += (_,__) => SetAllCategoryChecks(true);
+            btnCatNone.Click += (_,__) => SetAllCategoryChecks(false);
 
             // Per-rule field handlers — wired manually so we can validate after each edit
             cmbCategory.LostFocus       += (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
@@ -148,6 +206,39 @@ namespace StingTools.UI.PlacementCenter
             txtStandardRef.LostFocus    += (_,__) => CommitField(() => VM.Selected.StandardRef = txtStandardRef.Text);
             txtUniclassPr.LostFocus     += (_,__) => CommitField(() => VM.Selected.UniclassPr  = txtUniclassPr.Text);
 
+            // Rule core extensions (PC-08 / identity)
+            txtFamilyTypeRegex.LostFocus += (_,__) => CommitField(() => VM.Selected.Model.FamilyTypeRegex = txtFamilyTypeRegex.Text);
+            // txtSourcePack is read-only — no commit wire
+
+            // Geometry extension (PC-06)
+            txtToleranceMm.LostFocus     += (_,__) => CommitField(() => VM.Selected.Model.ToleranceMm  = ParseDouble(txtToleranceMm.Text, VM.Selected.Model.ToleranceMm));
+            txtMaxSpacing.LostFocus      += (_,__) => CommitField(() => VM.Selected.Model.MaxSpacingMm = ParseDouble(txtMaxSpacing.Text,  VM.Selected.Model.MaxSpacingMm));
+
+            // PC-12 density extensions
+            txtPerBed.LostFocus          += (_,__) => CommitField(() => VM.Selected.Model.PerBed            = ParseDouble(txtPerBed.Text,          VM.Selected.Model.PerBed));
+            txtPerWorkstation.LostFocus  += (_,__) => CommitField(() => VM.Selected.Model.PerWorkstation     = ParseDouble(txtPerWorkstation.Text,  VM.Selected.Model.PerWorkstation));
+            txtPerPupil.LostFocus        += (_,__) => CommitField(() => VM.Selected.Model.PerPupil           = ParseDouble(txtPerPupil.Text,        VM.Selected.Model.PerPupil));
+            txtPerToiletCubicle.LostFocus+= (_,__) => CommitField(() => VM.Selected.Model.PerToiletCubicle  = ParseDouble(txtPerToiletCubicle.Text, VM.Selected.Model.PerToiletCubicle));
+            txtOccupancyParam.LostFocus  += (_,__) => CommitField(() => VM.Selected.Model.OccupancyParamName = txtOccupancyParam.Text);
+
+            // PC-14 coverage grid
+            txtCoverageRadius.LostFocus  += (_,__) => CommitField(() => VM.Selected.Model.CoverageRadiusMm = ParseDouble(txtCoverageRadius.Text, VM.Selected.Model.CoverageRadiusMm));
+            chkGuaranteeCoverage.Checked += (_,__) => CommitField(() => VM.Selected.Model.GuaranteeCoverage = true);
+            chkGuaranteeCoverage.Unchecked+=(_,__) => CommitField(() => VM.Selected.Model.GuaranteeCoverage = false);
+
+            // PC-15 integrated routing
+            cmbRoutingMode.SelectionChanged      += (_,__) => CommitField(() => VM.Selected.Model.RoutingMode          = cmbRoutingMode.SelectedItem as string ?? "NONE");
+            cmbRouteSegmentCategory.SelectionChanged += (_,__) => CommitField(() => VM.Selected.Model.RouteSegmentCategory = cmbRouteSegmentCategory.SelectedItem as string ?? "");
+            txtRouteOffset.LostFocus             += (_,__) => CommitField(() => VM.Selected.Model.RouteOffsetMm        = ParseDouble(txtRouteOffset.Text, VM.Selected.Model.RouteOffsetMm));
+
+            // PC-16 construction phasing / PC-17 cluster
+            chkTwoPhase.Checked          += (_,__) => CommitField(() => VM.Selected.Model.TwoPhaseEnabled  = true);
+            chkTwoPhase.Unchecked        += (_,__) => CommitField(() => VM.Selected.Model.TwoPhaseEnabled  = false);
+            cmbConstructionPhase.SelectionChanged += (_,__) => CommitField(() => VM.Selected.Model.ConstructionPhase = cmbConstructionPhase.SelectedItem as string ?? "FINISHED");
+            chkClusterMember.Checked     += (_,__) => CommitField(() => VM.Selected.Model.IsClusterMember  = true);
+            chkClusterMember.Unchecked   += (_,__) => CommitField(() => VM.Selected.Model.IsClusterMember  = false);
+            txtClusterGroupId.LostFocus  += (_,__) => CommitField(() => VM.Selected.Model.ClusterGroupId   = txtClusterGroupId.Text);
+
             // VM → status bar binding
             VM.PropertyChanged += OnVmPropertyChanged;
 
@@ -174,6 +265,13 @@ namespace StingTools.UI.PlacementCenter
             CommandBindings.Add(new CommandBinding(PlacementCentreCommands.HistoryRefresh, (s,a) => OnHistoryRefresh_Click(s, a)));
             CommandBindings.Add(new CommandBinding(PlacementCentreCommands.ClearPreview,   (s,a) => OnClearPreview_Shortcut(s, a)));
             CommandBindings.Add(new CommandBinding(PlacementCentreCommands.DeleteSelected, (s,a) => OnDeleteSelected_Click(s, a)));
+
+            // Subscribe to the result bus so any placement/tag/symbol command updates this panel.
+            PlacementResultBus.ResultPublished += OnBusResult;
+            // Show whatever the last result was (e.g., if centre re-opened mid-session).
+            if (PlacementResultBus.LastResult != null) OnBusResult(PlacementResultBus.LastResult);
+
+            RefreshDrawingTypeContext();
 
             HookDocumentLifecycle();
         }
@@ -209,6 +307,7 @@ namespace StingTools.UI.PlacementCenter
                 else
                 {
                     _instance.Activate();
+                    _instance.RefreshDrawingTypeContext();
                     return;
                 }
             }
@@ -260,6 +359,12 @@ namespace StingTools.UI.PlacementCenter
 
         private bool _closed;
 
+        protected override void OnClosed(EventArgs e)
+        {
+            PlacementResultBus.ResultPublished -= OnBusResult;
+            base.OnClosed(e);
+        }
+
         // ── Toolbar handlers ─────────────────────────────────────────
 
         private void OnReloadDefaults_Click(object sender, RoutedEventArgs e)
@@ -279,7 +384,8 @@ namespace StingTools.UI.PlacementCenter
                     CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                     DefaultButton = TaskDialogResult.No,
                 };
-                if (confirm.Show() != TaskDialogResult.Yes) return;
+                RaiseRevitToFront();
+            if (confirm.Show() != TaskDialogResult.Yes) return;
             }
             VM.ReloadDefaults();
             VM.AttachFilteredView();
@@ -342,6 +448,156 @@ namespace StingTools.UI.PlacementCenter
                 return;
             }
 
+            // Phase 139.8 — apply the explicit category checklist if any
+            // box is ticked. Empty checklist = "every category in the rule
+            // pack is allowed" (legacy behaviour).
+            // Phase 139.20 — also surface the filter outcome so the user
+            // sees what is and isn't ticked. Without this, a run that
+            // places fire-alarm devices when the user thought they only
+            // ticked "lights" looks like a bug — but is actually either
+            // (a) the checkbox really is ticked, or (b) all cb fields
+            // are null (stale XAML build).
+            // Read the category checklist once; preflight + filter both use it.
+            var allowed = ReadCategoryChecklist();
+
+            // Phase 139.21 — prerequisites preflight. Hard-fail the run
+            // when the model is missing setup that makes correct
+            // placement impossible. Up to now the engine ran in
+            // "best-effort" mode regardless of family-type / door-data
+            // problems, producing the silent wrong-position bug the
+            // user kept reporting.
+            try
+            {
+                var blockers = new List<string>();
+                var helpfulHints = new List<string>();
+
+                // 1. Wall-anchored rules vs family placement type.
+                //   Phase 139.21d — categories like Specialty Equipment, Mechanical
+                //   Equipment, Electrical Equipment legitimately ship with non-
+                //   wall-hosted families (free-standing tanks, generators, panels).
+                //   Don't HARD-FAIL the run; warn the user that wall-anchored rules
+                //   in those categories will not attach correctly and point them at
+                //   the existing FamilyQuickEdit > Change Host command which can
+                //   re-host a family interactively.  The engine still runs and
+                //   places non-wall stuff fine.
+                var wallRules = rules.Where(r =>
+                {
+                    var a = (r.AnchorType ?? "").ToUpperInvariant();
+                    return a == "WALL_MIDPOINT" || a == "WALL_CORNER" || a == "WALL_FACE_OFFSET"
+                        || a.StartsWith("DOOR_") || a.StartsWith("WINDOW_");
+                }).ToList();
+                var wallCats = wallRules.Select(r => r.CategoryFilter ?? "").Distinct().ToList();
+                foreach (var cat in wallCats)
+                {
+                    if (string.IsNullOrEmpty(cat)) continue;
+                    var symbols = new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol))
+                        .Cast<FamilySymbol>().Where(fs => fs.Category != null
+                            && string.Equals(fs.Category.Name, cat, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    if (symbols.Count == 0) continue;
+                    bool anyHosted = symbols.Any(fs => fs.Family?.FamilyPlacementType == FamilyPlacementType.OneLevelBasedHosted);
+                    bool anyFaceBased = symbols.Any(fs => fs.Family?.FamilyPlacementType == FamilyPlacementType.WorkPlaneBased);
+                    // Face-based / WorkPlaneBased families CAN be placed on a wall via
+                    // doc.Create.NewFamilyInstance(face, point, ref, symbol). They count
+                    // as "wall-attachable" too, so we only warn if NEITHER hosted nor
+                    // face-based is loaded.
+                    if (!anyHosted && !anyFaceBased)
+                    {
+                        var first = symbols.FirstOrDefault();
+                        helpfulHints.Add(
+                            $"Category '{cat}' has {symbols.Count} Family Type(s) loaded but none are wall-hostable " +
+                            $"(none are OneLevelBasedHosted and none are WorkPlaneBased; e.g. '{first?.Family?.Name}' is " +
+                            $"{first?.Family?.FamilyPlacementType}). Wall-anchored rules in this category will land but " +
+                            $"won't attach — fixtures will float at the calculated XYZ. Use Tags > Change Host to " +
+                            $"re-host one of these family instances after the run, or load a wall-hosted variant.");
+                    }
+                }
+
+                // 2. Doors without FromRoom / ToRoom on the active level.
+                var view = _doc.ActiveView;
+                if (view is ViewPlan vp && vp.GenLevel != null)
+                {
+                    int doorsTotal = 0, doorsWithSpatial = 0;
+                    foreach (var el in new FilteredElementCollector(_doc)
+                        .OfCategory(BuiltInCategory.OST_Doors)
+                        .WhereElementIsNotElementType())
+                    {
+                        if (!(el is FamilyInstance fi)) continue;
+                        if (fi.LevelId != vp.GenLevel.Id) continue;
+                        doorsTotal++;
+                        Autodesk.Revit.DB.Architecture.Room from = null, to = null;
+                        try { from = fi.FromRoom; } catch { }
+                        try { to = fi.ToRoom; } catch { }
+                        if (from != null || to != null) doorsWithSpatial++;
+                    }
+                    if (doorsTotal > 0 && doorsWithSpatial == 0)
+                    {
+                        blockers.Add($"• {doorsTotal} door(s) on the active level have no FromRoom or ToRoom set. Door-anchored rules will mis-target. Fix: select all rooms in the model, run \"Architecture > Recompute Areas / Volumes\" or reset the room boundaries so spatial relationships re-compute, then run again.");
+                    }
+                    else if (doorsTotal > 0 && doorsWithSpatial < doorsTotal / 2)
+                    {
+                        helpfulHints.Add($"~{doorsTotal - doorsWithSpatial} of {doorsTotal} doors have no FromRoom/ToRoom — those will be skipped by Phase 139.18 filter.");
+                    }
+                }
+
+                // 3. The actual rule pack must include category-checklist entries.
+                if (allowed.Count > 0)
+                {
+                    var rulesAllowed = rules.Where(r => allowed.Contains(r.CategoryFilter ?? "")).ToList();
+                    if (rulesAllowed.Count == 0)
+                    {
+                        blockers.Add($"• None of the {rules.Count} active rules match any ticked category. Untick something or load a rule pack covering: {string.Join(", ", allowed)}.");
+                    }
+                }
+
+                if (blockers.Count > 0)
+                {
+                    RaiseRevitToFront();
+                    var dlg = new TaskDialog("STING — Placement Centre · Prerequisites missing")
+                    {
+                        MainInstruction = $"{blockers.Count} prerequisite(s) failed — run aborted.",
+                        MainContent = string.Join("\n\n", blockers)
+                            + "\n\nPhase 139.21 hard-fails the run when these are present so we don't produce silently-wrong placements. "
+                            + (helpfulHints.Count > 0 ? "\n\nAlso noted:\n  " + string.Join("\n  ", helpfulHints) : ""),
+                        CommonButtons = TaskDialogCommonButtons.Close,
+                    };
+                    dlg.Show();
+                    StingLog.Warn($"PlacementCenter: prerequisites preflight failed — {blockers.Count} blocker(s). Run aborted.");
+                    foreach (var b in blockers) StingLog.Warn("  " + b);
+                    return;
+                }
+                if (helpfulHints.Count > 0)
+                    foreach (var h in helpfulHints) StingLog.Info("PlacementCenter preflight hint: " + h);
+            }
+            catch (Exception preEx) { StingLog.Warn($"PlacementCenter preflight: {preEx.Message}"); }
+            if (allowed.Count > 0)
+            {
+                int before = rules.Count;
+                var filteredOutCats = rules
+                    .Select(r => r.CategoryFilter ?? "")
+                    .Where(c => !allowed.Contains(c))
+                    .Distinct()
+                    .OrderBy(c => c)
+                    .ToList();
+                rules = rules.Where(r => allowed.Contains(r.CategoryFilter ?? "")).ToList();
+                StingLog.Info($"PlacementCenter: category filter kept {rules.Count} / {before} rules. " +
+                              $"Allowed: [{string.Join(", ", allowed.OrderBy(s => s))}]. " +
+                              $"Excluded categories: [{string.Join(", ", filteredOutCats)}].");
+                if (rules.Count == 0)
+                {
+                    TaskDialog.Show("STING — Placement Centre",
+                        "Category checklist filtered every rule out. Tick more categories or clear the checklist.");
+                    return;
+                }
+            }
+            else
+            {
+                // Empty checklist — report explicitly so the user can't
+                // misinterpret "everything placed" as "filter broken".
+                StingLog.Info("PlacementCenter: category checklist is EMPTY → all rule categories will run. " +
+                              "Tick boxes to restrict.");
+            }
+
             var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
             if (roomIds.Count == 0)
             {
@@ -350,11 +606,65 @@ namespace StingTools.UI.PlacementCenter
                 return;
             }
 
+            // Phase 139.9 — pre-flight: warn the user about ticked categories
+            // that have ZERO loaded FamilySymbols. Without this check the
+            // engine prints "No FamilySymbol found for category 'X' — skipping
+            // its rules" once per category and silently zeros that category's
+            // placements, leaving the run with 0 placed for an unticked
+            // reason. Mirrors the dock-panel PlaceFixturesCommand pre-flight.
+            try
+            {
+                var categoriesInUse = new System.Collections.Generic.HashSet<string>(
+                    rules.Select(r => r.CategoryFilter ?? "")
+                         .Where(s => !string.IsNullOrEmpty(s)),
+                    System.StringComparer.OrdinalIgnoreCase);
+                var emptyCats = new System.Collections.Generic.List<string>();
+                foreach (var cat in categoriesInUse)
+                {
+                    bool hasSymbol = false;
+                    foreach (var el in new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol)))
+                    {
+                        if (el is FamilySymbol fs && fs.Category != null
+                            && string.Equals(fs.Category.Name, cat, System.StringComparison.OrdinalIgnoreCase))
+                        { hasSymbol = true; break; }
+                    }
+                    if (!hasSymbol) emptyCats.Add(cat);
+                }
+                if (emptyCats.Count > 0)
+                {
+                    var td2 = new TaskDialog("STING — Placement Centre · Categories without a placeable Type")
+                    {
+                        MainInstruction = $"{emptyCats.Count} categor{(emptyCats.Count == 1 ? "y has" : "ies have")} no Family Type loaded",
+                        MainContent =
+                            "These categories have no Family Type (FamilySymbol) loaded into the project:\n  " +
+                            string.Join("\n  ", emptyCats.Take(15)) +
+                            (emptyCats.Count > 15 ? $"\n  + {emptyCats.Count - 15} more" : "") +
+                            "\n\nIn Revit a Family is the .rfa container; a Type (FamilySymbol) is one of the variants inside it. " +
+                            "The placement engine creates instances of a Type, not a Family — a Family without any of its Types " +
+                            "loaded into the project still drops every rule for its category.\n\n" +
+                            "Insert > Load Family, expand the .rfa in the Project Browser and drag at least one Type into a view, " +
+                            "or run Placement_AuditSetup for a full project setup check. Continue anyway?",
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                        DefaultButton = TaskDialogResult.No,
+                    };
+                    if (td2.Show() != TaskDialogResult.Yes)
+                    {
+                        VM.Status = "Run cancelled — categories with no families loaded.";
+                        UpdateStatus();
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter pre-flight family check: {ex.Message}"); }
+
             // Confirm with a summary so the run isn't silently destructive.
+            string catLine = allowed.Count == 0
+                ? "Categories: ALL (checklist empty)"
+                : "Categories: " + string.Join(", ", allowed);
             var confirm = new TaskDialog("STING — Run Placement")
             {
                 MainInstruction = $"Place fixtures in {roomIds.Count} room(s)?",
-                MainContent = $"Rules: {rules.Count}\nScope: {VM.RunOpts.Scope}\nValidators after: {VM.RunOpts.RunValidators}\n\nThe engine creates new FamilyInstance(s); use Undo or 'Undo last run' (Phase D) to revert.",
+                MainContent = $"Rules: {rules.Count}\nScope: {VM.RunOpts.Scope}\n{catLine}\nValidators after: {VM.RunOpts.RunValidators}\n\nThe engine creates new FamilyInstance(s); use Undo or 'Undo last run' (Phase D) to revert.",
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                 DefaultButton = TaskDialogResult.No,
             };
@@ -372,55 +682,102 @@ namespace StingTools.UI.PlacementCenter
             StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = VM.RunOpts.HonourLearned;
 
             DateTime startUtc = DateTime.UtcNow;
-            PlacementResult result = null;
             // Show a modeless progress dialog so the user can see per-room
             // progress and abort. The placement engine commits per-room
             // ProcessRoomRule writes inside its single Transaction, so the
             // outer TransactionGroup keeps everything undoable as one step.
             var progress = StingProgressDialog.Show(
                 "STING — Placement Centre · Run", roomIds.Count);
+            // Phase 139.11 — coarse heartbeat so the user sees activity
+            // during pre-flight (catalogue scan, two-phase shared-param
+            // check, first-fix box placement) which can each take many
+            // seconds before the first per-room progress increment fires.
+            try { progress.SetStatus("Pre-flight — scanning loaded families…"); } catch { }
+            // Background ticker so the dialog never looks frozen even when
+            // a pre-flight step pauses the API thread for a stretch.
+            var heartbeatCts = new System.Threading.CancellationTokenSource();
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                int n = 0;
+                while (!heartbeatCts.IsCancellationRequested)
+                {
+                    System.Threading.Thread.Sleep(1500);
+                    if (heartbeatCts.IsCancellationRequested) break;
+                    n++;
+                    string phase = StingTools.Core.Placement.FixturePlacementEngine.CurrentPhase ?? "";
+                    string label = string.IsNullOrEmpty(phase)
+                        ? $"Pre-flight in progress ({n * 1.5:F0}s)…"
+                        : $"{phase} ({n * 1.5:F0}s)…";
+                    try { progress.SetStatus(label); } catch { break; }
+                }
+            }, heartbeatCts.Token);
+            // Phase 139.13 — non-blocking ExternalEvent dispatch.  The
+            // previous PushFrame approach blocked the WPF thread waiting
+            // for Revit to service the event, but Revit only services
+            // ExternalEvents on its idle cycle and a nested WPF message
+            // pump apparently doesn't trigger that idle reliably (user
+            // saw "Pre-flight in progress (3776s)" with no engine
+            // activity). The standard pattern is fire-and-forget: the
+            // click handler returns immediately, the handler completes
+            // asynchronously, and the post-run UI work is dispatched
+            // back via Dispatcher.BeginInvoke.
+            _runRequest = new PlacementRunRequest
+            {
+                Doc          = _doc,
+                RoomIds      = roomIds,
+                Rules        = rules,
+                Progress     = progress,
+                HeartbeatCts = heartbeatCts,
+                StartUtc     = startUtc,
+                PrevStamp    = prevStamp,
+                PrevLearn    = prevLearn,
+            };
             try
             {
-                // FixturePlacementEngine opens its own Transaction inside the
-                // supplied document. Wrap it in a TransactionGroup so the run
-                // is undoable as a single step but DO NOT open another
-                // Transaction here — Revit forbids nested Transactions and
-                // the engine would silently fail with "Transaction start
-                // failed: …" in result.Warnings.
-                using (var tg = new TransactionGroup(_doc, "STING Placement Centre — Run"))
-                {
-                    tg.Start();
-                    result = FixturePlacementEngine.PlaceFixturesInScope(
-                        _doc, roomIds, rules, dryRun: false,
-                        progress: (done, total) =>
-                        {
-                            try
-                            {
-                                progress.Increment($"Room {done} of {total}…");
-                                return progress.IsCancelled;
-                            }
-                            catch { return false; }
-                        });
-                    tg.Assimilate();
-                }
+                EnsureRunEvent();
+                try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = false; } catch { }
+                VM.Status = "Run in progress — please wait…";
+                UpdateStatus();
+                _runEvent.Raise();
             }
             catch (Exception ex)
             {
-                StingLog.Error("PlacementCenter.OnRunPlacement", ex);
-                TaskDialog.Show("STING — Placement Centre", $"Run failed: {ex.Message}");
-                VM.Status = $"Run failed: {ex.Message}";
+                StingLog.Error("PlacementCenter.OnRunPlacement raise", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Could not start run: {ex.Message}");
+                try { heartbeatCts.Cancel(); } catch { }
+                try { progress?.Close(); } catch { }
+                StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
+                StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
+                try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
+                return;
+            }
+            // Click-handler returns here. Engine runs on API thread; the
+            // handler will invoke OnRunCompleted on the WPF thread when
+            // done.
+            return;
+        }
+
+        // Phase 139.13 — completion callback. Runs on the WPF thread
+        // (Dispatcher.BeginInvoke from the IExternalEventHandler).
+        private void OnRunCompleted(PlacementRunRequest req, PlacementResult result, Exception err)
+        {
+            try { req?.HeartbeatCts?.Cancel(); } catch { }
+            try { req?.Progress?.Close(); } catch { }
+            StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = req?.PrevStamp ?? false;
+            StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = req?.PrevLearn ?? false;
+
+            try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
+            if (err != null)
+            {
+                StingLog.Error("PlacementCenter.OnRunCompleted err", err);
+                TaskDialog.Show("STING — Placement Centre", $"Run failed: {err.Message}");
+                VM.Status = $"Run failed: {err.Message}";
                 UpdateStatus();
                 return;
             }
-            finally
-            {
-                // Restore the option-bag so other entry points aren't affected.
-                StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
-                StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
-                try { progress?.Close(); } catch { }
-            }
 
-            _lastRunUtc = startUtc;
+
+            _lastRunUtc = req.StartUtc;
             _lastPlacedIds = result?.PlacedIds?.ToList() ?? new List<ElementId>();
             int placed  = _lastPlacedIds.Count;
             int skipped = result?.SkippedCount ?? 0;
@@ -429,21 +786,74 @@ namespace StingTools.UI.PlacementCenter
             VM.Status = $"Placed {placed} · skipped {skipped} · warnings {warns}";
             UpdateStatus();
 
-            // History panel is the source of truth for "what just happened" —
-            // refresh it so the new bucket appears immediately, before any
-            // dialog steals focus.
+            try
+            {
+                var panel = StingResultPanel.Create("STING — Placement Centre · Run");
+                panel.SetSubtitle($"{placed} placed · {skipped} skipped · {warns} warning(s) · build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp} ({StingTools.Core.Placement.FixturePlacementEngine.PhaseTag})");
+
+                // Phase 139.20 — surface which categories were actually
+                // allowed by the checklist, alongside the categories that
+                // got placed. If "Fire Alarm Devices" appears in the
+                // placed-by-category list when the user thought they
+                // ticked only Lighting Devices + Lighting Fixtures, the
+                // mismatch is visible here rather than buried in StingLog.
+                var placedCats = (req.Rules ?? new List<PlacementRule>())
+                    .Where(r => result?.CountsByRule != null && result.CountsByRule.ContainsKey(r.MergeKey))
+                    .Select(r => r.CategoryFilter ?? "(none)")
+                    .Distinct()
+                    .OrderBy(c => c)
+                    .ToList();
+                var allowedCats = ReadCategoryChecklist();
+                string allowedTxt = allowedCats.Count == 0
+                    ? "(empty — every category allowed)"
+                    : string.Join(", ", allowedCats.OrderBy(s => s));
+
+                panel.AddSection("SUMMARY")
+                    .Metric("Rooms scoped",         (req.RoomIds?.Count ?? 0).ToString())
+                    .Metric("Rules considered",     (req.Rules?.Count ?? 0).ToString())
+                    .Metric("Categories allowed",   allowedTxt)
+                    .Metric("Categories placed",    placedCats.Count == 0 ? "(none)" : string.Join(", ", placedCats))
+                    .Metric("Candidates evaluated", (result?.CandidatesEvaluated ?? 0).ToString())
+                    .Metric("Placed",               placed.ToString())
+                    .Metric("Skipped",              skipped.ToString());
+
+                if (result?.CountsByRule != null && result.CountsByRule.Count > 0)
+                {
+                    panel.AddSection("PER-RULE COUNTS");
+                    foreach (var kv in result.CountsByRule.OrderByDescending(k => k.Value).Take(20))
+                        panel.Metric(kv.Key, kv.Value.ToString());
+                }
+
+                if (placed == 0)
+                {
+                    panel.AddSection("ZERO PLACED — common causes")
+                        .Text("• Ticked category has no Family Type loaded. A Family (.rfa) is the container; the engine needs at least one Type loaded into the project (drag one from the .rfa in Project Browser into a view).")
+                        .Text("• RoomFilter regex doesn't match the active rooms (check the rule's RoomFilter against the room name in Properties).")
+                        .Text("• PlacementHostPreflight rejected every candidate (hosted family but no host wall/ceiling element nearby).")
+                        .Text("• Run Placement_AuditSetup to confirm shared parameters bound + Types loaded.");
+                }
+
+                if (result?.Warnings != null && result.Warnings.Count > 0)
+                {
+                    panel.AddSection("WARNINGS");
+                    foreach (var w in result.Warnings.Take(30)) panel.Text(w);
+                    if (result.Warnings.Count > 30)
+                        panel.Text($"(+{result.Warnings.Count - 30} more — see StingLog)");
+                }
+                RaiseRevitToFront();
+                panel.Show();
+            }
+            catch (Exception pEx) { StingLog.Warn($"PlacementCenter post-run panel: {pEx.Message}"); }
+
             try { VM.SetHistory(HistoryBridge.ReadHistory(_doc)); }
             catch (Exception hEx) { StingLog.Warn($"PlacementCenter post-run history refresh: {hEx.Message}"); }
 
-            // Auto-paint the AVF compliance heat-map when the toggle is on so
-            // the user sees coverage immediately after the commit.
             if (VM.RunOpts.AutoHeatmap && placed > 0)
             {
-                try { OnHeatmap_Click(sender, e); }
+                try { OnHeatmap_Click(this, null); }
                 catch (Exception hmEx) { StingLog.Warn($"PlacementCenter auto-heatmap: {hmEx.Message}"); }
             }
 
-            // Optional: validators on what just happened
             if (VM.RunOpts.RunValidators)
                 ShowFindings(scopeToProvenance: true, headline: "Run + post-validation");
             else
@@ -515,13 +925,28 @@ namespace StingTools.UI.PlacementCenter
                 int warns = findings.Count(f => f.Severity == ValidationSeverity.Warning);
                 int infos = findings.Count(f => f.Severity == ValidationSeverity.Info);
 
+                // Phase 139.15 — surface the count of elements actually
+                // checked. 0 / 0 / 0 / 0 against 153 placed used to read
+                // as "nothing was checked"; it actually means "everything
+                // checked is compliant". Show the validated element count
+                // in the sub-title so the user can tell the difference.
+                int validatedCount = scopeToProvenance ? (_lastPlacedIds?.Count ?? 0) : -1;
+                string subtitle = headline + (validatedCount >= 0 ? $" · {validatedCount} element(s) checked" : "");
+
                 var panel = StingResultPanel.Create("STING — Placement Centre · Validation")
-                    .SetSubtitle(headline)
+                    .SetSubtitle(subtitle)
                     .AddSection("SUMMARY")
+                    .Metric("Elements checked", validatedCount >= 0 ? validatedCount.ToString() : "(project-wide)")
                     .Metric("Total findings", findings.Count.ToString())
                     .Metric("Errors",   errs.ToString())
                     .Metric("Warnings", warns.ToString())
                     .Metric("Info",     infos.ToString());
+
+                if (findings.Count == 0 && validatedCount > 0)
+                {
+                    panel.AddSection("RESULT")
+                         .Text($"All {validatedCount} just-placed element(s) passed every active validator. No issues found.");
+                }
 
                 if (findings.Count > 0)
                 {
@@ -878,6 +1303,133 @@ namespace StingTools.UI.PlacementCenter
             UpdateStatus();
         }
 
+        // Phase 139 I1 — SourcePack chip filter
+        private void OnSourcePack_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cmbSourcePack?.SelectedItem is string s) VM.SelectedSourcePack = s;
+        }
+
+        // Phase 139 E3 — Excel round-trip buttons
+        private void OnExportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rules = VM.Rules.Select(r => r.Model).ToList();
+                if (rules.Count == 0)
+                {
+                    System.Windows.MessageBox.Show("No rules to export.", "STING Placement");
+                    return;
+                }
+                var sfd = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title    = "Export STING Placement Rules to Excel",
+                    Filter   = "Excel workbook (*.xlsx)|*.xlsx",
+                    FileName = $"STING_PLACEMENT_RULES_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx",
+                };
+                if (sfd.ShowDialog(this) != true) return;
+                StingTools.Core.Placement.Excel.PlacementRulesExcelExporter.Export(rules, sfd.FileName);
+                VM.Status = $"Exported {rules.Count} rule(s) → {System.IO.Path.GetFileName(sfd.FileName)}";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnExportExcel_Click", ex);
+                VM.Status = $"Excel export failed: {ex.Message}";
+            }
+        }
+
+        private void OnImportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title  = "Import STING Placement Rules from Excel",
+                    Filter = "Excel workbook (*.xlsx)|*.xlsx",
+                };
+                if (ofd.ShowDialog(this) != true) return;
+                var (rules, errors) = StingTools.Core.Placement.Excel.PlacementRulesExcelImporter.Import(ofd.FileName);
+                if (errors.Count > 0)
+                {
+                    var preview = string.Join("\n", errors.Take(20));
+                    var res = System.Windows.MessageBox.Show(
+                        $"{errors.Count} issue(s) reading workbook.\n\n{preview}\n\nAppend valid rules anyway?",
+                        "STING Placement — Excel import",
+                        System.Windows.MessageBoxButton.YesNo);
+                    if (res != System.Windows.MessageBoxResult.Yes) return;
+                }
+                int added = 0;
+                foreach (var r in rules)
+                {
+                    if (r == null) continue;
+                    VM.Rules.Add(new PlacementRuleViewModel(r) { IsDirty = true });
+                    added++;
+                }
+                VM.RebuildCategories();
+                VM.Status = $"Imported {added} rule(s) from Excel (Save Project to persist).";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnImportExcel_Click", ex);
+                VM.Status = $"Excel import failed: {ex.Message}";
+            }
+        }
+
+        // Phase 139 I3 — building profile load/save
+        private void OnLoadProfile_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var doc = _uiApp?.ActiveUIDocument?.Document;
+                if (doc == null || string.IsNullOrEmpty(doc.PathName))
+                {
+                    System.Windows.MessageBox.Show("Save the project before loading a building profile.", "STING Placement");
+                    return;
+                }
+                VM.LoadProfile(doc.PathName);
+                SyncProfileFromVm();
+            }
+            catch (Exception ex) { StingLog.Error("OnLoadProfile_Click", ex); }
+        }
+
+        private void OnSaveProfile_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var doc = _uiApp?.ActiveUIDocument?.Document;
+                if (doc == null || string.IsNullOrEmpty(doc.PathName))
+                {
+                    System.Windows.MessageBox.Show("Save the project before saving the building profile.", "STING Placement");
+                    return;
+                }
+                SyncProfileToVm();
+                VM.SaveProfile(doc.PathName);
+            }
+            catch (Exception ex) { StingLog.Error("OnSaveProfile_Click", ex); }
+        }
+
+        private void SyncProfileFromVm()
+        {
+            if (cmbProfileBuildingType != null) cmbProfileBuildingType.SelectedItem = VM.Profile.BuildingType;
+            if (txtProfileStandards    != null) txtProfileStandards.Text = VM.Profile.ActiveStandards == null ? "" : string.Join(",", VM.Profile.ActiveStandards);
+            if (chkEnableWetZone       != null) chkEnableWetZone.IsChecked = VM.Profile.EnableWetZoneChecks;
+            if (chkEnableAccessibility != null) chkEnableAccessibility.IsChecked = VM.Profile.EnableAccessibilityChecks;
+            if (chkEnableCoverage      != null) chkEnableCoverage.IsChecked = VM.Profile.EnableCoverageGuarantee;
+        }
+
+        private void SyncProfileToVm()
+        {
+            var p = VM.Profile;
+            if (cmbProfileBuildingType?.SelectedItem is string bt) p.BuildingType = bt;
+            if (txtProfileStandards != null)
+                p.ActiveStandards = (txtProfileStandards.Text ?? "")
+                    .Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim()).ToArray();
+            if (chkEnableWetZone?.IsChecked       == true) p.EnableWetZoneChecks       = true; else p.EnableWetZoneChecks = false;
+            if (chkEnableAccessibility?.IsChecked == true) p.EnableAccessibilityChecks = true; else p.EnableAccessibilityChecks = false;
+            if (chkEnableCoverage?.IsChecked      == true) p.EnableCoverageGuarantee   = true; else p.EnableCoverageGuarantee = false;
+            VM.Profile = p;
+        }
+
         private void OnGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             VM.Selected = gridRules.SelectedItem as PlacementRuleViewModel;
@@ -892,6 +1444,9 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 setter();
+                // Ensure dirty flag is set even for wires that bypass ViewModel
+                // properties and write directly to the underlying Model POCO.
+                if (!VM.Selected.IsDirty) VM.Selected.IsDirty = true;
                 VM.Selected.Validate();
                 txtRuleError.Text = VM.Selected.IsValid ? "" : VM.Selected.ErrorMessage;
                 VM.RebuildCategories();
@@ -984,11 +1539,72 @@ namespace StingTools.UI.PlacementCenter
                 txtStandardRef.Text       = s.StandardRef ?? "";
                 txtUniclassPr.Text        = s.UniclassPr ?? "";
 
+                // Rule core extensions (PC-08 / identity)
+                txtFamilyTypeRegex.Text   = s.Model.FamilyTypeRegex ?? "";
+                txtSourcePack.Text        = s.Model.SourcePack ?? "";
+
+                // Geometry extensions
+                txtToleranceMm.Text       = s.Model.ToleranceMm.ToString("0.##", CultureInfo.InvariantCulture);
+                txtMaxSpacing.Text        = s.Model.MaxSpacingMm.ToString("0.##", CultureInfo.InvariantCulture);
+
+                // PC-12 density extensions
+                txtPerBed.Text            = s.Model.PerBed.ToString("0.##", CultureInfo.InvariantCulture);
+                txtPerWorkstation.Text    = s.Model.PerWorkstation.ToString("0.##", CultureInfo.InvariantCulture);
+                txtPerPupil.Text          = s.Model.PerPupil.ToString("0.##", CultureInfo.InvariantCulture);
+                txtPerToiletCubicle.Text  = s.Model.PerToiletCubicle.ToString("0.##", CultureInfo.InvariantCulture);
+                txtOccupancyParam.Text    = s.Model.OccupancyParamName ?? "";
+
+                // PC-14 coverage grid
+                txtCoverageRadius.Text    = s.Model.CoverageRadiusMm.ToString("0.##", CultureInfo.InvariantCulture);
+                chkGuaranteeCoverage.IsChecked = s.Model.GuaranteeCoverage;
+
+                // PC-15 integrated routing
+                cmbRoutingMode.SelectedItem          = s.Model.RoutingMode ?? "NONE";
+                cmbRouteSegmentCategory.SelectedItem = s.Model.RouteSegmentCategory ?? "";
+                txtRouteOffset.Text       = s.Model.RouteOffsetMm.ToString("0.##", CultureInfo.InvariantCulture);
+
+                // PC-16 construction phasing / PC-17 cluster
+                chkTwoPhase.IsChecked     = s.Model.TwoPhaseEnabled;
+                cmbConstructionPhase.SelectedItem = s.Model.ConstructionPhase ?? "FINISHED";
+                chkClusterMember.IsChecked = s.Model.IsClusterMember;
+                txtClusterGroupId.Text    = s.Model.ClusterGroupId ?? "";
+
                 // PC-11 — clearance / envelope / weight fields are per-push extras,
                 // not part of the rule. Clear them when selection changes.
                 txtClr.Text = ""; txtClrFront.Text = ""; txtClrBack.Text = "";
                 txtClrSide.Text = ""; txtClrTop.Text = ""; txtWeightKg.Text = "";
                 txtEnvW.Text = ""; txtEnvD.Text = ""; txtEnvH.Text = ""; txtFireSep.Text = "";
+
+                // Phase 139 — new card field sync.
+                if (txtCoverageRadius        != null) txtCoverageRadius.Text        = s.CoverageRadiusMm.ToString("0.##",       CultureInfo.InvariantCulture);
+                if (txtMaxSpacing            != null) txtMaxSpacing.Text            = s.MaxSpacingMm.ToString("0.##",           CultureInfo.InvariantCulture);
+                if (txtWallClearance         != null) txtWallClearance.Text         = s.WallClearanceMm.ToString("0.##",        CultureInfo.InvariantCulture);
+                if (txtObstructionClearance  != null) txtObstructionClearance.Text  = s.ObstructionClearanceMm.ToString("0.##", CultureInfo.InvariantCulture);
+                if (chkGuaranteeCoverage     != null) chkGuaranteeCoverage.IsChecked = s.GuaranteeCoverage;
+
+                if (cmbRoutingMode           != null) cmbRoutingMode.SelectedItem   = string.IsNullOrEmpty(s.RoutingMode) ? "NONE" : s.RoutingMode;
+                if (cmbRouteFace             != null) cmbRouteFace.SelectedItem     = string.IsNullOrEmpty(s.RouteFace)   ? "INTERIOR" : s.RouteFace;
+                if (txtRouteOffset           != null) txtRouteOffset.Text           = s.RouteOffsetMm.ToString("0.##",        CultureInfo.InvariantCulture);
+                if (txtRouteMinBendRadius    != null) txtRouteMinBendRadius.Text    = s.RouteMinBendRadiusMm.ToString("0.##", CultureInfo.InvariantCulture);
+                if (cmbRouteSegmentCategory  != null) cmbRouteSegmentCategory.SelectedItem = s.RouteSegmentCategory ?? "";
+
+                if (txtSillHeight            != null) txtSillHeight.Text            = s.SillHeightMm.ToString("0.##",        CultureInfo.InvariantCulture);
+                if (txtHeadHeight            != null) txtHeadHeight.Text            = s.HeadHeightMm.ToString("0.##",        CultureInfo.InvariantCulture);
+                if (txtCillToFloor           != null) txtCillToFloor.Text           = s.CillToFloorMm.ToString("0.##",       CultureInfo.InvariantCulture);
+                if (chkToughenedGlazing      != null) chkToughenedGlazing.IsChecked = s.ToughenedGlazingRequired;
+                if (cmbGlazingSpec           != null) cmbGlazingSpec.SelectedItem   = s.GlazingSpec ?? "";
+
+                if (cmbBuildingType          != null) cmbBuildingType.SelectedItem  = s.BuildingType ?? "";
+                if (txtIpRatingMin           != null) txtIpRatingMin.Text           = s.IpRatingMin ?? "";
+                if (txtStandardsCsv          != null) txtStandardsCsv.Text          = s.ApplicableStandardsCsv ?? "";
+                if (cmbWetZone               != null) cmbWetZone.SelectedItem       = string.IsNullOrEmpty(s.WetZoneExclusion) ? "NONE" : s.WetZoneExclusion;
+                if (chkAccessibilityCheck    != null) chkAccessibilityCheck.IsChecked = s.AccessibilityCheck;
+                if (cmbHeightStandard        != null) cmbHeightStandard.SelectedItem = s.HeightStandard ?? "";
+
+                if (chkRequiresCOBieFields   != null) chkRequiresCOBieFields.IsChecked = s.RequiresCOBieFields;
+                if (chkRequiresIfcMapping    != null) chkRequiresIfcMapping.IsChecked  = s.RequiresIfcMapping;
+                if (cmbMaintenanceClearance  != null) cmbMaintenanceClearance.SelectedItem = s.MaintenanceClearance ?? "";
+                if (txtPostAuditTag          != null) txtPostAuditTag.Text          = s.PostAuditTag ?? "";
 
                 txtRuleError.Text         = s.IsValid ? "" : s.ErrorMessage;
             }
@@ -1028,6 +1644,63 @@ namespace StingTools.UI.PlacementCenter
                 UpdateStatus();
         }
 
+        // Phase 139.8 — checklist plumbing.
+        private (System.Windows.Controls.CheckBox cb, string cat)[] CategoryChecklist()
+            => new (System.Windows.Controls.CheckBox, string)[]
+            {
+                (cbCatElec,   "Electrical Fixtures"),
+                (cbCatLtgDev, "Lighting Devices"),
+                (cbCatLtgFix, "Lighting Fixtures"),
+                (cbCatComm,   "Communication Devices"),
+                (cbCatData,   "Data Devices"),
+                (cbCatSec,    "Security Devices"),
+                (cbCatFire,   "Fire Alarm Devices"),
+                (cbCatPlm,    "Plumbing Fixtures"),
+                (cbCatHvac,   "Air Terminals"),
+                (cbCatSpr,    "Sprinklers"),
+                (cbCatMech,   "Mechanical Equipment"),
+                (cbCatCond,   "Conduits"),
+                (cbCatJBox,   "Junction Boxes"),
+                (cbCatPipe,   "Pipes"),
+                (cbCatTray,   "Cable Trays"),
+                (cbCatSpec,   "Specialty Equipment"),
+                (cbCatFurn,   "Furniture"),
+                (cbCatNurse,  "Nurse Call Devices"),
+            };
+
+        private System.Collections.Generic.HashSet<string> ReadCategoryChecklist()
+        {
+            var s = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            // Phase 139.20 — log every checkbox state + null-state. If
+            // many cb fields are null, the XAML auto-generated bindings
+            // didn't compile (stale build). If all fields exist but the
+            // user thinks they ticked one and we report unchecked, the
+            // problem is UI confusion not code. Either way the user can
+            // read the StingLog and we know which root cause to chase.
+            int totalCb = 0, nullCb = 0, checkedCb = 0;
+            var checkedNames = new System.Collections.Generic.List<string>();
+            var nullNames    = new System.Collections.Generic.List<string>();
+            foreach (var (cb, cat) in CategoryChecklist())
+            {
+                totalCb++;
+                if (cb == null) { nullCb++; nullNames.Add(cat); continue; }
+                if (cb.IsChecked == true) { checkedCb++; checkedNames.Add(cat); s.Add(cat); }
+            }
+            StingLog.Info($"PlacementCenter: category checklist read — {totalCb} controls, " +
+                          $"{nullCb} NULL ({(nullNames.Count > 0 ? string.Join(", ", nullNames) : "")}), " +
+                          $"{checkedCb} ticked ({(checkedNames.Count > 0 ? string.Join(", ", checkedNames) : "<none>")}).");
+            if (nullCb > 0)
+                StingLog.Warn($"PlacementCenter: {nullCb} of {totalCb} category checkboxes are NULL — " +
+                              "XAML auto-generated bindings did not compile. Rebuild the plug-in.");
+            return s;
+        }
+
+        private void SetAllCategoryChecks(bool on)
+        {
+            foreach (var (cb, _) in CategoryChecklist())
+                if (cb != null) cb.IsChecked = on;
+        }
+
         private void UpdateStatus()
         {
             int dirty = VM.Rules.Count(r => r.IsDirty);
@@ -1053,6 +1726,345 @@ namespace StingTools.UI.PlacementCenter
             return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) ? v : (double?)null;
         }
 
+        // ── Run & Routing tab ────────────────────────────────────────
+
+        private void OnRunScope_Changed(object sender, RoutedEventArgs e)
+        {
+            if (rbRunScopeView?.IsChecked == true) VM.RunOpts.Scope = "ActiveView";
+            else if (rbRunScopeSel?.IsChecked  == true) VM.RunOpts.Scope = "Selection";
+            else if (rbRunScopeProj?.IsChecked == true) VM.RunOpts.Scope = "Project";
+        }
+
+        private void OnRunAllRules_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING", "No active document."); return; }
+            bool dry = chkRunDryRun?.IsChecked == true;
+            try
+            {
+                var rules   = PlacementRuleLoader.Load(_doc.PathName);
+                var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
+                var progress = StingProgressDialog.Show("Placing fixtures…", roomIds.Count);
+                Func<int, int, bool> progressHook = (processed, total) =>
+                {
+                    progress.Increment($"Room {processed} of {total}");
+                    return progress.IsCancelled;
+                };
+                List<ElementId> placed;
+                using (var tg = new TransactionGroup(_doc, "STING Place Fixtures (Run & Routing)"))
+                {
+                    tg.Start();
+                    var result = FixturePlacementEngine.PlaceFixturesInScope(
+                        _doc, roomIds, rules, dry, progressHook);
+                    placed = result?.PlacedIds ?? new List<ElementId>();
+                    tg.Assimilate();
+                }
+                progress.Close();
+                _runResultIds  = placed ?? new List<ElementId>();
+                _runReportText = $"Placed {_runResultIds.Count} fixture(s) in {roomIds.Count} room(s) [{(dry ? "DRY-RUN" : "live")}]";
+                _lastPlacedIds = _runResultIds;
+                _lastRunUtc    = DateTime.UtcNow;
+                ShowInlineResult(
+                    _runResultIds.Count > 0 ? $"✓ {_runResultIds.Count} fixtures placed" : "Nothing placed",
+                    new[] { $"Rooms: {roomIds.Count}", $"Fixtures: {_runResultIds.Count}", dry ? "Dry-run" : "Live" },
+                    PlacementRuleLoader.LastValidationWarnings.Take(10).ToArray());
+                RefreshDrawingTypeContext();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnRunAllRules_Click", ex);
+                TaskDialog.Show("STING Error", ex.Message);
+            }
+        }
+
+        private void OnRunToiletRooms_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING", "No active document."); return; }
+            bool dry = chkRunDryRun?.IsChecked == true;
+            try
+            {
+                var provision = ToiletRoomPlacerService.ComputeProvision(100, BuildingUse.Office, OccupantSplit.Equal5050);
+                var svc = new ToiletRoomPlacerService
+                {
+                    OccupantCount     = 100,
+                    Use               = BuildingUse.Office,
+                    Split             = OccupantSplit.Equal5050,
+                    DryRun            = dry,
+                    AutoRoutePlumbing = false,
+                };
+                ToiletRoomPlacementResult result;
+                using (var txn = new Transaction(_doc, "STING Toilet Room Fixtures"))
+                {
+                    txn.Start();
+                    result = svc.PlaceAll(_doc, txn);
+                    txn.Commit();
+                }
+                _runResultIds  = result.PlacementResult?.PlacedIds ?? new List<ElementId>();
+                _runReportText = result.ReportText();
+                _lastPlacedIds = _runResultIds;
+                _lastRunUtc    = DateTime.UtcNow;
+                var gaps = result.ComplianceGaps.Count > 0
+                    ? result.ComplianceGaps.Take(6).ToArray()
+                    : new[] { "All BS 6465-1 provisions met." };
+                ShowInlineResult(
+                    result.IsCompliant ? $"✓ Compliant — {result.FixturesPlaced} fixtures" : $"⚠ {result.ComplianceGaps.Count} gap(s)",
+                    new[] { $"Rooms: {result.RoomsProcessed}", $"Fixtures: {result.FixturesPlaced}", dry ? "Dry-run" : "Live" },
+                    gaps);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnRunToiletRooms_Click", ex);
+                TaskDialog.Show("STING Error", ex.Message);
+            }
+        }
+
+        private void OnRunLightingGrid_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Placement_LightingGrid");
+
+        private void OnLearnPlacement_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Placement_Learn");
+
+        private void OnRunPreview_Click(object sender, RoutedEventArgs e)
+            => OnPreview_Click(sender, e);
+
+        private void OnAutoDropRouting_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Routing_AutoDrop");
+
+        private void OnGenerateLayout_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Routing_GenerateLayout");
+
+        private void OnPlumbingRouter_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING", "No active document."); return; }
+            try
+            {
+                var fixtures = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
+                    .WhereElementIsNotElementType()
+                    .OfType<FamilyInstance>()
+                    .ToList();
+                if (fixtures.Count == 0)
+                {
+                    ShowInlineResult("No plumbing fixtures found", new[] { "Fixtures: 0" }, new[] { "Place fixtures first, then route." });
+                    return;
+                }
+                using (var txn = new Transaction(_doc, "STING Auto-Route Plumbing"))
+                {
+                    txn.Start();
+                    var router = new PlumbingFixtureRouter();
+                    router.RouteAll(_doc, fixtures, txn);
+                    txn.Commit();
+                }
+                _runReportText = $"Routed drainage for {fixtures.Count} plumbing fixture(s).";
+                ShowInlineResult($"✓ Routing complete — {fixtures.Count} fixture(s)", new[] { $"Fixtures: {fixtures.Count}" },
+                    new[] { "Gravity slope 2.5%", "AAV placed at runs >3000 mm" });
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnPlumbingRouter_Click", ex);
+                TaskDialog.Show("STING Error", ex.Message);
+            }
+        }
+
+        private void OnValidateFills_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Routing_ValidateFills");
+
+        private void OnPlaceHangers_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Routing_PlaceHangers");
+
+        private void OnRunAllValidators_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Validation_RunAll");
+
+        private void OnBS6465Audit_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING", "No active document."); return; }
+            try
+            {
+                var provision = ToiletRoomPlacerService.ComputeProvision(100, BuildingUse.Office, OccupantSplit.Equal5050);
+                ShowInlineResult("BS 6465-1 Provision Preview (100 occ, Office, 50/50)",
+                    new[]
+                    {
+                        $"WCs (M): {provision.MinWcsMale}",
+                        $"WCs (F): {provision.MinWcsFemale}",
+                        $"Urinals: {provision.MinUrinalsMale}",
+                        $"Basins: {provision.MinBasins}",
+                        $"Accessible: {provision.MinAccessibleWcs}",
+                        $"Baby change: {(provision.BabyChangeRequired ? "Yes" : "No")}",
+                    },
+                    new[] { provision.Summary() });
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnBS6465Audit_Click", ex);
+                TaskDialog.Show("STING Error", ex.Message);
+            }
+        }
+
+        private void OnClearanceScan_Click(object sender, RoutedEventArgs e)
+            => ShowFindings(false, "Clearance scan");
+
+        private void OnPenetrationCoverage_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Validation_PenetrationCoverage");
+
+        private void OnScoreThreshold_Changed(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb &&
+                double.TryParse(tb.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) &&
+                v > 0.0 && v <= 1.0)
+            {
+                PlacementScorer.ScoreThreshold = v;
+            }
+            else if (sender is TextBox tb2)
+            {
+                tb2.Text = PlacementScorer.ScoreThreshold.ToString("0.##", CultureInfo.InvariantCulture);
+            }
+        }
+
+        private void OnSelectLastPlaced_Click(object sender, RoutedEventArgs e)
+        {
+            if (_uiDoc == null || _runResultIds == null || _runResultIds.Count == 0)
+            {
+                TaskDialog.Show("STING", "No placed elements to select from the last run.");
+                return;
+            }
+            try { _uiDoc.Selection.SetElementIds(_runResultIds); }
+            catch (Exception ex) { StingLog.Warn($"OnSelectLastPlaced_Click: {ex.Message}"); }
+        }
+
+        private void OnCopyRunReport_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_runReportText)) return;
+            try { System.Windows.Clipboard.SetText(_runReportText); }
+            catch (Exception ex) { StingLog.Warn($"OnCopyRunReport_Click: {ex.Message}"); }
+        }
+
+        // ── Tools tab ────────────────────────────────────────────────
+
+        private void OnToolButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string tag && !string.IsNullOrEmpty(tag))
+                StingDockPanel.DispatchCommand(tag);
+        }
+
+        // ── Inline result panel ──────────────────────────────────────
+
+        private void ShowInlineResult(string headline,
+                                      IEnumerable<string> metrics,
+                                      IEnumerable<string> findings)
+        {
+            if (txtRunResultHeadline != null)
+                txtRunResultHeadline.Text = headline ?? "";
+
+            if (lstRunMetrics != null)
+                lstRunMetrics.ItemsSource = metrics?.ToList() ?? new List<string>();
+
+            if (lstRunFindings != null)
+                lstRunFindings.ItemsSource = findings?.ToList() ?? new List<string>();
+
+            if (grpRunResult != null)
+                grpRunResult.Visibility = System.Windows.Visibility.Visible;
+        }
+
+        // ── DrawingType context strip ────────────────────────────────
+
+        private void RefreshDrawingTypeContext()
+        {
+            try
+            {
+                var view = _uiDoc?.ActiveView;
+                if (view == null)
+                {
+                    SetDtContextLabels("—", "—", "—");
+                    return;
+                }
+                var dtId = DrawingTypeStamper.Read(view);
+                if (string.IsNullOrEmpty(dtId))
+                {
+                    SetDtContextLabels("(not stamped)", "—", "—");
+                    return;
+                }
+                var dt = _doc != null ? DrawingTypeRegistry.Get(_doc, dtId) : null;
+                string packId = "—";
+                var pack = _doc != null ? DrawingTypeRegistry.TryGetPack(_doc, dtId) : null;
+                if (pack != null)
+                    packId = pack.Id ?? "—";
+                SetDtContextLabels(
+                    dt?.Id ?? dtId,
+                    packId,
+                    string.IsNullOrEmpty(dt?.Discipline) ? "—" : dt.Discipline);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementCenter.RefreshDrawingTypeContext: {ex.Message}");
+                SetDtContextLabels("error", "—", "—");
+            }
+        }
+
+        private void SetDtContextLabels(string dtId, string packId, string disc)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    if (txtDtContextId   != null) txtDtContextId.Text   = dtId;
+                    if (txtDtContextPack != null) txtDtContextPack.Text = packId;
+                    if (txtDtContextDisc != null) txtDtContextDisc.Text = disc;
+                }
+                catch { }
+            });
+        }
+
+        private void BtnRefreshDtContext_Click(object sender, RoutedEventArgs e)
+            => RefreshDrawingTypeContext();
+
+        private void OnBusResult(PlacementRunSummary summary)
+        {
+            if (summary == null) return;
+            Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    // Update context strip headline.
+                    if (txtLastResultSource != null)
+                        txtLastResultSource.Text = $"[{summary.Source}]";
+                    if (txtLastResultHeadlineStrip != null)
+                        txtLastResultHeadlineStrip.Text = summary.Headline;
+
+                    // Also update the Run tab's result panel if those controls exist.
+                    var headline = FindName("txtRunResultHeadline") as System.Windows.Controls.TextBlock;
+                    if (headline != null) headline.Text = summary.Headline;
+
+                    var metricsList = FindName("lstRunMetrics") as System.Windows.Controls.ItemsControl;
+                    if (metricsList != null) metricsList.ItemsSource = summary.Metrics;
+
+                    var findingsList = FindName("lstRunFindings") as System.Windows.Controls.ItemsControl;
+                    if (findingsList != null) findingsList.ItemsSource = summary.Warnings;
+
+                    // Update the result ids for selection.
+                    _runResultIds = summary.AffectedIds ?? new List<Autodesk.Revit.DB.ElementId>();
+                    _runReportText = summary.Headline;
+
+                    // Show the result panel if it's collapsed.
+                    var resultPanel = FindName("grpRunResult") as System.Windows.Controls.GroupBox;
+                    if (resultPanel != null) resultPanel.Visibility = System.Windows.Visibility.Visible;
+
+                    // Refresh context strip DT info if the summary carries a new DT id.
+                    if (!string.IsNullOrEmpty(summary.DrawingTypeId) && _doc != null)
+                    {
+                        var dt = DrawingTypeRegistry.Get(_doc, summary.DrawingTypeId);
+                        string packId = "—";
+                        var pk = DrawingTypeRegistry.TryGetPack(_doc, summary.DrawingTypeId);
+                        if (pk != null)
+                            packId = pk.Id ?? "—";
+                        SetDtContextLabels(
+                            dt?.Id ?? summary.DrawingTypeId,
+                            summary.PackId ?? packId,
+                            dt?.Discipline ?? "—");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"PlacementCenter.OnBusResult: {ex.Message}"); }
+            });
+        }
+
         // ── Resources ────────────────────────────────────────────────
 
         private static bool _resEnsured;
@@ -1066,6 +2078,11 @@ namespace StingTools.UI.PlacementCenter
                 if (app == null) return;
                 if (!app.Resources.Contains("DirtyDotConverter"))
                     app.Resources.Add("DirtyDotConverter", new DirtyDotConverter());
+                // Phase 139 — RAG status colour converter for the rule grid row style.
+                if (!app.Resources.Contains("HexToBrushConverter"))
+                    app.Resources.Add("HexToBrushConverter", new HexToBrushConverter());
+                if (!app.Resources.Contains("EmptyStringToVisibility"))
+                    app.Resources.Add("EmptyStringToVisibility", new EmptyStringToVisibilityConverter());
             }
             catch (Exception ex)
             {
@@ -1082,6 +2099,45 @@ namespace StingTools.UI.PlacementCenter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
             => value is bool b && b ? "●" : "";
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => System.Windows.Data.Binding.DoNothing;
+    }
+
+    /// <summary>
+    /// Phase 139 — convert "#RRGGBB" hex string to a SolidColorBrush so the
+    /// rule grid row style can colour-code RAG status from the ViewModel.
+    /// Falls back to white on null / parse failure.
+    /// </summary>
+    public class HexToBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            try
+            {
+                if (value is string s && !string.IsNullOrEmpty(s))
+                {
+                    var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(s);
+                    return new System.Windows.Media.SolidColorBrush(c);
+                }
+            }
+            catch { }
+            return System.Windows.Media.Brushes.White;
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => System.Windows.Data.Binding.DoNothing;
+    }
+
+    /// <summary>
+    /// Phase 139 — empty/null string → Visible, otherwise → Collapsed.
+    /// Used by the Building Profile header banner that fires when no
+    /// profile is loaded.
+    /// </summary>
+    public class EmptyStringToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            => string.IsNullOrEmpty(value as string)
+                ? System.Windows.Visibility.Visible
+                : System.Windows.Visibility.Collapsed;
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             => System.Windows.Data.Binding.DoNothing;
     }

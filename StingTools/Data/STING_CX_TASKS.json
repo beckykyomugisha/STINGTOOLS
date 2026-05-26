@@ -1,0 +1,143 @@
+{
+  "_schema": "STING_CX_TASKS",
+  "_version": "1.0",
+  "_notes": [
+    "Per-equipment-class commissioning task library.",
+    "Keys map to HvacGenerateCxChecklistCommand.ClassifyEquipment outputs:",
+    "  AHU / Chiller / Boiler / VRF / Pump / FCU / VAV / CoolingTower /",
+    "  HeatPump / Fan / HeatExchanger / Damper / Generic.",
+    "",
+    "Each row carries Phase / Task / Method / Acceptance. Phases:",
+    "  PreInstall  — drawings / data sheets / submittals",
+    "  PreStartup  — physical install + connections",
+    "  Startup     — first energize / fill / vent",
+    "  Functional  — sequence-of-operation test under varied loads",
+    "  Handover    — TAB report, O&M, training, warranty",
+    "",
+    "Project override at <project>/_BIM_COORD/cx/cx_tasks_override.json.",
+    "",
+    "Override class-value shapes (Phase 187f):",
+    "  - Bare array: REPLACE the corporate class wholesale (default).",
+    "      \"AHU\": [ { phase, task, method, acceptance }, ... ]",
+    "  - Object with _merge flag: control per-class behaviour.",
+    "      \"AHU\": { \"_merge\": \"append\", \"tasks\": [ {...}, ... ] }",
+    "      _merge: \"append\"  → corporate rows kept, override rows added",
+    "                            (dedup by Phase+Task to stay idempotent)",
+    "      _merge: \"replace\" → same as bare-array form",
+    "",
+    "Aligned to ASHRAE Guideline 0-2019 + CIBSE TM39 phases."
+  ],
+  "classes": {
+    "AHU": [
+      { "phase": "PreInstall", "task": "Approved submittal received",       "method": "Document review",   "acceptance": "Stamped 'Reviewed' by engineer" },
+      { "phase": "PreStartup", "task": "Filter media installed correctly",  "method": "Visual inspection", "acceptance": "MERV/EU class matches spec" },
+      { "phase": "PreStartup", "task": "Coil orientation + drain pan slope","method": "Visual inspection", "acceptance": "Slope ≥ 1:60 to drain" },
+      { "phase": "PreStartup", "task": "Fan motor megger test",             "method": "Insulation tester", "acceptance": "≥ 1 MΩ at 500 V DC" },
+      { "phase": "Startup",    "task": "Fan rotation correct",              "method": "Visual + ammeter",  "acceptance": "Rotation matches arrow; FLA ≤ nameplate" },
+      { "phase": "Startup",    "task": "Drive belt tension",                "method": "Tension gauge",     "acceptance": "Per manufacturer's deflection chart" },
+      { "phase": "Functional", "task": "Supply air temp tracks setpoint",   "method": "Trend 24 h",        "acceptance": "±1 K of setpoint" },
+      { "phase": "Functional", "task": "Economiser changeover",             "method": "Override OA temp",  "acceptance": "Damper modulates correctly" },
+      { "phase": "Functional", "task": "Static pressure reset works",       "method": "Trend 24 h",        "acceptance": "ΔP within band; no hunting" },
+      { "phase": "Handover",   "task": "TAB report submitted",              "method": "Document review",   "acceptance": "Signed by independent TAB engineer" },
+      { "phase": "Handover",   "task": "O&M + as-builts handed over",       "method": "Document review",   "acceptance": "Complete + indexed" }
+    ],
+    "Chiller": [
+      { "phase": "PreInstall", "task": "Approved submittal + IOM received",  "method": "Document review",      "acceptance": "Stamped + indexed" },
+      { "phase": "PreStartup", "task": "Refrigerant charge verified",        "method": "Sight glass + scales", "acceptance": "Per nameplate ±2%" },
+      { "phase": "PreStartup", "task": "Vibration isolators installed",      "method": "Visual",               "acceptance": "Loaded per manufacturer" },
+      { "phase": "PreStartup", "task": "Strainers installed upstream",       "method": "Visual",               "acceptance": "Mesh per spec" },
+      { "phase": "Startup",    "task": "Manufacturer commissioning visit",   "method": "Witnessed",            "acceptance": "Sign-off received" },
+      { "phase": "Startup",    "task": "Oil level + heater check",           "method": "Sight glass",          "acceptance": "In band" },
+      { "phase": "Functional", "task": "Capacity steps load correctly",      "method": "Sequence 0-100%",      "acceptance": "No alarms; chilled water ΔT held" },
+      { "phase": "Functional", "task": "Safety interlocks tested",           "method": "Forced trip",          "acceptance": "All set-points within spec" },
+      { "phase": "Handover",   "task": "Refrigerant logbook started",        "method": "F-Gas register",       "acceptance": "Logged + bound" },
+      { "phase": "Handover",   "task": "Operator training delivered",        "method": "Witnessed session",    "acceptance": "Sign-off form" }
+    ],
+    "Boiler": [
+      { "phase": "PreInstall", "task": "Approved submittal + IOM received",  "method": "Document review",   "acceptance": "Stamped + indexed" },
+      { "phase": "PreStartup", "task": "Gas tightness test",                 "method": "Manometer / TDR",   "acceptance": "BS 6891 / NFPA 54 pass" },
+      { "phase": "PreStartup", "task": "Flue terminal location",             "method": "Visual",            "acceptance": "Clearances per IGEM/UP/10" },
+      { "phase": "Startup",    "task": "Combustion analysis",                "method": "Flue gas analyzer", "acceptance": "CO₂ + O₂ + CO in band" },
+      { "phase": "Startup",    "task": "Pressure relief discharges correctly","method": "Witnessed lift",    "acceptance": "Discharge to safe location" },
+      { "phase": "Functional", "task": "Modulation tracks load",              "method": "Trend 24 h",        "acceptance": "Flow temp ±1 K" },
+      { "phase": "Functional", "task": "Boiler interlocks tested",            "method": "Forced trip",       "acceptance": "Shut-off + alarm in <2 s" },
+      { "phase": "Handover",   "task": "Gas safety certificate",              "method": "Document review",   "acceptance": "Signed by Gas Safe engineer" }
+    ],
+    "Pump": [
+      { "phase": "PreInstall", "task": "Approved submittal received",        "method": "Document review",   "acceptance": "Stamped" },
+      { "phase": "PreStartup", "task": "Alignment shaft to driver",          "method": "Dial indicator",    "acceptance": "≤ 0.05 mm" },
+      { "phase": "PreStartup", "task": "Suction strainer fitted",            "method": "Visual",            "acceptance": "Removed after first 24 h flush" },
+      { "phase": "Startup",    "task": "Rotation correct",                   "method": "Visual",            "acceptance": "Matches arrow" },
+      { "phase": "Startup",    "task": "Bearing temperature",                "method": "IR thermometer",    "acceptance": "≤ 60 °C after 2 h run" },
+      { "phase": "Functional", "task": "Duty point matches design",          "method": "Pressure + flow",   "acceptance": "±5% of design curve" },
+      { "phase": "Functional", "task": "VSD ramp + minimum speed",           "method": "BMS trend",         "acceptance": "No cavitation at min speed" },
+      { "phase": "Handover",   "task": "Mech. seal flush + isolation valves","method": "Visual",            "acceptance": "Operable, labelled" }
+    ],
+    "VRF": [
+      { "phase": "PreInstall", "task": "Approved system schematic",          "method": "Document review",         "acceptance": "Indoor + outdoor unit list" },
+      { "phase": "PreStartup", "task": "Pipe insulation continuity",         "method": "Visual",                  "acceptance": "No bare runs" },
+      { "phase": "PreStartup", "task": "Refrigerant leak test",              "method": "Nitrogen 4 MPa 24 h",     "acceptance": "No pressure drop" },
+      { "phase": "PreStartup", "task": "Vacuum dehydration",                 "method": "Vac gauge",               "acceptance": "<500 microns for 1 h" },
+      { "phase": "Startup",    "task": "Refrigerant additional charge",      "method": "Vendor calc + scales",    "acceptance": "Per length table" },
+      { "phase": "Startup",    "task": "Auto-address per remote",            "method": "Vendor tool",             "acceptance": "All IDUs registered" },
+      { "phase": "Functional", "task": "Cooling + heating mode each IDU",    "method": "Test each",               "acceptance": "Capacity per zone" },
+      { "phase": "Handover",   "task": "F-Gas log + service ports",          "method": "Document review",         "acceptance": "Logged; capped" }
+    ],
+    "FCU": [
+      { "phase": "PreInstall", "task": "Approved submittal received",        "method": "Document review",       "acceptance": "Stamped" },
+      { "phase": "PreStartup", "task": "Drain pan + condensate trap",        "method": "Visual + water test",   "acceptance": "No leaks, primed trap" },
+      { "phase": "Startup",    "task": "Fan speeds + control valve stroke",  "method": "BMS commands",          "acceptance": "All speeds reachable" },
+      { "phase": "Functional", "task": "Room temperature ±1 K of setpoint",  "method": "Trend 24 h",            "acceptance": "Stable, no hunting" },
+      { "phase": "Handover",   "task": "Filter access labelled",             "method": "Visual",                "acceptance": "Identifiable + tooled access" }
+    ],
+    "VAV": [
+      { "phase": "PreInstall", "task": "Box airflow design vs nameplate",    "method": "Document review",       "acceptance": "Within turn-down range" },
+      { "phase": "PreStartup", "task": "Actuator stroke + zero",             "method": "Visual",                "acceptance": "Full close at 0 %" },
+      { "phase": "Startup",    "task": "Min + max airflow setpoints set",    "method": "Controller",            "acceptance": "Match design" },
+      { "phase": "Functional", "task": "Reheat coil staged correctly",       "method": "Trend",                 "acceptance": "Within deadband" },
+      { "phase": "Handover",   "task": "BMS graphic + alarms tested",        "method": "Witnessed",             "acceptance": "Pass" }
+    ],
+    "CoolingTower": [
+      { "phase": "PreInstall", "task": "Approved submittal + IOM",           "method": "Document review",     "acceptance": "Stamped" },
+      { "phase": "PreStartup", "task": "Basin filled + chemical dosed",      "method": "Visual + test kit",   "acceptance": "pH + conductivity in band" },
+      { "phase": "PreStartup", "task": "Drift eliminator + screens",         "method": "Visual",              "acceptance": "Clean, no missing panels" },
+      { "phase": "Startup",    "task": "Fan reversibility test",             "method": "BMS command",         "acceptance": "Functions for de-icing" },
+      { "phase": "Functional", "task": "Approach temp meets design",         "method": "Trend 24 h",          "acceptance": "Within ±1 K" },
+      { "phase": "Handover",   "task": "Legionella risk assessment",         "method": "Document review",     "acceptance": "Signed; logbook in place" }
+    ],
+    "HeatPump": [
+      { "phase": "PreInstall", "task": "Approved submittal + COP curve",     "method": "Document review",     "acceptance": "Stamped" },
+      { "phase": "PreStartup", "task": "Defrost drain + heater tape",        "method": "Visual + ammeter",    "acceptance": "Heater functional" },
+      { "phase": "Startup",    "task": "Manufacturer first-start visit",     "method": "Witnessed",           "acceptance": "Sign-off received" },
+      { "phase": "Functional", "task": "COP at design points",                "method": "Power meter + flow",  "acceptance": "Within 5 % of catalogue" },
+      { "phase": "Functional", "task": "Defrost cycle initiates + recovers", "method": "Force cold",          "acceptance": "Returns to heating in <10 min" },
+      { "phase": "Handover",   "task": "F-Gas logbook + service ports",      "method": "Document review",     "acceptance": "Logged; capped" }
+    ],
+    "Fan": [
+      { "phase": "PreInstall", "task": "Approved selection vs noise spec",   "method": "Document review",     "acceptance": "≤ NR/NC target" },
+      { "phase": "PreStartup", "task": "Belt + bearing alignment",           "method": "Visual + gauge",      "acceptance": "Per IOM" },
+      { "phase": "Startup",    "task": "Rotation + FLA",                     "method": "Visual + ammeter",    "acceptance": "Per nameplate" },
+      { "phase": "Functional", "task": "Air flow + ΔP at design point",      "method": "Pitot + manometer",   "acceptance": "±5 % design" },
+      { "phase": "Handover",   "task": "Vibration baseline reading",         "method": "Vibrometer",          "acceptance": "Logged for trending" }
+    ],
+    "HeatExchanger": [
+      { "phase": "PreInstall", "task": "Approved submittal received",        "method": "Document review",      "acceptance": "Stamped" },
+      { "phase": "PreStartup", "task": "Pressure test both sides",           "method": "Hydraulic",            "acceptance": "1.5× working, 24 h, no drop" },
+      { "phase": "Startup",    "task": "Vent + drain valves operate",        "method": "Visual",               "acceptance": "Air cleared from top" },
+      { "phase": "Functional", "task": "Approach + LMTD per design",          "method": "Inlet/outlet trend",   "acceptance": "Within 1 K of expected" },
+      { "phase": "Handover",   "task": "Cleaning + isolation procedure",      "method": "Document review",      "acceptance": "Issued to FM team" }
+    ],
+    "Damper": [
+      { "phase": "PreStartup", "task": "Actuator stroke + linkage",          "method": "Visual",            "acceptance": "Closes tight, opens fully" },
+      { "phase": "Functional", "task": "Fail-safe position on power loss",   "method": "Pull breaker",      "acceptance": "Defaults per spec" },
+      { "phase": "Handover",   "task": "Fire damper fusible link verified",  "method": "Visual",            "acceptance": "Link + access door operable" }
+    ],
+    "Generic": [
+      { "phase": "PreInstall", "task": "Approved submittal received",        "method": "Document review",   "acceptance": "Stamped" },
+      { "phase": "PreStartup", "task": "Connections per IOM",                "method": "Visual",            "acceptance": "Per manufacturer drawings" },
+      { "phase": "Startup",    "task": "Energize + functional check",        "method": "Power on",          "acceptance": "No alarms" },
+      { "phase": "Functional", "task": "Operates per sequence",              "method": "BMS / standalone",  "acceptance": "Per design intent" },
+      { "phase": "Handover",   "task": "O&M + as-built submitted",           "method": "Document review",   "acceptance": "Complete + indexed" }
+    ]
+  }
+}

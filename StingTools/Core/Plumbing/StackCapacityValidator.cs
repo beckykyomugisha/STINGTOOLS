@@ -28,6 +28,7 @@ namespace StingTools.Core.Plumbing
         public int StacksScanned     { get; set; }
         public int StacksFlagged     { get; set; }
         public int StacksOverCapacity{ get; set; }
+        public int StacksStamped     { get; set; }   // PLM_STACK_CAP_DU + PLM_STACK_UTIL_PCT
         public List<StackCapacityFinding> Findings { get; } = new List<StackCapacityFinding>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -37,6 +38,16 @@ namespace StingTools.Core.Plumbing
         public const double InducedSiphonageThresholdPct = 70.0;
 
         public static StackCapacityReport Validate(Document doc, DfuMapResult dfuMap)
+            => Validate(doc, dfuMap, writeBack: false);
+
+        /// <summary>
+        /// Walk vertical stacks and report DFU utilisation vs BS EN 12056-2
+        /// Table 11. When writeBack=true also stamps PLM_STACK_CAP_DU and
+        /// PLM_STACK_UTIL_PCT (Phase 187) on each stack pipe so schedules
+        /// and downstream relief-vent auto-sizers can read the result
+        /// without re-running the validator. Caller owns the Transaction.
+        /// </summary>
+        public static StackCapacityReport Validate(Document doc, DfuMapResult dfuMap, bool writeBack)
         {
             var r = new StackCapacityReport();
             if (doc == null || dfuMap == null) return r;
@@ -52,6 +63,18 @@ namespace StingTools.Core.Plumbing
                 double cap = BSen12056Standards.GetStackCapacityDu(dn);
                 double pct = cap > 0 ? (kv.Value / cap) * 100.0 : 0;
                 r.StacksScanned++;
+
+                if (writeBack)
+                {
+                    try
+                    {
+                        if (StingTools.Core.ParameterHelpers.SetString(p, "PLM_STACK_CAP_DU",
+                                $"{cap:F1}", overwrite: true)) r.StacksStamped++;
+                        StingTools.Core.ParameterHelpers.SetString(p, "PLM_STACK_UTIL_PCT",
+                            $"{pct:F1}", overwrite: true);
+                    }
+                    catch (Exception exW) { r.Warnings.Add($"Stack stamp {p.Id}: {exW.Message}"); }
+                }
 
                 var f = new StackCapacityFinding
                 {

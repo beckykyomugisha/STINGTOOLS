@@ -2,10 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
+using StingTools.Core.Drawing;
+using Newtonsoft.Json.Linq;
+using System.Collections.Concurrent;
 
 namespace StingTools.Core
 {
@@ -451,6 +455,8 @@ namespace StingTools.Core
             _locCodesSet = null;  // F-08
             _zoneCodesSet = null; // F-08
             _tokenValidationCache.Clear(); // Phase 78: Clear memoized validation results
+            _validFuncsCsvLoaded = false;  // Force reload of CSV-derived func codes
+            EnsureValidFuncsLoaded();
         }
 
         /// <summary>
@@ -719,6 +725,35 @@ namespace StingTools.Core
             return null;
         }
 
+        /// <summary>Phase 66b: Validate FUNC→PROD pair consistency.
+        /// Detects contradictory function/product combinations like FUNC=SUP with PROD=WC.</summary>
+        // PERF: Static readonly to avoid per-call Dictionary+HashSet allocation
+        private static readonly Dictionary<string, HashSet<string>> _incompatibleFuncProdPairs =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Supply function should not have sanitary/plumbing products
+                { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "URN", "SNK", "SHW", "BTH", "BID", "MOP" } },
+                // Return function should not have electrical products
+                { "RTN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DB", "MCC", "MSB", "SWB", "SKT", "LUM" } },
+                // Lighting function should not have HVAC products
+                { "LTG", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "CHR", "BLR", "RAD", "DAM" } },
+                // Power function should not have plumbing products
+                { "PWR", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "PP", "PFT", "PAC", "FPP", "TRP" } },
+                // Sanitary function should not have HVAC products
+                { "SAN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "FAN", "HRU", "DAM", "CLT" } },
+                // Fire protection function should not have architectural products
+                { "FLS", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DR", "WIN", "WL", "FL", "CLG", "RF", "FUR" } },
+            };
+
+        private static string ValidateFuncProdPair(string func, string prod, string disc)
+        {
+            if (_incompatibleFuncProdPairs.TryGetValue(func, out var badProds) && badProds.Contains(prod))
+                return $"FUNC '{func}' is incompatible with PROD '{prod}' — check discipline assignment";
+
+            return null;
+        }
+
+
         /// <summary>
         /// Validate the format of a complete assembled tag string.
         /// Returns null if valid, or an error description.
@@ -777,37 +812,113 @@ namespace StingTools.Core
         /// </summary>
         internal static HashSet<string> GetValidFuncsForSys(string sys)
         {
+            EnsureValidFuncsLoaded();
             if (_validFuncsForSys.TryGetValue(sys, out var funcs)) return funcs;
             return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        /// <summary>Phase 39: Comprehensive SYS→FUNC mapping for cross-validation.
-        /// Covers all 17 system codes with primary + variant functions per CIBSE/Uniclass.</summary>
-        private static readonly Dictionary<string, HashSet<string>> _validFuncsForSys =
+        private static bool _validFuncsCsvLoaded = false;
+        private static void EnsureValidFuncsLoaded()
+        {
+            if (_validFuncsCsvLoaded) return;
+            _validFuncsCsvLoaded = true;
+            TryLoadValidFuncsFromCsv();
+        }
+
+        /// <summary>
+        /// Attempts to rebuild _validFuncsForSys from STING_FUNC_SYS_MATRIX.csv.
+        /// Falls back to the hardcoded defaults if the file is absent or malformed.
+        /// Called from LoadFromFile, LoadDefaults, and lazily from GetValidFuncsForSys.
+        /// </summary>
+        private static void TryLoadValidFuncsFromCsv()
+        {
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("STING_FUNC_SYS_MATRIX.csv");
+                if (string.IsNullOrEmpty(csvPath) || !System.IO.File.Exists(csvPath)) return;
+
+                var loaded = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+                bool first = true;
+                foreach (string raw in System.IO.File.ReadLines(csvPath))
+                {
+                    if (first) { first = false; continue; } // skip header
+                    string line = raw.Trim();
+                    if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
+
+                    // CSV: SYS_CODE,SYS_DESCRIPTION,FUNC_CODE,FUNC_DESCRIPTION,...
+                    var cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols == null || cols.Length < 3) continue;
+                    string sysCode  = cols[0].Trim();
+                    string funcCode = cols[2].Trim();
+                    if (string.IsNullOrEmpty(sysCode) || string.IsNullOrEmpty(funcCode)) continue;
+
+                    if (!loaded.TryGetValue(sysCode, out var set))
+                    {
+                        set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        loaded[sysCode] = set;
+                    }
+                    set.Add(funcCode);
+                }
+
+                if (loaded.Count > 0)
+                {
+                    // Merge into existing dict: CSV wins; hardcoded entries not in CSV are retained
+                    foreach (var kvp in loaded)
+                    {
+                        if (_validFuncsForSys.TryGetValue(kvp.Key, out var existing))
+                            foreach (string fc in kvp.Value) existing.Add(fc);
+                        else
+                            _validFuncsForSys[kvp.Key] = kvp.Value;
+                    }
+                    StingLog.Info($"TagConfig: merged STING_FUNC_SYS_MATRIX.csv → {loaded.Count} SYS entries into _validFuncsForSys");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TagConfig: TryLoadValidFuncsFromCsv failed — using hardcoded defaults: {ex.Message}");
+            }
+        }
+
+        /// <summary>Number of SYS entries in the valid-FUNC lookup table. Used by TagConfig.IsLoaded.</summary>
+        internal static int ValidFuncsForSysCount => _validFuncsForSys.Count;
+
+        /// <summary>Phase 39: Comprehensive SYS→FUNC mapping — hardcoded baseline.
+        /// Extended at runtime by TryLoadValidFuncsFromCsv() from STING_FUNC_SYS_MATRIX.csv.</summary>
+        private static Dictionary<string, HashSet<string>> _validFuncsForSys =
             new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
             {
-                // Mechanical systems
-                { "HVAC", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "RTN", "EXH", "FRA", "HTG", "CLG", "VNT", "GEN" } },
-                { "HWS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "HTG", "DHW", "GEN" } },
-                { "DHW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DHW", "GEN" } },
+                // Mechanical systems — aligned with STING_FUNC_SYS_MATRIX.csv
+                { "HVAC", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "RTN", "EXH", "FRA", "HTG", "CLG", "VNT", "OA", "TRF", "REL", "GRP", "GEN" } },
+                { "HWS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "RTN", "HTG", "DHW", "CND", "GEN" } },
+                { "DHW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "RTN", "DHW", "GEN" } },
                 // Plumbing systems
-                { "DCW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DCW", "GEN" } },
-                { "SAN",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SAN", "GEN" } },
-                { "RWD",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "RWD", "GEN" } },
-                { "GAS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GAS", "GEN" } },
+                { "DCW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "CLD", "DCW", "GEN" } },
+                { "SAN",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SAN", "WAS", "SOI", "VNT", "GEN" } },
+                { "RWD",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "RWD", "SRF", "ATT", "GEN" } },
+                { "GAS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "GAS", "MED", "LOW", "GEN" } },
                 // Fire protection
-                { "FP",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FP", "FLS", "GEN" } },
-                // Electrical systems
-                { "LV",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PWR", "LTG", "GEN" } },
+                { "FP",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "SYS", "WET", "DRY", "DEL", "PRE", "FOA", "FP", "FLS", "GEN" } },
+                // Electrical systems — extended for BS 7671 sub-circuits
+                { "LV",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PWR", "LTG", "EMG", "SML", "EAR", "UPS", "GNR", "GEN" } },
+                { "HV",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PWR", "TRF", "GEN" } },
                 { "FLS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FLS", "GEN" } },
-                // Communications / low voltage
-                { "COM",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "COM", "GEN" } },
-                { "ICT",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ICT", "COM", "GEN" } },
-                { "NCL",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "NCL", "GEN" } },
-                { "SEC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SEC", "GEN" } },
+                // Fire alarm
+                { "FA",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DET", "MCP", "SND", "AVD", "IO", "SDA", "LDS", "GEN" } },
+                // Communications / low voltage — extended for ICT/AV sub-types
+                { "COM",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PA", "TV", "TEL", "AV", "COM", "GEN" } },
+                { "ICT",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "NET", "WAP", "FBR", "SER", "PTS", "ICT", "COM", "GEN" } },
+                { "NCL",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "NCS", "EMR", "BDH", "NCL", "GEN" } },
+                { "SEC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "CCTV", "ACC", "INT", "DOR", "SEC", "GEN" } },
+                { "BMS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "MON", "CTL", "SNS", "FCT", "GEN" } },
+                // Medical gas systems (HTM 02-01)
+                { "MGS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "O2", "N2O", "MAP", "VAC", "EVAC", "N2", "CO2", "GEN" } },
+                // Lightning protection (BS EN 62305)
+                { "LPS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AIR", "DOW", "ERT", "BND", "SPD", "TST", "GEN" } },
+                // Radiation protection (NCRP 147)
+                { "RAD",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SHD", "ZNE", "MON", "GEN" } },
                 // Architectural / structural / general
-                { "ARC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FIT", "GEN" } },
-                { "STR",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "STR", "GEN" } },
+                { "ARC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WLL", "FLR", "CLG", "ROF", "DOR", "WIN", "STR", "RMP", "FAS", "FIT", "GEN" } },
+                { "STR",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "COL", "BM", "SLB", "FND", "WLL", "BRC", "TRS", "RBR", "STR", "GEN" } },
                 { "GEN",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GEN" } },
             };
 
@@ -1133,6 +1244,14 @@ namespace StingTools.Core
         /// <summary>FIX-B10: Persisted stale marker state. Null = not set in config.</summary>
         public static bool? AutoTaggerStaleMarker { get; internal set; }
 
+        /// <summary>
+        /// GAP-STATUS-01: When true, STATUS token is always re-derived from Revit phase data and
+        /// overwritten even if the element already has a STATUS value. Prevents drift between the
+        /// Revit phase model and the ISO 19650 tag when phases are reorganised post-tagging.
+        /// Set via AUTO_CORRECT_STATUS_FROM_PHASE in project_config.json.
+        /// </summary>
+        public static bool AutoCorrectStatusFromPhase { get; internal set; } = false;
+
         /// <summary>FE-06: Full per-category token overrides. Key=category name, Value=dict of token->value.</summary>
         public static Dictionary<string, Dictionary<string, string>> CategoryTokenOverrides { get; internal set; }
             = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
@@ -1148,6 +1267,30 @@ namespace StingTools.Core
         // A1: Track SEQ scheme changes to warn users about potential counter misalignment
         private static bool _seqSchemeChanged = false;
         private static bool _seqSchemeWarned = false;
+
+        // Phase 177 — lazy-load guard for valid FUNC CSV data.
+        // EnsureValidFuncsLoaded() is a no-op because _validFuncsForSys is
+        // initialised from a static field initialiser; the flag is retained
+        // so callers (ParameterHelpers) can query IsLoaded without coupling
+        // to internal implementation details.
+        private static bool _validFuncsCsvLoaded = false;
+
+        /// <summary>True once the valid-FUNC lookup table has been populated (always true after first static init).</summary>
+        public static bool IsLoaded => _validFuncsCsvLoaded || ISO19650Validator.ValidFuncsForSysCount > 0;
+
+        /// <summary>
+        /// Ensures the valid-FUNC per-SYS lookup table is populated.
+        /// The table is built from a static field initialiser so this is
+        /// effectively a no-op; it exists so callers can guarantee readiness
+        /// without depending on internal implementation details.
+        /// </summary>
+        public static void EnsureValidFuncsLoaded()
+        {
+            if (_validFuncsCsvLoaded) return;
+            _validFuncsCsvLoaded = true;
+            // _validFuncsForSys is populated by its field initialiser above;
+            // nothing more to load here.
+        }
 
         /// <summary>
         /// Build a canonical SEQ counter key from element token values.
@@ -1428,7 +1571,8 @@ namespace StingTools.Core
                     "SLA_THRESHOLDS","AUTO_SAVE_WARNING_BASELINE","AUTO_SAVE_BASELINE_ON_REVISION",
                     "DISCIPLINE_LEADS","WARNING_SUPPRESS_PATTERNS","AUTO_TAGGER_DISC_FILTER",
                     "USER_ROLE","PROJECT_TYPE","LAST_WORKFLOW_NAME",
-                    "EXCEL_IMPORT_BATCH_SIZE"
+                    "EXCEL_IMPORT_BATCH_SIZE",
+                    "AUTO_CORRECT_STATUS_FROM_PHASE","LEADER_CLEARANCE_MARGIN_FT"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
@@ -1764,6 +1908,17 @@ namespace StingTools.Core
                 }
                 else { AutoTaggerStaleMarker = null; }
 
+                // GAP-STATUS-01: Auto-correct STATUS from Revit phase data (default off for back-compat)
+                AutoCorrectStatusFromPhase = false;
+                if (data.TryGetValue("AUTO_CORRECT_STATUS_FROM_PHASE", out object acsObj))
+                {
+                    if (acsObj is bool acsb) AutoCorrectStatusFromPhase = acsb;
+                    else if (acsObj is string acss) AutoCorrectStatusFromPhase =
+                        acss.Equals("true", StringComparison.OrdinalIgnoreCase);
+                    if (AutoCorrectStatusFromPhase)
+                        StingLog.Info("TagConfig: AUTO_CORRECT_STATUS_FROM_PHASE = true — STATUS will always reflect Revit phase");
+                }
+
                 // GAP-FIX: Load configurable formula/grid cache TTL
                 FormulaCacheTTLMinutes = 5;
                 if (data.TryGetValue("FORMULA_CACHE_TTL_MINUTES", out object fctObj))
@@ -1792,7 +1947,7 @@ namespace StingTools.Core
                         if (slaDict != null)
                             foreach (var kvp in slaDict) SLAThresholdsHours[kvp.Key.ToUpper()] = kvp.Value;
                     }
-                    catch (Exception ex) { StingLog.Warn($"TagConfig: failed to parse SLA_THRESHOLDS: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"TagConfig: failed to parse SLA_THRESHOLDS: {ex2.Message}"); }
                 }
 
                 // GAP-FIX: Auto-save warning baseline settings
@@ -1836,10 +1991,13 @@ namespace StingTools.Core
                             if (smDict.TryGetValue("Gap", out double mg)) SheetMarginGapMm = mg;
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"TagConfig: failed to parse SHEET_MARGINS: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"TagConfig: failed to parse SHEET_MARGINS: {ex2.Message}"); }
                 }
 
                 ConfigSource = path;
+                // Reload CSV-derived lookup tables so project-specific additions survive config reload
+                // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
+                _csvProdRulesLoaded = false;
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
                 try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
                 catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
@@ -1920,6 +2078,17 @@ namespace StingTools.Core
             SheetMarginTopMm = 10.0;
             SheetMarginBottomMm = 15.0;
             SheetMarginGapMm = 8.0;
+            // Reset auto-tagger and phase-correction flags so cross-project state cannot bleed
+            // when LoadDefaults() is called without a subsequent LoadFromFile().
+            AutoTaggerEnabled = null;
+            AutoTaggerVisual = null;
+            AutoTaggerStaleMarker = null;
+            AutoCorrectStatusFromPhase = false;
+            // Reload FUNC/SYS matrix from CSV so custom project additions aren't lost on reset
+            // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
+            ISO19650Validator.InvalidateValidatorCaches();
+            // Load PROD code rules from CSV (lazy — invalidate so next GetFamilyAwareProdCode call reloads)
+            _csvProdRulesLoaded = false;
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
         }
@@ -2494,12 +2663,88 @@ namespace StingTools.Core
         /// This gives more specific PROD codes: e.g., "FCU-01" → FCU, "VAV Box" → VAV,
         /// instead of the generic category code like "AHU" for all Mechanical Equipment.
         /// </summary>
+        // ── CSV-driven PROD code rule table ─────────────────────────────
+        // Loaded lazily from STING_PROD_CODES.csv on first call.
+        // Key = category name (case-insensitive); value = ordered list of (pattern, prodCode) pairs.
+        private static Dictionary<string, List<(string Pattern, string ProdCode)>> _csvProdRules;
+        private static bool _csvProdRulesLoaded = false;
+
+        private static void EnsureProdRulesLoaded()
+        {
+            if (_csvProdRulesLoaded) return;
+            _csvProdRulesLoaded = true;
+            _csvProdRules = new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("STING_PROD_CODES.csv");
+                if (string.IsNullOrEmpty(csvPath) || !System.IO.File.Exists(csvPath)) return;
+
+                bool first = true;
+                foreach (string raw in System.IO.File.ReadLines(csvPath))
+                {
+                    if (first) { first = false; continue; }
+                    string line = raw.Trim();
+                    if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
+
+                    // CSV: PROD_CODE,CATEGORY,FAMILY_PATTERN,DESCRIPTION,...
+                    var cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols == null || cols.Length < 3) continue;
+                    string prodCode = cols[0].Trim();
+                    string category = cols[1].Trim();
+                    string pattern  = cols[2].Trim().ToUpperInvariant();
+                    if (string.IsNullOrEmpty(prodCode) || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(pattern)) continue;
+
+                    if (!_csvProdRules.TryGetValue(category, out var list))
+                    { list = new List<(string, string)>(); _csvProdRules[category] = list; }
+                    list.Add((pattern, prodCode));
+                }
+                StingLog.Info($"TagConfig: loaded {_csvProdRules.Count} category rule sets from STING_PROD_CODES.csv");
+            }
+            catch (Exception ex) { StingLog.Warn($"TagConfig: EnsureProdRulesLoaded failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// N+2 — Material-aware wrapper around the legacy
+        /// <see cref="GetFamilyAwareProdCodeCore"/>. Looks up an
+        /// optional material-driven suffix (-STL / -CON / -TIM / etc.)
+        /// from <c>STING_MATERIAL_PROD_OVERRIDES.csv</c> and appends it
+        /// to the base PROD code. Falls through to the legacy behaviour
+        /// when no material rule matches.
+        /// </summary>
         public static string GetFamilyAwareProdCode(Element el, string categoryName)
+        {
+            string baseProd = GetFamilyAwareProdCodeCore(el, categoryName);
+            try
+            {
+                string suffix = MaterialProdOverrideRegistry.ResolveSuffix(el, categoryName);
+                if (string.IsNullOrEmpty(suffix)) return baseProd;
+                if (string.IsNullOrEmpty(baseProd)) return suffix;
+                // Avoid double-suffixing when an explicit CSV PROD already
+                // ends with the same material code (e.g. "STL" → "STL-STL").
+                if (baseProd.EndsWith("-" + suffix, StringComparison.OrdinalIgnoreCase) ||
+                    baseProd.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    return baseProd;
+                return $"{baseProd}-{suffix}";
+            }
+            catch (Exception ex) { StingLog.Warn($"GetFamilyAwareProdCode material suffix: {ex.Message}"); }
+            return baseProd;
+        }
+
+        private static string GetFamilyAwareProdCodeCore(Element el, string categoryName)
         {
             string familyName = ParameterHelpers.GetFamilyName(el);
             string symbolName = ParameterHelpers.GetFamilySymbolName(el);
             // Combined name checks both family AND type name for broader pattern matching
             string combinedName = $"{familyName} {symbolName}".ToUpperInvariant();
+
+            // CSV pre-lookup: try data-driven rules before falling through to hardcoded branches
+            EnsureProdRulesLoaded();
+            if (!string.IsNullOrEmpty(familyName) && _csvProdRules != null
+                && _csvProdRules.TryGetValue(categoryName, out var csvRules))
+            {
+                foreach (var (pattern, prodCode) in csvRules)
+                    if (combinedName.Contains(pattern)) return prodCode;
+            }
 
             // Only apply family-level overrides for categories with diverse equipment
             if (!string.IsNullOrEmpty(familyName))
@@ -2813,7 +3058,7 @@ namespace StingTools.Core
             // collision loop entirely (only honoured when not overwriting).
             if (collisionMode != TagCollisionMode.Overwrite && hasCompleteTag)
             {
-                string prev = ParameterHelpers.GetString(el, "ASS_TAG_PREV_TXT");
+                string prev = ParameterHelpers.GetString(el, ParamRegistry.TAG_PREV);
                 if (!string.IsNullOrEmpty(prev)
                     && string.Equals(prev, existingTag, StringComparison.Ordinal))
                 {
@@ -3319,16 +3564,70 @@ namespace StingTools.Core
                 // warning evaluation on every WriteTag7All call for large models)
                 ParameterHelpers.SetYesNo(el, ParamRegistry.WARN_VISIBLE, false);
 
-                // TAG_7_SECTION_VISIBLE_A-F = Yes (default all TAG7 sub-sections visible)
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_A_BOOL", true);
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_B_BOOL", true);
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_C_BOOL", true);
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_D_BOOL", true);
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_E_BOOL", true);
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_F_BOOL", true);
+                // TAG_7_SECTION_VISIBLE_A-F and default tag style: resolve the active
+                // ViewStylePack once so both features share the same lookup overhead.
+                bool tag7Visible = true;
+                string resolvedStyleCode = null;   // null → fall back to hard-coded default
+                try
+                {
+                    if (doc?.ActiveView != null)
+                    {
+                        string dtId = DrawingTypeStamper.Read(doc.ActiveView);
+                        if (!string.IsNullOrEmpty(dtId))
+                        {
+                            var dt = DrawingTypeRegistry.Get(doc, dtId);
+                            if (!string.IsNullOrEmpty(dt?.ViewStylePackId))
+                            {
+                                var activePack = DrawingTypeRegistry.TryGetPack(doc, dt.ViewStylePackId);
+                                if (activePack != null)
+                                {
+                                    // TAG7 section visibility per category.
+                                    if (activePack.CategoryTag7Sections != null &&
+                                        activePack.CategoryTag7Sections.TryGetValue(catName, out bool sectFlag))
+                                        tag7Visible = sectFlag;
 
-                // Default tag style: 2.5mm Normal Black (most common AEC standard)
-                ParameterHelpers.SetYesNo(el, "TAG_2.5NOM_BLACK_BOOL", true);
+                                    // Tag style: per-category first, then pack default.
+                                    if (activePack.CategoryTagStyles != null &&
+                                        activePack.CategoryTagStyles.TryGetValue(catName, out var catStyle) &&
+                                        !string.IsNullOrEmpty(catStyle))
+                                        resolvedStyleCode = catStyle;
+                                    else if (!string.IsNullOrEmpty(activePack.DefaultTagStyle))
+                                        resolvedStyleCode = activePack.DefaultTagStyle;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { /* pack resolution is best-effort; fall back to defaults */ }
+
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_A_BOOL", tag7Visible);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_B_BOOL", tag7Visible);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_C_BOOL", tag7Visible);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_D_BOOL", tag7Visible);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_E_BOOL", tag7Visible);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_F_BOOL", tag7Visible);
+
+                // Default tag style: pack-resolved style code wins; fall back to 2.5mm Normal Black.
+                // Mirrors TagStyleEngine.ApplyStyleCode without crossing the internal-class boundary.
+                if (!string.IsNullOrEmpty(resolvedStyleCode))
+                {
+                    try
+                    {
+                        ParameterHelpers.SetString(el, ParamRegistry.TAG_STYLE_CODE, resolvedStyleCode, overwrite: true);
+                        string activeStyleParam = $"TAG_{resolvedStyleCode}_BOOL";
+                        foreach (string sp in ParamRegistry.AllTagStyleParams)
+                        {
+                            var p = el.LookupParameter(sp);
+                            if (p == null || p.IsReadOnly || p.StorageType != StorageType.Integer) continue;
+                            p.Set(string.Equals(sp, activeStyleParam, StringComparison.Ordinal) ? 1 : 0);
+                        }
+                    }
+                    catch { ParameterHelpers.SetYesNo(el, "TAG_2.5NOM_BLACK_BOOL", true); }
+                }
+                else
+                {
+                    ParameterHelpers.SetYesNo(el, "TAG_2.5NOM_BLACK_BOOL", true);
+                }
             }
             catch (Exception ex) { StingLog.Warn($"Display BOOL init on {el.Id}: {ex.Message}"); }
 
@@ -4008,7 +4307,7 @@ namespace StingTools.Core
                         IsCategoryVisible(view, BuiltInCategory.OST_FireAlarmDevices))
                         detected.Add("FP");
                 }
-                catch (Exception ex) { StingLog.Warn($"Visibility check failed — return all: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Visibility check failed — return all: {ex2.Message}"); }
             }
 
             // If still no disciplines detected, tag everything
@@ -6439,9 +6738,9 @@ namespace StingTools.Core
                     // can short-circuit when nothing has changed.
                     ParameterHelpers.SetString(el, LAST_PARA_PARAM, paraContainer ?? "", overwrite: true);
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Warn("WriteTag7All paragraph clear pass failed: " + ex.Message);
+                    StingLog.Warn("WriteTag7All paragraph clear pass failed: " + ex2.Message);
                 }
             }
 

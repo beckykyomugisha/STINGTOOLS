@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "stingtools": {
+      "url": "http://localhost:5199/mcp/"
+    }
+  }
+}

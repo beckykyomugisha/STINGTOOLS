@@ -2,9 +2,11 @@
 // Computes Z1..Z4 boundaries + 5-Gauss line. Outputs a list of audit
 // findings against any rooms that violate the zoning model.
 
+using System;
 using Autodesk.Revit.DB;
 using System.Collections.Generic;
 using System.Linq;
+using StingTools.Core;
 
 namespace StingTools.Core.Radiation
 {

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingCDEStates</Name>
+    <Definition>Common Data Environment lifecycle states per ISO 19650-1 §10.2 — the four containers any information container (drawing, document, model) passes through: WIP → SHARED → PUBLISHED → ARCHIVED. Drives STING's document register CDE state machine and the Planscape CDE permissions model.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4001-9000-00000000000a</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/buildingsmart/iso-19650/1.0/class/cdestate</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>ISO 19650-1:2018 §10.2 CDE workflow; STING DocumentRecord state machine</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="WIP" sentinel="false">
+      <Definition>Work In Progress — visible only to the originator team. Pre-coordination, pre-sharing. Default state for new containers.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SHARED" sentinel="false">
+      <Definition>Shared — issued for use by other appointed parties / disciplines. Non-contractual; informational status varies (S1/S2/S3/S4).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PUBLISHED" sentinel="false">
+      <Definition>Published — authorised and contractual. Carries A1..A5 suitability codes. Construction, tender, manufacture, handover use.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ARCHIVED" sentinel="false">
+      <Definition>Archived — superseded but retained for audit / regulatory record. Read-only. Never deleted.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>ff60facac4e83973b2b7bc1466a7c0bba660fde04e765660ddc88f5053526de1</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

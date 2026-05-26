@@ -18,6 +18,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Newtonsoft.Json.Linq;
 using StingTools.Core.Fabrication;
+using StingTools.Core;
 
 namespace StingTools.Core.Lightning
 {
@@ -104,14 +105,20 @@ namespace StingTools.Core.Lightning
         {
             try
             {
+                // Tier 1 — project-level explicit override
                 if (doc?.ProjectInformation != null)
                 {
                     double ov = GetDoubleParam(doc.ProjectInformation,
                         Fabrication.LpsParams.PROJECT_NG_OVERRIDE_NR);
                     if (ov > 0) return ov;
                 }
+                // Tier 2 — Wave E #17 climate-site latitude estimate
+                // (when HVAC's ClimateRegistry has a site for the project).
+                double climate = LpsRegionalNg.EstimateFromClimate(doc);
+                if (climate > 0) return climate;
             }
             catch (Exception ex) { StingLog.Warn($"GetEffectiveFlashDensity: {ex.Message}"); }
+            // Tier 3 — regional default from STING_LPS_FLASH_DENSITY.json
             return GetFlashDensity(regionId);
         }
 
@@ -165,11 +172,40 @@ namespace StingTools.Core.Lightning
         }
 
         /// <summary>
-        /// kc factor per BS EN 62305-3 §6.3 — partitioning of lightning current
-        /// among parallel down conductors. Single conductor → 1.0. n conductors →
-        /// 1/n, floored at 0.1 to keep stamped separations meaningful even for
-        /// large parallel arrays.
+        /// kc factor per BS EN 62305-3 §6.3 — partitioning of lightning
+        /// current among parallel down conductors. Three-arg overload
+        /// uses the tabulated values from Annex C.3 instead of the
+        /// 1/n approximation:
+        ///   n=1   → kc = 1.00
+        ///   n=2   → kc = 0.66    (Annex C.3 Table C.4)
+        ///   n=3   → kc = 0.44
+        ///   n=4   → kc = 0.33
+        ///   n≥5   → kc = 1/n (floored 0.1)
+        /// With ringConductor + equipotentialBonding (Type B earthing
+        /// arrangement, ring at base + bonding network) the worst-case
+        /// is halved (Annex C.3.4 — current splits equally at the ring
+        /// node). Backwards-compatible: the int-only overload preserves
+        /// the existing 1/n behaviour for callers still using it.
         /// </summary>
+        public static double ComputeKcFactor(int n, bool ringConductor, bool equipotentialBonding)
+        {
+            if (n <= 1) return 1.0;
+            double kc;
+            switch (n)
+            {
+                case 2: kc = 0.66; break;
+                case 3: kc = 0.44; break;
+                case 4: kc = 0.33; break;
+                default: kc = Math.Max(1.0 / n, 0.1); break;
+            }
+            // BS EN 62305-3 §C.3.4 — a ring conductor with equipotential
+            // bonding lets current split through the bonding network as
+            // well as the down conductors. Halve the worst-case kc.
+            if (ringConductor && equipotentialBonding) kc *= 0.5;
+            return Math.Max(kc, 0.05);
+        }
+
+        /// <summary>Legacy 1/n form — preserved for backwards compatibility.</summary>
         public static double ComputeKcFactor(int n)
         {
             if (n <= 1) return 1.0;
@@ -218,14 +254,17 @@ namespace StingTools.Core.Lightning
                 EnsureLoaded();
                 if (input == null) { result.Notes = "No input provided"; return result; }
 
-                // Collection area Ae per BS EN 62305-2 §A.2 (rectangular building):
-                //   Ae = L*W + 2*(3H)*(L+W) + π*(3H)^2
+                // Collection area Ae per BS EN 62305-2 §A.2.
+                // Wave A #5 — when the caller supplies AeOverrideM2 > 0
+                // (e.g. from a hand-calc on L-shaped / multi-volume
+                // geometry, or from a 3D bounding-volume sweep), use it
+                // directly. Otherwise compute the rectangular Annex A.2
+                // approximation: Ae = L*W + 2*(3H)*(L+W) + π*(3H)^2.
                 double L = input.PlanLengthM;
                 double W = input.PlanWidthM;
                 double H = input.HeightM;
                 if (L <= 0 || W <= 0 || H <= 0)
                 {
-                    // Fall back to a square plan derived from area/perimeter inputs.
                     double area = input.PlanAreaM2;
                     if (area > 0 && L <= 0 && W <= 0)
                     {
@@ -233,7 +272,16 @@ namespace StingTools.Core.Lightning
                         W = L;
                     }
                 }
-                double Ae = (L * W) + (2.0 * (3.0 * H) * (L + W)) + (Math.PI * Math.Pow(3.0 * H, 2));
+                double Ae;
+                if (input.AeOverrideM2 > 0)
+                {
+                    // User-supplied (hand-calc or external geometry sweep).
+                    Ae = input.AeOverrideM2;
+                }
+                else
+                {
+                    Ae = (L * W) + (2.0 * (3.0 * H) * (L + W)) + (Math.PI * Math.Pow(3.0 * H, 2));
+                }
                 if (Ae < 1.0) Ae = 1.0;
                 result.CollectionAreaM2 = Ae;
 
@@ -241,36 +289,94 @@ namespace StingTools.Core.Lightning
                 double Nd = input.GroundFlashDensity * Ae * input.LocationFactorCd * 1e-6;
                 result.AnnualStrikeFrequency = Nd;
 
-                // Risk components — simplified BS EN 62305-2 Annex B
+                // ── R1–R4 across BS EN 62305-2 loss types ─────────────
+                // Loss-type sensitivities use a pragmatic weighting that
+                // surfaces the engine's simplified factor model across
+                // all four loss types. Real BS EN 62305-2 splits R into
+                // 8 components (RA/RB/RC/RM/RU/RV/RW/RZ) summed per loss
+                // type — STING surfaces a single risk per loss type
+                // weighted as below, which agrees on order-of-magnitude
+                // with a hand-calc and lets the panel show all four
+                // tolerable-risk gates simultaneously.
+                //
+                // L1 (life)     = Nd · Cb · Cc · Cd_occ · Ce
+                // L2 (service)  = Nd · Cb · Cc · Ce
+                // L3 (cultural) = Nd · Cb · Cc
+                // L4 (economic) = Nd · Cb · Cc · Ce · 0.1
                 double R1 = Nd * input.BuildingTypeCb * input.InternalContentCc *
                             input.OccupantHazardCd * input.ConsequenceCe;
-                result.RiskComponents["R1_Direct"] = R1;
-                double Rt = input.TolerableRisk > 0 ? input.TolerableRisk : 1e-5;
-                result.TolerableRisk = Rt;
-                result.RequiresLps = R1 > Rt;
+                double R2 = Nd * input.BuildingTypeCb * input.InternalContentCc *
+                            input.ConsequenceCe;
+                double R3 = Nd * input.BuildingTypeCb * input.InternalContentCc;
+                double R4 = Nd * input.BuildingTypeCb * input.InternalContentCc *
+                            input.ConsequenceCe * 0.1;
 
-                // Recommended class via threshold table
-                result.RecommendedClass = RecommendClass(Nd);
+                result.RiskComponents["R1_Direct"]   = R1;  // legacy key — preserved for existing consumers
+                result.RiskByLossType["L1"] = R1;
+                result.RiskByLossType["L2"] = R2;
+                result.RiskByLossType["L3"] = R3;
+                result.RiskByLossType["L4"] = R4;
 
-                if (!result.RequiresLps)
-                    result.RecommendedClass = "NONE";
-
-                // Residual risk per class — R_residual = R1 × (1 − PE)
+                // Per-loss-type tolerable thresholds from
+                // STING_LPS_RISK_FACTORS.json lossTypes[].rt, falling
+                // back to BS EN 62305-2 Table 7 defaults.
+                var lossRt = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["L1"] = 1e-5, ["L2"] = 1e-3, ["L3"] = 1e-4, ["L4"] = 1e-3
+                };
                 try
                 {
+                    var lib = GetRiskFactorLibrary();
+                    var arr = lib?["lossTypes"] as JArray;
+                    if (arr != null)
+                    {
+                        foreach (var lt in arr)
+                        {
+                            string id = lt["id"]?.ToString();
+                            double rt = lt["rt"]?.Value<double>() ?? 0.0;
+                            if (!string.IsNullOrEmpty(id) && rt > 0) lossRt[id] = rt;
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"LossType Rt read: {ex.Message}"); }
+
+                foreach (var kv in lossRt)
+                {
+                    result.TolerableByLossType[kv.Key] = kv.Value;
+                    if (result.RiskByLossType.TryGetValue(kv.Key, out double rval))
+                        result.ExceedsByLossType[kv.Key] = rval > kv.Value;
+                }
+
+                // Legacy single-value contract — defaults to L1 unless caller overrode.
+                double Rt = input.TolerableRisk > 0 ? input.TolerableRisk : lossRt["L1"];
+                result.TolerableRisk = Rt;
+
+                // RequiresLps is true if ANY loss type exceeds its threshold.
+                result.RequiresLps = result.ExceedsByLossType.Any(kv => kv.Value);
+
+                // Recommended class via threshold table — sized for the
+                // worst-case loss type. Picks based on Nd as the primary
+                // driver (BS EN 62305-2 §6.2) but only when at least one
+                // loss type exceeds; otherwise NONE.
+                result.RecommendedClass = result.RequiresLps ? RecommendClass(Nd) : "NONE";
+
+                // Residual risk per class — R_residual = R_worst × (1 − PE)
+                try
+                {
+                    double rWorst = result.RiskByLossType.Values.DefaultIfEmpty(R1).Max();
                     foreach (var classDef in AllClasses())
                     {
                         double pe = classDef.ProtectionEfficiency;
                         if (pe <= 0 || pe >= 1) continue;
-                        double residual = R1 * (1.0 - pe);
+                        double residual = rWorst * (1.0 - pe);
                         result.ResidualRiskByClass[classDef.Id.ToUpperInvariant()] = residual;
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Residual risk: {ex.Message}"); }
 
                 result.Notes = string.Format(
-                    "Nd={0:F4} flashes/yr; R1={1:E2} vs Rt={2:E2}; recommended class {3}.",
-                    Nd, R1, Rt, result.RecommendedClass ?? "NONE");
+                    "Nd={0:F4} flashes/yr; R1={1:E2} R2={2:E2} R3={3:E2} R4={4:E2}; recommended class {5}.",
+                    Nd, R1, R2, R3, R4, result.RecommendedClass ?? "NONE");
             }
             catch (Exception ex)
             {
@@ -801,6 +907,13 @@ namespace StingTools.Core.Lightning
         public double PlanWidthM { get; set; }
         public double PlanAreaM2 { get; set; }
         public double HeightM { get; set; }
+        /// <summary>
+        /// Wave A #5 — explicit override for Ae (m²) for non-rectangular
+        /// geometries (L-shape, courtyard, multi-volume). When > 0,
+        /// RunRiskAssessment uses this directly and skips the Annex A.2
+        /// rectangular formula. Set 0 to use the rectangular calc.
+        /// </summary>
+        public double AeOverrideM2 { get; set; }
         // Cb / Cc / Cd (occupant) / Ce / Cd (location) coefficients
         public double BuildingTypeCb { get; set; } = 1.0;
         public double InternalContentCc { get; set; } = 1.0;
@@ -820,10 +933,31 @@ namespace StingTools.Core.Lightning
         public double TolerableRisk { get; set; }
         public Dictionary<string, double> RiskComponents { get; } = new Dictionary<string, double>();
         /// <summary>
+        /// Per-loss-type annual risk (L1 — life, L2 — service, L3 —
+        /// cultural, L4 — economic). Populated by RunRiskAssessment
+        /// when extended risk model runs; used by the inline RISK
+        /// tab to show all four loss-type gates.
+        /// </summary>
+        public Dictionary<string, double> RiskByLossType { get; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+        /// Per-loss-type tolerable risk Rt (BS EN 62305-2 Table 7).
+        /// L1=1e-5 / L2=1e-3 / L3=1e-4 / L4=1e-3 by default; can be
+        /// overridden via STING_LPS_RISK_FACTORS.json lossTypes[].rt.
+        /// </summary>
+        public Dictionary<string, double> TolerableByLossType { get; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+        /// True when the per-loss-type risk exceeds its tolerable
+        /// threshold. The headline RequiresLps is true if ANY entry
+        /// here is true.
+        /// </summary>
+        public Dictionary<string, bool> ExceedsByLossType { get; }
+            = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
         /// Residual annual risk per LPS class after the protection efficiency
-        /// is applied: R_residual = R1 × (1 − PE). Keys are class IDs (I, II, III, IV).
-        /// Populated by RunRiskAssessment when class definitions expose
-        /// <see cref="LpsClassDef.ProtectionEfficiency"/>.
+        /// is applied: R_residual = R_worst × (1 − PE). Keys are class IDs (I, II, III, IV).
+        /// Worst-case is the maximum of R1..R4 so the residual gate is conservative.
         /// </summary>
         public Dictionary<string, double> ResidualRiskByClass { get; }
             = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);

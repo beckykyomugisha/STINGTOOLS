@@ -134,6 +134,10 @@ namespace Planscape.Docs.Templates
             if (!File.Exists(path)) return new Dictionary<string, int>(StringComparer.Ordinal);
             try
             {
+                // S3.6.1 — version gate before deserialise.
+                StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
+                    path, "planscape.doc-sequences",
+                    StingTools.Core.PluginSchemaVersion.CurrentDocSequences);
                 var dict = JsonConvert.DeserializeObject<Dictionary<string, int>>(File.ReadAllText(path));
                 return dict ?? new Dictionary<string, int>(StringComparer.Ordinal);
             }
@@ -162,6 +166,14 @@ namespace Planscape.Docs.Templates
 
         private static string TryProjectRoot(Document doc)
         {
+            // Folder consolidation: nest "_BIM_COORD" inside the unified
+            // project root's _data folder rather than as a sibling of the .rvt.
+            try
+            {
+                string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
+                if (!string.IsNullOrEmpty(consolidated)) return consolidated;
+            }
+            catch { /* fall through to legacy lookup */ }
             try
             {
                 if (doc != null)

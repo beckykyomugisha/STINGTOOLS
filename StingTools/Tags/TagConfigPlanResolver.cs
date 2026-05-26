@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using Newtonsoft.Json.Linq;
 
 namespace StingTools.Tags
 {
@@ -50,9 +51,9 @@ namespace StingTools.Tags
                     var perFile = TagConfigCsvReader.LoadFile(path);
                     foreach (var kv in perFile) merged[kv.Key] = kv.Value;
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Warn($"TagConfigPlanResolver: parsing '{name}' failed — {ex.Message}");
+                    StingLog.Warn($"TagConfigPlanResolver: parsing '{name}' failed — {ex2.Message}");
                 }
             }
             return merged;
@@ -94,9 +95,9 @@ namespace StingTools.Tags
                         var perFile = TagConfigCsvReader.LoadFile(path);
                         foreach (var kv in perFile) merged[kv.Key] = kv.Value;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
-                        StingLog.Warn($"TagConfigPlanResolver.LoadAllPerMode: parsing '{name}' failed — {ex.Message}");
+                        StingLog.Warn($"TagConfigPlanResolver.LoadAllPerMode: parsing '{name}' failed — {ex2.Message}");
                     }
                 }
                 if (merged.Count > 0) result[modeKv.Key] = merged;

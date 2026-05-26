@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Autodesk.Revit.DB;
 
 namespace StingTools.BOQ
 {
@@ -146,6 +147,12 @@ namespace StingTools.BOQ
         public double OverheadPct = 8.0;
         public string Currency = "UGX";
         public double ExchangeRateUgxPerUsd = 3700.0;   // Phase 11E multi-currency
+        /// <summary>
+        /// Measurement standard ID — "nrm2" / "cesmm4" / "pomi" / "icms3" /
+        /// "mmhw". Defaults to NRM2 (UK Building Works). Phase 184h / P6.
+        /// </summary>
+        public string MeasurementStandardId = "nrm2";
+
         public List<BOQSection> Sections = new List<BOQSection>();
 
         public List<BOQLineItem> AllItems => Sections.SelectMany(s => s.Items).ToList();
@@ -159,6 +166,14 @@ namespace StingTools.BOQ
         public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);
         public int ResolvedParagraphCount => AllItems.Count(i => !string.IsNullOrEmpty(i.ResolvedNRM2Paragraph));
         public double ParagraphCoveragePct => AllItems.Count > 0 ? 100.0 * ResolvedParagraphCount / AllItems.Count : 0;
+
+        /// <summary>
+        /// N+9 — Number of elements whose ASS_CST_STALE_BOOL = "1" flag was
+        /// cleared during the latest BuildBOQDocument run. The BOQ dashboard
+        /// surfaces this as a banner — confirms that material-change → stale
+        /// → re-cost loop closed cleanly for those rows.
+        /// </summary>
+        public int StaleRowsRefreshed { get; set; }
 
         /// <summary>
         /// The average rate confidence (0-100) across all items. Used by
@@ -219,6 +234,17 @@ namespace StingTools.BOQ
         public string Type;
         public DateTime Date;
         public double GrandTotalUGX;
+
+        // P1: server-sync provenance. Populated by BoqSyncCoordinator
+        // after a successful push. SyncState values:
+        //   "Local"   — never attempted (default)
+        //   "Pending" — push deferred (offline / no config / server error)
+        //   "Synced"  — confirmed on server, ServerBaselineId valid
+        //   "Conflict" — server checksum mismatched local checksum
+        //   "Disabled" — Planscape not configured for this project
+        public string Checksum;
+        public Guid? ServerBaselineId;
+        public string SyncState = "Local";
 
         public string DisplayText
             => $"{Type,-10} {Label} — {Date:dd MMM yyyy} — UGX {GrandTotalUGX:N0}";

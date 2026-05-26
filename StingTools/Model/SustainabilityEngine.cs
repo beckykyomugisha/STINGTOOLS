@@ -17,8 +17,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Model
 {
@@ -435,6 +437,22 @@ namespace StingTools.Model
                     double pct = 0; // calculated after totals
                     result.MaterialBreakdown.Add((matName, a1a3, pct));
                 }
+
+                // Wave D #10 — Add LPS conductor + earth + SPD embodied
+                // carbon into A1-A3. LpsCarbonContributor handles the
+                // full per-component calc (Cu/Al/St/Ss density × length
+                // × cross-section × ICE factor + flat per-unit SPD body).
+                try
+                {
+                    double lpsKgCo2 = StingTools.Core.Lightning.LpsCarbonContributor.ComputeProjectKgCo2(doc);
+                    if (lpsKgCo2 > 0)
+                    {
+                        totalA1A3 += lpsKgCo2;
+                        result.MaterialBreakdown.Add(("Lightning Protection (BS EN 62305)", lpsKgCo2, 0));
+                        StingLog.Info($"LCA: LPS contribution +{lpsKgCo2:F0} kgCO2");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"LCA LPS contribution: {ex.Message}"); }
 
                 result.A1_A3_ProductKgCO2 = totalA1A3;
                 result.A4_TransportKgCO2 = totalA4;

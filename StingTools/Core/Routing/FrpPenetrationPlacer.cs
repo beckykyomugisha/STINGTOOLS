@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — FrpPenetrationPlacer.
 //
 // Closes the loop from the penetration detectors. For each
@@ -37,6 +38,7 @@ using System.Text;
 using System.Threading;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
+using StingTools.Core.Mep;
 
 namespace StingTools.Core.Routing
 {
@@ -213,10 +215,10 @@ namespace StingTools.Core.Routing
                             fi = doc.Create.NewFamilyInstance(rec.Location, sym, host,
                                 StructuralType.NonStructural);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             r.Errors++;
-                            r.Warnings.Add($"Place {sym.Name} at {rec.MemberId?.Value}: {ex.Message}");
+                            r.Warnings.Add($"Place {sym.Name} at {rec.MemberId?.Value}: {ex2.Message}");
                             continue;
                         }
                     }
