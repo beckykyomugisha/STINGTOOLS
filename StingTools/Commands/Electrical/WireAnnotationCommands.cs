@@ -304,12 +304,22 @@ namespace StingTools.Commands.Electrical
     internal static class WireAnnotationEngine
     {
         internal const double MmPerFt   = 304.8;
-        private const string MarkerTxt  = "STING_WIRE_ANNOT";
-        private const string TickMarker = "STING_WIRE_TICK";
-        private const string TickStyle  = "Wire Ticks";
+        private const string MarkerTxt     = "STING_WIRE_ANNOT";
+        private const string TickMarker    = "STING_WIRE_TICK";
+        internal const string HomeRunMarker = "STING_WIRE_HOMERUN";
 
         private static string MarkerFor(string uniqueId) =>
             string.IsNullOrEmpty(uniqueId) ? MarkerTxt : MarkerTxt + "|" + uniqueId;
+
+        // Tick marks and home-run elements carry the SAME owner-tagged marker
+        // format as the label ("{prefix}|{conduitUniqueId}") so the drift
+        // detector, refresh-style, and clear commands can all resolve the owning
+        // conduit and delete a complete annotation set without orphaning geometry.
+        private static string TickMarkerFor(string uniqueId) =>
+            string.IsNullOrEmpty(uniqueId) ? TickMarker : TickMarker + "|" + uniqueId;
+
+        internal static string HomeRunMarkerFor(string uniqueId) =>
+            string.IsNullOrEmpty(uniqueId) ? HomeRunMarker : HomeRunMarker + "|" + uniqueId;
 
         private static bool MatchesMarker(Element el, string target)
         {
@@ -324,7 +334,8 @@ namespace StingTools.Commands.Electrical
         private static List<Element> GetAnnotationsForConduit(Document doc, View view, Element conduit)
         {
             if (doc == null || view == null || conduit == null) return new List<Element>();
-            string target = MarkerFor(conduit.UniqueId);
+            string target     = MarkerFor(conduit.UniqueId);
+            string tickTarget = TickMarkerFor(conduit.UniqueId);
             var result = new List<Element>();
             try {
                 result.AddRange(new FilteredElementCollector(doc, view.Id)
@@ -333,6 +344,11 @@ namespace StingTools.Commands.Electrical
                 result.AddRange(new FilteredElementCollector(doc, view.Id)
                     .OfClass(typeof(IndependentTag)).Cast<Element>()
                     .Where(t => MatchesMarker(t, target)));
+                // Slash marks + leader detail curves owned by this conduit, so a
+                // replace / refresh removes the whole set instead of orphaning ticks.
+                result.AddRange(new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(CurveElement)).Cast<Element>()
+                    .Where(c => MatchesMarker(c, tickTarget)));
             } catch (Exception ex) { StingLog.Warn("GetAnnotationsForConduit: " + ex.Message); }
             return result;
         }
@@ -432,21 +448,11 @@ namespace StingTools.Commands.Electrical
                             string materialStr = string.IsNullOrEmpty(mat) ? "Cu" : mat;
                             vd = StingTools.Commands.Electrical.VoltageDrop.VoltageDropEngine.CalculateVoltDropPercent(
                                 currentA, lengthM, csa, materialStr, voltV, phases);
-
-                            // Write the recalculated value back to the element if inside a transaction
-                            try
-                            {
-                                var vdP = conduit.LookupParameter("ELC_WIRE_VD_PCT_NUM");
-                                if (vdP != null && !vdP.IsReadOnly && vdP.StorageType == Autodesk.Revit.DB.StorageType.Double)
-                                    vdP.Set(vd);
-                                else
-                                {
-                                    var vdPStr = conduit.LookupParameter("ELC_WIRE_VD_PCT_NUM");
-                                    if (vdPStr != null && !vdPStr.IsReadOnly && vdPStr.StorageType == Autodesk.Revit.DB.StorageType.String)
-                                        vdPStr.Set(vd.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture));
-                                }
-                            }
-                            catch { /* write-back is best-effort — may be outside a transaction */ }
+                            // No write-back: ReadWireData is a pure read. The previous
+                            // version wrote to ELC_WIRE_VD_PCT_NUM, a different parameter
+                            // from the ELC_CKT_VD_PCT it reads, so the value was never
+                            // read back and the Set() threw whenever ReadWireData ran
+                            // outside a transaction (single-pick + home-run paths).
                         }
                     }
                 }
@@ -704,12 +710,13 @@ namespace StingTools.Commands.Electrical
             var lc = conduit.Location as LocationCurve;
             if (lc?.Curve == null) return ElementId.InvalidElementId;
 
-            // Gap 6: if no per-conduit scale override, apply view-scale auto-factor
-            // (only when style came directly from project defaults ScaleFactor == 1.0)
+            // Gap 6: if no per-conduit scale override, apply view-scale auto-factor.
+            // A per-conduit ELC_WIRE_ANNOT_SCALE_FACTOR has already been folded into
+            // style.ScaleFactor by WireAnnotationStyleOverride.Merge, so a ScaleFactor
+            // still at the project default of 1.0 means "no override" — no need to
+            // re-read the parameter (which threw when stored as non-double).
             var effectiveStyle = style;
-            bool hasConduitOverride = conduit.LookupParameter("ELC_WIRE_ANNOT_SCALE_FACTOR")
-                ?.AsDouble() > 0;
-            if (!hasConduitOverride && Math.Abs(style.ScaleFactor - 1.0) < 1e-6)
+            if (Math.Abs(style.ScaleFactor - 1.0) < 1e-6)
             {
                 double vsf = ViewScaleFactor(view);
                 if (Math.Abs(vsf - 1.0) > 0.05)
@@ -761,7 +768,7 @@ namespace StingTools.Commands.Electrical
             }
 
             MarkAsWireAnnotation(note, conduit.UniqueId);
-            PlaceLeader(doc, view, mid, annotPt, perpDir);
+            PlaceLeader(doc, view, mid, annotPt, perpDir, conduit.UniqueId);
             PlaceSlashMarks(doc, view, conduit, data.CoreCount, style, data);
 
             return note.Id;
@@ -826,7 +833,7 @@ namespace StingTools.Commands.Electrical
                     var dc = doc.Create.NewDetailCurve(view, Line.CreateBound(startPt, endPt));
                     if (dc == null) continue;
 
-                    StampTickMarker(dc);
+                    StampTickMarker(dc, conduit.UniqueId);
 
                     // Line style
                     if (lineStyle != null)
@@ -852,7 +859,10 @@ namespace StingTools.Commands.Electrical
             catch (Exception ex) { StingLog.Warn("ApplySlashOverride: " + ex.Message); }
         }
 
-        private static XYZ RotateInPlane(XYZ vec, XYZ normal, double degrees)
+        // Rodrigues rotation of <paramref name="vec"/> about <paramref name="normal"/>.
+        // Pass the view's ViewDirection as the normal so arrowheads / slashes rotate
+        // in the view plane rather than world XY (correct in section + elevation views).
+        internal static XYZ RotateInPlane(XYZ vec, XYZ normal, double degrees)
         {
             double rad = degrees * Math.PI / 180.0;
             double cos = Math.Cos(rad), sin = Math.Sin(rad);
@@ -863,7 +873,7 @@ namespace StingTools.Commands.Electrical
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static void PlaceLeader(Document doc, View view,
-            XYZ conduitMid, XYZ annotPt, XYZ perpDir)
+            XYZ conduitMid, XYZ annotPt, XYZ perpDir, string conduitUniqueId = null)
         {
             if (doc == null || view == null) return;
             try
@@ -871,7 +881,7 @@ namespace StingTools.Commands.Electrical
                 double offsetFt = 50.0 / MmPerFt;
                 var leaderEnd = annotPt - perpDir * offsetFt;
                 var dc = doc.Create.NewDetailCurve(view, Line.CreateBound(conduitMid, leaderEnd));
-                StampTickMarker(dc);
+                StampTickMarker(dc, conduitUniqueId);
             }
             catch (Exception ex) { StingLog.Warn("Wire annot leader: " + ex.Message); }
         }
@@ -887,13 +897,13 @@ namespace StingTools.Commands.Electrical
             catch (Exception ex) { StingLog.Warn("MarkAsWireAnnotation: " + ex.Message); }
         }
 
-        private static void StampTickMarker(CurveElement ce)
+        private static void StampTickMarker(CurveElement ce, string conduitUniqueId = null)
         {
             if (ce == null) return;
             try
             {
                 var p = ce.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                if (p != null && !p.IsReadOnly) p.Set(TickMarker);
+                if (p != null && !p.IsReadOnly) p.Set(TickMarkerFor(conduitUniqueId));
             }
             catch { }
         }
@@ -921,7 +931,10 @@ namespace StingTools.Commands.Electrical
             try
             {
                 var p = ce.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                if (string.Equals(p?.AsString(), TickMarker, StringComparison.Ordinal)) return true;
+                var v = p?.AsString();
+                if (!string.IsNullOrEmpty(v)
+                    && (string.Equals(v, TickMarker, StringComparison.Ordinal)
+                     || v.StartsWith(TickMarker + "|", StringComparison.Ordinal))) return true;
                 var gs = ce.LineStyle as GraphicsStyle;
                 return string.Equals(gs?.Name, "Wire Tick Marks", StringComparison.Ordinal)
                     || string.Equals(gs?.GraphicsStyleCategory?.Name, "Wire Tick Marks", StringComparison.Ordinal);
@@ -1101,10 +1114,11 @@ namespace StingTools.Commands.Electrical
             else
             { arrowBase = p1; arrowDir = (p0 - p1).Normalize(); }
 
-            var perpRaw = XYZ.BasisZ.CrossProduct(arrowDir);
+            var viewNormal = view.ViewDirection ?? XYZ.BasisZ;
+            var perpRaw = viewNormal.CrossProduct(arrowDir);
             var perpDir = perpRaw.GetLength() < 1e-6 ? XYZ.BasisX : perpRaw.Normalize();
 
-            string homeRunMarker = "STING_WIRE_HOMERUN|" + conduit.UniqueId;
+            string homeRunMarker = HomeRunMarkerFor(conduit.UniqueId);
             void Stamp(Element el)
             {
                 try
@@ -1146,16 +1160,10 @@ namespace StingTools.Commands.Electrical
                 {
                     var shaft = doc.Create.NewDetailCurve(view, Line.CreateBound(arrowBase, arrowTip));
                     Stamp(shaft);
-                    double ang = Math.PI / 12.0;
-                    double cos = Math.Cos(ang), sin = Math.Sin(ang);
+                    const double headAngleDeg = 15.0;
                     var legBase = -arrowDir * headLenFt;
-                    XYZ RotZ(XYZ v, double a) {
-                        double c = Math.Cos(a), s2 = Math.Sin(a);
-                        return v * c + XYZ.BasisZ.CrossProduct(v) * s2
-                               + XYZ.BasisZ * XYZ.BasisZ.DotProduct(v) * (1 - c);
-                    }
-                    var leftLeg  = RotZ(legBase,  ang);
-                    var rightLeg = RotZ(legBase, -ang);
+                    var leftLeg  = RotateInPlane(legBase, viewNormal,  headAngleDeg);
+                    var rightLeg = RotateInPlane(legBase, viewNormal, -headAngleDeg);
                     var legL = doc.Create.NewDetailCurve(view,
                         Line.CreateBound(arrowTip, arrowTip + leftLeg));
                     Stamp(legL);
@@ -1721,12 +1729,16 @@ namespace StingTools.Commands.Electrical
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { message = "No active document."; return Result.Failed; }
                 var doc = ctx.Doc; var uidoc = ctx.UIDoc; var view = doc.ActiveView;
-                if (view is View3D || view is ViewSchedule)
+                if (view == null || view is View3D || view is ViewSchedule)
                 {
                     TaskDialog.Show("STING Wire Annotation",
                         "Wire annotations require a plan, section, or elevation view.");
                     return Result.Cancelled;
                 }
+
+                // Start with a clean collision registry so stale boxes from earlier
+                // placements in this session don't push the label around.
+                WireAnnotationEngine.ClearAnnotationBoxes(doc, view.Id);
 
                 Reference reference;
                 try { reference = uidoc.Selection.PickObject(ObjectType.Element,
@@ -1956,9 +1968,11 @@ namespace StingTools.Commands.Electrical
                             {
                                 var cp = mark.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
                                 string markerVal = cp?.AsString() ?? "";
-                                if (markerVal.StartsWith("STING_WIRE_ANNOT|", StringComparison.Ordinal))
+                                // Slash marks carry the tick marker "STING_WIRE_TICK|{uid}".
+                                const string tickPrefix = "STING_WIRE_TICK|";
+                                if (markerVal.StartsWith(tickPrefix, StringComparison.Ordinal))
                                 {
-                                    string uid = markerVal.Substring("STING_WIRE_ANNOT|".Length);
+                                    string uid = markerVal.Substring(tickPrefix.Length);
                                     if (!conduitCache.TryGetValue(uid, out conduit))
                                     {
                                         conduit = new FilteredElementCollector(doc)
@@ -2008,11 +2022,12 @@ namespace StingTools.Commands.Electrical
     [Regeneration(RegenerationOption.Manual)]
     public class HomeRunArrowCommand : IExternalCommand
     {
-        private static void StampHomeRun(Element el)
+        private static void StampHomeRun(Element el, string conduitUniqueId)
         {
             if (el == null) return;
             try { var p = el.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                  if (p != null && !p.IsReadOnly) p.Set("STING_HOME_RUN"); }
+                  if (p != null && !p.IsReadOnly)
+                      p.Set(WireAnnotationEngine.HomeRunMarkerFor(conduitUniqueId)); }
             catch { }
         }
 
@@ -2068,7 +2083,8 @@ namespace StingTools.Commands.Electrical
                 double arrowShaftFt = 150.0 / WireAnnotationEngine.MmPerFt;
                 double headLenFt    = 30.0  / WireAnnotationEngine.MmPerFt;
                 var   arrowTip      = arrowBase + arrowDir * arrowShaftFt;
-                var   perpRaw       = XYZ.BasisZ.CrossProduct(arrowDir);
+                var   viewNormal    = view.ViewDirection ?? XYZ.BasisZ;
+                var   perpRaw       = viewNormal.CrossProduct(arrowDir);
                 var   perpDir       = perpRaw.GetLength() < 1e-6 ? XYZ.BasisX : perpRaw.Normalize();
                 Color arrowColor    = WireAnnotationEngine.ResolveColor(style, data);
 
@@ -2090,7 +2106,8 @@ namespace StingTools.Commands.Electrical
                         try
                         {
                             if (!sym.IsActive) { sym.Activate(); doc.Regenerate(); }
-                            doc.Create.NewFamilyInstance(arrowBase, sym, view);
+                            var fi = doc.Create.NewFamilyInstance(arrowBase, sym, view);
+                            StampHomeRun(fi, conduit.UniqueId);
                             placedFamily = true;
                         }
                         catch (Exception ex) { StingLog.Warn("HomeRun family place: " + ex.Message); }
@@ -2103,7 +2120,7 @@ namespace StingTools.Commands.Electrical
                             try
                             {
                                 var dc = doc.Create.NewDetailCurve(view, Line.CreateBound(a, b));
-                                StampHomeRun(dc);
+                                StampHomeRun(dc, conduit.UniqueId);
                                 var ogs = new OverrideGraphicSettings();
                                 ogs.SetProjectionLineColor(arrowColor);
                                 ogs.SetProjectionLineWeight(style.SlashLineWeight);
@@ -2112,10 +2129,10 @@ namespace StingTools.Commands.Electrical
                             catch (Exception ex) { StingLog.Warn("HomeRun line: " + ex.Message); }
                         }
 
+                        const double headAngleDeg = 15.0;
                         DrawLine(arrowBase, arrowTip);
-                        double ang = Math.PI / 12.0;
-                        DrawLine(arrowTip, arrowTip + Rotate((-arrowDir) * headLenFt,  ang));
-                        DrawLine(arrowTip, arrowTip + Rotate((-arrowDir) * headLenFt, -ang));
+                        DrawLine(arrowTip, arrowTip + WireAnnotationEngine.RotateInPlane((-arrowDir) * headLenFt, viewNormal,  headAngleDeg));
+                        DrawLine(arrowTip, arrowTip + WireAnnotationEngine.RotateInPlane((-arrowDir) * headLenFt, viewNormal, -headAngleDeg));
                     }
 
                     // Circuit-number label beside the arrow tip
@@ -2129,7 +2146,7 @@ namespace StingTools.Commands.Electrical
                     {
                         var lbl = TextNote.Create(doc, view.Id, labelPt, label,
                             tnt?.Id ?? ElementId.InvalidElementId);
-                        StampHomeRun(lbl);
+                        StampHomeRun(lbl, conduit.UniqueId);
                     }
                     catch (Exception ex) { StingLog.Warn("HomeRun label: " + ex.Message); }
 
@@ -2146,12 +2163,6 @@ namespace StingTools.Commands.Electrical
                 message = ex.Message;
                 return Result.Failed;
             }
-        }
-
-        private static XYZ Rotate(XYZ vec, double angleRad)
-        {
-            double cos = Math.Cos(angleRad), sin = Math.Sin(angleRad);
-            return new XYZ(vec.X * cos - vec.Y * sin, vec.X * sin + vec.Y * cos, vec.Z);
         }
     }
 
@@ -2180,9 +2191,14 @@ namespace StingTools.Commands.Electrical
                     .OfClass(typeof(CurveElement)).Cast<CurveElement>()
                     .Where(c => WireAnnotationEngine.IsSlashMark(c)).ToList();
 
+                // Home-run elements carry "STING_WIRE_HOMERUN|{uid}". Match the prefix
+                // (covers both the single and batch placers) and the legacy bare
+                // "STING_HOME_RUN" tag so older drawings still clear cleanly.
                 bool IsHomeRun(Element el) {
                     try { var p = el.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                          return string.Equals(p?.AsString(), "STING_HOME_RUN", StringComparison.Ordinal); }
+                          var v = p?.AsString() ?? "";
+                          return v.StartsWith(WireAnnotationEngine.HomeRunMarker, StringComparison.Ordinal)
+                              || string.Equals(v, "STING_HOME_RUN", StringComparison.Ordinal); }
                     catch { return false; }
                 }
 
@@ -2192,20 +2208,26 @@ namespace StingTools.Commands.Electrical
                 var homeRunNotes = new FilteredElementCollector(doc, view.Id)
                     .OfClass(typeof(TextNote)).Cast<TextNote>()
                     .Where(n => IsHomeRun(n)).ToList();
+                // Home-run arrows placed as a generic-annotation family instance.
+                var homeRunFamilies = new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>()
+                    .Where(f => IsHomeRun(f)).Cast<Element>().ToList();
 
                 if (notes.Count == 0 && indyTags.Count == 0 && slashes.Count == 0
-                    && homeRunCurves.Count == 0 && homeRunNotes.Count == 0)
+                    && homeRunCurves.Count == 0 && homeRunNotes.Count == 0
+                    && homeRunFamilies.Count == 0)
                 {
                     TaskDialog.Show("STING Wire Annotation",
                         "No STING wire annotations found in active view.");
                     return Result.Cancelled;
                 }
 
+                int homeRunCount = homeRunCurves.Count + homeRunNotes.Count + homeRunFamilies.Count;
                 var td = new TaskDialog("STING Wire Annotation")
                 {
                     MainInstruction = $"Delete {notes.Count + indyTags.Count} annotations, " +
                                       $"{slashes.Count} slash marks, and " +
-                                      $"{homeRunCurves.Count + homeRunNotes.Count} home-run elements?",
+                                      $"{homeRunCount} home-run elements?",
                     CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                     DefaultButton = TaskDialogResult.Yes,
                 };
@@ -2217,7 +2239,7 @@ namespace StingTools.Commands.Electrical
                     t.Start();
                     foreach (var el in notes.Cast<Element>()
                         .Concat(indyTags).Concat(slashes)
-                        .Concat(homeRunCurves).Concat(homeRunNotes))
+                        .Concat(homeRunCurves).Concat(homeRunNotes).Concat(homeRunFamilies))
                         try { doc.Delete(el.Id); removed++; }
                         catch (Exception ex) { StingLog.Warn("Clear element: " + ex.Message); }
                     t.Commit();
