@@ -26,18 +26,8 @@ namespace StingTools.Core
         Overwrite,
     }
 
-    /// <summary>Sequence numbering scheme variants.</summary>
-    public enum SeqScheme
-    {
-        /// <summary>Zero-padded numeric: 0001, 0042</summary>
-        Numeric,
-        /// <summary>Alphabetic: A, B, ... Z, AA, AB</summary>
-        Alpha,
-        /// <summary>Zone-prefixed: Z1-0042</summary>
-        ZonePrefix,
-        /// <summary>Discipline-prefixed: M-0042</summary>
-        DiscPrefix
-    }
+    // SeqScheme enum relocated to Core/SeqAssigner.cs (same namespace) alongside
+    // the pure sequence-assignment logic it parameterises.
 
     /// <summary>
     /// GAP-FIX: Per-discipline tagging profile. Allows each discipline to have different
@@ -1298,57 +1288,15 @@ namespace StingTools.Core
         /// Matches the same format as BuildSeqKey(Element) for consistency.
         /// </summary>
         public static string BuildSeqKey(string disc, string sys, string func, string prod, string lvl, string zone = null)
-        {
-            if (string.IsNullOrEmpty(disc)) disc = "A";
-            if (string.IsNullOrEmpty(sys))  sys  = "GEN";
-            if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
-
-            if (SeqIncludeZone)
-            {
-                if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
-                return $"{disc}_{zone}_{sys}_{lvl}";
-            }
-
-            return $"{disc}_{sys}_{lvl}";
-        }
+            => SeqAssigner.BuildSeqKey(disc, sys, lvl, zone, SeqIncludeZone);
 
         /// <summary>
         /// Build a SEQ string for sequence number n using the configured scheme.
+        /// Delegates to <see cref="SeqAssigner.BuildSeqString"/>, supplying the
+        /// project-configured pad width.
         /// </summary>
         public static string BuildSeqString(int n, SeqScheme scheme, string zoneOrDisc = "")
-        {
-            int pad = SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad;
-            switch (scheme)
-            {
-                case SeqScheme.Alpha:
-                    return ToAlpha(n);
-                case SeqScheme.ZonePrefix:
-                    string zPrefix = !string.IsNullOrEmpty(zoneOrDisc) && zoneOrDisc.Length >= 2
-                        ? zoneOrDisc.Substring(0, 2)
-                        : "Z1";
-                    return $"{zPrefix}-{n.ToString().PadLeft(pad, '0')}";
-                case SeqScheme.DiscPrefix:
-                    string dPrefix = !string.IsNullOrEmpty(zoneOrDisc) ? zoneOrDisc : "X";
-                    return $"{dPrefix}-{n.ToString().PadLeft(pad, '0')}";
-                case SeqScheme.Numeric:
-                default:
-                    return n.ToString().PadLeft(pad, '0');
-            }
-        }
-
-        /// <summary>Convert an integer to alphabetic (A=1, B=2... Z=26, AA=27...).</summary>
-        private static string ToAlpha(int n)
-        {
-            if (n <= 0) return "A";
-            string result = "";
-            while (n > 0)
-            {
-                n--;
-                result = (char)('A' + (n % 26)) + result;
-                n /= 26;
-            }
-            return result;
-        }
+            => SeqAssigner.BuildSeqString(n, scheme, SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad, zoneOrDisc);
 
         /// <summary>Convert alphabetic SEQ string back to integer (A=1, B=2... Z=26, AA=27...).</summary>
         private static int FromAlpha(string alpha)
@@ -3170,90 +3118,59 @@ namespace StingTools.Core
                 _seqSchemeWarned = true;
             }
 
-            if (!sequenceCounters.TryGetValue(seqKey, out int currentSeqVal))
-            {
-                currentSeqVal = 0;
-                sequenceCounters[seqKey] = 0;
-            }
-
-            // SEQ counter fix: tentatively increment, but track pre-increment value
-            // so we can rollback if TAG1 write fails (FLEX-005 partial cancellation safety)
-            int preIncrementValue = currentSeqVal;
-            sequenceCounters[seqKey]++;
-
-            // SEQ overflow detection: cap at format capacity to prevent invalid tag widths
-            int seqPad = SeqPadWidth > 0 ? SeqPadWidth : NumPad;
-            int maxSeq = seqPad switch { 1 => 9, 2 => 99, 3 => 999, 4 => 9999, 5 => 99999, _ => (int)Math.Pow(10, seqPad) - 1 };
-            if (sequenceCounters[seqKey] > maxSeq)
-            {
-                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
-                StingLog.Warn(overflowMsg);
-                stats?.RecordWarning(overflowMsg);
-                sequenceCounters[seqKey] = preIncrementValue; // Rollback on overflow
-                return false; // Skip element to prevent duplicate tags
-            }
-
-            // Build SEQ string using the configured numbering scheme
+            // Build SEQ-scheme context + the tag body/suffix (Revit-side config),
+            // then delegate the counter / overflow / collision arithmetic to the
+            // pure, unit-tested SeqAssigner. The tag is composed as
+            // tagBody + seq + tagSuffix so the collision check matches the stored
+            // string. AssignNext rolls the counter back on any failure.
             string seqSchemeContext = CurrentSeqScheme == SeqScheme.ZonePrefix ? zone
                                    : CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
                                    : "";
-            string seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
 
-            // PERF: hoist the tag body ("[prefix-]disc-loc-zone-lvl-sys-func-prod-")
-            // and the suffix tail ("[-suffix]") outside the collision loop so only
-            // the SEQ segment needs to re-concatenate per collision iteration.
             string tagBody = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod);
             if (!string.IsNullOrEmpty(TagPrefix)) tagBody = TagPrefix + Separator + tagBody;
             tagBody += Separator;
             string tagSuffix = string.IsNullOrEmpty(TagSuffix) ? string.Empty : Separator + TagSuffix;
 
-            string tag = tagBody + seq + tagSuffix;
+            // Snapshot the counter before allocation so a later TAG1-write failure
+            // can roll it back (AssignNext leaves the counter at the allocated value
+            // on success; on its own failure it has already rolled back).
+            int seqPreAlloc = sequenceCounters.TryGetValue(seqKey, out int _preAlloc) ? _preAlloc : 0;
 
-            // Collision detection: if this exact tag already exists, increment SEQ
-            if (existingTags != null)
+            int seqPad = SeqPadWidth > 0 ? SeqPadWidth : NumPad;
+            SeqResult seqRes = SeqAssigner.AssignNext(
+                seqKey, sequenceCounters, tagBody, tagSuffix,
+                CurrentSeqScheme, seqPad, seqSchemeContext,
+                MaxCollisionDepth, existingTags);
+
+            if (!seqRes.Success)
             {
-                int safetyLimit = MaxCollisionDepth;
-                int collisionCount = 0;
-                while (existingTags.Contains(tag) && safetyLimit-- > 0)
+                string why = seqRes.Failure switch
                 {
-                    collisionCount++;
-                    sequenceCounters[seqKey]++;
-                    // Overflow guard: cap SEQ at format capacity (9999 for NumPad=4)
-                    if (sequenceCounters[seqKey] > maxSeq)
-                    {
-                        string overflowMsg = $"SEQ overflow in collision loop: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
-                        StingLog.Warn(overflowMsg);
-                        stats?.RecordWarning(overflowMsg);
-                        sequenceCounters[seqKey] = preIncrementValue; // Rollback to pre-collision value, not maxSeq
-                        return false; // Skip element to prevent duplicate tags
-                    }
-                    seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
-                    tag = tagBody + seq + tagSuffix;
-                }
-                if (collisionCount > 0)
-                    stats?.RecordCollision(tag, collisionCount);
-                // SEQ-CRIT-01: Check whether we actually exhausted the safety limit without
-                // finding a unique tag. The old check (collisionCount >= MaxCollisionDepth)
-                // incorrectly rejected tags that resolved on the very last iteration (when
-                // safetyLimit reaches 0 but the loop exits because existingTags no longer
-                // contains the tag). Only fail when the counter is truly exhausted AND the
-                // current tag is still a duplicate.
-                if (safetyLimit <= 0 && existingTags != null && existingTags.Contains(tag))
-                {
-                    string safetyMsg = $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — element {el.Id} skipped to prevent duplicate tag '{tag}'";
-                    StingLog.Error(safetyMsg);
-                    stats?.RecordWarning(safetyMsg);
-                    sequenceCounters[seqKey] = preIncrementValue; // Rollback counter
-                    return false;
-                }
-                // Remove the element's old tag from index (it's being replaced)
-                // so stale entries don't cause false collisions for other elements
-                if (!string.IsNullOrEmpty(existingTag) && existingTag != tag)
-                    existingTags.Remove(existingTag);
-                // BUG-10 FIX: Do NOT add tentative tag here — if collision increments SEQ,
-                // the un-incremented tag would permanently block that value from reuse.
-                // The final written tag is added at line 2784 after successful TAG1 write.
+                    SeqFailureReason.InitialOverflow =>
+                        $"SEQ overflow: group {seqKey} exceeded pad-{seqPad} capacity — skipping element {el.Id}",
+                    SeqFailureReason.CollisionOverflow =>
+                        $"SEQ overflow in collision loop: group {seqKey} exceeded pad-{seqPad} capacity — skipping element {el.Id}",
+                    SeqFailureReason.SafetyExhausted =>
+                        $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — element {el.Id} skipped to prevent a duplicate tag",
+                    _ => $"SEQ assignment failed for element {el.Id}",
+                };
+                if (seqRes.Failure == SeqFailureReason.SafetyExhausted) StingLog.Error(why);
+                else StingLog.Warn(why);
+                stats?.RecordWarning(why);
+                return false; // AssignNext already rolled the counter back
             }
+
+            string seq = seqRes.Seq;
+            string tag = seqRes.Tag;
+            if (seqRes.CollisionCount > 0)
+                stats?.RecordCollision(tag, seqRes.CollisionCount);
+
+            // Remove the element's old tag from the collision index (it's being
+            // replaced) so stale entries don't trigger false collisions for other
+            // elements. The final written tag is added back after the TAG1 write.
+            if (existingTags != null && !string.IsNullOrEmpty(existingTag) && existingTag != tag)
+                existingTags.Remove(existingTag);
 
             // F-03: Track whether we already have a fresh ReadTokenValues result from the non-overwrite branch
             string[] _cachedReadTokens = null;
@@ -3352,7 +3269,7 @@ namespace StingTools.Core
             // SEQ counter fix: rollback increment if TAG1 write failed
             if (!tagWriteSucceeded)
             {
-                sequenceCounters[seqKey] = preIncrementValue;
+                sequenceCounters[seqKey] = seqPreAlloc;
                 StingLog.Warn($"TAG1 write failed on {el.Id} — SEQ counter rolled back for key '{seqKey}'");
                 stats?.RecordWarning($"Element {el.Id}: TAG1 write failed — SEQ rolled back");
                 return false;
