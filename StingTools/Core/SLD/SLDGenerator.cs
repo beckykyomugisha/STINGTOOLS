@@ -61,7 +61,16 @@ namespace StingTools.Core.SLD
             {
                 var roots = SLDCircuitTraverser.BuildHierarchyAll(doc);
                 if (roots == null || roots.Count == 0)
-                { result.Warning = "no electrical hierarchy found"; return result; }
+                {
+                    // A root is any electrical equipment (OST_ElectricalEquipment) that is
+                    // not itself wired as a downstream load. Zero roots almost always means
+                    // no Distribution Board / panel / MDB has been placed yet — NOT that
+                    // circuits are missing (equipment with no circuits still counts as a root).
+                    result.Warning = "no distribution roots found — place at least one "
+                        + "electrical equipment family (Distribution Board / panel / MDB) "
+                        + "before generating an SLD";
+                    return result;
+                }
 
                 using (var tx = new Transaction(doc, "STING Generate SLD"))
                 {
