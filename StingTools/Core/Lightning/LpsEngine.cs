@@ -47,11 +47,19 @@ namespace StingTools.Core.Lightning
             return _classes.Values.OrderBy(c => c.Id).ToList();
         }
 
-        public static double GetMaterialFactor(string material)
+        /// <summary>
+        /// km — the insulation/medium factor for the separation distance per
+        /// BS EN 62305-3 §6.3 / Table 5. This is the material BETWEEN the LPS
+        /// conductor and the internal metalwork (air → 1.0, solid material such
+        /// as concrete / brick / wood → 0.5), NOT the conductor metal. Unknown
+        /// or unspecified media default to air (1.0) — the conservative choice
+        /// because a larger km divisor would reduce the required separation.
+        /// </summary>
+        public static double GetMaterialFactor(string insulationMedium)
         {
             EnsureLoaded();
-            if (string.IsNullOrWhiteSpace(material)) return 1.0;
-            string norm = material.Trim().ToUpperInvariant();
+            if (string.IsNullOrWhiteSpace(insulationMedium)) return 1.0;
+            string norm = insulationMedium.Trim().ToUpperInvariant();
             try
             {
                 var classesJson = LoadJson("STING_LPS_CLASSES.json");
@@ -60,7 +68,7 @@ namespace StingTools.Core.Lightning
                     return mf[norm].Value<double>();
             }
             catch (Exception ex) { StingLog.Warn($"GetMaterialFactor: {ex.Message}"); }
-            // Fallback to copper
+            // Unknown medium → assume air (km = 1.0), the conservative default.
             return 1.0;
         }
 
@@ -172,37 +180,29 @@ namespace StingTools.Core.Lightning
         }
 
         /// <summary>
-        /// kc factor per BS EN 62305-3 §6.3 — partitioning of lightning
-        /// current among parallel down conductors. Three-arg overload
-        /// uses the tabulated values from Annex C.3 instead of the
-        /// 1/n approximation:
-        ///   n=1   → kc = 1.00
-        ///   n=2   → kc = 0.66    (Annex C.3 Table C.4)
-        ///   n=3   → kc = 0.44
-        ///   n=4   → kc = 0.33
-        ///   n≥5   → kc = 1/n (floored 0.1)
-        /// With ringConductor + equipotentialBonding (Type B earthing
-        /// arrangement, ring at base + bonding network) the worst-case
-        /// is halved (Annex C.3.4 — current splits equally at the ring
-        /// node). Backwards-compatible: the int-only overload preserves
-        /// the existing 1/n behaviour for callers still using it.
+        /// kc factor per BS EN 62305-3 §6.3 / Annex C.3 — partitioning of the
+        /// lightning current among parallel down conductors. Uses the
+        /// standard simplified table:
+        ///   n = 1                          → kc = 1.00
+        ///   n = 2                          → kc = 0.66
+        ///   n ≥ 3 with a ring conductor    → kc = 0.44   (Type B / ring
+        ///         interconnecting the down conductors, equipotential bonding)
+        ///   n ≥ 3 without a ring           → kc = 0.66   (conservative — the
+        ///         current does not divide as favourably without interconnection)
+        /// The full §C.3 expression kc = 1/(2n) + 0.1 + 0.2·³√(c/h) requires the
+        /// conductor spacing c and structure height h; this table is the
+        /// documented simplification used when that geometry is not supplied.
+        /// Backwards-compatible: the int-only overload preserves the legacy
+        /// 1/n behaviour for callers still using it.
         /// </summary>
         public static double ComputeKcFactor(int n, bool ringConductor, bool equipotentialBonding)
         {
             if (n <= 1) return 1.0;
-            double kc;
-            switch (n)
-            {
-                case 2: kc = 0.66; break;
-                case 3: kc = 0.44; break;
-                case 4: kc = 0.33; break;
-                default: kc = Math.Max(1.0 / n, 0.1); break;
-            }
-            // BS EN 62305-3 §C.3.4 — a ring conductor with equipotential
-            // bonding lets current split through the bonding network as
-            // well as the down conductors. Halve the worst-case kc.
-            if (ringConductor && equipotentialBonding) kc *= 0.5;
-            return Math.Max(kc, 0.05);
+            if (n == 2) return 0.66;
+            // n >= 3: the favourable 0.44 only applies when a ring conductor
+            // interconnects the down conductors (Type B arrangement). Without
+            // that interconnection keep the conservative two-conductor value.
+            return (ringConductor && equipotentialBonding) ? 0.44 : 0.66;
         }
 
         /// <summary>Legacy 1/n form — preserved for backwards compatibility.</summary>
@@ -213,21 +213,25 @@ namespace StingTools.Core.Lightning
         }
 
         /// <summary>
-        /// Separation distance s = (ki / km) * kc * l per BS EN 62305-3 §6.3.
+        /// Separation distance s = ki · (kc / km) · l per BS EN 62305-3 §6.3.
+        /// <paramref name="insulationMedium"/> is the material BETWEEN the LPS
+        /// conductor and the internal metalwork (air → km 1.0, solid such as
+        /// concrete / brick / wood → km 0.5) — NOT the conductor metal. Pass
+        /// "AIR" (the default) for an externally-routed down conductor in air.
         /// kc defaults to 1.0 for a single down conductor path. Returns
         /// millimetres; caller passes conductor length in metres.
         /// </summary>
         public static double ComputeSeparationDistance(
             string classId,
             double conductorLengthFromAirTerminalToNearestBondM,
-            string routingMaterial,
+            string insulationMedium = "AIR",
             double kc = 1.0)
         {
             var def = LoadClass(classId);
             if (def == null) return 0.0;
-            double km = GetMaterialFactor(routingMaterial);
+            double km = GetMaterialFactor(insulationMedium);
             if (km <= 0.0) km = 1.0;
-            double s_m = (def.KiFactor / km) * kc * conductorLengthFromAirTerminalToNearestBondM;
+            double s_m = def.KiFactor * (kc / km) * conductorLengthFromAirTerminalToNearestBondM;
             return s_m * 1000.0;
         }
 
@@ -290,14 +294,20 @@ namespace StingTools.Core.Lightning
                 result.AnnualStrikeFrequency = Nd;
 
                 // ── R1–R4 across BS EN 62305-2 loss types ─────────────
-                // Loss-type sensitivities use a pragmatic weighting that
-                // surfaces the engine's simplified factor model across
-                // all four loss types. Real BS EN 62305-2 splits R into
-                // 8 components (RA/RB/RC/RM/RU/RV/RW/RZ) summed per loss
-                // type — STING surfaces a single risk per loss type
-                // weighted as below, which agrees on order-of-magnitude
-                // with a hand-calc and lets the panel show all four
-                // tolerable-risk gates simultaneously.
+                // SCREENING MODEL — not a certifiable calculation. Real
+                // BS EN 62305-2 sums eight components per loss type
+                // (RA/RB/RC/RM/RU/RV/RW/RZ), each N·P·L, and is driven as
+                // much by flashes NEAR the structure (Nm) and flashes
+                // TO / NEAR connected power & telecom lines (Nl/Ni) as by
+                // direct strikes (Nd). STING evaluates only the
+                // direct-strike term Nd and applies the simple
+                // building/content/occupant/consequence weightings below.
+                // The connected-service surge components (RU/RV/RW/RZ) —
+                // which usually justify the SPD scheme — are NOT computed
+                // here; the serviceFactors data exists for that future
+                // work. Use this to flag whether protection is likely
+                // needed and to size a first-pass class, then confirm with
+                // a full BS EN 62305-2 risk study for design / certification.
                 //
                 // L1 (life)     = Nd · Cb · Cc · Cd_occ · Ce
                 // L2 (service)  = Nd · Cb · Cc · Ce
@@ -354,29 +364,74 @@ namespace StingTools.Core.Lightning
                 // RequiresLps is true if ANY loss type exceeds its threshold.
                 result.RequiresLps = result.ExceedsByLossType.Any(kv => kv.Value);
 
-                // Recommended class via threshold table — sized for the
-                // worst-case loss type. Picks based on Nd as the primary
-                // driver (BS EN 62305-2 §6.2) but only when at least one
-                // loss type exceeds; otherwise NONE.
-                result.RecommendedClass = result.RequiresLps ? RecommendClass(Nd) : "NONE";
-
-                // Residual risk per class — R_residual = R_worst × (1 − PE)
+                // Residual risk per class — R_residual = R_worst × (1 − PE).
+                // Worst-case is the maximum risk across loss types so the gate
+                // is conservative.
+                double rWorst = result.RiskByLossType.Values.DefaultIfEmpty(R1).Max();
                 try
                 {
-                    double rWorst = result.RiskByLossType.Values.DefaultIfEmpty(R1).Max();
                     foreach (var classDef in AllClasses())
                     {
                         double pe = classDef.ProtectionEfficiency;
                         if (pe <= 0 || pe >= 1) continue;
-                        double residual = rWorst * (1.0 - pe);
-                        result.ResidualRiskByClass[classDef.Id.ToUpperInvariant()] = residual;
+                        result.ResidualRiskByClass[classDef.Id.ToUpperInvariant()] = rWorst * (1.0 - pe);
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Residual risk: {ex.Message}"); }
 
+                // Recommended class by residual-risk selection (BS EN 62305-2
+                // selection logic): choose the LEAST protective LPS class whose
+                // residual risk clears EVERY exceeded loss type's tolerable
+                // threshold — R_lossType × (1 − PE_class) ≤ Rt_lossType. Classes
+                // are tried least → most protective (IV → I). This uses the
+                // protection-efficiency table rather than the Nd-band heuristic,
+                // so the recommendation is consistent with the residual figures
+                // shown alongside it.
+                string residualClassNote = null;
+                if (result.RequiresLps)
+                {
+                    string[] order = { "IV", "III", "II", "I" };
+                    string chosen = null;
+                    foreach (var cid in order)
+                    {
+                        var cdef = LoadClass(cid);
+                        if (cdef == null) continue;
+                        double pe = cdef.ProtectionEfficiency;
+                        if (pe <= 0 || pe >= 1) continue;
+                        bool allPass = true;
+                        foreach (var kv in result.RiskByLossType)
+                        {
+                            double rt = result.TolerableByLossType.TryGetValue(kv.Key, out var t)
+                                ? t : double.MaxValue;
+                            if (kv.Value * (1.0 - pe) > rt) { allPass = false; break; }
+                        }
+                        if (allPass) { chosen = cid; break; }
+                    }
+                    if (chosen == null)
+                    {
+                        // Even Class I (PE 0.98) cannot bring residual ≤ Rt —
+                        // recommend Class I plus additional protection measures.
+                        chosen = "I";
+                        residualClassNote = " Class I residual still exceeds tolerable risk; " +
+                            "additional protection measures (coordinated SPDs / SPM) required.";
+                    }
+                    result.RecommendedClass = chosen;
+                }
+                else
+                {
+                    result.RecommendedClass = "NONE";
+                }
+
+                // Nd-band heuristic kept as a cross-check (BS EN 62305-2 §6.2
+                // screening table) — surfaced in the notes alongside the
+                // residual-risk recommendation.
+                string ndBand = result.RequiresLps ? RecommendClass(Nd) : "NONE";
+
                 result.Notes = string.Format(
-                    "Nd={0:F4} flashes/yr; R1={1:E2} R2={2:E2} R3={3:E2} R4={4:E2}; recommended class {5}.",
-                    Nd, R1, R2, R3, R4, result.RecommendedClass ?? "NONE");
+                    "SCREENING ESTIMATE — not a full BS EN 62305-2 R = ΣRA..RZ study; connected-service " +
+                    "surge components (RU/RV/RW/RZ) are not evaluated. Nd={0:F4} flashes/yr; " +
+                    "R1={1:E2} R2={2:E2} R3={3:E2} R4={4:E2}; recommended class {5} (Nd-band {6}).{7}",
+                    Nd, R1, R2, R3, R4, result.RecommendedClass ?? "NONE", ndBand, residualClassNote ?? "");
             }
             catch (Exception ex)
             {

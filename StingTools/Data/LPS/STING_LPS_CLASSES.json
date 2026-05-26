@@ -71,10 +71,13 @@
     }
   ],
   "materialFactors": {
-    "_comment": "km factor used in separation distance s = (ki/km) * kc * l (BS EN 62305-3 §6.3).",
-    "COPPER": 1.0,
-    "ALUMINIUM": 0.44,
-    "STEEL": 0.5
+    "_comment": "km — the INSULATION/MEDIUM factor for the separation distance s = (ki * kc / km) * l (BS EN 62305-3 §6.3, Table 5). km describes the material BETWEEN the LPS conductor and the internal metalwork, NOT the conductor metal: km = 1.0 for air, km = 0.5 for a solid material (concrete, brick, wood, tiles). Unknown / unspecified media default to air (1.0), which is the conservative choice (largest s).",
+    "AIR": 1.0,
+    "SOLID": 0.5,
+    "CONCRETE": 0.5,
+    "BRICK": 0.5,
+    "WOOD": 0.5,
+    "TILE": 0.5
   },
   "tolerableRisk": {
     "_comment": "Tolerable annual risk Rt per loss type (BS EN 62305-2 Table 7).",
