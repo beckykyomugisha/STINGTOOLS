@@ -160,7 +160,7 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.LOC)
             {
-                // FLEX-001: Accept custom LOC codes from config before strict/lenient check
+                // Accept custom LOC codes from config before strict/lenient check
                 if (CustomLocCodes.Count > 0 && CustomLocCodes.Contains(value))
                     return null; // Custom code accepted
                 if (TagConfig.ValidateStrictMode)
@@ -179,7 +179,7 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.ZONE)
             {
-                // FLEX-001: Accept custom ZONE codes from config before strict/lenient check
+                // Accept custom ZONE codes from config before strict/lenient check
                 if (CustomZoneCodes.Count > 0 && CustomZoneCodes.Contains(value))
                     return null; // Custom code accepted
                 if (TagConfig.ValidateStrictMode)

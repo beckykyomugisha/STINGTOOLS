@@ -51,7 +51,7 @@ namespace StingTools.Core
         private static HashSet<string> _cachedExistingTags;
         private static Dictionary<string, int> _cachedSeqCounters;
         private static bool _contextInvalid = true;
-        // PERF-07: TTL-based context rebuild to avoid redundant rebuilds in multi-command workflows.
+        // TTL-based context rebuild to avoid redundant rebuilds in multi-command workflows.
         // 30 s matches SpatialAutoDetect room-index TTL so a typical auto-tag → save → combine
         // chain (≤10 s) never triggers a redundant context rebuild.
         private static DateTime _contextCacheTime = DateTime.MinValue;
@@ -60,7 +60,7 @@ namespace StingTools.Core
         private static List<Temp.FormulaEngine.FormulaDefinition> _formulas;
         private static List<Grid> _gridLines;
 
-        // LOG-04: Token hash cache to skip redundant TAG7 rebuilds
+        // Token hash cache to skip redundant TAG7 rebuilds
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, string>
             _tag7HashCache = new System.Collections.Concurrent.ConcurrentDictionary<long, string>();
 
@@ -106,7 +106,7 @@ namespace StingTools.Core
             return null;
         }
 
-        // BUG-04: ExternalEvent queue for deferred tag processing
+        // ExternalEvent queue for deferred tag processing
         private static readonly ConcurrentQueue<ElementId> _pendingQueue = new ConcurrentQueue<ElementId>();
         private static ExternalEvent _autoTagEvent;
         private static AutoTagQueueHandler _autoTagHandler;
@@ -115,7 +115,7 @@ namespace StingTools.Core
         // Drained on DocumentSynchronizedWithCentral to retry after sync
         private static readonly ConcurrentQueue<ElementId> _deferredElements = new ConcurrentQueue<ElementId>();
 
-        // AT-01: Cap deferred queue to prevent unbounded memory growth if sync never happens
+        // Cap deferred queue to prevent unbounded memory growth if sync never happens
         private const int MaxDeferredQueueSize = 5000;
 
         /// <summary>R-02: Enqueue an element ID for retry after sync-to-central.</summary>
@@ -131,7 +131,7 @@ namespace StingTools.Core
 
         public static void EnqueueDeferred(ElementId id)
         {
-            // SAFETY-002: The Count check and subsequent Enqueue are NOT atomic.
+            // The Count check and subsequent Enqueue are NOT atomic.
             // A concurrent thread could push Count over MaxDeferredQueueSize between
             // the check and the Enqueue.  This is an accepted benign race — the queue
             // may transiently exceed the cap by the number of concurrent callers,
@@ -140,7 +140,7 @@ namespace StingTools.Core
             if (_deferredElements.Count >= MaxDeferredQueueSize)
             {
                 _droppedElementCount++;
-                // SAFETY-003: Cap the dropped-IDs bag to prevent unbounded memory growth
+                // Cap the dropped-IDs bag to prevent unbounded memory growth
                 // when elements overflow repeatedly (e.g. batch import without a central sync).
                 if (_droppedElementIds.Count < MaxDroppedIdsBagSize)
                     _droppedElementIds.Add(id.Value); // Phase 78: Track for sidecar recovery
@@ -173,7 +173,7 @@ namespace StingTools.Core
                 System.IO.File.Move(tempPath, sidecarPath, true);
                 StingLog.Info($"AutoTagger: saved {ids.Length} dropped element IDs to sidecar for recovery");
 
-                // TAG-DEFERRED-OVERFLOW-01: Clear the in-memory bag so the next document
+                // Clear the in-memory bag so the next document
                 // doesn't inherit dropped IDs from the previous one. The sidecar is the
                 // durable record from this point forward.
                 while (_droppedElementIds.TryTake(out _)) { }
@@ -266,10 +266,10 @@ namespace StingTools.Core
         {
             _contextInvalid = true;
             _tag7HashCache.Clear();
-            // PERF-R2: Do NOT clear _elementVersionHash here — it tracks geometry changes
+            // Do NOT clear _elementVersionHash here — it tracks geometry changes
             // for stale detection, not tag state. Clearing it causes ALL previously-marked
             // elements to be re-marked as stale on their next modification even if nothing changed.
-            // FIX-N04: Reset failure counter so auto-tagger can recover after external fixes
+            // Reset failure counter so auto-tagger can recover after external fixes
             _consecutiveFailures = 0;
             WasAutoDisabled = false;
             // R2-FIX: Clear container cache so reloaded ParamRegistry is reflected
@@ -329,7 +329,7 @@ namespace StingTools.Core
                 UpdaterRegistry.DisableUpdater(_updaterId);
                 _enabled = false;
 
-                // BUG-04: Create ExternalEvent handler for deferred tag processing
+                // Create ExternalEvent handler for deferred tag processing
                 _autoTagHandler = new AutoTagQueueHandler();
                 _autoTagEvent = ExternalEvent.Create(_autoTagHandler);
                 StingLog.Info("StingAutoTagger: registered (disabled by default, no triggers)");
@@ -387,7 +387,7 @@ namespace StingTools.Core
                 _enabled = true;
                 WasAutoDisabled = false;
                 _consecutiveFailures = 0;
-                // PERF-R2: Acquire lock before clearing to prevent ConcurrentModificationException
+                // Acquire lock before clearing to prevent ConcurrentModificationException
                 lock (_processedLock)
                 {
                     _recentlyProcessed.Clear();
@@ -473,13 +473,13 @@ namespace StingTools.Core
                 Document doc = data.GetDocument();
                 if (doc == null || !doc.IsValidObject) return;
 
-                // FIX-02: Declare enqueued counter (was missing — caused CS0103)
+                // Declare enqueued counter (was missing — caused CS0103)
                 int enqueued = 0;
                 var addedIds = data.GetAddedElementIds();
                 if (addedIds == null || addedIds.Count == 0) return;
 
                 // Guard: limit elements per trigger to prevent performance issues
-                // GAP-AT-01: For bulk paste (>50 elements), queue for deferred processing
+                // For bulk paste (>50 elements), queue for deferred processing
                 // instead of silently skipping. Elements will be tagged on next command or sync.
                 if (addedIds.Count > MaxElementsPerTrigger)
                 {
@@ -491,7 +491,7 @@ namespace StingTools.Core
                 }
 
                 // D1: Use cached context; rebuild only when invalidated
-                // PERF-07: TTL-based context rebuild — avoids redundant rebuilds when
+                // TTL-based context rebuild — avoids redundant rebuilds when
                 // multiple commands invalidate context in rapid succession (e.g., AutoTag → Combine → AutoTag)
                 bool ttlExpired = (DateTime.UtcNow - _contextCacheTime).TotalMilliseconds > ContextCacheTtlMs;
                 if (_contextInvalid || _cachedCtx == null || ttlExpired)
@@ -587,7 +587,7 @@ namespace StingTools.Core
                     enqueued++; // FIX-02: variable declared below
                 }
 
-                // FIX-02: Raise ExternalEvent to process queue on Revit API thread with proper Transaction
+                // Raise ExternalEvent to process queue on Revit API thread with proper Transaction
                 if (!_pendingQueue.IsEmpty && _autoTagEvent != null)
                 {
                     _autoTagEvent.Raise();
@@ -632,7 +632,7 @@ namespace StingTools.Core
                         var built = TagConfig.BuildTagIndexAndCounters(doc);
                         _cachedExistingTags = built.Item1;
                         _cachedSeqCounters = built.Item2;
-                        // FIX-02: Also reload formulas and grid lines on context rebuild
+                        // Also reload formulas and grid lines on context rebuild
                         _formulas = TagPipelineHelper.LoadFormulas();
                         _gridLines = TagPipelineHelper.LoadGridLines(doc);
                         _contextInvalid = false;
@@ -738,7 +738,7 @@ namespace StingTools.Core
 
                             try
                             {
-                                // GAP-AQ: Use unified RunFullPipeline for all 11 canonical steps
+                                // Use unified RunFullPipeline for all 11 canonical steps
                                 // (replaces inline pipeline that was missing CategorySkipList,
                                 //  CategoryForceSys, CategoryTokenOverrides, TokenLock, AuditTrail,
                                 //  and had NativeMapper in wrong order)
@@ -751,7 +751,7 @@ namespace StingTools.Core
 
                                 if (!pipelineOk) continue;
 
-                                // GAP-AT-02: Stamp [AUTO_TAGGER] audit marker so elements tagged
+                                // Stamp [AUTO_TAGGER] audit marker so elements tagged
                                 // asynchronously (bulk paste / deferred replay) are distinguishable
                                 // from manually tagged elements in the MODIFIED_BY audit trail.
                                 try
@@ -912,7 +912,7 @@ namespace StingTools.Core
                 {
                     View view = doc?.ActiveView ?? app?.ActiveUIDocument?.ActiveView;
                     if (view == null || view is ViewSheet) return null;
-                    // GAP-N: route through Stamper.Read so a template-controlled
+                    // route through Stamper.Read so a template-controlled
                     // pack=…|cs=… stamp doesn't leak into the registry lookup.
                     string dtId = Drawing.DrawingTypeStamper.Read(view);
                     if (string.IsNullOrWhiteSpace(dtId)) return null;
@@ -1010,7 +1010,7 @@ namespace StingTools.Core
                     string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag1)) continue;
 
-                    // LOG-09: Compute version hash from tag + spatial tokens; skip if unchanged
+                    // Compute version hash from tag + spatial tokens; skip if unchanged
                     string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                     string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
                     string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
@@ -1217,7 +1217,7 @@ namespace StingTools.Core
                 msg = "Real-time auto-tagging DISABLED.\n\n" +
                       $"Total elements auto-tagged this session: {StingAutoTagger.ProcessedCount}";
             }
-            // FIX-B10: Persist auto-tagger state to project_config.json
+            // Persist auto-tagger state to project_config.json
             TagConfig.AutoTaggerEnabled = nowEnabled;
             PersistAutoTaggerConfig(commandData);
 
@@ -1253,7 +1253,7 @@ namespace StingTools.Core
         {
             StingAutoTagger.SetVisualTagging(!StingAutoTagger.IsVisualTaggingEnabled);
 
-            // FIX-B10: Persist visual tagging state
+            // Persist visual tagging state
             TagConfig.AutoTaggerVisual = StingAutoTagger.IsVisualTaggingEnabled;
             AutoTaggerToggleCommand.PersistAutoTaggerConfig(commandData);
 
@@ -1488,7 +1488,7 @@ namespace StingTools.Core
                 if (modifiedIds == null || modifiedIds.Count == 0) return;
                 if (modifiedIds.Count > MaxElementsPerTrigger)
                 {
-                    // STALE-01: Log when dropping elements due to batch limit so users
+                    // Log when dropping elements due to batch limit so users
                     // know stale detection was skipped (previously silently returned)
                     StingLog.Info($"StingStaleMarker: skipping batch of {modifiedIds.Count} " +
                         $"elements (exceeds limit of {MaxElementsPerTrigger}). " +
@@ -1531,7 +1531,7 @@ namespace StingTools.Core
                     StingLog.Warn($"StingStaleMarker room index build: {riEx.Message}");
                 }
 
-                // TAG-STALE-WARN-01: count the elements newly flagged as stale this batch
+                // count the elements newly flagged as stale this batch
                 // so we can decide whether to schedule a stale-warning promotion job.
                 int staleMarkedThisBatch = 0;
 
@@ -1554,7 +1554,7 @@ namespace StingTools.Core
                         if (!string.IsNullOrEmpty(storedLvl) && currentLvl != storedLvl)
                             isStale = true;
 
-                        // FIX-07/FIX-N07: Detect LOC/ZONE changes using pre-built roomIndex
+                        // Detect LOC/ZONE changes using pre-built roomIndex
                         if (!isStale && roomIndex != null)
                         {
                             try
@@ -1658,7 +1658,7 @@ namespace StingTools.Core
                     }
                 }
 
-                // TAG-STALE-WARN-01: When this batch flags any element stale, schedule a
+                // When this batch flags any element stale, schedule a
                 // single-shot idle job to promote the stale flag into a BIM issue once the
                 // total stale count crosses TagConfig.StaleWarningThreshold. Enqueueing is
                 // safe inside the IUpdater callback (the job runs later on idle, after the

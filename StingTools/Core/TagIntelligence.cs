@@ -377,7 +377,7 @@ namespace StingTools.Core
                     results["SYS"] = sizeResult;
             }
 
-            // ENH-004: Layer 9 — adjacent element inference (lowest confidence, last resort)
+            // Layer 9 — adjacent element inference (lowest confidence, last resort)
             if (!results.TryGetValue("SYS", out sysEntry) || sysEntry.Confidence < 0.3)
             {
                 var adjResult = InferSysFromAdjacentElements(doc, el);

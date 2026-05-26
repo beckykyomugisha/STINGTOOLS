@@ -546,7 +546,7 @@ namespace StingTools.Core
                     return;
                 }
 
-                // AE-07: Validate config keys — warn on unknown keys to catch typos
+                // Validate config keys — warn on unknown keys to catch typos
                 var knownKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
                     "DISC_MAP","SYS_MAP","PROD_MAP","FUNC_MAP","LOC_CODES","ZONE_CODES","TAG_FORMAT",
@@ -629,7 +629,7 @@ namespace StingTools.Core
                     }
                 }
 
-                // GAP-019: Load STATUS/REV defaults from config (optional)
+                // Load STATUS/REV defaults from config (optional)
                 StatusDefault = null;
                 RevDefault = null;
                 if (data.TryGetValue("STATUS_DEFAULT", out object statusObj) && statusObj is string statusStr
@@ -702,7 +702,7 @@ namespace StingTools.Core
                 if (forceSys != null)
                     foreach (var kvp in forceSys) CategoryForceSys[kvp.Key] = kvp.Value;
 
-                // FLEX-001: Load custom token validators from config
+                // Load custom token validators from config
                 ISO19650Validator.CustomDiscCodes = LoadCustomCodes(data, "CUSTOM_VALID_DISC");
                 ISO19650Validator.CustomSysCodes = LoadCustomCodes(data, "CUSTOM_VALID_SYS");
                 ISO19650Validator.CustomFuncCodes = LoadCustomCodes(data, "CUSTOM_VALID_FUNC");
@@ -733,7 +733,7 @@ namespace StingTools.Core
                         StingLog.Info($"TagConfig: loaded {DisciplineProfiles.Count} discipline profile(s): {string.Join(", ", DisciplineProfiles.Keys)}");
                 }
 
-                // HC-001: Configurable proximity radius for CopyTokensFromNearest.
+                // Configurable proximity radius for CopyTokensFromNearest.
                 // Revit internal coordinates are always in feet, so ProximityRadiusFt
                 // is the canonical internal unit.  Three config keys are accepted so
                 // metric-project teams can author the value in their natural units:
@@ -773,7 +773,7 @@ namespace StingTools.Core
                     StingLog.Info($"TagConfig: ProximityRadiusFt = {ProximityRadiusFt:F2} ft (raw={rawRadius}, unitToFt={unitToFt})");
                 }
 
-                // HC-003: Configurable batch size for ResolveAllIssues
+                // Configurable batch size for ResolveAllIssues
                 ResolveBatchSize = 500; // default
                 if (data.TryGetValue("RESOLVE_BATCH_SIZE", out object bsObj))
                 {
@@ -798,7 +798,7 @@ namespace StingTools.Core
                     StingLog.Info($"TagConfig: DefaultCollisionMode = {DefaultCollisionMode}");
                 }
 
-                // TAG-STALE-WARN-01: Configurable threshold for auto-creating stale-element issues.
+                // Configurable threshold for auto-creating stale-element issues.
                 StaleWarningThreshold = 5; // default
                 if (data.TryGetValue("STALE_WARNING_THRESHOLD", out object swtObj))
                 {
@@ -808,7 +808,7 @@ namespace StingTools.Core
                     if (StaleWarningThreshold > 100000) StaleWarningThreshold = 100000;
                 }
 
-                // BIM-CDE-FOLDER-01: Auto-bootstrap CDE folder structure on doc open.
+                // Auto-bootstrap CDE folder structure on doc open.
                 AutoCreateCdeFolders = true;
                 if (data.TryGetValue("AUTO_CREATE_CDE_FOLDERS", out object accfObj))
                 {
@@ -826,7 +826,7 @@ namespace StingTools.Core
                     if (CobieStreamBatchSize > 50000) CobieStreamBatchSize = 50000;
                 }
 
-                // BIM-EXCEL-STREAM-01: Streaming Excel import batch size
+                // Streaming Excel import batch size
                 ExcelImportBatchSize = 2000; // default
                 if (data.TryGetValue("EXCEL_IMPORT_BATCH_SIZE", out object eiObj))
                 {
@@ -836,7 +836,7 @@ namespace StingTools.Core
                     if (ExcelImportBatchSize > 50000) ExcelImportBatchSize = 50000;
                 }
 
-                // AL-05: Compliance gate threshold
+                // Compliance gate threshold
                 ComplianceGatePct = 0;
                 if (data.TryGetValue("COMPLIANCE_GATE_PCT", out object gateObj))
                 {
@@ -854,7 +854,7 @@ namespace StingTools.Core
                 // Phase 40: Sheet naming strict mode
                 // (read here for reference but validated in SheetNamingCheckCommand directly)
 
-                // PERF-06: PerformanceTracker opt-in via config
+                // PerformanceTracker opt-in via config
                 if (data.TryGetValue("PERF_TRACKING_ENABLED", out object perfObj) && perfObj is bool perfEnabled)
                     PerformanceTracker.Enabled = perfEnabled;
 
@@ -862,20 +862,20 @@ namespace StingTools.Core
                 if (data.TryGetValue("AUTO_TAGGER_VISUAL", out object _avt) && _avt is bool _avtb)
                     try { Core.StingAutoTagger.SetVisualTaggingQuiet(_avtb); } catch (Exception ex) { StingLog.Warn($"Restore auto-tagger visual setting: {ex.Message}"); }
 
-                // FL-03: Load separator history for cross-session tag validation compatibility
+                // Load separator history for cross-session tag validation compatibility
                 var sepHistory = TryDeserialize<List<string>>(data, "SEPARATOR_HISTORY");
                 if (sepHistory != null && sepHistory.Count > 0)
                     SeparatorHistory = sepHistory;
                 else
                     SeparatorHistory = new List<string>();
 
-                // AL-07: Auto-run workflow on document open
+                // Auto-run workflow on document open
                 AutoRunWorkflowOnOpen = string.Empty;
                 if (data.TryGetValue("AUTO_RUN_WORKFLOW_ON_OPEN", out object arwObj) && arwObj is string arwStr
                     && !string.IsNullOrWhiteSpace(arwStr))
                     AutoRunWorkflowOnOpen = arwStr.Trim();
 
-                // FE-06: Load full per-category token overrides
+                // Load full per-category token overrides
                 CategoryTokenOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
                 var catOverrides = TryDeserialize<Dictionary<string, Dictionary<string, string>>>(data, "CATEGORY_TOKEN_OVERRIDES");
                 if (catOverrides != null)
@@ -908,7 +908,7 @@ namespace StingTools.Core
                 }
                 else { AutoTaggerStaleMarker = null; }
 
-                // GAP-STATUS-01: Auto-correct STATUS from Revit phase data (default off for back-compat)
+                // Auto-correct STATUS from Revit phase data (default off for back-compat)
                 AutoCorrectStatusFromPhase = false;
                 if (data.TryGetValue("AUTO_CORRECT_STATUS_FROM_PHASE", out object acsObj))
                 {
@@ -919,7 +919,7 @@ namespace StingTools.Core
                         StingLog.Info("TagConfig: AUTO_CORRECT_STATUS_FROM_PHASE = true — STATUS will always reflect Revit phase");
                 }
 
-                // GAP-FIX: Load configurable formula/grid cache TTL
+                // Load configurable formula/grid cache TTL
                 FormulaCacheTTLMinutes = 5;
                 if (data.TryGetValue("FORMULA_CACHE_TTL_MINUTES", out object fctObj))
                 {
@@ -935,7 +935,7 @@ namespace StingTools.Core
                     GridCacheTTLMinutes = Math.Max(1, Math.Min(30, GridCacheTTLMinutes));
                 }
 
-                // GAP-FIX: Load configurable SLA thresholds
+                // Load configurable SLA thresholds
                 SLAThresholdsHours = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
                     { ["CRITICAL"] = 4, ["HIGH"] = 24, ["MEDIUM"] = 168, ["LOW"] = 336, ["INFO"] = 0 };
                 if (data.TryGetValue("SLA_THRESHOLDS", out object slaObj) && slaObj != null)
@@ -950,7 +950,7 @@ namespace StingTools.Core
                     catch (Exception ex2) { StingLog.Warn($"TagConfig: failed to parse SLA_THRESHOLDS: {ex2.Message}"); }
                 }
 
-                // GAP-FIX: Auto-save warning baseline settings
+                // Auto-save warning baseline settings
                 AutoSaveWarningBaseline = true;
                 if (data.TryGetValue("AUTO_SAVE_WARNING_BASELINE", out object aswbObj))
                 {
@@ -1001,7 +1001,7 @@ namespace StingTools.Core
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
                 try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
                 catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
-                // TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext because
+                // Drop the cached PopulationContext because
                 // KnownCategories is derived from DiscMap and may have changed.
                 try { TokenAutoPopulator.PopulationContext.InvalidateCache(); }
                 catch (Exception) { /* harmless if helper not yet initialised */ }
@@ -1009,7 +1009,7 @@ namespace StingTools.Core
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
                 LoadCategoryWarningsFromLabels();
 
-                // GAP-009: Restore persisted active preset
+                // Restore persisted active preset
                 if (data.TryGetValue("ACTIVE_PRESET", out object presetObj) && presetObj is string presetStr)
                 {
                     _activePresetName = presetStr;
@@ -1285,7 +1285,7 @@ namespace StingTools.Core
                     ["CATEGORY_TOKEN_OVERRIDES"] = CategoryTokenOverrides,
                 };
 
-                // FIX-B10: Persist auto-tagger state
+                // Persist auto-tagger state
                 if (AutoTaggerEnabled.HasValue) data["AUTO_TAGGER_ENABLED"] = AutoTaggerEnabled.Value;
                 // Phase 86b: Removed duplicate AUTO_TAGGER_VISUAL from initial dict — this is the single write point
                 if (AutoTaggerVisual.HasValue) data["AUTO_TAGGER_VISUAL"] = AutoTaggerVisual.Value;
@@ -1907,14 +1907,14 @@ namespace StingTools.Core
         /// A tag is only "complete" when it has exactly expectedTokens segments
         /// and none of them are empty strings.
         /// </summary>
-        // TAG-04: Removed dead _separatorHistory char[] array — SeparatorHistory list property
+        // Removed dead _separatorHistory char[] array — SeparatorHistory list property
         // (loaded from project_config.json) is the actual implementation used in TagIsComplete.
 
         public static bool TagIsComplete(string tagValue, int expectedTokens = 8)
         {
             if (string.IsNullOrEmpty(tagValue))
                 return false;
-            // TW-03g: Adjust expected count for global tag prefix/suffix
+            // Adjust expected count for global tag prefix/suffix
             int adjusted = expectedTokens
                 + (!string.IsNullOrEmpty(TagPrefix) ? 1 : 0)
                 + (!string.IsNullOrEmpty(TagSuffix) ? 1 : 0);
@@ -2046,7 +2046,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(catName) || !DiscMap.TryGetValue(catName, out string disc))
                 return false;
 
-            // CONS-03 (Phase 149a): RunFullPipeline already read TAG1 once — accept
+            // RunFullPipeline already read TAG1 once — accept
             // the value via the new prevTagHint parameter to avoid a second read.
             string existingTag = prevTagHint
                 ?? ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -2113,7 +2113,7 @@ namespace StingTools.Core
             // Guaranteed LVL default: replace unresolved "XX"/"" with "L00" for levelless elements
             if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
 
-            // EFF-02 (Phase 149b): on the non-overwrite path we trust whatever
+            // on the non-overwrite path we trust whatever
             // PopulateAll already wrote — reading the element bypasses the
             // expensive per-element MEP connector walk inside
             // GetMepSystemAwareSysCode (and the Smart FUNC / family-aware PROD
@@ -2160,7 +2160,7 @@ namespace StingTools.Core
                     prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
             }
 
-            // PERF-R13: Throttle default-value warnings — record count, not per-element message.
+            // Throttle default-value warnings — record count, not per-element message.
             // Previously: 1000 elements with default ZONE → 1000 warning records with file I/O.
             if (stats != null)
             {
@@ -2168,7 +2168,7 @@ namespace StingTools.Core
                 if (zone == "Z01") stats.DefaultZoneCount++;
             }
 
-            // GAP-025: Validate-before-write — guarantee all 7 tokens are non-empty
+            // Validate-before-write — guarantee all 7 tokens are non-empty
             // before building the tag string. Applies hardcoded defaults as a safety net.
             if (string.IsNullOrEmpty(disc)) disc = "A";
             if (string.IsNullOrEmpty(loc))  loc  = "BLD1";
@@ -2178,7 +2178,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(func)) func = "GEN";
             if (string.IsNullOrEmpty(prod)) prod = "GEN";
 
-            // LOGIC-CRIT-01: Always use DERIVED token values for seqKey, not stored values.
+            // Always use DERIVED token values for seqKey, not stored values.
             // In non-overwrite mode, SetIfEmpty preserves existing stored values on the element,
             // but the SEQ counter group MUST use the canonical derived values to prevent:
             //   - Counter group mismatch when stored SYS="HWS" but derived SYS="DCW"
@@ -2267,7 +2267,7 @@ namespace StingTools.Core
                 ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true);
                 ParameterHelpers.SetString(el, ParamRegistry.SEQ, seq, overwrite: true);
 
-                // EFF-03 (Phase 149a): we just wrote 8 known values — populate
+                // we just wrote 8 known values — populate
                 // _cachedReadTokens from them so the container-write path below
                 // and the caller's tokenValuesOut don't trigger a fresh
                 // ReadTokenValues that would just read what we wrote.
@@ -2284,7 +2284,7 @@ namespace StingTools.Core
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod);
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
 
-                // BUG-02: Re-read actual stored token values to ensure TAG1 reflects
+                // Re-read actual stored token values to ensure TAG1 reflects
                 // what's on the element. Do NOT fill empty slots with derived defaults —
                 // that would overwrite manually-set values that SetIfEmpty preserved.
                 // The malformed-tag guard below blocks incomplete tags correctly.
@@ -2301,7 +2301,7 @@ namespace StingTools.Core
                     existingTags.Remove(tag);
                 }
                 tag = string.Join(Separator, actualTokens);
-                // TW-03: Re-apply prefix/suffix to re-read tag
+                // Re-apply prefix/suffix to re-read tag
                 if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
                 if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
                 // Update collision index with actual tag
@@ -2319,7 +2319,7 @@ namespace StingTools.Core
                 seq = actualTokens[7];
             }
 
-            // EFF-11 (Phase 149a): segment-count validation only runs on the
+            // segment-count validation only runs on the
             // SetIfEmpty path where the actual stored tokens may legitimately
             // differ from the freshly-derived ones (e.g. user manually edited
             // ASS_DISCIPLINE_COD_TXT). On the overwrite path we just built the
@@ -2328,7 +2328,7 @@ namespace StingTools.Core
             // dead work. Skip it.
             if (!overwriteTokens)
             {
-                // PERF-R11: Validate segment count by counting separators instead of allocating split array.
+                // Validate segment count by counting separators instead of allocating split array.
                 // Phase 86b: Use full separator string (not Separator[0] char) for multi-char separator support.
                 int sepCount = 0;
                 string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
@@ -2416,7 +2416,7 @@ namespace StingTools.Core
                 }
                 ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
 
-                // EFF-03 (Phase 149a): hand the freshly-built token array back to
+                // hand the freshly-built token array back to
                 // the caller so RunFullPipeline doesn't have to do its own
                 // ReadTokenValues a second time after we return.
                 if (tokenValuesOut != null && tokenValuesOut.Length >= 8)
@@ -2437,7 +2437,7 @@ namespace StingTools.Core
             // paragraph depth or style matrix BOOLs would show blank labels.
             // Uses SetYesNo to handle YESNO (StorageType.Integer) parameters correctly.
             //
-            // EFF-10 (Phase 149a): the display-mode sentinel is only empty on a
+            // the display-mode sentinel is only empty on a
             // first-ever tag; once it has any value the 13 init writes below are
             // all overwriting current state with their default values, wasting a
             // LookupParameter per call. Skip the block when STING_DISPLAY_MODE is
@@ -2454,7 +2454,7 @@ namespace StingTools.Core
                 // display variant immediately (default = PROD-SEQ mode 2)
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISPLAY_MODE, ParamRegistry.DisplayModeDefault.ToString());
 
-                // ORPHAN-FIX: honour the Tokens & Depth paragraph-depth slider.
+                // honour the Tokens & Depth paragraph-depth slider.
                 // When the user has pushed a ParaDepth value from the sub-tab we
                 // overwrite all 10 PARA_STATE BOOLs so tiers 1..N are enabled and
                 // tiers N+1..10 are disabled. When the slider hasn't been touched
@@ -3105,7 +3105,7 @@ namespace StingTools.Core
             if (sysName == "EA" || sysName.StartsWith("EA ") || sysName.Contains(" EA ")) return "HVAC";
             if (sysName == "OA" || sysName.StartsWith("OA ") || sysName.Contains(" OA ")) return "HVAC";
             if (sysName == "CHW" || sysName.StartsWith("CHW ") || sysName.Contains(" CHW ")) return "HVAC";
-            // BUG-010: "CW" is ambiguous — Condenser Water (HVAC) vs Cold Water (Plumbing)
+            // "CW" is ambiguous — Condenser Water (HVAC) vs Cold Water (Plumbing)
             // If the element is a pipe category, map to DCW; otherwise HVAC (Condenser Water)
             if (sysName == "CW" || sysName.StartsWith("CW ") || sysName.Contains(" CW "))
             {
@@ -3327,7 +3327,7 @@ namespace StingTools.Core
         public static HashSet<string> BuildExistingTagIndex(Document doc)
         {
             var index = new HashSet<string>(StringComparer.Ordinal);
-            // PERF-03: Use ElementMulticategoryFilter to skip non-taggable elements
+            // Use ElementMulticategoryFilter to skip non-taggable elements
             // (views, sheets, annotations, text notes, dimensions, etc.)
             var cats = SharedParamGuids.AllCategoryEnums;
             IEnumerable<Element> collector;
@@ -3370,7 +3370,7 @@ namespace StingTools.Core
             var maxSeq = new Dictionary<string, int>();
             var known = new HashSet<string>(DiscMap.Keys);
 
-            // PERF-06: Use ElementMulticategoryFilter to skip non-taggable elements
+            // Use ElementMulticategoryFilter to skip non-taggable elements
             var seqCats = SharedParamGuids.AllCategoryEnums;
             FilteredElementCollector seqCollector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType();
@@ -3394,7 +3394,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(lvl) || lvl == "XX")
                     lvl = "L00";
 
-                // BUG-01: Match SeqIncludeZone key format used by BuildAndWriteTag/BuildSeqKey
+                // Match SeqIncludeZone key format used by BuildAndWriteTag/BuildSeqKey
                 string key;
                 if (SeqIncludeZone)
                 {
@@ -3471,7 +3471,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(lvl) || lvl == "XX")
                     lvl = "L00";
 
-                // BUG-01: Match SeqIncludeZone key format used by BuildAndWriteTag/BuildSeqKey
+                // Match SeqIncludeZone key format used by BuildAndWriteTag/BuildSeqKey
                 string key;
                 if (SeqIncludeZone)
                 {
@@ -4892,7 +4892,7 @@ namespace StingTools.Core
                 if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", currently at "); lifecycleMarked.Append(", currently at "); }
                 lifecyclePlain.Append($"revision {rev}");
                 lifecycleMarked.Append($"\u00ABL\u00BBrevision\u00AB/L\u00BB \u00ABV\u00BB{rev}\u00AB/V\u00BB");
-                // GAP-010: Add tag timestamp for audit trail
+                // Add tag timestamp for audit trail
                 string tagDate = DateTime.Now.ToString("yyyy-MM-dd");
                 lifecyclePlain.Append($" (tagged {tagDate})");
                 lifecycleMarked.Append($" (\u00ABL\u00BBtagged\u00AB/L\u00BB \u00ABV\u00BB{tagDate}\u00AB/V\u00BB)");
@@ -5180,7 +5180,7 @@ namespace StingTools.Core
                 classMarked.Append($"\u00ABV\u00BB{typeComments}\u00AB/V\u00BB");
             }
 
-            // FG-07: prefer ASS_TAG_1 (already assembled by BuildAndWriteTag,
+            // prefer ASS_TAG_1 (already assembled by BuildAndWriteTag,
             // the single source of truth for tag composition) when it is
             // populated. Falls back to inline re-assembly only when the
             // canonical tag has not been built yet — avoids divergence
@@ -5537,7 +5537,7 @@ namespace StingTools.Core
             // branch is stable for the duration of this call.
             ParamRegistry.TagMode activeMode = ParamRegistry.GetActiveTagMode(doc);
 
-            // EFF-08 (Phase 149a): build the final TAG7 string locally before
+            // build the final TAG7 string locally before
             // the single write so the post-write read-back can be eliminated.
             // The previous code wrote TAG7, then re-read it just to append
             // warnings — wasted LookupParameter + GetString per element.
@@ -5636,7 +5636,7 @@ namespace StingTools.Core
             }
 
             // ── Warning parameter population (v5.6) ────────────────────────
-            // EFF-07 (Phase 149d): combined warning evaluation. The previous
+            // combined warning evaluation. The previous
             // code called PopulateWarningParameters AND EvaluateElementWarnings,
             // each walking the same GetCategoryWarnings list, calling the same
             // GetWarningDataValue per warning, calling the same EvaluateWarning.
