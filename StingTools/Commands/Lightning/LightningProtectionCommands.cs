@@ -1809,12 +1809,17 @@ namespace StingTools.Commands.Lightning
                 double ce = LookupFactor(lib, "consequenceOfFailure", PickId(_consequence), "ce", 1.0);
                 double rt = LookupFactor(lib, "lossTypes", PickId(_lossType), "rt", 1e-5);
 
-                double locationCd = 1.0; // could refine via terrain factor in future
-                int services = (_svcPower.IsChecked == true ? 1 : 0)
-                             + (_svcTelecom.IsChecked == true ? 1 : 0)
-                             + (_svcGas.IsChecked == true ? 1 : 0)
-                             + (_svcWater.IsChecked == true ? 1 : 0);
-                if (services > 0) locationCd *= (1.0 + 0.25 * services);
+                // Connected services now drive the BS EN 62305-2 line-related
+                // risk components (R_U/R_V/R_W/R_Z) in LpsRiskModel — pass them
+                // as service lines instead of fudging the location factor C_D.
+                // Gas / water are bonded metallic services (not signal lines),
+                // so they don't add line-surge components. An empty list means
+                // "no connected lines" (no line risk).
+                var lines = new List<LpsServiceLine>();
+                if (_svcPower.IsChecked == true)
+                    lines.Add(new LpsServiceLine { Id = "POWER", Install = "AERIAL" });
+                if (_svcTelecom.IsChecked == true)
+                    lines.Add(new LpsServiceLine { Id = "TELECOM", Install = "AERIAL" });
 
                 var input = new LpsRiskInput
                 {
@@ -1825,7 +1830,8 @@ namespace StingTools.Commands.Lightning
                     PlanAreaM2 = area, HeightM = H,
                     BuildingTypeCb = cb, InternalContentCc = cc,
                     OccupantHazardCd = cd, ConsequenceCe = ce,
-                    LocationFactorCd = locationCd, TolerableRisk = rt
+                    LocationFactorCd = 1.0,          // C_D — isolated structure (Table A.1)
+                    Lines = lines, TolerableRisk = rt
                 };
                 RiskResult = LpsEngine.RunRiskAssessment(input);
 
