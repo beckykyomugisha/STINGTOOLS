@@ -539,9 +539,11 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.IDeviceTwinService,
     Planscape.Infrastructure.Services.DeviceTwinService>();
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITwinBindingService,
     Planscape.Infrastructure.Services.TwinBindingService>();
-// Twin rule evaluator: no-op in 5A, replaced by TwinRuleEngine in 6A.
+// Pillar B (6A) — twin rule engine + work-order automation onto the K2 spine.
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITwinRuleEvaluator,
-    Planscape.Core.Interfaces.NoOpTwinRuleEvaluator>();
+    Planscape.Infrastructure.Services.TwinRuleEngine>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.IWorkOrderAutomator,
+    Planscape.Infrastructure.Services.WorkOrderAutomator>();
 // Gap F — Auto-compute coordinate transform from IfcMapConversion data.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
     Planscape.Infrastructure.Services.AutoAlignService>();
