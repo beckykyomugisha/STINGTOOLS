@@ -531,6 +531,9 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcDeltaService,
 // (canonical IFC GlobalId ↔ host element id; IoT device binding).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityResolverService,
     Planscape.Infrastructure.Services.IdentityResolverService>();
+// K2 — Platform event spine (durable cross-surface channel → STING plugin).
+builder.Services.AddScoped<Planscape.Core.Interfaces.IPlatformEventService,
+    Planscape.Infrastructure.Services.PlatformEventService>();
 // Gap F — Auto-compute coordinate transform from IfcMapConversion data.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
     Planscape.Infrastructure.Services.AutoAlignService>();
@@ -1209,6 +1212,7 @@ app.MapHub<Planscape.Infrastructure.SignalR.HealthcareHub>("/hubs/healthcare");
 app.MapHub<Planscape.Infrastructure.SignalR.ArchiCADHub>("/hubs/archicad");
 // Gap H — Federated model viewer hub (ModelUpdated events after IFC ingest / auto-align).
 app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/model");
+app.MapHub<Planscape.Infrastructure.SignalR.PlatformEventHub>("/hubs/events");
 
 // ── Database schema + seed ──
 {

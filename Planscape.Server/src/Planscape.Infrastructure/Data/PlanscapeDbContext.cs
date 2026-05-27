@@ -99,6 +99,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<TaggedElement> TaggedElements => Set<TaggedElement>();
     public DbSet<ExternalElementMapping> ExternalElementMappings => Set<ExternalElementMapping>();
+    public DbSet<PlatformEvent> PlatformEvents => Set<PlatformEvent>();
     public DbSet<BimIssue> Issues => Set<BimIssue>();
     public DbSet<DocumentRecord> Documents => Set<DocumentRecord>();
     public DbSet<LicenseKey> LicenseKeys => Set<LicenseKey>();
@@ -606,6 +607,25 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(m => new { m.ProjectId, m.IfcGlobalId, m.Host, m.HostDocumentGuid }).IsUnique();
             e.HasIndex(m => new { m.ProjectId, m.IfcGlobalId });  // cross-host lookup
             e.HasIndex(m => new { m.ProjectId, m.Host, m.HostElementId });  // reverse lookup
+        });
+
+        // ── PlatformEvent (K2 — cross-surface event spine) ──
+        // Durable, ordered, tenant-scoped channel. Drained by the STING plugin
+        // via SignalR (live) + GET /events/pending (poll fallback). Per-project
+        // Sequence drives the drain cursor; PrevHash/RowHash form the chain.
+        modelBuilder.Entity<PlatformEvent>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId);
+            e.Property(x => x.Source).HasMaxLength(20);
+            e.Property(x => x.Type).HasMaxLength(64);
+            e.Property(x => x.TargetIfcGlobalId).HasMaxLength(22);
+            e.Property(x => x.BaseRevisionId).HasMaxLength(64);
+            e.Property(x => x.PrevHash).HasMaxLength(64);
+            e.Property(x => x.RowHash).HasMaxLength(64);
+            e.HasIndex(x => new { x.ProjectId, x.Sequence }).IsUnique();   // drain cursor
+            e.HasIndex(x => new { x.ProjectId, x.Status, x.Sequence });    // pending scan
         });
 
         // ── BimIssue ──
