@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { apiFetch } from "@/api/client";
-import { useAuthStore } from "@/stores/auth";
+import { useAuthStore } from "@/stores/authStore";
 // Phase 184k caveat #4 — signature pad via react-native-signature-canvas
 // (built on react-native-webview which is already a dep). The signature is
 // captured as a base64 PNG and uploaded as an attachment via the

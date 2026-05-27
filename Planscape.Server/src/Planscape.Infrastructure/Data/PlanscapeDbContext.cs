@@ -168,6 +168,24 @@ public class PlanscapeDbContext : DbContext
     // seal instance keyed on PenetrationControlNumber + PfvUuid.
     public DbSet<PenetrationSignoff>          PenetrationSignoffs          => Set<PenetrationSignoff>();
 
+    // Phase 179/180 — site-photo workflow extensions: distribution groups,
+    // albums (incl. smart albums), per-photo ACL/NDA gating, annotations,
+    // voice notes, required-photo checklists, share links, and per-project
+    // photo policy. Controllers + Hangfire jobs depend on these DbSets.
+    public DbSet<DistributionGroup>       DistributionGroups       => Set<DistributionGroup>();
+    public DbSet<DistributionGroupMember> DistributionGroupMembers => Set<DistributionGroupMember>();
+    public DbSet<PhotoAlbum>              PhotoAlbums              => Set<PhotoAlbum>();
+    public DbSet<PhotoAlbumPhoto>         PhotoAlbumPhotos         => Set<PhotoAlbumPhoto>();
+    public DbSet<PhotoAccessRule>         PhotoAccessRules         => Set<PhotoAccessRule>();
+    public DbSet<PhotoAnnotation>         PhotoAnnotations         => Set<PhotoAnnotation>();
+    public DbSet<PhotoApprovalSignoff>    PhotoApprovalSignoffs    => Set<PhotoApprovalSignoff>();
+    public DbSet<PhotoChecklist>          PhotoChecklists          => Set<PhotoChecklist>();
+    public DbSet<PhotoChecklistItem>      PhotoChecklistItems      => Set<PhotoChecklistItem>();
+    public DbSet<PhotoNdaAcceptance>      PhotoNdaAcceptances      => Set<PhotoNdaAcceptance>();
+    public DbSet<PhotoPolicy>             PhotoPolicies            => Set<PhotoPolicy>();
+    public DbSet<PhotoShareLink>          PhotoShareLinks          => Set<PhotoShareLink>();
+    public DbSet<PhotoVoiceNote>          PhotoVoiceNotes          => Set<PhotoVoiceNote>();
+
     // S2.1 — billing entities (provider-agnostic).
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Invoice>      Invoices      => Set<Invoice>();
@@ -1000,6 +1018,137 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
             e.Property(x => x.MethodKind).HasMaxLength(40);
             e.Property(x => x.MethodSuffix).HasMaxLength(20);
+        });
+
+        // ── Phase 179/180 — site-photo workflow extensions ──────────────
+        // Tenant-scoped roots (PhotoAlbum/PhotoChecklist/PhotoPolicy/
+        // PhotoShareLink/PhotoVoiceNote/DistributionGroup) get their tenant
+        // query filter + TenantId index automatically below. Here we only
+        // declare keys (composite where the entity has no Id), the indexes
+        // the controllers query on, and FK delete behaviour.
+        modelBuilder.Entity<DistributionGroup>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Kind).HasMaxLength(20);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DistributionGroupMember>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.DistributionGroupId);
+            e.Property(x => x.ExternalEmail).HasMaxLength(320);
+            e.Property(x => x.DisplayName).HasMaxLength(200);
+            e.HasOne(x => x.DistributionGroup).WithMany().HasForeignKey(x => x.DistributionGroupId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PhotoAlbum>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.Kind });
+            e.Property(x => x.Name).HasMaxLength(300).IsRequired();
+            e.Property(x => x.Visibility).HasMaxLength(20).IsRequired();
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.DistributionGroup).WithMany().HasForeignKey(x => x.DistributionGroupId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PhotoAlbumPhoto>(e =>
+        {
+            e.HasKey(x => new { x.AlbumId, x.PhotoId });
+            e.HasIndex(x => x.PhotoId);
+            e.HasOne(x => x.Album).WithMany().HasForeignKey(x => x.AlbumId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Photo).WithMany().HasForeignKey(x => x.PhotoId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PhotoAccessRule>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.PhotoId);
+            e.Property(x => x.VisibleDisciplines).HasMaxLength(100);
+            e.Property(x => x.MinRoleToView).HasMaxLength(40);
+            e.HasOne(x => x.Photo).WithMany().HasForeignKey(x => x.PhotoId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.DistributionGroup).WithMany().HasForeignKey(x => x.DistributionGroupId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PhotoAnnotation>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.PhotoId);
+            e.Property(x => x.ShapesJson).HasColumnType("jsonb");
+            e.HasOne(x => x.Photo).WithMany().HasForeignKey(x => x.PhotoId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PhotoApprovalSignoff>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.PhotoId, x.Stage }).IsUnique();
+            e.Property(x => x.Stage).HasMaxLength(40).IsRequired();
+            e.HasOne(x => x.Photo).WithMany().HasForeignKey(x => x.PhotoId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.SignedByUser).WithMany().HasForeignKey(x => x.SignedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PhotoChecklist>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.Property(x => x.Name).HasMaxLength(300).IsRequired();
+            e.Property(x => x.Kind).HasMaxLength(20);
+            e.Property(x => x.Status).HasMaxLength(20);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PhotoChecklistItem>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ChecklistId);
+            e.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            e.Property(x => x.DefaultReason).HasMaxLength(20);
+            e.HasOne(x => x.Checklist).WithMany().HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.FulfilledByPhoto).WithMany().HasForeignKey(x => x.FulfilledByPhotoId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PhotoNdaAcceptance>(e =>
+        {
+            e.HasKey(x => new { x.PhotoId, x.UserId });
+            e.HasOne(x => x.Photo).WithMany().HasForeignKey(x => x.PhotoId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PhotoPolicy>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId).IsUnique();
+            e.Property(x => x.ApprovalChain).HasMaxLength(20);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.DigestDistributionGroup).WithMany().HasForeignKey(x => x.DigestDistributionGroupId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PhotoShareLink>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Token).IsUnique();
+            e.HasIndex(x => x.ProjectId);
+            e.Property(x => x.Token).HasMaxLength(128).IsRequired();
+            e.Property(x => x.Label).HasMaxLength(300);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Photo).WithMany().HasForeignKey(x => x.PhotoId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Album).WithMany().HasForeignKey(x => x.AlbumId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PhotoVoiceNote>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.PhotoId);
+            e.Property(x => x.MimeType).HasMaxLength(60);
+            e.Property(x => x.Language).HasMaxLength(8);
+            e.HasOne(x => x.Photo).WithMany().HasForeignKey(x => x.PhotoId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // ── S1.1 — Global tenant query filter ───────────────────────────
