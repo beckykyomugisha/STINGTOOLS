@@ -152,58 +152,14 @@ namespace StingTools.UI
         // ──────────────────────────────────────────────────────────────
 
         /// <summary>Build the Site Photos tab UI. The BCC keeps the returned
-        /// element in its tab cache (live-data tab — rebuilt on every nav).
-        ///
-        /// Phase 179 — wraps the existing review queue inside a 5-pane
-        /// TabControl: Review (the original list), Grid (contact-sheet
-        /// thumbnail grid), Albums (curate + share), Checklists (required
-        /// shots), Admin (BIM-manager only — policy + bulk operations).
-        /// </summary>
+        /// element in its tab cache (live-data tab — rebuilt on every nav).</summary>
         internal static UIElement BuildTab(BIMCoordinationCenter owner)
         {
-            var state = new TabState { ProjectId = ResolveProjectId() };
-
-            var tabs = new TabControl
+            var state = new TabState
             {
-                Background      = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Margin          = new Thickness(8),
+                ProjectId = ResolveProjectId(),
             };
 
-            tabs.Items.Add(new TabItem
-            {
-                Header  = "Review queue",
-                Content = BuildReviewSubTab(owner, state)
-            });
-            tabs.Items.Add(new TabItem
-            {
-                Header  = "Grid",
-                Content = SitePhotosGridSubTab.Build(owner, state)
-            });
-            tabs.Items.Add(new TabItem
-            {
-                Header  = "Albums",
-                Content = SitePhotosAlbumsSubTab.Build(owner, state)
-            });
-            tabs.Items.Add(new TabItem
-            {
-                Header  = "Checklists",
-                Content = SitePhotosChecklistsSubTab.Build(owner, state)
-            });
-            tabs.Items.Add(new TabItem
-            {
-                Header  = "Admin",
-                Content = SitePhotosAdminSubTab.Build(owner, state)
-            });
-
-            owner.Closed += (_, _) => state.RefreshTimer?.Stop();
-            return tabs;
-        }
-
-        /// <summary>The Phase 178 review queue, factored out as a sub-tab
-        /// content so it composes with the new Phase 179 sibling tabs.</summary>
-        private static UIElement BuildReviewSubTab(BIMCoordinationCenter owner, TabState state)
-        {
             var sv = new ScrollViewer
             {
                 VerticalScrollBarVisibility   = ScrollBarVisibility.Auto,
@@ -212,25 +168,41 @@ namespace StingTools.UI
             var root = new StackPanel { Margin = new Thickness(16) };
             sv.Content = root;
 
+            // KPI strip + Live indicator + view switcher
             root.Children.Add(BuildHeader(owner, state));
+
+            // Top action bar: sub-view tabs, refresh, digest preview
             root.Children.Add(BuildActionBar(owner, state, root));
+
+            // Filter row
             root.Children.Add(BuildFilterRow(owner, state, root));
 
+            // Photo list panel — the live area that re-renders on filter / refresh
             var listPanel = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
             listPanel.Tag = "PhotoList";
             root.Children.Add(listPanel);
 
+            // Persistent bulk-action footer (visible only when selection > 0)
             var footer = BuildBulkFooter(owner, state, listPanel);
             footer.Visibility = Visibility.Collapsed;
             footer.Tag = "BulkFooter";
             root.Children.Add(footer);
 
+            // Initial load + auto-refresh wiring. We deliberately
+            // fire-and-forget so the rest of the tab paints first.
+            // Extracted into a local async method so the discard
+            // (`_ =`) syntax produces a well-defined Task discard the
+            // compiler can't misclassify.
             async Task BootAsync()
             {
                 await ReloadAsync(owner, state, listPanel, footer);
                 StartAutoRefresh(owner, state, listPanel, footer);
             }
             _ = BootAsync();
+
+            // Cancel auto-refresh when BCC closes
+            owner.Closed += (_, _) => state.RefreshTimer?.Stop();
+
             return sv;
         }
 
@@ -495,59 +467,8 @@ namespace StingTools.UI
                 Foreground = Brushes.Gray, Margin = new Thickness(8)
             });
 
-            if (state.ProjectId == Guid.Empty)
-            {
-                listPanel.Children.Clear();
-                listPanel.Children.Add(new TextBlock {
-                    Text = "Open a Planscape-linked project to load photos.",
-                    FontSize = 12, FontStyle = FontStyles.Italic,
-                    Foreground = Brushes.Gray, Margin = new Thickness(8)
-                });
+            if (state.ProjectId == Guid.Empty || !PlanscapeServerClient.Instance.IsConnected)
                 return;
-            }
-            if (!PlanscapeServerClient.Instance.IsConnected)
-            {
-                // Phase 179 — fall back to the on-disk cache so the panel
-                // doesn't render empty when the desktop is offline.
-                var cache = SitePhotoOfflineCache.Load(state.ProjectId);
-                listPanel.Children.Clear();
-                if (cache == null || cache.Photos.Count == 0)
-                {
-                    listPanel.Children.Add(new TextBlock {
-                        Text = "Offline — sign in to Planscape (PLATFORM tab) to load photos.",
-                        FontSize = 12, FontStyle = FontStyles.Italic,
-                        Foreground = Brushes.Gray, Margin = new Thickness(8)
-                    });
-                    return;
-                }
-                listPanel.Children.Add(new TextBlock {
-                    Text = $"Offline — showing {cache.Photos.Count} photo(s) cached at {cache.SavedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm}.",
-                    FontSize = 11, FontStyle = FontStyles.Italic,
-                    Foreground = Brushes.Gray, Margin = new Thickness(8, 4, 8, 8)
-                });
-                foreach (var dto in cache.Photos.OrderByDescending(d => d.CapturedAt))
-                {
-                    var row = new PhotoRow { Dto = dto };
-                    var bytes = SitePhotoOfflineCache.LoadThumbBytes(state.ProjectId, dto.Id);
-                    if (bytes != null)
-                    {
-                        try
-                        {
-                            var img = new BitmapImage();
-                            img.BeginInit();
-                            img.CacheOption = BitmapCacheOption.OnLoad;
-                            img.DecodePixelWidth = 160;
-                            img.StreamSource = new MemoryStream(bytes);
-                            img.EndInit();
-                            img.Freeze();
-                            row.Thumbnail = img;
-                        }
-                        catch { /* ignore */ }
-                    }
-                    listPanel.Children.Add(BuildPhotoRow(owner, state, row, listPanel, footer));
-                }
-                return;
-            }
 
             string? audienceFilter = state.CurrentView switch
             {
@@ -576,11 +497,6 @@ namespace StingTools.UI
                     FontSize = 12, Foreground = Brushes.Crimson, Margin = new Thickness(8) });
                 return;
             }
-
-            // Phase 179 — write the just-fetched DTOs to the offline cache
-            // so a later session-without-server still renders the page.
-            try { SitePhotoOfflineCache.Save(state.ProjectId, dtos); }
-            catch { /* best-effort */ }
 
             // Apply discipline filter client-side (server doesn't expose discipline directly)
             if (!string.IsNullOrEmpty(state.FilterDiscipline))
@@ -648,17 +564,14 @@ namespace StingTools.UI
             // an async-void lambda, which Roslyn analyzers occasionally
             // mis-classify and raise CS4014 on). Per-thumb failures are
             // swallowed by the try/catch inside the loop body.
-            // Phase 180 — parallelise thumb fetches with a small
-            // concurrency cap so the BCC review queue paints quickly
-            // even on a 50-photo page (was strictly sequential — N
-            // round-trips of latency).
             async Task LoadThumbsAsync()
             {
-                using var sem = new System.Threading.SemaphoreSlim(8);
-                var todo = rows.Where(r => r.Thumbnail == null).ToList();
-                var tasks = todo.Select(async r =>
+                foreach (var r in rows)
                 {
-                    await sem.WaitAsync();
+                    if (r.Thumbnail != null) continue;
+                    var bytes = await PlanscapeServerClient.Instance
+                        .DownloadSitePhotoAsync(state.ProjectId, r.Dto.Id);
+                    if (bytes == null) continue;
                     try
                     {
                         // Dispose the MemoryStream after EndInit — with CacheOption.OnLoad

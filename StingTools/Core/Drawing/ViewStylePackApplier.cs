@@ -26,12 +26,10 @@ namespace StingTools.Core.Drawing
     {
         public int OverridesSet { get; set; }
         public int FiltersApplied { get; set; }
-        /// <summary>C4 — Number of material-class overrides applied on this view.</summary>
-        public int AppliedByMaterialClass { get; set; }
         public List<string> Warnings { get; } = new List<string>();
     }
 
-    public static partial class ViewStylePackApplier
+    public static class ViewStylePackApplier
     {
         public static void InvalidateCache(Document doc) { /* Pack registry is doc-scoped; no separate cache needed. */ }
         public static void ReadCategoryOverrides(Document doc, View view, ViewStylePack pack) { /* No-op stub. */ }
@@ -57,42 +55,13 @@ namespace StingTools.Core.Drawing
             return r;
         }
 
-        /// <summary>
-        /// C4 — Project a pack's byMaterialClass entries onto the view
-        /// as ParameterFilterElement overrides. Each class spawns one
-        /// filter "STING_MAT_CLASS_&lt;class&gt;" rule-matching the
-        /// element's primary Material element by name → MaterialClass.
-        ///
-        /// The filter is created once per project (idempotent) and the
-        /// view receives it with the StyleVgOverride applied. Walls
-        /// with a Concrete material render concrete-grey; the same
-        /// pack's Walls VG override (if any) still applies first.
-        ///
-        /// Best-effort: when ParameterFilterElement creation fails
-        /// (e.g. shared param not bound on Material category) the
-        /// pack still applies the rest of its overrides without
-        /// aborting.
-        /// </summary>
-        private static void ApplyMaterialClassOverrides(Document doc, View view, ViewStylePack pack, PackApplyResult r)
-        {
-            if (pack?.ByMaterialClass == null || pack.ByMaterialClass.Count == 0) return;
+        // ── Internal wrappers used by ManagedTemplateSyncer ──
 
-            foreach (var kv in pack.ByMaterialClass)
-            {
-                string className = kv.Key;
-                var src = kv.Value;
-                if (string.IsNullOrWhiteSpace(className) || src == null) continue;
+        internal static void ApplyCategoryOverridesOnly(Document doc, View view, ViewStylePack pack, PackApplyResult r) =>
+            ApplyCategoryOverrides(doc, view, pack, r);
 
-                try
-                {
-                    var filter = EnsureMaterialClassFilter(doc, className);
-                    if (filter == null)
-                    {
-                        r.Warnings.Add($"byMaterialClass '{className}': filter could not be created (no eligible Material category bindings).");
-                        continue;
-                    }
-                    if (!view.IsFilterApplied(filter.Id))
-                        view.AddFilter(filter.Id);
+        internal static void ApplyFilterRulesOnly(Document doc, View view, ViewStylePack pack, PackApplyResult r) =>
+            ApplyFilterRules(doc, view, pack, r);
 
         internal static void ApplyCategoryOverrides(Document doc, View view, ViewStylePack pack, PackApplyResult r)
         {
@@ -399,23 +368,31 @@ namespace StingTools.Core.Drawing
         private static ElementId ResolveLinePattern(Document doc, string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
-            if (name.Equals("Solid", StringComparison.OrdinalIgnoreCase))
-                return LinePatternElement.GetSolidPatternId();
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(LinePatternElement))
-                .Cast<LinePatternElement>()
-                .FirstOrDefault(lp => string.Equals(lp.Name, name, StringComparison.OrdinalIgnoreCase))
-                ?.Id ?? ElementId.InvalidElementId;
+            try
+            {
+                if (string.Equals(name, "Solid", StringComparison.OrdinalIgnoreCase))
+                    return LinePatternElement.GetSolidPatternId();
+                var lp = new FilteredElementCollector(doc)
+                    .OfClass(typeof(LinePatternElement))
+                    .Cast<LinePatternElement>()
+                    .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+                return lp?.Id ?? ElementId.InvalidElementId;
+            }
+            catch { return ElementId.InvalidElementId; }
         }
 
-        private static ElementId ResolveFillPatternId(Document doc, string name)
+        private static ElementId ResolveFillPattern(Document doc, string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(FillPatternElement))
-                .Cast<FillPatternElement>()
-                .FirstOrDefault(fp => string.Equals(fp.Name, name, StringComparison.OrdinalIgnoreCase))
-                ?.Id ?? ElementId.InvalidElementId;
+            try
+            {
+                var fp = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement))
+                    .Cast<FillPatternElement>()
+                    .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+                return fp?.Id ?? ElementId.InvalidElementId;
+            }
+            catch { return ElementId.InvalidElementId; }
         }
 
         private static Autodesk.Revit.DB.Color HexColor(string hex)
