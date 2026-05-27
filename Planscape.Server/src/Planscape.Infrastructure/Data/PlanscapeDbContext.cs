@@ -102,6 +102,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<PlatformEvent> PlatformEvents => Set<PlatformEvent>();
     public DbSet<MeetingSession> MeetingSessions => Set<MeetingSession>();
     public DbSet<MeetingViewerParticipant> MeetingViewerParticipants => Set<MeetingViewerParticipant>();
+    public DbSet<MeetingSnapshot> MeetingSnapshots => Set<MeetingSnapshot>();
     public DbSet<BimIssue> Issues => Set<BimIssue>();
     public DbSet<DocumentRecord> Documents => Set<DocumentRecord>();
     public DbSet<LicenseKey> LicenseKeys => Set<LicenseKey>();
@@ -646,6 +647,13 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.DisplayName).HasMaxLength(120);
             e.Property(x => x.Surface).HasMaxLength(16);
             e.HasIndex(x => new { x.SessionId, x.UserId }).IsUnique();
+        });
+        modelBuilder.Entity<MeetingSnapshot>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasOne(x => x.Session).WithMany().HasForeignKey(x => x.SessionId);
+            e.Property(x => x.Label).HasMaxLength(200);
+            e.HasIndex(x => new { x.SessionId, x.CapturedAt });
         });
 
         // ── BimIssue ──
