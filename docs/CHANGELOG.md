@@ -3,6 +3,59 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 189 — Platform enhancement keystones + meeting viewer + digital twin, server)
+
+Implements the [Platform Enhancement Proposal](PLATFORM_ENHANCEMENT_PROPOSAL.md)
+keystones (Phase 0) and the server-side of Pillars A (live 3D meeting viewer),
+B (IoT / digital twin), C (automation loops) and D (FM continuity). Built on
+branch `claude/gracious-fermi-dn3Ow`.
+
+**Keystones (Phase 0)**
+
+- **K3 — `ViewerOverlayProfile`** (`viewer.html`, both copies + `overlay-profile.schema.json`):
+  one `applyOverlay(profile)` / `clearOverlay()` render path for every colour
+  feed (compliance, diff, twin, CX, QA, HVAC) via a `guidColorMap`. `setHeatmap`
+  now delegates (backward compatible). JS/JSON — verified in sandbox.
+- **K1 — Unified identity** (`MappingHosts`, `IIdentityResolverService` /
+  `IdentityResolverService`): canonical IFC GlobalId ↔ host element id over
+  `ExternalElementMapping`; `iot` a first-class host; idempotent device binding.
+  `GET /ifc/resolve` + `POST /ifc/iot-binding`.
+- **K2 — Platform event spine** (`PlatformEvent` + SHA-256 chain,
+  `IPlatformEventService`, `PlatformEventHub` `/hubs/events`,
+  `PlatformEventsController` append/pending/ack/reject) + STING-side drainer
+  (`IApplyPlatformEvent`, `PlatformEventRegistry`, `ParamStampEventHandler`,
+  `PlatformEventDrainer` with idempotency + `BaseRevisionId` conflict guard) +
+  `PlanscapeServerClient.Events` partial.
+
+**Pillar A — live meeting viewer (server)**: `MeetingSession` /
+`MeetingViewerParticipant` / `MeetingSnapshot`; `MeetingHub` `/hubs/meeting`
+(camera/highlight/overlay/section sync); `MeetingRoomController`,
+`MeetingSnapshotController` (replayable G13), `ModelDiffController` (IfcDeltaService
+generation → K3 overlay), `MeetingActionController.DeferClash` (clash → BimIssue →
+K2 `issue.created`, G12).
+
+**Pillar B — digital twin (server)**: `DeviceTwin` / `TelemetryPoint`
+(Timescale hypertable) / `TwinRule` / `TwinAlert` / `WorkOrder`;
+`DeviceTwinService` (ingest + last-known-state + OFFLINE staleness),
+`TwinBindingService` (device↔element on K1), `TwinHub` `/hubs/twin` +
+`TwinOverlayBuilder` (health → K3 overlay), `TelemetryIngestController`,
+`DeviceTwinsController`. 6A: `TwinRuleEngine` (threshold + EWMA/z-score anomaly
+via `TwinAnomalyDetector`, debounce, dedupe, auto-recovery), `WorkOrderAutomator`
+(→ K2 `workorder.created`), rule/alert/work-order controllers + corporate rule
+defaults (HTM 04-01 / 03-01 + HVAC). `ITelemetryAdapter` is the 5C protocol seam.
+
+**Pillar D — continuity (server)**: `TwinProvisioningService` (seed-from-model
+makes the register live; provision-from-cx at sign-off), `HealthcareComplianceFeed`
+(pressure telemetry → `HealthcarePressureLog`, HTM 03-01), and work-order
+completion emitting a `param.stamp` event for as-maintained write-back (Seam 2).
+
+**Caveats**: All server + plugin C# committed without `dotnet build` (Linux
+sandbox) — verify before merge. EF migrations required before deploy
+(`PlatformEventSpine`, `MeetingViewerSessions`, `MeetingSnapshots`, `TwinCore`),
+plus the Timescale `create_hypertable` on `TelemetryPoints`. Live SignalR
+auto-drain on the plugin (vs the working poll/manual path) and the
+`Planscape.Edge` agent (5B) / BACnet+Modbus adapters (5C) remain follow-ups.
+
 #### Completed (Phase 186b — Pset expansion + Path-2 static rule closeout)
 
 Two follow-ups to Phase 186 that turn the substrate from "Tier-1 only,
