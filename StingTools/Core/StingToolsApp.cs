@@ -2192,8 +2192,24 @@ namespace StingTools.Core
     [Regeneration(RegenerationOption.Manual)]
     public class HubPlacementCommand : IExternalCommand
     {
+        // Direct path — the Placement Centre is a modeless singleton opened
+        // via ShowOrFocus, which doesn't need the dock-panel ExternalEvent
+        // primed. Routing through HubDispatcher silently no-op'd when the
+        // panel hadn't been opened yet, making the tile look dead.
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("Placement_OpenCentre", ref message);
+        {
+            try
+            {
+                var app = data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp;
+                if (app == null) { message = "No active UIApplication."; return Result.Failed; }
+                StingTools.UI.PlacementCenter.StingPlacementCenter.ShowOrFocus(app);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HubPlacementCommand", ex); message = ex.Message; return Result.Failed;
+            }
+        }
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -2208,8 +2224,10 @@ namespace StingTools.Core
     [Regeneration(RegenerationOption.Manual)]
     public class HubSchedulingDashboardCommand : IExternalCommand
     {
+        // Open the rich Scheduling & Cost dashboard (SchedulingCostDashboard),
+        // not the stepped AutoSchedule4D TaskDialog the tile previously ran.
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("AutoSchedule4D", ref message);
+            => HubDispatcher.Run("SchedulingCostDashboard", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
