@@ -544,6 +544,12 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.ITwinRuleEvaluator,
     Planscape.Infrastructure.Services.TwinRuleEngine>();
 builder.Services.AddScoped<Planscape.Core.Interfaces.IWorkOrderAutomator,
     Planscape.Infrastructure.Services.WorkOrderAutomator>();
+// Pillar D — handover→operations continuity: model/CX → live twin registry +
+// continuous healthcare compliance evidence from telemetry.
+builder.Services.AddScoped<Planscape.Core.Interfaces.ITwinProvisioningService,
+    Planscape.Infrastructure.Services.TwinProvisioningService>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.IHealthcareComplianceFeed,
+    Planscape.Infrastructure.Services.HealthcareComplianceFeed>();
 // Gap F — Auto-compute coordinate transform from IfcMapConversion data.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
     Planscape.Infrastructure.Services.AutoAlignService>();
