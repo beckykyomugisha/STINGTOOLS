@@ -1290,6 +1290,10 @@ app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
         if (patchConn.State != System.Data.ConnectionState.Open)
             await patchConn.OpenAsync();
         await PatchDevSchemaAsync(patchConn);
+        // Phase 189 — create the platform-event / meeting / twin tables on
+        // pre-existing DBs (EnsureCreated short-circuits once Tenants exists;
+        // the EF migration set is incomplete). Idempotent CREATE TABLE IF NOT EXISTS.
+        await Planscape.API.PlatformSchemaPatcher.ApplyAsync(patchConn);
     }
 
     if (app.Environment.IsDevelopment())
