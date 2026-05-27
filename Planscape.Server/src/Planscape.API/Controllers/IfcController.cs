@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Planscape.Core.Constants;
 using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.API.Controllers;
@@ -27,15 +29,13 @@ namespace Planscape.API.Controllers;
 public class IfcController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
+    private readonly IIdentityResolverService _identity;
     private const int IngestBatchSize = 500;
-    private static readonly HashSet<string> ValidHosts = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "revit", "blender", "archicad", "tekla", "headless",
-    };
 
-    public IfcController(PlanscapeDbContext db)
+    public IfcController(PlanscapeDbContext db, IIdentityResolverService identity)
     {
         _db = db;
+        _identity = identity;
     }
 
     /// <summary>
@@ -52,9 +52,9 @@ public class IfcController : ControllerBase
         if (request.Elements is null || request.Elements.Count == 0)
             return BadRequest("Elements is empty");
 
-        var host = (request.Host ?? "").Trim().ToLowerInvariant();
-        if (!ValidHosts.Contains(host))
-            return BadRequest($"unknown host '{request.Host}'; expected one of {string.Join(", ", ValidHosts)}");
+        var host = MappingHosts.Normalize(request.Host);
+        if (!MappingHosts.IsValid(host))
+            return BadRequest($"unknown host '{request.Host}'; expected one of {string.Join(", ", MappingHosts.All)}");
 
         var tenantId = GetTenantId();
         if (tenantId == Guid.Empty) return Unauthorized();
@@ -232,6 +232,65 @@ public class IfcController : ControllerBase
             TotalCount = total,
             HasNextPage = (page * pageSize) < total,
         });
+    }
+
+    /// <summary>
+    /// GET /api/projects/{projectId}/ifc/resolve?guid=...&amp;host=...
+    /// K1 — resolve a canonical IFC GlobalId to its host-side element refs
+    /// across every host (Revit, Blender, IoT, …), or filter to one host.
+    /// This is the lookup meeting element-highlight write-back and the
+    /// IoT/twin layer call to answer "which Revit element is this?".
+    /// </summary>
+    [HttpGet("resolve")]
+    public async Task<ActionResult<IReadOnlyList<HostElementRef>>> Resolve(
+        Guid projectId,
+        [FromQuery] string guid,
+        [FromQuery] string? host = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(guid)) return BadRequest("guid is required");
+        var tenantId = GetTenantId();
+        var exists = await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == tenantId, ct);
+        if (!exists) return NotFound();
+
+        var refs = await _identity.ResolveHostElementsAsync(projectId, guid, host, ct);
+        return Ok(refs);
+    }
+
+    /// <summary>
+    /// POST /api/projects/{projectId}/ifc/iot-binding
+    /// K1 — bind an IoT device to a model element via the same cross-host
+    /// table (Host="iot"). The digital-twin layer calls this on device
+    /// onboarding / commissioning sign-off so telemetry resolves to the
+    /// element's canonical GlobalId. Idempotent.
+    /// </summary>
+    [HttpPost("iot-binding")]
+    public async Task<ActionResult<IdentityBindResult>> BindIotDevice(
+        Guid projectId,
+        [FromBody] IotBindingRequest request,
+        CancellationToken ct = default)
+    {
+        if (request is null) return BadRequest("missing body");
+        if (string.IsNullOrWhiteSpace(request.IfcGlobalId)) return BadRequest("ifcGlobalId is required");
+        if (string.IsNullOrWhiteSpace(request.DeviceId)) return BadRequest("deviceId is required");
+
+        var tenantId = GetTenantId();
+        var exists = await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == tenantId, ct);
+        if (!exists) return NotFound();
+
+        var result = await _identity.BindIotDeviceAsync(
+            projectId, request.IfcGlobalId, request.DeviceId,
+            request.Label, request.HostDocumentGuid, ct);
+        return Ok(result);
+    }
+
+    /// <summary>Body for POST iot-binding.</summary>
+    public class IotBindingRequest
+    {
+        public string IfcGlobalId { get; set; } = "";
+        public string DeviceId { get; set; } = "";
+        public string? Label { get; set; }
+        public string? HostDocumentGuid { get; set; }
     }
 
     /// <summary>Paginated response wrapper for the mappings GET endpoint.</summary>
