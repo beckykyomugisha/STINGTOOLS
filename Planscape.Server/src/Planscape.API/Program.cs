@@ -534,6 +534,14 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityResolverService,
 // K2 — Platform event spine (durable cross-surface channel → STING plugin).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IPlatformEventService,
     Planscape.Infrastructure.Services.PlatformEventService>();
+// Pillar B (5A) — IoT / digital twin: telemetry ingest, last-known-state, binding.
+builder.Services.AddScoped<Planscape.Core.Interfaces.IDeviceTwinService,
+    Planscape.Infrastructure.Services.DeviceTwinService>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.ITwinBindingService,
+    Planscape.Infrastructure.Services.TwinBindingService>();
+// Twin rule evaluator: no-op in 5A, replaced by TwinRuleEngine in 6A.
+builder.Services.AddScoped<Planscape.Core.Interfaces.ITwinRuleEvaluator,
+    Planscape.Core.Interfaces.NoOpTwinRuleEvaluator>();
 // Gap F — Auto-compute coordinate transform from IfcMapConversion data.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
     Planscape.Infrastructure.Services.AutoAlignService>();
@@ -1214,6 +1222,7 @@ app.MapHub<Planscape.Infrastructure.SignalR.ArchiCADHub>("/hubs/archicad");
 app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/model");
 app.MapHub<Planscape.Infrastructure.SignalR.PlatformEventHub>("/hubs/events");
 app.MapHub<Planscape.Infrastructure.SignalR.MeetingHub>("/hubs/meeting");
+app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
 
 // ── Database schema + seed ──
 {

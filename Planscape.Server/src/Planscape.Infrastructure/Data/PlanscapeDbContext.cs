@@ -103,6 +103,12 @@ public class PlanscapeDbContext : DbContext
     public DbSet<MeetingSession> MeetingSessions => Set<MeetingSession>();
     public DbSet<MeetingViewerParticipant> MeetingViewerParticipants => Set<MeetingViewerParticipant>();
     public DbSet<MeetingSnapshot> MeetingSnapshots => Set<MeetingSnapshot>();
+    // Pillar B — IoT / digital twin
+    public DbSet<DeviceTwin> DeviceTwins => Set<DeviceTwin>();
+    public DbSet<TelemetryPoint> TelemetryPoints => Set<TelemetryPoint>();
+    public DbSet<TwinRule> TwinRules => Set<TwinRule>();
+    public DbSet<TwinAlert> TwinAlerts => Set<TwinAlert>();
+    public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
     public DbSet<BimIssue> Issues => Set<BimIssue>();
     public DbSet<DocumentRecord> Documents => Set<DocumentRecord>();
     public DbSet<LicenseKey> LicenseKeys => Set<LicenseKey>();
@@ -654,6 +660,66 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(x => x.Session).WithMany().HasForeignKey(x => x.SessionId);
             e.Property(x => x.Label).HasMaxLength(200);
             e.HasIndex(x => new { x.SessionId, x.CapturedAt });
+        });
+
+        // ── Pillar B — IoT / digital twin ──
+        modelBuilder.Entity<DeviceTwin>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+            e.Property(x => x.DeviceId).HasMaxLength(200);
+            e.Property(x => x.IfcGlobalId).HasMaxLength(22);
+            e.Property(x => x.Protocol).HasMaxLength(16);
+            e.Property(x => x.HealthState).HasMaxLength(16);
+            e.HasIndex(x => new { x.ProjectId, x.DeviceId }).IsUnique();
+            e.HasIndex(x => new { x.ProjectId, x.HealthState });
+            e.HasIndex(x => new { x.ProjectId, x.IfcGlobalId });
+        });
+        modelBuilder.Entity<TelemetryPoint>(e =>
+        {
+            // Converted to a TimescaleDB hypertable post-migration:
+            //   SELECT create_hypertable('"TelemetryPoints"','Ts', migrate_data => true);
+            e.HasKey(x => x.Id);
+            e.Property(x => x.DeviceId).HasMaxLength(200);
+            e.Property(x => x.Metric).HasMaxLength(80);
+            e.Property(x => x.Unit).HasMaxLength(24);
+            e.HasIndex(x => new { x.ProjectId, x.DeviceId, x.Metric, x.Ts });
+        });
+        modelBuilder.Entity<TwinRule>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+            e.Property(x => x.Name).HasMaxLength(160);
+            e.Property(x => x.DeviceId).HasMaxLength(200);
+            e.Property(x => x.Metric).HasMaxLength(80);
+            e.Property(x => x.Operator).HasMaxLength(12);
+            e.Property(x => x.Severity).HasMaxLength(12);
+            e.HasIndex(x => new { x.ProjectId, x.Metric, x.Enabled });
+        });
+        modelBuilder.Entity<TwinAlert>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+            e.Property(x => x.DeviceId).HasMaxLength(200);
+            e.Property(x => x.IfcGlobalId).HasMaxLength(22);
+            e.Property(x => x.Metric).HasMaxLength(80);
+            e.Property(x => x.Severity).HasMaxLength(12);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.HasIndex(x => new { x.ProjectId, x.Status, x.FiredAt });
+            e.HasIndex(x => new { x.ProjectId, x.DeviceId });
+        });
+        modelBuilder.Entity<WorkOrder>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+            e.Property(x => x.Code).HasMaxLength(24);
+            e.Property(x => x.IfcGlobalId).HasMaxLength(22);
+            e.Property(x => x.Title).HasMaxLength(200);
+            e.Property(x => x.Priority).HasMaxLength(12);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.Source).HasMaxLength(12);
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.HasIndex(x => new { x.ProjectId, x.DeviceTwinId });
         });
 
         // ── BimIssue ──
