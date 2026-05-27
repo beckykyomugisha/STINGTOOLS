@@ -150,6 +150,8 @@ namespace StingTools.UI
                         Run<LpsTag7ParagraphCommand>(app); break;
                     case "Lps_BatchFamilyStamper":
                         Run<LpsBatchFamilyStamperCommand>(app); break;
+                    case "Lps_CreateFamilyShells":
+                        Run<LpsCreateFamilyShellsCommand>(app); break;
 
                     // ── ZONES tab ──────────────────────────────────────
                     case "Lps_ZoneTagRooms":

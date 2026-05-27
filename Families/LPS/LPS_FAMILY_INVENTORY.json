@@ -1,0 +1,763 @@
+{
+  "_comment": "STING Lightning Protection family inventory. Machine-readable spec consumed by FamilyParamCreator (parameter injection) + reference for AUTHORING_GUIDE.md (geometry authoring). 20 families across 6 tiers per BS EN 62305-3 / IEC 62305-4.",
+  "version": "1.0",
+  "standard": "BS EN 62305-3 / IEC 62305-4",
+  "namespace": "STING.LPS.Families",
+  "sharedParameterFile": "Data/MR_PARAMETERS.txt",
+
+  "commonStingTokens": [
+    "ASS_DISCIPLINE_COD_TXT",
+    "ASS_LOC_TXT",
+    "ASS_ZONE_TXT",
+    "ASS_LVL_COD_TXT",
+    "ASS_SYSTEM_TYPE_TXT",
+    "ASS_FUNC_TXT",
+    "ASS_PRODCT_COD_TXT",
+    "ASS_SEQ_NUM_TXT",
+    "ASS_TAG_1",
+    "ASS_TAG_7_TXT",
+    "ELC_TAG_7_PARA_LPS_TXT",
+    "ELC_LPS_ELEMENT_TYPE_TXT",
+    "ELC_LPS_COMPLIANCE_STATUS_TXT",
+    "ELC_LPS_TEST_DATE_TXT",
+    "ELC_LPS_CERT_REF_TXT"
+  ],
+
+  "families": [
+
+    {
+      "_tier": "1 — AIR-TERMINATION SYSTEM (§5.2)",
+      "id": "STING_LPS_AirTerminal_Franklin",
+      "displayName": "STING - LPS - Air Terminal - Franklin Rod",
+      "fileName": "STING_LPS_AirTerminal_Franklin.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "AIR_TERMINAL",
+      "prodCodeTag": "ATR",
+      "funcCode": "AT",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_AT_Tip",   "lineWeight": 4, "color": "230,81,0" },
+        { "name": "STING_LPS_AT_Mast",  "lineWeight": 3, "color": "230,81,0" },
+        { "name": "STING_LPS_AT_Base",  "lineWeight": 2, "color": "120,120,120" }
+      ],
+      "typeParameters": [
+        { "name": "TipDiameter_mm",      "type": "Length",         "value": "16",   "formula": "" },
+        { "name": "MastDiameter_mm",     "type": "Length",         "value": "20",   "formula": "" },
+        { "name": "MastLength_mm",       "type": "Length",         "value": "1000", "formula": "" },
+        { "name": "TipMaterial",         "type": "Text",           "value": "Copper / Stainless 316L", "formula": "" },
+        { "name": "ManufacturerCode",    "type": "Text",           "value": "GENERIC",  "formula": "" },
+        { "name": "ApprovalRef",         "type": "Text",           "value": "BS EN 50164-1 LPC class N", "formula": "" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",       "binding": "shared", "default": "AIR_TERMINAL", "formula": "" },
+        { "name": "ELC_LPS_CLASS_TXT",              "binding": "shared", "default": "",            "formula": "" },
+        { "name": "ELC_LPS_ROLLING_SPHERE_RADIUS_M","binding": "shared", "default": "",            "formula": "" },
+        { "name": "ELC_LPS_PROTECTION_ANGLE_DEG",   "binding": "shared", "default": "0",           "formula": "" },
+        { "name": "ELC_LPS_CONDUCTOR_MATERIAL_TXT", "binding": "shared", "default": "COPPER",      "formula": "" },
+        { "name": "ELC_LPS_TEST_DATE_TXT",          "binding": "shared", "default": "",            "formula": "" },
+        { "name": "ELC_LPS_COMPLIANCE_STATUS_TXT",  "binding": "shared", "default": "",            "formula": "" },
+        { "name": "ELC_LPS_AIRTERM_TAG_TXT",        "binding": "shared", "default": "",            "formula": "" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Vertical pin of TipDiameter at top, MastLength tall.",
+        "Mast tapers from MastDiameter at base to TipDiameter at tip.",
+        "Round base flange ~80 mm diameter × 6 mm thick.",
+        "Use Reference Plane at base for hosting (Roof / Top of column)."
+      ]
+    },
+
+    {
+      "_tier": "1 — AIR-TERMINATION SYSTEM (§5.2)",
+      "id": "STING_LPS_AirTerminal_MeshTape",
+      "displayName": "STING - LPS - Air Terminal - Mesh Tape (Line)",
+      "fileName": "STING_LPS_AirTerminal_MeshTape.rfa",
+      "category": "Generic Models",
+      "template": "Metric Generic Model line based.rft",
+      "elementTypeTag": "AIR_TERMINAL_MESH",
+      "prodCodeTag": "AMS",
+      "funcCode": "AT",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_Mesh_Conductor", "lineWeight": 4, "color": "230,81,0" }
+      ],
+      "typeParameters": [
+        { "name": "TapeWidth_mm",    "type": "Length",  "value": "25", "formula": "" },
+        { "name": "TapeThickness_mm","type": "Length",  "value": "3",  "formula": "" },
+        { "name": "CrossSection_mm2","type": "Number",  "value": "",   "formula": "TapeWidth_mm * TapeThickness_mm" },
+        { "name": "MassPerMeter_kg", "type": "Number",  "value": "",   "formula": "CrossSection_mm2 * 8.96 / 1000" },
+        { "name": "Material",        "type": "Text",    "value": "Copper", "formula": "" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",          "binding": "shared", "default": "AIR_TERMINAL_MESH" },
+        { "name": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",  "binding": "shared", "default": "",  "formula": "CrossSection_mm2" },
+        { "name": "ELC_LPS_CONDUCTOR_MATERIAL_TXT",    "binding": "shared", "default": "COPPER" },
+        { "name": "ELC_LPS_COMPLIANCE_STATUS_TXT",     "binding": "shared", "default": "" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Rectangular cross-section centred on the host line.",
+        "Tape sits flat on roof, oriented to follow the host.",
+        "Set 'Always vertical' OFF, 'Always horizontal' ON (when on a flat roof).",
+        "Reference Line at the host path centerline."
+      ]
+    },
+
+    {
+      "_tier": "1 — AIR-TERMINATION SYSTEM (§5.2)",
+      "id": "STING_LPS_AirTerminal_MeshNode",
+      "displayName": "STING - LPS - Air Terminal - Mesh Node (Cross-Connector)",
+      "fileName": "STING_LPS_AirTerminal_MeshNode.rfa",
+      "category": "Generic Models",
+      "template": "Metric Generic Model.rft",
+      "elementTypeTag": "AIR_TERMINAL_MESH",
+      "prodCodeTag": "AMS",
+      "funcCode": "AT",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_Mesh_Node", "lineWeight": 4, "color": "230,81,0" }
+      ],
+      "typeParameters": [
+        { "name": "ClampType",       "type": "Text",    "value": "T-Junction / Cross / Tee" },
+        { "name": "BoltDiameter_mm", "type": "Length",  "value": "8" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT", "binding": "shared", "default": "AIR_TERMINAL_MESH" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "60 × 60 × 6 mm bronze pad with through-bolt(s).",
+        "Used at intersections of the mesh-tape grid."
+      ]
+    },
+
+    {
+      "_tier": "1 — AIR-TERMINATION SYSTEM (§5.2)",
+      "id": "STING_LPS_AirTerminal_ESE",
+      "displayName": "STING - LPS - Air Terminal - ESE (NF C 17-102)",
+      "fileName": "STING_LPS_AirTerminal_ESE.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "AIR_TERMINAL_ESE",
+      "prodCodeTag": "AES",
+      "funcCode": "AT",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_ESE_Head", "lineWeight": 4, "color": "120,40,150" }
+      ],
+      "typeParameters": [
+        { "name": "AdvanceTime_us",      "type": "Number",  "value": "30",  "formula": "" },
+        { "name": "TipHeight_m",         "type": "Length",  "value": "5",   "formula": "" },
+        { "name": "ProtectionLevel",     "type": "Text",    "value": "Level I (most stringent)" },
+        { "name": "ManufacturerCode",    "type": "Text",    "value": "Indelec Prevectron 3 / equivalent" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",        "binding": "shared", "default": "AIR_TERMINAL_ESE" },
+        { "name": "ELC_LPS_PROTECTION_ANGLE_DEG",    "binding": "shared", "default": "",     "formula": "" },
+        { "name": "_ProtectionRadius_m",             "binding": "type",   "default": "",     "formula": "TipHeight_m + 1.06 * AdvanceTime_us" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Domed head ~250 mm diameter with central pin.",
+        "Mast TipHeight_m below head (5 m typical).",
+        "ProtectionRadius computed per NF C 17-102 Eq. 5: rp = h + Δt × 10^6 m/s · 10^-6 = h + 1.06·Δt",
+        "Not BS EN 62305 compliant by itself — UK/IEC projects use Franklin rod instead."
+      ]
+    },
+
+    {
+      "_tier": "1 — AIR-TERMINATION SYSTEM (§5.2)",
+      "id": "STING_LPS_LightningMast",
+      "displayName": "STING - LPS - Lightning Mast / Pole",
+      "fileName": "STING_LPS_LightningMast.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "AIR_TERMINAL",
+      "prodCodeTag": "ATR",
+      "funcCode": "AT",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_Mast", "lineWeight": 4, "color": "230,81,0" }
+      ],
+      "typeParameters": [
+        { "name": "TotalHeight_m",     "type": "Length",  "value": "10",   "formula": "" },
+        { "name": "MastDiameter_mm",   "type": "Length",  "value": "60",   "formula": "" },
+        { "name": "FoundationType",    "type": "Text",    "value": "Concrete pad 800×800×600mm with M16 anchors" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT", "binding": "shared", "default": "AIR_TERMINAL" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Tall steel pole with a Franklin tip on top.",
+        "Used for site-wide protection of low buildings, fuel tanks, comms equipment.",
+        "Optional: include a foundation block subcategory at the base."
+      ]
+    },
+
+    {
+      "_tier": "2 — DOWN CONDUCTORS (§5.3)",
+      "id": "STING_LPS_DownConductor_Bare",
+      "displayName": "STING - LPS - Down Conductor - Bare Tape (Line)",
+      "fileName": "STING_LPS_DownConductor_Bare.rfa",
+      "category": "Generic Models",
+      "template": "Metric Generic Model line based.rft",
+      "elementTypeTag": "DOWN_CONDUCTOR",
+      "prodCodeTag": "DCN",
+      "funcCode": "DC",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_DownConductor", "lineWeight": 5, "color": "211,47,47" }
+      ],
+      "typeParameters": [
+        { "name": "TapeWidth_mm",        "type": "Length",  "value": "25" },
+        { "name": "TapeThickness_mm",    "type": "Length",  "value": "3" },
+        { "name": "CrossSection_mm2",    "type": "Number",  "value": "", "formula": "TapeWidth_mm * TapeThickness_mm" },
+        { "name": "Material",            "type": "Text",    "value": "Copper" },
+        { "name": "Density_kgM3",        "type": "Number",  "value": "8960" },
+        { "name": "MassPerMeter_kg",     "type": "Number",  "value": "", "formula": "CrossSection_mm2 / 1000000 * Density_kgM3" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",          "binding": "shared", "default": "DOWN_CONDUCTOR" },
+        { "name": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",  "binding": "shared", "default": "", "formula": "CrossSection_mm2" },
+        { "name": "ELC_LPS_CONDUCTOR_MATERIAL_TXT",    "binding": "shared", "default": "COPPER" },
+        { "name": "ELC_LPS_SEPARATION_DISTANCE_MM",    "binding": "shared", "default": "" },
+        { "name": "ELC_LPS_COMPLIANCE_STATUS_TXT",     "binding": "shared", "default": "" },
+        { "name": "ELC_LPS_DOWNCOND_TAG_TXT",          "binding": "shared", "default": "" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Line-based: place by clicking start + end points.",
+        "Cross-section visible at endpoints + mid-points via Detail Components or sweep along path.",
+        "Use Reference Line for the host path — geometry sweeps along it.",
+        "BS EN 62305-3 Table 6 minimum CS: Cu 50 mm² · Al 70 mm² · Steel 50 mm²."
+      ]
+    },
+
+    {
+      "_tier": "2 — DOWN CONDUCTORS (§5.3)",
+      "id": "STING_LPS_DownConductor_Concealed",
+      "displayName": "STING - LPS - Down Conductor - Concealed (in Column/Wall)",
+      "fileName": "STING_LPS_DownConductor_Concealed.rfa",
+      "category": "Generic Models",
+      "template": "Metric Generic Model line based.rft",
+      "elementTypeTag": "DOWN_CONDUCTOR",
+      "prodCodeTag": "DCN",
+      "funcCode": "DC",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_DownConductor_Concealed", "lineWeight": 4, "color": "211,47,47", "lineStyle": "Dashed" }
+      ],
+      "typeParameters": [
+        { "name": "ConductorDiameter_mm", "type": "Length",  "value": "10",      "formula": "" },
+        { "name": "Material",             "type": "Text",    "value": "Copper round" },
+        { "name": "ConcealmentType",      "type": "Text",    "value": "Cast-in / Column reinforcement" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT", "binding": "shared", "default": "DOWN_CONDUCTOR" },
+        { "name": "ELC_LPS_DOWNCOND_TAG_TXT", "binding": "shared", "default": "" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Round bar (10 mm typical) running inside a column or wall.",
+        "Render dashed when concealed — graphic distinction from bare.",
+        "Place start/end test points on the exposed segments."
+      ]
+    },
+
+    {
+      "_tier": "2 — DOWN CONDUCTORS (§5.3)",
+      "id": "STING_LPS_TestClamp",
+      "displayName": "STING - LPS - Test Clamp / Disconnect Joint",
+      "fileName": "STING_LPS_TestClamp.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "TEST_CLAMP",
+      "prodCodeTag": "TC",
+      "funcCode": "TC",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_TestClamp", "lineWeight": 3, "color": "0,121,107" }
+      ],
+      "typeParameters": [
+        { "name": "ClampWidth_mm",   "type": "Length",  "value": "60" },
+        { "name": "ClampHeight_mm",  "type": "Length",  "value": "40" },
+        { "name": "BoltCount",       "type": "Integer", "value": "2" },
+        { "name": "Material",        "type": "Text",    "value": "Brass / Bronze" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",       "binding": "shared", "default": "TEST_CLAMP" },
+        { "name": "ELC_LPS_TEST_DATE_TXT",          "binding": "shared", "default": "" },
+        { "name": "ELC_LPS_EARTH_RESISTANCE_OHM",   "binding": "shared", "default": "0" },
+        { "name": "ELC_LPS_COMPLIANCE_STATUS_TXT",  "binding": "shared", "default": "" },
+        { "name": "ELC_LPS_TESTCLAMP_TAG_TXT",      "binding": "shared", "default": "" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Mounted at ~1.5 m AGL on the down conductor for periodic testing.",
+        "Two-bolt clamp on a small bronze pad.",
+        "Annex E §E.4 requires a test joint between every DC and its earth electrode."
+      ]
+    },
+
+    {
+      "_tier": "2 — DOWN CONDUCTORS (§5.3)",
+      "id": "STING_LPS_RoofPenetration",
+      "displayName": "STING - LPS - Down Conductor Roof Penetration",
+      "fileName": "STING_LPS_RoofPenetration.rfa",
+      "category": "Generic Models",
+      "template": "Metric Generic Model.rft",
+      "elementTypeTag": "DOWN_CONDUCTOR",
+      "prodCodeTag": "DCN",
+      "funcCode": "DC",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_Penetration", "lineWeight": 3, "color": "120,120,120" }
+      ],
+      "typeParameters": [
+        { "name": "FlangeOD_mm",    "type": "Length",  "value": "150" },
+        { "name": "SealType",       "type": "Text",    "value": "EPDM gasket / lead skirt" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT", "binding": "shared", "default": "DOWN_CONDUCTOR" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Weatherproof penetration where DC transitions from roof to wall/column.",
+        "Lead skirt or EPDM gasket around a small flange."
+      ]
+    },
+
+    {
+      "_tier": "3 — EARTH TERMINATION (§5.4)",
+      "id": "STING_LPS_EarthRod",
+      "displayName": "STING - LPS - Earth Rod (Type A driven)",
+      "fileName": "STING_LPS_EarthRod.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "EARTH_ELECTRODE",
+      "prodCodeTag": "ERD",
+      "funcCode": "EE",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_EarthRod", "lineWeight": 4, "color": "46,125,50" }
+      ],
+      "typeParameters": [
+        { "name": "RodLength_m",     "type": "Length",  "value": "2.4",  "formula": "" },
+        { "name": "RodDiameter_mm",  "type": "Length",  "value": "16",   "formula": "" },
+        { "name": "Material",        "type": "Text",    "value": "Copper-bonded steel" },
+        { "name": "Coupling",        "type": "Text",    "value": "Internal thread for stacking" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",        "binding": "shared", "default": "EARTH_ELECTRODE" },
+        { "name": "ELC_LPS_EARTH_TYPE_TXT",          "binding": "shared", "default": "A" },
+        { "name": "ELC_LPS_EARTH_RESISTANCE_OHM",    "binding": "shared", "default": "0" },
+        { "name": "ELC_LPS_TEST_DATE_TXT",           "binding": "shared", "default": "" },
+        { "name": "ELC_LPS_COMPLIANCE_STATUS_TXT",   "binding": "shared", "default": "" },
+        { "name": "ELC_LPS_EARTH_TAG_TXT",           "binding": "shared", "default": "" },
+        { "name": "_NominalResistance_ohm",          "binding": "type",   "default": "", "formula": "100 / (2 * 3.14159265 * RodLength_m)" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Vertical rod 2.4 m tall × 16 mm diameter, driven into ground.",
+        "Top above ground = 100 mm with a test-clamp connection.",
+        "Internal-thread coupling at base for extension rods.",
+        "_NominalResistance_ohm formula assumes ρ=100 Ω·m loam — actual measured value goes into ELC_LPS_EARTH_RESISTANCE_OHM."
+      ]
+    },
+
+    {
+      "_tier": "3 — EARTH TERMINATION (§5.4)",
+      "id": "STING_LPS_EarthPlate",
+      "displayName": "STING - LPS - Earth Plate",
+      "fileName": "STING_LPS_EarthPlate.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "EARTH_ELECTRODE",
+      "prodCodeTag": "EPL",
+      "funcCode": "EE",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_EarthPlate", "lineWeight": 3, "color": "46,125,50" }
+      ],
+      "typeParameters": [
+        { "name": "PlateWidth_mm",      "type": "Length",  "value": "600" },
+        { "name": "PlateHeight_mm",     "type": "Length",  "value": "600" },
+        { "name": "PlateThickness_mm",  "type": "Length",  "value": "3" },
+        { "name": "Material",           "type": "Text",    "value": "Copper" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",      "binding": "shared", "default": "EARTH_ELECTRODE" },
+        { "name": "ELC_LPS_EARTH_TYPE_TXT",        "binding": "shared", "default": "A" },
+        { "name": "ELC_LPS_EARTH_RESISTANCE_OHM",  "binding": "shared", "default": "0" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Square Cu plate buried 600 mm deep in conductive soil.",
+        "Used where ground prevents rod driving (rock, clay, frozen soil)."
+      ]
+    },
+
+    {
+      "_tier": "3 — EARTH TERMINATION (§5.4)",
+      "id": "STING_LPS_RingEarth",
+      "displayName": "STING - LPS - Ring Earth Conductor (Type B)",
+      "fileName": "STING_LPS_RingEarth.rfa",
+      "category": "Generic Models",
+      "template": "Metric Generic Model line based.rft",
+      "elementTypeTag": "EARTH_ELECTRODE",
+      "prodCodeTag": "ERG",
+      "funcCode": "EE",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_RingEarth", "lineWeight": 4, "color": "46,125,50" }
+      ],
+      "typeParameters": [
+        { "name": "ConductorCS_mm2",    "type": "Number",  "value": "50" },
+        { "name": "Material",           "type": "Text",    "value": "Copper" },
+        { "name": "BuriedDepth_mm",     "type": "Length",  "value": "500" },
+        { "name": "DistanceFromBuilding_mm","type": "Length", "value": "1000" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT", "binding": "shared", "default": "EARTH_ELECTRODE" },
+        { "name": "ELC_LPS_EARTH_TYPE_TXT",   "binding": "shared", "default": "B" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Closed loop around the building perimeter, buried 0.5 m deep, ≥1 m from foundations.",
+        "Type B per BS EN 62305-3 §5.4.2.2: connects all DCs to a single equipotential ring.",
+        "≥80% of the ring must be in direct soil contact."
+      ]
+    },
+
+    {
+      "_tier": "3 — EARTH TERMINATION (§5.4)",
+      "id": "STING_LPS_FoundationEarth",
+      "displayName": "STING - LPS - Foundation Earth Electrode",
+      "fileName": "STING_LPS_FoundationEarth.rfa",
+      "category": "Generic Models",
+      "template": "Metric Generic Model.rft",
+      "elementTypeTag": "EARTH_ELECTRODE",
+      "prodCodeTag": "EFE",
+      "funcCode": "EE",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_FoundationEarth", "lineWeight": 4, "color": "46,125,50" }
+      ],
+      "typeParameters": [
+        { "name": "ConductorCS_mm2",   "type": "Number",  "value": "90" },
+        { "name": "Material",          "type": "Text",    "value": "Hot-dip galvanised steel" },
+        { "name": "ConcreteCoverage_mm","type": "Length", "value": "50" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT", "binding": "shared", "default": "EARTH_ELECTRODE" },
+        { "name": "ELC_LPS_EARTH_TYPE_TXT",   "binding": "shared", "default": "B" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Galvanised steel rod cast into the foundation slab.",
+        "BS EN 62305-3 Annex E §E.5.3: rebar reused as earth where cover ≥50 mm allows.",
+        "Most efficient earth electrode arrangement for new builds."
+      ]
+    },
+
+    {
+      "_tier": "3 — EARTH TERMINATION (§5.4)",
+      "id": "STING_LPS_MainEarthBar",
+      "displayName": "STING - LPS - Main Earth Bar (MEB)",
+      "fileName": "STING_LPS_MainEarthBar.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "BONDING_BAR",
+      "prodCodeTag": "BBR",
+      "funcCode": "BND",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_MEB", "lineWeight": 4, "color": "255,193,7" }
+      ],
+      "typeParameters": [
+        { "name": "BarLength_mm",       "type": "Length",  "value": "300" },
+        { "name": "BarWidth_mm",        "type": "Length",  "value": "40" },
+        { "name": "BarThickness_mm",    "type": "Length",  "value": "5" },
+        { "name": "NumberOfWays",       "type": "Integer", "value": "6" },
+        { "name": "Material",           "type": "Text",    "value": "Copper" },
+        { "name": "EnclosureType",      "type": "Text",    "value": "Open frame / IP54 box" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",     "binding": "shared", "default": "BONDING_BAR" },
+        { "name": "ELC_LPS_BOND_TYPE_TXT",        "binding": "shared", "default": "DIRECT" },
+        { "name": "ELC_LPS_EARTH_RESISTANCE_OHM", "binding": "shared", "default": "0" },
+        { "name": "ELC_LPS_BOND_TAG_TXT",         "binding": "shared", "default": "" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Horizontal copper bar with through-holes for connecting all earth + DC + bonding conductors.",
+        "Mounted on standoff insulators in plant room or near service entry.",
+        "BS EN 62305-3 §6.2.2: central point of the equipotential bonding network."
+      ]
+    },
+
+    {
+      "_tier": "3 — EARTH TERMINATION (§5.4)",
+      "id": "STING_LPS_EarthPit",
+      "displayName": "STING - LPS - Earth Pit / Inspection Chamber",
+      "fileName": "STING_LPS_EarthPit.rfa",
+      "category": "Generic Models",
+      "template": "Metric Generic Model.rft",
+      "elementTypeTag": "EARTH_ELECTRODE",
+      "prodCodeTag": "EPT",
+      "funcCode": "EE",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_EarthPit", "lineWeight": 2, "color": "120,120,120" }
+      ],
+      "typeParameters": [
+        { "name": "PitDiameter_mm",  "type": "Length",  "value": "300" },
+        { "name": "PitDepth_mm",     "type": "Length",  "value": "400" },
+        { "name": "CoverMaterial",   "type": "Text",    "value": "PolymerConcrete A15 (5 kN)" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT", "binding": "shared", "default": "EARTH_ELECTRODE" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Round access chamber housing the test clamp + top of earth rod.",
+        "Removable cover for periodic inspection."
+      ]
+    },
+
+    {
+      "_tier": "4 — EQUIPOTENTIAL BONDING (§6.2)",
+      "id": "STING_LPS_BondingBar",
+      "displayName": "STING - LPS - Bonding Bar (Sub-MEB)",
+      "fileName": "STING_LPS_BondingBar.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "BONDING_BAR",
+      "prodCodeTag": "BBR",
+      "funcCode": "BND",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_BondingBar", "lineWeight": 3, "color": "255,193,7" }
+      ],
+      "typeParameters": [
+        { "name": "BarLength_mm",  "type": "Length",  "value": "200" },
+        { "name": "NumberOfWays",  "type": "Integer", "value": "4" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT", "binding": "shared", "default": "BONDING_BAR" },
+        { "name": "ELC_LPS_BOND_TYPE_TXT",    "binding": "shared", "default": "DIRECT" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Smaller bar at each LPZ boundary (sub-distribution-board / plant-room entry).",
+        "Connects local services (water, gas, structural steel) to the MEB."
+      ]
+    },
+
+    {
+      "_tier": "4 — EQUIPOTENTIAL BONDING (§6.2)",
+      "id": "STING_LPS_BondingStrap",
+      "displayName": "STING - LPS - Bonding Conductor Strap (Line)",
+      "fileName": "STING_LPS_BondingStrap.rfa",
+      "category": "Generic Models",
+      "template": "Metric Generic Model line based.rft",
+      "elementTypeTag": "BOND",
+      "prodCodeTag": "BCN",
+      "funcCode": "BND",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_BondingStrap", "lineWeight": 3, "color": "255,193,7" }
+      ],
+      "typeParameters": [
+        { "name": "ConductorCS_mm2",  "type": "Number",  "value": "16" },
+        { "name": "Material",         "type": "Text",    "value": "Copper, insulated green-yellow" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT", "binding": "shared", "default": "BOND" },
+        { "name": "ELC_LPS_BOND_TYPE_TXT",    "binding": "shared", "default": "DIRECT" },
+        { "name": "ELC_LPS_FROM_LPZ_TXT",     "binding": "shared", "default": "" },
+        { "name": "ELC_LPS_TO_LPZ_TXT",       "binding": "shared", "default": "" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Insulated Cu cable connecting a service or metallic structure to a bonding bar.",
+        "BS EN 62305-3 Table 9 — minimum 16 mm² Cu for non-LPS bonding; 50 mm² where LPS current can flow."
+      ]
+    },
+
+    {
+      "_tier": "4 — EQUIPOTENTIAL BONDING (§6.2)",
+      "id": "STING_LPS_SparkGap",
+      "displayName": "STING - LPS - Isolating Spark Gap",
+      "fileName": "STING_LPS_SparkGap.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "BOND",
+      "prodCodeTag": "ISG",
+      "funcCode": "BND",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_SparkGap", "lineWeight": 3, "color": "255,193,7" }
+      ],
+      "typeParameters": [
+        { "name": "RatedImpulseCurrent_kA", "type": "Number",  "value": "50" },
+        { "name": "SparkoverVoltage_V",     "type": "Number",  "value": "750" },
+        { "name": "Manufacturer",           "type": "Text",    "value": "DEHN ISF / equivalent" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT", "binding": "shared", "default": "BOND" },
+        { "name": "ELC_LPS_BOND_TYPE_TXT",    "binding": "shared", "default": "ISOLATING_SPARK_GAP" }
+      ],
+      "connectors": [],
+      "geometryNotes": [
+        "Used for bonding through DC-isolated systems (cathodic protection, dielectric pipe couplings).",
+        "Fires at surge voltage but isolates DC normally."
+      ]
+    },
+
+    {
+      "_tier": "5 — SURGE PROTECTION (IEC 62305-4 / IEC 61643)",
+      "id": "STING_LPS_SPD_Type1",
+      "displayName": "STING - LPS - SPD Type 1 (Service Entry)",
+      "fileName": "STING_LPS_SPD_Type1.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "SPD",
+      "prodCodeTag": "SP1",
+      "funcCode": "SPD",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_SPD",  "lineWeight": 4, "color": "106,27,154" }
+      ],
+      "typeParameters": [
+        { "name": "Iimp_kA",           "type": "Number",  "value": "25" },
+        { "name": "In_kA",             "type": "Number",  "value": "0" },
+        { "name": "Up_kV",             "type": "Number",  "value": "1.5" },
+        { "name": "Uc_V",              "type": "Number",  "value": "275" },
+        { "name": "PolesConfig",       "type": "Text",    "value": "TN-S 3+NPE" },
+        { "name": "Manufacturer",      "type": "Text",    "value": "DEHN / OBO / Furse" },
+        { "name": "Model",             "type": "Text",    "value": "" },
+        { "name": "Standard",          "type": "Text",    "value": "IEC 61643-11 Type 1 (10/350 µs)" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",       "binding": "shared", "default": "SPD" },
+        { "name": "ELC_LPS_SURGE_PROTECTION_LVL_TXT","binding": "shared", "default": "Type 1" },
+        { "name": "ELC_LPS_SPD_TAG_TXT",            "binding": "shared", "default": "" }
+      ],
+      "connectors": [
+        { "type": "Electrical", "system": "Power - Balanced", "voltage": "400/230 V", "phase": "3+N+PE" }
+      ],
+      "geometryNotes": [
+        "DIN-rail mounted box ~90 × 90 × 70 mm (4 modules).",
+        "Installed at main service entry (LPZ 0/1 boundary).",
+        "Iimp ≥ 25 kA per class I / ≥ 20 kA class II / ≥ 12.5 kA class III/IV (BS EN 62305-4 Table 4)."
+      ]
+    },
+
+    {
+      "_tier": "5 — SURGE PROTECTION (IEC 62305-4 / IEC 61643)",
+      "id": "STING_LPS_SPD_Type2",
+      "displayName": "STING - LPS - SPD Type 2 (Sub-DB)",
+      "fileName": "STING_LPS_SPD_Type2.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "SPD",
+      "prodCodeTag": "SP2",
+      "funcCode": "SPD",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_SPD",  "lineWeight": 4, "color": "106,27,154" }
+      ],
+      "typeParameters": [
+        { "name": "Iimp_kA",           "type": "Number",  "value": "0" },
+        { "name": "In_kA",             "type": "Number",  "value": "20" },
+        { "name": "Up_kV",             "type": "Number",  "value": "1.4" },
+        { "name": "Uc_V",              "type": "Number",  "value": "275" },
+        { "name": "PolesConfig",       "type": "Text",    "value": "TN-S" },
+        { "name": "Standard",          "type": "Text",    "value": "IEC 61643-11 Type 2 (8/20 µs)" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",         "binding": "shared", "default": "SPD" },
+        { "name": "ELC_LPS_SURGE_PROTECTION_LVL_TXT", "binding": "shared", "default": "Type 2" }
+      ],
+      "connectors": [
+        { "type": "Electrical", "system": "Power - Balanced", "voltage": "400/230 V", "phase": "3+N+PE" }
+      ],
+      "geometryNotes": [
+        "Smaller DIN-rail SPD ~70 × 70 × 70 mm (4 modules).",
+        "Sub-DB or panelboard mounted (LPZ 1/2 boundary)."
+      ]
+    },
+
+    {
+      "_tier": "5 — SURGE PROTECTION (IEC 62305-4 / IEC 61643)",
+      "id": "STING_LPS_SPD_Type3",
+      "displayName": "STING - LPS - SPD Type 3 (Final Circuit)",
+      "fileName": "STING_LPS_SPD_Type3.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "SPD",
+      "prodCodeTag": "SP3",
+      "funcCode": "SPD",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_SPD",  "lineWeight": 3, "color": "106,27,154" }
+      ],
+      "typeParameters": [
+        { "name": "Iimp_kA",           "type": "Number",  "value": "0" },
+        { "name": "In_kA",             "type": "Number",  "value": "5" },
+        { "name": "Up_kV",             "type": "Number",  "value": "1.3" },
+        { "name": "Uc_V",              "type": "Number",  "value": "275" },
+        { "name": "PolesConfig",       "type": "Text",    "value": "L-N-PE single phase" },
+        { "name": "Standard",          "type": "Text",    "value": "IEC 61643-11 Type 3 (1.2/50 + 8/20)" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",         "binding": "shared", "default": "SPD" },
+        { "name": "ELC_LPS_SURGE_PROTECTION_LVL_TXT", "binding": "shared", "default": "Type 3" }
+      ],
+      "connectors": [
+        { "type": "Electrical", "system": "Power - Balanced", "voltage": "230 V", "phase": "L+N+PE" }
+      ],
+      "geometryNotes": [
+        "Compact DIN-rail unit ~36 × 90 × 65 mm (2 modules) OR plug-in 13A socket variant.",
+        "Within 10 m of sensitive equipment per IEC 62305-4."
+      ]
+    },
+
+    {
+      "_tier": "5 — SURGE PROTECTION (IEC 62305-4 / IEC 61643)",
+      "id": "STING_LPS_SPD_Combined",
+      "displayName": "STING - LPS - SPD Combined Type 1+2",
+      "fileName": "STING_LPS_SPD_Combined.rfa",
+      "category": "Electrical Equipment",
+      "template": "Metric Electrical Equipment.rft",
+      "elementTypeTag": "SPD",
+      "prodCodeTag": "S12",
+      "funcCode": "SPD",
+      "sysCode": "LPS",
+      "subcategories": [
+        { "name": "STING_LPS_SPD",  "lineWeight": 4, "color": "106,27,154" }
+      ],
+      "typeParameters": [
+        { "name": "Iimp_kA",           "type": "Number",  "value": "12.5" },
+        { "name": "In_kA",             "type": "Number",  "value": "20" },
+        { "name": "Up_kV",             "type": "Number",  "value": "1.5" },
+        { "name": "Standard",          "type": "Text",    "value": "IEC 61643-11 Type 1+2 combined" }
+      ],
+      "instanceParameters": [
+        { "name": "ELC_LPS_ELEMENT_TYPE_TXT",         "binding": "shared", "default": "SPD" },
+        { "name": "ELC_LPS_SURGE_PROTECTION_LVL_TXT", "binding": "shared", "default": "Type 1+2" }
+      ],
+      "connectors": [
+        { "type": "Electrical", "system": "Power - Balanced", "voltage": "400/230 V", "phase": "3+N+PE" }
+      ],
+      "geometryNotes": [
+        "Single device combining T1 (10/350 µs Iimp) and T2 (8/20 µs In).",
+        "Used where there's only one DB between service entry and equipment (no T1 / T2 cascade).",
+        "Same footprint as Type 1 (~90 × 90 × 70 mm)."
+      ]
+    }
+  ]
+}
