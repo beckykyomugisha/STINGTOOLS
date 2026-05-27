@@ -1213,6 +1213,7 @@ app.MapHub<Planscape.Infrastructure.SignalR.ArchiCADHub>("/hubs/archicad");
 // Gap H — Federated model viewer hub (ModelUpdated events after IFC ingest / auto-align).
 app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/model");
 app.MapHub<Planscape.Infrastructure.SignalR.PlatformEventHub>("/hubs/events");
+app.MapHub<Planscape.Infrastructure.SignalR.MeetingHub>("/hubs/meeting");
 
 // ── Database schema + seed ──
 {

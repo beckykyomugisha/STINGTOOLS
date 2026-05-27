@@ -100,6 +100,8 @@ public class PlanscapeDbContext : DbContext
     public DbSet<TaggedElement> TaggedElements => Set<TaggedElement>();
     public DbSet<ExternalElementMapping> ExternalElementMappings => Set<ExternalElementMapping>();
     public DbSet<PlatformEvent> PlatformEvents => Set<PlatformEvent>();
+    public DbSet<MeetingSession> MeetingSessions => Set<MeetingSession>();
+    public DbSet<MeetingViewerParticipant> MeetingViewerParticipants => Set<MeetingViewerParticipant>();
     public DbSet<BimIssue> Issues => Set<BimIssue>();
     public DbSet<DocumentRecord> Documents => Set<DocumentRecord>();
     public DbSet<LicenseKey> LicenseKeys => Set<LicenseKey>();
@@ -626,6 +628,24 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.RowHash).HasMaxLength(64);
             e.HasIndex(x => new { x.ProjectId, x.Sequence }).IsUnique();   // drain cursor
             e.HasIndex(x => new { x.ProjectId, x.Status, x.Sequence });    // pending scan
+        });
+
+        // ── MeetingSession + MeetingViewerParticipant (Pillar A 3A) ──
+        modelBuilder.Entity<MeetingSession>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.BaseRevisionId).HasMaxLength(64);
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+        });
+        modelBuilder.Entity<MeetingViewerParticipant>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasOne(x => x.Session).WithMany(s => s.Participants).HasForeignKey(x => x.SessionId);
+            e.Property(x => x.DisplayName).HasMaxLength(120);
+            e.Property(x => x.Surface).HasMaxLength(16);
+            e.HasIndex(x => new { x.SessionId, x.UserId }).IsUnique();
         });
 
         // ── BimIssue ──
