@@ -1343,17 +1343,17 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoRetentionJob>(
     "photo-retention",
     j => j.ExecuteAsync(CancellationToken.None),
-    "30 3 * * *", new RecurringJobOptions { QueueName = "default" });
+    "30 3 * * *");
 // Phase 180 — daily 07:00 UTC checklist-due nudge.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoChecklistDueJob>(
     "photo-checklist-due",
     j => j.ExecuteAsync(CancellationToken.None),
-    "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
+    "0 7 * * *");
 // Phase 180 — daily 02:00 UTC smart-album materialiser.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoSmartAlbumMaterialiseJob>(
     "photo-smart-album",
     j => j.ExecuteAsync(CancellationToken.None),
-    "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
+    "0 2 * * *");
 
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DailyPhotoDigestJob>(
     "site-photo-digest", "default", j => j.ExecuteAsync(CancellationToken.None),

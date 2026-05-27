@@ -101,6 +101,8 @@ public class IssueAudioNotesController : ControllerBase
         [FromForm] AudioNoteUploadRequest req,
         CancellationToken ct)
     {
+        var file = req.File;
+        var durationSeconds = req.DurationSeconds;
         if (file == null || file.Length == 0) return BadRequest(new { error = "empty_file" });
         if (file.Length > MaxAudioBytes) return BadRequest(new { error = "max_25mb_per_voice_note" });
 

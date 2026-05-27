@@ -289,42 +289,6 @@ public class IssuesController : ControllerBase
             }
         }
 
-        // NEW-SRV-23 + NEW-MOB-17: resolve and validate assignee against project membership.
-        // Accept any of: AssigneeUserId (preferred), AssigneeEmail, or legacy Assignee display name.
-        AppUser? assigneeUser = null;
-        if (req.AssigneeUserId.HasValue)
-        {
-            assigneeUser = await _db.Users.FirstOrDefaultAsync(u =>
-                u.Id == req.AssigneeUserId.Value && u.TenantId == tenantId);
-        }
-        if (assigneeUser == null && !string.IsNullOrWhiteSpace(req.AssigneeEmail))
-        {
-            assigneeUser = await _db.Users.FirstOrDefaultAsync(u =>
-                u.Email == req.AssigneeEmail && u.TenantId == tenantId);
-        }
-        if (assigneeUser == null && !string.IsNullOrWhiteSpace(req.Assignee))
-        {
-            // Legacy display-name match — kept so older mobile builds still work
-            assigneeUser = await _db.Users.FirstOrDefaultAsync(u =>
-                u.DisplayName == req.Assignee && u.TenantId == tenantId);
-        }
-        if (assigneeUser != null)
-        {
-            var isMember = await _db.ProjectMembers.AnyAsync(m =>
-                m.ProjectId == projectId && m.UserId == assigneeUser.Id && m.IsActive);
-            if (!isMember)
-            {
-                return BadRequest(new { error = "Assignee is not an active member of this project" });
-            }
-        }
-
-        var creatorClaim = User.FindFirst("user_id")?.Value;
-        Guid? creatorId = Guid.TryParse(creatorClaim, out var cid) ? cid : null;
-
-        // Source detection: explicit > X-Device-Id presence > default "web"
-        var source = req.Source
-            ?? (Request.Headers.ContainsKey("X-Device-Id") ? "mobile" : "web");
-
         var issue = new BimIssue
         {
             ProjectId = projectId,
