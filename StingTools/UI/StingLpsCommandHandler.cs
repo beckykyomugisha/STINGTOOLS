@@ -4,6 +4,7 @@
 // in shape so future merging is trivial.
 
 using System;
+using System.Collections.Generic;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Commands.Lightning;
@@ -14,6 +15,20 @@ namespace StingTools.UI
     {
         public static StingLpsCommandHandler Instance { get; private set; }
         public static ExternalEvent Event { get; private set; }
+
+        // Tags whose command changes model data the dockable grids show.
+        // After one of these runs, the panel grids are reloaded from the doc
+        // so they reflect the post-command state without a manual "Load model".
+        private static readonly HashSet<string> GridRefreshTags = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "Lps_MarkTypes", "Lps_PlanVisualise",
+            "Lps_DownConductor", "Lps_SepDistance", "Lps_RecalcKc",
+            "Lps_EarthCheck", "Lps_Bonding",
+            "Lps_ZoneTagRooms", "Lps_ColourZones", "Lps_ClearColours",
+            "Lps_Compliance", "Lps_InspectionSchedule",
+            "Lps_BatchFamilyStamper", "Lps_CreateFamilyShells",
+            "Lps_SpdCoordinate", "Lps_SpdRecommend"
+        };
 
         // ── Per-tab snapshot inputs (header state) ────────────────────
         public static string CurrentStandard     = "BS_EN_62305";   // BS_EN_62305 | IEC_62305 | NFPA_780 | NFC_17_102
@@ -150,6 +165,8 @@ namespace StingTools.UI
                         Run<LpsTag7ParagraphCommand>(app); break;
                     case "Lps_BatchFamilyStamper":
                         Run<LpsBatchFamilyStamperCommand>(app); break;
+                    case "Lps_CreateFamilyShells":
+                        Run<LpsCreateFamilyShellsCommand>(app); break;
 
                     // ── ZONES tab ──────────────────────────────────────
                     case "Lps_ZoneTagRooms":
@@ -192,6 +209,15 @@ namespace StingTools.UI
                         }
                         catch (Exception ex) { StingLog.Warn($"Lps fallback '{tag}': {ex.Message}"); }
                         break;
+                }
+
+                // Reload the dockable grids from the doc so they reflect the
+                // post-command state (model-changing commands only — read-only
+                // reports / sync / settings don't alter what the grids show).
+                if (doc != null && GridRefreshTags.Contains(tag))
+                {
+                    try { StingTools.UI.StingLpsPanel.Instance?.LoadAllFromDoc(doc); }
+                    catch (Exception ex) { StingLog.Warn($"LoadAllFromDoc after {tag}: {ex.Message}"); }
                 }
 
                 // Drop a row in the RPRT WorkflowGrid so the panel reflects activity.

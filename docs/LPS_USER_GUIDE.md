@@ -219,12 +219,23 @@ geometry** in the Revit Family Editor.
 | Capability | Status |
 |---|---|
 | **Inject all required shared parameters** into a family (from the right template's category), leaving geometry untouched | ✅ **Fully supported** — `Family Parameter Creator` (one family, in the editor) or `Batch Family Parameter Stamper` (a whole folder). |
-| **Auto-create the empty family shells** (`.rfa`) from their `.rft` templates with subcategories + type parameters + shared parameters pre-built, ready for you to add geometry | ⚠ **Not yet a one-click command.** Today you create each `.rfa` from the template manually (steps below), or download a vendor family, then run the stamper. |
+| **Auto-create the empty family shells** (`.rfa`) from their `.rft` templates with subcategories + type parameters (+ formulas) + shared parameters pre-built, ready for you to add geometry | ✅ **Supported** — the **"Create shells"** button (⚡ LPS panel, RPRT/family section). |
 
-So: **parameter injection is done for you; the empty geometry shell is
-created by you (or by a vendor family) and then stamped.** If you'd like a
-one-click "create all 20 shells from their templates" command, that's a
-small, well-scoped addition STING can build — ask and it'll be added.
+So: **STING builds the shells *and* the parameter scaffolding for you; you
+add the 3D geometry.** Run **Create shells** once at the start of a project:
+for every family in the inventory it creates a new `.rfa` from the named
+`.rft` template, adds the subcategories (with line weight + colour), the
+type parameters with their formulas, and all the `ELC_LPS_*` shared
+parameters — then leaves the geometry empty. Existing `.rfa` files are
+**skipped** (never overwritten), so it's safe to re-run as the inventory
+grows, and authored / vendor families are protected. After it runs, open
+each shell in the Family Editor and model the solids (Section 7.3, steps
+3–8), then re-save.
+
+> **What's still manual after Create shells:** the 3D geometry itself, and
+> the SPD **electrical connector** (a connector needs a face to host, and
+> the shell has no geometry yet). Everything else — category, subcategories,
+> type params, formulas, shared params — is pre-built.
 
 ### 7.2 The 20 families at a glance
 
@@ -457,6 +468,7 @@ the JSON and re-run the relevant command — no recompile needed.
 | One-screen status | Dashboard | 6 |
 | Full BS EN 62305 report | LPS Full Report | 6 |
 | SPD cascade coordination | SPD Coordination | 6 |
+| Create the 20 family shells from templates | Create shells (⚡ LPS panel) | 7.1 |
 | Inject family parameters (one) | Family Parameter Creator | 7.4 |
 | Inject family parameters (batch) | Batch Family Parameter Stamper | 7.4 |
 | Audit authored families | Family Conformance Check | 7.8 |

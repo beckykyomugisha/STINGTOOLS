@@ -701,6 +701,9 @@
                             <Button Style="{StaticResource LpsActionBtn}" Content="TAG7"
                                     Tag="Lps_Tag7Paragraph" Click="Cmd_Click"
                                     ToolTip="Populate ELC_TAG_7_PARA_LPS_TXT (rich narrative paragraph) on every LPS-classified element"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Create shells"
+                                    Tag="Lps_CreateFamilyShells" Click="Cmd_Click"
+                                    ToolTip="Create the 20 STING LPS family shells from their .rft templates per LPS_FAMILY_INVENTORY.json — subcategories, type parameters (+ formulas) and shared parameters pre-built, geometry left empty for manual authoring. Existing .rfa files are skipped."/>
                             <Button Style="{StaticResource LpsActionBtn}" Content="Stamp families"
                                     Tag="Lps_BatchFamilyStamper" Click="Cmd_Click"
                                     ToolTip="Pick a folder of .rfa files (vendor or in-house) — STING walks recursively and injects every ELC_LPS_* shared parameter per LPS_FAMILY_INVENTORY.json. Saves over source. Ideal for stamping a DEHN / OBO / Furse / nVent vendor library."/>
