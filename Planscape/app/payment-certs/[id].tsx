@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { apiFetch } from "@/api/client";
-import { useProjectStore } from "@/stores/projectStore";
+import { useAuthStore } from "@/stores/auth";
 // Phase 184k caveat #4 — signature pad via react-native-signature-canvas
 // (built on react-native-webview which is already a dep). The signature is
 // captured as a base64 PNG and uploaded as an attachment via the
@@ -57,7 +57,7 @@ interface PaymentCert {
 export default function PaymentCertDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const projectId = useProjectStore((s) => s.active?.id ?? null);
+  const projectId = useAuthStore((s) => s.activeProjectId);
   const [c, setC] = useState<PaymentCert | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

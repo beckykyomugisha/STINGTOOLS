@@ -14,7 +14,7 @@
 // time the app sees a network connection so morning-of-site visit is
 // instant. Triggered from the dashboard tile.
 
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const META_KEY  = 'planscape_scene_cache';

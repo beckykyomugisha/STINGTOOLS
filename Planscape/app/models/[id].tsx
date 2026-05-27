@@ -165,7 +165,7 @@ export default function ModelViewerScreen() {
           modelUrl={modelUrl}
           elementMap={elementMap}
           pins={pins}
-          onReady={() => {}}
+          onReady={() => setViewerReady(true)}
           onPick={onPick}
           onPlaceIssue={onPlaceIssue}
           onPinTap={onPinTap}

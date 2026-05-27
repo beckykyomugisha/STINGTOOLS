@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { apiFetch } from "@/api/client";
-import { useProjectStore } from "@/stores/projectStore";
+import { useAuthStore } from "@/stores/auth";
 
 interface BoqDocument {
   id: string;
@@ -22,7 +22,7 @@ interface BoqDocument {
 
 export default function BoqScreen() {
   const router = useRouter();
-  const projectId = useProjectStore((s) => s.active?.id ?? null);
+  const projectId = useAuthStore((s) => s.activeProjectId);
   const [docs, setDocs] = useState<BoqDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

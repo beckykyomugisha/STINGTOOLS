@@ -26,9 +26,8 @@ let cachedBaseUrl: string | null = null;
 export async function getBaseUrl(): Promise<string> {
   if (cachedBaseUrl) return cachedBaseUrl;
   const stored = await SecureStore.getItemAsync(BASE_URL_KEY);
-  const resolved = stored || DEFAULT_BASE_URL;
-  cachedBaseUrl = resolved;
-  return resolved;
+  cachedBaseUrl = stored || DEFAULT_BASE_URL;
+  return cachedBaseUrl;
 }
 
 export async function setBaseUrl(url: string): Promise<void> {

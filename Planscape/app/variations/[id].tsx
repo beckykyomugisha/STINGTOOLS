@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { apiFetch } from "@/api/client";
-import { useProjectStore } from "@/stores/projectStore";
+import { useAuthStore } from "@/stores/auth";
 
 interface VariationItem {
   description: string;
@@ -37,12 +37,19 @@ interface Variation {
   approvalDate?: string;
   approvedBy?: string;
   issuedBy?: string;
+  // Phase 184o — reason / liability / EOT
+  reason?: string;
+  liability?: string;
+  reasonDetail?: string;
+  eotDays?: number;
+  // Phase 184q — contract family (JCT2024 / NEC4 / FIDIC2017Yellow / ...).
+  contractForm?: string;
 }
 
 export default function VariationDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const projectId = useProjectStore((s) => s.active?.id ?? null);
+  const projectId = useAuthStore((s) => s.activeProjectId);
   const [v, setV] = useState<Variation | null>(null);
   const [loading, setLoading] = useState(true);
   const [rationale, setRationale] = useState("");
@@ -100,7 +107,10 @@ export default function VariationDetail() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 14 }}>
       <Text style={styles.number}>{v.number}</Text>
-      <Text style={styles.kind}>{v.kind} · {v.status}</Text>
+      <Text style={styles.kind}>
+        {v.kind} · {v.status}
+        {v.contractForm ? ` · ${prettifyContractForm(v.contractForm)}` : ""}
+      </Text>
 
       <View style={styles.card}>
         <Text style={styles.title}>{v.title}</Text>
@@ -117,6 +127,35 @@ export default function VariationDetail() {
           {v.issuedBy ? ` by ${v.issuedBy}` : ""}
         </Text>
       </View>
+
+      {/* Phase 184o — reason / liability / EOT card. Surfaces why this VO
+          arose and who pays, so the reviewer can sense-check before
+          approving. Free-text rationale shown below if supplied. */}
+      {(v.reason || v.liability || v.eotDays) && (
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>Reason · Liability · Time impact</Text>
+          <View style={detailStyles.badgeRow}>
+            {v.reason && (
+              <View style={[detailStyles.badge, { backgroundColor: "#1c70d8" }]}>
+                <Text style={detailStyles.badgeText}>{prettifyReason(v.reason)}</Text>
+              </View>
+            )}
+            {v.liability && (
+              <View style={[detailStyles.badge, { backgroundColor: "#4b5563" }]}>
+                <Text style={detailStyles.badgeText}>Pays: {v.liability}</Text>
+              </View>
+            )}
+            {v.eotDays && v.eotDays > 0 ? (
+              <View style={[detailStyles.badge, { backgroundColor: "#dc2626" }]}>
+                <Text style={detailStyles.badgeText}>+{v.eotDays}d EOT</Text>
+              </View>
+            ) : null}
+          </View>
+          {v.reasonDetail ? (
+            <Text style={[styles.body, { marginTop: 8 }]}>{v.reasonDetail}</Text>
+          ) : null}
+        </View>
+      )}
 
       <Text style={styles.sectionLabel}>Items ({v.items.length})</Text>
       {v.items.map((it, idx) => (
@@ -184,6 +223,32 @@ export default function VariationDetail() {
     </ScrollView>
   );
 }
+
+// Phase 184o — shared with the list screen. "DesignChange" → "Design Change".
+function prettifyReason(reason: string): string {
+  return reason.replace(/([A-Z])/g, " $1").trim();
+}
+
+// Phase 184q — humanise contract-form enum values.
+function prettifyContractForm(form: string): string {
+  switch (form) {
+    case "JCT2024":         return "JCT 2024";
+    case "JCT2016":         return "JCT 2016";
+    case "NEC4":            return "NEC4";
+    case "FIDIC2017Red":    return "FIDIC 2017 Red";
+    case "FIDIC2017Yellow": return "FIDIC 2017 Yellow";
+    case "FIDIC2017Silver": return "FIDIC 2017 Silver";
+    case "GCWorks":         return "GC/Works";
+    case "Bespoke":         return "Bespoke";
+    default:                return form;
+  }
+}
+
+const detailStyles = StyleSheet.create({
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, marginRight: 6, marginBottom: 4 },
+  badgeText: { color: "white", fontSize: 11, fontWeight: "600" },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f6f7f9" },

@@ -12,7 +12,7 @@ import {
   exportMeetingMinutesDoc, getMeetingIcsUrl,
   type MeetingActionItem, type MeetingAttendee, type MeetingAgendaItem,
 } from "@/api/endpoints";
-import { MemberPicker } from "@/components/MemberPicker";
+import { MemberPicker } from "@/src/components/MemberPicker";
 import { useProjectStore } from "@/stores/projectStore";
 import type { Meeting, ProjectMember } from "@/types/api";
 
@@ -673,7 +673,7 @@ function AttendeesTab({ attendees, projectId, meetingId, onRefresh }: {
       await addMeetingAttendee(projectId, meetingId, {
         userId: selectedMember?.userId,
         name: selectedMember?.displayName ?? externalName.trim(),
-        email: selectedMember?.email ?? (externalEmail.trim() || undefined),
+        email: selectedMember?.email ?? externalEmail.trim() || undefined,
         role,
       });
       setSelectedMember(null); setExternalName(""); setExternalEmail(""); setRole("ATTENDEE");

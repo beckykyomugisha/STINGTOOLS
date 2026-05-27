@@ -26,7 +26,6 @@ export interface UserProfile {
   tier: string;
   mimEnabled?: boolean;
   lastLoginAt?: string;
-  tenantName?: string;
 }
 
 export interface Project {
@@ -60,8 +59,6 @@ export interface DisciplineCompliance {
 export interface BimIssue {
   id: string;
   projectId: string;
-  /** Client-supplied dedup key so an offline-queued create/update can't double-apply on replay. */
-  idempotencyKey?: string;
   issueCode: string;
   title: string;
   description: string;
@@ -298,10 +295,6 @@ export interface WarningRecord {
   severity: string;
   description: string;
   elementId?: string;
-  elementCount?: number;
-  autoFixStrategy?: string;
-  firstSeen?: string;
-  discipline?: string;
   createdAt: string;
 }
 
@@ -401,6 +394,11 @@ export interface SitePhotoListResponse {
   total: number;
   page: number;
   pageSize: number;
+  /** Phase 179.2 — ids of photos in `items` that the caller must
+   *  accept the project NDA for before the photo bytes will load.
+   *  Empty when the caller bypasses ACL (Admin / Owner / SecurityOfficer)
+   *  or no listed photo carries an NDA-required PhotoAccessRule. */
+  ndaRequiredIds?: string[];
 }
 
 export interface SitePhotoListFilters {

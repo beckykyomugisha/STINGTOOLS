@@ -1794,6 +1794,24 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Navigation("User");
             });
 
+            modelBuilder.Entity("Planscape.Core.Entities.UserNotificationPreferences", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.AppUser", "User")
+                    .WithMany()
+                    .HasForeignKey("UserId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
+                    .WithMany()
+                    .HasForeignKey("TenantId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Tenant");
+                b.Navigation("User");
+            });
+
             modelBuilder.Entity("Planscape.Core.Entities.IssueAttachment", b =>
             {
                 b.HasOne("Planscape.Core.Entities.DocumentRecord", "Document")

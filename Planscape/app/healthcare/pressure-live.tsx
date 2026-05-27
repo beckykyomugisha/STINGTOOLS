@@ -22,8 +22,6 @@ async function logPressureReading(
   projectId: string,
   roomId: string,
   roomName: string,
-  roomClass: string,
-  designRegime: 'NEG' | 'POS' | 'NEUTRAL',
   liveDeltaPa: number,
   designDeltaPa: number,
   inBand: boolean,
@@ -31,12 +29,10 @@ async function logPressureReading(
   const payload = {
     roomBimId: roomId,
     roomName,
-    roomClass,
-    designRegime,
     designDeltaPa,
     liveDeltaPa,
     inBand,
-    source: 'MANUAL' as const,
+    source: 'MANUAL',
     capturedAt: new Date().toISOString(),
   };
   try {
@@ -59,11 +55,10 @@ export default function PressureLiveScreen() {
   const connectToHub = useCallback(async () => {
     if (!activeProject?.id) return;
     try {
-      const { realtime } = await import('@/services/realtimeClient');
-      // The app shares one hub connection; connect() is idempotent and joins
-      // the project group. We only add/remove our named handler on mount/unmount.
-      realtime.connect(activeProject.id).catch(() => {});
-      const off = realtime.on('ReceivePressureReading', (reading: {
+      const { realtimeClient } = await import('@/services/realtimeClient');
+      const conn = await realtimeClient.connect('/hubs/healthcare');
+      hubRef.current = conn;
+      conn.on('ReceivePressureReading', (reading: {
         projectId: string; roomId: string; roomName: string; roomClass: string;
         designRegime: string; designDeltaPa: number; liveDeltaPa: number;
         inBand: boolean; capturedAt: string;
@@ -88,7 +83,7 @@ export default function PressureLiveScreen() {
           return [...prev, updated];
         });
       });
-      hubRef.current = { stop: off };
+      await conn.invoke('JoinProject', activeProject.id);
     } catch (err) {
       // Non-fatal: SignalR unavailable (offline or hub not deployed yet).
       console.warn('[pressure-live] SignalR connect failed:', err);

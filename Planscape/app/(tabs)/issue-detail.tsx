@@ -325,7 +325,7 @@ export default function IssueDetailScreen() {
     viewerRef.current.fit();
     // Give the renderer one frame to commit the fit before the targeted zoom.
     const t = setTimeout(() => {
-      viewerRef.current?.selectAndZoom?.(issue.modelElementGuid!);
+      viewerRef.current?.selectAndZoom(issue.modelElementGuid!);
     }, 120);
     return () => clearTimeout(t);
   }, [viewerReady, issue?.modelElementGuid]);
@@ -1310,6 +1310,48 @@ const styles = StyleSheet.create({
     color: theme.colors.surface,
     fontSize: theme.fontSize.md,
     fontWeight: '600',
+  },
+
+  // MODEL-VIEWER — inline 3D context.
+  viewerSection: {
+    padding: theme.spacing.md,
+    paddingBottom: 0,
+  },
+  viewerHeader: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.sm,
+  },
+  viewerHost: {
+    height: 280,
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
+  },
+  viewerHint: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  // Phase 164 caveat 2 — resolved-sibling toggle.
+  viewerToggle: {
+    marginTop: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.background,
+    alignSelf: 'flex-start',
+  },
+  viewerToggleText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+  },
+  viewerError: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.danger,
   },
 
   // MODEL-VIEWER — inline 3D context.

@@ -167,7 +167,7 @@ export default function DeliverablesScreen() {
                     key={c.status}
                     style={[styles.action, c.danger && styles.actionDanger, working && styles.disabled]}
                     disabled={working}
-                    onPress={() => transition(d, c.status as DeliverableSummary['status'])}
+                    onPress={() => transition(d, c.status)}
                     accessibilityLabel={`Transition ${d.code} to ${c.status}`}
                   >
                     <Text style={[styles.actionText, c.danger && { color: '#fff' }]}>{c.label}</Text>

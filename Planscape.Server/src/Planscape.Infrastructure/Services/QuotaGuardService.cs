@@ -69,11 +69,12 @@ public class QuotaGuardService : IQuotaGuardService
     {
         var tenant = await _db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == _tenantContext.TenantId, ct);
         var limits = BillingPlanLimits.For(tenant?.Plan ?? BillingPlan.Trial);
+        var tid = _tenantContext.TenantId;
         var current = axis switch
         {
-            QuotaAxis.Projects     => await _db.Projects.CountAsync(ct),
-            QuotaAxis.Authors      => await _db.ProjectMembers.Where(m => m.ProjectRole == "Author").Select(m => m.UserId).Distinct().CountAsync(ct),
-            QuotaAxis.Coordinators => await _db.ProjectMembers.Where(m => m.ProjectRole != "Author").Select(m => m.UserId).Distinct().CountAsync(ct),
+            QuotaAxis.Projects     => await _db.Projects.CountAsync(p => p.TenantId == tid, ct),
+            QuotaAxis.Authors      => await _db.ProjectMembers.Where(m => m.TenantId == tid && m.ProjectRole == "Author").Select(m => m.UserId).Distinct().CountAsync(ct),
+            QuotaAxis.Coordinators => await _db.ProjectMembers.Where(m => m.TenantId == tid && m.ProjectRole != "Author").Select(m => m.UserId).Distinct().CountAsync(ct),
             _                      => 0,
         };
         return (limits, current);

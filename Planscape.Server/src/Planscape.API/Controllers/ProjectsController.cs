@@ -157,7 +157,11 @@ public class ProjectsController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
+        return CreatedAtAction(nameof(GetProject), new { id = project.Id }, new
+        {
+            project.Id, project.Name, project.Code, project.Description,
+            project.Phase, project.Status, project.CreatedAt
+        });
     }
 
     /// <summary>Update project settings — name, phase, tag format, config JSON.</summary>

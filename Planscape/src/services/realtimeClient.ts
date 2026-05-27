@@ -72,8 +72,6 @@ export class RealtimeClient {
       // events to every other member of the project group.
       'CameraState',
       'CameraDisconnect',
-      // Healthcare Pack HC-22 — live room pressure-cascade readings.
-      'ReceivePressureReading',
     ]) {
       // C1 — deregister before registering to prevent duplicate handlers.
       this.connection.off(evName);

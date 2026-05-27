@@ -132,17 +132,16 @@ export default function AlignmentScreen() {
         manifest.models.map((m) => getModelTransform(activeProject.id, m.id)),
       );
 
-      const rows: ModelRow[] = manifest.models.map((m, i) => {
-        const tr = transformResults[i];
-        return {
-          id: m.id,
-          name: m.name,
-          discipline: m.discipline,
-          format: m.format,
-          uploadedAt: m.uploadedAt,
-          transform: tr.status === 'fulfilled' ? tr.value : null,
-        };
-      });
+      const rows: ModelRow[] = manifest.models.map((m, i) => ({
+        id: m.id,
+        name: m.name,
+        discipline: m.discipline,
+        format: m.format,
+        uploadedAt: m.uploadedAt,
+        transform: transformResults[i].status === 'fulfilled'
+          ? transformResults[i].value
+          : null,
+      }));
 
       setModels(rows);
     } catch (err) {

@@ -25,8 +25,8 @@ import {
   getProjectSettings,
   updateProjectSettings,
   getMyProjectAccess,
+  type ProjectSettings,
 } from '@/api/endpoints';
-import type { ProjectSettings } from '@/types/api';
 import { useProjectStore } from '@/stores/projectStore';
 
 // Only BIM Managers (K) and tenant-level Admins / Owners can change project

@@ -101,15 +101,7 @@ public class SceneNodesController : ControllerBase
     [HttpPost("scene-nodes/ingest")]
     [AllowAnonymous]
     public async Task<ActionResult> Ingest(
-        [FromForm] IFormFile file,
-        [FromForm] Guid tenantId,
-        [FromForm] Guid projectId,
-        [FromForm] Guid sourceModelId,
-        [FromForm] string discipline,
-        [FromForm] string hash,
-        [FromForm] int vertexCount,
-        [FromForm] string compression,
-        [FromForm] string aabb,
+        [FromForm] SceneNodeIngestRequest req,
         CancellationToken ct)
     {
         var bearer = Request.Headers["Authorization"].ToString();
@@ -117,34 +109,37 @@ public class SceneNodesController : ControllerBase
         if (string.IsNullOrEmpty(expected) || !bearer.EndsWith(expected, StringComparison.Ordinal))
             return Unauthorized();
 
+        var file = req.File;
+        if (file is null || file.Length == 0) return BadRequest(new { error = "empty file" });
+
         // Cross-tenant write — bypass the global filter explicitly.
         _db.BypassTenantFilter = true;
 
         // Idempotent: if a SceneNode with this content hash + project already exists, return it.
-        var existing = await _db.SceneNodes.FirstOrDefaultAsync(n => n.ContentHash == hash && n.ProjectId == projectId, ct);
+        var existing = await _db.SceneNodes.FirstOrDefaultAsync(n => n.ContentHash == req.Hash && n.ProjectId == req.ProjectId, ct);
         if (existing != null) return Ok(new { id = existing.Id, deduped = true });
 
         await using var stream = file.OpenReadStream();
         var path = await _storage.SaveAsync(
-            tenantSlug: "t_" + tenantId.ToString("N"),
-            projectCode: $"scenes/{projectId:N}",
-            fileName: $"{discipline}_{hash[..12]}.glb",
+            tenantSlug: "t_" + req.TenantId.ToString("N"),
+            projectCode: $"scenes/{req.ProjectId:N}",
+            fileName: $"{req.Discipline}_{req.Hash[..12]}.glb",
             content: stream, ct: ct);
 
-        var box = System.Text.Json.JsonSerializer.Deserialize<AabbDto>(aabb)
+        var box = System.Text.Json.JsonSerializer.Deserialize<AabbDto>(req.Aabb)
                   ?? throw new ArgumentException("aabb invalid");
 
         var node = new SceneNode
         {
-            TenantId = tenantId,
-            ProjectId = projectId,
-            SourceModelId = sourceModelId,
-            Discipline = discipline.ToUpperInvariant(),
+            TenantId = req.TenantId,
+            ProjectId = req.ProjectId,
+            SourceModelId = req.SourceModelId,
+            Discipline = req.Discipline.ToUpperInvariant(),
             StoragePath = path,
-            ContentHash = hash,
+            ContentHash = req.Hash,
             FileSizeBytes = file.Length,
-            VertexCount = vertexCount,
-            Compression = compression,
+            VertexCount = req.VertexCount,
+            Compression = req.Compression,
             MinX = box.minX, MinY = box.minY, MinZ = box.minZ,
             MaxX = box.maxX, MaxY = box.maxY, MaxZ = box.maxZ,
         };
@@ -154,4 +149,17 @@ public class SceneNodesController : ControllerBase
     }
 
     private record AabbDto(double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
+}
+
+public class SceneNodeIngestRequest
+{
+    public IFormFile File { get; set; } = default!;
+    public Guid TenantId { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid SourceModelId { get; set; }
+    public string Discipline { get; set; } = "";
+    public string Hash { get; set; } = "";
+    public int VertexCount { get; set; }
+    public string Compression { get; set; } = "";
+    public string Aabb { get; set; } = "";
 }
