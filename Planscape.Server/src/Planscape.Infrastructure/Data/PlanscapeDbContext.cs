@@ -284,6 +284,12 @@ public class PlanscapeDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // pgcrypto — required by DB-side functions (e.g. gen_random_uuid).
+        // Declared on the model so EnsureCreated + any generated migration
+        // emit CREATE EXTENSION; previously this lived only in raw migration
+        // SQL and would be lost by a migration squash.
+        modelBuilder.HasPostgresExtension("pgcrypto");
+
         // ── Tenant ──
         modelBuilder.Entity<Tenant>(e =>
         {
@@ -333,6 +339,13 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasIndex(x => x.ModelId);
             e.Property(x => x.ModelElementGuid).HasMaxLength(80);
+            // CustomFields is queried by key, so it's jsonb + a GIN index.
+            // Declared on the model (was raw migration SQL) so a squash
+            // reproduces both the column type and the index.
+            e.Property(x => x.CustomFields).HasColumnType("jsonb");
+            e.HasIndex(x => x.CustomFields)
+                .HasMethod("gin")
+                .HasDatabaseName("IX_Issues_CustomFields_gin");
         });
 
         // ── FederatedElement (geometry delta store) ──────────────────────────

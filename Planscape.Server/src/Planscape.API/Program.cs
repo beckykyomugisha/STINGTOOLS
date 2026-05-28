@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -428,6 +429,29 @@ builder.Services.AddStackExchangeRedisCache(options =>
 // just for the limiter's ConnectionMultiplexerFactory.
 var redisMux = ConnectionMultiplexer.Connect(redisConn);
 builder.Services.AddSingleton<IConnectionMultiplexer>(redisMux);
+
+// ── DataProtection key ring ──────────────────────────────────────────────
+// Default keys live in an ephemeral container dir, so every restart
+// invalidates auth cookies / antiforgery tokens / any Protect()'d payload.
+// Persist the ring to a mounted volume (DataProtection:KeysPath) so keys
+// survive restarts + redeploys. For production, set
+// DataProtection:CertificatePath (+ :CertificatePassword) to encrypt the
+// ring at rest with an X.509 cert.
+var dpKeysPath = builder.Configuration["DataProtection:KeysPath"]
+                 ?? "/var/lib/planscape/dpkeys";
+System.IO.Directory.CreateDirectory(dpKeysPath);
+var dpBuilder = builder.Services.AddDataProtection()
+    .SetApplicationName("Planscape")
+    .PersistKeysToFileSystem(new System.IO.DirectoryInfo(dpKeysPath));
+var dpCertPath = builder.Configuration["DataProtection:CertificatePath"];
+if (!string.IsNullOrWhiteSpace(dpCertPath) && System.IO.File.Exists(dpCertPath))
+{
+    var dpCertPw = builder.Configuration["DataProtection:CertificatePassword"];
+    var dpCert = string.IsNullOrEmpty(dpCertPw)
+        ? new System.Security.Cryptography.X509Certificates.X509Certificate2(dpCertPath)
+        : new System.Security.Cryptography.X509Certificates.X509Certificate2(dpCertPath, dpCertPw);
+    dpBuilder.ProtectKeysWithCertificate(dpCert);
+}
 
 builder.Services.AddSignalR().AddStackExchangeRedis(redisConn, options =>
 {

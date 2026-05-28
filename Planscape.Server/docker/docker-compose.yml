@@ -18,6 +18,13 @@ services:
       - Jwt__Issuer=Planscape
       - Jwt__Audience=Planscape.Client
       - Redis__Connection=redis:6379
+      # DataProtection: persist the key ring to the mounted dpkeys volume so
+      # auth tokens / antiforgery survive restarts. api + worker share the
+      # SAME volume so the ring is consistent across both. For production,
+      # encrypt at rest by setting DP_CERT_PATH / DP_CERT_PASSWORD in .env.
+      - DataProtection__KeysPath=/var/lib/planscape/dpkeys
+      - DataProtection__CertificatePath=${DP_CERT_PATH:-}
+      - DataProtection__CertificatePassword=${DP_CERT_PASSWORD:-}
       - ModelConverter__Provider=${MODEL_CONVERTER_PROVIDER:-null}
       - ModelConverter__IfcConvertPath=/usr/local/bin/IfcConvert
       - ModelConverter__ThumbnailProvider=${MODEL_THUMBNAIL_PROVIDER:-gltf-bounds}
@@ -49,6 +56,9 @@ services:
       # so the dashboard keeps showing a "published" entry pointing at
       # bytes that no longer exist → /api/.../models/.../file → 404.
       - storage:/app/storage
+      # DataProtection key ring — survives restarts so auth tokens /
+      # antiforgery stay valid across redeploys (see Program.cs).
+      - dpkeys:/var/lib/planscape/dpkeys
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -159,6 +169,13 @@ services:
       - Jwt__Issuer=Planscape
       - Jwt__Audience=Planscape.Client
       - Redis__Connection=redis:6379
+      # DataProtection: persist the key ring to the mounted dpkeys volume so
+      # auth tokens / antiforgery survive restarts. api + worker share the
+      # SAME volume so the ring is consistent across both. For production,
+      # encrypt at rest by setting DP_CERT_PATH / DP_CERT_PASSWORD in .env.
+      - DataProtection__KeysPath=/var/lib/planscape/dpkeys
+      - DataProtection__CertificatePath=${DP_CERT_PATH:-}
+      - DataProtection__CertificatePassword=${DP_CERT_PASSWORD:-}
       - ModelConverter__Provider=${MODEL_CONVERTER_PROVIDER:-null}
     depends_on:
       postgres:
@@ -178,6 +195,9 @@ services:
       # Worker shares the api's storage volume so background jobs (e.g.
       # IFC→glTF derivative generation) can read uploaded models.
       - storage:/app/storage
+      # Same DataProtection key ring as the api (worker runs the same
+      # Program.cs and may Protect()/Unprotect() shared payloads).
+      - dpkeys:/var/lib/planscape/dpkeys
 
   # ── Observability stack (MON-01/02/03) ─────────────────────────────────
   # Opt-in via profile so they never run by default:
@@ -267,3 +287,4 @@ volumes:
   grafanadata:
   clamavdb:
   storage:   # MODEL-VIEWER — uploaded model bytes; survives rebuilds.
+  dpkeys:    # DataProtection key ring — survives restarts/redeploys.
