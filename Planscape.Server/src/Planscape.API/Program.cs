@@ -1565,3 +1565,8 @@ static bool IsRfc1918(System.Net.IPAddress ip)
     }
     return false;
 }
+
+// Exposes the implicit top-level-statements Program class to the test
+// assembly so WebApplicationFactory<Program> can host the API for
+// integration tests. (Top-level Program is internal by default.)
+public partial class Program { }
