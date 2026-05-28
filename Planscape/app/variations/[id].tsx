@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { apiFetch } from "@/api/client";
-import { useAuthStore } from "@/stores/authStore";
+import { useProjectStore } from "@/stores/projectStore";
 
 interface VariationItem {
   description: string;
@@ -49,7 +49,7 @@ interface Variation {
 export default function VariationDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const projectId = useAuthStore((s) => s.activeProjectId);
+  const projectId = useProjectStore((s) => s.activeProjectId);
   const [v, setV] = useState<Variation | null>(null);
   const [loading, setLoading] = useState(true);
   const [rationale, setRationale] = useState("");
