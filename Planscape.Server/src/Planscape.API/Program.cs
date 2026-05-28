@@ -1341,19 +1341,19 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
 // "photo-redaction") because rendering thumbnails is light.
 // Phase 179 — daily retention sweep at 03:30 UTC, ahead of digest at 17:00.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoRetentionJob>(
-    "photo-retention",
+    "photo-retention", "default",
     j => j.ExecuteAsync(CancellationToken.None),
-    "30 3 * * *", new RecurringJobOptions { QueueName = "default" });
+    "30 3 * * *");
 // Phase 180 — daily 07:00 UTC checklist-due nudge.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoChecklistDueJob>(
-    "photo-checklist-due",
+    "photo-checklist-due", "default",
     j => j.ExecuteAsync(CancellationToken.None),
-    "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
+    "0 7 * * *");
 // Phase 180 — daily 02:00 UTC smart-album materialiser.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoSmartAlbumMaterialiseJob>(
-    "photo-smart-album",
+    "photo-smart-album", "default",
     j => j.ExecuteAsync(CancellationToken.None),
-    "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
+    "0 2 * * *");
 
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DailyPhotoDigestJob>(
     "site-photo-digest", "default", j => j.ExecuteAsync(CancellationToken.None),

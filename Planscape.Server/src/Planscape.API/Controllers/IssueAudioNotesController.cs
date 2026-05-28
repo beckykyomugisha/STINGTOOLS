@@ -101,11 +101,11 @@ public class IssueAudioNotesController : ControllerBase
         [FromForm] AudioNoteUploadRequest req,
         CancellationToken ct)
     {
-        if (file == null || file.Length == 0) return BadRequest(new { error = "empty_file" });
-        if (file.Length > MaxAudioBytes) return BadRequest(new { error = "max_25mb_per_voice_note" });
+        if (req.File == null || req.File.Length == 0) return BadRequest(new { error = "empty_file" });
+        if (req.File.Length > MaxAudioBytes) return BadRequest(new { error = "max_25mb_per_voice_note" });
 
-        var ext = Path.GetExtension(file.FileName ?? "").ToLowerInvariant();
-        var mime = (file.ContentType ?? "audio/mp4").ToLowerInvariant();
+        var ext = Path.GetExtension(req.File.FileName ?? "").ToLowerInvariant();
+        var mime = (req.File.ContentType ?? "audio/mp4").ToLowerInvariant();
         if (!AllowedAudioExt.Contains(ext) && !AllowedAudioMime.Contains(mime))
         {
             return BadRequest(new
@@ -120,7 +120,7 @@ public class IssueAudioNotesController : ControllerBase
             .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId, ct);
         if (issue == null) return NotFound(new { error = "issue_not_found" });
 
-        await using var stream = file.OpenReadStream();
+        await using var stream = req.File.OpenReadStream();
         var fileName = $"audio/{issueId:N}/{Guid.NewGuid():N}{(string.IsNullOrEmpty(ext) ? ".m4a" : ext)}";
         var path = await _storage.SaveScopedAsync(
             tenantId: _tenant.TenantId,
@@ -141,7 +141,7 @@ public class IssueAudioNotesController : ControllerBase
             CdeStatus      = "WIP",
             SuitabilityCode = "S0",
             Discipline     = issue.Discipline,
-            FileSizeBytes  = file.Length,
+            FileSizeBytes  = req.File.Length,
             UploadedBy     = displayName
         };
         _db.Documents.Add(doc);
@@ -155,7 +155,7 @@ public class IssueAudioNotesController : ControllerBase
             TranscriptText  = req.TranscriptText,
             Language        = req.Language ?? "en",
             DurationSeconds = req.DurationSeconds,
-            FileSizeBytes   = file.Length,
+            FileSizeBytes   = req.File.Length,
             MimeType        = string.IsNullOrEmpty(mime) ? "audio/mp4" : mime,
             CreatedBy       = displayName,
         };
@@ -177,7 +177,7 @@ public class IssueAudioNotesController : ControllerBase
                 _ = _push.SendToUserAsync(uid, new PushPayload
                 {
                     Title = $"🎙 {issue.IssueCode}",
-                    Body  = $"New voice note ({durationSeconds}s)",
+                    Body  = $"New voice note ({req.DurationSeconds}s)",
                     Channel = "issues",
                     Data = new Dictionary<string, string>
                     {
