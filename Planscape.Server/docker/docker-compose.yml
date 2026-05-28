@@ -36,8 +36,6 @@ services:
       - ClamAv__Host=${CLAMAV_HOST:-clamav}
       - ClamAv__Port=${CLAMAV_PORT:-3310}
     depends_on:
-      pgbouncer:
-        condition: service_started
       postgres:
         condition: service_healthy
       redis:
