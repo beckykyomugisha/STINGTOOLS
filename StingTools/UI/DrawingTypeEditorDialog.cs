@@ -65,6 +65,15 @@ namespace StingTools.UI
         // [Label, ViewType, NormX, NormY, NormW, NormH, Scale, ×]
         private static readonly int[] _slotColWidths = { 100, 110, 60, 60, 60, 60, 60, 24 };
 
+        // Phase 137 — Managed-template field vocabulary
+        private static readonly string[] _managedFieldsDefault = {
+            "vg", "filters", "detailLevel", "discipline", "visualStyle", "phaseFilter", "phaseName"
+        };
+        private static readonly string[] _managedFieldsAll = {
+            "vg", "filters", "detailLevel", "discipline", "visualStyle", "phaseFilter", "phaseName",
+            "annotationCrop", "farClipMm", "viewRange", "underlay", "tagColorScheme", "defaultTagStyle"
+        };
+
         // ── Static vocabularies (Change 3 / 4 / 6) ────────────────────
         // Union with ProjectAssetPicker.* live readers at runtime so the
         // UI offers a sensible default set even on an empty model, and
@@ -708,6 +717,91 @@ namespace StingTools.UI
             });
         }
 
+        // Phase 137 — Info strip for managed-mode packs
+        private UIElement BuildManagedInfoStrip()
+        {
+            var tb = new TextBlock
+            {
+                Text = "● MANAGED MODE — STING auto-maintains a Revit view template named STING:<pack-id>:<ViewType>. " +
+                       "Edits below are synced to the template on save.",
+                Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xF5, 0xE9)),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)),
+                FontSize = 11,
+                Padding = new Thickness(6, 4, 6, 4),
+                Margin = new Thickness(0, 0, 0, 8),
+                TextWrapping = TextWrapping.Wrap
+            };
+            return tb;
+        }
+
+        // Phase 137 — View range sub-card for managed packs (placeholder)
+        private UIElement BuildViewRangeSubCard()
+        {
+            var sp = new StackPanel { Margin = new Thickness(0, 4, 0, 4) };
+            sp.Children.Add(new TextBlock
+            {
+                Text = "View Range (mm) — managed templates only",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 11,
+                Margin = new Thickness(0, 0, 0, 4)
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Top / Cut Plane / Bottom / View Depth settings are inherited from the seed template. " +
+                       "Override via manual template edit if required.",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap
+            });
+            return sp;
+        }
+
+        // Phase 137 — Managed fields multi-select editor (placeholder)
+        private UIElement BuildManagedFieldsEditor()
+        {
+            var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Managed fields",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 11,
+                Margin = new Thickness(0, 0, 0, 4)
+            });
+            var wrap = new WrapPanel();
+            foreach (var f in _managedFieldsAll)
+            {
+                var isSet = _currentPack.ManagedFields?.Contains(f) ?? _managedFieldsDefault.Contains(f);
+                var cb = new CheckBox
+                {
+                    Content = f,
+                    IsChecked = isSet,
+                    Margin = new Thickness(0, 0, 12, 4),
+                    FontSize = 10
+                };
+                cb.Checked += (s, e) =>
+                {
+                    _currentPack.ManagedFields = _currentPack.ManagedFields ?? new List<string>(_managedFieldsDefault);
+                    if (!_currentPack.ManagedFields.Contains(f))
+                        _currentPack.ManagedFields.Add(f);
+                };
+                cb.Unchecked += (s, e) =>
+                {
+                    _currentPack.ManagedFields?.Remove(f);
+                };
+                wrap.Children.Add(cb);
+            }
+            sp.Children.Add(wrap);
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Only checked fields are synced from pack JSON to the managed view template.",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            return sp;
+        }
+
         // Phase 135 — pack-level tag appearance defaults. Per-DrawingType
         // AnnotationTokenProfile fields override these; the pack supplies
         // a sensible default for every profile that bound to it but didn't
@@ -897,7 +991,7 @@ namespace StingTools.UI
                 {
                     Category       = kv.Key,
                     Visible        = kv.Value?.Visible,
-                    Halftone       = kv.Value != null && kv.Value.Halftone ? true : (bool?)null,
+                    Halftone       = kv.Value?.Halftone == true ? true : (bool?)null,
                     ProjLineColor  = kv.Value?.ProjColor,
                     ProjLineWeight = kv.Value != null && kv.Value.ProjWeight  > 0 ? kv.Value.ProjWeight  : (int?)null,
                     CutLineColor   = kv.Value?.CutColor,
@@ -1224,6 +1318,12 @@ namespace StingTools.UI
             public string VisualStyle { get; set; }
             [JsonProperty("phaseFilter",   NullValueHandling = NullValueHandling.Ignore)]
             public string PhaseFilter { get; set; }
+            [JsonProperty("phaseName",     NullValueHandling = NullValueHandling.Ignore)]
+            public string PhaseName { get; set; }
+            [JsonProperty("farClipMm",     NullValueHandling = NullValueHandling.Ignore)]
+            public double? FarClipMm { get; set; }
+            [JsonProperty("annotationCrop", NullValueHandling = NullValueHandling.Ignore)]
+            public bool? AnnotationCrop { get; set; }
 
             [JsonIgnore]
             public bool IsManaged =>
@@ -1306,13 +1406,71 @@ namespace StingTools.UI
         // cutWeight kept for backward compat with existing JSON files.
         private class PackCategoryOverride
         {
-            [JsonProperty("visible")]      public bool Visible { get; set; } = true;
-            [JsonProperty("halftone")]     public bool Halftone { get; set; }
+            [JsonProperty("visible")]      public bool? Visible { get; set; }
+            [JsonProperty("halftone")]     public bool? Halftone { get; set; }
             [JsonProperty("projColor")]    public string ProjColor { get; set; }
             [JsonProperty("projWeight")]   public int ProjWeight { get; set; }
             [JsonProperty("cutColor")]     public string CutColor { get; set; }
             [JsonProperty("cutWeight")]    public int CutWeight { get; set; }
             [JsonProperty("transparency")] public int Transparency { get; set; }
+            [JsonProperty("detailLevel", NullValueHandling = NullValueHandling.Ignore)]
+            public string DetailLevel { get; set; }
+
+            /// <summary>Returns true if all override properties are at default/null values.</summary>
+            public bool IsEmpty()
+            {
+                return Visible == null
+                    && Halftone == null
+                    && string.IsNullOrEmpty(ProjColor)
+                    && ProjWeight == 0
+                    && string.IsNullOrEmpty(CutColor)
+                    && CutWeight == 0
+                    && Transparency == 0
+                    && string.IsNullOrEmpty(DetailLevel)
+                    && string.IsNullOrEmpty(ProjLinePattern)
+                    && string.IsNullOrEmpty(SurfaceFgPatternName)
+                    && string.IsNullOrEmpty(SurfaceFgPatternColor)
+                    && SurfaceFgPatternVisible == null
+                    && string.IsNullOrEmpty(SurfaceBgPatternName)
+                    && string.IsNullOrEmpty(SurfaceBgPatternColor)
+                    && SurfaceBgPatternVisible == null
+                    && string.IsNullOrEmpty(CutLinePattern)
+                    && string.IsNullOrEmpty(CutFgPatternName)
+                    && string.IsNullOrEmpty(CutFgPatternColor)
+                    && CutFgPatternVisible == null
+                    && string.IsNullOrEmpty(CutBgPatternName)
+                    && string.IsNullOrEmpty(CutBgPatternColor)
+                    && CutBgPatternVisible == null;
+            }
+            // Phase 138 — extended Revit VG parity
+            [JsonProperty("projLinePattern", NullValueHandling = NullValueHandling.Ignore)]
+            public string ProjLinePattern { get; set; }
+            [JsonProperty("surfaceFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgPatternName { get; set; }
+            [JsonProperty("surfaceFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgPatternColor { get; set; }
+            [JsonProperty("surfaceFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+            public bool? SurfaceFgPatternVisible { get; set; }
+            [JsonProperty("surfaceBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceBgPatternName { get; set; }
+            [JsonProperty("surfaceBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceBgPatternColor { get; set; }
+            [JsonProperty("surfaceBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+            public bool? SurfaceBgPatternVisible { get; set; }
+            [JsonProperty("cutLinePattern", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutLinePattern { get; set; }
+            [JsonProperty("cutFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutFgPatternName { get; set; }
+            [JsonProperty("cutFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutFgPatternColor { get; set; }
+            [JsonProperty("cutFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+            public bool? CutFgPatternVisible { get; set; }
+            [JsonProperty("cutBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutBgPatternName { get; set; }
+            [JsonProperty("cutBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutBgPatternColor { get; set; }
+            [JsonProperty("cutBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+            public bool? CutBgPatternVisible { get; set; }
         }
 
         private UIElement BuildViewportToolsTab()
