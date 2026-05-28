@@ -38,7 +38,7 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         });
         Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
         var created = await createResp.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(created.GetProperty("issueCode").GetString()!.StartsWith("RFI-"));
+        Assert.StartsWith("RFI-", created.GetProperty("issueCode").GetString());
 
         var listResp = await client.GetAsync($"{_projBase}/issues");
         Assert.Equal(HttpStatusCode.OK, listResp.StatusCode);
@@ -298,7 +298,7 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         });
         Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
         var created = await createResp.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(created.GetProperty("transmittalCode").GetString()!.StartsWith("TX-"));
+        Assert.StartsWith("TX-", created.GetProperty("transmittalCode").GetString());
 
         var listResp = await client.GetAsync($"{_projBase}/transmittals");
         Assert.Equal(HttpStatusCode.OK, listResp.StatusCode);

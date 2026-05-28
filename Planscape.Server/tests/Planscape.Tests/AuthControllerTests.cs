@@ -65,7 +65,7 @@ public class AuthControllerTests : IClassFixture<PlanscapeWebApplicationFactory>
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.False(string.IsNullOrEmpty(json.GetProperty("accessToken").GetString()));
         Assert.Equal("Starter", json.GetProperty("tier").GetString());
-        Assert.True(json.GetProperty("licenseKey").GetString()!.StartsWith("STING-TRIAL-"));
+        Assert.StartsWith("STING-TRIAL-", json.GetProperty("licenseKey").GetString());
     }
 
     [Fact]
