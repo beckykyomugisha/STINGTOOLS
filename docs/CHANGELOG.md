@@ -3,6 +3,31 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 189a — review hardening + condition-based maintenance)
+
+Two review passes over the Phase 189 build.
+
+**Correctness / security / robustness**: K2 retry was a no-op (Failed events
+never re-served) → added `PlatformEvent.Attempts` + cap so retryable failures
+actually retry and poison messages drop out; the three real-time hubs leaked
+across tenants (any user could `JoinProject`/`JoinSession` on a guessed GUID)
+→ `HubTenantGuard` (explicit claim + `IgnoreQueryFilters`, since hubs have no
+HttpContext) on joins, plus a per-connection authorized-session set so
+`MeetingHub` broadcasts can't be injected by non-members; `AppendAsync` retries
+on sequence-collision instead of corrupting the hash chain; `HealthcareComplianceFeed`
+logs on band transition only (was a row per tick); `DeviceTwinService.ListAsync`
+is `AsNoTracking` so the display OFFLINE derivation can't be persisted.
+
+**Accuracy / efficiency / automation**: `TwinRuleEngine` rewritten to preload
+the batch's open alerts + twins and cache recent points (was N+1 queries per
+reading × rule + a query+save per device) and to exclude the current sample
+from the anomaly baseline; new **6B condition-based maintenance** —
+`CbmPlanner` raises a preventive `WorkOrder` (→ K2 spine) when a device's
+`run_hours` crosses its service interval, first reading seeds the baseline and
+an open CBM order blocks re-raises (`DeviceTwin.ServiceIntervalHours` /
+`LastServiceRunHours` + patcher columns; wired into the ingest path). The Edge
+simulator now emits `run_hours` monotonically so the CBM loop is demonstrable.
+
 #### Completed (Phase 189 — Platform enhancement keystones + meeting viewer + digital twin, server)
 
 Implements the [Platform Enhancement Proposal](PLATFORM_ENHANCEMENT_PROPOSAL.md)

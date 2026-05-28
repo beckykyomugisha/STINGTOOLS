@@ -14,6 +14,11 @@ namespace Planscape.Infrastructure.Services;
 /// OPEN alert, fires a <see cref="TwinAlert"/>, sets twin health, pushes the
 /// alert over TwinHub, and (when configured) raises a work order onto the K2
 /// spine. Recovery auto-resolves the OPEN alert and clears health to OK.
+///
+/// Hot path: runs on every telemetry batch, so it preloads the batch's open
+/// alerts + twins (one query each), caches recent points per (device,metric),
+/// and applies all alert/health/resolution mutations in a single SaveChanges —
+/// no per-reading round-trips.
 /// </summary>
 public sealed class TwinRuleEngine : ITwinRuleEvaluator
 {
@@ -41,7 +46,33 @@ public sealed class TwinRuleEngine : ITwinRuleEvaluator
             .ToListAsync(ct);
         if (rules.Count == 0) return;
 
-        // worst severity seen per device this batch → health
+        var deviceIds = readings.Select(r => r.DeviceId).Distinct().ToList();
+
+        // Preload (tracked so mutations persist on the single SaveChanges below).
+        var twinById = (await _db.DeviceTwins
+                .Where(t => t.ProjectId == projectId && deviceIds.Contains(t.DeviceId))
+                .ToListAsync(ct))
+            .ToDictionary(t => t.DeviceId);
+
+        var openByKey = new Dictionary<(string, Guid?), TwinAlert>();
+        foreach (var a in await _db.TwinAlerts
+                     .Where(a => a.ProjectId == projectId && a.Status == "OPEN" && deviceIds.Contains(a.DeviceId))
+                     .ToListAsync(ct))
+            openByKey[(a.DeviceId, a.RuleId)] = a; // last-wins guards against accidental dupes
+
+        // Cache recent points per (device,metric) so multiple rules on one metric
+        // — and anomaly + consecutive checks — don't re-query.
+        var recentCache = new Dictionary<(string, string), IReadOnlyList<TelemetryPoint>>();
+        async Task<IReadOnlyList<TelemetryPoint>> Recent(string d, string m)
+        {
+            if (!recentCache.TryGetValue((d, m), out var v))
+            {
+                v = await _twins.RecentAsync(projectId, d, m, 64, ct);
+                recentCache[(d, m)] = v;
+            }
+            return v;
+        }
+
         var deviceWorst = new Dictionary<string, string>();
         var firedToAutomate = new List<TwinAlert>();
 
@@ -55,25 +86,31 @@ public sealed class TwinRuleEngine : ITwinRuleEvaluator
                 double z = 0;
                 if (rule.Operator == "anomaly")
                 {
-                    var hist = await HistoryAsync(projectId, reading.DeviceId, reading.Metric, ct);
+                    var pts = await Recent(reading.DeviceId, reading.Metric);
+                    // Exclude the newest point: ingest already persisted the current
+                    // reading, so including it would pull the EWMA baseline toward
+                    // itself and mask the very anomaly we're testing for.
+                    var hist = pts.Skip(1).Select(p => p.Value).Reverse().ToList();
                     breach = TwinAnomalyDetector.IsAnomaly(hist, reading.Value, rule.AnomalySigma, out z);
                 }
                 else
                 {
-                    breach = Breaches(rule.Operator, reading.Value, rule.Threshold)
-                             && await ConsecutiveAsync(projectId, reading.DeviceId, rule, ct);
+                    breach = Breaches(rule.Operator, reading.Value, rule.Threshold);
+                    if (breach && rule.ConsecutiveBreaches > 1)
+                    {
+                        var pts = await Recent(reading.DeviceId, reading.Metric);
+                        breach = pts.Count >= rule.ConsecutiveBreaches
+                            && pts.Take(rule.ConsecutiveBreaches)
+                                  .All(p => Breaches(rule.Operator, p.Value, rule.Threshold));
+                    }
                 }
 
-                var existingOpen = await _db.TwinAlerts.FirstOrDefaultAsync(
-                    a => a.ProjectId == projectId && a.DeviceId == reading.DeviceId
-                         && a.RuleId == rule.Id && a.Status == "OPEN", ct);
+                openByKey.TryGetValue((reading.DeviceId, rule.Id), out var existingOpen);
 
                 if (breach)
                 {
                     if (existingOpen != null) continue; // already firing — debounce duplicates
-                    var ifcGuid = await _db.DeviceTwins
-                        .Where(t => t.ProjectId == projectId && t.DeviceId == reading.DeviceId)
-                        .Select(t => t.IfcGlobalId).FirstOrDefaultAsync(ct);
+                    twinById.TryGetValue(reading.DeviceId, out var twin);
 
                     var alert = new TwinAlert
                     {
@@ -81,7 +118,7 @@ public sealed class TwinRuleEngine : ITwinRuleEvaluator
                         ProjectId = projectId,
                         RuleId = rule.Id,
                         DeviceId = reading.DeviceId,
-                        IfcGlobalId = ifcGuid,
+                        IfcGlobalId = twin?.IfcGlobalId,
                         Metric = reading.Metric,
                         Value = reading.Value,
                         Severity = rule.Severity,
@@ -91,9 +128,11 @@ public sealed class TwinRuleEngine : ITwinRuleEvaluator
                         Status = "OPEN",
                     };
                     _db.TwinAlerts.Add(alert);
+                    openByKey[(reading.DeviceId, rule.Id)] = alert; // block dup fires within batch
                     deviceWorst[reading.DeviceId] = Worse(deviceWorst.GetValueOrDefault(reading.DeviceId, "OK"), rule.Severity);
                     if (rule.RaiseWorkOrder) firedToAutomate.Add(alert);
 
+                    // Id is client-assigned (entity default), so safe to push pre-save.
                     await _hub.Clients.Group($"twin:{projectId}")
                         .SendAsync("TwinAlert", new
                         {
@@ -103,47 +142,29 @@ public sealed class TwinRuleEngine : ITwinRuleEvaluator
                 }
                 else if (existingOpen != null)
                 {
-                    // Recovery — clear the alert.
                     existingOpen.Status = "RESOLVED";
                     existingOpen.ResolvedAt = DateTime.UtcNow;
+                    openByKey.Remove((reading.DeviceId, rule.Id));
                 }
             }
         }
 
-        await _db.SaveChangesAsync(ct);
-
-        // Health: set to worst fired severity; clear devices with no remaining open alerts to OK.
-        foreach (var (deviceId, severity) in deviceWorst)
-            await _twins.SetHealthAsync(projectId, deviceId, severity, ct);
-
-        var clearedDevices = readings.Select(r => r.DeviceId).Distinct()
-            .Where(d => !deviceWorst.ContainsKey(d)).ToList();
-        foreach (var d in clearedDevices)
+        // Health roll-up (in-memory on preloaded tracked twins):
+        //  • fired this batch → worst new severity
+        //  • no open alerts remain → OK
+        //  • still-open-but-not-fired → leave as-is
+        var devicesWithOpen = openByKey.Keys.Select(k => k.Item1).ToHashSet();
+        foreach (var deviceId in deviceIds)
         {
-            var stillOpen = await _db.TwinAlerts.AnyAsync(
-                a => a.ProjectId == projectId && a.DeviceId == d && a.Status == "OPEN", ct);
-            if (!stillOpen)
-                await _twins.SetHealthAsync(projectId, d, "OK", ct);
+            if (!twinById.TryGetValue(deviceId, out var twin)) continue;
+            if (deviceWorst.TryGetValue(deviceId, out var sev)) twin.HealthState = sev;
+            else if (!devicesWithOpen.Contains(deviceId)) twin.HealthState = "OK";
         }
+
+        await _db.SaveChangesAsync(ct);
 
         foreach (var alert in firedToAutomate)
             await _automator.RaiseFromAlertAsync(projectId, alert, ct);
-    }
-
-    private async Task<bool> ConsecutiveAsync(Guid projectId, string deviceId, TwinRule rule, CancellationToken ct)
-    {
-        if (rule.ConsecutiveBreaches <= 1) return true;
-        var recent = await _twins.RecentAsync(projectId, deviceId, rule.Metric, rule.ConsecutiveBreaches, ct);
-        if (recent.Count < rule.ConsecutiveBreaches) return false;
-        return recent.All(p => Breaches(rule.Operator, p.Value, rule.Threshold));
-    }
-
-    private async Task<IReadOnlyList<double>> HistoryAsync(
-        Guid projectId, string deviceId, string metric, CancellationToken ct)
-    {
-        var pts = await _twins.RecentAsync(projectId, deviceId, metric, 64, ct);
-        // RecentAsync is newest-first; the detector wants oldest-first.
-        return pts.Select(p => p.Value).Reverse().ToList();
     }
 
     private static bool Breaches(string op, double value, double? threshold)

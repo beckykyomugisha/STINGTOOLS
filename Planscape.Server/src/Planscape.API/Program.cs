@@ -550,6 +550,9 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.ITwinProvisioningService,
     Planscape.Infrastructure.Services.TwinProvisioningService>();
 builder.Services.AddScoped<Planscape.Core.Interfaces.IHealthcareComplianceFeed,
     Planscape.Infrastructure.Services.HealthcareComplianceFeed>();
+// Pillar B (6B) — runtime-based condition maintenance planner.
+builder.Services.AddScoped<Planscape.Core.Interfaces.ICbmPlanner,
+    Planscape.Infrastructure.Services.CbmPlanner>();
 // Gap F — Auto-compute coordinate transform from IfcMapConversion data.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
     Planscape.Infrastructure.Services.AutoAlignService>();

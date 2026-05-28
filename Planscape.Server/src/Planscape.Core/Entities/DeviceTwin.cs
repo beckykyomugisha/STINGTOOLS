@@ -40,6 +40,13 @@ public class DeviceTwin : ITenantScoped
     /// <summary>Free-form provisioning metadata (commissioning ref, COBie key, …).</summary>
     public string? MetadataJson { get; set; }
 
+    // ── Condition-based maintenance (6B) ──
+    /// <summary>Service interval in runtime hours; null = use project default.</summary>
+    public double? ServiceIntervalHours { get; set; }
+
+    /// <summary>Runtime-hours reading at the last service (CBM baseline).</summary>
+    public double? LastServiceRunHours { get; set; }
+
     public Project? Project { get; set; }
 }
 

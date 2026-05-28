@@ -44,7 +44,11 @@ public sealed class SimulatorTelemetryAdapter : ITelemetryAdapter
                         var key = $"{d}|{m}";
                         var baseline = Baseline(m);
                         var prev = _last.TryGetValue(key, out var v) ? v : baseline;
-                        var next = prev + (_rng.NextDouble() - 0.5) * baseline * 0.05;
+                        // run_hours is a runtime odometer — monotonic, so it
+                        // actually exercises the CBM planner instead of drifting.
+                        var next = m == "run_hours"
+                            ? prev + Math.Max(0.001, cfg.IntervalMs / 3_600_000.0)
+                            : prev + (_rng.NextDouble() - 0.5) * baseline * 0.05;
                         _last[key] = next;
                         readings.Add(new TelemetryReading(d, m, Math.Round(next, 3), Unit(m), DateTime.UtcNow));
                     }
@@ -68,6 +72,7 @@ public sealed class SimulatorTelemetryAdapter : ITelemetryAdapter
         "filter_dp_pa"      => 120,
         "power_kw"          => 15,
         "vibration_mm_s"    => 2,
+        "run_hours"         => 0,
         _                   => 50,
     };
 
@@ -78,6 +83,7 @@ public sealed class SimulatorTelemetryAdapter : ITelemetryAdapter
         "room_pressure_pa" or "filter_dp_pa" => "Pa",
         "power_kw"                           => "kW",
         "vibration_mm_s"                     => "mm/s",
+        "run_hours"                          => "h",
         _                                    => "",
     };
 }

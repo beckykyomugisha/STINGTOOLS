@@ -22,6 +22,7 @@ public class TelemetryIngestController : ControllerBase
     private readonly IDeviceTwinService _twins;
     private readonly ITwinRuleEvaluator _rules;
     private readonly IHealthcareComplianceFeed _healthcare;
+    private readonly ICbmPlanner _cbm;
     private readonly IHubContext<TwinHub> _hub;
     private readonly PlanscapeDbContext _db;
 
@@ -30,13 +31,15 @@ public class TelemetryIngestController : ControllerBase
         IHubContext<TwinHub> hub,
         PlanscapeDbContext db,
         ITwinRuleEvaluator rules,
-        IHealthcareComplianceFeed healthcare)
+        IHealthcareComplianceFeed healthcare,
+        ICbmPlanner cbm)
     {
         _twins = twins;
         _hub = hub;
         _db = db;
         _rules = rules;
         _healthcare = healthcare;
+        _cbm = cbm;
     }
 
     /// <summary>POST .../ingest — a batch of readings.</summary>
@@ -62,6 +65,9 @@ public class TelemetryIngestController : ControllerBase
         // 6C — continuous healthcare compliance evidence (HTM 03-01) from
         // pressure telemetry on provisioned room devices.
         await _healthcare.RecordAsync(projectId, readings, ct);
+
+        // 6B — runtime-based preventive maintenance (raises CBM work orders).
+        await _cbm.EvaluateAsync(projectId, readings, ct);
 
         // Live push: K3 overlay + state for the viewer + mobile Live tab.
         var refreshed = await _twins.ListAsync(projectId, ct);
