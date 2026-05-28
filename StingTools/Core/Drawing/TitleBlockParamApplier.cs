@@ -33,7 +33,7 @@ namespace StingTools.Core.Drawing
         public List<string> Warnings { get; } = new List<string>();
     }
 
-    public static class TitleBlockParamApplier
+    public static partial class TitleBlockParamApplier
     {
         private static readonly Regex _projInfo =
             new Regex(@"\$\{([A-Za-z0-9_]+)\}", RegexOptions.Compiled);

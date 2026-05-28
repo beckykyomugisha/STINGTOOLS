@@ -350,30 +350,6 @@ namespace StingTools.Core
         public const string MATCH_DIR       = "STING_MATCH_DIR_TXT";
         public const string MATCH_DIR_GUID  = "A8B9CADB-ACBD-4CDE-7F8A-9BACDBECFDAE";
 
-        // ── Phase 137 — Drawing production stamps ────────────────────────
-        // Written onto views/sheets by the production engine so audits and
-        // browser organisers can find STING-produced artefacts.
-        public const string STING_VIEW_CONTEXT_TAG     = "STING_VIEW_CONTEXT_TAG_TXT";
-        public const string STING_DRAWING_PACKAGE_ID   = "STING_DRAWING_PACKAGE_ID_TXT";
-        public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
-        public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
-        public const string STING_SHEET_SEQUENCE       = "STING_SHEET_SEQUENCE_INT";
-
-        // ── Phase 168 — Match-line subsystem ─────────────────────────────
-        // Stamped onto every auto-placed match-line DetailCurve + caption
-        // tag by MatchLineEngine.PlacePair. STING_MATCH_REF_TXT carries
-        // the paired sheet's STING_SHEET_FULL_REF (so cross-references
-        // re-resolve when sheets are renumbered); STING_MATCH_LINE_GUID
-        // is the stable pair identifier that lets re-runs find existing
-        // pairs and update them in place; STING_MATCH_DIR encodes
-        // vertical/horizontal/dogleg so the drift detector knows what
-        // shape to expect when validating against the scope-box graph.
-        public const string MATCH_REF       = "STING_MATCH_REF_TXT";
-        public const string MATCH_REF_GUID  = "A6B7C8D9-EAFB-4ACC-5D6E-7F8A9BACDBEC";
-        public const string MATCH_LINE_GUID = "STING_MATCH_LINE_GUID_TXT";
-        public const string MATCH_LINE_GUID_GUID = "A7B8C9DA-FBAC-4BCD-6E7F-8A9BACDBECFD";
-        public const string MATCH_DIR       = "STING_MATCH_DIR_TXT";
-        public const string MATCH_DIR_GUID  = "A8B9CADB-ACBD-4CDE-7F8A-9BACDBECFDAE";
 
         // LOG-01: Detection source tracking parameters
         public const string LOC_SOURCE = "ASS_LOC_SOURCE_TXT";
@@ -524,6 +500,23 @@ namespace StingTools.Core
         // DocumentIdentityGenerator, TokenContext.FromDeliverable, and WorkflowEngine.
         public const string ORG_PROJECT_CODE            = "PRJ_ORG_PROJECT_CODE_TXT";
         public const string ORG_PROJECT_CODE_GUID       = "d72513d3-2aed-5048-a949-b262fcd51a39";
+
+        // ── Template Manager v2 — drift + lockdown + library + profile ──
+        // Five parameters added in the Template Manager v2 rebuild. Auto-loaded
+        // from MR_PARAMETERS.txt by the FIX-12.4 supplement path so projects
+        // pick them up without a code change. Constants here are the canonical
+        // names that DriftDetector, CorporateLibrary, TemplateRulesRegistry,
+        // and the dashboard's Lock toggle look up via LookupParameter.
+        public const string TM_TEMPLATE_CHECKSUM        = "STING_TEMPLATE_CHECKSUM_TXT";
+        public const string TM_TEMPLATE_CHECKSUM_GUID   = "a1f2b3c4-d5e6-4f70-8123-456789abcd01";
+        public const string TM_TEMPLATE_LOCKED          = "STING_TEMPLATE_LOCKED_BOOL";
+        public const string TM_TEMPLATE_LOCKED_GUID     = "a1f2b3c4-d5e6-4f70-8123-456789abcd02";
+        public const string TM_CORP_LIB_PATH            = "PRJ_CORPORATE_LIBRARY_PATH_TXT";
+        public const string TM_CORP_LIB_PATH_GUID       = "a1f2b3c4-d5e6-4f70-8123-456789abcd03";
+        public const string TM_CORP_LIB_VERSION         = "PRJ_CORPORATE_LIBRARY_VERSION_TXT";
+        public const string TM_CORP_LIB_VERSION_GUID    = "a1f2b3c4-d5e6-4f70-8123-456789abcd04";
+        public const string TM_PROFILE                  = "PRJ_TEMPLATE_PROFILE_TXT";
+        public const string TM_PROFILE_GUID             = "a1f2b3c4-d5e6-4f70-8123-456789abcd05";
         public const string ORG_ORIGINATOR_CODE         = "PRJ_ORG_ORIGINATOR_CODE_TXT";
         public const string ORG_ORIGINATOR_CODE_GUID    = "d9b568c8-0dcf-5226-add0-a6e3643589e8";
         public const string ORG_COMPANY_NAME            = "PRJ_ORG_COMPANY_NAME_TXT";

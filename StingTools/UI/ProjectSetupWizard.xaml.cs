@@ -125,11 +125,6 @@ namespace StingTools.UI
                 LevelRows[i].Index = i + 1;
         }
 
-        private void RenumberLevelRows()
-        {
-            for (int i = 0; i < LevelRows.Count; i++)
-                LevelRows[i].Index = i + 1;
-        }
 
         // ── Pre-populate from Revit data ─────────────────────────────
 
@@ -1621,9 +1616,6 @@ namespace StingTools.UI
     {
         public event PropertyChangedEventHandler PropertyChanged;
         private void Raise(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
-
-        private bool _include = true; public bool Include { get => _include; set { _include = value; Raise(nameof(Include)); } }
-        public string CurrentName { get; set; }
         private string _newName; public string NewName { get => _newName; set { _newName = value; Raise(nameof(NewName)); } }
         public double RotationDegrees { get; set; }
         public string RotationText => RotationDegrees == 0 ? "0°" : $"{RotationDegrees:F1}°";
@@ -1854,16 +1846,6 @@ namespace StingTools.UI
         }
 
         /// <summary>Get the pipe material for a given plumbing system code (DCW / SAN / RWD).</summary>
-        public string GetMaterialFor(string systemCode)
-        {
-            switch ((systemCode ?? "").ToUpperInvariant())
-            {
-                case "DCW": return DCWPipeMaterial;
-                case "SAN": return SANPipeMaterial;
-                case "RWD": return RWDPipeMaterial;
-                default:    return "";
-            }
-        }
     }
 
     public class ArchitecturalConfig

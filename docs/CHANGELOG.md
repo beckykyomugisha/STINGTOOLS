@@ -3,6 +3,143 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Template Manager v2 — Phases 1-20)
+
+Full rebuild of the Template Manager Dashboard from a passive tab-of-cards
+list into a sidebar-nav + master/detail + inline-log workspace with
+preview grids, readiness lights, contextual suggestions, recipes,
+snapshots, drift detection, cross-engine integration, corporate library
+push/pull, and SHA-256 tamper-evident audit logging. Five commits on
+`claude/lucid-lovelace-1sunB`.
+
+**Foundation (Phase 1-4)** — `5e1db69e`
+
+`Core/TemplateManager/` gets five new files: `OperationResult.cs` (sections /
+metrics / rows / severity envelope), `OperationResultBus.cs` (in-process
+pub/sub with 50-entry rolling history + `HasSubscribers` fallback flag),
+`OperationPreview.cs` (PreviewRow + PreviewProvider POCOs for the
+checkbox grid), `ProjectReadiness.cs` (5-light snapshot of Params /
+Filters / Worksets / Templates / Styles + per-op badges, 5-second
+per-doc cache), `OperationRegistry.cs` (declarative catalogue of every
+op with group / description / dependencies / IsDestructive / IsReadOnly
+/ IsHighlighted / preview provider).
+
+`UI/TemplateManagerDashboardV2.cs` ships the new layout: header strip,
+240 px sidebar nav with search box (Ctrl+F) and per-op (done/total)
+badges + RAG dots, flexible centre detail pane with readiness lights
+strip and per-op rendering, 300 px collapsible log pane. GridSplitters,
+F5 refresh, Theme cycle button. `StingCommandHandler`'s
+`"TemplateDashboard"` case rewired to v2 (passes active doc); v1 file
+retained as `TemplateManagerDashboard.cs` for rollback.
+
+**Flexibility (Phase 5-6)** — `ffc73a37`
+
+`Data/STING_TEMPLATE_ASSIGNMENT_RULES.json` ships the corporate baseline:
+29 name rules + 6 level rules + 3 phase rules + 4 scope-box rules + 6
+view-type defaults + 6 compliance weight profiles (default / working /
+coordination / presentation / handover / healthcare).
+`Core/TemplateManager/TemplateRulesRegistry.cs` is the per-doc loader +
+`<project>/_BIM_COORD/template_assignment_rules.json` overlay (merge by
+rule id, mirror of `AecFilterRegistry`). `ResolveComplianceProfile(doc)`
+auto-selects healthcare profile when `PRJ_ORG_HEALTH_PACK_PROFILE_TXT`
+is set, otherwise reads `PRJ_TEMPLATE_PROFILE_TXT`, falls back to
+default.
+
+`Core/TemplateManager/PreviewProviders.cs` delivers 13 providers covering
+all 6 STYLES ops, 5 SETUP ops, and 3 TEMPLATES ops. Each runs a single
+FilteredElementCollector pass with no transactions. Clicking any wired
+op in the dashboard now shows a checkbox `DataGrid` with Name /
+Discipline / Category / Exists / Action / Source columns, by-discipline
+filter, Select All/None, Hide Existing toggle, and a live count.
+
+**Engine layer (Phase 7-19)** — `c5570646`
+
+Twelve foundation engines under `Core/TemplateManager/`:
+
+- `ExecutionScope.cs` — ActiveView / Selection / Project / Linked /
+  Sheets with `ResolveIds` + `ResolveDocuments` (yields host + every
+  loaded `RevitLinkInstance` doc when Linked is selected).
+- `RecipeEngine.cs` — TemplateRecipe + RecipeStep + 5 built-in baseline
+  recipes (lite setup, master setup, style refresh, audit only,
+  healthcare). `LoadAll` merges corporate JSON + built-ins + project
+  recipes from `<project>/_BIM_COORD/recipes/*.json`.
+- `SnapshotEngine.cs` — `TemplateStateSnapshot` with per-template VG +
+  per-filter snapshot, written before destructive ops.
+- `ComplianceEngine.cs` — replaces the old 50-view sample with
+  full-coverage scoring, per-profile weight selection, 30-second
+  per-view cache, project roll-up with per-view-type and per-discipline
+  breakdown.
+- `DriftDetector.cs` — SHA-256 checksum of view template state stamped
+  on `STING_TEMPLATE_CHECKSUM_TXT`; `Scan(doc)` emits drift entries.
+  `IsLocked` reads `STING_TEMPLATE_LOCKED_BOOL` for per-element
+  destructive-op protection.
+- `DependencyGraph.cs` — `IsRunnable` / `TopologicalOrder` /
+  `TransitiveDependencies` over `OperationRegistry.RequiresOps` edges.
+- `SuggestionEngine.cs` — `Compute(doc, snap, max=3)` returns top
+  contextual recommendations from readiness + drift + healthcare flag +
+  worksharing state.
+- `ProjectQueue.cs` — thread-safe multi-project batch queue.
+- `CorporateLibrary.cs` — `Pull`/`Push` JSON assets between
+  corporate-share path and project `_BIM_COORD`, with timestamped
+  backups on push. Per-project `PRJ_CORPORATE_LIBRARY_PATH_TXT`
+  override; global config at `%APPDATA%/STING/corporate_library.json`.
+- `CrossEngineFacade.cs` — surfaces `AecFilterRegistry` (289 filters),
+  `DrawingTypeRegistry` (90 types), `ViewStylePackRegistry` (22 packs)
+  as first-class `OperationPreview` data in the dashboard.
+
+**Governance + 10 v2 commands (Phase 20)** — `f9cea150`
+
+`Core/TemplateManager/AuditLog.cs` — `TemplateAuditEntry` with SHA-256
+hash chain per file (per-file `_lastHashByFile` cache prevents
+cross-project contamination). Persists to
+`_BIM_COORD/template_audit_log_{yyyy}_{MM}.jsonl`. `VerifyChain(path)`
+recomputes and reports tampering. Mirror of `Docs/Workflow/AuditLog.cs`
+pattern, scoped to template ops.
+
+`Core/TemplateManager/ServerPublisher.cs` — fire-and-forget POST to
+Planscape Server compliance endpoint via existing
+`PlanscapeServerClient.Instance`. Logged-out / server-down /
+unsupported-route all degrade gracefully.
+
+`Commands/TemplateManager/TemplateManagerCommandsV2.cs` — 10
+publish-or-fallback commands: `DriftScanCommand`, `DriftStampCommand`,
+`SnapshotCaptureCommand`, `AuditVerifyCommand`, `LibraryPullCommand`,
+`LibraryPushCommand`, `LibraryConfigureCommand`,
+`AecFiltersBrowseCommand`, `ViewStylePacksBrowseCommand`, plus the
+`V2CommandHelper` that calls `OperationResultBus.Publish` and falls back
+to `TaskDialog` when no dashboard is listening.
+
+`OperationRegistry` gets two new groups (CORPORATE LIBRARY,
+CROSS-ENGINE) plus 10 new ops. Dashboard nav grows correspondingly.
+`TemplateManagerDashboardV2.SubscribeToBus` forwards every result to
+`AuditLog.Append` + `ServerPublisher.Publish`. `SelectOp` now renders
+the `SuggestionEngine` strip with inline "→ Open" jump buttons.
+`StingCommandHandler` dispatch table gets 10 new cases.
+
+**Caveats (Template Manager v2)**
+
+1. Built without `dotnet build` verification (Linux sandbox). All Revit
+   API calls use documented signatures but every property reference
+   (`PaperSize`, `Scale`, `Origin`, etc. on Drawing TM POCOs) and
+   `LookupParameter` invocation needs Revit verification.
+2. v1 dashboard (`TemplateManagerDashboard.cs`) is retained as the
+   fallback path — to revert, switch the `"TemplateDashboard"` case in
+   `StingCommandHandler` back to `TemplateManagerDashboard.Show()`.
+3. Existing 18 commands in `Temp/TemplateManagerCommands.cs` still end
+   with `TaskDialog.Show(...)` rather than `OperationResultBus.Publish`.
+   The bus has a fallback path so this works (TaskDialog still fires
+   when no subscriber). Migrating each command to publish structured
+   results is a follow-on phase — adds ~10 LoC per command, no
+   behaviour change.
+4. `ServerPublisher` logs the prepared payload as Info rather than
+   posting it; the server-side `/template-ops` route hasn't been added
+   yet (Planscape.Server work). Wire is in place — swap one line when
+   the endpoint lands.
+5. New shared parameters referenced (`STING_TEMPLATE_CHECKSUM_TXT`,
+   `STING_TEMPLATE_LOCKED_BOOL`, `PRJ_CORPORATE_LIBRARY_PATH_TXT`,
+   `PRJ_CORPORATE_LIBRARY_VERSION_TXT`, `PRJ_TEMPLATE_PROFILE_TXT`)
+   need to land in `MR_PARAMETERS.txt` + `ParamRegistry`. `DriftDetector`
+   + `CorporateLibrary` degrade gracefully when the params aren't bound.
 #### Completed (Phase 189a — review hardening + condition-based maintenance)
 
 Two review passes over the Phase 189 build.

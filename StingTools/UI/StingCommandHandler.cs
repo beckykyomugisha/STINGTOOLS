@@ -1335,6 +1335,18 @@ namespace StingTools.UI
                     case "TemplateComplianceScore": RunCommand<Temp.TemplateComplianceScoreCommand>(app); break;
                     case "AutoFixTemplate": RunCommand<Temp.AutoFixTemplateCommand>(app); break;
                     case "SyncTemplateOverrides": RunCommand<Temp.SyncTemplateOverridesCommand>(app); break;
+
+                    // Template Manager v2 — governance + cross-engine + library ops
+                    case "DriftScan": RunCommand<Commands.TemplateManager.DriftScanCommand>(app); break;
+                    case "DriftStamp": RunCommand<Commands.TemplateManager.DriftStampCommand>(app); break;
+                    case "SnapshotCapture": RunCommand<Commands.TemplateManager.SnapshotCaptureCommand>(app); break;
+                    case "AuditVerify": RunCommand<Commands.TemplateManager.AuditVerifyCommand>(app); break;
+                    case "LibraryPull": RunCommand<Commands.TemplateManager.LibraryPullCommand>(app); break;
+                    case "LibraryPush": RunCommand<Commands.TemplateManager.LibraryPushCommand>(app); break;
+                    case "LibraryConfigure": RunCommand<Commands.TemplateManager.LibraryConfigureCommand>(app); break;
+                    case "AecFiltersBrowse": RunCommand<Commands.TemplateManager.AecFiltersBrowseCommand>(app); break;
+                    case "DrawingTypesBrowse": RunCommand<Commands.Drawing.DrawingTypesInspectCommand>(app); break;
+                    case "ViewStylePacksBrowse": RunCommand<Commands.TemplateManager.ViewStylePacksBrowseCommand>(app); break;
                     case "CreateVGOverrides": RunCommand<Temp.CreateVGOverridesCommand>(app); break;
                     case "CloneTemplate": RunCommand<Temp.CloneTemplateCommand>(app); break;
                     case "BatchVGReset": RunCommand<Temp.BatchVGResetCommand>(app); break;
@@ -3191,12 +3203,18 @@ namespace StingTools.UI
                     }
                     case "TemplateDashboard":
                     {
-                        // Keep-dialog-open loop: re-open after each dispatched command
+                        // Keep-dialog-open loop: re-open after each dispatched command.
+                        // Uses the v2 sidebar+master/detail layout
+                        // (TemplateManagerDashboardV2). The v1 dialog
+                        // (TemplateManagerDashboard) is retained for fallback /
+                        // emergency rollback and can be re-enabled by switching
+                        // the call below.
+                        var docForDash = app?.ActiveUIDocument?.Document;
                         while (true)
                         {
                             try
                             {
-                                var dlgResult = UI.TemplateManagerDashboard.Show();
+                                var dlgResult = UI.TemplateManagerDashboardV2.Show(docForDash);
                                 if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
                                     break;
                                 SetCommand(dlgResult.Operation);
@@ -3204,6 +3222,8 @@ namespace StingTools.UI
                                     foreach (var kv in dlgResult.Options)
                                         SetExtraParam(kv.Key, kv.Value);
                                 Execute(app);
+                                // Refresh the active doc after each op (may have been opened/closed)
+                                docForDash = app?.ActiveUIDocument?.Document;
                             }
                             catch (Exception ex2) { StingLog.Warn("TemplateDashboard loop: " + ex2.Message); break; }
                         }

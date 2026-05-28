@@ -1236,41 +1236,5 @@ namespace StingTools.Core.Drawing
             return (Element)_newLabelMi.Invoke(fc, new object[]
             { view, origin, hAlign, vAlign, labelParams, prefixSuffix, sizeFt });
         }
-
-        // Reflection-based NewLabel invocation. Caches the MethodInfo
-        // on first use. Throws on missing/unmatched signature so the
-        // caller's try/catch wraps it into a per-element warning.
-        private static System.Reflection.MethodInfo _newLabelMi;
-
-        private static Element CreateLabelViaReflection(Document famDoc, View view,
-            XYZ origin, int hAlignInt, int vAlignInt,
-            IList<FamilyParameter> labelParams, IList<string> prefixSuffix,
-            double sizeFt)
-        {
-            var fc = famDoc.FamilyCreate;
-            if (_newLabelMi == null)
-            {
-                // The NewLabel overload we want has 7 params and the
-                // 3rd / 4th are the alignment enums. Narrow by name
-                // and arity, then trust the converted enum values.
-                foreach (var m in fc.GetType().GetMethods())
-                {
-                    if (m.Name != "NewLabel") continue;
-                    var ps = m.GetParameters();
-                    if (ps.Length != 7) continue;
-                    if (!ps[2].ParameterType.IsEnum) continue;
-                    if (!ps[3].ParameterType.IsEnum) continue;
-                    _newLabelMi = m;
-                    break;
-                }
-                if (_newLabelMi == null)
-                    throw new InvalidOperationException("FamilyCreate.NewLabel(7-arg, enum-h, enum-v) overload not found in this Revit version");
-            }
-            var ps2 = _newLabelMi.GetParameters();
-            var hAlign = Enum.ToObject(ps2[2].ParameterType, hAlignInt);
-            var vAlign = Enum.ToObject(ps2[3].ParameterType, vAlignInt);
-            return (Element)_newLabelMi.Invoke(fc, new object[]
-            { view, origin, hAlign, vAlign, labelParams, prefixSuffix, sizeFt });
-        }
     }
 }
