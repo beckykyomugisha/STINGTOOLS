@@ -2399,5 +2399,103 @@ namespace StingTools.UI
                 }
             });
         }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  MAT tab — Material Manager stubs (XAML event handlers + MatActions API)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // Backing collection for the materials DataGrid
+        private System.Collections.ObjectModel.ObservableCollection<StingTools.UI.MaterialRow> _matRows;
+        private bool _matLoaded;
+
+        // XAML event handlers
+        private void MatSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            if (_matRows == null) return;
+            System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+        }
+
+        private void MatFilter_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_matRows == null) return;
+            System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+        }
+
+        private void MatRegion_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            // Region combo changed — persist and rebuild grid
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                if (_matRows != null)
+                    System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+            }
+            catch (Exception ex) { StingLog.Warn($"MatRegion_Changed: {ex.Message}"); }
+        }
+
+        private void MatGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Selection changed — refresh header counts
+        }
+
+        private void MatGrid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            // Double-click on material row — dispatch to WhereUsed
+            DispatchCommand("MAT_WhereUsed", "");
+        }
+
+        private void MatGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            // Inline cell-edit commit
+            if (e.EditAction != DataGridEditAction.Commit) return;
+        }
+
+        private void MatBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button btn) || !(btn.Tag is string tag)) return;
+            try
+            {
+                switch (tag)
+                {
+                    case "MAT_Refresh":
+                        _matLoaded = false;
+                        ShowMaterialsTab();
+                        return;
+                    default:
+                        DispatchCommand(tag, "");
+                        return;
+                }
+            }
+            catch (Exception ex) { StingLog.Error($"MatBtn_Click {tag}", ex); }
+        }
+
+        // Public API for MatActions.cs
+        public void ShowMaterialsTab()
+        {
+            // Load and display materials tab
+            try
+            {
+                if (_matLoaded) return;
+                _matLoaded = true;
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                _matRows = MaterialRowBuilder.Build(doc);
+            }
+            catch (Exception ex) { StingLog.Warn($"ShowMaterialsTab: {ex.Message}"); }
+        }
+
+        public void SetLayerRows(System.Collections.IEnumerable rows) { /* stub */ }
+        public System.Collections.Generic.List<LayerRow> GetLayerRows() => new System.Collections.Generic.List<LayerRow>();
+        public Autodesk.Revit.DB.ElementId GetLayerHostId() => Autodesk.Revit.DB.ElementId.InvalidElementId;
+        public string GetDuplicateMode() => "All";
+        public void SetDuplicateRows(System.Collections.IEnumerable rows) { /* stub */ }
+        public System.Collections.Generic.List<DuplicateRow> GetDuplicateRows() => new System.Collections.Generic.List<DuplicateRow>();
+        public System.Collections.Generic.IEnumerable<MaterialRow> GetCachedMaterialRows() => _matRows ?? Enumerable.Empty<MaterialRow>();
+        public string GetSelectedAssetKind() => "Appearance";
+
+        // Placeholder types for compilation
+        public class LayerRow { public string Name { get; set; } public double Thickness { get; set; } }
+        public class DuplicateRow { public string Name { get; set; } public long Id { get; set; } }
     }
 }
