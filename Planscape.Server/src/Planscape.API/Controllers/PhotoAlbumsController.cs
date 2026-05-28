@@ -354,7 +354,7 @@ public class PhotoAlbumsController : ControllerBase
     [HttpPost("{albumId:guid}/reorder")]
     public async Task<ActionResult> Reorder(
         Guid projectId, Guid albumId,
-        [FromBody] ReorderRequest req,
+        [FromBody] AlbumReorderRequest req,
         CancellationToken ct = default)
     {
         if (!await IsCuratorAsync(projectId, ct)) return Forbid();
@@ -462,4 +462,4 @@ public record UpdateAlbumRequest(
     bool?   ClearSavedFilter);
 
 public record AddPhotosRequest(Guid[] PhotoIds);
-public record ReorderRequest(Guid[] Order);
+public record AlbumReorderRequest(Guid[] Order);
