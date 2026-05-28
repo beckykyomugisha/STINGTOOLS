@@ -356,12 +356,16 @@ namespace StingTools.UI
                         using (var t = new Transaction(_doc, "STING Stamp Profile"))
                         {
                             t.Start();
-                            var inv = System.Globalization.CultureInfo.InvariantCulture;
                             foreach (var seg in route.AllSegments)
                             {
                                 bool any = false;
-                                any |= ParameterHelpers.SetString(seg, "ELC_WIRE_CORE_COUNT_INT", profile.Cores.ToString(inv), overwrite: true);
-                                any |= ParameterHelpers.SetString(seg, "ELC_WIRE_CSA_MM2_NUM",   profile.CsaMm2.ToString("0.##", inv), overwrite: true);
+                                // ELC_WIRE_CORE_COUNT_INT is INTEGER storage and
+                                // ELC_WIRE_CSA_MM2_NUM is NUMBER (double) storage;
+                                // ParameterHelpers.SetString no-ops on non-string
+                                // params, so these must use the typed writer or the
+                                // two most important fields never get stamped.
+                                any |= SetTypedNumber(seg, "ELC_WIRE_CORE_COUNT_INT", profile.Cores);
+                                any |= SetTypedNumber(seg, "ELC_WIRE_CSA_MM2_NUM",     profile.CsaMm2);
                                 any |= ParameterHelpers.SetString(seg, "ELC_WIRE_COND_MAT_TXT",  profile.ConductorMat ?? "", overwrite: true);
                                 any |= ParameterHelpers.SetString(seg, "ELC_WIRE_PROFILE_ID_TXT", profile.Id, overwrite: true);
                                 any |= ParameterHelpers.SetString(seg, "ELC_CIRCUIT_NR_TXT",     sys.Name ?? "", overwrite: true);
@@ -376,6 +380,28 @@ namespace StingTools.UI
             }
             catch (Exception ex) { StingLog.Warn("PushToModel: " + ex.Message); }
             return touched;
+        }
+
+        // Writes a numeric value to a shared parameter regardless of its declared
+        // storage type (Double / Integer / String). Always overwrites — a profile
+        // push is an explicit user action that should win over stale stamps.
+        private static bool SetTypedNumber(Element el, string name, double value)
+        {
+            var p = el?.LookupParameter(name);
+            if (p == null || p.IsReadOnly) return false;
+            try
+            {
+                switch (p.StorageType)
+                {
+                    case StorageType.Double:  p.Set(value);                       return true;
+                    case StorageType.Integer: p.Set((int)System.Math.Round(value)); return true;
+                    case StorageType.String:
+                        p.Set(value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
+                        return true;
+                    default: return false;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SetTypedNumber {name}: {ex.Message}"); return false; }
         }
 
         private static string SafeRating(ElectricalSystem sys)
