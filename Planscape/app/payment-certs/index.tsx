@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { apiFetch } from "@/api/client";
-import { useAuthStore } from "@/stores/authStore";
+import { useProjectStore } from "@/stores/projectStore";
 
 interface PaymentCert {
   id: string;
@@ -27,7 +27,7 @@ interface PaymentCert {
 
 export default function PaymentCertsScreen() {
   const router = useRouter();
-  const projectId = useAuthStore((s) => s.activeProjectId);
+  const projectId = useProjectStore((s) => s.activeProjectId);
   const [items, setItems] = useState<PaymentCert[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

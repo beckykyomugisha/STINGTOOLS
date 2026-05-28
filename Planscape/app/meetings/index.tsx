@@ -673,7 +673,7 @@ function AttendeesTab({ attendees, projectId, meetingId, onRefresh }: {
       await addMeetingAttendee(projectId, meetingId, {
         userId: selectedMember?.userId,
         name: selectedMember?.displayName ?? externalName.trim(),
-        email: selectedMember?.email ?? externalEmail.trim() || undefined,
+        email: selectedMember?.email ?? (externalEmail.trim() || undefined),
         role,
       });
       setSelectedMember(null); setExternalName(""); setExternalEmail(""); setRole("ATTENDEE");
