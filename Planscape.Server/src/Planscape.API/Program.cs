@@ -74,6 +74,11 @@ var rlsEnabled = builder.Configuration.GetValue<bool>("Database:RlsEnabled");
 builder.Services.AddDbContext<PlanscapeDbContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default"));
+    // Tenant-scoped roots intentionally own required children that are not
+    // themselves filtered (children are always reached through their
+    // ProjectId-scoped parent). Silence the resulting advisory warning.
+    options.ConfigureWarnings(w => w.Ignore(
+        Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
     if (rlsEnabled)
     {
         options.AddInterceptors(new Planscape.Infrastructure.Data.RlsConnectionInterceptor());

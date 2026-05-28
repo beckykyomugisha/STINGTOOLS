@@ -34,6 +34,8 @@ public sealed class PlanscapeDbContextFactory : IDesignTimeDbContextFactory<Plan
 
         var options = new DbContextOptionsBuilder<PlanscapeDbContext>()
             .UseNpgsql(cs)
+            .ConfigureWarnings(w => w.Ignore(
+                Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning))
             .Options;
 
         return new PlanscapeDbContext(options);

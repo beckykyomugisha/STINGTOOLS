@@ -823,7 +823,7 @@ public class MeetingsController : ControllerBase
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private async Task PushMeetingInvitesAsync(Meeting meeting, Guid projectId, Guid? skipUserId, string subject)
+    private Task PushMeetingInvitesAsync(Meeting meeting, Guid projectId, Guid? skipUserId, string subject)
     {
         try
         {
@@ -852,6 +852,7 @@ public class MeetingsController : ControllerBase
         {
             _logger.LogWarning(ex, "Meeting invite push fan-out failed for meeting {MeetingId}", meeting.Id);
         }
+        return Task.CompletedTask;
     }
 
     private async Task PushMinutesReadyAsync(Meeting meeting, Guid projectId, Guid? skipUserId)
