@@ -435,15 +435,6 @@ namespace StingTools.Core.Drawing
 {
     public static partial class TitleBlockParamApplier
     {
-        internal static System.Collections.Generic.List<Autodesk.Revit.DB.FamilyInstance> FindAllTitleBlockInstances(Document doc, ViewSheet sheet = null)
-        {
-            var q = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                .WhereElementIsNotElementType()
-                .Cast<Autodesk.Revit.DB.FamilyInstance>();
-            if (sheet != null) q = q.Where(tb => tb.OwnerViewId == sheet.Id);
-            return q.ToList();
-        }
 
         internal static bool TitleBlockHasAnyKey(Element tb, System.Collections.Generic.IEnumerable<string> keys)
         {
