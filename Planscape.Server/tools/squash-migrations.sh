@@ -42,6 +42,28 @@ API="src/Planscape.API"
 command -v dotnet >/dev/null 2>&1 || { echo "ERROR: dotnet not found on PATH"; exit 1; }
 dotnet tool restore >/dev/null 2>&1 || true
 
+# ── Pre-flight: refuse to squash if migrations carry raw SQL ──────────────
+# A model-based InitialCreate ONLY reproduces what's in the EF model. Raw
+# SQL (RLS policies, triggers, functions, table partitions, special/partial
+# indexes, extensions) would be SILENTLY DROPPED. This codebase has several
+# such objects, so squashing is unsafe here — prefer an additive migration.
+rawsql_files="$(grep -lE '\.Sql\(' "${MIGDIR}"/*.cs 2>/dev/null | grep -v Designer | grep -v Snapshot || true)"
+if [[ -n "${rawsql_files}" ]]; then
+  echo "!! REFUSING TO SQUASH — these migrations contain raw SQL a model-based"
+  echo "   InitialCreate cannot reproduce (RLS / triggers / functions /"
+  echo "   partitions / special indexes / extensions):"
+  echo "${rawsql_files}" | sed 's#.*/#     - #'
+  echo ""
+  echo "   RECOMMENDED instead — keep all migrations, add ONE for the drift:"
+  echo "     dotnet ef migrations add AddDriftedEntities -p ${INFRA} -s ${API} -o Data/Migrations"
+  echo ""
+  echo "   Only if you have manually re-homed every schema-level raw-SQL"
+  echo "   object (into the model or into follow-up migrations) should you"
+  echo "   re-run with FORCE_SQUASH=1."
+  [[ "${FORCE_SQUASH:-0}" == "1" ]] || exit 3
+  echo "   FORCE_SQUASH=1 — proceeding; you accept the raw-SQL loss."
+fi
+
 stamp="$(date +%Y%m%d_%H%M%S)"
 backup="migrations_backup_${stamp}"
 echo "==> Backing up ${MIGDIR} -> ${backup}/"
