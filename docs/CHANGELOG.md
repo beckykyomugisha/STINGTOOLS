@@ -3,7 +3,6 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-<<<<<<< HEAD
 #### Completed (Template Manager v2 — Phases 1-20)
 
 Full rebuild of the Template Manager Dashboard from a passive tab-of-cards
@@ -141,7 +140,6 @@ the `SuggestionEngine` strip with inline "→ Open" jump buttons.
    `PRJ_CORPORATE_LIBRARY_VERSION_TXT`, `PRJ_TEMPLATE_PROFILE_TXT`)
    need to land in `MR_PARAMETERS.txt` + `ParamRegistry`. `DriftDetector`
    + `CorporateLibrary` degrade gracefully when the params aren't bound.
-=======
 #### Completed (Phase 189a — review hardening + condition-based maintenance)
 
 Two review passes over the Phase 189 build.
