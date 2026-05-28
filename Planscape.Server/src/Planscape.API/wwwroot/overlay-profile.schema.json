@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://planscape.app/schemas/viewer-overlay-profile.json",
+  "title": "ViewerOverlayProfile",
+  "description": "K3 keystone. One contract for every STING colour feed rendered on the 3D viewer (tag-compliance, model-diff, IoT twin state, CX status, QA punch, HVAC sizing). Consumed by viewer.html applyOverlay() and produced server-side by overlay builders. mode 'map' is the universal path; 'rag'/'disc' are back-compat convenience modes that reduce to the same render.",
+  "type": "object",
+  "required": ["source", "mode"],
+  "properties": {
+    "source": {
+      "type": "string",
+      "description": "Logical feed name. Switching source auto-restores the prior overlay. Examples: compliance, diff, twin, cx, qa, hvac.",
+      "examples": ["compliance", "diff", "twin", "cx", "qa", "hvac"]
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["map", "rag", "disc"],
+      "description": "'map' colours each element from guidColorMap (the universal feed). 'rag'/'disc' compute colours from the elements[] array (back-compat with the original compliance heatmap)."
+    },
+    "guidColorMap": {
+      "type": "object",
+      "description": "mode=map: IFC GlobalId -> CSS/hex colour. The canonical universal feed; any STING data source emits this.",
+      "additionalProperties": { "type": "string" }
+    },
+    "elements": {
+      "type": "array",
+      "description": "mode=rag|disc only: per-element flags the viewer reduces to colours.",
+      "items": {
+        "type": "object",
+        "required": ["guid"],
+        "properties": {
+          "guid": { "type": "string", "description": "IFC GlobalId." },
+          "isComplete": { "type": "boolean" },
+          "disc": { "type": "string", "description": "Discipline code (A,M,E,P,S,FP,LV,G)." }
+        }
+      }
+    },
+    "defaultColor": {
+      "type": ["string", "null"],
+      "description": "Colour for elements present in the model but absent from the feed. null leaves their original material untouched."
+    },
+    "opacity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 1,
+      "description": "Global overlay opacity. <1 enables transparency (e.g. ghosting deleted elements in a diff)."
+    },
+    "title": {
+      "type": "string",
+      "description": "Legend header shown top-right in the viewer."
+    },
+    "legend": {
+      "type": "array",
+      "description": "Legend rows. Empty/absent removes the legend overlay.",
+      "items": {
+        "type": "object",
+        "required": ["label", "color"],
+        "properties": {
+          "label": { "type": "string" },
+          "color": { "type": "string" }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "source": "diff",
+      "mode": "map",
+      "title": "Changes since v3",
+      "guidColorMap": {
+        "1Ab2…added": "#27ae60",
+        "3Cd4…modified": "#f39c12",
+        "5Ef6…deleted": "#e74c3c"
+      },
+      "defaultColor": null,
+      "legend": [
+        { "label": "Added", "color": "#27ae60" },
+        { "label": "Modified", "color": "#f39c12" },
+        { "label": "Deleted", "color": "#e74c3c" }
+      ]
+    },
+    {
+      "source": "twin",
+      "mode": "map",
+      "title": "Live supply-air temp",
+      "opacity": 1,
+      "guidColorMap": { "AHU01guid": "#27ae60", "AHU02guid": "#e74c3c" },
+      "defaultColor": "#555555",
+      "legend": [
+        { "label": "In range", "color": "#27ae60" },
+        { "label": "Alarm", "color": "#e74c3c" },
+        { "label": "No telemetry", "color": "#555555" }
+      ]
+    }
+  ]
+}

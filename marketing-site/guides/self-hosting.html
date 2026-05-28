@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Self-hosting Planscape — Planscape</title>
+<meta name="description" content="Run Planscape on your own infrastructure. Docker Compose, hardware requirements, SSL, backup, monitoring, upgrades.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/guides/self-hosting.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Self-hosting Planscape</div>
+  <h1>Self-hosting Planscape</h1>
+  <div class="meta">📖 18-minute read · Advanced · Last updated 2026-05-23</div>
+
+  <p>Self-hosting Planscape gives you data residency in your country, integration with your existing identity provider, and full control over backups and disaster recovery. It's included in the Enterprise plan and ships as a Docker Compose configuration. This guide walks you through deploying, hardening, and maintaining a self-hosted instance.</p>
+
+  <div class="callout warn">
+    <strong>Self-hosting is for IT teams.</strong> If your firm doesn't have someone comfortable with Linux, Docker, PostgreSQL, and HTTPS certificates, the cloud-hosted plan is the right choice. We don't provide remote-hands setup as part of self-hosting; the Enterprise plan includes consulting hours but you supply the infrastructure access.
+  </div>
+
+  <h2>Hardware requirements</h2>
+  <table>
+    <thead><tr><th>Profile</th><th>Users</th><th>vCPU</th><th>RAM</th><th>Storage</th></tr></thead>
+    <tbody>
+      <tr><td>Small (single firm)</td><td>≤25</td><td>4</td><td>8 GB</td><td>200 GB SSD</td></tr>
+      <tr><td>Medium (multi-firm)</td><td>≤100</td><td>8</td><td>16 GB</td><td>500 GB NVMe</td></tr>
+      <tr><td>Large</td><td>≤500</td><td>16</td><td>32 GB</td><td>2 TB NVMe + 4 TB cold</td></tr>
+      <tr><td>Enterprise</td><td>≥500</td><td>HA cluster</td><td>—</td><td>Discuss with us</td></tr>
+    </tbody>
+  </table>
+  <p>OS: Ubuntu Server 22.04 LTS or 24.04 LTS. Other Linuxes work but we test against Ubuntu.</p>
+
+  <h2>The component stack</h2>
+  <p>Self-hosted Planscape runs the same code as our cloud. The Compose stack contains:</p>
+  <ul>
+    <li><strong>API</strong> — ASP.NET Core 8 (Planscape.API)</li>
+    <li><strong>Hangfire</strong> — background worker (Planscape.Worker)</li>
+    <li><strong>SignalR</strong> — real-time hubs (within API)</li>
+    <li><strong>PostgreSQL 16</strong> — primary database</li>
+    <li><strong>Redis 7</strong> — cache + SignalR backplane</li>
+    <li><strong>MinIO</strong> — S3-compatible object store for photos / model files / documents</li>
+    <li><strong>Caddy</strong> — reverse proxy + automatic HTTPS via Let's Encrypt</li>
+  </ul>
+
+  <h2>Step 1 — Get the Compose bundle</h2>
+  <p>Email <a href="mailto:onboarding@planscape.co">onboarding@planscape.co</a> with your Enterprise account ID. You'll get a private link to <code>planscape-selfhost-v&lt;version&gt;.tar.gz</code> with:</p>
+  <ul>
+    <li><code>docker-compose.yml</code></li>
+    <li><code>.env.example</code></li>
+    <li><code>caddy/Caddyfile</code></li>
+    <li><code>scripts/backup.sh</code>, <code>scripts/restore.sh</code></li>
+    <li><code>README.md</code></li>
+  </ul>
+
+  <h2>Step 2 — Prepare your host</h2>
+  <pre><code># Install Docker + Compose
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify
+docker --version
+docker compose version</code></pre>
+
+  <p>Open ports:</p>
+  <ul>
+    <li><strong>80 + 443</strong> — Caddy (HTTP redirect + HTTPS)</li>
+    <li><strong>22</strong> — SSH (your existing access)</li>
+  </ul>
+  <p>Block everything else at the firewall. The internal services (Postgres, Redis, MinIO) bind to the Docker network only.</p>
+
+  <h2>Step 3 — Configure environment</h2>
+  <p>Copy <code>.env.example</code> to <code>.env</code> and fill in:</p>
+  <pre><code># Required
+DOMAIN=planscape.yourfirm.co.ug
+ADMIN_EMAIL=admin@yourfirm.co.ug
+POSTGRES_PASSWORD=&lt;long-random&gt;
+REDIS_PASSWORD=&lt;long-random&gt;
+MINIO_ROOT_PASSWORD=&lt;long-random&gt;
+JWT_SECRET=&lt;64-char-random&gt;
+LICENSE_KEY=&lt;from-onboarding-email&gt;
+
+# Optional
+SMTP_HOST=smtp.brevo.com
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASS=...
+SMTP_FROM=planscape@yourfirm.co.ug
+
+# Mobile push (optional — leave blank to disable)
+EXPO_ACCESS_TOKEN=
+
+# Backup target (recommended)
+S3_BACKUP_ENDPOINT=https://...
+S3_BACKUP_BUCKET=planscape-backups
+S3_BACKUP_KEY=...
+S3_BACKUP_SECRET=...</code></pre>
+
+  <div class="callout warn">
+    <strong>Generate random secrets properly.</strong> Use <code>openssl rand -base64 48</code> for each. Don't reuse the example values.
+  </div>
+
+  <h2>Step 4 — DNS</h2>
+  <p>Point your chosen domain at the host's public IP:</p>
+  <pre><code>A   planscape.yourfirm.co.ug   → 1.2.3.4</code></pre>
+  <p>Caddy fetches a Let's Encrypt certificate the first time it starts. The DNS A record must resolve before you start the stack or the cert acquisition will fail.</p>
+
+  <h2>Step 5 — Start the stack</h2>
+  <pre><code>docker compose up -d
+docker compose logs -f api  # watch startup</code></pre>
+
+  <p>First boot does these things in order:</p>
+  <ol>
+    <li>Postgres starts and initialises an empty database.</li>
+    <li>API runs <code>dotnet ef database update</code> applying all schema migrations.</li>
+    <li>API seeds the default tenant + an initial admin user.</li>
+    <li>MinIO buckets are created (<code>planscape-photos</code>, <code>planscape-models</code>, <code>planscape-docs</code>).</li>
+    <li>Hangfire schedules the recurring jobs (trial expiry, backups).</li>
+    <li>Caddy acquires HTTPS certificate.</li>
+  </ol>
+
+  <p>Open <code>https://planscape.yourfirm.co.ug</code> and log in with the admin credentials emailed to you when the bundle was generated. Change the password immediately.</p>
+
+  <h2>Step 6 — Configure backup</h2>
+  <p>The default <code>scripts/backup.sh</code> dumps Postgres, snapshots the MinIO buckets, and uploads both to your S3-compatible target.</p>
+  <p>Add a cron entry:</p>
+  <pre><code>0 2 * * * /opt/planscape/scripts/backup.sh &gt;&gt; /var/log/planscape-backup.log 2&gt;&amp;1</code></pre>
+
+  <p>For point-in-time recovery, enable WAL archiving on Postgres (see the bundle README). Without WAL, you can restore to last-night's backup only.</p>
+
+  <h2>Step 7 — Configure SSO (optional)</h2>
+  <p>Self-hosted Planscape supports SAML 2.0 + OIDC out of the box. From the admin dashboard: Settings → SSO. Walk-throughs:</p>
+  <ul>
+    <li><a href="/guides/sso-azure-ad.html">Azure AD / Entra ID</a></li>
+    <li><a href="/guides/sso-google-workspace.html">Google Workspace</a></li>
+    <li><a href="/guides/sso-okta.html">Okta</a></li>
+  </ul>
+
+  <h2>Day-to-day operations</h2>
+
+  <h3>Health check</h3>
+  <pre><code>curl https://planscape.yourfirm.co.ug/health
+# Expected: {"status":"healthy","version":"v2.1.4","db":"up","redis":"up","minio":"up"}</code></pre>
+
+  <h3>Logs</h3>
+  <pre><code>docker compose logs --tail=200 -f api
+docker compose logs --tail=200 -f worker</code></pre>
+  <p>Logs are structured JSON. Ship them to Loki / Elastic / Datadog with your log shipper of choice.</p>
+
+  <h3>Restart a service</h3>
+  <pre><code>docker compose restart api</code></pre>
+
+  <h3>Database access</h3>
+  <pre><code>docker compose exec db psql -U planscape -d planscape</code></pre>
+
+  <h2>Upgrading</h2>
+  <p>We release updates monthly. To upgrade:</p>
+  <pre><code># Backup first
+./scripts/backup.sh
+
+# Pull new images
+docker compose pull
+
+# Apply
+docker compose up -d
+
+# Verify migrations applied + health
+docker compose logs api | grep "Migrations applied"
+curl https://planscape.yourfirm.co.ug/health</code></pre>
+
+  <p>Major version upgrades (e.g. v2.x to v3.x) may require a migration script — we send release notes with each Enterprise newsletter.</p>
+
+  <h2>Monitoring</h2>
+  <p>The API exposes Prometheus metrics on <code>/metrics</code> (internal port 8080). Useful starting metrics:</p>
+  <ul>
+    <li><code>planscape_active_users</code> — concurrent users</li>
+    <li><code>planscape_db_connection_pool_utilization</code> — DB pool pressure</li>
+    <li><code>planscape_hangfire_pending_jobs</code> — background job queue depth</li>
+    <li><code>planscape_storage_bytes_used</code> — MinIO consumption</li>
+  </ul>
+  <p>Sample Grafana dashboard JSON is in the bundle (<code>monitoring/grafana-planscape.json</code>).</p>
+
+  <h2>Hardening checklist</h2>
+  <ul>
+    <li>Firewall closes everything except 80/443/22</li>
+    <li>SSH keys only (password auth disabled)</li>
+    <li>Postgres / Redis / MinIO never exposed to the public network</li>
+    <li>All <code>.env</code> secrets are unique random strings</li>
+    <li>Backups run nightly and are stored off-host</li>
+    <li>Caddy auto-renews certs every 60 days (default behaviour)</li>
+    <li>OS unattended-upgrades enabled for security patches</li>
+    <li>Database password rotation policy in place</li>
+    <li>Admin accounts require 2FA (enforced in Settings → Security)</li>
+  </ul>
+
+  <h2>Migrating from cloud to self-hosted</h2>
+  <p>If you've been on the cloud plan and want to bring data on-prem:</p>
+  <ol>
+    <li>Tell us 14 days in advance — we schedule an export window.</li>
+    <li>We generate an export bundle (Postgres dump + MinIO archive + audit log).</li>
+    <li>We ship the bundle to your team via encrypted transfer.</li>
+    <li>Stand up the self-host stack with an empty database.</li>
+    <li>Run <code>./scripts/restore.sh planscape-export.tar.gz</code>.</li>
+    <li>Verify; switch DNS for your users; we revoke the cloud instance after a 30-day quarantine.</li>
+  </ol>
+
+  <h2>Getting help</h2>
+  <p>Enterprise support hours: 24×5 (Mon–Fri) with 1-hour response SLA. Out of hours: best-effort via WhatsApp.</p>
+  <p>Channel: <a href="mailto:enterprise@planscape.co">enterprise@planscape.co</a> + a dedicated Slack Connect channel set up at onboarding.</p>
+
+  <div class="next-prev">
+    <a href="/guides/audit-logs.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Audit logs &amp; hash chain
+    </a>
+    <a href="/guides/" class="next">
+      <span class="lbl">Next →</span>
+      All guides
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

@@ -177,10 +177,19 @@ namespace StingTools.Commands.SLD
                     fi.LookupParameter("STING_SLD_ELEMENT_ID")?.AsString()));
 
             int rootCount = roots?.Count ?? 0;
+            // A root is electrical equipment not wired as a downstream load; the second
+            // counter is every node in the hierarchy (panels + loads), not circuits.
+            string hint = rootCount == 0
+                ? "\n\nNo distribution roots: place at least one electrical equipment "
+                  + "family (Distribution Board / panel / MDB). A board counts as a root "
+                  + "even before its circuits are wired, so 0 here means no equipment is "
+                  + "placed — not that circuits are missing."
+                : "";
             TaskDialog.Show("STING - SLD Validate",
-                $"Distribution roots found   : {rootCount}\n"
-              + $"Electrical circuits in model: {circuits}\n"
-              + $"SLD symbols placed          : {sldSymbols}");
+                $"Distribution roots found      : {rootCount}\n"
+              + $"Hierarchy nodes (panels+loads): {circuits}\n"
+              + $"SLD symbols placed            : {sldSymbols}"
+              + hint);
             return Result.Succeeded;
         }
     }

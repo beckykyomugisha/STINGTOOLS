@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
 Disallow: /api/
-Sitemap: https://planscape.app/sitemap.xml
+Disallow: /assets/template-*
+
+Sitemap: https://planscape.co/sitemap.xml

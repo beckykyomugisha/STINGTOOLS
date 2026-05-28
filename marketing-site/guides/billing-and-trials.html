@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Billing &amp; the free trial — Planscape</title>
+<meta name="description" content="How the 30-day free trial works, upgrading and downgrading, mobile money, exchange rates, invoices, refunds.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/guides/billing-and-trials.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Billing &amp; the free trial</div>
+  <h1>Billing &amp; the free trial</h1>
+  <div class="meta">📖 8-minute read · Beginner · Last updated 2026-05-23</div>
+
+  <p>Everything you need to know about paying for Planscape: how the trial works, switching plans, mobile money, how we handle exchange rates, invoices and tax compliance, and how to cancel.</p>
+
+  <h2>The 30-day free trial</h2>
+  <p>Every new tenant starts on a 30-day free trial with full Standard-tier features. No credit card needed at signup.</p>
+
+  <h3>What you get during the trial</h3>
+  <ul>
+    <li>Everything in the Standard plan (Plugin + Cloud CDE + Mobile + 50 GB storage + 10 projects + ACC sync + BCF round-trip).</li>
+    <li>Up to 10 users.</li>
+    <li>Email support (24-hour response).</li>
+  </ul>
+
+  <h3>What happens as the trial ends</h3>
+  <table>
+    <thead><tr><th>Day</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td>−7</td><td>Push notification + email reminder to tenant Owner</td></tr>
+      <tr><td>−3</td><td>Second reminder; in-app banner appears</td></tr>
+      <tr><td>−1</td><td>Final reminder; banner turns orange</td></tr>
+      <tr><td>0 (expiry)</td><td>If a plan has been chosen + paid → seamless transition. If not → tenant moves to read-only mode</td></tr>
+      <tr><td>+1 to +60</td><td>Read-only grace period: full data access, but no new projects, no new issues, no Revit plugin sync</td></tr>
+      <tr><td>+60</td><td>Data archived; export available on request for 12 months</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <strong>Adding a payment method early</strong> means a seamless transition on day 31 — your subscription starts and you keep working. We charge on day 31, not day 1.
+  </div>
+
+  <h2>Choosing your plan</h2>
+  <p>Plans are documented on the <a href="/pricing.html">pricing page</a>. Quick decision matrix:</p>
+  <ul>
+    <li><strong>1 user, Revit plugin only</strong> → Plugin Only ($15/mo)</li>
+    <li><strong>Small practice, 2–5 users, ≤3 projects</strong> → Starter ($35/mo)</li>
+    <li><strong>Mid-size practice, 5–10 users, ≤10 projects</strong> → Standard ($65/mo)</li>
+    <li><strong>15+ users, unlimited projects, clash + carbon</strong> → Large ($90/mo)</li>
+    <li><strong>Self-host, SSO, custom integrations</strong> → Enterprise (contact us)</li>
+  </ul>
+
+  <h2>Paying — supported methods</h2>
+
+  <h3>Mobile money (recommended for East &amp; West Africa)</h3>
+  <ul>
+    <li>🇺🇬 Uganda — MTN Mobile Money, Airtel Money</li>
+    <li>🇰🇪 Kenya — M-Pesa, Airtel Money</li>
+    <li>🇹🇿 Tanzania — M-Pesa, Tigo Pesa, Airtel Money</li>
+    <li>🇷🇼 Rwanda — MTN MoMo</li>
+    <li>🇳🇬 Nigeria — Bank transfer, USSD</li>
+    <li>🇿🇦 South Africa — EFT, card</li>
+  </ul>
+  <p>All routed through Flutterwave. Setup once, auto-debit monthly. Confirmation comes via SMS and email.</p>
+
+  <h3>Card</h3>
+  <p>Visa / Mastercard via Stripe. Standard 3D Secure if your card requires it.</p>
+
+  <h3>Bank transfer (annual only)</h3>
+  <p>Pay annually, get an invoice, transfer to our bank. Setup time: about 24 hours after we receive your transfer confirmation.</p>
+
+  <h3>Crypto (Enterprise only)</h3>
+  <p>USDC, USDT, or BTC for donor-funded international work. Contact us for the wallet address and exchange-rate fix policy.</p>
+
+  <h2>How currency &amp; FX work</h2>
+  <p>You pick your billing currency at signup. Once chosen, prices are <strong>fixed in that currency</strong>. We don't pass on day-to-day FX volatility — you pay the same UGX figure each month regardless of what the dollar is doing.</p>
+  <p>We do, however, review FX rates quarterly and may adjust local-currency prices to track the underlying USD plan price. Any adjustment is announced 30 days in advance and never applies to your current billing cycle.</p>
+  <p>To change your billing currency: Tenant Dashboard → Billing → Currency. Change takes effect at the next billing cycle.</p>
+
+  <h2>Invoices &amp; tax</h2>
+  <p>Every payment generates a tax-compliant invoice in your billing currency. Invoices include:</p>
+  <ul>
+    <li>Your firm's legal name and billing address.</li>
+    <li>Your tax ID (e.g. Uganda TIN, Kenya KRA PIN, Nigerian TIN) — set in Settings → Billing.</li>
+    <li>Planscape's tax ID for your jurisdiction.</li>
+    <li>VAT / GST line items where applicable.</li>
+  </ul>
+  <p>Download from Tenant Dashboard → Billing → Invoices. We retain invoices for 7 years.</p>
+  <p>VAT registration status by country:</p>
+  <ul>
+    <li><strong>Uganda</strong> — VAT-registered, 18% added to local invoices.</li>
+    <li><strong>Kenya, Tanzania, Rwanda, Nigeria, South Africa</strong> — currently invoiced without local VAT under the digital-services exemption; you may need to self-account via reverse charge depending on your KRA / TRA / RRA / FIRS / SARS guidance.</li>
+    <li><strong>EU/UK</strong> — VAT MOSS registered, local VAT added.</li>
+    <li><strong>US</strong> — no sales tax (we're not US-resident).</li>
+  </ul>
+  <div class="callout warn">
+    <strong>This isn't tax advice.</strong> Consult your accountant for the right treatment in your jurisdiction.
+  </div>
+
+  <h2>Upgrading mid-cycle</h2>
+  <p>Upgrades take effect immediately. We pro-rate the new plan from the upgrade date:</p>
+  <ol>
+    <li>Calculate days remaining in the current cycle.</li>
+    <li>Refund proportional credit of the old plan.</li>
+    <li>Charge proportional cost of the new plan for the same period.</li>
+    <li>Apply the credit to that charge; you pay the difference.</li>
+  </ol>
+  <p>Example: 15 days into a Starter ($35/mo) cycle, upgrade to Standard ($65/mo). Old plan credit: $17.50. New plan pro-rated: $32.50. You're charged $15. Next month onwards, you pay $65 in full.</p>
+
+  <h2>Downgrading mid-cycle</h2>
+  <p>Downgrades take effect at the next billing cycle. You keep the higher plan until then; you don't get a refund for the unused portion. This protects you from losing access mid-month.</p>
+
+  <h2>Cancelling</h2>
+  <p>Tenant Dashboard → Billing → Cancel subscription. You're asked to confirm + give a reason (optional but appreciated).</p>
+  <p>Effects of cancellation:</p>
+  <ul>
+    <li>You keep full access until the end of your current billing cycle.</li>
+    <li>No auto-renew at the next cycle.</li>
+    <li>After cycle end, tenant moves to read-only mode for 60 days.</li>
+    <li>After 60 days, data is archived. Export available on request for 12 months.</li>
+    <li>After 12 months, data is permanently deleted (we keep cryptographic hashes for audit chain integrity but no readable data).</li>
+  </ul>
+
+  <h2>Refunds</h2>
+  <p>If you cancel within 30 days of your first paid invoice (i.e. within day 60 of your account), we refund 100% — no questions. Email <a href="mailto:hello@planscape.co">hello@planscape.co</a>.</p>
+  <p>After 30 days we don't pro-rate refunds for the current cycle. You can cancel any time and you'll keep access until end-of-cycle.</p>
+  <p>Annual plans: if you cancel partway through an annual cycle, we refund the unused months minus a 10% admin fee. So month 4 cancellation on a 12-month plan = refund of (8 months × monthly equivalent × 90%).</p>
+
+  <h2>Failed payments</h2>
+  <p>If a payment fails (insufficient funds, expired card, mobile money limit hit):</p>
+  <ul>
+    <li>We retry on day +3 and day +7.</li>
+    <li>You get an email after each failed attempt with instructions to fix.</li>
+    <li>After the second failed retry the tenant moves to read-only on day +14.</li>
+    <li>Update your payment method and trigger a manual retry from Billing → Pay now.</li>
+  </ul>
+
+  <h2>Educational &amp; non-profit discount</h2>
+  <p>Accredited universities, vocational training institutes, and registered non-profits get 50% off the Standard tier. Email <a href="mailto:hello@planscape.co">hello@planscape.co</a> with your accreditation documents (or non-profit certificate). Verification takes 1–3 business days.</p>
+
+  <h2>Anything else</h2>
+  <p>If your question isn't covered here, <a href="/contact.html">contact us</a> or check the <a href="/pricing.html#faq">pricing FAQ</a>.</p>
+
+  <div class="next-prev">
+    <a href="/guides/changing-currency.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Changing your billing currency
+    </a>
+    <a href="/guides/canceling.html" class="next">
+      <span class="lbl">Next →</span>
+      Cancelling &amp; exporting data
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

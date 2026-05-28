@@ -239,35 +239,6 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        // ── Per-element integer write (e.g. STING_DISPLAY_MODE) ─────────
-
-        private static int WriteElementInts(Document doc, View view, string paramName, int value)
-        {
-            int n = 0;
-            try
-            {
-                var ids = new FilteredElementCollector(doc, view.Id)
-                    .WhereElementIsNotElementType()
-                    .ToElementIds();
-                foreach (var id in ids)
-                {
-                    var el = doc.GetElement(id);
-                    if (el == null) continue;
-                    Parameter p = el.LookupParameter(paramName);
-                    if (p == null || p.IsReadOnly) continue;
-                    if (p.StorageType != StorageType.Integer) continue;
-                    if (p.AsInteger() == value) continue;
-                    try { p.Set(value); n++; }
-                    catch { /* element-specific failure — keep going */ }
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"WriteElementInts({paramName}): {ex.Message}");
-            }
-            return n;
-        }
-
         // Phase 177 — translate pack.CategoryTag7Sections (per-category
         // string of letters like "ABDF") into a single global SectionVisibility
         // map ("A"->true, "B"->true, ...). The pack value applies project-
@@ -315,39 +286,6 @@ namespace StingTools.Core.Drawing
                 if (k.Length == 1 && k[0] >= 'A' && k[0] <= 'F') canonical[k] = kv.Value;
             }
             return canonical;
-        }
-
-        // ── TAG7 section visibility (per element) ───────────────────────
-
-        private static int WriteSectionVisibility(Document doc, View view, Dictionary<string, bool> map)
-        {
-            int n = 0;
-            // Only A..F are valid keys.
-            var canonical = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-            foreach (var kv in map)
-            {
-                string k = (kv.Key ?? "").Trim().ToUpperInvariant();
-                if (k.Length == 1 && k[0] >= 'A' && k[0] <= 'F')
-                    canonical[k] = kv.Value;
-            }
-            if (canonical.Count == 0) return 0;
-
-            var ids = new FilteredElementCollector(doc, view.Id)
-                .WhereElementIsNotElementType()
-                .ToElementIds();
-            foreach (var id in ids)
-            {
-                var el = doc.GetElement(id);
-                if (el == null) continue;
-                foreach (var kv in canonical)
-                {
-                    string pname = $"TAG_7_SECTION_VISIBLE_{kv.Key}_BOOL";
-                    Parameter p = el.LookupParameter(pname);
-                    if (p == null) continue;   // family doesn't carry this section flag
-                    if (ParameterHelpers.SetYesNo(el, pname, kv.Value, overwrite: true)) n++;
-                }
-            }
-            return n;
         }
 
         // ── Per-category depth override ─────────────────────────────────

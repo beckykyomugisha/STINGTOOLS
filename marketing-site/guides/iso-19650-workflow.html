@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ISO 19650 workflow setup — Planscape</title>
+<meta name="description" content="Set up BEP, MIDP, naming conventions, suitability codes, and the CDE state machine for an ISO 19650-compliant project.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/guides/iso-19650-workflow.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; ISO 19650 workflow setup</div>
+  <h1>ISO 19650 workflow setup</h1>
+  <div class="meta">📖 14-minute read · Intermediate · Last updated 2026-05-23</div>
+
+  <p>ISO 19650 is the international standard for managing information across the asset lifecycle. Planscape ships ISO 19650 conventions pre-built — naming, suitability, CDE containers, transmittal forms, audit trail. This guide shows you how to configure them for your project so that on day one you're generating information that satisfies the standard.</p>
+
+  <div class="callout">
+    <strong>You don't need to read ISO 19650-1 and -2 to follow this guide.</strong> But if you want the source: <a href="https://www.iso.org/standard/68078.html" target="_blank" rel="noopener">ISO 19650-1:2018</a> (concepts) and <a href="https://www.iso.org/standard/68080.html" target="_blank" rel="noopener">ISO 19650-2:2018</a> (delivery phase).
+  </div>
+
+  <h2>The four pillars Planscape configures for you</h2>
+  <ol>
+    <li><strong>Naming convention</strong> — every file and document gets an ISO 19650 name.</li>
+    <li><strong>CDE state machine</strong> — WIP → Shared → Published → Archived.</li>
+    <li><strong>Suitability &amp; revision codes</strong> — S0–S7 and P/A revisions.</li>
+    <li><strong>Audit trail</strong> — hash-chained log over every state change.</li>
+  </ol>
+
+  <h2>Step 1 — Project metadata</h2>
+  <p>Open the project &rsaquo; Settings &rsaquo; ISO 19650. Fill in the codes that go into every filename:</p>
+  <table>
+    <thead><tr><th>Code</th><th>Example</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Project code</td><td>KIH</td><td>You — 3–6 chars</td></tr>
+      <tr><td>Originator code</td><td>PLNS</td><td>Your firm — 3–4 chars</td></tr>
+      <tr><td>Volume / system</td><td>ZZ (whole project), 01 (zone 1)</td><td>Per project — usually ZZ to start</td></tr>
+      <tr><td>Level</td><td>ZZ, 00, 01, 02, …</td><td>Per file</td></tr>
+      <tr><td>Type</td><td>M3 (model), DR (drawing), SP (specification)</td><td>Per file</td></tr>
+      <tr><td>Role</td><td>A (architectural), M (mechanical), …</td><td>Per file</td></tr>
+      <tr><td>Number</td><td>0001</td><td>Auto — sequential</td></tr>
+    </tbody>
+  </table>
+  <p>A complete file name then looks like:</p>
+  <pre><code>KIH-PLNS-ZZ-00-M3-A-0001.rvt
+KIH-PLNS-ZZ-XX-DR-M-0042.pdf</code></pre>
+
+  <h2>Step 2 — Configure the CDE state machine</h2>
+  <p>Every file in Planscape lives in one of four containers:</p>
+  <table>
+    <thead><tr><th>Container</th><th>Who can write</th><th>Who can read</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr><td><strong>WIP</strong></td><td>Author</td><td>Author + tenant</td><td>Daily work</td></tr>
+      <tr><td><strong>Shared</strong></td><td>Author (publish)</td><td>All project members</td><td>Coordination across disciplines</td></tr>
+      <tr><td><strong>Published</strong></td><td>Project Lead (approve)</td><td>All members + external clients</td><td>Contract-grade information</td></tr>
+      <tr><td><strong>Archived</strong></td><td>System (auto)</td><td>Read-only by all</td><td>Historical record</td></tr>
+    </tbody>
+  </table>
+
+  <p>Settings → CDE state machine. Defaults are correct for most projects. You can:</p>
+  <ul>
+    <li>Require a second approver before promoting to Published.</li>
+    <li>Force a suitability change on each container transition.</li>
+    <li>Auto-archive Published files after N days from project completion.</li>
+  </ul>
+
+  <h2>Step 3 — Suitability codes</h2>
+  <p>The S codes mark what an information container is fit for:</p>
+  <table>
+    <thead><tr><th>Code</th><th>Meaning</th><th>Typical CDE container</th></tr></thead>
+    <tbody>
+      <tr><td>S0</td><td>Initial status / WIP</td><td>WIP</td></tr>
+      <tr><td>S1</td><td>Suitable for coordination</td><td>Shared</td></tr>
+      <tr><td>S2</td><td>Suitable for information</td><td>Shared</td></tr>
+      <tr><td>S3</td><td>Suitable for internal review &amp; comment</td><td>Shared</td></tr>
+      <tr><td>S4</td><td>Suitable for stage approval</td><td>Published</td></tr>
+      <tr><td>S5</td><td>Suitable for PIM authorization</td><td>Published</td></tr>
+      <tr><td>S6</td><td>Suitable for AIM authorization</td><td>Published</td></tr>
+      <tr><td>S7</td><td>Suitable for asset operation</td><td>Published</td></tr>
+    </tbody>
+  </table>
+  <p>The default mapping (S1/S2 → Shared, S4–S7 → Published) is the standard interpretation. Customize per project in Settings.</p>
+
+  <h2>Step 4 — Revision codes</h2>
+  <p>Planscape uses the P (pre-construction) and C (construction) revision scheme:</p>
+  <ul>
+    <li><code>P01, P02, P03…</code> — pre-construction revisions</li>
+    <li><code>P01.01, P01.02</code> — minor revisions within a major</li>
+    <li><code>C01, C02, …</code> — construction-issue revisions</li>
+    <li><code>A01, A02, …</code> — as-built revisions (after handover)</li>
+  </ul>
+  <p>Auto-increment is enabled by default — re-issuing a deliverable bumps the revision code without you typing it.</p>
+
+  <h2>Step 5 — Build the BEP</h2>
+  <p>Project &rsaquo; Documents &rsaquo; <strong>+ Generate BEP</strong>. Pick a template:</p>
+  <ul>
+    <li><strong>Standard</strong> — generic ISO 19650 BEP.</li>
+    <li><strong>UK Public Sector</strong> — includes IR (Information Requirements) cross-references.</li>
+    <li><strong>NHS / Healthcare</strong> — adds HBN/HTM document requirements.</li>
+    <li><strong>Donor-funded</strong> — adds DFI/IFC reporting fields.</li>
+  </ul>
+  <p>The BEP is rendered as a .docx with all your project metadata pre-filled. Edit in Word, re-upload as a deliverable.</p>
+
+  <h2>Step 6 — Build the MIDP</h2>
+  <p>The Master Information Delivery Plan lists every deliverable, its responsible party, and its target date.</p>
+  <p>Project &rsaquo; Deliverables &rsaquo; <strong>MIDP view</strong>. Add deliverables one of three ways:</p>
+  <ul>
+    <li><strong>From a template</strong> — pick from 8 industry templates (Hospital, Airport, Office, etc.) — adds 30–80 deliverables in one click.</li>
+    <li><strong>From Excel</strong> — paste a delivery schedule, Planscape parses columns and creates deliverables.</li>
+    <li><strong>Manually</strong> — one row at a time.</li>
+  </ul>
+
+  <p>Each deliverable carries: number, name, type, responsible party, suitability target, milestone, and dependencies. The MIDP view also shows RAG status (on-track / at-risk / late).</p>
+
+  <h2>Step 7 — Verify the audit trail is on</h2>
+  <p>Audit trail is on by default. To verify: Settings &rsaquo; Audit &rsaquo; <strong>Verify chain</strong>. Planscape walks every record in the project's audit log, checks each SHA-256 hash against the previous record, and reports the chain length and verification result.</p>
+  <p>A broken chain means tampering. Don't ignore it — contact <a href="mailto:support@planscape.co">support@planscape.co</a> immediately. We haven't yet seen a real-world break, but the verification mechanism is what makes the audit trail court-admissible.</p>
+
+  <h2>Day-to-day workflow once set up</h2>
+  <ol>
+    <li><strong>Author</strong> works in Revit / Word / Excel, syncs to WIP via the plugin or upload.</li>
+    <li>When ready to share with the team, the author <strong>Publishes to Shared</strong> with a suitability code (S1 / S2 / S3).</li>
+    <li>Other disciplines coordinate in Shared. RFIs and NCRs raised against specific elements.</li>
+    <li>When ready for client review, the Project Lead <strong>Promotes to Published</strong> at a stage-gate suitability (S4 / S5).</li>
+    <li>A <strong>Transmittal</strong> is issued to client recipients listing every Published deliverable in that batch.</li>
+    <li>Each step is automatically logged in the audit trail.</li>
+  </ol>
+
+  <h2>Common mistakes</h2>
+  <ul>
+    <li><strong>Skipping the MIDP.</strong> Without it you can't show progress against plan. Even a rough first version is better than none.</li>
+    <li><strong>Using suitability codes inconsistently.</strong> Pick a convention (S2 for general info, S3 for review) and stick to it across the project.</li>
+    <li><strong>Approving your own work to Published.</strong> Even if your role allows it, route via a separate Project Lead. The audit trail benefits enormously from a second signature.</li>
+    <li><strong>Never running the chain verification.</strong> Do it monthly. It takes 5 seconds and proves the audit trail isn't compromised.</li>
+  </ul>
+
+  <div class="next-prev">
+    <a href="/guides/creating-first-project.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Creating your first project
+    </a>
+    <a href="/guides/sharing-with-clients.html" class="next">
+      <span class="lbl">Next →</span>
+      Sharing projects with clients
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

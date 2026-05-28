@@ -1,27 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://planscape.app/</loc>
-    <lastmod>2026-05-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://planscape.app/privacy</loc>
-    <lastmod>2026-05-01</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://planscape.app/terms</loc>
-    <lastmod>2026-05-01</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://docs.planscape.app/</loc>
-    <lastmod>2026-05-01</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
+  <!-- Top-level pages -->
+  <url><loc>https://planscape.co/</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://planscape.co/features.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://planscape.co/pricing.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://planscape.co/about.html</loc><lastmod>2026-05-23</lastmod><changefreq>yearly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://planscape.co/contact.html</loc><lastmod>2026-05-23</lastmod><changefreq>yearly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://planscape.co/privacy.html</loc><lastmod>2026-05-23</lastmod><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://planscape.co/terms.html</loc><lastmod>2026-05-23</lastmod><changefreq>yearly</changefreq><priority>0.3</priority></url>
+
+  <!-- Guides hub + articles -->
+  <url><loc>https://planscape.co/guides/</loc><lastmod>2026-05-23</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://planscape.co/guides/getting-started.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://planscape.co/guides/revit-plugin-setup.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://planscape.co/guides/mobile-onboarding.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://planscape.co/guides/inviting-team.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://planscape.co/guides/creating-first-project.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://planscape.co/guides/iso-19650-workflow.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://planscape.co/guides/billing-and-trials.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://planscape.co/guides/self-hosting.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://planscape.co/guides/raising-issues.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://planscape.co/guides/gps-site-map.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Tutorials hub + walkthroughs -->
+  <url><loc>https://planscape.co/tutorials/</loc><lastmod>2026-05-23</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://planscape.co/tutorials/create-first-project.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://planscape.co/tutorials/install-mobile-app.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://planscape.co/tutorials/install-revit-plugin.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://planscape.co/tutorials/raise-issue-from-mobile.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://planscape.co/tutorials/capture-site-photos.html</loc><lastmod>2026-05-23</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+
+  <!-- Blog -->
+  <url><loc>https://planscape.co/blog/</loc><lastmod>2026-05-23</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://planscape.co/blog/2026-05-23-why-we-built-planscape.html</loc><lastmod>2026-05-23</lastmod><changefreq>yearly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://planscape.co/blog/2026-05-20-iso-19650-in-east-africa.html</loc><lastmod>2026-05-20</lastmod><changefreq>yearly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://planscape.co/blog/2026-05-15-offline-first-mobile-bim.html</loc><lastmod>2026-05-15</lastmod><changefreq>yearly</changefreq><priority>0.6</priority></url>
+
+  <!-- Developer docs -->
+  <url><loc>https://docs.planscape.co/</loc><lastmod>2026-05-23</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
 </urlset>

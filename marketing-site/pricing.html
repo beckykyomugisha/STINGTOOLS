@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pricing — Planscape</title>
+<meta name="description" content="Flat per-firm pricing. Free 30-day trial. Starter $35/mo, Standard $65/mo, Large $90/mo, Enterprise custom. Invoiced in your local currency.">
+<meta property="og:title" content="Pricing — Planscape">
+<meta property="og:description" content="Flat per-firm pricing — add users without paying per seat. From $35/mo. Local currency invoicing for East &amp; West Africa.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://planscape.co/pricing.html">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/pricing.html">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.toggle-row { display:flex; justify-content:center; gap:8px; margin:24px 0 8px; flex-wrap:wrap; }
+.toggle-row button {
+  background:var(--card); border:1px solid var(--line);
+  padding:8px 16px; border-radius:999px; cursor:pointer;
+  font-size:13px; font-weight:600; color:var(--muted);
+}
+.toggle-row button.active { background:var(--ink); color:#fff; border-color:var(--ink); }
+.save-badge { color:var(--good); font-size:13px; font-weight:600; }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html" style="color:var(--accent)">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/blog/">Blog</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<header class="page-header">
+  <h1>Simple, predictable pricing</h1>
+  <p>One flat price per firm — not per seat. Invite the whole team. Pay in your local currency.</p>
+</header>
+
+<section style="padding-top:0">
+  <div class="toggle-row">
+    <button class="active" onclick="setBilling('month')" id="btn-month">Monthly</button>
+    <button onclick="setBilling('year')" id="btn-year">Annual <span class="save-badge">Save 20%</span></button>
+  </div>
+  <p class="text-center muted" style="font-size:13px;margin-bottom:0">All plans include the Revit plugin · 30-day free trial · no credit card required</p>
+
+  <div class="pricing-grid">
+    <div class="tier">
+      <h3>Plugin Only</h3>
+      <p class="desc">Just the Revit plugin. No cloud sync, no mobile app.</p>
+      <div class="price">$<span data-m="15" data-y="12">15</span><span class="per">/firm/mo</span></div>
+      <ul>
+        <li>Revit 2025 / 2026 / 2027 plugin</li>
+        <li>763+ commands</li>
+        <li>ISO 19650 auto-tagging</li>
+        <li>Drawing template manager</li>
+        <li>Healthcare + MEP packs</li>
+        <li class="x">No cloud CDE</li>
+        <li class="x">No mobile app</li>
+        <li class="x">Email support only</li>
+      </ul>
+      <a href="/signup?plan=plugin" class="cta">Start trial</a>
+    </div>
+
+    <div class="tier">
+      <h3>Starter</h3>
+      <p class="desc">Plugin + cloud CDE + mobile. For solo practices and small teams.</p>
+      <div class="price">$<span data-m="35" data-y="28">35</span><span class="per">/firm/mo</span></div>
+      <ul>
+        <li>Everything in Plugin Only</li>
+        <li>Up to 5 users</li>
+        <li>3 active projects</li>
+        <li>Cloud CDE (10 GB storage)</li>
+        <li>Offline-first mobile app</li>
+        <li>GPS site map</li>
+        <li>Photo capture + voice notes</li>
+        <li>Email + WhatsApp support</li>
+      </ul>
+      <a href="/signup?plan=starter" class="cta">Start trial</a>
+    </div>
+
+    <div class="tier highlight">
+      <h3>Standard</h3>
+      <p class="desc">For mid-size practices delivering on multiple projects in parallel.</p>
+      <div class="price">$<span data-m="65" data-y="52">65</span><span class="per">/firm/mo</span></div>
+      <ul>
+        <li>Everything in Starter</li>
+        <li>Up to 10 users</li>
+        <li>10 active projects</li>
+        <li>50 GB storage</li>
+        <li>ACC + SharePoint sync</li>
+        <li>BCF round-trip</li>
+        <li>Excel bidirectional sync</li>
+        <li>Priority support (4h response)</li>
+      </ul>
+      <a href="/signup?plan=standard" class="cta">Start trial</a>
+    </div>
+
+    <div class="tier">
+      <h3>Large</h3>
+      <p class="desc">For practices with 15+ coordinators and an active portfolio.</p>
+      <div class="price">$<span data-m="90" data-y="72">90</span><span class="per">/firm/mo</span></div>
+      <ul>
+        <li>Everything in Standard</li>
+        <li>Up to 20 users</li>
+        <li>Unlimited projects</li>
+        <li>200 GB storage</li>
+        <li>4D / 5D scheduling</li>
+        <li>Embodied carbon tracking</li>
+        <li>Clash detection</li>
+        <li>SSO + 2FA</li>
+      </ul>
+      <a href="/signup?plan=large" class="cta">Start trial</a>
+    </div>
+  </div>
+
+  <div class="pricing-grid" style="grid-template-columns:1fr;margin-top:24px">
+    <div class="tier">
+      <h3>Enterprise</h3>
+      <p class="desc">For large practices, contractors, and public-sector clients with custom needs.</p>
+      <div class="price">Custom<span class="per"> &nbsp;contact us</span></div>
+      <div class="grid-3" style="margin-top:16px">
+        <ul style="border:0;padding:0;margin:0">
+          <li>Everything in Large</li>
+          <li>Unlimited users</li>
+          <li>Unlimited storage</li>
+        </ul>
+        <ul style="border:0;padding:0;margin:0">
+          <li>Self-host option (Docker Compose)</li>
+          <li>Dedicated EU or Africa region</li>
+          <li>Single-tenant database</li>
+        </ul>
+        <ul style="border:0;padding:0;margin:0">
+          <li>Custom integrations</li>
+          <li>1-hour SLA · phone support</li>
+          <li>Onboarding + training included</li>
+        </ul>
+      </div>
+      <a href="/contact.html#enterprise" class="cta" style="background:var(--ink);margin-top:24px;max-width:240px">Talk to us</a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2 class="text-center">Compare plans</h2>
+  <p class="lead text-center" style="margin:0 auto 24px">Every limit explained side-by-side.</p>
+  <div style="overflow-x:auto">
+  <table class="tbl">
+    <thead>
+      <tr><th>Feature</th><th>Plugin</th><th>Starter</th><th>Standard</th><th>Large</th><th>Enterprise</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Revit plugin (2025/26/27)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Cloud CDE</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Mobile app (iOS + Android)</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Users</td><td>1</td><td>5</td><td>10</td><td>20</td><td>Unlimited</td></tr>
+      <tr><td>Active projects</td><td>—</td><td>3</td><td>10</td><td>Unlimited</td><td>Unlimited</td></tr>
+      <tr><td>Storage</td><td>—</td><td>10 GB</td><td>50 GB</td><td>200 GB</td><td>Unlimited</td></tr>
+      <tr><td>GPS site map</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Photo capture + voice notes</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>ACC + SharePoint sync</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>BCF 2.1 round-trip</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>4D / 5D scheduling</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Clash detection</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Embodied carbon tracking</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+      <tr><td>SSO + 2FA</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Self-host option</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+      <tr><td>Support SLA</td><td>Email · 48h</td><td>Email · 24h</td><td>Email · 4h</td><td>Email · 4h</td><td>Phone · 1h</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section style="background:var(--card)">
+  <h2 class="text-center">Pay in your local currency</h2>
+  <p class="lead text-center" style="margin:0 auto 24px">9 currencies supported. Choose at signup; change in your billing settings.</p>
+  <div class="grid-4">
+    <div class="card text-center"><div style="font-size:22px;font-weight:700">🇺🇬 UGX</div><p>Ugandan Shilling · MTN Mobile Money · Airtel Money</p></div>
+    <div class="card text-center"><div style="font-size:22px;font-weight:700">🇰🇪 KES</div><p>Kenyan Shilling · M-Pesa · Airtel Money</p></div>
+    <div class="card text-center"><div style="font-size:22px;font-weight:700">🇹🇿 TZS</div><p>Tanzanian Shilling · M-Pesa · Tigo Pesa · Airtel Money</p></div>
+    <div class="card text-center"><div style="font-size:22px;font-weight:700">🇷🇼 RWF</div><p>Rwandan Franc · MTN MoMo</p></div>
+    <div class="card text-center"><div style="font-size:22px;font-weight:700">🇳🇬 NGN</div><p>Nigerian Naira · Bank transfer · Card</p></div>
+    <div class="card text-center"><div style="font-size:22px;font-weight:700">🇿🇦 ZAR</div><p>South African Rand · EFT · Card</p></div>
+    <div class="card text-center"><div style="font-size:22px;font-weight:700">🇺🇸 USD</div><p>US Dollar · Stripe card</p></div>
+    <div class="card text-center"><div style="font-size:22px;font-weight:700">🇪🇺 EUR</div><p>Euro · Stripe SEPA + card</p></div>
+  </div>
+  <p class="text-center muted" style="font-size:13px;margin-top:16px">GBP also supported via Stripe. Bitcoin / USDC on request for international donor-funded work.</p>
+</section>
+
+<section>
+  <h2 class="text-center">Frequently asked questions</h2>
+  <div class="faq-list">
+    <details class="faq-item">
+      <summary class="faq-q">What does "per firm" actually mean?</summary>
+      <div class="faq-a">One price covers your whole firm regardless of how many users you have, up to the plan's user cap. So Standard at $65/mo covers up to 10 users in your firm — invite the whole team without worrying about per-seat math. When you hit the cap, upgrade or remove inactive users.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Can my clients access projects?</summary>
+      <div class="faq-a">Yes — clients and contractors join as external project members without buying a separate license. They get role-restricted access to the project you've invited them to (typically Viewer or Client role). They don't count against your user cap as long as their firm doesn't also need to author models.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">What happens at the end of the 30-day trial?</summary>
+      <div class="faq-a">If you've added a payment method, your subscription starts on day 31 at the plan you chose at signup. If you haven't, your account moves to read-only mode — you keep access to all your data but can't create new projects, raise new issues, or sync the Revit plugin. We give you 60 days to either upgrade or export your data before it's archived.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Can I switch plans mid-cycle?</summary>
+      <div class="faq-a">Yes — upgrades take effect immediately and we pro-rate the new plan from the upgrade date. Downgrades take effect at the next billing cycle so you don't lose access mid-month.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Is there an annual discount?</summary>
+      <div class="faq-a">Yes — pay annually and save 20% on any plan. Toggle the annual / monthly switch at the top of this page to see the discounted rate.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Do you offer educational or non-profit pricing?</summary>
+      <div class="faq-a">Yes. Accredited universities, vocational training institutes, and registered non-profits get 50% off the Standard tier. <a href="/contact.html">Contact us</a> with your accreditation details.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Can I self-host instead of using your cloud?</summary>
+      <div class="faq-a">Yes — self-host ships with the Enterprise plan. The server stack (ASP.NET Core 8 + PostgreSQL + Redis + MinIO) deploys via Docker Compose. We provide the configuration, you provide the hardware. See the <a href="/guides/self-hosting.html">self-hosting guide</a> for the deployment walkthrough and hardware requirements.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">What's your refund policy?</summary>
+      <div class="faq-a">If you cancel within 30 days of your first paid invoice, we refund 100% — no questions. After that we don't pro-rate refunds for the current billing cycle, but you can cancel at any time and you'll keep access until the end of the cycle you've paid for.</div>
+    </details>
+  </div>
+</section>
+
+<div class="cta-band">
+  <h2>Try it free for 30 days.</h2>
+  <p>Full Standard tier features. No credit card. Cancel any time.</p>
+  <a href="/signup">Start now</a>
+</div>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/tutorials/">Tutorials</a>
+      <a href="https://docs.planscape.co/">Developer docs</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+<script>
+function setBilling(mode) {
+  var prices = document.querySelectorAll('.price span[data-m]');
+  prices.forEach(function(p){
+    p.textContent = mode === 'year' ? p.getAttribute('data-y') : p.getAttribute('data-m');
+  });
+  document.getElementById('btn-month').classList.toggle('active', mode==='month');
+  document.getElementById('btn-year').classList.toggle('active', mode==='year');
+}
+</script>
+
+</body>
+</html>

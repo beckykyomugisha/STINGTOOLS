@@ -1040,61 +1040,136 @@
       // ── Compliance heatmap ──────────────────────────────────────────────
       case 'setHeatmap':       setComplianceHeatmap(cmd.payload); break;
       case 'clearHeatmap':     clearComplianceHeatmap(); break;
+      // ── Generic overlay (K3 — any STING colour feed) ────────────────────
+      case 'setOverlay':       applyOverlay(cmd.payload); break;
+      case 'clearOverlay':     clearOverlay(); break;
       // ── BCF viewpoints ──────────────────────────────────────────────────
       case 'saveViewpoint':    bridge.send('viewpoint', captureViewpoint(cmd.payload)); break;
       case 'loadViewpoint':    restoreViewpoint(cmd.payload); break;
     }
   }
 
-  // ── Compliance heatmap ────────────────────────────────────────────────────
-  // payload: { elements: [{ guid, isComplete, disc }], mode: 'rag'|'disc' }
-  const _origMaterials = new Map(); // guid → original material
+  // ── Viewer overlay engine (K3 — ViewerOverlayProfile) ─────────────────────
+  // One render path for EVERY colour feed: tag-compliance, model-diff, IoT
+  // twin state, CX status, QA punch, HVAC sizing. A profile is:
+  //   { source, mode, guidColorMap:{guid:'#hex'}, defaultColor, opacity,
+  //     title, legend:[{label,color}] }
+  // mode 'map' uses guidColorMap directly; 'rag'/'disc' are computed
+  // convenience modes that reduce to a guidColorMap so the apply path is
+  // identical regardless of which STING data source produced the profile.
+  // See overlay-profile.schema.json for the canonical contract.
+  const _origMaterials = new Map(); // guid → original material (shared clear path)
+  let _activeOverlaySource = null;
 
-  function setComplianceHeatmap(payload) {
-    if (!modelRoot || !elementMap) return;
-    const { elements = [], mode = 'rag' } = payload || {};
-    const ragByGuid = new Map(elements.map(e => [e.guid, e]));
+  function _resolveProfileColors(profile) {
+    // Returns Map<guid, THREE.Color>. Handles map/rag/disc modes uniformly.
+    const out = new Map();
+    const mode = (profile && profile.mode) || 'map';
+    if (mode === 'map') {
+      const m = (profile && profile.guidColorMap) || {};
+      for (const guid in m) { try { out.set(guid, new THREE.Color(m[guid])); } catch (_) {} }
+      return out;
+    }
+    // rag / disc — computed from an elements array (back-compat heatmap shape)
+    const DISC_COLORS = { A:'#3498db', M:'#e67e22', E:'#f1c40f', P:'#2ecc71',
+                          S:'#9b59b6', FP:'#e74c3c', LV:'#1abc9c', G:'#95a5a6' };
+    const elements = (profile && profile.elements) || [];
+    elements.forEach(e => {
+      let hex;
+      if (mode === 'disc') hex = DISC_COLORS[e.disc] || '#888888';
+      else hex = e.isComplete ? '#27ae60' : (e.disc ? '#f39c12' : '#e74c3c');
+      try { out.set(e.guid, new THREE.Color(hex)); } catch (_) {}
+    });
+    return out;
+  }
 
-    const C_GREEN  = new THREE.Color(0x27ae60);
-    const C_AMBER  = new THREE.Color(0xf39c12);
-    const C_RED    = new THREE.Color(0xe74c3c);
-    const C_GREY   = new THREE.Color(0x888888);
-    const DISC_COLORS = {
-      A:'#3498db', M:'#e67e22', E:'#f1c40f', P:'#2ecc71',
-      S:'#9b59b6', FP:'#e74c3c', LV:'#1abc9c', G:'#95a5a6',
-    };
+  function applyOverlay(profile) {
+    if (!modelRoot) return;
+    // Switching source: restore first so overlays never stack-leak materials.
+    if (_activeOverlaySource && _activeOverlaySource !== (profile && profile.source)) {
+      clearOverlay();
+    }
+    const colors = _resolveProfileColors(profile);
+    const defaultColor = (profile && profile.defaultColor)
+      ? new THREE.Color(profile.defaultColor) : null;
+    const opacity = (profile && typeof profile.opacity === 'number') ? profile.opacity : 1;
+    _activeOverlaySource = (profile && profile.source) || 'overlay';
 
     modelRoot.traverse(obj => {
       if (!obj.isMesh) return;
       const guid = obj.userData.elementGuid;
       if (!guid) return;
-      const info = ragByGuid.get(guid);
-      if (!info) return;
-
-      // Save original material once
+      const col = colors.get(guid) || defaultColor;
+      if (!col) return; // not in feed and no default → leave original material
       if (!_origMaterials.has(guid)) _origMaterials.set(guid, obj.material);
-
-      let color;
-      if (mode === 'disc') {
-        color = new THREE.Color(DISC_COLORS[info.disc] || '#888');
-      } else {
-        color = info.isComplete ? C_GREEN : (info.disc ? C_AMBER : C_RED);
-      }
-      const mat = new THREE.MeshLambertMaterial({ color });
+      const mat = new THREE.MeshLambertMaterial({ color: col });
+      if (opacity < 1) { mat.transparent = true; mat.opacity = opacity; }
       obj.material = mat;
     });
+    _renderOverlayLegend(profile);
+    bridge.send('overlayApplied', { source: _activeOverlaySource, count: colors.size });
   }
 
-  function clearComplianceHeatmap() {
-    if (!modelRoot) return;
-    modelRoot.traverse(obj => {
-      if (!obj.isMesh) return;
-      const guid = obj.userData.elementGuid;
-      if (guid && _origMaterials.has(guid)) {
-        obj.material = _origMaterials.get(guid);
-        _origMaterials.delete(guid);
-      }
+  function clearOverlay() {
+    if (modelRoot) {
+      modelRoot.traverse(obj => {
+        if (!obj.isMesh) return;
+        const guid = obj.userData.elementGuid;
+        if (guid && _origMaterials.has(guid)) {
+          obj.material = _origMaterials.get(guid);
+          _origMaterials.delete(guid);
+        }
+      });
+    }
+    _activeOverlaySource = null;
+    _renderOverlayLegend(null);
+  }
+
+  // Legend overlay (DOM) — driven by profile.legend [{label,color}] + title.
+  function _renderOverlayLegend(profile) {
+    let el = document.getElementById('overlayLegend');
+    const legend = profile && profile.legend;
+    if (!legend || !legend.length) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'overlayLegend';
+      el.style.cssText = 'position:fixed;top:12px;right:12px;z-index:9000;'
+        + 'background:rgba(20,20,24,0.88);color:#e6e6e6;font:12px system-ui;'
+        + 'padding:8px 10px;border-radius:6px;border:1px solid #333;max-width:220px;';
+      document.body.appendChild(el);
+    }
+    const esc = s => String(s || '').replace(/</g, '&lt;');
+    const rows = legend.map(it =>
+      '<div style="display:flex;align-items:center;gap:6px;margin:2px 0">'
+      + '<span style="width:12px;height:12px;border-radius:2px;background:' + (it.color || '#888')
+      + ';display:inline-block;border:1px solid rgba(255,255,255,0.2)"></span>'
+      + '<span>' + esc(it.label) + '</span></div>').join('');
+    el.innerHTML = (profile.title
+      ? '<div style="font-weight:600;margin-bottom:4px">' + esc(profile.title) + '</div>'
+      : '') + rows;
+  }
+
+  // ── Compliance heatmap (back-compat — now a ViewerOverlayProfile feed) ─────
+  // payload: { elements:[{guid,isComplete,disc}], mode:'rag'|'disc' }
+  function setComplianceHeatmap(payload) {
+    const p = payload || {};
+    const disc = p.mode === 'disc';
+    const legend = disc
+      ? [{label:'Arch',color:'#3498db'},{label:'Mech',color:'#e67e22'},
+         {label:'Elec',color:'#f1c40f'},{label:'Plumb',color:'#2ecc71'},
+         {label:'Struct',color:'#9b59b6'},{label:'Fire',color:'#e74c3c'}]
+      : [{label:'Complete',color:'#27ae60'},{label:'Incomplete',color:'#f39c12'},
+         {label:'Untagged',color:'#e74c3c'}];
+    applyOverlay({
+      source: 'compliance',
+      mode: disc ? 'disc' : 'rag',
+      elements: p.elements || [],
+      title: disc ? 'Discipline' : 'Tag completeness',
+      legend
     });
+  }
+  function clearComplianceHeatmap() {
+    if (_activeOverlaySource === 'compliance') clearOverlay();
   }
 
   // ── BCF viewpoint capture / restore ──────────────────────────────────────
@@ -1172,6 +1247,9 @@
   window.STING_VIEWER = {
     scene, camera, renderer, controls, bridge,
     fitCamera, levelCamera, assignElementIds,
+    // K3 — one overlay path for every STING colour feed (twin/diff/cx/qa…)
+    applyOverlay, clearOverlay,
+    get activeOverlaySource() { return _activeOverlaySource; },
     get modelRoot()       { return modelRoot; },
     set modelRoot(v)       { modelRoot = v; },
     get modelBounds()     { return modelBounds; },

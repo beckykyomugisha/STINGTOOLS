@@ -24,6 +24,28 @@ generated families are found automatically without copying here.
 Copy to this folder only if you want a static, project-independent bundle
 that doesn't depend on running `Create All Symbols` first.
 
+> **If the output sub-folders are created but empty after `Create All
+> Symbols`:** SLD symbols are Generic Annotation families, so generation
+> needs Revit's family-template path set. Go to **Options → File Locations
+> → Family Template Files** and point it at a folder containing
+> `Metric Generic Annotation.rft`, then re-run. The build report now names
+> any catalogue that produced 0 families and prints this fix.
+
+## Build once, reuse across every project (shared library)
+
+By default each project writes its own copy under `_BIM_COORD/Families/Symbols/`.
+To build the library **once** and have every project read from a single
+location, set a firm-wide shared root — resolved in this order:
+
+1. `STING_SYMBOL_LIB` environment variable, or
+2. `"symbol_library_root"` in `%APPDATA%/STING/sting_symbols.json`.
+
+The value points directly at the symbols folder (the parent of `SLD/`,
+`HVAC/`, …). When set, `Create All Symbols` writes there instead of the
+project `_BIM_COORD`, and `MepSymbolEngine` searches it ahead of the
+per-project folder. Build it once to a network share and every project
+finds the families with no per-project step.
+
 ## Standard coverage
 
 | Standard | Shapes defined in JSON | Status |

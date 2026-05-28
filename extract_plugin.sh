@@ -50,11 +50,63 @@ else
     echo "  WARNING: No data files found to copy."
 fi
 
-# ── Copy addin manifest ───────────────────────────────────────────
-if [ -f "$SCRIPT_DIR/StingTools.addin" ]; then
-    echo "  Copying StingTools.addin..."
-    cp -f "$SCRIPT_DIR/StingTools.addin" "$DEPLOY_DIR/"
+# ── Write addin manifest with the ACTUAL deploy path ─────────────
+# The checked-in StingTools.addin has a placeholder path
+# (C:\Dev\STINGTOOLS\...). We generate a stamped copy at deploy
+# time so the manifest always points at the real CompiledPlugin dir
+# regardless of where the repo is cloned.
+echo "  Writing stamped StingTools.addin..."
+
+# Translate the POSIX deploy path back to a Windows path for the XML.
+# On Git Bash / MSYS DEPLOY_DIR looks like /c/Users/…  or a plain
+# Linux path on CI.  Try cygpath first; fall back to sed heuristic.
+if command -v cygpath &>/dev/null; then
+    WIN_DEPLOY="$(cygpath -w "$DEPLOY_DIR")"
+elif [[ "$DEPLOY_DIR" =~ ^/([a-z])/ ]]; then
+    WIN_DEPLOY="${BASH_REMATCH[1]^^}:${DEPLOY_DIR:2}"
+    WIN_DEPLOY="${WIN_DEPLOY//\//\\}"
+else
+    WIN_DEPLOY="$DEPLOY_DIR"
 fi
+
+cat > "$DEPLOY_DIR/StingTools.addin" <<ADDIN_EOF
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CRITICAL DEPLOYMENT NOTE:
+  This .addin file must exist in ONLY ONE of these locations:
+    - Per-user:    %AppData%\Autodesk\Revit\Addins\2025\
+    - Per-machine: %ProgramData%\Autodesk\Revit\Addins\2025\
+
+  If copies exist in BOTH locations, Revit loads the plugin TWICE, causing:
+    - Double-registration of dockable panes, external events, and IUpdaters
+    - Race conditions and doubled memory usage
+    - Crashes on startup or when clicking buttons
+
+  Recommended: Use per-user (%AppData%) location ONLY.
+  Also remove any legacy pyRevit extensions that duplicate StingTools functionality:
+    - pyRevit_*_StingDocs.dll
+    - pyRevit_*_STINGTags.dll
+    - pyRevit_*_STINGTemp.dll
+-->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>STING Tools</Name>
+    <Assembly>$WIN_DEPLOY\StingTools.dll</Assembly>
+    <AddInId>A1B2C3D4-5678-9ABC-DEF0-123456789ABC</AddInId>
+    <FullClassName>StingTools.Core.StingToolsApp</FullClassName>
+    <VendorId>Planscape</VendorId>
+    <VendorDescription>Planscape - ISO 19650 BIM Automation</VendorDescription>
+    <VendorEmail>support@planscape.app</VendorEmail>
+    <!--
+      Pack 5 - Assembly Load Context isolation (Revit 2026+).
+      Loads STING into a private ALC so Newtonsoft.Json, ClosedXML, Lucene and
+      other shared-dependency versions can't conflict with other add-ins that
+      pin a different version. Revit 2025 silently ignores this element.
+    -->
+    <UseRevitContext>false</UseRevitContext>
+  </AddIn>
+</RevitAddIns>
+ADDIN_EOF
 
 # ── Auto-deploy to Revit Addins folder (Phase 188 follow-up) ──────
 # Manifest now points at CompiledPlugin/StingTools.dll, so the only

@@ -90,6 +90,15 @@ namespace StingTools.Core.Electrical
 
                     if (annots.Count == 0) continue;
 
+                    // IndependentTag-based annotations read their label live from the
+                    // conduit's parameters, so they can never textually drift. Only
+                    // TextNote annotations carry a frozen snapshot. Skip tag-only
+                    // conduits — otherwise the Comments-marker fallback compares the
+                    // owner UID against the expected label and reports every tagged
+                    // conduit as stale on every scan.
+                    bool hasTextNote = annots.Any(e => e is TextNote);
+                    if (!hasTextNote) continue;
+
                     report.Checked++;
 
                     // Re-build expected text from current conduit parameters

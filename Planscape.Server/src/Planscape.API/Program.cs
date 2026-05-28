@@ -527,6 +527,32 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcTessellationJob
 // Gap 5 — Per-element IFC delta tracking (Added / Modified / Deleted across uploads).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcDeltaService,
     Planscape.Infrastructure.Services.IfcDeltaService>();
+// K1 — Unified element identity resolver over ExternalElementMapping
+// (canonical IFC GlobalId ↔ host element id; IoT device binding).
+builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityResolverService,
+    Planscape.Infrastructure.Services.IdentityResolverService>();
+// K2 — Platform event spine (durable cross-surface channel → STING plugin).
+builder.Services.AddScoped<Planscape.Core.Interfaces.IPlatformEventService,
+    Planscape.Infrastructure.Services.PlatformEventService>();
+// Pillar B (5A) — IoT / digital twin: telemetry ingest, last-known-state, binding.
+builder.Services.AddScoped<Planscape.Core.Interfaces.IDeviceTwinService,
+    Planscape.Infrastructure.Services.DeviceTwinService>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.ITwinBindingService,
+    Planscape.Infrastructure.Services.TwinBindingService>();
+// Pillar B (6A) — twin rule engine + work-order automation onto the K2 spine.
+builder.Services.AddScoped<Planscape.Core.Interfaces.ITwinRuleEvaluator,
+    Planscape.Infrastructure.Services.TwinRuleEngine>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.IWorkOrderAutomator,
+    Planscape.Infrastructure.Services.WorkOrderAutomator>();
+// Pillar D — handover→operations continuity: model/CX → live twin registry +
+// continuous healthcare compliance evidence from telemetry.
+builder.Services.AddScoped<Planscape.Core.Interfaces.ITwinProvisioningService,
+    Planscape.Infrastructure.Services.TwinProvisioningService>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.IHealthcareComplianceFeed,
+    Planscape.Infrastructure.Services.HealthcareComplianceFeed>();
+// Pillar B (6B) — runtime-based condition maintenance planner.
+builder.Services.AddScoped<Planscape.Core.Interfaces.ICbmPlanner,
+    Planscape.Infrastructure.Services.CbmPlanner>();
 // Gap F — Auto-compute coordinate transform from IfcMapConversion data.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
     Planscape.Infrastructure.Services.AutoAlignService>();
@@ -1205,6 +1231,9 @@ app.MapHub<Planscape.Infrastructure.SignalR.HealthcareHub>("/hubs/healthcare");
 app.MapHub<Planscape.Infrastructure.SignalR.ArchiCADHub>("/hubs/archicad");
 // Gap H — Federated model viewer hub (ModelUpdated events after IFC ingest / auto-align).
 app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/model");
+app.MapHub<Planscape.Infrastructure.SignalR.PlatformEventHub>("/hubs/events");
+app.MapHub<Planscape.Infrastructure.SignalR.MeetingHub>("/hubs/meeting");
+app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
 
 // ── Database schema + seed ──
 {
@@ -1264,6 +1293,10 @@ app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/model");
         if (patchConn.State != System.Data.ConnectionState.Open)
             await patchConn.OpenAsync();
         await PatchDevSchemaAsync(patchConn);
+        // Phase 189 — create the platform-event / meeting / twin tables on
+        // pre-existing DBs (EnsureCreated short-circuits once Tenants exists;
+        // the EF migration set is incomplete). Idempotent CREATE TABLE IF NOT EXISTS.
+        await Planscape.API.PlatformSchemaPatcher.ApplyAsync(patchConn);
     }
 
     if (app.Environment.IsDevelopment())

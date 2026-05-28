@@ -117,7 +117,6 @@ namespace StingTools.Core.Drawing
                             // ACC-07: always set, even for empty string,
                             // so cloned/template sheets reset stale text.
                             p.Set(resolved ?? string.Empty);
-                            wrote = true;
                             break;
                         case StorageType.Integer:
                             if (string.IsNullOrEmpty(resolved)) p.Set(0);
@@ -150,7 +149,13 @@ namespace StingTools.Core.Drawing
         /// helpers. No actual batching is performed — Apply() is
         /// lightweight enough to call per-sheet.
         /// </summary>
+        public static IDisposable Batch() => NoOpScope.Instance;
 
+        private sealed class NoOpScope : IDisposable
+        {
+            public static readonly NoOpScope Instance = new NoOpScope();
+            public void Dispose() { }
+        }
 
         /// <summary>
         /// Apply dt.TitleBlockParams to a batch of sheets. Returns a flat list of
@@ -328,6 +333,20 @@ namespace StingTools.Core.Drawing
         /// Used by pre-flight validators and drift detectors to compare what
         /// would be written against what is already on the sheet.
         /// </summary>
+        public static Dictionary<string, string> Peek(
+            Document doc, DrawingType dt, IDictionary<string, string> tokens = null)
+        {
+            var result = new Dictionary<string, string>();
+            if (doc == null || dt?.TitleBlockParams == null) return result;
+            foreach (var kv in dt.TitleBlockParams)
+            {
+                var paramName = kv.Key;
+                if (string.IsNullOrWhiteSpace(paramName)) continue;
+                try { result[paramName] = ResolveTemplate(doc, kv.Value ?? "", tokens); }
+                catch { result[paramName] = kv.Value ?? ""; }
+            }
+            return result;
+        }
 
         private static FamilyInstance FindTitleBlockInstance(Document doc, ViewSheet sheet)
         {
@@ -340,6 +359,41 @@ namespace StingTools.Core.Drawing
                     .FirstOrDefault();
             }
             catch { return null; }
+        }
+
+        /// <summary>
+        /// GAP-A: returns every title-block instance hosted by the sheet, not
+        /// just the first. Sheets with a second TB (front/back, landscape +
+        /// portrait variants) need each instance stamped with the same payload.
+        /// </summary>
+        private static List<FamilyInstance> FindAllTitleBlockInstances(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc, sheet.Id)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .ToList();
+            }
+            catch { return new List<FamilyInstance>(); }
+        }
+
+        /// <summary>
+        /// True if the title block carries at least one of the declared keys.
+        /// Lets Apply() skip secondary title blocks (North arrow, fabrication
+        /// stamp) that share none of the profile's parameters.
+        /// </summary>
+        private static bool TitleBlockHasAnyKey(FamilyInstance tb, IEnumerable<string> keys)
+        {
+            if (tb == null || keys == null) return false;
+            foreach (var key in keys)
+            {
+                if (string.IsNullOrWhiteSpace(key)) continue;
+                try { if (tb.LookupParameter(key) != null) return true; }
+                catch { /* defensive */ }
+            }
+            return false;
         }
 
     }
