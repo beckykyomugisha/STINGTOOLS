@@ -217,7 +217,6 @@ sandbox) — verify before merge. EF migrations required before deploy
 plus the Timescale `create_hypertable` on `TelemetryPoints`. Live SignalR
 auto-drain on the plugin (vs the working poll/manual path) and the
 `Planscape.Edge` agent (5B) / BACnet+Modbus adapters (5C) remain follow-ups.
->>>>>>> origin/main
 
 #### Completed (Phase 186b — Pset expansion + Path-2 static rule closeout)
 
