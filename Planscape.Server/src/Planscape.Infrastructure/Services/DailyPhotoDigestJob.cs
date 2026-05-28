@@ -140,7 +140,7 @@ public class DailyPhotoDigestJob
                 if (!optIn) { skipped++; continue; }
                 var subject = $"{publishedToday.Count} new progress photos · {project.Name}";
                 var body    = ClientDigestHtml(project, publishedToday);
-                await _email.SendNotificationAsync(guest.Email, subject, body, ct);
+                await _email.SendNotificationAsync(email, subject, body, ct);
                 sent++;
             }
             _logger.LogInformation(
