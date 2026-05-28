@@ -54,6 +54,13 @@ public class PlatformEvent : ITenantScoped
     /// <summary>Set when a handler rejects/fails — human-readable reason for the originator.</summary>
     public string? StatusDetail { get; set; }
 
+    /// <summary>
+    /// Retryable-failure counter. RejectAsync(retryable:true) increments this;
+    /// GetPending re-serves Failed events until Attempts hits the cap, after
+    /// which they stay Failed (poison message) and need manual attention.
+    /// </summary>
+    public int Attempts { get; set; }
+
     public Guid? ActorUserId { get; set; }
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
     public DateTime? AppliedUtc { get; set; }

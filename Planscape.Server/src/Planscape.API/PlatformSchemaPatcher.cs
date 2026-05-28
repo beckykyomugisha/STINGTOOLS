@@ -31,11 +31,14 @@ internal static class PlatformSchemaPatcher
             ""BaseRevisionId"" text,
             ""Status"" integer NOT NULL DEFAULT 0,
             ""StatusDetail"" text,
+            ""Attempts"" integer NOT NULL DEFAULT 0,
             ""ActorUserId"" uuid,
             ""CreatedUtc"" timestamp with time zone NOT NULL DEFAULT now(),
             ""AppliedUtc"" timestamp with time zone,
             ""PrevHash"" text,
             ""RowHash"" text)",
+        // Idempotent column add for DBs created before Attempts existed.
+        @"ALTER TABLE ""PlatformEvents"" ADD COLUMN IF NOT EXISTS ""Attempts"" integer NOT NULL DEFAULT 0",
         @"CREATE UNIQUE INDEX IF NOT EXISTS ""IX_PlatformEvents_Project_Seq"" ON ""PlatformEvents"" (""ProjectId"", ""Sequence"")",
         @"CREATE INDEX IF NOT EXISTS ""IX_PlatformEvents_Project_Status_Seq"" ON ""PlatformEvents"" (""ProjectId"", ""Status"", ""Sequence"")",
 

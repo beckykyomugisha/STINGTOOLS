@@ -41,11 +41,22 @@ public sealed class HealthcareComplianceFeed : IHealthcareComplianceFeed
                 _     => Math.Abs(r.Value) <= 5,   // NEUTRAL
             };
 
+            // Log on band TRANSITION only (plus the first observation). A row per
+            // telemetry tick would bloat the table by orders of magnitude; the
+            // compliance-meaningful event is when a room enters/leaves its regime.
+            var roomBimId = twin.IfcGlobalId ?? twin.DeviceId;
+            var lastInBand = await _db.HealthcarePressureLogs
+                .Where(l => l.ProjectId == projectId && l.RoomBimId == roomBimId)
+                .OrderByDescending(l => l.CapturedAt)
+                .Select(l => (bool?)l.InBand)
+                .FirstOrDefaultAsync(ct);
+            if (lastInBand == inBand) continue; // no change since last record
+
             _db.HealthcarePressureLogs.Add(new HealthcarePressureLog
             {
                 TenantId = tenantId,
                 ProjectId = projectId,
-                RoomBimId = twin.IfcGlobalId ?? twin.DeviceId,
+                RoomBimId = roomBimId,
                 RoomName = twin.AssetTag ?? "",
                 RoomClass = "",
                 DesignRegime = regime,

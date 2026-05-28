@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Planscape.Infrastructure.Data;
 
 namespace Planscape.Infrastructure.SignalR;
 
@@ -20,10 +21,27 @@ namespace Planscape.Infrastructure.SignalR;
 [Authorize]
 public class MeetingHub : Hub
 {
+    private const string AuthKey = "auth_sessions";
+    private readonly PlanscapeDbContext _db;
+    public MeetingHub(PlanscapeDbContext db) => _db = db;
+
     private static string Group(string sessionId) => $"meeting:{sessionId}";
+
+    // Sessions this connection passed the tenant check for. Cached per-connection
+    // so the high-frequency broadcasts are O(1) (no per-camera-move DB hit) yet
+    // can't fan into a session the caller never legitimately joined.
+    private HashSet<string> Authorized =>
+        Context.Items.TryGetValue(AuthKey, out var v) && v is HashSet<string> set
+            ? set
+            : (HashSet<string>)(Context.Items[AuthKey] = new HashSet<string>(StringComparer.Ordinal));
 
     public async Task JoinSession(string sessionId, string displayName)
     {
+        if (!Guid.TryParse(sessionId, out var sid)
+            || !await HubTenantGuard.OwnsSessionAsync(Context.User, _db, sid))
+            return;
+
+        Authorized.Add(sessionId);
         await Groups.AddToGroupAsync(Context.ConnectionId, Group(sessionId));
         await Clients.OthersInGroup(Group(sessionId)).SendAsync("ParticipantJoined", new
         {
@@ -35,6 +53,7 @@ public class MeetingHub : Hub
 
     public async Task LeaveSession(string sessionId)
     {
+        Authorized.Remove(sessionId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, Group(sessionId));
         await Clients.OthersInGroup(Group(sessionId)).SendAsync("ParticipantLeft", new
         {
@@ -45,19 +64,27 @@ public class MeetingHub : Hub
 
     /// <summary>Host camera move → followers track it (sent to others only).</summary>
     public Task BroadcastCamera(string sessionId, object camera)
-        => Clients.OthersInGroup(Group(sessionId)).SendAsync("CameraMoved", new { camera });
+        => Authorized.Contains(sessionId)
+            ? Clients.OthersInGroup(Group(sessionId)).SendAsync("CameraMoved", new { camera })
+            : Task.CompletedTask;
 
     /// <summary>Element selection broadcast (guids resolve cross-host via K1).</summary>
     public Task BroadcastHighlight(string sessionId, object guids)
-        => Clients.OthersInGroup(Group(sessionId)).SendAsync("HighlightChanged", new { guids });
+        => Authorized.Contains(sessionId)
+            ? Clients.OthersInGroup(Group(sessionId)).SendAsync("HighlightChanged", new { guids })
+            : Task.CompletedTask;
 
     /// <summary>K3 — push a ViewerOverlayProfile to every participant.</summary>
     public Task BroadcastOverlay(string sessionId, object overlayProfile)
-        => Clients.Group(Group(sessionId)).SendAsync("OverlayChanged", overlayProfile);
+        => Authorized.Contains(sessionId)
+            ? Clients.Group(Group(sessionId)).SendAsync("OverlayChanged", overlayProfile)
+            : Task.CompletedTask;
 
     /// <summary>Section-plane / box change broadcast.</summary>
     public Task BroadcastSection(string sessionId, object section)
-        => Clients.OthersInGroup(Group(sessionId)).SendAsync("SectionChanged", new { section });
+        => Authorized.Contains(sessionId)
+            ? Clients.OthersInGroup(Group(sessionId)).SendAsync("SectionChanged", new { section })
+            : Task.CompletedTask;
 
     /// <summary>
     /// Server-side push (from MeetingRoomController) when host/model/status

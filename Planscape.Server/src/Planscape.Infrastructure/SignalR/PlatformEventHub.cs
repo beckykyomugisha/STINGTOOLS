@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Planscape.Infrastructure.Data;
 
 namespace Planscape.Infrastructure.SignalR;
 
@@ -13,8 +14,15 @@ namespace Planscape.Infrastructure.SignalR;
 [Authorize]
 public class PlatformEventHub : Hub
 {
+    private readonly PlanscapeDbContext _db;
+    public PlatformEventHub(PlanscapeDbContext db) => _db = db;
+
     public async Task JoinProject(string projectId)
-        => await Groups.AddToGroupAsync(Context.ConnectionId, EventGroup(projectId));
+    {
+        if (Guid.TryParse(projectId, out var pid)
+            && await HubTenantGuard.OwnsProjectAsync(Context.User, _db, pid))
+            await Groups.AddToGroupAsync(Context.ConnectionId, EventGroup(projectId));
+    }
 
     public async Task LeaveProject(string projectId)
         => await Groups.RemoveFromGroupAsync(Context.ConnectionId, EventGroup(projectId));

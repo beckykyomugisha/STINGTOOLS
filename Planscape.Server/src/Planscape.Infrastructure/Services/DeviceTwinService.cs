@@ -108,7 +108,11 @@ public sealed class DeviceTwinService : IDeviceTwinService
 
     public async Task<IReadOnlyList<DeviceTwin>> ListAsync(Guid projectId, CancellationToken ct = default)
     {
-        var twins = await _db.DeviceTwins.Where(t => t.ProjectId == projectId).ToListAsync(ct);
+        // AsNoTracking — the OFFLINE staleness below is a display-time derivation,
+        // not a persisted state change; tracking would risk it being saved by an
+        // unrelated SaveChanges later in the same request scope.
+        var twins = await _db.DeviceTwins.AsNoTracking()
+            .Where(t => t.ProjectId == projectId).ToListAsync(ct);
         var cutoff = DateTime.UtcNow - OfflineAfter;
         foreach (var t in twins)
             if (t.LastSeenAt is { } seen && seen < cutoff && t.HealthState != "OFFLINE")

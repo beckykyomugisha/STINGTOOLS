@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
 namespace Planscape.Infrastructure.SignalR;
 
@@ -17,10 +18,17 @@ namespace Planscape.Infrastructure.SignalR;
 [Authorize]
 public class TwinHub : Hub
 {
+    private readonly PlanscapeDbContext _db;
+    public TwinHub(PlanscapeDbContext db) => _db = db;
+
     private static string Group(string projectId) => $"twin:{projectId}";
 
-    public Task JoinProject(string projectId)
-        => Groups.AddToGroupAsync(Context.ConnectionId, Group(projectId));
+    public async Task JoinProject(string projectId)
+    {
+        if (Guid.TryParse(projectId, out var pid)
+            && await HubTenantGuard.OwnsProjectAsync(Context.User, _db, pid))
+            await Groups.AddToGroupAsync(Context.ConnectionId, Group(projectId));
+    }
 
     public Task LeaveProject(string projectId)
         => Groups.RemoveFromGroupAsync(Context.ConnectionId, Group(projectId));
