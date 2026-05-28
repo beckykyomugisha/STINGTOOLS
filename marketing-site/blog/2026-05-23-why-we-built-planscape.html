@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Why we built Planscape — Planscape blog</title>
+<meta name="description" content="The frustrations that led us to build Planscape — and the principles we've stuck to since.">
+<meta property="og:title" content="Why we built Planscape">
+<meta property="og:description" content="Why a Kampala-based AEC firm built its own BIM coordination platform.">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-05-23T08:00:00+03:00">
+<meta property="article:author" content="Planscape team">
+<meta property="og:url" content="https://planscape.co/blog/2026-05-23-why-we-built-planscape.html">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/blog/2026-05-23-why-we-built-planscape.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/blog/" style="color:var(--accent)">Blog</a>
+    <a href="/about.html">About</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/blog/">Blog</a> &rsaquo; Why we built Planscape</div>
+  <h1>Why we built Planscape</h1>
+  <div class="meta">23 May 2026 · 6-minute read · By the Planscape team</div>
+
+  <p>The honest answer is: because what existed was the wrong shape for our work.</p>
+
+  <p>We're an AEC practice in Kampala. Healthcare projects mostly — district hospitals, mid-tier private clinics, the occasional teaching wing. ISO 19650 isn't optional for us. Donor-funded work demands it, public-sector clients increasingly ask for it, and frankly, projects run better when the information flow is structured.</p>
+
+  <p>Three years ago we standardised on Autodesk Construction Cloud. It worked, in the sense that we could deliver projects on it. But it cost us in three specific ways:</p>
+
+  <h2>1. We were paying for seats we never used</h2>
+
+  <p>ACC is licensed per user. That sounds simple until you remember the realities of a real practice: site coordinators come and go, sub-consultants get added for one project and stay licensed for two years, the intern from last year still has an active seat that nobody remembered to cancel.</p>
+
+  <p>The licence audit we did in December 2024 was depressing. Of 32 paid seats, 11 hadn't logged in for over 90 days. That's $440 a month — roughly $5,000 a year — on access nobody used.</p>
+
+  <p>Per-seat licensing isn't a bug in the pricing model. It's the point. But it punishes the exact thing healthy practices do: collaborate broadly, bring in specialists, give clients visibility. We wanted to pay for the project, not the headcount.</p>
+
+  <h2>2. The FX spread was a constant drag</h2>
+
+  <p>Software pricing tracks USD. East African currencies don't. Every month we were paying ~10% more than the headline number after the bank's FX spread and intermediary fees. Worse, when the dollar moved against us — as it did several times in 2024 — the bill quietly grew without anyone budgeting for it.</p>
+
+  <p>This is invisible to American or European buyers. The credit card hides it. For a Ugandan practice paying via international wire, the FX is line-item visible and it stings.</p>
+
+  <h2>3. The mobile experience was an afterthought</h2>
+
+  <p>Our coordinators don't sit at desks. They're on site. The site is a plant room. The plant room has no fibre, intermittent 4G, and concrete walls that absorb signal like a sponge.</p>
+
+  <p>The "official" mobile app required a signal for almost everything. When it failed — which was most of the time — coordinators reverted to WhatsApp groups. Photos of clashes. Voice notes describing snags. Screenshots of drawings with arrows drawn on them. It worked, in a way, but nothing got back into the model. The audit trail was a thread in WhatsApp.</p>
+
+  <p>We tried alternatives. Most of them treated mobile as a feature, not a foundation. Sync was synchronous. The model wouldn't load offline. The first thing a coordinator did after walking onto a site was discover they couldn't open the project.</p>
+
+  <h2>What we built instead</h2>
+
+  <p>The principles we wrote down at the start, and we've stuck to:</p>
+
+  <ul>
+    <li><strong>Flat per-firm pricing.</strong> One number per month covers the whole team. Inviting a colleague costs nothing extra. Inviting a client costs nothing at all.</li>
+    <li><strong>Offline-first as a design goal.</strong> Not a roadmap item. Every action a coordinator might take on site has to work without a signal and replay automatically. We bake this in at the data layer, not bolt it on at the UI.</li>
+    <li><strong>Local currency invoicing.</strong> UGX, KES, TZS, NGN — invoiced in your currency, processed via mobile money. No FX surprise.</li>
+    <li><strong>ISO 19650 pre-built.</strong> The standard ships ready-to-use. You shouldn't be reading the standard to use the tool.</li>
+    <li><strong>Audit trail by construction.</strong> Every write is hash-chained. Tampering breaks the chain. Court-admissible by default.</li>
+    <li><strong>Open standards everywhere.</strong> IFC 4, BCF 2.1, COBie 2.4, IDS, bSDD. We integrate; we don't lock in. Your data is yours and exports cleanly.</li>
+  </ul>
+
+  <h2>What we deliberately don't try to be</h2>
+
+  <p>We don't try to be the most feature-rich BIM platform on earth. ACC, Trimble Connect, Procore — they're huge surfaces with hundreds of features designed for thousands of customers across every sector. We respect that.</p>
+
+  <p>We're trying to be the right tool for a mid-size African practice delivering healthcare, education, transport, and commercial work to clients who care about ISO 19650 and increasingly about embodied carbon. That's a real, specific shape — and the existing tools fit it badly enough that building our own was a better answer than living with theirs.</p>
+
+  <p>We're not VC-funded. We're not chasing 10× growth. The pricing pays for the cloud bills and the small team, with some left over to keep the lights on through dry spells. If we're around in five years we'll consider that a win.</p>
+
+  <h2>Who Planscape is for</h2>
+
+  <p>If you're a mid-size AEC practice in East or West Africa, delivering on ISO 19650-shaped contracts, with site teams on phones and authors in Revit, and you've ever opened your software bill and winced — you're who we built this for.</p>
+
+  <p>The 30-day trial is free, takes no card, and covers the full Standard tier. Try it on a real project. If it doesn't fit, no hard feelings.</p>
+
+  <p style="margin-top:32px"><a href="/signup" style="display:inline-block;padding:14px 22px;background:var(--accent);color:#fff;text-decoration:none;border-radius:10px;font-weight:600">Start the free trial →</a></p>
+
+  <div class="next-prev">
+    <a href="/blog/" class="prev">
+      <span class="lbl">← Back to</span>
+      Blog index
+    </a>
+    <a href="/blog/2026-05-20-iso-19650-in-east-africa.html" class="next">
+      <span class="lbl">Next →</span>
+      ISO 19650 in East Africa
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

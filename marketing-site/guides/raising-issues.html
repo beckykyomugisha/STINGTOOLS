@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Raising and resolving issues — Planscape</title>
+<meta name="description" content="The full issue workflow: RFIs, NCRs, snag lists, assignment, status transitions, comment threads, BCF round-trip.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/guides/raising-issues.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Raising and resolving issues</div>
+  <h1>Raising and resolving issues</h1>
+  <div class="meta">📖 9-minute read · Beginner · Last updated 2026-05-23</div>
+
+  <p>Issues are the spine of project coordination on Planscape. Every observation, RFI, NCR, and snag flows through the same issue system — same fields, same status machine, same audit trail. This guide covers the full lifecycle from raised to verified.</p>
+
+  <h2>Issue types</h2>
+  <table>
+    <thead><tr><th>Type</th><th>Use for</th><th>Default priority</th><th>Default workflow</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Quality</strong></td><td>Defects, snag list, finishing issues</td><td>Medium</td><td>open → in-progress → resolved → verified</td></tr>
+      <tr><td><strong>Safety</strong></td><td>Site hazards, near-misses, PPE failures</td><td>High</td><td>open → in-progress → resolved → verified</td></tr>
+      <tr><td><strong>Coordination</strong></td><td>Clashes, sequencing problems, missing info</td><td>Medium</td><td>open → in-progress → resolved → verified</td></tr>
+      <tr><td><strong>RFI</strong></td><td>Question to the designer / specifier</td><td>Medium</td><td>open → answered → closed</td></tr>
+      <tr><td><strong>NCR</strong></td><td>Non-conformance against spec/standard</td><td>High</td><td>open → in-progress → resolved → verified → closed</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Where issues can be raised</h2>
+  <ul>
+    <li><strong>Mobile app</strong> — on site, with photo + GPS + voice. See <a href="/tutorials/raise-issue-from-mobile.html">tutorial</a>.</li>
+    <li><strong>Web app</strong> — Project &rsaquo; Issues &rsaquo; <strong>+ New issue</strong>.</li>
+    <li><strong>Revit plugin</strong> — right-click any element → "Raise issue". Element link auto-set.</li>
+    <li><strong>Email-to-issue</strong> — every project has a magic email address; emails sent to it become issues with attachments preserved.</li>
+    <li><strong>BCF import</strong> — Project &rsaquo; Issues &rsaquo; Import → drop a BCF 2.1 file from Navisworks / Solibri / BIM Track. Each topic becomes an issue.</li>
+  </ul>
+
+  <h2>The fields that matter</h2>
+  <p>The form has many fields but only a few make-or-break the workflow:</p>
+  <ul>
+    <li><strong>Title</strong> — short, specific. "Fire damper FD-103 installed back-to-front" beats "damper issue".</li>
+    <li><strong>Type</strong> — picks the workflow. Get this right at raise-time; changing later is allowed but messy.</li>
+    <li><strong>Priority</strong> — drives sort order in dashboards. Critical = response within 24h, High = 72h, Medium = 7d, Low = 30d.</li>
+    <li><strong>Linked element</strong> — Revit ElementUniqueId. Without this the issue is "floating" and harder to action. Use QR scan or the element picker.</li>
+    <li><strong>Assignee</strong> — who's on the hook. One person, not a team. Re-assign as the issue moves through phases.</li>
+    <li><strong>Due date</strong> — optional but useful. Triggers SLA breach alerts when missed.</li>
+  </ul>
+
+  <h2>The status machine</h2>
+  <p>Default workflow for Quality / Safety / Coordination / NCR:</p>
+
+  <pre><code>open ──&gt; in-progress ──&gt; resolved ──&gt; verified ──&gt; closed
+                              │
+                              └──&gt; reopened (back to in-progress)</code></pre>
+
+  <ul>
+    <li><strong>open</strong> — raised, awaiting action.</li>
+    <li><strong>in-progress</strong> — assignee acknowledged, working on it.</li>
+    <li><strong>resolved</strong> — assignee says it's done.</li>
+    <li><strong>verified</strong> — raiser (or QA) confirms it's actually fixed.</li>
+    <li><strong>closed</strong> — admin-locked; can't be edited.</li>
+  </ul>
+
+  <p>RFI workflow is simpler: <code>open → answered → closed</code>.</p>
+
+  <p>Status transitions are gated by role:</p>
+  <ul>
+    <li>open → in-progress: assignee only</li>
+    <li>in-progress → resolved: assignee only</li>
+    <li>resolved → verified: raiser, QA role, or Project Lead</li>
+    <li>verified → closed: Project Lead</li>
+    <li>* → reopened: anyone, with a comment explaining why</li>
+  </ul>
+
+  <h2>Comment threads</h2>
+  <p>Every issue has a comment thread. Comments are markdown — you can use <code>**bold**</code>, <code>`code`</code>, lists, and inline image embeds. Tagging a user with <code>@firstname</code> sends them a push notification.</p>
+  <p>Comments are append-only — you can't edit or delete them. If you make a mistake, post a correction. This protects the audit trail.</p>
+
+  <h2>Attachments &amp; photos</h2>
+  <p>Up to 10 photos and 5 voice notes per issue. Additional documents (PDFs, drawings, RFIs) can be attached as well, up to 50 MB each.</p>
+  <p>Photos taken in the mobile app are automatically:</p>
+  <ul>
+    <li>Compressed (80% JPEG, 1080p by default).</li>
+    <li>Thumbnailed (400px wide for fast list-view loading).</li>
+    <li>Geotagged with capture coordinates.</li>
+    <li>Timestamped with capture time + upload time.</li>
+  </ul>
+
+  <h2>Tracking &amp; reporting</h2>
+  <p>Project &rsaquo; Issues &rsaquo; <strong>Dashboard</strong> shows:</p>
+  <ul>
+    <li>Open issues by type and priority.</li>
+    <li>SLA breach count (issues past their due date).</li>
+    <li>Median time-to-resolve, broken down by assignee.</li>
+    <li>Aging buckets (0–7d, 7–30d, 30–60d, 60+).</li>
+    <li>Trend lines for the last 30 days.</li>
+  </ul>
+  <p>Export to CSV or PDF for client reporting.</p>
+
+  <h2>BCF round-trip</h2>
+  <p>For coordination work with consultants on a different platform:</p>
+  <ol>
+    <li>Project &rsaquo; Issues &rsaquo; Export → BCF 2.1.</li>
+    <li>Filter (open coordination issues only, for example).</li>
+    <li>You get a <code>.bcfzip</code> file with topics, comments, viewpoints, and snapshots.</li>
+    <li>Consultant imports into Navisworks / Solibri / etc., resolves issues, exports back.</li>
+    <li>Import the modified .bcfzip back into Planscape. Status changes are applied automatically; conflicts surface for review.</li>
+  </ol>
+
+  <h2>Pushing issues to the Revit author</h2>
+  <p>When the author opens the Revit project with the Planscape plugin, the dock panel shows a count of open issues linked to elements in the active view. Clicking the count opens a side panel listing each issue with its photo, comments, and a "Zoom to element" button that re-centres the Revit view on the affected element.</p>
+
+  <h2>Bulk actions</h2>
+  <p>From the issue list view, select multiple issues (checkbox or shift-click) and choose:</p>
+  <ul>
+    <li>Bulk assign (re-route 20 snags to a new contractor)</li>
+    <li>Bulk close (after a verification round)</li>
+    <li>Bulk export to BCF</li>
+    <li>Bulk add comment (useful for batch status updates)</li>
+  </ul>
+
+  <h2>Issue templates</h2>
+  <p>For recurring issue types (e.g. "missing fire collar"), create a template under Settings → Issue templates. Templates pre-fill type, priority, assignee, and a draft description. Coordinators just adjust the linked element and submit.</p>
+
+  <h2>Common patterns</h2>
+
+  <h3>Daily snag walk</h3>
+  <ol>
+    <li>Coordinator walks the site with the mobile app.</li>
+    <li>Each defect → photo + drop pin + Quality issue type.</li>
+    <li>Auto-assigns to the relevant trade based on location + element category.</li>
+    <li>Trade lead gets push notification, schedules fix.</li>
+    <li>Coordinator re-visits next day, verifies fix, marks Verified.</li>
+  </ol>
+
+  <h3>RFI to designer</h3>
+  <ol>
+    <li>Site team raises RFI from mobile, attached to the affected element.</li>
+    <li>Project Lead reviews + routes to the right designer.</li>
+    <li>Designer answers in-thread (markdown supported).</li>
+    <li>If a drawing revision is needed, designer attaches the revised drawing as a Deliverable, links to RFI.</li>
+    <li>Project Lead marks RFI Closed.</li>
+  </ol>
+
+  <h3>NCR / non-conformance</h3>
+  <ol>
+    <li>QA raises NCR with linked element + photo + spec reference.</li>
+    <li>Auto-assigned to contractor responsible.</li>
+    <li>Contractor proposes corrective action in-thread.</li>
+    <li>QA approves the corrective action (or asks for alternative).</li>
+    <li>Contractor implements; marks Resolved.</li>
+    <li>QA re-inspects, marks Verified.</li>
+    <li>Project Lead closes NCR after Verified.</li>
+  </ol>
+
+  <h2>Common mistakes</h2>
+  <ul>
+    <li><strong>Generic titles.</strong> "Issue with HVAC" doesn't tell anyone what's wrong. Be specific.</li>
+    <li><strong>Floating issues</strong> (no linked element). Hard to triage and easy to forget. Always link.</li>
+    <li><strong>Assigning to "the team"</strong>. Assign to a person. Re-assign as ownership moves.</li>
+    <li><strong>Skipping the verify step.</strong> Resolved ≠ fixed. Make the raiser confirm.</li>
+    <li><strong>Closing without comments.</strong> Future-you will want to know why this was closed. Leave a note.</li>
+  </ul>
+
+  <div class="next-prev">
+    <a href="/guides/gps-site-map.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Using the GPS site map
+    </a>
+    <a href="/guides/photo-capture.html" class="next">
+      <span class="lbl">Next →</span>
+      Capturing site photos
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

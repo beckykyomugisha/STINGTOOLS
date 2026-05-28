@@ -1,0 +1,28 @@
+# Cloudflare Pages config for Wrangler CLI.
+# Used by: wrangler pages deploy ./marketing-site --project-name=planscape-marketing
+#
+# Pages settings (build command, output dir) live in the Cloudflare dashboard
+# under: Pages → planscape-marketing → Settings → Builds & deployments.
+# Recommended dashboard settings:
+#   Production branch: main
+#   Build command:     (empty — static site, no build step)
+#   Build output dir:  marketing-site
+#   Root directory:    /
+#
+# This file controls deploy-time options.
+
+name = "planscape-marketing"
+pages_build_output_dir = "."
+compatibility_date = "2026-05-01"
+
+# Environment variables — replace placeholders before deploy, or set in the dashboard
+# (Pages → Settings → Environment variables) which is safer for secrets.
+[vars]
+SITE_URL = "https://planscape.co"
+
+# Per-environment overrides
+[env.preview]
+name = "planscape-marketing-preview"
+
+[env.production]
+name = "planscape-marketing"

@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Contact — Planscape</title>
+<meta name="description" content="Get in touch with Planscape. Sales, support, demo bookings, enterprise enquiries. Based in Kampala — responses within 4 business hours.">
+<meta property="og:title" content="Contact — Planscape">
+<meta property="og:url" content="https://planscape.co/contact.html">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/contact.html">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.contact-grid { display:grid; gap:32px; grid-template-columns:1.2fr 1fr; align-items:start; }
+@media (max-width:760px){ .contact-grid { grid-template-columns:1fr; } }
+.contact-card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:24px; }
+.contact-card h3 { margin:0 0 8px; font-size:17px; }
+.contact-card p { font-size:14px; color:var(--muted); margin:4px 0; }
+.contact-card a { color:var(--accent); font-weight:600; text-decoration:none; }
+#form-msg { margin-top:10px; font-size:13px; }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/blog/">Blog</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html" style="color:var(--accent)">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<header class="page-header">
+  <h1>Get in touch</h1>
+  <p>We typically respond within 4 business hours (East Africa Time). For urgent matters, use WhatsApp.</p>
+</header>
+
+<section>
+  <div class="contact-grid">
+    <form class="form-stack" id="contact-form" onsubmit="handleContact(event)">
+      <label>Your name
+        <input type="text" name="name" required style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:15px;margin-top:4px">
+      </label>
+      <label>Email
+        <input type="email" name="email" required style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:15px;margin-top:4px">
+      </label>
+      <label>Firm / company
+        <input type="text" name="firm" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:15px;margin-top:4px">
+      </label>
+      <label>What can we help with?
+        <select name="topic" required style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:15px;margin-top:4px;background:var(--card)">
+          <option value="">— Choose one —</option>
+          <option value="demo">Book a demo</option>
+          <option value="trial">Question about the free trial</option>
+          <option value="pricing">Pricing or invoicing</option>
+          <option value="enterprise">Enterprise / self-host</option>
+          <option value="migration">Migration from another tool</option>
+          <option value="education">Education / non-profit discount</option>
+          <option value="partner">Partnership</option>
+          <option value="support">Support (existing customer)</option>
+          <option value="press">Press / media</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label>Message
+        <textarea name="message" required placeholder="Tell us what you're working on, what you're stuck on, or what you'd like to see."></textarea>
+      </label>
+      <button type="submit" style="background:var(--accent);color:#fff;border:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:15px;cursor:pointer;align-self:flex-start">Send message</button>
+      <div id="form-msg"></div>
+    </form>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="contact-card">
+        <h3>📩 Email</h3>
+        <p><a href="mailto:hello@planscape.co">hello@planscape.co</a> — General</p>
+        <p><a href="mailto:support@planscape.co">support@planscape.co</a> — Customer support</p>
+        <p><a href="mailto:partners@planscape.co">partners@planscape.co</a> — Partnerships</p>
+        <p><a href="mailto:security@planscape.co">security@planscape.co</a> — Security disclosures</p>
+      </div>
+      <div class="contact-card" id="demo">
+        <h3>📞 WhatsApp</h3>
+        <p>Fastest response — we read it on phones we always have on us.</p>
+        <p><a href="https://wa.me/256700000000?text=Hi%2C%20I%27d%20like%20to%20chat%20about%20Planscape" target="_blank" rel="noopener">+256 700 000 000</a></p>
+      </div>
+      <div class="contact-card" id="enterprise">
+        <h3>🏢 Office</h3>
+        <p>Plot 12, Industrial Area<br>Kampala, Uganda</p>
+        <p>Mon–Fri · 09:00–18:00 EAT</p>
+      </div>
+      <div class="contact-card">
+        <h3>📅 Book a 30-minute demo</h3>
+        <p>Walk through Planscape on your screen with one of our team. We'll show the bits that matter for your project mix.</p>
+        <p><a href="https://cal.com/planscape/demo" target="_blank" rel="noopener">Pick a time →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="background:var(--card)">
+  <h2 class="text-center">Quick answers</h2>
+  <div class="faq-list">
+    <details class="faq-item">
+      <summary class="faq-q">How do I report a security vulnerability?</summary>
+      <div class="faq-a">Email <a href="mailto:security@planscape.co">security@planscape.co</a>. Please don't open a public GitHub issue. We follow a 90-day coordinated disclosure policy and credit reporters in our security advisories (with your permission).</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">I'm a journalist — who do I talk to?</summary>
+      <div class="faq-a">Email <a href="mailto:press@planscape.co">press@planscape.co</a>. We respond same business day. We have a press kit with logos, screenshots, founder bios, and a one-page company summary on request.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Do you have a status page?</summary>
+      <div class="faq-a">Yes — <a href="https://status.planscape.co" target="_blank" rel="noopener">status.planscape.co</a>. Live API health, scheduled maintenance, post-incident reports.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Can I tour your office?</summary>
+      <div class="faq-a">Yes — drop us a line. We're happy to host AEC firms, students, and partner organisations on weekday mornings. Bring a hard hat if you want to visit the projects we're delivering on.</div>
+    </details>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/tutorials/">Tutorials</a>
+      <a href="https://docs.planscape.co/">Developer docs</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+<script>
+function handleContact(e){
+  e.preventDefault();
+  var form = document.getElementById('contact-form');
+  var msg  = document.getElementById('form-msg');
+  var btn  = form.querySelector('button');
+  var data = {};
+  new FormData(form).forEach(function(v,k){ data[k]=v; });
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  fetch('https://api.planscape.co/marketing/contact', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  })
+  .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+  .then(function(){
+    form.style.display = 'none';
+    msg.style.color = '#16a34a';
+    msg.textContent = '✓ Thanks — we\'ll be in touch within 4 business hours.';
+  })
+  .catch(function(){
+    btn.disabled = false;
+    btn.textContent = 'Send message';
+    msg.style.color = '#dc2626';
+    msg.textContent = 'Something went wrong. Email us at hello@planscape.co instead.';
+  });
+}
+</script>
+
+</body>
+</html>

@@ -8,120 +8,79 @@
 <meta property="og:title" content="Planscape — BIM coordination for East African firms">
 <meta property="og:description" content="Revit plugin from $15/firm/month. Add cloud sync + mobile from $35/firm/month. ISO 19650 templates pre-built. Invoiced in your local currency.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://planscape.app/">
-<meta property="og:image" content="https://planscape.app/images/og-card.png">
+<meta property="og:url" content="https://planscape.co/">
+<meta property="og:image" content="https://planscape.co/images/og-card.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Planscape — BIM coordination for East African firms">
 <meta name="twitter:description" content="Revit plugin from $15/mo · cloud platform from $35/mo · ISO 19650 templates · invoiced in UGX/KES/TZS.">
-<meta name="twitter:image" content="https://planscape.app/images/og-card.png">
+<meta name="twitter:image" content="https://planscape.co/images/og-card.png">
 <meta name="theme-color" content="#E8912D">
 <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
 <link rel="icon" type="image/png" href="/images/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
-<link rel="canonical" href="https://planscape.app/">
-<!-- Phase 169 — Mapbox GL JS for the Africa project location map.
-     Replace PLANSCAPE_MAPBOX_TOKEN inside the bottom <script> with a
-     real public token from mapbox.com (free tier — no credit card). -->
+<link rel="canonical" href="https://planscape.co/">
+<link rel="stylesheet" href="/assets/site.css">
 <link rel="preconnect" href="https://api.mapbox.com">
 <link rel="preconnect" href="https://client.crisp.chat">
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css' rel='stylesheet' />
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js'></script>
 <style>
-:root{--accent:#E8912D;--ink:#1c1f26;--muted:#6c7280;--bg:#fafbfc;--card:#fff;--line:#eceef3}
-*{box-sizing:border-box}
-body{margin:0;font:16px/1.55 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
-nav{position:sticky;top:0;z-index:10;background:rgba(250,251,252,0.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
-nav .brand{font-weight:700;font-size:18px}
-nav .brand .dot{color:var(--accent)}
-nav .links a{color:var(--ink);text-decoration:none;margin:0 14px;font-size:14px}
-nav .cta{background:var(--accent);color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px}
-.hero{padding:96px 24px 64px;text-align:center;max-width:920px;margin:0 auto}
-.hero h1{font-size:48px;line-height:1.1;margin:0 0 16px;letter-spacing:-0.02em}
-.hero .sub{color:var(--muted);font-size:18px;max-width:640px;margin:0 auto 32px}
-.hero .cta-row a{display:inline-block;padding:14px 22px;border-radius:10px;text-decoration:none;font-weight:600;margin:0 6px}
-.hero .cta-row a.primary{background:var(--accent);color:#fff}
-.hero .cta-row a.secondary{border:1px solid var(--ink);color:var(--ink)}
-.hero .price-strip{margin-top:32px;color:var(--muted);font-size:14px}
-.hero .price-strip strong{color:var(--ink);font-weight:600}
-section{max-width:1100px;margin:0 auto;padding:64px 24px}
-section h2{font-size:30px;margin:0 0 16px;letter-spacing:-0.01em}
-section .lead{color:var(--muted);max-width:640px;margin:0 0 36px}
-.grid-3{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
-.feat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px}
-.feat .icon{font-size:32px;margin-bottom:10px}
-.feat h3{margin:0 0 6px;font-size:17px}
-.feat p{margin:0;color:var(--muted);font-size:14px}
-.compare{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.compare th,.compare td{padding:14px 18px;text-align:left;border-bottom:1px solid var(--line);font-size:14px}
-.compare thead{background:#f3f5f8}
-.compare th{font-weight:600}
-.compare td.us{color:var(--accent);font-weight:600}
-.testimonial{background:linear-gradient(135deg,rgba(232,145,45,0.08),rgba(232,145,45,0.02));border-radius:14px;padding:32px;margin:24px 0;font-size:16px}
-.testimonial .quote{font-style:italic;color:#34394a}
-.testimonial .who{margin-top:12px;color:var(--muted);font-size:13px}
-.cta-band{text-align:center;background:var(--ink);color:#fff;padding:64px 24px}
-.cta-band h2{margin:0 0 12px;color:#fff;font-size:30px}
-.cta-band p{color:#a8b1c0;margin:0 0 24px}
-.cta-band a{display:inline-block;padding:14px 22px;background:var(--accent);color:#fff;text-decoration:none;border-radius:10px;font-weight:600}
-footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
-@media (max-width:640px){.hero h1{font-size:32px}.hero .sub{font-size:16px}}
+/* Page-specific styles for the landing page */
+.price-strip { margin-top:32px; color:var(--muted); font-size:14px; }
+.price-strip strong { color:var(--ink); font-weight:600; }
 
-/* Phase 169 — Africa section + Mapbox map */
-#africa{background:#FEFAF6}
-#africa .africa-grid{display:grid;gap:48px;grid-template-columns:1fr 1fr;align-items:center}
-@media (max-width:880px){#africa .africa-grid{grid-template-columns:1fr}}
-#africa .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--accent);font-weight:600;margin:0 0 8px}
-#africa h2{font-size:32px;line-height:1.15;margin:0 0 16px;color:var(--ink)}
-#africa p{color:var(--muted);font-size:16px;margin:0 0 12px;max-width:520px}
-#africa-map{width:100%;height:420px;border-radius:16px;overflow:hidden;border:1px solid rgba(232,145,45,0.3);box-shadow:0 20px 60px rgba(0,0,0,0.15)}
-.africa-stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.africa-stats .stat-chip{background:rgba(232,145,45,0.10);color:var(--accent);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
-.mapboxgl-popup-content{background:#1A1F5E !important;color:#fff !important;border-radius:12px !important;padding:16px !important;min-width:240px !important;border:1px solid rgba(255,255,255,0.1) !important;box-shadow:0 8px 32px rgba(0,0,0,0.4) !important}
-.mapboxgl-popup-tip{border-top-color:#1A1F5E !important;border-bottom-color:#1A1F5E !important}
-.mapboxgl-popup-close-button{color:rgba(255,255,255,0.6) !important;padding:4px 8px !important}
-.popup-card h4{margin:0 0 4px;font-size:15px;color:#fff;font-weight:700}
-.popup-card .loc{font-size:12px;color:rgba(255,255,255,0.65);margin-bottom:8px}
-.popup-card .row{display:flex;justify-content:space-between;font-size:12px;margin:4px 0;color:rgba(255,255,255,0.85)}
-.popup-card .row .ind-active{color:#FF6B35;font-weight:600}
-.popup-card .row .ind-completed{color:#22C55E;font-weight:600}
-.popup-card hr{border:0;border-top:1px solid rgba(255,255,255,0.12);margin:10px 0}
-.popup-card .demo-link{display:inline-block;color:#FF6B35;font-weight:600;font-size:13px;text-decoration:none}
-.popup-card .demo-link:hover{text-decoration:underline}
-.map-marker-mkt{position:relative;width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4);cursor:pointer}
-.map-marker-mkt.active{background:#FF6B35}
-.map-marker-mkt.completed{background:#22C55E}
-.map-marker-mkt::after{content:"";position:absolute;inset:-2px;border-radius:50%;background:inherit;opacity:0.35;animation:mkt-pulse 2s ease-out infinite;z-index:-1}
-@keyframes mkt-pulse{0%{transform:scale(1);opacity:0.5}80%{transform:scale(2.6);opacity:0}100%{transform:scale(2.6);opacity:0}}
+.testimonial {
+  background:linear-gradient(135deg,rgba(232,145,45,0.08),rgba(232,145,45,0.02));
+  border-radius:14px; padding:32px; margin:24px 0; font-size:16px;
+}
+.testimonial .quote { font-style:italic; color:#34394a; }
+.testimonial .who { margin-top:12px; color:var(--muted); font-size:13px; }
+
+/* Africa section */
+#africa { background:#FEFAF6; }
+#africa .africa-grid { display:grid; gap:48px; grid-template-columns:1fr 1fr; align-items:center; }
+@media (max-width:880px){ #africa .africa-grid{ grid-template-columns:1fr; } }
+#africa .eyebrow { font-size:12px; text-transform:uppercase; letter-spacing:2px; color:var(--accent); font-weight:600; margin:0 0 8px; }
+#africa h2 { font-size:32px; line-height:1.15; margin:0 0 16px; color:var(--ink); }
+#africa p { color:var(--muted); font-size:16px; margin:0 0 12px; max-width:520px; }
+#africa-map { width:100%; height:420px; border-radius:16px; overflow:hidden; border:1px solid rgba(232,145,45,0.3); box-shadow:0 20px 60px rgba(0,0,0,0.15); }
+.africa-stats { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.africa-stats .stat-chip { background:rgba(232,145,45,0.10); color:var(--accent); border-radius:999px; padding:4px 12px; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:6px; }
+.mapboxgl-popup-content { background:#1A1F5E !important; color:#fff !important; border-radius:12px !important; padding:16px !important; min-width:240px !important; border:1px solid rgba(255,255,255,0.1) !important; box-shadow:0 8px 32px rgba(0,0,0,0.4) !important; }
+.mapboxgl-popup-tip { border-top-color:#1A1F5E !important; border-bottom-color:#1A1F5E !important; }
+.mapboxgl-popup-close-button { color:rgba(255,255,255,0.6) !important; padding:4px 8px !important; }
+.popup-card h4 { margin:0 0 4px; font-size:15px; color:#fff; font-weight:700; }
+.popup-card .loc { font-size:12px; color:rgba(255,255,255,0.65); margin-bottom:8px; }
+.popup-card .row { display:flex; justify-content:space-between; font-size:12px; margin:4px 0; color:rgba(255,255,255,0.85); }
+.popup-card .row .ind-active { color:#FF6B35; font-weight:600; }
+.popup-card .row .ind-completed { color:#22C55E; font-weight:600; }
+.popup-card hr { border:0; border-top:1px solid rgba(255,255,255,0.12); margin:10px 0; }
+.popup-card .demo-link { display:inline-block; color:#FF6B35; font-weight:600; font-size:13px; text-decoration:none; }
+.popup-card .demo-link:hover { text-decoration:underline; }
+.map-marker-mkt { position:relative; width:14px; height:14px; border-radius:50%; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.4); cursor:pointer; }
+.map-marker-mkt.active { background:#FF6B35; }
+.map-marker-mkt.completed { background:#22C55E; }
+.map-marker-mkt::after { content:""; position:absolute; inset:-2px; border-radius:50%; background:inherit; opacity:0.35; animation:mkt-pulse 2s ease-out infinite; z-index:-1; }
+@keyframes mkt-pulse { 0%{transform:scale(1);opacity:0.5} 80%{transform:scale(2.6);opacity:0} 100%{transform:scale(2.6);opacity:0} }
 
 /* How it works */
-.how-steps{display:grid;gap:0;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));position:relative}
-.how-step{text-align:center;padding:32px 24px}
-.how-step .num{width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
-.how-step h3{margin:0 0 8px;font-size:17px}
-.how-step p{margin:0;color:var(--muted);font-size:14px}
-.how-connector{display:none}
-@media (min-width:641px){.how-connector{display:block;position:absolute;top:68px;left:calc(33.33% - 12px);width:calc(33.33% + 24px);height:2px;background:linear-gradient(90deg,var(--accent),rgba(232,145,45,0.3));pointer-events:none}}
+.how-steps { display:grid; gap:0; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); position:relative; }
+.how-step { text-align:center; padding:32px 24px; }
+.how-step .num { width:52px; height:52px; border-radius:50%; background:var(--accent); color:#fff; font-size:20px; font-weight:700; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; }
+.how-step h3 { margin:0 0 8px; font-size:17px; }
+.how-step p { margin:0; color:var(--muted); font-size:14px; }
 
-/* Demo form */
-.demo-form{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px;max-width:480px}
-.demo-form input[type=email]{flex:1;min-width:200px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:15px;outline:none;background:var(--card);color:var(--ink)}
-.demo-form input[type=email]:focus{border-color:var(--accent)}
-.demo-form button{padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:600;font-size:15px;cursor:pointer;white-space:nowrap}
-.demo-form button:hover{opacity:0.9}
-#demo-msg{margin-top:10px;font-size:13px;color:var(--muted)}
+/* Demo form (legacy compat) */
+.demo-form { display:flex; gap:8px; flex-wrap:wrap; margin-top:24px; max-width:480px; }
+.demo-form input[type=email] { flex:1; min-width:200px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; font-size:15px; outline:none; background:var(--card); color:var(--ink); }
+.demo-form input[type=email]:focus { border-color:var(--accent); }
+.demo-form button { padding:12px 20px; background:var(--accent); color:#fff; border:none; border-radius:10px; font-weight:600; font-size:15px; cursor:pointer; white-space:nowrap; }
+.demo-form button:hover { opacity:0.9; }
+#demo-msg { margin-top:10px; font-size:13px; color:var(--muted); }
 
-/* FAQ */
-#faq{background:var(--bg)}
-.faq-list{max-width:720px;margin:0 auto}
-.faq-item{border-bottom:1px solid var(--line);padding:20px 0}
-.faq-item:last-child{border-bottom:none}
-.faq-q{font-weight:600;font-size:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;list-style:none}
-.faq-q::after{content:"＋";color:var(--accent);font-size:20px;flex-shrink:0;transition:transform 0.2s}
-details[open] .faq-q::after{transform:rotate(45deg)}
-.faq-a{color:var(--muted);font-size:15px;padding:12px 0 4px;line-height:1.65}
-.faq-a a{color:var(--accent)}
+#faq { background:var(--bg); }
 </style>
 <script type="application/ld+json">
 {
@@ -129,13 +88,13 @@ details[open] .faq-q::after{transform:rotate(45deg)}
   "@graph": [
     {
       "@type": "Organization",
-      "@id": "https://planscape.app/#org",
+      "@id": "https://planscape.co/#org",
       "name": "Planscape Ltd",
-      "url": "https://planscape.app",
-      "logo": "https://planscape.app/images/og-card.png",
+      "url": "https://planscape.co",
+      "logo": "https://planscape.co/images/og-card.png",
       "contactPoint": {
         "@type": "ContactPoint",
-        "email": "hello@planscape.app",
+        "email": "hello@planscape.co",
         "contactType": "customer support"
       },
       "address": {
@@ -146,7 +105,7 @@ details[open] .faq-q::after{transform:rotate(45deg)}
     },
     {
       "@type": "SoftwareApplication",
-      "@id": "https://planscape.app/#app",
+      "@id": "https://planscape.co/#app",
       "name": "Planscape",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Windows, iOS, Android",
@@ -154,15 +113,9 @@ details[open] .faq-q::after{transform:rotate(45deg)}
       "offers": {
         "@type": "Offer",
         "price": "15",
-        "priceCurrency": "USD",
-        "priceSpecification": {
-          "@type": "UnitPriceSpecification",
-          "price": "15",
-          "priceCurrency": "USD",
-          "unitText": "MONTH"
-        }
+        "priceCurrency": "USD"
       },
-      "publisher": { "@id": "https://planscape.app/#org" }
+      "publisher": { "@id": "https://planscape.co/#org" }
     }
   ]
 }
@@ -170,15 +123,17 @@ details[open] .faq-q::after{transform:rotate(45deg)}
 </head>
 <body>
 
-<nav>
-  <div class="brand">Plan<span class="dot">·</span>scape</div>
-  <div class="links">
-    <a href="#features">Features</a>
-    <a href="#how-it-works">How it works</a>
-    <a href="#compare">Compare</a>
-    <a href="/api/pricing/html">Pricing</a>
-    <a href="/docs/">Docs</a>
-    <a href="https://wa.me/256700000000?text=Hi%2C%20I%27d%20like%20to%20learn%20more%20about%20Planscape" class="links" target="_blank" rel="noopener" title="Chat on WhatsApp" style="color:var(--muted);font-size:18px;margin:0 8px;text-decoration:none">💬</a>
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/blog/">Blog</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
   </div>
   <a href="/signup" class="cta">Start free trial</a>
 </nav>
@@ -187,7 +142,7 @@ details[open] .faq-q::after{transform:rotate(45deg)}
   <h1>BIM coordination built for East African firms.</h1>
   <p class="sub">Revit plugin for authors, offline-first mobile for site coordinators, ISO 19650 templates pre-built. Invoiced in shillings, not dollars.</p>
   <div class="cta-row">
-    <a href="/signup" class="primary">Start 30-day trial</a>
+    <a href="/signup" class="primary">Start 30-day free trial</a>
     <a href="#demo" class="secondary">Watch 90-second demo</a>
   </div>
   <p style="margin:12px 0 0;font-size:13px;color:var(--muted)">No credit card required · Cancel any time</p>
@@ -200,19 +155,20 @@ details[open] .faq-q::after{transform:rotate(45deg)}
   <h2>Everything you need, nothing you don't</h2>
   <p class="lead">Built around the workflow ISO 19650 actually demands — and the connectivity East African sites actually have.</p>
   <div class="grid-3">
-    <div class="feat"><div class="icon">🧊</div><h3>Revit plugin included</h3><p>Tag, sync, publish models direct from Revit. No separate license, no extra seat cost.</p></div>
-    <div class="feat"><div class="icon">📱</div><h3>Offline-first mobile</h3><p>Coordinators work on site without signal. Photos, voice notes, pins queue and replay automatically.</p></div>
-    <div class="feat"><div class="icon">📋</div><h3>ISO 19650 templates</h3><p>Transmittals, RFIs, NCRs, BEPs, MIDPs — pre-built and ready to issue from day one.</p></div>
-    <div class="feat"><div class="icon">🌍</div><h3>Local invoicing</h3><p>UGX, KES, TZS, RWF, NGN, ZAR via Flutterwave. USD/EUR/GBP via Stripe. You pick.</p></div>
-    <div class="feat"><div class="icon">🔐</div><h3>Audit-grade trail</h3><p>Tamper-evident hash chain over every write. Court-admissible by construction.</p></div>
-    <div class="feat"><div class="icon">⚡</div><h3>Fast where it matters</h3><p>30k-element model save in &lt;1s. 200MB federation loads on a 3G phone.</p></div>
+    <div class="card"><div class="icon">🧊</div><h3>Revit plugin included</h3><p>Tag, sync, publish models direct from Revit. No separate license, no extra seat cost.</p></div>
+    <div class="card"><div class="icon">📱</div><h3>Offline-first mobile</h3><p>Coordinators work on site without signal. Photos, voice notes, pins queue and replay automatically.</p></div>
+    <div class="card"><div class="icon">📋</div><h3>ISO 19650 templates</h3><p>Transmittals, RFIs, NCRs, BEPs, MIDPs — pre-built and ready to issue from day one.</p></div>
+    <div class="card"><div class="icon">🌍</div><h3>Local invoicing</h3><p>UGX, KES, TZS, RWF, NGN, ZAR via Flutterwave. USD/EUR/GBP via Stripe. You pick.</p></div>
+    <div class="card"><div class="icon">🔐</div><h3>Audit-grade trail</h3><p>Tamper-evident hash chain over every write. Court-admissible by construction.</p></div>
+    <div class="card"><div class="icon">⚡</div><h3>Fast where it matters</h3><p>30k-element model save in &lt;1s. 200MB federation loads on a 3G phone.</p></div>
   </div>
+  <p style="text-align:center;margin-top:32px"><a href="/features.html" style="font-weight:600">See the full feature list →</a></p>
 </section>
 
 <section id="how-it-works">
   <h2>From model to site in three steps</h2>
   <p class="lead">Planscape fits the workflow your team already uses — it doesn't replace it.</p>
-  <div class="how-steps" style="position:relative">
+  <div class="how-steps">
     <div class="how-step">
       <div class="num">1</div>
       <h3>Author in Revit</h3>
@@ -234,7 +190,7 @@ details[open] .faq-q::after{transform:rotate(45deg)}
 <section id="compare">
   <h2>How we stack up</h2>
   <p class="lead">Flat per-firm pricing — add people without paying more per seat. We don't try to be the most feature-rich BIM platform on earth — we try to be the right one for a mid-size East African practice.</p>
-  <table class="compare">
+  <table class="tbl">
     <thead><tr><th>Tool</th><th>Pricing model</th><th>Offline mobile</th><th>Local invoicing</th></tr></thead>
     <tbody>
       <tr><td class="us">Planscape Large (20 users)</td><td class="us">$90/firm — $4.50/user</td><td class="us">Yes</td><td class="us">Yes (UGX/KES/TZS/…)</td></tr>
@@ -303,7 +259,7 @@ details[open] .faq-q::after{transform:rotate(45deg)}
     </details>
     <details class="faq-item">
       <summary class="faq-q">Can I migrate from Autodesk Construction Cloud?</summary>
-      <div class="faq-a">Yes. We provide a BCF 2.1 import for issues and a document importer for CDE-structured file sets. Your Revit models come across as-is — the Planscape plugin reads the same .rvt files. Book a migration call with our team and we'll scope the move for your project count and data volume.</div>
+      <div class="faq-a">Yes. We provide a BCF 2.1 import for issues and a document importer for CDE-structured file sets. Your Revit models come across as-is — the Planscape plugin reads the same .rvt files. <a href="/contact.html#demo">Book a migration call</a> and we'll scope the move for your project count and data volume.</div>
     </details>
     <details class="faq-item">
       <summary class="faq-q">Is the data stored in Africa?</summary>
@@ -315,7 +271,7 @@ details[open] .faq-q::after{transform:rotate(45deg)}
     </details>
     <details class="faq-item">
       <summary class="faq-q">Can we self-host Planscape on our own servers?</summary>
-      <div class="faq-a">Yes — the server stack (ASP.NET Core 8 + PostgreSQL + Redis + MinIO) ships as a Docker Compose configuration. Self-host is included in the Enterprise plan. See the <a href="/docs/ops/self-host">self-hosting guide</a> for requirements and a step-by-step deployment walkthrough.</div>
+      <div class="faq-a">Yes — the server stack (ASP.NET Core 8 + PostgreSQL + Redis + MinIO) ships as a Docker Compose configuration. Self-host is included in the Enterprise plan. See the <a href="/guides/self-hosting.html">self-hosting guide</a> for requirements and a step-by-step deployment walkthrough.</div>
     </details>
   </div>
 </section>
@@ -326,18 +282,41 @@ details[open] .faq-q::after{transform:rotate(45deg)}
   <a href="/signup">Start now</a>
 </div>
 
-<footer>
-  © 2026 Planscape Ltd · Kampala, Uganda · <a href="mailto:hello@planscape.app">hello@planscape.app</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms. Revit plugin, offline-first mobile, local currency invoicing.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/tutorials/">Tutorials</a>
+      <a href="https://docs.planscape.co/">Developer docs</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="legal">
+    © 2026 Planscape Ltd · Kampala, Uganda · All rights reserved
+  </div>
 </footer>
 
-<!--
-  S4.6 — Crisp chat widget on the marketing site only. Mobile + web
-  app embed a smaller mailto-based help button (see
-  Planscape/src/components/HelpButton.tsx) to keep the bundle small.
-  Replace CRISP_WEBSITE_ID at deploy time with the real id; absent
-  the id the widget silently no-ops, which is what we want during
-  pre-launch.
--->
 <script>
 function handleDemoForm(e) {
   e.preventDefault();
@@ -347,7 +326,7 @@ function handleDemoForm(e) {
   var btn   = form.querySelector('button');
   btn.disabled = true;
   btn.textContent = 'Sending…';
-  fetch('https://api.planscape.app/marketing/demo-request', {
+  fetch('https://api.planscape.co/marketing/demo-request', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ email: email, source: 'marketing-site' })
@@ -362,17 +341,11 @@ function handleDemoForm(e) {
     btn.disabled = false;
     btn.textContent = 'Send me the demo';
     msg.style.color = '#dc2626';
-    msg.textContent = 'Something went wrong. Email us at hello@planscape.app instead.';
+    msg.textContent = 'Something went wrong. Email us at hello@planscape.co instead.';
   });
 }
 </script>
 
-<!--
-  Phase 169 — Africa project location map. Hardcoded demo pins; no API
-  call. Replace PLANSCAPE_MAPBOX_TOKEN below with a real public Mapbox
-  token (free account, no credit card). Without a real token the script
-  silently no-ops and the section still renders the headline + chips.
--->
 <script type="text/javascript">
 (function(){
   var MAPBOX_TOKEN = "PLANSCAPE_MAPBOX_TOKEN";
@@ -397,7 +370,6 @@ function handleDemoForm(e) {
     interactive: true,
     attributionControl: false,
   });
-  // Don't hijack page scroll; user must click in to enable zoom.
   map.scrollZoom.disable();
   map.on("click", function(){ map.scrollZoom.enable(); });
 
@@ -426,11 +398,10 @@ function handleDemoForm(e) {
         '<div class="row"><span>Status</span><span class="' + indClass + '">' + dot + ' ' + esc(p.status) + '</span></div>' +
         '<div class="row"><span>Compliance</span><span>' + p.compliance + '%</span></div>' +
         '<hr>' +
-        '<a href="#pricing" class="demo-link">Request a Demo →</a>' +
+        '<a href="/contact.html#demo" class="demo-link">Request a Demo →</a>' +
       '</div>';
 
-    var popup = new mapboxgl.Popup({ offset: 18, closeButton: true })
-      .setHTML(html);
+    var popup = new mapboxgl.Popup({ offset: 18, closeButton: true }).setHTML(html);
 
     new mapboxgl.Marker({ element: el })
       .setLngLat([p.lng, p.lat])

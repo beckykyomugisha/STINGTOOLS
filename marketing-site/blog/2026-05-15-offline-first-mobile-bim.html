@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Building an offline-first mobile BIM tool — Planscape blog</title>
+<meta name="description" content="Five lessons from a year of building an offline-first mobile BIM tool. Conflict resolution, replay queues, why we chose SQLite over Realm.">
+<meta property="og:title" content="Building an offline-first mobile BIM tool">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-05-15T08:00:00+03:00">
+<meta property="og:url" content="https://planscape.co/blog/2026-05-15-offline-first-mobile-bim.html">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/blog/2026-05-15-offline-first-mobile-bim.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/blog/" style="color:var(--accent)">Blog</a>
+    <a href="/about.html">About</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/blog/">Blog</a> &rsaquo; Building an offline-first mobile BIM tool</div>
+  <h1>Building an offline-first mobile BIM tool</h1>
+  <div class="meta">15 May 2026 · 11-minute read · By the Planscape team</div>
+
+  <p>Offline-first sounds simple. It isn't. After a year of building Planscape's mobile app for site teams in East Africa — places where the connection is the exception, not the rule — here's what we learned. This post is more technical than our usual writing; if you build mobile tools and you're tempted to say "we'll add offline later," please don't.</p>
+
+  <h2>The brief</h2>
+
+  <p>Our coordinators work on construction sites. Most of those sites have either no fibre at all, intermittent 4G in some areas and dead zones in others, or — in the worst case — a 24-hour total outage when the local mast goes down. They take photos, raise issues, scan QR tags on assets, navigate by GPS, and update issue statuses.</p>
+
+  <p>The brief was: every one of those actions must work when they're disconnected, must not lose data, and must sync seamlessly without manual intervention when connectivity returns. The user should never think about connectivity unless they choose to.</p>
+
+  <h2>Lesson 1: offline-first means designing the data layer first</h2>
+
+  <p>The mistake we made on the first prototype was building screens against the API directly, then adding a "cache layer" later. That works for read-heavy apps where stale data is acceptable. It doesn't work when the user expects to <em>write</em> while offline.</p>
+
+  <p>The right approach is to design the local database as the source of truth, and treat the server as an eventual-consistency replica. Every screen reads from local storage. Every action writes to local storage first and queues a sync job. The sync job hits the server when network state allows. Failed syncs retry with exponential backoff.</p>
+
+  <p>This inverts the usual mental model — and it forced us to rewrite about 40% of the original prototype. But it's the only model that gives the user the experience of "the app works regardless of connectivity".</p>
+
+  <h2>Lesson 2: SQLite > Realm for our case</h2>
+
+  <p>We started with Realm (now MongoDB Realm). Reactive, fast, lovely DX. But three things bit us:</p>
+
+  <ul>
+    <li><strong>Schema migration friction.</strong> Every backend schema change required a matching Realm migration. With a fast-moving server, we were managing migration scripts in two places.</li>
+    <li><strong>iOS/Android divergence on Hermes.</strong> Some Realm features behaved subtly differently across platforms, especially under low memory.</li>
+    <li><strong>Audit-trail incompatibility.</strong> We needed to write hash-chained records locally and have them verifiably append-only. Realm's transaction model didn't give us a clean way to do this without working around the abstraction.</li>
+  </ul>
+
+  <p>We migrated to plain SQLite with a hand-written schema, drizzle-style query builder, and a sync engine on top. More work to set up, less work to maintain in the long run. The audit-chain implementation became trivial — it's just an append-only table with a SHA-256 column.</p>
+
+  <p>For apps where the server is the source of truth and offline is "nice to have", Realm is great. For apps where the device is the source of truth for hours at a time and audit integrity matters, raw SQLite gave us cleaner control.</p>
+
+  <h2>Lesson 3: the replay queue is harder than you think</h2>
+
+  <p>Naive replay: collect pending writes, post them to the server in order, mark each as synced on success. This breaks in three ways:</p>
+
+  <h3>Write dependencies</h3>
+  <p>"Create issue, then add photo to issue, then add comment to issue" — three writes that have to land in order. If the first one fails (e.g. duplicate key from a previous partial sync), the second and third are orphaned.</p>
+  <p>We solved this by giving every local write a UUID generated client-side. The server treats UUIDs as idempotent — re-sending the same UUID is a no-op, not an error. This decouples "did the server receive this" from "did the server acknowledge this".</p>
+
+  <h3>Conflict resolution</h3>
+  <p>Two coordinators offline simultaneously, both change the same issue's status. When they come back online, whose write wins?</p>
+  <p>We adopted last-write-wins by timestamp — but with a twist: we surface the alternative in a conflict banner. The "loser" isn't silently overwritten. The user who got out-voted sees their change in a banner with "Override" and "Discard" options. In practice ~90% of conflicts are obvious (one user marked it Resolved before the other realised it was already fixed) and people pick the right option.</p>
+
+  <h3>Stale references</h3>
+  <p>You raise an issue offline, attached to element X. By the time you come back online, element X has been deleted in Revit. What happens?</p>
+  <p>We let the issue save (the photo and observation are still useful) but flag it as "orphaned — element no longer exists". The user can re-link to a current element or close the issue. We never silently drop user-generated data.</p>
+
+  <h2>Lesson 4: photos are not data</h2>
+
+  <p>Treat photos and voice notes as a different sync class to structured data. Specifically:</p>
+
+  <ul>
+    <li><strong>Structured data is small and fast.</strong> 1 KB JSON for an issue. Sync immediately on any connection.</li>
+    <li><strong>Photos are large and slow.</strong> 4 MB JPEG. Sync only on WiFi, or on a fast cellular connection, or when the user explicitly requests.</li>
+  </ul>
+
+  <p>We auto-detect connection quality (via a tiny ping on app startup) and queue photo uploads behind structured-data sync. If the user is on a slow connection, structured data lands first — the issue exists, just without its photo for the next hour. Coordinators value "the issue is on the server" much more than "the photo is uploaded right now".</p>
+
+  <p>The compression strategy matters too. We resize photos to 1080p before upload (originals stay on the device), and we generate a 400px thumbnail for the list view that uploads alongside the issue itself — so even before the original photo lands, teammates see the thumbnail.</p>
+
+  <h2>Lesson 5: pre-sync is the killer feature</h2>
+
+  <p>The single most useful UX intervention was making "pre-sync this project for offline use" a first-class one-button action. Users do it the night before a site visit, on WiFi at the office. The app downloads:</p>
+
+  <ul>
+    <li>The full issue list + photos at thumbnail resolution.</li>
+    <li>All "Site reference" documents (PDF drawings, RFIs, design notes).</li>
+    <li>The federated model's plan views at all visible levels.</li>
+    <li>Mapbox tiles for a 5km radius around the project pin.</li>
+  </ul>
+
+  <p>This takes 2–10 minutes on WiFi. Once done, the user can leave the office and work a full day offline without missing anything. We measured: before we had pre-sync as a button, ~30% of site visits had "I couldn't open X" friction. After: under 5%.</p>
+
+  <h2>What we still get wrong</h2>
+
+  <ul>
+    <li><strong>Push notifications when offline.</strong> If your phone has no signal, you don't get the push notification when an issue is assigned. The notification arrives when you reconnect — but by then the assignment may be hours old. Not a fix we have yet.</li>
+    <li><strong>Voice-note transcription.</strong> Transcription is server-side (Whisper). When offline, you can record a voice note but it won't be transcribed until you're back online. We've been asked for on-device Whisper; the model size and battery cost have stopped us so far.</li>
+    <li><strong>Real-time collaboration.</strong> SignalR is online-only. When two coordinators are both offline on the same project, they don't see each other's edits live — they replay when both reconnect. We don't think this can be solved without P2P sync, which is a lot of complexity for the value.</li>
+  </ul>
+
+  <h2>The principles that survived contact with reality</h2>
+
+  <ol>
+    <li><strong>Local DB is source of truth.</strong> Server is eventual.</li>
+    <li><strong>Every write gets a client-generated UUID.</strong> Idempotent server.</li>
+    <li><strong>Replay queue is durable.</strong> Survives app restart, OS kill, low memory.</li>
+    <li><strong>Surface conflicts; don't auto-resolve.</strong> Users handle ambiguity better than algorithms.</li>
+    <li><strong>Different sync classes for different data types.</strong> Structured first, media second.</li>
+    <li><strong>Pre-sync is a feature, not a setting.</strong> Make it a button on the project home.</li>
+  </ol>
+
+  <h2>Tech stack, for the curious</h2>
+
+  <ul>
+    <li>React Native + Expo (currently v52)</li>
+    <li>SQLite via expo-sqlite, custom thin query layer</li>
+    <li>TanStack Query for caching, with custom mutation middleware that writes to SQLite first</li>
+    <li>Background tasks via expo-background-fetch for sync retry</li>
+    <li>Mapbox GL Native for offline-capable maps</li>
+    <li>SignalR client (when online) for real-time push from other team members</li>
+    <li>Server: ASP.NET Core 8 + PostgreSQL + Redis + MinIO</li>
+  </ul>
+
+  <p>If you're building something similar and want to compare notes, drop us a line — <a href="mailto:engineering@planscape.co">engineering@planscape.co</a>. Always happy to talk shop.</p>
+
+  <div class="next-prev">
+    <a href="/blog/2026-05-20-iso-19650-in-east-africa.html" class="prev">
+      <span class="lbl">← Previous</span>
+      ISO 19650 in East Africa
+    </a>
+    <a href="/blog/" class="next">
+      <span class="lbl">Back to</span>
+      Blog index
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>
