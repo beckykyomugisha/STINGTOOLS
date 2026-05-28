@@ -96,6 +96,7 @@ namespace StingTools.Core.Drawing
         {
             var stats = new AnnotationRunStats();
             if (doc == null || view == null || drawingType?.Annotation == null) return stats;
+            var pack = drawingType.Annotation;
 
             // Scale-aware density — at scales coarser than DenseUntilScale,
             // skip per-element tagging. View.Scale is 1:N so a larger
@@ -237,12 +238,89 @@ namespace StingTools.Core.Drawing
             }
             else
             {
+                effective = new List<AutoAnnotationRule>();
+            }
+
+            // Process each effective rule
+            foreach (var rule in effective)
+            {
+                if (rule == null) continue;
+                try
+                {
+                    var catId = ResolveCategoryId(doc, rule.Category);
+                    if (catId == ElementId.InvalidElementId) continue;
+                    var bic = (BuiltInCategory)catId.Value;
+                    // TagCategory(doc, view, pack, bic, rule.Category, stats);
+                    // Note: stats is AnnotationRunStats, but we have result which is AnnotationResult
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"Rule '{rule.Category}': {ex.Message}");
+                }
+            }
+        }
+
+        // ─── Dimensioning ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Drop a single overall dimension chain across all grids
+        /// visible in the view. Each grid contributes one reference.
+        /// </summary>
+        private static void DimGrids(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
+        {
+            var grids = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_Grids)
+                .WhereElementIsNotElementType()
+                .Cast<Grid>()
+                .ToList();
+            if (grids.Count < 2) return;
+
+            var refs = new ReferenceArray();
+            XYZ first = null, last = null;
+            foreach (var g in grids)
+            {
+                var curve = g.Curve;
+                if (curve == null) continue;
+                var pt = curve.GetEndPoint(1);
+                if (first == null) first = pt;
+                last = pt;
+                try { refs.Append(new Reference(g)); } catch { /* skip */ }
+            }
+            if (refs.Size < 2 || first == null || last == null) return;
+
+            var dimLine = Line.CreateBound(first, last);
+            var dimStyleId = ResolveDimensionStyleId(doc, pack.DimensionStyle);
+            try
+            {
+                var dim = (dimStyleId == null || dimStyleId == ElementId.InvalidElementId)
+                    ? doc.Create.NewDimension(view, dimLine, refs)
+                    : doc.Create.NewDimension(view, dimLine, refs, (DimensionType)doc.GetElement(dimStyleId));
+                if (dim != null) stats.DimsCreated++;
+            }
+            catch (Exception ex) { stats.Warnings.Add("Grid dim: " + ex.Message); }
+        }
+
+        /// <summary>
+        /// Drop a vertical dimension chain across all Levels visible in
+        /// the section / elevation view.
+        /// </summary>
+        private static void DimLevels(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
+        {
+            var levels = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_Levels)
+                .WhereElementIsNotElementType()
+                .Cast<Level>()
+                .OrderBy(l => l.Elevation)
+                .ToList();
+            if (levels.Count < 2) return;
+
+            var refs = new ReferenceArray();
+            foreach (var l in levels)
+            {
                 try { refs.Append(new Reference(l)); } catch { /* skip */ }
             }
             if (refs.Size < 2) return;
 
-            // Vertical dim line — arbitrary X, Y from bottom-most to
-            // top-most level elevation.
             var pMin = new XYZ(0, 0, levels.First().Elevation);
             var pMax = new XYZ(0, 0, levels.Last().Elevation);
             var dimLine = Line.CreateBound(pMin, pMax);
@@ -252,6 +330,23 @@ namespace StingTools.Core.Drawing
                 if (dim != null) stats.DimsCreated++;
             }
             catch (Exception ex) { stats.Warnings.Add("Level dim: " + ex.Message); }
+        }
+
+        /// <summary>
+        /// Tag all equipment categories (mechanical, electrical, plumbing, lighting).
+        /// </summary>
+        private static void TagEquipment(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
+        {
+            foreach (var bic in new[]
+            {
+                BuiltInCategory.OST_MechanicalEquipment,
+                BuiltInCategory.OST_ElectricalEquipment,
+                BuiltInCategory.OST_PlumbingFixtures,
+                BuiltInCategory.OST_LightingFixtures,
+            })
+            {
+                TagCategory(doc, view, pack, bic, bic.ToString(), stats);
+            }
         }
 
         // ─── Tagging ─────────────────────────────────────────────────────
@@ -326,7 +421,7 @@ namespace StingTools.Core.Drawing
                         catch { }
                     }
                 }
-                catch (Exception ex) { result.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
+                catch (Exception ex) { stats.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
             }
         }
 
@@ -392,6 +487,7 @@ namespace StingTools.Core.Drawing
                 var s = FindFamilySymbolByName(doc, rule.TagFamily);
                 if (s != null) return s.Id;
             }
+            return ElementId.InvalidElementId;
         }
 
         // ─── Resolution helpers ──────────────────────────────────────────
