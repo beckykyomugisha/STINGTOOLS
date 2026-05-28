@@ -23,8 +23,8 @@ services:
       # SAME volume so the ring is consistent across both. For production,
       # encrypt at rest by setting DP_CERT_PATH / DP_CERT_PASSWORD in .env.
       - DataProtection__KeysPath=/var/lib/planscape/dpkeys
-      - DataProtection__CertificatePath=${DP_CERT_PATH:-}
-      - DataProtection__CertificatePassword=${DP_CERT_PASSWORD:-}
+      - DataProtection__CertificatePath=${DP_CERT_PATH:-/certs/dp-dev.pfx}
+      - DataProtection__CertificatePassword=${DP_CERT_PASSWORD:-planscape-dev}
       - ModelConverter__Provider=${MODEL_CONVERTER_PROVIDER:-null}
       - ModelConverter__IfcConvertPath=/usr/local/bin/IfcConvert
       - ModelConverter__ThumbnailProvider=${MODEL_THUMBNAIL_PROVIDER:-gltf-bounds}
@@ -59,6 +59,10 @@ services:
       # DataProtection key ring — survives restarts so auth tokens /
       # antiforgery stay valid across redeploys (see Program.cs).
       - dpkeys:/var/lib/planscape/dpkeys
+      # Dev: self-signed cert to encrypt the DataProtection ring at rest
+      # (silences the "No XML encryptor" warning). Generate via
+      # tools/gen-dev-dpcert.sh. If absent, Program.cs skips encryption.
+      - ./certs:/certs:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -174,8 +178,8 @@ services:
       # SAME volume so the ring is consistent across both. For production,
       # encrypt at rest by setting DP_CERT_PATH / DP_CERT_PASSWORD in .env.
       - DataProtection__KeysPath=/var/lib/planscape/dpkeys
-      - DataProtection__CertificatePath=${DP_CERT_PATH:-}
-      - DataProtection__CertificatePassword=${DP_CERT_PASSWORD:-}
+      - DataProtection__CertificatePath=${DP_CERT_PATH:-/certs/dp-dev.pfx}
+      - DataProtection__CertificatePassword=${DP_CERT_PASSWORD:-planscape-dev}
       - ModelConverter__Provider=${MODEL_CONVERTER_PROVIDER:-null}
     depends_on:
       postgres:
@@ -198,6 +202,10 @@ services:
       # Same DataProtection key ring as the api (worker runs the same
       # Program.cs and may Protect()/Unprotect() shared payloads).
       - dpkeys:/var/lib/planscape/dpkeys
+      # Dev: self-signed cert to encrypt the DataProtection ring at rest
+      # (silences the "No XML encryptor" warning). Generate via
+      # tools/gen-dev-dpcert.sh. If absent, Program.cs skips encryption.
+      - ./certs:/certs:ro
 
   # ── Observability stack (MON-01/02/03) ─────────────────────────────────
   # Opt-in via profile so they never run by default:
