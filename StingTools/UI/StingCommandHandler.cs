@@ -3830,6 +3830,48 @@ namespace StingTools.UI
                         StingElectricalCommandHandler.Instance?.SetCommand("ElectricalHub");
                         break;
 
+                    // ── STING Material Hub (MAT_*) → MatActions ──
+                    // Restores the dispatch block dropped during branch
+                    // consolidation; without it every MaterialHubPanel action
+                    // button fell through to the "Unknown Command" default.
+                    case "MAT_WhereUsed":      MatActions.WhereUsed(app, p1); break;
+                    case "MAT_Apply":          MatActions.ApplyToSelection(app, p1); break;
+                    case "MAT_Eyedropper":     MatActions.Eyedropper(app); break;
+                    case "MAT_EditIdentity":   MatActions.EditIdentity(app, p1); break;
+                    case "MAT_ReadLayers":     MatActions.ReadLayers(app); break;
+                    case "MAT_LayerTag":       MatActions.GenerateLayerTag(app); break;
+                    case "MAT_FindDups":       MatActions.FindDuplicates(app); break;
+                    case "MAT_MergeDups":      MatActions.MergeDuplicates(app); break;
+                    case "MAT_EditOverrides":  MatActions.EditProjectOverrides(app); break;
+                    case "MAT_ReloadLib":      MatActions.ReloadLibrary(app); break;
+                    case "MAT_PushCorp":       MatActions.PushToCorporate(app, p1); break;
+                    case "MAT_ExportCsv":      MatActions.ExportCsv(app); break;
+                    case "MAT_ImportCsv":      MatActions.ImportCsv(app); break;
+                    case "MAT_TemplateCsv":    MatActions.OpenTemplate(app); break;
+                    case "MAT_EditRules":      MatActions.EditRules(app); break;
+                    case "MAT_LoadPack":       MatActions.LoadMaterialPack(app); break;
+                    case "MAT_FamilyAudit":    MatActions.FamilyFolderAudit(app); break;
+                    case "MAT_DetachAsset":    MatActions.DetachAsset(app, p1); break;
+                    case "MAT_RepointAsset":   MatActions.RepointAsset(app, p1); break;
+                    case "MAT_FamilyMaterials":MatActions.ShowFamilyMaterials(app); break;
+                    case "MAT_SustainabilityGate": MatActions.RunSustainabilityGate(app); break;
+                    case "MAT_SustainabilityEdit": MatActions.EditSustainabilityGate(app); break;
+                    case "MAT_GenerateRfq":    MatActions.GenerateRfq(app); break;
+                    case "MAT_CoverageCheck":  MatActions.RunCoverageCheck(app); break;
+                    case "MAT_SyncCobie":      MatActions.SyncCobie(app); break;
+                    case "MAT_HealthcareGate": MatActions.RunHealthcareGate(app); break;
+                    case "MAT_HealthcareEdit": MatActions.EditHealthcareGate(app); break;
+                    case "MAT_BoqByMaterial":  MatActions.BoqByMaterial(app); break;
+                    case "MAT_WhatIfSwap":     MatActions.WhatIfSwap(app); break;
+                    case "MAT_EnrichSchedules":MatActions.EnrichMaterialSchedules(app); break;
+                    case "MAT_LinkedScan":     MatActions.ScanLinkedMaterials(app); break;
+                    case "MAT_CarbonPivot":    MatActions.CarbonByPhaseLevel(app); break;
+                    case "MAT_EpdFormatCheck": MatActions.RunEpdFormatCheck(app); break;
+                    case "MAT_FireWallGate":   MatActions.RunFireWallGate(app); break;
+                    case "MAT_NormaliseClasses": MatActions.NormaliseMaterialClasses(app); break;
+                    case "MAT_ToggleAutoApply":MatActions.ToggleAutoApply(app); break;
+                    case "MAT_ToggleAutoFill": MatActions.ToggleAutoFill(app); break;
+
                     // ── Unmapped command tag ──
                     default:
                         // ── Dynamic-prefix routing ──
