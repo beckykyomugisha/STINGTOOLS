@@ -1565,3 +1565,8 @@ static bool IsRfc1918(System.Net.IPAddress ip)
     }
     return false;
 }
+
+// Exposes the implicit top-level Program class to the integration-test
+// project (WebApplicationFactory<Program> in PlanscapeWebApplicationFactory).
+// Top-level statements generate an internal Program; this makes it public.
+public partial class Program { }
