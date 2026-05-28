@@ -571,7 +571,9 @@ namespace StingTools.UI
                     string mat = ParameterHelpers.GetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT);
                     if (string.IsNullOrWhiteSpace(mat)) mat = "COPPER";
                     double s  = LpsEngine.GetDoubleParam(dc, LpsParams.SEPARATION_DISTANCE_MM);
-                    if (s <= 0) s = LpsEngine.ComputeSeparationDistance(classId, L, mat, kc);
+                    // km is the insulation medium (air/solid), not the conductor
+                    // metal (mat) — externally-routed conductors default to air.
+                    if (s <= 0) s = LpsEngine.ComputeSeparationDistance(classId, L, "AIR", kc);
                     double cs = LpsEngine.GetDoubleParam(dc, LpsParams.CONDUCTOR_CROSS_SECT_MM2);
 
                     string status = ParameterHelpers.GetString(dc, LpsParams.COMPLIANCE_STATUS_TXT);

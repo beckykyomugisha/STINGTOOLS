@@ -47,11 +47,19 @@ namespace StingTools.Core.Lightning
             return _classes.Values.OrderBy(c => c.Id).ToList();
         }
 
-        public static double GetMaterialFactor(string material)
+        /// <summary>
+        /// km — the insulation/medium factor for the separation distance per
+        /// BS EN 62305-3 §6.3 / Table 5. This is the material BETWEEN the LPS
+        /// conductor and the internal metalwork (air → 1.0, solid material such
+        /// as concrete / brick / wood → 0.5), NOT the conductor metal. Unknown
+        /// or unspecified media default to air (1.0) — the conservative choice
+        /// because a larger km divisor would reduce the required separation.
+        /// </summary>
+        public static double GetMaterialFactor(string insulationMedium)
         {
             EnsureLoaded();
-            if (string.IsNullOrWhiteSpace(material)) return 1.0;
-            string norm = material.Trim().ToUpperInvariant();
+            if (string.IsNullOrWhiteSpace(insulationMedium)) return 1.0;
+            string norm = insulationMedium.Trim().ToUpperInvariant();
             try
             {
                 var classesJson = LoadJson("STING_LPS_CLASSES.json");
@@ -60,7 +68,7 @@ namespace StingTools.Core.Lightning
                     return mf[norm].Value<double>();
             }
             catch (Exception ex) { StingLog.Warn($"GetMaterialFactor: {ex.Message}"); }
-            // Fallback to copper
+            // Unknown medium → assume air (km = 1.0), the conservative default.
             return 1.0;
         }
 
@@ -172,37 +180,29 @@ namespace StingTools.Core.Lightning
         }
 
         /// <summary>
-        /// kc factor per BS EN 62305-3 §6.3 — partitioning of lightning
-        /// current among parallel down conductors. Three-arg overload
-        /// uses the tabulated values from Annex C.3 instead of the
-        /// 1/n approximation:
-        ///   n=1   → kc = 1.00
-        ///   n=2   → kc = 0.66    (Annex C.3 Table C.4)
-        ///   n=3   → kc = 0.44
-        ///   n=4   → kc = 0.33
-        ///   n≥5   → kc = 1/n (floored 0.1)
-        /// With ringConductor + equipotentialBonding (Type B earthing
-        /// arrangement, ring at base + bonding network) the worst-case
-        /// is halved (Annex C.3.4 — current splits equally at the ring
-        /// node). Backwards-compatible: the int-only overload preserves
-        /// the existing 1/n behaviour for callers still using it.
+        /// kc factor per BS EN 62305-3 §6.3 / Annex C.3 — partitioning of the
+        /// lightning current among parallel down conductors. Uses the
+        /// standard simplified table:
+        ///   n = 1                          → kc = 1.00
+        ///   n = 2                          → kc = 0.66
+        ///   n ≥ 3 with a ring conductor    → kc = 0.44   (Type B / ring
+        ///         interconnecting the down conductors, equipotential bonding)
+        ///   n ≥ 3 without a ring           → kc = 0.66   (conservative — the
+        ///         current does not divide as favourably without interconnection)
+        /// The full §C.3 expression kc = 1/(2n) + 0.1 + 0.2·³√(c/h) requires the
+        /// conductor spacing c and structure height h; this table is the
+        /// documented simplification used when that geometry is not supplied.
+        /// Backwards-compatible: the int-only overload preserves the legacy
+        /// 1/n behaviour for callers still using it.
         /// </summary>
         public static double ComputeKcFactor(int n, bool ringConductor, bool equipotentialBonding)
         {
             if (n <= 1) return 1.0;
-            double kc;
-            switch (n)
-            {
-                case 2: kc = 0.66; break;
-                case 3: kc = 0.44; break;
-                case 4: kc = 0.33; break;
-                default: kc = Math.Max(1.0 / n, 0.1); break;
-            }
-            // BS EN 62305-3 §C.3.4 — a ring conductor with equipotential
-            // bonding lets current split through the bonding network as
-            // well as the down conductors. Halve the worst-case kc.
-            if (ringConductor && equipotentialBonding) kc *= 0.5;
-            return Math.Max(kc, 0.05);
+            if (n == 2) return 0.66;
+            // n >= 3: the favourable 0.44 only applies when a ring conductor
+            // interconnects the down conductors (Type B arrangement). Without
+            // that interconnection keep the conservative two-conductor value.
+            return (ringConductor && equipotentialBonding) ? 0.44 : 0.66;
         }
 
         /// <summary>Legacy 1/n form — preserved for backwards compatibility.</summary>
@@ -213,21 +213,25 @@ namespace StingTools.Core.Lightning
         }
 
         /// <summary>
-        /// Separation distance s = (ki / km) * kc * l per BS EN 62305-3 §6.3.
+        /// Separation distance s = ki · (kc / km) · l per BS EN 62305-3 §6.3.
+        /// <paramref name="insulationMedium"/> is the material BETWEEN the LPS
+        /// conductor and the internal metalwork (air → km 1.0, solid such as
+        /// concrete / brick / wood → km 0.5) — NOT the conductor metal. Pass
+        /// "AIR" (the default) for an externally-routed down conductor in air.
         /// kc defaults to 1.0 for a single down conductor path. Returns
         /// millimetres; caller passes conductor length in metres.
         /// </summary>
         public static double ComputeSeparationDistance(
             string classId,
             double conductorLengthFromAirTerminalToNearestBondM,
-            string routingMaterial,
+            string insulationMedium = "AIR",
             double kc = 1.0)
         {
             var def = LoadClass(classId);
             if (def == null) return 0.0;
-            double km = GetMaterialFactor(routingMaterial);
+            double km = GetMaterialFactor(insulationMedium);
             if (km <= 0.0) km = 1.0;
-            double s_m = (def.KiFactor / km) * kc * conductorLengthFromAirTerminalToNearestBondM;
+            double s_m = def.KiFactor * (kc / km) * conductorLengthFromAirTerminalToNearestBondM;
             return s_m * 1000.0;
         }
 
@@ -246,163 +250,17 @@ namespace StingTools.Core.Lightning
 
         // ── Risk assessment ───────────────────────────────────────────
 
+        /// <summary>
+        /// BS EN 62305-2 risk assessment. Delegates to the full component
+        /// model (R = ΣRA..RZ over RA/RB/RC/RM/RU/RV/RW/RZ) implemented in
+        /// <see cref="LpsRiskModel"/>. Kept as the public entry point so the
+        /// existing panel / dialog callers are unchanged; they automatically
+        /// get the component-summed risk plus the per-component breakdown.
+        /// </summary>
         public static LpsRiskResult RunRiskAssessment(LpsRiskInput input)
         {
-            var result = new LpsRiskResult();
-            try
-            {
-                EnsureLoaded();
-                if (input == null) { result.Notes = "No input provided"; return result; }
-
-                // Collection area Ae per BS EN 62305-2 §A.2.
-                // Wave A #5 — when the caller supplies AeOverrideM2 > 0
-                // (e.g. from a hand-calc on L-shaped / multi-volume
-                // geometry, or from a 3D bounding-volume sweep), use it
-                // directly. Otherwise compute the rectangular Annex A.2
-                // approximation: Ae = L*W + 2*(3H)*(L+W) + π*(3H)^2.
-                double L = input.PlanLengthM;
-                double W = input.PlanWidthM;
-                double H = input.HeightM;
-                if (L <= 0 || W <= 0 || H <= 0)
-                {
-                    double area = input.PlanAreaM2;
-                    if (area > 0 && L <= 0 && W <= 0)
-                    {
-                        L = Math.Sqrt(area);
-                        W = L;
-                    }
-                }
-                double Ae;
-                if (input.AeOverrideM2 > 0)
-                {
-                    // User-supplied (hand-calc or external geometry sweep).
-                    Ae = input.AeOverrideM2;
-                }
-                else
-                {
-                    Ae = (L * W) + (2.0 * (3.0 * H) * (L + W)) + (Math.PI * Math.Pow(3.0 * H, 2));
-                }
-                if (Ae < 1.0) Ae = 1.0;
-                result.CollectionAreaM2 = Ae;
-
-                // Annual dangerous events: Nd = Ng * Ae * Cd * 10^-6
-                double Nd = input.GroundFlashDensity * Ae * input.LocationFactorCd * 1e-6;
-                result.AnnualStrikeFrequency = Nd;
-
-                // ── R1–R4 across BS EN 62305-2 loss types ─────────────
-                // Loss-type sensitivities use a pragmatic weighting that
-                // surfaces the engine's simplified factor model across
-                // all four loss types. Real BS EN 62305-2 splits R into
-                // 8 components (RA/RB/RC/RM/RU/RV/RW/RZ) summed per loss
-                // type — STING surfaces a single risk per loss type
-                // weighted as below, which agrees on order-of-magnitude
-                // with a hand-calc and lets the panel show all four
-                // tolerable-risk gates simultaneously.
-                //
-                // L1 (life)     = Nd · Cb · Cc · Cd_occ · Ce
-                // L2 (service)  = Nd · Cb · Cc · Ce
-                // L3 (cultural) = Nd · Cb · Cc
-                // L4 (economic) = Nd · Cb · Cc · Ce · 0.1
-                double R1 = Nd * input.BuildingTypeCb * input.InternalContentCc *
-                            input.OccupantHazardCd * input.ConsequenceCe;
-                double R2 = Nd * input.BuildingTypeCb * input.InternalContentCc *
-                            input.ConsequenceCe;
-                double R3 = Nd * input.BuildingTypeCb * input.InternalContentCc;
-                double R4 = Nd * input.BuildingTypeCb * input.InternalContentCc *
-                            input.ConsequenceCe * 0.1;
-
-                result.RiskComponents["R1_Direct"]   = R1;  // legacy key — preserved for existing consumers
-                result.RiskByLossType["L1"] = R1;
-                result.RiskByLossType["L2"] = R2;
-                result.RiskByLossType["L3"] = R3;
-                result.RiskByLossType["L4"] = R4;
-
-                // Per-loss-type tolerable thresholds from
-                // STING_LPS_RISK_FACTORS.json lossTypes[].rt, falling
-                // back to BS EN 62305-2 Table 7 defaults.
-                var lossRt = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["L1"] = 1e-5, ["L2"] = 1e-3, ["L3"] = 1e-4, ["L4"] = 1e-3
-                };
-                try
-                {
-                    var lib = GetRiskFactorLibrary();
-                    var arr = lib?["lossTypes"] as JArray;
-                    if (arr != null)
-                    {
-                        foreach (var lt in arr)
-                        {
-                            string id = lt["id"]?.ToString();
-                            double rt = lt["rt"]?.Value<double>() ?? 0.0;
-                            if (!string.IsNullOrEmpty(id) && rt > 0) lossRt[id] = rt;
-                        }
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"LossType Rt read: {ex.Message}"); }
-
-                foreach (var kv in lossRt)
-                {
-                    result.TolerableByLossType[kv.Key] = kv.Value;
-                    if (result.RiskByLossType.TryGetValue(kv.Key, out double rval))
-                        result.ExceedsByLossType[kv.Key] = rval > kv.Value;
-                }
-
-                // Legacy single-value contract — defaults to L1 unless caller overrode.
-                double Rt = input.TolerableRisk > 0 ? input.TolerableRisk : lossRt["L1"];
-                result.TolerableRisk = Rt;
-
-                // RequiresLps is true if ANY loss type exceeds its threshold.
-                result.RequiresLps = result.ExceedsByLossType.Any(kv => kv.Value);
-
-                // Recommended class via threshold table — sized for the
-                // worst-case loss type. Picks based on Nd as the primary
-                // driver (BS EN 62305-2 §6.2) but only when at least one
-                // loss type exceeds; otherwise NONE.
-                result.RecommendedClass = result.RequiresLps ? RecommendClass(Nd) : "NONE";
-
-                // Residual risk per class — R_residual = R_worst × (1 − PE)
-                try
-                {
-                    double rWorst = result.RiskByLossType.Values.DefaultIfEmpty(R1).Max();
-                    foreach (var classDef in AllClasses())
-                    {
-                        double pe = classDef.ProtectionEfficiency;
-                        if (pe <= 0 || pe >= 1) continue;
-                        double residual = rWorst * (1.0 - pe);
-                        result.ResidualRiskByClass[classDef.Id.ToUpperInvariant()] = residual;
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"Residual risk: {ex.Message}"); }
-
-                result.Notes = string.Format(
-                    "Nd={0:F4} flashes/yr; R1={1:E2} R2={2:E2} R3={3:E2} R4={4:E2}; recommended class {5}.",
-                    Nd, R1, R2, R3, R4, result.RecommendedClass ?? "NONE");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("RunRiskAssessment failed", ex);
-                result.Notes = "Risk assessment failed: " + ex.Message;
-            }
-            return result;
-        }
-
-        private static string RecommendClass(double nd)
-        {
-            try
-            {
-                var lib = GetRiskFactorLibrary();
-                var thresholds = lib?["classRecommendation"]?["thresholds"] as JArray;
-                if (thresholds == null) return "II";
-                foreach (var t in thresholds)
-                {
-                    double mn = t["ndMin"]?.Value<double>() ?? 0;
-                    double mx = t["ndMax"]?.Value<double>() ?? double.MaxValue;
-                    if (nd >= mn && nd < mx)
-                        return t["class"]?.ToString() ?? "II";
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"RecommendClass: {ex.Message}"); }
-            return "II";
+            EnsureLoaded();
+            return LpsRiskModel.Compute(input);
         }
 
         // ── Model validation ─────────────────────────────────────────
@@ -914,20 +772,100 @@ namespace StingTools.Core.Lightning
         /// rectangular formula. Set 0 to use the rectangular calc.
         /// </summary>
         public double AeOverrideM2 { get; set; }
-        // Cb / Cc / Cd (occupant) / Ce / Cd (location) coefficients
+        // Cb / Cc / Cd (occupant) / Ce / Cd (location) coefficients.
+        // Used by the legacy screening weighting and to derive loss-model
+        // categories when the structured *Id fields are not supplied.
         public double BuildingTypeCb { get; set; } = 1.0;
         public double InternalContentCc { get; set; } = 1.0;
         public double OccupantHazardCd { get; set; } = 1.0;
         public double ConsequenceCe { get; set; } = 1.0;
-        public double LocationFactorCd { get; set; } = 1.0;
+        public double LocationFactorCd { get; set; } = 1.0;   // C_D (Table A.1)
         public double TolerableRisk { get; set; } = 1e-5;
         public List<string> ConnectedServices { get; set; } = new List<string>();
+
+        // ── Full BS EN 62305-2 component-model inputs ─────────────────
+        // All optional; when unset the model falls back to the structured
+        // *Id fields, then to the numeric coefficients above, then to the
+        // standard's conservative defaults (see STING_LPS_RISK_TABLES.json).
+
+        /// <summary>LPS class assumed present for a "verify current design" run.
+        /// The risk-need assessment computes the UNPROTECTED baseline (P_B = 1)
+        /// regardless, then selects a class from residual risk.</summary>
+        public string LpsClassPresent { get; set; } = "NONE";
+        /// <summary>Coordinated SPD protection level (NONE / III-IV / II / I /
+        /// BETTER / BEST) — P_SPD (Table B.3) and P_EB (Table B.7).</summary>
+        public string SpdProtectionLevel { get; set; } = "NONE";
+        /// <summary>Ground/floor surface key for r_t (Table C.3): AGRICULTURAL /
+        /// MARBLE_CONCRETE / GRAVEL_CARPET / ASPHALT_WOOD.</summary>
+        public string SoilSurfaceType { get; set; } = "MARBLE_CONCRETE";
+        /// <summary>Fire-protection provisions for r_p (Table C.4): NONE /
+        /// EXTINGUISHERS_ALARM / FIRE_BRIGADE_AUTO.</summary>
+        public string FireProtection { get; set; } = "NONE";
+        /// <summary>Fire/explosion risk for r_f (Table C.5): EXPLOSION / HIGH /
+        /// ORDINARY / LOW / NONE. Empty → resolved from building / content.</summary>
+        public string FireRisk { get; set; } = "";
+        /// <summary>Special-hazard key for h_z (Table C.6): NONE / LOW_PANIC /
+        /// MEDIUM_PANIC / HIGH_PANIC / ENV_CONTAMINATION. Empty → resolved from
+        /// occupant hazard / building use.</summary>
+        public string SpecialHazard { get; set; } = "";
+        /// <summary>Internal wiring routed in a shield/conduit (legacy flag;
+        /// prefer <see cref="WiringType"/> for the full K_S3 table).</summary>
+        public bool WiringShielded { get; set; } = false;
+        /// <summary>Structure provides a spatial magnetic shield (legacy flag;
+        /// prefer <see cref="SpatialShieldMeshWidthM"/>).</summary>
+        public bool StructureShielded { get; set; } = false;
+        /// <summary>Mesh width w_m1 (m) of the large-scale spatial shield
+        /// (LPS grid). K_S1 = 0.12·w_m1 (Annex B.5). 0 ⇒ no shield (K_S1 = 1).</summary>
+        public double SpatialShieldMeshWidthM { get; set; }
+        /// <summary>Mesh width w_m2 (m) of the inner-LPZ shield.
+        /// K_S2 = 0.12·w_m2 (Annex B.5). 0 ⇒ no inner shield (K_S2 = 1).</summary>
+        public double InternalShieldMeshWidthM { get; set; }
+        /// <summary>Internal-wiring routing/shielding key for K_S3 (Table B.5):
+        /// UNSHIELDED_NO_PRECAUTION / UNSHIELDED_LOOP_PRECAUTION /
+        /// UNSHIELDED_CLOSE_BONDING / SHIELDED_RS_5_20 / SHIELDED_RS_LE_5.
+        /// Empty ⇒ derived from <see cref="WiringShielded"/>.</summary>
+        public string WiringType { get; set; } = "";
+        /// <summary>Rated impulse withstand voltage of internal systems, kV
+        /// (K_S4 = 1/U_w, Annex B.5; also reduces P_LD / P_LI). Default 1.5 kV.</summary>
+        public double UwKv { get; set; } = 1.5;
+        /// <summary>Internal systems endanger life on failure (hospital ICU,
+        /// explosion) → L_O contributes to R1. Empty → resolved from use.</summary>
+        public bool? LifeEndangeringSystems { get; set; }
+        /// <summary>Persons in the zone / total (n_z / n_t). 0 ⇒ factor 1.</summary>
+        public double PersonsInZone { get; set; }
+        public double PersonsTotal { get; set; }
+        /// <summary>Hours per year the zone is occupied (t_z). 0 ⇒ 8760 (factor 1).</summary>
+        public double OccupiedHoursPerYear { get; set; }
+        /// <summary>Connected service lines. null/empty ⇒ a default power +
+        /// telecom pair (or derived from <see cref="ConnectedServices"/>).</summary>
+        public List<LpsServiceLine> Lines { get; set; }
+    }
+
+    /// <summary>
+    /// A connected service line for the BS EN 62305-2 line-related risk
+    /// components (R_U / R_V / R_W / R_Z). Lengths in metres; factor keys map
+    /// into STING_LPS_RISK_TABLES.json (lineCi / lineCe / lineCt / pLD / pLI).
+    /// </summary>
+    public class LpsServiceLine
+    {
+        public string Id { get; set; } = "POWER";
+        public double LengthM { get; set; } = 1000.0;        // L_L (default 1000 m when unknown)
+        public string Install { get; set; } = "AERIAL";      // C_I (Table A.4)
+        public string Environment { get; set; } = "SUBURBAN"; // C_E (Table A.5)
+        public string Transformer { get; set; } = "NONE";    // C_T (Table A.3)
+        public string Shield { get; set; } = "UNSHIELDED";   // P_LD / P_LI key (Tables B.8 / B.9)
     }
 
     public class LpsRiskResult
     {
         public bool RequiresLps { get; set; }
         public string RecommendedClass { get; set; } = "II";
+        /// <summary>Minimal coordinated SPD protection level (NONE / III-IV /
+        /// II / I / BETTER / BEST) needed — alongside the recommended LPS
+        /// class — to bring every loss type's risk below its tolerable
+        /// threshold. SPDs (not the LPS class) drive the surge-related
+        /// components, so this is what clears the surge-dominated R2 / R4.</summary>
+        public string RecommendedSpdLevel { get; set; } = "NONE";
         public double AnnualStrikeFrequency { get; set; }
         public double CollectionAreaM2 { get; set; }
         public double TolerableRisk { get; set; }
@@ -960,6 +898,14 @@ namespace StingTools.Core.Lightning
         /// Worst-case is the maximum of R1..R4 so the residual gate is conservative.
         /// </summary>
         public Dictionary<string, double> ResidualRiskByClass { get; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+        /// BS EN 62305-2 risk components for the headline loss type (RA, RB,
+        /// RC, RM, RU, RV, RW, RZ). Populated by the full component model so
+        /// the panel can show which damage path dominates. Empty when the
+        /// legacy screening path is used.
+        /// </summary>
+        public Dictionary<string, double> ComponentBreakdown { get; }
             = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         public string Notes { get; set; }
     }
