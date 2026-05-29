@@ -292,6 +292,25 @@ namespace StingTools.UI.PlacementCenter
 
         public static void ShowOrFocus(UIApplication uiApp)
         {
+            // Guard the inputs the window's construction depends on. The
+            // Placement Centre loads project rules and places fixtures into
+            // rooms, so it needs a live UIApplication + open document. Failing
+            // fast here with a clear message avoids constructing a window bound
+            // to a null document (the most common "Object reference not set"
+            // on open).
+            if (uiApp == null)
+            {
+                TaskDialog.Show("STING — Placement Centre",
+                    "Revit application context unavailable — try again once Revit has finished loading.");
+                return;
+            }
+            if (uiApp.ActiveUIDocument?.Document == null)
+            {
+                TaskDialog.Show("STING — Placement Centre",
+                    "Open a Revit project before launching the Placement Centre.");
+                return;
+            }
+
             if (_instance != null && !_instance._closed)
             {
                 // If the cached instance is bound to a different document
@@ -319,9 +338,15 @@ namespace StingTools.UI.PlacementCenter
             }
             catch (Exception ex)
             {
-                StingLog.Error("StingPlacementCenter.ShowOrFocus", ex);
+                // Log the FULL exception (message + stack + inner) so a
+                // surviving failure mode is pinpointable from StingTools.log.
+                StingLog.Error("StingPlacementCenter.ShowOrFocus\n" + ex.ToString(), ex);
+                _instance = null; // never leave a half-constructed singleton cached
+                string where = ex.StackTrace?.Split('\n')?.FirstOrDefault()?.Trim();
                 TaskDialog.Show("STING — Placement Centre",
-                    $"Failed to open Placement Centre.\n\n{ex.Message}");
+                    $"Failed to open Placement Centre.\n\n{ex.GetType().Name}: {ex.Message}"
+                    + (string.IsNullOrEmpty(where) ? "" : $"\n\nAt: {where}")
+                    + "\n\nFull details in StingTools.log.");
             }
         }
 

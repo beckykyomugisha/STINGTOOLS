@@ -109,6 +109,13 @@ namespace StingTools.Core
                 }
                 catch (Exception hubEx) { StingLog.Warn($"Material Hub register: {hubEx.Message}"); }
 
+                // Single consolidated "STING Panels" ribbon group — one toggle
+                // per dockable panel. Built after every pane is registered so
+                // each button targets a live pane. Replaces the scattered
+                // per-discipline ribbon buttons + duplicate HVAC toggles.
+                try { BuildStingPanelsGroup(application); }
+                catch (Exception grpEx) { StingLog.Warn($"STING Panels group: {grpEx.Message}"); }
+
                 // Register the cost stale marker (IUpdater) — starts disabled.
                 // Toggled via Cost_ToggleStaleMarker. Marks ASS_CST_STALE_BOOL
                 // when geometry / material / type changes invalidate a costed
@@ -1680,7 +1687,6 @@ namespace StingTools.Core
         // the "tab already exists" exception when CreateRibbonTab is called
         // a second time (e.g. during a duplicate addin load).
         private const string RibbonTabName = "STING Tools";
-        private static bool _ribbonTabReady;
 
         /// <summary>
         /// Idempotently create the shared "STING Tools" ribbon tab.
@@ -1734,10 +1740,7 @@ namespace StingTools.Core
                     AddButton(addinsPanel, "btnTogglePanelFallback", "STING\nPanel",
                         AssemblyPath, typeof(ToggleDockPanelCommand).FullName,
                         "Show/hide the STING Tools dockable panel (fallback on Add-Ins tab — custom 'STING Tools' tab failed to create).");
-                    AddButton(addinsPanel, "btnToggleHvacFallback", "STING\nHVAC",
-                        AssemblyPath, typeof(ToggleHvacPanelCommand).FullName,
-                        "Show/hide the STING HVAC Center dockable panel (fallback).");
-                    StingLog.Info("Add-Ins fallback panel registered with STING Panel + STING HVAC toggle buttons.");
+                    StingLog.Info("Add-Ins fallback panel registered with STING Panel toggle button.");
                 }
                 catch (Exception fbEx) { StingLog.Warn($"Add-Ins fallback: {fbEx.Message}"); }
             }
@@ -1776,25 +1779,11 @@ namespace StingTools.Core
                     catch (Exception bhEx) { StingLog.Error("BuildHubPanel failed", bhEx); }
                 }
 
-                RibbonPanel togglePanel = null;
-                try { togglePanel = application.CreateRibbonPanel(tabName, "Panel"); }
-                catch (Exception tpEx) { StingLog.Error($"CreateRibbonPanel('Panel') failed: {tpEx.Message}", tpEx); }
-                if (togglePanel != null)
-                {
-                    try
-                    {
-                        AddButton(togglePanel, "btnTogglePanel", "STING\nPanel",
-                            asmPath, typeof(ToggleDockPanelCommand).FullName,
-                            "Show/hide the STING Tools dockable panel");
-                        AddButton(togglePanel, "btnTogglePanelHvac", "STING\nHVAC",
-                            asmPath, typeof(ToggleHvacPanelCommand).FullName,
-                            "Show/hide the STING HVAC Center dockable panel (backup entry — see also 'STING HVAC' panel + STING Hub 'HVAC Panel' tile)");
-                        StingLog.Info("Panel ribbon panel populated (STING Panel + STING HVAC)");
-                    }
-                    catch (Exception abEx) { StingLog.Error("Panel AddButton failed", abEx); }
-                }
+                // The main-panel + HVAC backup toggles that used to live in a
+                // separate "Panel" ribbon group now live in the single
+                // consolidated "STING Panels" group (BuildStingPanelsGroup).
 
-                StingLog.Info("Dockable panel registered successfully (Panel + HVAC backup button)");
+                StingLog.Info("Dockable panel registered successfully");
             }
             catch (Exception ex)
             {
@@ -1826,21 +1815,7 @@ namespace StingTools.Core
             {
                 StingLog.Error("RegisterDockablePane (Electrical) failed", ex);
             }
-
-            if (!_ribbonTabReady) return;
-
-            try
-            {
-                var elecPanel = application.CreateRibbonPanel(RibbonTabName, "⚡ Electrical");
-                AddButton(elecPanel, "btnToggleElectrical", "STING\nElectrical",
-                    AssemblyPath, typeof(ToggleElectricalPanelCommand).FullName,
-                    "Show/hide the STING Electrical Center dockable panel.");
-                StingLog.Info("Electrical dockable panel registered successfully");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("Failed to add Electrical ribbon button", ex);
-            }
+            // Ribbon toggle now lives in the consolidated "STING Panels" group.
         }
 
         // ── Phase 178c — STING Plumbing Center registration ─────────────
@@ -1863,21 +1838,7 @@ namespace StingTools.Core
             {
                 StingLog.Error("RegisterDockablePane (Plumbing) failed", ex);
             }
-
-            if (!_ribbonTabReady) return;
-
-            try
-            {
-                var plumbPanel = application.CreateRibbonPanel(RibbonTabName, "💧 Plumbing");
-                AddButton(plumbPanel, "btnTogglePlumbing", "STING\nPlumbing",
-                    AssemblyPath, typeof(TogglePlumbingPanelCommand).FullName,
-                    "Show/hide the STING Plumbing Center dockable panel.");
-                StingLog.Info("Plumbing dockable panel registered successfully");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("Failed to add Plumbing ribbon button", ex);
-            }
+            // Ribbon toggle now lives in the consolidated "STING Panels" group.
         }
 
         // ── Phase 180 — STING HVAC Center registration ──────────────────
@@ -1895,21 +1856,11 @@ namespace StingTools.Core
                     provider);
                 StingLog.Info($"RegisterHvacPanel: dockable pane registered " +
                     $"(GUID={StingTools.UI.StingHvacPanelProvider.PaneGuid})");
-
-                const string tabName = "STING Tools";
-                string asmPath = AssemblyPath;
-                // Plain-ASCII panel name: the leading snowflake (U+2744) was a
-                // suspect in the "panel doesn't render" investigation. Rename
-                // to "STING HVAC" to be sure Revit isn't dropping the panel
-                // due to unicode-handling weirdness.
-                var hvacPanel = application.CreateRibbonPanel(tabName, "STING HVAC");
-                StingLog.Info("RegisterHvacPanel: ribbon panel 'STING HVAC' created");
-                AddButton(hvacPanel, "btnToggleHvac", "STING\nHVAC",
-                    asmPath, typeof(ToggleHvacPanelCommand).FullName,
-                    "Show/hide the STING HVAC Center dockable panel.");
-                StingLog.Info("HVAC dockable panel registered successfully — " +
-                    "look for '❄ HVAC' panel on the right side of the STING Tools tab " +
-                    "(may be collapsed to a chevron if the Revit window is narrow).");
+                // Ribbon toggle now lives in the consolidated "STING Panels"
+                // group (single HVAC toggle — was previously duplicated across
+                // a dedicated 'STING HVAC' panel, the 'Panel' group, the Hub
+                // tile and the Add-Ins fallback).
+                StingLog.Info("HVAC dockable pane registered successfully.");
             }
             catch (Exception ex)
             {
@@ -1943,14 +1894,8 @@ namespace StingTools.Core
                     StingTools.UI.StingLpsPanelProvider.PaneId,
                     "⚡ STING Lightning Protection",
                     provider);
-
-                const string tabName = "STING Tools";
-                string asmPath = AssemblyPath;
-                var lpsPanel = application.CreateRibbonPanel(tabName, "⚡ LPS");
-                AddButton(lpsPanel, "btnToggleLps", "STING\nLPS",
-                    asmPath, typeof(ToggleLpsPanelCommand).FullName,
-                    "Show/hide the STING Lightning Protection Center dockable panel.");
-                StingLog.Info("LPS dockable panel registered successfully");
+                // Ribbon toggle now lives in the consolidated "STING Panels" group.
+                StingLog.Info("LPS dockable pane registered successfully");
             }
             catch (Exception ex)
             {
@@ -2105,6 +2050,44 @@ namespace StingTools.Core
             pulldown.AddPushButton(data);
         }
 
+        // ── STING Panels — single consolidated toggle group ─────────────────
+
+        /// <summary>
+        /// One ribbon group exposing exactly one show/hide toggle per STING
+        /// dockable panel (Main, Electrical, Plumbing, HVAC, Material Hub,
+        /// LPS). Replaces the previously scattered per-discipline ribbon
+        /// panels and the duplicate HVAC / main-panel backup buttons. Built
+        /// unconditionally after the ribbon tab exists, so it never depends on
+        /// the unreliable per-discipline "tab ready" gate the old buttons used.
+        /// The Placement Centre is intentionally absent — it is a modeless
+        /// window, not a dockable pane, and is launched from the Hub.
+        /// </summary>
+        private void BuildStingPanelsGroup(UIControlledApplication application)
+        {
+            try
+            {
+                var panel = application.CreateRibbonPanel(RibbonTabName, "STING Panels");
+                string asm = AssemblyPath;
+                AddButton(panel, "btnPanelMain",        "STING\nPanel",       asm, typeof(ToggleDockPanelCommand).FullName,
+                    "Show/hide the main STING Tools dockable panel.");
+                AddButton(panel, "btnPanelElectrical",  "STING\nElectrical",  asm, typeof(ToggleElectricalPanelCommand).FullName,
+                    "Show/hide the STING Electrical Center dockable panel.");
+                AddButton(panel, "btnPanelPlumbing",    "STING\nPlumbing",    asm, typeof(TogglePlumbingPanelCommand).FullName,
+                    "Show/hide the STING Plumbing Center dockable panel.");
+                AddButton(panel, "btnPanelHvac",        "STING\nHVAC",        asm, typeof(ToggleHvacPanelCommand).FullName,
+                    "Show/hide the STING HVAC Center dockable panel.");
+                AddButton(panel, "btnPanelMaterialHub", "STING\nMaterial Hub", asm, typeof(ToggleMaterialHubCommand).FullName,
+                    "Show/hide the STING Material Hub dockable panel.");
+                AddButton(panel, "btnPanelLps",         "STING\nLPS",         asm, typeof(ToggleLpsPanelCommand).FullName,
+                    "Show/hide the STING Lightning Protection Center dockable panel.");
+                StingLog.Info("STING Panels ribbon group populated (6 dockable-panel toggles).");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BuildStingPanelsGroup failed", ex);
+            }
+        }
+
         // ── STING Hub ribbon panel ──────────────────────────────────────────
 
         /// <summary>
@@ -2208,7 +2191,6 @@ namespace StingTools.Core
                 ("TemplateManager_Open", "Template Mgr",  "TM", DrawingColor.DarkViolet,   typeof(HubTemplateManagerCommand).FullName),
                 ("DocumentMgmt_Open",    "Doc Manager",   "DM", DrawingColor.DarkOrange,   typeof(HubDocumentMgmtCommand).FullName),
                 ("BOQ_ExportCost",       "BOQ / Cost",    "BQ", DrawingColor.SeaGreen,     typeof(HubBoqExportCostCommand).FullName),
-                ("MaterialHub_Open",     "Material Hub",  "MH", DrawingColor.Chocolate,    typeof(HubMaterialHubCommand).FullName),
                 ("Fabrication_Open",     "Fabrication",   "FW", DrawingColor.Firebrick,    typeof(HubFabricationCommand).FullName),
                 ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,    typeof(HubPlacementCommand).FullName),
                 ("StructuralDWGWizard",  "Struct Wizard", "SW", DrawingColor.SlateGray,    typeof(HubStructuralDwgWizardCommand).FullName),
@@ -2216,7 +2198,6 @@ namespace StingTools.Core
                 ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
                 ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
                 ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,    typeof(HubAutoTagCommand).FullName),
-                ("ToggleHvacPanel",      "HVAC Panel",    "HV", DrawingColor.LightSeaGreen,typeof(HubHvacPanelCommand).FullName),
             };
 
             var buttons = new List<PushButtonData>(12);
@@ -2410,15 +2391,34 @@ namespace StingTools.Core
         {
             try
             {
-                var pane = ParameterHelpers.GetApp(commandData)
-                    .GetDockablePane(StingTools.UI.MaterialHubProvider.PaneId);
+                var app = ParameterHelpers.GetApp(commandData);
+                // The Material Hub panel's Refresh() reads its document from
+                // StingCommandHandler.CurrentApp. When the hub is opened from
+                // its own ribbon toggle (not via a dock-panel command) that
+                // static was never primed, so the grid came up empty. Prime
+                // it here so the first open lists the project's materials.
+                StingTools.UI.StingCommandHandler.SetCurrentApp(app);
+
+                var pane = app.GetDockablePane(StingTools.UI.MaterialHubProvider.PaneId);
                 if (pane == null)
                 {
                     TaskDialog.Show("STING Material Hub",
                         "Material Hub panel not found. Restart Revit to register it.");
                     return Result.Failed;
                 }
-                if (pane.IsShown()) pane.Hide(); else pane.Show();
+                if (pane.IsShown())
+                {
+                    pane.Hide();
+                }
+                else
+                {
+                    pane.Show();
+                    // Repopulate on (re)open — the WPF Loaded handler only fires
+                    // once, so a hidden-then-shown panel would otherwise keep a
+                    // stale/empty grid.
+                    try { StingTools.UI.MaterialHubPanel.LastInstance?.Refresh(); }
+                    catch (Exception rEx) { StingLog.Warn($"Material Hub refresh on open: {rEx.Message}"); }
+                }
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -2586,7 +2586,7 @@ namespace StingTools.Core
     public class HubSchedulingDashboardCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run(data, "AutoSchedule4D", ref message);
+            => HubDispatcher.Run(data, "SchedulingCostDashboard", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
