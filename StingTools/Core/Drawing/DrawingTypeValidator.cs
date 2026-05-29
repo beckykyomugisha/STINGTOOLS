@@ -224,23 +224,6 @@ namespace StingTools.Core.Drawing
             // ── GAP-M: detect overlapping slot bounding boxes ──
             ValidateSlotOverlaps(dt, r);
 
-            // ── Phase 137 — annotation family + production rule + managed pack checks ──
-
-            ValidatePhase137Annotation(doc, dt, r);
-            ValidatePhase137ProductionRules(dt, r);
-            ValidatePhase137ManagedPack(doc, dt, r);
-
-            // ── ACC-03: crop strategy must be sensible for the view type ──
-            ValidateCropForPurpose(dt, r);
-
-            // ── ACC-04: every ${PRJ_ORG_xxx} referenced by TitleBlockParams
-            //   must already be bound on ProjectInformation; otherwise the
-            //   applier would silently substitute an empty string.
-            ValidateProjectInfoBindings(doc, dt, r);
-
-            // ── GAP-K: slot ViewType compatibility with profile.Purpose ──
-            ValidateSlotPurposeAlignment(dt, r);
-
             return r;
         }
 

@@ -4012,9 +4012,6 @@ namespace StingTools.UI
         // ── Fabrication workspace launcher ────────────────────────────
 
 
-        // ── Fabrication workspace launcher ────────────────────────────
-
-
         // ── Generic command runner ────────────────────────────────────
 
         /// <summary>Phase 165 (INT-02 framework) — public bridge so the new
