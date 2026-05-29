@@ -28,6 +28,11 @@ namespace StingTools.UI
         private string _param1 = "";
         private string _param2 = "";
 
+        // Set true by Execute()'s switch default when a tag matches no case.
+        // Lets RunTagSync report a genuine miss without depending on
+        // ExternalEvent.Raise()'s Accepted/Pending coalescing return.
+        private bool _lastTagUnhandled;
+
         // BUG-02 FIX: Re-entrancy depth counter prevents inner Execute() calls
         // (from wizard dialog dispatch loops) from running the finally cleanup,
         // which would clear ExtraParams and _commandTag needed by the outer caller.
@@ -71,6 +76,27 @@ namespace StingTools.UI
             // Tag Studio slider/radio values (ElbowMode, TagTextSize, PreferredTagPos, etc.).
         }
 
+        /// <summary>
+        /// Synchronous, deterministic dispatch for callers ALREADY on the
+        /// Revit API thread (e.g. a Hub ribbon IExternalCommand). Sets the
+        /// explicit tag and runs Execute() back-to-back on the same thread, so
+        /// the tag cannot be clobbered by an intervening click and there is no
+        /// reliance on ExternalEvent.Raise() coalescing. Returns false only
+        /// when the tag is genuinely unhandled by the command switch.
+        /// </summary>
+        public bool RunTagSync(UIApplication app, string tag, string param1 = "", string param2 = "")
+        {
+            if (app == null || string.IsNullOrEmpty(tag)) return false;
+            lock (_lock)
+            {
+                _commandTag = tag;
+                _param1 = param1 ?? "";
+                _param2 = param2 ?? "";
+            }
+            Execute(app);                 // runs synchronously on the API thread
+            return !_lastTagUnhandled;
+        }
+
         public string GetName() => "STING Command Dispatcher";
 
         public void Execute(UIApplication app)
@@ -96,6 +122,11 @@ namespace StingTools.UI
 
             // Guard: empty tag means no command was requested (cleared after previous run)
             if (string.IsNullOrEmpty(tag)) return;
+
+            // Deterministic-dispatch support: assume handled until the switch's
+            // default branch proves the tag is genuinely unrecognised. Read by
+            // RunTagSync so the Hub only reports failure on a real miss.
+            _lastTagUnhandled = false;
 
             // Guard: most commands require an open document.
             // CRITICAL FIX (Phase 79b): Must be BEFORE _executeDepth++ to avoid
@@ -2014,6 +2045,7 @@ namespace StingTools.UI
 
                     // Phase 188 — sibling-panel toggles so dialogs / quick-action buttons can fire them.
                     case "ToggleHvacPanel":        RunCommand<Core.ToggleHvacPanelCommand>(app); break;
+                    case "ToggleMaterialHub":      RunCommand<Core.ToggleMaterialHubCommand>(app); break;
                     case "ToggleElectricalPanel":  RunCommand<Core.ToggleElectricalPanelCommand>(app); break;
                     case "TogglePlumbingPanel":    RunCommand<Core.TogglePlumbingPanelCommand>(app); break;
 
@@ -3825,6 +3857,7 @@ namespace StingTools.UI
                         if (tag.StartsWith("ViewLogs_") || tag.StartsWith("Disconnect_") || tag.StartsWith("ViewDocument_"))
                         { StingLog.Info($"Platform action '{tag}' — no Revit operation required."); break; }
                         // ── Unknown tag ──
+                        _lastTagUnhandled = true;
                         StingLog.Warn($"Unrecognised command tag: {tag}");
                         TaskDialog.Show("STING — Unknown Command",
                             $"Command '{tag}' could not be matched to a handler.\n\n" +

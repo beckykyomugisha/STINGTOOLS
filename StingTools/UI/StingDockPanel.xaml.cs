@@ -184,6 +184,20 @@ namespace StingTools.UI
             return _externalEvent.Raise() == ExternalEventRequest.Accepted;
         }
 
+        /// <summary>
+        /// Deterministic synchronous dispatch for callers already on the Revit
+        /// API thread (Hub ribbon commands). Bypasses ExternalEvent.Raise()
+        /// entirely — runs the command immediately and returns false only when
+        /// the tag is genuinely unhandled. The handler is created on first use
+        /// even if the dock panel has never been opened.
+        /// </summary>
+        public static bool DispatchCommandSync(UIApplication app, string tag, string param1 = "", string param2 = "")
+        {
+            if (app == null || string.IsNullOrEmpty(tag)) return false;
+            if (_handler == null) _handler = new StingCommandHandler();
+            return _handler.RunTagSync(app, tag, param1, param2);
+        }
+
         // ── Unified button click dispatcher ──────────────────────────────
 
         /// <summary>
