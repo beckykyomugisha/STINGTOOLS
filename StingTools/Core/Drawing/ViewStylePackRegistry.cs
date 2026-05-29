@@ -114,6 +114,21 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// Flatten the pack's nested "appearance" object onto the pack's
+        /// flat fields. Flat fields already set on the pack win — the
+        /// appearance block only fills gaps.
+        /// </summary>
+        private static void PromoteAppearance(ViewStylePack p)
+        {
+            if (p?.Appearance == null) return;
+            var a = p.Appearance;
+            if (a.LineWeightScale.HasValue && p.LineWeightScale == 1.0) p.LineWeightScale = a.LineWeightScale.Value;
+            if (string.IsNullOrEmpty(p.TextStyle)      && !string.IsNullOrEmpty(a.TextStyleName))      p.TextStyle = a.TextStyleName;
+            if (string.IsNullOrEmpty(p.DimensionStyle) && !string.IsNullOrEmpty(a.DimensionStyleName)) p.DimensionStyle = a.DimensionStyleName;
+            if (string.IsNullOrEmpty(p.HatchPalette)   && !string.IsNullOrEmpty(a.HatchPalette))       p.HatchPalette = a.HatchPalette;
+        }
+
         private static ViewStylePackLibrary Merge(ViewStylePackLibrary baseLib, ViewStylePackLibrary over)
         {
             if (over == null) return baseLib ?? new ViewStylePackLibrary();

@@ -359,6 +359,182 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { r.Warnings.Add($"ApplyWorksetVisibility: {ex.Message}"); }
         }
 
+        // ── Phase 137 — Revit-link graphic overrides ──
+        // The pack's LinkOverrides is a raw JSON token (merge-stub model).
+        // Shape: { "<link name>": { "hidden": true, "halftone": true } }.
+        internal static void ApplyLinkOverrides(Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        {
+            if (pack?.LinkOverrides == null) return;
+            Dictionary<string, Newtonsoft.Json.Linq.JObject> spec = null;
+            try
+            {
+                var tok = pack.LinkOverrides as Newtonsoft.Json.Linq.JToken
+                          ?? Newtonsoft.Json.Linq.JToken.FromObject(pack.LinkOverrides);
+                if (tok is Newtonsoft.Json.Linq.JObject jo)
+                    spec = jo.ToObject<Dictionary<string, Newtonsoft.Json.Linq.JObject>>();
+            }
+            catch (Exception ex) { r.Warnings.Add($"ApplyLinkOverrides parse: {ex.Message}"); return; }
+            if (spec == null || spec.Count == 0) return;
+
+            var links = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>().ToList();
+            foreach (var kv in spec)
+            {
+                try
+                {
+                    var link = links.FirstOrDefault(l => string.Equals(l.Name, kv.Key, StringComparison.OrdinalIgnoreCase));
+                    if (link == null) { r.Warnings.Add($"Revit link '{kv.Key}' not found — skipped."); continue; }
+                    var rgs = new RevitLinkGraphicsSettings();
+                    bool hidden = kv.Value?["hidden"]?.Value<bool>() ?? false;
+                    if (hidden) rgs.LinkVisibilityType = LinkVisibility.Invisible;
+                    var ht = kv.Value?["halftone"];
+                    if (ht != null)
+                    {
+                        var ogs = new OverrideGraphicSettings();
+                        ogs.SetHalftone(ht.Value<bool>());
+                        rgs.OverrideGraphicSettings = ogs;
+                    }
+                    view.SetLinkOverrides(link.Id, rgs);
+                }
+                catch (Exception ex) { r.Warnings.Add($"Link override '{kv.Key}': {ex.Message}"); }
+            }
+        }
+
+        // ── Phase 137 — Color-fill schemes ──
+        // Shape: { "<category name>": "<color fill scheme name>" }.
+        internal static void ApplyColorFillSchemes(Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        {
+            if (pack?.ColorFillSchemes == null) return;
+            Dictionary<string, string> spec = null;
+            try
+            {
+                var tok = pack.ColorFillSchemes as Newtonsoft.Json.Linq.JToken
+                          ?? Newtonsoft.Json.Linq.JToken.FromObject(pack.ColorFillSchemes);
+                if (tok is Newtonsoft.Json.Linq.JObject jo)
+                    spec = jo.ToObject<Dictionary<string, string>>();
+            }
+            catch (Exception ex) { r.Warnings.Add($"ApplyColorFillSchemes parse: {ex.Message}"); return; }
+            if (spec == null || spec.Count == 0) return;
+            if (!(view is ViewPlan vp))
+            {
+                r.Warnings.Add("Pack declares colorFillSchemes but view is not a plan — skipped.");
+                return;
+            }
+            var schemes = new FilteredElementCollector(doc)
+                .OfClass(typeof(ColorFillScheme)).Cast<ColorFillScheme>().ToList();
+            foreach (var kv in spec)
+            {
+                try
+                {
+                    var catId = ResolveCategoryId(doc, kv.Key);
+                    if (catId == ElementId.InvalidElementId) { r.Warnings.Add($"ColorFill category '{kv.Key}' not found — skipped."); continue; }
+                    var scheme = schemes.FirstOrDefault(s => string.Equals(s.Name, kv.Value, StringComparison.OrdinalIgnoreCase));
+                    if (scheme == null) { r.Warnings.Add($"ColorFillScheme '{kv.Value}' not found — skipped."); continue; }
+                    vp.SetColorFillSchemeId(catId, scheme.Id);
+                }
+                catch (Exception ex) { r.Warnings.Add($"ColorFill '{kv.Key}': {ex.Message}"); }
+            }
+        }
+
+        // ── Phase 137 — Pack-level filter enable flag ──
+        // FilterEnabled defaults true; when explicitly false the pack
+        // disables every filter already attached to the view.
+        internal static void ApplyFilterEnabled(Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        {
+            if (pack == null || view == null) return;
+            if (pack.FilterEnabled) return; // enabled — nothing to do
+            try
+            {
+                foreach (var fid in view.GetFilters())
+                {
+                    try { view.SetFilterVisibility(fid, true); view.SetIsFilterEnabled(fid, false); }
+                    catch (Exception ex) { r.Warnings.Add($"FilterEnabled disable {fid}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { r.Warnings.Add($"ApplyFilterEnabled: {ex.Message}"); }
+        }
+
+        // ── C4 — material-class filter cache + factory ──
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ElementId> _matClassFilterCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+
+        public static void InvalidateMaterialClassFilterCache() => _matClassFilterCache.Clear();
+
+        private static ParameterFilterElement EnsureMaterialClassFilter(Document doc, string className)
+        {
+            try
+            {
+                string filterName = $"STING_MAT_CLASS_{className}";
+                string cacheKey = (doc?.PathName ?? doc?.Title ?? "_") + "|" + className;
+                if (_matClassFilterCache.TryGetValue(cacheKey, out var cachedId) &&
+                    cachedId != null && cachedId.Value > 0 &&
+                    doc.GetElement(cachedId) is ParameterFilterElement cachedPfe &&
+                    string.Equals(cachedPfe.Name, filterName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return cachedPfe;
+                }
+
+                var existing = new FilteredElementCollector(doc).OfClass(typeof(ParameterFilterElement))
+                    .Cast<ParameterFilterElement>()
+                    .FirstOrDefault(f => string.Equals(f.Name, filterName, StringComparison.OrdinalIgnoreCase));
+
+                var matIds = new FilteredElementCollector(doc).OfClass(typeof(Material))
+                    .Cast<Material>()
+                    .Where(m => string.Equals(m.MaterialClass ?? "", className, StringComparison.OrdinalIgnoreCase))
+                    .Select(m => m.Id)
+                    .ToList();
+                if (matIds.Count == 0) { if (existing != null) _matClassFilterCache[cacheKey] = existing.Id; return existing; }
+
+                var cats = new List<ElementId>
+                {
+                    new ElementId(BuiltInCategory.OST_Walls),
+                    new ElementId(BuiltInCategory.OST_Floors),
+                    new ElementId(BuiltInCategory.OST_Ceilings),
+                    new ElementId(BuiltInCategory.OST_Roofs),
+                    new ElementId(BuiltInCategory.OST_Columns),
+                    new ElementId(BuiltInCategory.OST_StructuralColumns),
+                    new ElementId(BuiltInCategory.OST_StructuralFraming),
+                    new ElementId(BuiltInCategory.OST_StructuralFoundation),
+                    new ElementId(BuiltInCategory.OST_Doors),
+                    new ElementId(BuiltInCategory.OST_Windows),
+                    new ElementId(BuiltInCategory.OST_PlumbingFixtures),
+                    new ElementId(BuiltInCategory.OST_MechanicalEquipment),
+                    new ElementId(BuiltInCategory.OST_ElectricalFixtures),
+                    new ElementId(BuiltInCategory.OST_LightingFixtures),
+                    new ElementId(BuiltInCategory.OST_Furniture),
+                };
+
+                var rules = new List<FilterRule>();
+                ElementId matParam = new ElementId(BuiltInParameter.MATERIAL_ID_PARAM);
+                foreach (var mid in matIds)
+                {
+                    try { rules.Add(ParameterFilterRuleFactory.CreateEqualsRule(matParam, mid)); }
+                    catch (Exception ex) { StingTools.Core.StingLog.WarnRateLimited("MatClassFilter.Rule", $"Rule build: {ex.Message}"); }
+                }
+                if (rules.Count == 0) return existing;
+                ElementParameterFilter elemFilter = new ElementParameterFilter(rules, false /* OR semantics across the rules */);
+
+                ParameterFilterElement built;
+                if (existing == null)
+                {
+                    built = ParameterFilterElement.Create(doc, filterName, cats, elemFilter);
+                }
+                else
+                {
+                    try { existing.SetCategories(cats); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { existing.SetElementFilter(elemFilter); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    built = existing;
+                }
+                if (built != null) _matClassFilterCache[cacheKey] = built.Id;
+                return built;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"EnsureMaterialClassFilter '{className}': {ex.Message}");
+                return null;
+            }
+        }
+
         private static ElementId ResolveCategoryId(Document doc, string key)
         {
             if (string.IsNullOrWhiteSpace(key)) return ElementId.InvalidElementId;

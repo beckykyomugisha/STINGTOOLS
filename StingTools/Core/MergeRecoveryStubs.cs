@@ -243,9 +243,17 @@ namespace StingTools.Core.Drawing
         public Dictionary<string, ByMaterialClassOverride> ByMaterialClass  { get; set; }
     }
 
-    /// <summary>Stub — pack-level appearance settings referenced by ViewStylePack.</summary>
+    /// <summary>Stub — pack-level appearance settings referenced by ViewStylePack.
+    /// Field names match the corporate STING_VIEW_STYLE_PACKS.json "appearance"
+    /// object so it round-trips; PromoteAppearance flattens these onto the pack.</summary>
     public sealed class PackAppearanceDto
     {
+        [Newtonsoft.Json.JsonProperty("lineWeightScale")]   public double? LineWeightScale    { get; set; }
+        [Newtonsoft.Json.JsonProperty("textStyleName")]     public string  TextStyleName      { get; set; }
+        [Newtonsoft.Json.JsonProperty("dimensionStyleName")] public string DimensionStyleName { get; set; }
+        [Newtonsoft.Json.JsonProperty("hatchPalette")]      public string  HatchPalette       { get; set; }
+
+        // Optional graphic-override fields (kept for editor round-trip; not in baseline JSON).
         public string FillPattern      { get; set; }
         public string LinePattern      { get; set; }
         public int?   ProjLineWeight   { get; set; }
