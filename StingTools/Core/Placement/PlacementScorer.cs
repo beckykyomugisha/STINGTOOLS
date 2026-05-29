@@ -300,6 +300,13 @@ namespace StingTools.Core.Placement
         private readonly Dictionary<(ElementId, string), LightingGridResult> _gridCache
             = new Dictionary<(ElementId, string), LightingGridResult>();
 
+        /// <summary>
+        /// Phase 139.27 — read-only view of the per-(room, rule) lighting-grid
+        /// cache so the engine can flow noggin-required points onto placed
+        /// instances after the per-room loop.
+        /// </summary>
+        public IReadOnlyDictionary<(ElementId, string), LightingGridResult> GridResults => _gridCache;
+
         private void EmitLightingGridPoints(Room room, PlacementRule rule, XYZ roomPt,
             double offsetXFt, double offsetYFt, double anchorZ, List<XYZ> points)
         {

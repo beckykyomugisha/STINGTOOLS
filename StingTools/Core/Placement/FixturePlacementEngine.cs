@@ -294,6 +294,28 @@ namespace StingTools.Core.Placement
             CurrentPhase = "Pre-flight starting";
             var swEngine = System.Diagnostics.Stopwatch.StartNew();
             StingLog.Info($"FixturePlacementEngine: run start — {rooms.Count} rooms, {ordered.Count} rules.");
+
+            // Phase 139.2 G — Step 1: place every first-fix box for the
+            // TwoPhaseEnabled rules.  These run before per-room iteration
+            // so the second-fix matching index covers the whole scope.
+            Dictionary<string, XYZ> firstFixIndex = null;
+            if (!dryRun)
+            {
+                bool anyTwoPhase = ordered.Any(r => r != null && r.TwoPhaseEnabled);
+                if (!anyTwoPhase)
+                {
+                    StingLog.Info("FixturePlacementEngine: no TwoPhaseEnabled rule — skipping first-fix pass.");
+                }
+                else
+                {
+                    CurrentPhase = "Pre-flight: first-fix box placement";
+                    var swFf = System.Diagnostics.Stopwatch.StartNew();
+                    try { firstFixIndex = TwoPhaseBoxPlacer.PlaceFirstFixBoxes(doc, roomIds, ordered, result); }
+                    catch (Exception ex) { result.Warnings.Add($"Two-phase first-fix: {ex.Message}"); }
+                    StingLog.Info($"FixturePlacementEngine: PlaceFirstFixBoxes done in {swFf.ElapsedMilliseconds} ms ({firstFixIndex?.Count ?? 0} boxes).");
+                }
+            }
+
             try
             {
                 int processed = 0;
@@ -308,7 +330,6 @@ namespace StingTools.Core.Placement
 
                     // PC-13 — per-room state so dependent rules see predecessors.
                     var roomState = new RoomState();
-                    string roomName = SafeRoomName(room);
                     foreach (var rule in ordered)
                     {
                         var diag = result.Diag(rule.MergeKey);

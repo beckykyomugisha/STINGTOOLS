@@ -33,11 +33,11 @@ namespace StingTools.Core.Placement
         // SourcePack so the rules viewmodel can filter by pack chip.
         private static readonly (string FileName, string PackTag)[] DisciplinePacks = new (string, string)[]
         {
-            "STING_PLACEMENT_RULES.architecture.json",
-            "STING_PLACEMENT_RULES.mechanical.json",
-            "STING_PLACEMENT_RULES.electrical.json",
-            "STING_PLACEMENT_RULES.healthcare-education.json",
-            "STING_PLACEMENT_RULES.toilet-fixtures.json",  // Phase 177 — full toilet-room fixture coverage
+            ("STING_PLACEMENT_RULES.architecture.json", "Architecture"),
+            ("STING_PLACEMENT_RULES.mechanical.json", "Mechanical"),
+            ("STING_PLACEMENT_RULES.electrical.json", "Electrical"),
+            ("STING_PLACEMENT_RULES.healthcare-education.json", "Healthcare-Education"),
+            ("STING_PLACEMENT_RULES.toilet-fixtures.json", "Toilet-Fixtures"),  // Phase 177 — full toilet-room fixture coverage
         };
 
         /// <summary>
