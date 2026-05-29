@@ -1616,6 +1616,9 @@ namespace StingTools.UI
     {
         public event PropertyChangedEventHandler PropertyChanged;
         private void Raise(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+
+        private bool _include = true; public bool Include { get => _include; set { _include = value; Raise(nameof(Include)); } }
+        public string CurrentName { get; set; }
         private string _newName; public string NewName { get => _newName; set { _newName = value; Raise(nameof(NewName)); } }
         public double RotationDegrees { get; set; }
         public string RotationText => RotationDegrees == 0 ? "0°" : $"{RotationDegrees:F1}°";
