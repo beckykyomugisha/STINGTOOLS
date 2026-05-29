@@ -74,12 +74,12 @@ namespace StingTools.Core.TemplateManager
                     if (!v.IsTemplate) continue;
                     var ts = new TemplateSnap
                     {
-                        ElementId = v.Id.IntegerValue,
+                        ElementId = (int)v.Id.Value,
                         Name = v.Name,
                         Scale = v.Scale,
                         DetailLevel = v.DetailLevel.ToString()
                     };
-                    try { ts.FilterIds = v.GetFilters().Select(i => i.IntegerValue).ToList(); }
+                    try { ts.FilterIds = v.GetFilters().Select(i => (int)i.Value).ToList(); }
                     catch { /* tolerate */ }
                     // capture a few category-level overrides cheaply
                     foreach (var bic in QuickCategoriesToSnap())
@@ -91,7 +91,7 @@ namespace StingTools.Core.TemplateManager
                             var ogs = v.GetCategoryOverrides(cat.Id);
                             ts.CategoryOverrides.Add(new CategorySnap
                             {
-                                CategoryId = cat.Id.IntegerValue,
+                                CategoryId = (int)cat.Id.Value,
                                 Name = cat.Name,
                                 Halftone = ogs.Halftone,
                                 Transparency = ogs.Transparency,
@@ -108,8 +108,8 @@ namespace StingTools.Core.TemplateManager
                 foreach (var f in new FilteredElementCollector(doc)
                     .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
                 {
-                    var fs = new FilterSnap { ElementId = f.Id.IntegerValue, Name = f.Name };
-                    try { fs.CategoryIds = f.GetCategories().Select(i => i.IntegerValue).ToList(); }
+                    var fs = new FilterSnap { ElementId = (int)f.Id.Value, Name = f.Name };
+                    try { fs.CategoryIds = f.GetCategories().Select(i => (int)i.Value).ToList(); }
                     catch { }
                     snap.Filters.Add(fs);
                 }

@@ -534,7 +534,7 @@ namespace StingTools.Core.TemplateManager
                         Action = match != null ? (hasTmpl ? "Skip" : "Assign") : "Skip",
                         Source = match != null ? "rule" : "—",
                         Detail = match ?? "no match",
-                        RevitElementId = v.Id.IntegerValue
+                        RevitElementId = v.Id.Value
                     });
                 }
             }
@@ -567,7 +567,7 @@ namespace StingTools.Core.TemplateManager
                         Action = missing == 0 ? "Skip" : "Apply",
                         Source = "rule",
                         Detail = $"{applied.Count} applied · {missing} missing",
-                        RevitElementId = t.Id.IntegerValue
+                        RevitElementId = t.Id.Value
                     });
                 }
             }
@@ -593,7 +593,7 @@ namespace StingTools.Core.TemplateManager
                         Exists = true,
                         Action = "—",
                         Source = "project",
-                        RevitElementId = ph.Id.IntegerValue
+                        RevitElementId = ph.Id.Value
                     });
                 }
             }
