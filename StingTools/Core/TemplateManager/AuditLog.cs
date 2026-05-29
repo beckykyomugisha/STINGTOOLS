@@ -55,7 +55,7 @@ namespace StingTools.Core.TemplateManager
 
                 lock (_lock)
                 {
-                    string lastHash = _lastHashByFile.GetValueOrDefault(file, "");
+                    string lastHash = _lastHashByFile.TryGetValue(file, out var lh) ? lh : "";
                     // On first append per file, seed chain by tailing the file.
                     if (string.IsNullOrEmpty(lastHash) && File.Exists(file))
                     {

@@ -130,8 +130,7 @@ namespace StingTools.Core.TemplateManager
                     var bound = new HashSet<Guid>();
                     while (it.MoveNext())
                     {
-                        if (it.Key is SharedParameterElement spe) bound.Add(spe.GuidValue);
-                        else if (it.Key is Definition def && def is ExternalDefinition extDef)
+                        if (it.Key is ExternalDefinition extDef)
                             bound.Add(extDef.GUID);
                     }
                     foreach (var kvp in allGuids)

@@ -44,7 +44,7 @@ namespace StingTools.Core.TemplateManager
                         Exists = exists,
                         Action = exists ? "Skip" : "Create",
                         Source = def.Origin ?? "library",
-                        Detail = def.Description ?? ""
+                        Detail = def.Notes ?? ""
                     });
                 }
             }
