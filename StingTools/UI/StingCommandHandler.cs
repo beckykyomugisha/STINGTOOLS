@@ -105,12 +105,6 @@ namespace StingTools.UI
             // StingCommandHandler.CurrentApp when ExternalCommandData is null
             CurrentApp = app;
 
-            // N1 — Wire the Material Manager's live selection-sync once we
-            // have a real UIApplication. The hook is idempotent so calling
-            // every Execute is safe; the field-level guard means it's free
-            // after the first hit.
-            UI.StingDockPanel.SubscribeSelectionSync(app);
-
             // Snapshot command state under lock to prevent race with WPF UI thread
             string tag, p1, p2;
             lock (_lock)
