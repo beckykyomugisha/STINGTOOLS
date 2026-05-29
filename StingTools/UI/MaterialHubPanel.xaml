@@ -120,20 +120,23 @@
         <!-- ═══ Row 3 — Action bar (above status) ═══ -->
         <Border DockPanel.Dock="Bottom" Background="#FFFFFF" Padding="4,4"
                 BorderBrush="{StaticResource HubLineBr}" BorderThickness="0,1,0,1">
-            <ItemsControl x:Name="actionBar">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-            </ItemsControl>
+            <ScrollViewer MaxHeight="110" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="actionBar">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
         </Border>
 
         <!-- ═══ Center — three-pane layout ═══ -->
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="colNav"       Width="220" MinWidth="160"/>
-                <ColumnDefinition Width="3"/>
+                <ColumnDefinition x:Name="colSplit1"    Width="3"/>
                 <ColumnDefinition x:Name="colGrid"      Width="*"   MinWidth="320"/>
-                <ColumnDefinition Width="3"/>
+                <ColumnDefinition x:Name="colSplit2"    Width="3"/>
                 <ColumnDefinition x:Name="colInspector" Width="340" MinWidth="240"/>
             </Grid.ColumnDefinitions>
 

@@ -37,10 +37,58 @@ namespace StingTools.UI
         {
             InitializeComponent();
             LastInstance = this;
-            this.Loaded += (_, __) => InitialPopulate();
+            this.Loaded += (_, __) => { InitialPopulate(); ApplyResponsiveLayout(this.ActualWidth); };
+            // The three-pane layout (nav | grid | inspector) needs a wide
+            // workspace. When docked narrow (the default left-dock width),
+            // collapse the nav + inspector side-panes so the materials grid
+            // stays visible instead of being pushed off-screen.
+            this.SizeChanged += (_, e) => ApplyResponsiveLayout(e.NewSize.Width);
             // Priority 7 — Subscribe to the activity feed so newly-pushed
-            // entries surface in the status bar immediately.
+            // entries surface in the status bar immediately. Unsubscribe on
+            // Unloaded so a docked-then-hidden panel doesn't accumulate
+            // duplicate handlers across multiple show/hide cycles.
             MaterialActivityFeed.OnAdded += RenderActivityFeed;
+            this.Unloaded += (_, __) =>
+            {
+                try { MaterialActivityFeed.OnAdded -= RenderActivityFeed; }
+                catch (Exception ex) { StingLog.WarnRateLimited("HubUnload", $"Unsubscribe ActivityFeed: {ex.Message}"); }
+            };
+        }
+
+        private bool _narrowLayout;
+        private bool _responsiveInit;
+        /// <summary>
+        /// Switch the centre area between the wide three-pane layout
+        /// (nav | grid | inspector) and a narrow grid-only layout. Below 720px
+        /// the nav + inspector columns collapse so the materials grid — the
+        /// interactive heart of the hub — is never pushed off the visible dock.
+        /// </summary>
+        private void ApplyResponsiveLayout(double width)
+        {
+            try
+            {
+                if (colNav == null || colInspector == null || colGrid == null) return;
+                bool narrow = width > 0 && width < 720;
+                if (_responsiveInit && narrow == _narrowLayout) return; // no churn
+                _responsiveInit = true;
+                _narrowLayout = narrow;
+
+                if (narrow)
+                {
+                    colNav.MinWidth = 0;       colNav.Width = new System.Windows.GridLength(0);
+                    colInspector.MinWidth = 0; colInspector.Width = new System.Windows.GridLength(0);
+                    if (colSplit1 != null) colSplit1.Width = new System.Windows.GridLength(0);
+                    if (colSplit2 != null) colSplit2.Width = new System.Windows.GridLength(0);
+                }
+                else
+                {
+                    colNav.MinWidth = 160;       colNav.Width = new System.Windows.GridLength(220);
+                    colInspector.MinWidth = 240; colInspector.Width = new System.Windows.GridLength(340);
+                    if (colSplit1 != null) colSplit1.Width = new System.Windows.GridLength(3);
+                    if (colSplit2 != null) colSplit2.Width = new System.Windows.GridLength(3);
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("HubLayout", ex.Message); }
         }
 
         private void RenderActivityFeed()

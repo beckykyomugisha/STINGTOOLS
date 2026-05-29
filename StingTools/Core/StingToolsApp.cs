@@ -341,6 +341,9 @@ namespace StingTools.Core
                 catch (Exception cEx) { StingLog.Warn($"REFNET catalogue invalidate: {cEx.Message}"); }
                 try { Core.Hvac.Loads.CtfRtsRegistry.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"CTF RTS cache invalidate: {cEx.Message}"); }
+                // PBR Material Hub: drop per-document PBR state cache.
+                try { UI.MaterialHubPanel.DropDocumentCache(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"PBR state cache drop: {cEx.Message}"); }
                 // Phase 78: Save dropped element IDs to sidecar before clearing queue
                 StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
                 // R-02: Clear deferred elements on document close

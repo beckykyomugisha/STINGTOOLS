@@ -1,0 +1,90 @@
+{
+  "_schema": "STING PBR Texture Provider Catalogue v1.0",
+  "_authoringNote": "Corporate baseline. Project overrides at <project>/_BIM_COORD/texture_providers.json are layered on top (project entries win by id; additions are appended).",
+  "providers": [
+    {
+      "id": "polyhaven",
+      "name": "Poly Haven",
+      "kind": "inline",
+      "license": "CC0",
+      "cost": "free",
+      "apiBase": "https://api.polyhaven.com",
+      "assetListPath": "/assets?t=textures",
+      "thumbnailPattern": "https://cdn.polyhaven.com/asset_img/thumbs/{id}.png?width=256",
+      "downloadIndexPath": "/files/{id}",
+      "preferredResolution": "2k",
+      "preferredFormat": "png",
+      "homepageUrl": "https://polyhaven.com/textures",
+      "description": "Curated CC0 PBR library, ~600 materials. Full 4K/8K packs, all maps included.",
+      "enabledByDefault": true,
+      "categories": ["concrete", "wood", "metal", "fabric", "stone", "ground", "tiles", "plastic", "leather", "paint"]
+    },
+    {
+      "id": "ambientcg",
+      "name": "ambientCG",
+      "kind": "inline",
+      "license": "CC0",
+      "cost": "free",
+      "apiBase": "https://ambientCG.com",
+      "assetListPath": "/api/v2/full_json?type=Material&include=downloadData,previewData",
+      "thumbnailPattern": "https://acg-media.struffelproductions.com/file/ambientCG-Web/media/thumbnail/256-PNG-242424/{id}.png",
+      "downloadPattern": "https://ambientCG.com/get?file={id}_{res}-{fmt}.zip",
+      "preferredResolution": "2K",
+      "preferredFormat": "PNG",
+      "homepageUrl": "https://ambientcg.com/list?type=Material",
+      "description": "Largest CC0 PBR library, ~2,000 materials. Zip packs with all maps.",
+      "enabledByDefault": true,
+      "categories": ["Bricks", "Concrete", "Fabric", "Ground", "Marble", "Metal", "PaintedPlaster", "Pavement", "Planks", "Plaster", "Plastic", "Rock", "Roof", "Tiles", "Wallpaper", "Wood"]
+    },
+    {
+      "id": "architextures",
+      "name": "Architextures Pro",
+      "kind": "url-launch",
+      "license": "royalty-free (subscription)",
+      "cost": "$55/year",
+      "homepageUrl": "https://architextures.org/textures",
+      "description": "Architectural-focused PBR library. Subscription required for full packs; STING launches browser, user drops downloads into _BIM_COORD/textures/architextures/.",
+      "enabledByDefault": true,
+      "ingestFolder": "architextures",
+      "categories": ["architectural", "facades", "interiors", "landscape", "construction"]
+    },
+    {
+      "id": "user-folder",
+      "name": "User-supplied folder",
+      "kind": "folder-watch",
+      "license": "varies",
+      "cost": "varies",
+      "description": "Auto-detect any pack dropped into _BIM_COORD/textures/. Works for Megascans, Substance, BIMObject, in-house libraries, manual downloads. Suffix-detection ingester recognises standard PBR map naming.",
+      "enabledByDefault": true,
+      "ingestFolder": "."
+    }
+  ],
+  "mapSuffixRules": {
+    "_authoringNote": "Lower-case stem match. First-match wins. Add project-specific suffixes via project override file.",
+    "baseColor": ["_basecolor", "_albedo", "_diffuse", "_diff", "_col", "_color", "_basemap", "_base"],
+    "normal": ["_normal", "_norm", "_nrm", "_nor", "_normalgl", "_normaldx", "_n"],
+    "roughness": ["_roughness", "_rough", "_rgh", "_r"],
+    "metalness": ["_metalness", "_metallic", "_metal", "_met", "_m"],
+    "ao": ["_ao", "_ambientocclusion", "_occlusion", "_occ"],
+    "bump": ["_bump", "_bmp", "_height", "_h"],
+    "displacement": ["_displacement", "_disp", "_displace", "_dsp"],
+    "opacity": ["_opacity", "_alpha", "_mask", "_cutout", "_transparency"],
+    "emission": ["_emission", "_emissive", "_emit", "_glow", "_self_illum"],
+    "anisotropy": ["_anisotropy", "_aniso", "_anis"]
+  },
+  "defaults": {
+    "_authoringNote": "Default UV + render settings applied to every fresh pack. Override per-material in the Inspector.",
+    "realWorldScaleXMm": 1000,
+    "realWorldScaleYMm": 1000,
+    "uvOffsetX": 0.0,
+    "uvOffsetY": 0.0,
+    "uvRotationDeg": 0.0,
+    "bumpAmount": 1.0,
+    "normalIntensity": 1.0,
+    "displacementEnabled": false,
+    "displacementMinMm": -2.0,
+    "displacementMaxMm": 2.0,
+    "displacementScale": 1.0,
+    "emissionLuminanceCdM2": 0.0
+  }
+}

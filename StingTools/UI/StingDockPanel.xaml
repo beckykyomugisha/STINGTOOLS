@@ -1497,6 +1497,9 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="BLE (815)" Tag="CreateBLEMaterials" Click="Cmd_Click" ToolTip="815 building materials"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="MEP (464)" Tag="CreateMEPMaterials" Click="Cmd_Click" ToolTip="464 MEP materials"/>
                                 <Button Style="{StaticResource BlueBtn}" Content="Material Manager" Tag="MaterialManagerFull" Click="Cmd_Click" ToolTip="7-tab Material Manager: Library, Editor, Layers, Paint, Audit, Import/Export, BOQ Link"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Browse PBR Library…" Tag="Pbr_BrowseLibrary" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Bulk Apply PBR" Tag="Pbr_BulkApply" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Reload Providers" Tag="Pbr_ReloadProviders" Click="Cmd_Click"/>
                             </WrapPanel>
                         </Border>
 

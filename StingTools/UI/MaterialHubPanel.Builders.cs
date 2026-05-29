@@ -135,6 +135,13 @@ namespace StingTools.UI
                 ("Enrich Schedules", "MAT_EnrichSchedules"),
                 ("Make Legend",      "MaterialLegend"),
             }));
+            actionBar.Items.Add(MakeActionGroup("TEXTURES",   new[]
+            {
+                ("Browse Library…",  "Pbr_BrowseLibrary"),
+                ("Bulk Apply",       "Pbr_BulkApply"),
+                ("Apply Pack…",      "HUB_PBR_ApplyFolder"),
+                ("Reload Providers", "Pbr_ReloadProviders"),
+            }));
         }
 
         private Border MakeActionGroup(string header, (string label, string tag)[] items)
@@ -259,6 +266,7 @@ namespace StingTools.UI
             inspectorStack.Children.Add(BuildCostCard(row));
             inspectorStack.Children.Add(BuildCarbonCard(row));
             inspectorStack.Children.Add(BuildAppearanceHatchCard(row));
+            inspectorStack.Children.Add(BuildPbrTexturesCard(row));
             inspectorStack.Children.Add(BuildAssetsCard(row));
             inspectorStack.Children.Add(BuildLifecycleCard(row));
             inspectorStack.Children.Add(BuildActionsCard(row));
@@ -469,6 +477,9 @@ namespace StingTools.UI
             var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
             var row = dgHubMaterials?.SelectedItem as MaterialRow;
             var mat = (row != null && doc != null) ? doc.GetElement(row.Id) as Autodesk.Revit.DB.Material : null;
+
+            // PBR tags handled in MaterialHubPanel.Textures.cs partial.
+            if (HandlePbrTag(tag, doc, row, mat)) return;
 
             switch (tag)
             {

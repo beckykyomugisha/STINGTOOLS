@@ -57,5 +57,46 @@ namespace StingTools.UI
             result.Summary = sb.Length > 0 ? sb.ToString() : "No blockers — gates report clean.";
             return result;
         }
+
+        /// <summary>Per-material veto channel consulted by the PBR pipeline
+        /// before applying a pack. Returns <c>(allow:true, reason:null)</c>
+        /// when nothing objects; <c>(allow:false, reason:"…")</c> when a gate
+        /// blocks. Reasons surface in the inspector toast so the user knows
+        /// what to fix. Each gate is wrapped in its own try/catch so a buggy
+        /// gate can't block every PBR apply project-wide.</summary>
+        public static (bool allow, string reason) CheckPbrApply(Document doc, Material mat, string packId)
+        {
+            if (doc == null || mat == null) return (true, null);
+
+            // Frozen materials — PBR changes appearance which a "Frozen"
+            // lifecycle state intentionally forbids.
+            try
+            {
+                var row = MaterialRowBuilder.BuildOne(doc, mat);
+                if (MaterialLifecycle.IsFrozen(row))
+                    return (false, $"'{mat.Name}' is at lifecycle state Frozen — unfreeze or duplicate before applying PBR.");
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("PbrVetoLifecycle", $"PBR lifecycle veto: {ex.Message}"); }
+
+            // Healthcare clinical / radiation-shielding materials carry
+            // certification metadata — silently swapping textures on them
+            // would invalidate the project's compliance trail.
+            try
+            {
+                var hcFindings = HealthcareMaterialGate.RunAll(doc);
+                if (hcFindings != null)
+                {
+                    foreach (var f in hcFindings)
+                    {
+                        if (!string.Equals(f.Severity, "Block", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (string.Equals(f.MaterialName, mat.Name, StringComparison.OrdinalIgnoreCase))
+                            return (false, $"Healthcare gate blocks '{mat.Name}': {f.Message}");
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("PbrVetoHC", $"PBR healthcare veto: {ex.Message}"); }
+
+            return (true, null);
+        }
     }
 }
