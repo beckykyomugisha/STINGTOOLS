@@ -922,12 +922,52 @@ namespace StingTools.Core.Lightning
         public double LocationFactorCd { get; set; } = 1.0;
         public double TolerableRisk { get; set; } = 1e-5;
         public List<string> ConnectedServices { get; set; } = new List<string>();
+
+        // ── BS EN 62305-2 full-model inputs (consumed by LpsRiskModel) ──
+        // Additive surface beyond the screening inputs above. Defaults match
+        // BS EN 62305-2 Annex B/C conservative assumptions so callers that
+        // ignore them still get a valid (worst-case-ish) assessment.
+        public string LpsClassPresent { get; set; } = "NONE";
+        public string SpdProtectionLevel { get; set; } = "NONE";
+        public string SoilSurfaceType { get; set; } = "MARBLE_CONCRETE";
+        public string FireProtection { get; set; } = "NONE";
+        public string FireRisk { get; set; } = "";
+        public string SpecialHazard { get; set; } = "";
+        public bool WiringShielded { get; set; } = false;
+        public bool StructureShielded { get; set; } = false;
+        public double SpatialShieldMeshWidthM { get; set; }
+        public double InternalShieldMeshWidthM { get; set; }
+        public string WiringType { get; set; } = "";
+        public double UwKv { get; set; } = 1.5;
+        public bool? LifeEndangeringSystems { get; set; }
+        public double PersonsInZone { get; set; }
+        public double PersonsTotal { get; set; }
+        public double OccupiedHoursPerYear { get; set; }
+        public List<LpsServiceLine> Lines { get; set; }
+    }
+
+    /// <summary>
+    /// A service line (power / telecom) entering the structure — drives the
+    /// BS EN 62305-2 line-related risk components (R_U/R_V/R_W/R_Z).
+    /// </summary>
+    public class LpsServiceLine
+    {
+        public string Id { get; set; } = "POWER";
+        public double LengthM { get; set; } = 1000.0;        // L_L (default 1000 m when unknown)
+        public string Install { get; set; } = "AERIAL";      // C_I (Table A.4)
+        public string Environment { get; set; } = "SUBURBAN"; // C_E (Table A.5)
+        public string Transformer { get; set; } = "NONE";    // C_T (Table A.3)
+        public string Shield { get; set; } = "UNSHIELDED";   // P_LD / P_LI key (Tables B.8 / B.9)
     }
 
     public class LpsRiskResult
     {
         public bool RequiresLps { get; set; }
         public string RecommendedClass { get; set; } = "II";
+        /// <summary>Minimal coordinated SPD protection level (NONE / III-IV /
+        /// II / I / BETTER / BEST) needed alongside the recommended LPS class
+        /// to clear every loss type's tolerable threshold.</summary>
+        public string RecommendedSpdLevel { get; set; } = "NONE";
         public double AnnualStrikeFrequency { get; set; }
         public double CollectionAreaM2 { get; set; }
         public double TolerableRisk { get; set; }
@@ -960,6 +1000,13 @@ namespace StingTools.Core.Lightning
         /// Worst-case is the maximum of R1..R4 so the residual gate is conservative.
         /// </summary>
         public Dictionary<string, double> ResidualRiskByClass { get; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+        /// BS EN 62305-2 risk components for the headline loss type (RA, RB,
+        /// RC, RM, RU, RV, RW, RZ). Populated by the full component model
+        /// (LpsRiskModel) so the panel can show which damage path dominates.
+        /// </summary>
+        public Dictionary<string, double> ComponentBreakdown { get; }
             = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         public string Notes { get; set; }
     }

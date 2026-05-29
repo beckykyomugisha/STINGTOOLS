@@ -3402,6 +3402,10 @@
                                             ToolTip="LPS dashboard — overview, inspection due dates, open issues"/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="LPS Class Setup" Tag="LPS_ClassSetup" Click="Cmd_Click"
                                             ToolTip="Risk assessment and LPS class selection wizard (BS EN 62305-2)"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Risk Model (62305-2)" Tag="LPS_RiskModel" Click="Cmd_Click"
+                                            ToolTip="Full BS EN 62305-2 risk model — computes R1–R4 from model extents + default Annex B/C factors and recommends LPS class + SPD level"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Create Family Shells" Tag="LPS_CreateFamilyShells" Click="Cmd_Click"
+                                            ToolTip="Create the 20 STING LPS family shells (.rfa) from templates per LPS_FAMILY_INVENTORY.json — geometry left empty for the author; existing families are never overwritten"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Compliance Check" Tag="LPS_ComplianceCheck" Click="Cmd_Click"
                                             ToolTip="Run all LPS compliance checks and stamp project verdict"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Down Conductors" Tag="LPS_DownConductorCheck" Click="Cmd_Click"

@@ -262,6 +262,8 @@ namespace StingTools.UI
                     case "LPS_SepDistCheck":         RunCommand<Commands.Lightning.LpsSeparationDistanceCheckerCommand>(app); break;
                     case "LPS_InspectionSchedule":   RunCommand<Commands.Lightning.LpsInspectionSchedulerCommand>(app); break;
                     case "LPS_FullReport":           RunCommand<Commands.Lightning.LpsFullReportCommand>(app); break;
+                    case "LPS_RiskModel":            RunCommand<Commands.Lightning.LpsRiskModelCommand>(app); break;
+                    case "LPS_CreateFamilyShells":   RunCommand<Commands.Lightning.LpsCreateFamilyShellsCommand>(app); break;
                     case "LPS_Dashboard":            RunCommand<Commands.Lightning.LpsDashboardCommand>(app); break;
                     case "LPS_MarkElementTypes":     RunCommand<Commands.Lightning.LpsMarkElementTypesCommand>(app); break;
                     case "LPS_RecalcKcFactor":       RunCommand<Commands.Lightning.LpsRecalcKcFactorCommand>(app); break;
