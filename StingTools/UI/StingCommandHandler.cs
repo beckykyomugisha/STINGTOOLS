@@ -1523,7 +1523,6 @@ namespace StingTools.UI
                     case "OrgQuick": SetExtraParam("ArrangeMode", "Quick"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
                     case "OrgDeep": SetExtraParam("ArrangeMode", "Deep"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
                     case "OrgAnneal": SetExtraParam("ArrangeMode", "Anneal"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
-                    case "OrgReset": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
                     case "OrgBrainSp": RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
                     case "OrgUndo":
                         StingLog.Info($"OrgUndo: Use Ctrl+Z to undo last operation");
@@ -1531,8 +1530,6 @@ namespace StingTools.UI
                         break;
 
                     case "TagFamilyRefresh": TagFamilyRefresh(app); break;
-                    case "TagCat": RunCommand<Organise.TagSelectedCommand>(app); break;
-                    case "TagAll": RunCommand<Tags.BatchTagCommand>(app); break;
                     case "Orphans": FindOrphanedTags(app); break;
                     case "CloneTags": CloneTagLayout(app); break;
                     case "AuditTags": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
@@ -1604,7 +1601,6 @@ namespace StingTools.UI
                         RunCommand<Temp.PrintSheetsCommand>(app);
                         break;
 
-                    case "GenSheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
                     case "ExportSheetCSV": ExportSheetCSV(app); break;
 
                     // ════════════════════════════════════════════════════════
@@ -1675,7 +1671,6 @@ namespace StingTools.UI
                     case "MeasureLines": MeasureSelected(app, "Lines"); break;
                     case "MeasureAreas": MeasureSelected(app, "Areas"); break;
                     case "MeasurePerimeters": MeasureSelected(app, "Perimeters"); break;
-                    case "MeasureRoomAreas": RunCommand<Docs.SumAreasCommand>(app); break;
 
                     case "SwapElements":
                         TaskDialog.Show("Swap Elements", "Select two elements, then use 'Copy Tags' and 'Swap Tags' commands to exchange their data.");
@@ -1691,9 +1686,7 @@ namespace StingTools.UI
                     // NEW — CREATE TAB extras
                     // ════════════════════════════════════════════════════════
 
-                    case "T3Tags": RunCommand<Tags.BuildTagsCommand>(app); break;
                     case "MatTags": RunCommand<Tags.CombineParametersCommand>(app); break;
-                    case "BuildAll": RunCommand<Tags.TagAndCombineCommand>(app); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — VIEW TAB (Health, Anomaly, Bot, Colouriser ext)
@@ -2649,7 +2642,6 @@ namespace StingTools.UI
                     case "COBieValidator": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
                     case "UniclassValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break;
                     case "UnicodeValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break; // Legacy alias
-                    case "NamingConventionAudit": RunCommand<Docs.SheetNamingCheckCommand>(app); break;
                     case "ClassificationAudit": RunCommand<Temp.UniclassClassifyCommand>(app); break;
 
                     // MEP Schedule shortcuts (wired to MEPScheduleCommands.cs)
@@ -2989,7 +2981,6 @@ namespace StingTools.UI
                     case "JournalParser": RunCommand<Docs.JournalParserCommand>(app); break;
 
                     // ── Tags: Configure Tag Format (alias for ConfigEditor) ──
-                    case "ConfigureTagFormat": RunCommand<Tags.ConfigEditorCommand>(app); break;
 
                     // ── Clone & Export commands ──
                     case "ApplyClonedTags": RunCommand<Organise.ApplyClonedTagsCommand>(app); break;

@@ -19,7 +19,6 @@ namespace StingTools.UI.Modules
             registry.Register("FindDuplicates",            app => StingCommandHandler.RunCommandPublic<Organise.FindDuplicateTagsCommand>(app));
             registry.Register("HealthFixAll",              app => StingCommandHandler.RunCommandPublic<Organise.FixDuplicateTagsCommand>(app));
             registry.Register("RetagStale",                app => StingCommandHandler.RunCommandPublic<Organise.RetagStaleCommand>(app));
-            registry.Register("TagCat",                    app => StingCommandHandler.RunCommandPublic<Organise.TagSelectedCommand>(app));
 
             // ── Leaders ─────────────────────────────────────────────────────
             registry.Register("ToggleTagOrientation",      app => StingCommandHandler.RunCommandPublic<Organise.ToggleTagOrientationCommand>(app));
@@ -27,7 +26,6 @@ namespace StingTools.UI.Modules
             registry.Register("AutoAlignLeaderText",       app => StingCommandHandler.RunCommandPublic<Organise.AutoAlignLeaderTextCommand>(app));
             registry.Register("ArrangeRadial",             app => StingCommandHandler.RunCommandPublic<Organise.AlignTagsCommand>(app));
             registry.Register("ResetTagPositions",         app => StingCommandHandler.RunCommandPublic<Organise.ResetTagPositionsCommand>(app));
-            registry.Register("OrgReset",                  app => StingCommandHandler.RunCommandPublic<Organise.ResetTagPositionsCommand>(app));
             registry.Register("AddLeaders",                app => StingCommandHandler.RunCommandPublic<Organise.AddLeadersCommand>(app));
             registry.Register("RemoveLeaders",             app => StingCommandHandler.RunCommandPublic<Organise.RemoveLeadersCommand>(app));
             registry.Register("ToggleLeaders",             app => StingCommandHandler.RunCommandPublic<Organise.ToggleLeadersCommand>(app));

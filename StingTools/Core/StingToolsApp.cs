@@ -2615,25 +2615,9 @@ namespace StingTools.Core
 
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class HubHvacPanelCommand : IExternalCommand
-    {
-        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run(data, "ToggleHvacPanel", ref message);
-    }
-
-    [Transaction(TransactionMode.ReadOnly)]
-    [Regeneration(RegenerationOption.Manual)]
     public class HubTemplateManagerCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run(data, "TemplateDashboard", ref message);
-    }
-
-    [Transaction(TransactionMode.ReadOnly)]
-    [Regeneration(RegenerationOption.Manual)]
-    public class HubMaterialHubCommand : IExternalCommand
-    {
-        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run(data, "ToggleMaterialHub", ref message);
     }
 }

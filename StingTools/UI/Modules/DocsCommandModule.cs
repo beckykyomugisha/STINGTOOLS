@@ -11,7 +11,6 @@ namespace StingTools.UI.Modules
             registry.Register("SheetOrganizer",            app => StingCommandHandler.RunCommandPublic<Docs.SheetOrganizerCommand>(app));
             registry.Register("ViewOrganizer",             app => StingCommandHandler.RunCommandPublic<Docs.ViewOrganizerCommand>(app));
             registry.Register("SheetIndex",                app => StingCommandHandler.RunCommandPublic<Docs.SheetIndexCommand>(app));
-            registry.Register("GenSheetIndex",             app => StingCommandHandler.RunCommandPublic<Docs.SheetIndexCommand>(app));
             registry.Register("SheetRegister",             app => StingCommandHandler.RunCommandPublic<Docs.SheetIndexCommand>(app));
             registry.Register("Transmittal",               app => StingCommandHandler.RunCommandPublic<Docs.TransmittalCommand>(app));
             registry.Register("ComplianceGateTransmittal", app => StingCommandHandler.RunCommandPublic<Docs.TransmittalCommand>(app));

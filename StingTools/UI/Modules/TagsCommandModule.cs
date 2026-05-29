@@ -149,7 +149,6 @@ namespace StingTools.UI.Modules
             registry.Register("TagStudioPipeline",         app => StingCommandHandler.RunCommandPublic<Tags.CompletenessDashboardCommand>(app));
             registry.Register("TagStudioGenerate",         app => StingCommandHandler.RunCommandPublic<Tags.FamilyStagePopulateCommand>(app));
             registry.Register("TagStudioGapReview",        app => StingCommandHandler.RunCommandPublic<Tags.ResolveAllIssuesCommand>(app));
-            registry.Register("ConfigureTagFormat",        app => StingCommandHandler.RunCommandPublic<Tags.ConfigEditorCommand>(app));
             registry.Register("ConfigurableTagFormat",     app => StingCommandHandler.RunCommandPublic<Tags.ConfigurableTagFormatCommand>(app));
             registry.Register("NLPCommandProcessor",       app => StingCommandHandler.RunCommandPublic<Tags.NLPCommandProcessorCommand>(app));
             registry.Register("SmartTagSuggest",           app => StingCommandHandler.RunCommandPublic<Tags.SmartTagSuggestCommand>(app));
