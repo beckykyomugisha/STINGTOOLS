@@ -2408,6 +2408,89 @@ namespace StingTools.UI
         private System.Collections.ObjectModel.ObservableCollection<StingTools.UI.MaterialRow> _matRows;
         private bool _matLoaded;
 
+        // ── N1 — Live selection sync ───────────────────────────────────────
+        // When the user picks an element (or face) in Revit, find its material
+        // and highlight the matching row in the Browse grid. The subscription
+        // is wired once on the first command-handler call (Revit's
+        // UIApplication.SelectionChanged needs a live UIApplication, which we
+        // only have inside an ExternalEvent handler). Re-subscription is
+        // idempotent via _selSyncSubscribed.
+        private static bool _selSyncSubscribed;
+
+        public static void SubscribeSelectionSync(UIApplication uiapp)
+        {
+            if (_selSyncSubscribed || uiapp == null) return;
+            try
+            {
+                uiapp.SelectionChanged += OnRevitSelectionChanged;
+                _selSyncSubscribed = true;
+                StingLog.Info("MaterialManager: live selection sync subscribed");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SubscribeSelectionSync: {ex.Message}");
+            }
+        }
+
+        private static void OnRevitSelectionChanged(object sender,
+            Autodesk.Revit.UI.Events.SelectionChangedEventArgs e)
+        {
+            // Cheap exit when the dock panel hasn't been opened.
+            var inst = LastInstance;
+            if (inst == null || inst._matRows == null || inst._matRows.Count == 0) return;
+            try
+            {
+                var doc = e.GetDocument();
+                var ids = e.GetSelectedElements();
+                if (doc == null || ids == null || ids.Count == 0) return;
+
+                var matIds = new HashSet<long>();
+                foreach (var id in ids.Take(50)) // cap traversal — selection-bound work
+                {
+                    var el = doc.GetElement(id);
+                    if (el == null) continue;
+                    try
+                    {
+                        var ms = el.GetMaterialIds(false);
+                        if (ms != null) foreach (var m in ms) if (m != null && m.Value > 0) matIds.Add(m.Value);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"SelSync GetMaterialIds: {ex.Message}"); }
+                    try
+                    {
+                        var p = el.LookupParameter("Material") ?? el.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.MATERIAL_ID_PARAM);
+                        if (p != null && p.StorageType == Autodesk.Revit.DB.StorageType.ElementId)
+                        {
+                            var mid = p.AsElementId();
+                            if (mid != null && mid.Value > 0) matIds.Add(mid.Value);
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"SelSync Material param: {ex.Message}"); }
+                }
+                if (matIds.Count == 0) return;
+
+                inst.Dispatcher.BeginInvoke(new Action(() => inst.HighlightMaterials(matIds)),
+                    System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex) { StingLog.Warn($"OnRevitSelectionChanged: {ex.Message}"); }
+        }
+
+        private void HighlightMaterials(HashSet<long> matIds)
+        {
+            if (dgMaterials == null || _matRows == null) return;
+            try
+            {
+                StingTools.UI.MaterialRow firstMatch = null;
+                foreach (var row in _matRows)
+                {
+                    if (row.Id != null && matIds.Contains(row.Id.Value)) { firstMatch = row; break; }
+                }
+                if (firstMatch == null) return;
+                dgMaterials.SelectedItem = firstMatch;
+                dgMaterials.ScrollIntoView(firstMatch);
+            }
+            catch (Exception ex) { StingLog.Warn($"HighlightMaterials: {ex.Message}"); }
+        }
+
         // XAML event handlers
         private void MatSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {

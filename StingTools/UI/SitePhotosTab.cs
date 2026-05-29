@@ -661,6 +661,11 @@ namespace StingTools.UI
                     await sem.WaitAsync();
                     try
                     {
+                        // Prefer the offline cache; fall back to a server round-trip.
+                        var bytes = SitePhotoOfflineCache.LoadThumbBytes(state.ProjectId, r.Dto.Id)
+                                    ?? await PlanscapeServerClient.Instance
+                                        .DownloadSitePhotoAsync(state.ProjectId, r.Dto.Id);
+                        if (bytes == null) return;
                         // Dispose the MemoryStream after EndInit — with CacheOption.OnLoad
                         // the BitmapImage copies the pixel data into its own memory store,
                         // so the stream is no longer needed. Per-photo leak otherwise.
@@ -680,6 +685,7 @@ namespace StingTools.UI
                     {
                         StingLog.Warn($"SitePhotosTab thumbnail decode {r.Dto.Id}: {ex2.Message}");
                     }
+                    finally { sem.Release(); }
                 });
                 await Task.WhenAll(tasks);
             }

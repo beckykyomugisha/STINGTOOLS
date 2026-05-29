@@ -72,6 +72,12 @@ namespace StingTools.UI
         }
 
 
+        // Operation identifiers for the list-style scheduling ops.
+        private const string OpCreateBatch = "CreateBatch";
+        private const string OpAudit       = "Audit";
+        private const string OpExportCsv   = "ExportCsv";
+        private const string OpManage      = "Manage";
+
         private static readonly HashSet<string> _listOps = new HashSet<string> { OpCreateBatch, OpAudit, OpExportCsv, OpManage };
 
         /// <summary>

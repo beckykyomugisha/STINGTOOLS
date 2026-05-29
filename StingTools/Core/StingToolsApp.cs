@@ -2567,4 +2567,12 @@ namespace StingTools.Core
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run("AutoTag", ref message);
     }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubHvacPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("ToggleHvacPanel", ref message);
+    }
 }

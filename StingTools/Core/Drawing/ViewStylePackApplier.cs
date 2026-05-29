@@ -384,17 +384,19 @@ namespace StingTools.Core.Drawing
                 {
                     var link = links.FirstOrDefault(l => string.Equals(l.Name, kv.Key, StringComparison.OrdinalIgnoreCase));
                     if (link == null) { r.Warnings.Add($"Revit link '{kv.Key}' not found — skipped."); continue; }
-                    var rgs = new RevitLinkGraphicsSettings();
-                    bool hidden = kv.Value?["hidden"]?.Value<bool>() ?? false;
-                    if (hidden) rgs.LinkVisibilityType = LinkVisibility.Invisible;
-                    var ht = kv.Value?["halftone"];
-                    if (ht != null)
+                    bool hidden = (bool?)(kv.Value?["hidden"]) ?? false;
+                    if (hidden && view.CanCategoryBeHidden(new ElementId(BuiltInCategory.OST_RvtLinks)))
+                    {
+                        try { view.HideElements(new List<ElementId> { link.Id }); }
+                        catch (Exception ex) { r.Warnings.Add($"Link hide '{kv.Key}': {ex.Message}"); }
+                    }
+                    bool halftone = (bool?)(kv.Value?["halftone"]) ?? false;
+                    if (halftone)
                     {
                         var ogs = new OverrideGraphicSettings();
-                        ogs.SetHalftone(ht.Value<bool>());
-                        rgs.OverrideGraphicSettings = ogs;
+                        ogs.SetHalftone(true);
+                        view.SetElementOverrides(link.Id, ogs);
                     }
-                    view.SetLinkOverrides(link.Id, rgs);
                 }
                 catch (Exception ex) { r.Warnings.Add($"Link override '{kv.Key}': {ex.Message}"); }
             }

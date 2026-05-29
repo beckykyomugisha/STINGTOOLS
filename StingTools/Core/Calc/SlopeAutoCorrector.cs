@@ -285,5 +285,32 @@ namespace StingTools.Core.Calc
                 return fix;
             }
         }
+
+        /// <summary>
+        /// Best-effort slope set via the Revit pipe API, anchoring the
+        /// connector nearest <paramref name="fixedEnd"/>. Returns false on
+        /// any API failure so the caller can fall back to a geometric
+        /// curve rewrite.
+        /// </summary>
+        private static bool TrySetSlopeApi(Pipe pipe, XYZ fixedEnd, double slopeFtFt)
+        {
+            try
+            {
+                Connector fixedConnector = null;
+                double bestDist = double.MaxValue;
+                foreach (Connector c in pipe.ConnectorManager.Connectors)
+                {
+                    double d = c.Origin.DistanceTo(fixedEnd);
+                    if (d < bestDist) { bestDist = d; fixedConnector = c; }
+                }
+                if (fixedConnector == null) return false;
+                pipe.SetSlope(fixedConnector, slopeFtFt);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

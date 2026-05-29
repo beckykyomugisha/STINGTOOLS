@@ -116,8 +116,11 @@ namespace StingTools.Tags
                 TaskDialog.Show("Tag 3D", "Active view is a view template; nothing placed.");
                 return Result.Succeeded;
             }
-            PlaceTagsCore(doc, view, tagSymbol, useTag7Narrative, r);
-            return r;
+            var r = new Tag3DResult();
+            PlaceTagsCore(doc, view, tagSymbol: null, useTag7Narrative: false, r);
+            TaskDialog.Show("Tag 3D",
+                $"Placed {r.Placed} 3D tag(s); skipped {r.Skipped}; errors {r.Errors}.");
+            return Result.Succeeded;
         }
 
 

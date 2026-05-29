@@ -1188,7 +1188,7 @@ namespace StingTools.UI
             Content = root;
         }
 
-        private void OnThemeChanged(object sender, EventArgs e)
+        private void OnThemeChanged(string themeName)
         {
             try
             {
