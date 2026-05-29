@@ -128,7 +128,7 @@ namespace StingTools.UI
             for (int i = 0; i < PbrSlots.Length; i++)
             {
                 var (key, label) = PbrSlots[i];
-                AddSlotRow(grid, i, label, key, key == "baseColor" ? currentBaseColor : null);
+                AddSlotRow(grid, i, label, key, key == "baseColor" ? currentBaseColor : null, doc, row, mat);
             }
             sp.Children.Add(grid);
 
@@ -194,24 +194,58 @@ namespace StingTools.UI
             return MakeCard("PBR Textures", sp);
         }
 
-        private void AddSlotRow(Grid g, int row, string label, string slotKey, string currentValue)
+        private void AddSlotRow(Grid g, int row, string label, string slotKey, string currentValue,
+            Document doc = null, MaterialRow matRow = null, Material mat = null)
         {
             var lab = new TextBlock { Text = label, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetRow(lab, row); Grid.SetColumn(lab, 0); g.Children.Add(lab);
 
             bool has = !string.IsNullOrEmpty(currentValue);
+            var idleBrush = has ? Brushes.AliceBlue : Brushes.WhiteSmoke;
             var preview = new Border
             {
-                Background = has ? Brushes.AliceBlue : Brushes.WhiteSmoke,
+                Background = idleBrush,
                 BorderBrush = Brushes.LightGray, BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(2), Height = 18, Margin = new Thickness(0, 1, 4, 1),
+                AllowDrop = true,
+                ToolTip = (has ? currentValue + "\n\n" : "") + "Drop an image to set this map, or a folder / multiple files to auto-assign by name.",
                 Child = new TextBlock
                 {
-                    Text = has ? Path.GetFileName(currentValue) : "—",
+                    Text = has ? Path.GetFileName(currentValue) : "— drop map —",
                     FontSize = 9, Foreground = has ? Brushes.SteelBlue : Brushes.SlateGray,
                     Margin = new Thickness(4, 0, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis,
-                    ToolTip = has ? currentValue : null,
                 },
+            };
+            // ── Drag-and-drop wiring (visual feedback + apply) ──
+            void SetDragEffect(DragEventArgs ev)
+            {
+                bool ok = ev.Data.GetDataPresent(DataFormats.FileDrop);
+                ev.Effects = ok ? DragDropEffects.Copy : DragDropEffects.None;
+                ev.Handled = true;
+            }
+            preview.DragEnter += (s, ev) =>
+            {
+                SetDragEffect(ev);
+                if (ev.Effects == DragDropEffects.Copy)
+                {
+                    preview.BorderBrush = Brushes.DodgerBlue;
+                    preview.BorderThickness = new Thickness(2);
+                    preview.Background = Brushes.LightCyan;
+                }
+            };
+            preview.DragOver += (s, ev) => SetDragEffect(ev);
+            void RestoreIdle()
+            {
+                preview.BorderBrush = Brushes.LightGray;
+                preview.BorderThickness = new Thickness(1);
+                preview.Background = idleBrush;
+            }
+            preview.DragLeave += (s, ev) => RestoreIdle();
+            preview.Drop += (s, ev) =>
+            {
+                RestoreIdle();
+                ev.Handled = true;
+                OnSlotDrop(doc, matRow, mat, slotKey, ev);
             };
             Grid.SetRow(preview, row); Grid.SetColumn(preview, 1); g.Children.Add(preview);
 
@@ -615,7 +649,15 @@ namespace StingTools.UI
             if (!string.IsNullOrEmpty(root)) ofd.InitialDirectory = root;
             if (ofd.ShowDialog() != true) return;
 
-            // Build a single-slot manifest and apply it.
+            ApplyManifest(doc, mat, BuildSingleSlotManifest(slotKey, ofd.FileName));
+            if (row != null) RebuildInspector(row);
+        }
+
+        /// <summary>Build a one-slot manifest assigning <paramref name="filePath"/>
+        /// to <paramref name="slotKey"/>. Shared by the "Map…" picker and the
+        /// per-slot drag-drop handler.</summary>
+        private TexturePackManifest BuildSingleSlotManifest(string slotKey, string filePath)
+        {
             var m = new TexturePackManifest
             {
                 PackId = "single-" + Guid.NewGuid().ToString("N").Substring(0, 8),
@@ -627,19 +669,62 @@ namespace StingTools.UI
             };
             switch (slotKey)
             {
-                case "baseColor":    m.Maps.BaseColor = ofd.FileName; break;
-                case "normal":       m.Maps.Normal = ofd.FileName; break;
-                case "roughness":    m.Maps.Roughness = ofd.FileName; break;
-                case "metalness":    m.Maps.Metalness = ofd.FileName; break;
-                case "ao":           m.Maps.Ao = ofd.FileName; break;
-                case "bump":         m.Maps.Bump = ofd.FileName; break;
-                case "displacement": m.Maps.Displacement = ofd.FileName; m.Defaults.DisplacementEnabled = true; break;
-                case "opacity":      m.Maps.Opacity = ofd.FileName; break;
-                case "emission":     m.Maps.Emission = ofd.FileName; break;
-                case "anisotropy":   m.Maps.Anisotropy = ofd.FileName; break;
+                case "baseColor":    m.Maps.BaseColor = filePath; break;
+                case "normal":       m.Maps.Normal = filePath; break;
+                case "roughness":    m.Maps.Roughness = filePath; break;
+                case "metalness":    m.Maps.Metalness = filePath; break;
+                case "ao":           m.Maps.Ao = filePath; break;
+                case "bump":         m.Maps.Bump = filePath; break;
+                case "displacement": m.Maps.Displacement = filePath; m.Defaults.DisplacementEnabled = true; break;
+                case "opacity":      m.Maps.Opacity = filePath; break;
+                case "emission":     m.Maps.Emission = filePath; break;
+                case "anisotropy":   m.Maps.Anisotropy = filePath; break;
             }
-            ApplyManifest(doc, mat, m);
-            if (row != null) RebuildInspector(row);
+            return m;
+        }
+
+        /// <summary>
+        /// Drop handler for a PBR map slot. A single image → that slot; a
+        /// folder or multi-file selection → auto-assigned by filename
+        /// convention (reuses TexturePackIngester). Re-applies + refreshes.
+        /// </summary>
+        private void OnSlotDrop(Document doc, MaterialRow row, Material mat, string slotKey, DragEventArgs e)
+        {
+            try
+            {
+                if (mat == null) { Toast("Pick a material first.", "warn"); return; }
+                if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+                var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
+                if (paths == null || paths.Length == 0) return;
+
+                TexturePackManifest m;
+                if (paths.Length == 1 && Directory.Exists(paths[0]))
+                {
+                    m = TexturePackIngester.ReIngest(paths[0], providerId: "user-drop");
+                    if (m == null) { Toast("No recognised PBR maps in that folder.", "warn"); return; }
+                }
+                else if (paths.Length > 1)
+                {
+                    m = TexturePackIngester.BuildFromFiles(paths, "user-drop");
+                    if (m == null) { Toast("No recognised PBR maps in the dropped files.", "warn"); return; }
+                }
+                else
+                {
+                    if (!TexturePackIngester.IsImageFile(paths[0]))
+                    { Toast("Drop an image file (png/jpg/tga/exr…).", "warn"); return; }
+                    m = BuildSingleSlotManifest(slotKey, paths[0]);
+                }
+                if (m.Defaults == null) m.Defaults = _activePackForInspector?.Defaults ?? new TexturePackDefaults();
+
+                ApplyManifest(doc, mat, m);
+                if (row != null) RebuildInspector(row);
+                Toast($"Applied {m.Maps.FilledSlotCount} map(s) to '{mat.Name}'.", "ok");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PBR slot drop: {ex.Message}");
+                Toast("Drop failed: " + ex.Message, "warn");
+            }
         }
 
         private void ClearPbrMaps(Document doc, Material mat)

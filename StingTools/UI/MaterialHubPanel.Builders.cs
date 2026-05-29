@@ -18,12 +18,27 @@ namespace StingTools.UI
                 kpiStrip.Items.Add(MakeKpiCard(key, "—", ""));
         }
 
+        // The "HubLineBr" brush lives in the Page's local resources, so the
+        // application-scope FindResource used previously threw "resource not
+        // found" (logged on every InitialPopulate). Resolve it safely with a
+        // frozen fallback matching the XAML colour (#D0D7E0).
+        private static Brush _hubLineBrush;
+        private static Brush HubLineBrush()
+        {
+            if (_hubLineBrush != null) return _hubLineBrush;
+            try { _hubLineBrush = Application.Current?.TryFindResource("HubLineBr") as Brush; }
+            catch { /* never throw building a card */ }
+            _hubLineBrush ??= new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xD0, 0xD7, 0xE0));
+            if (_hubLineBrush.CanFreeze && !_hubLineBrush.IsFrozen) _hubLineBrush.Freeze();
+            return _hubLineBrush;
+        }
+
         private static Border MakeKpiCard(string title, string value, string footer)
         {
             var card = new Border
             {
                 Background = Brushes.White,
-                BorderBrush = (Brush)Application.Current.FindResource("HubLineBr") ?? Brushes.LightGray,
+                BorderBrush = HubLineBrush(),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(2),
                 Padding = new Thickness(8, 4, 8, 4),
@@ -177,46 +192,71 @@ namespace StingTools.UI
         }
 
         // ── Navigation tree ────────────────────────────────────────────────
-        private void BuildNavTreeSkeleton()
+        // Skeleton + counts are the SAME full rebuild — the tree always
+        // reflects the live _rows, grouped by Origin / Class / Lifecycle with
+        // live counts. Selecting any leaf filters the grid via its FilterChip.
+        private void BuildNavTreeSkeleton() => BuildNavTree();
+        private void RefreshNavTreeCounts() => BuildNavTree();
+
+        private string ClassKey(MaterialRow r)
+            => string.IsNullOrWhiteSpace(r.Class) ? "(unclassified)" : r.Class.Trim();
+
+        private TreeViewItem MakeNavLeafCounted(string label, Predicate<MaterialRow> predicate)
         {
-            navTree.Items.Clear();
-            navTree.Items.Add(MakeNavRoot("ALL MATERIALS", new[]
-            {
-                MakeNavLeaf("STING-origin", r => r.Origin == "STING"),
-                MakeNavLeaf("BLE-origin",   r => r.Origin == "BLE"),
-                MakeNavLeaf("MEP-origin",   r => r.Origin == "MEP"),
-                MakeNavLeaf("Other",        r => r.Origin == "Other"),
-            }));
-            navTree.Items.Add(MakeNavRoot("BY CLASS", null));     // populated on refresh
-            navTree.Items.Add(MakeNavRoot("ISSUES", new[]
-            {
-                MakeNavLeaf("Unused",      r => r.UsageCount == 0),
-                MakeNavLeaf("Missing EPD", r => r.EpdFreshness == EpdFreshness.Missing),
-                MakeNavLeaf("Stale EPD",   r => r.EpdFreshness == EpdFreshness.Stale || r.EpdFreshness == EpdFreshness.Expired),
-                MakeNavLeaf("Off-baseline",r => r.Origin == "Other"),
-            }));
-            navTree.Items.Add(MakeNavRoot("PACKS", null));       // populated on refresh
+            int n = _rows?.Count(r => predicate(r)) ?? 0;
+            return MakeNavLeaf($"{label} ({n})", predicate);
         }
 
-        private void RefreshNavTreeCounts()
+        private void BuildNavTree()
         {
-            // Update class facet under "BY CLASS".
-            try
+            if (navTree == null) return;
+            navTree.Items.Clear();
+
+            int total = _rows?.Count ?? 0;
+
+            // ALL MATERIALS — header is itself a "show everything" chip.
+            var allRoot = MakeNavRoot($"ALL MATERIALS ({total})", new[]
             {
-                if (_rows == null) return;
-                var byClassRoot = navTree.Items.OfType<TreeViewItem>()
-                    .FirstOrDefault(t => (t.Header as string)?.StartsWith("BY CLASS") == true);
-                if (byClassRoot == null) return;
-                byClassRoot.Items.Clear();
-                foreach (var g in _rows.GroupBy(r => r.Class ?? "", StringComparer.OrdinalIgnoreCase)
-                                       .OrderByDescending(g => g.Count()).Take(20))
+                MakeNavLeafCounted("STING-origin", r => r.Origin == "STING"),
+                MakeNavLeafCounted("BLE-origin",   r => r.Origin == "BLE"),
+                MakeNavLeafCounted("MEP-origin",   r => r.Origin == "MEP"),
+                MakeNavLeafCounted("Other-origin", r => r.Origin == "Other"),
+            });
+            allRoot.Tag = new FilterChip { Label = "All materials", Predicate = r => true };
+            navTree.Items.Add(allRoot);
+
+            // BY CLASS — one leaf per distinct material class, busiest first.
+            var byClass = MakeNavRoot("BY CLASS", null);
+            if (_rows != null)
+            {
+                foreach (var g in _rows.GroupBy(ClassKey, StringComparer.OrdinalIgnoreCase)
+                                       .OrderByDescending(g => g.Count()).ThenBy(g => g.Key))
                 {
                     string cls = g.Key;
-                    byClassRoot.Items.Add(MakeNavLeaf($"{cls} ({g.Count()})",
-                        r => string.Equals(r.Class, cls, StringComparison.OrdinalIgnoreCase)));
+                    byClass.Items.Add(MakeNavLeaf($"{cls} ({g.Count()})",
+                        r => string.Equals(ClassKey(r), cls, StringComparison.OrdinalIgnoreCase)));
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"RefreshNavTreeCounts: {ex.Message}"); }
+            navTree.Items.Add(byClass);
+
+            // BY LIFECYCLE — usage + EPD state.
+            navTree.Items.Add(MakeNavRoot("BY LIFECYCLE", new[]
+            {
+                MakeNavLeafCounted("In use",      r => r.UsageCount > 0),
+                MakeNavLeafCounted("Unused",      r => r.UsageCount == 0),
+                MakeNavLeafCounted("EPD fresh",   r => r.EpdFreshness == EpdFreshness.Fresh),
+                MakeNavLeafCounted("EPD stale",   r => r.EpdFreshness == EpdFreshness.Stale || r.EpdFreshness == EpdFreshness.Expired),
+                MakeNavLeafCounted("EPD missing", r => r.EpdFreshness == EpdFreshness.Missing),
+            }));
+
+            // ISSUES — actionable problems.
+            navTree.Items.Add(MakeNavRoot("ISSUES", new[]
+            {
+                MakeNavLeafCounted("Unused",       r => r.UsageCount == 0),
+                MakeNavLeafCounted("Missing EPD",  r => r.EpdFreshness == EpdFreshness.Missing),
+                MakeNavLeafCounted("Stale EPD",    r => r.EpdFreshness == EpdFreshness.Stale || r.EpdFreshness == EpdFreshness.Expired),
+                MakeNavLeafCounted("Off-baseline", r => r.Origin == "Other"),
+            }));
         }
 
         private TreeViewItem MakeNavRoot(string header, IEnumerable<TreeViewItem> children)

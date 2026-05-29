@@ -20,6 +20,43 @@ using Newtonsoft.Json;
 
 namespace StingTools.Core.Drawing
 {
+    /// <summary>
+    /// Reads the JSON "scale" value tolerantly: a number deserialises as-is;
+    /// a non-numeric string such as "NA" (used by 3D / presentation drawing
+    /// types where scale is not applicable) maps to 0 instead of throwing —
+    /// which previously failed the whole corporate JSON and forced a
+    /// fall-back to the built-in defaults. All consumers already guard on
+    /// <c>Scale &gt; 0</c>, and the validator exempts 3D/Perspective from the
+    /// "positive scale" rule.
+    /// </summary>
+    internal sealed class TolerantScaleConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+            => objectType == typeof(int) || objectType == typeof(int?);
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonToken.Integer:
+                    return Convert.ToInt32(reader.Value);
+                case JsonToken.Float:
+                    return (int)Convert.ToDouble(reader.Value);
+                case JsonToken.String:
+                    var s = (reader.Value as string ?? string.Empty).Trim();
+                    return int.TryParse(s, System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : 0;
+                case JsonToken.Null:
+                    return 0;
+                default:
+                    return 0;
+            }
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            => writer.WriteValue(value is int i ? i : 0);
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     //  ROOT LIBRARY
     // ─────────────────────────────────────────────────────────────────────
@@ -91,7 +128,9 @@ namespace StingTools.Core.Drawing
         [JsonProperty("orientation")]      public string Orientation { get; set; } = "Landscape";
 
         // Views
-        [JsonProperty("scale")]            public int Scale { get; set; } = 100; // 1:N
+        [JsonProperty("scale")]
+        [JsonConverter(typeof(TolerantScaleConverter))]
+        public int Scale { get; set; } = 100; // 1:N  (0 = not applicable, e.g. "NA" for 3D/presentation)
         [JsonProperty("detailLevel")]      public string DetailLevel { get; set; } = "Medium"; // Coarse | Medium | Fine
         [JsonProperty("viewTemplateName")] public string ViewTemplateName { get; set; }
         [JsonProperty("viewportTypeName")] public string ViewportTypeName { get; set; }

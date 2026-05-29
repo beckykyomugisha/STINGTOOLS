@@ -1755,6 +1755,9 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnRunScope_Changed(object sender, RoutedEventArgs e)
         {
+            // Fires during InitializeComponent (XAML sets a radio's IsChecked)
+            // BEFORE the ctor assigns VM — guard against the resulting NRE.
+            if (VM?.RunOpts == null) return;
             if (rbRunScopeView?.IsChecked == true) VM.RunOpts.Scope = "ActiveView";
             else if (rbRunScopeSel?.IsChecked  == true) VM.RunOpts.Scope = "Selection";
             else if (rbRunScopeProj?.IsChecked == true) VM.RunOpts.Scope = "Project";

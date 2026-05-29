@@ -149,16 +149,21 @@ namespace StingTools.UI
         private void InitialPopulate()
         {
             if (_initialised) return;
-            try
-            {
-                BuildKpiStrip();
-                BuildActionBar();
-                BuildNavTreeSkeleton();
-                BuildInspectorPlaceholder();
-                _initialised = true;
-                Refresh();
-            }
-            catch (Exception ex) { StingLog.Warn($"MaterialHubPanel.InitialPopulate: {ex.Message}"); }
+            // Each builder is isolated so a failure in one (e.g. a missing
+            // resource in the KPI strip) cannot abort the rest — that
+            // previously left the navigator, inspector and grid all empty.
+            Step("BuildKpiStrip", BuildKpiStrip);
+            Step("BuildActionBar", BuildActionBar);
+            Step("BuildNavTreeSkeleton", BuildNavTreeSkeleton);
+            Step("BuildInspectorPlaceholder", BuildInspectorPlaceholder);
+            _initialised = true;
+            Step("Refresh", Refresh);
+        }
+
+        private static void Step(string name, Action a)
+        {
+            try { a(); }
+            catch (Exception ex) { StingLog.Warn($"MaterialHubPanel.{name}: {ex.Message}"); }
         }
 
         // ── Refresh — rebuilds rows + dependent UI ─────────────────────────

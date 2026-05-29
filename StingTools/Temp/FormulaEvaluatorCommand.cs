@@ -398,15 +398,13 @@ namespace StingTools.Temp
                         Unit = cols[6].Trim(),
                     };
 
-                    // Parse dependency level (column 9) — default to 0 if missing/invalid
-                    string depStr = cols[9].Trim();
-                    if (!int.TryParse(depStr, out int depLevel))
-                    {
-                        depLevel = 0;
-                        if (!string.IsNullOrEmpty(depStr))
-                            StingLog.Warn($"Formula '{formula.ParameterName}': invalid Dependency_Level '{depStr}', defaulting to 0");
-                    }
-                    formula.DependencyLevel = depLevel;
+                    // Dependency_Level (col 9) is only a HINT. The authoritative
+                    // ordering is COMPUTED below by topological sort over each
+                    // formula's real token dependencies, so a shifted/corrupted
+                    // column (unescaped commas push a GUID into this slot on some
+                    // rows) cannot break ordering — and we never warn on it.
+                    int.TryParse(cols[9].Trim(), out int depLevel);
+                    formula.DependencyLevel = depLevel; // provisional — overwritten after topo sort
 
                     // Parse uses builtin geometry (column 10)
                     formula.UsesBuiltinGeometry = cols.Length > 10 &&
@@ -434,10 +432,29 @@ namespace StingTools.Temp
                 StingLog.Error($"Failed to load formulas: {ex.Message}", ex);
             }
 
-            // Sort by dependency level (integer sort is correct here since levels are 0-6)
+            // Dedupe duplicate parameter definitions. A second row for the same
+            // ParameterName (e.g. a stray alternate expression that references a
+            // parameter which in turn references it back) would otherwise inflate
+            // formulas.Count and surface as a FALSE "cycle" in Kahn's sort below
+            // (the name can only be emitted once). Keep the first occurrence and
+            // warn once. The corporate CSV is curated so the kept definition is
+            // the single source of truth (e.g. the geometric CST_S_CON_VOLUME_CU_M).
+            {
+                var seenName = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var deduped = new List<FormulaDefinition>(formulas.Count);
+                foreach (var f in formulas)
+                {
+                    if (seenName.Add(f.ParameterName)) deduped.Add(f);
+                    else StingLog.Warn($"Formula '{f.ParameterName}': duplicate definition ignored (kept first; expression='{f.Expression}').");
+                }
+                formulas = deduped;
+            }
+
+            // Sort by the (provisional) dependency level as a stable starting
+            // order; the real ordering + levels are computed by the topo sort.
             formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
 
-            // Cycle detection via topological sort (Kahn's algorithm)
+            // Cycle detection + level computation via topological sort (Kahn's algorithm)
             var formulaByName = formulas.GroupBy(f => f.ParameterName, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
             var adjList = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -478,14 +495,26 @@ namespace StingTools.Temp
 
             var queue = new Queue<string>(inDegree.Where(kv => kv.Value == 0).Select(kv => kv.Key));
             var sorted = new List<FormulaDefinition>();
+            // Computed dependency level = longest path from a root (a node with
+            // no formula-typed inputs). Roots start at 0; every dependent is at
+            // least one deeper than its deepest dependency.
+            var levelOf = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in inDegree) if (kv.Value == 0) levelOf[kv.Key] = 0;
             while (queue.Count > 0)
             {
                 string name = queue.Dequeue();
-                if (formulaByName.TryGetValue(name, out var fd)) sorted.Add(fd);
+                int myLevel = levelOf.TryGetValue(name, out var lv) ? lv : 0;
+                if (formulaByName.TryGetValue(name, out var fd))
+                {
+                    fd.DependencyLevel = myLevel;   // overwrite the CSV hint with the computed level
+                    sorted.Add(fd);
+                }
                 if (adjList.TryGetValue(name, out var neighbors))
                 {
                     foreach (var n in neighbors)
                     {
+                        int cand = myLevel + 1;
+                        if (!levelOf.TryGetValue(n, out var ex) || cand > ex) levelOf[n] = cand;
                         inDegree[n]--;
                         if (inDegree[n] == 0) queue.Enqueue(n);
                     }

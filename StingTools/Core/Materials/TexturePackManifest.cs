@@ -228,6 +228,47 @@ namespace StingTools.Core.Materials
             return manifest.Maps.FilledSlotCount == 0 ? null : manifest;
         }
 
+        /// <summary>True when the path is a recognised PBR image file.</summary>
+        public static bool IsImageFile(string path)
+            => !string.IsNullOrEmpty(path)
+               && ImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
+
+        /// <summary>Classify a single file to its PBR slot by filename suffix
+        /// convention (basecolor/albedo, normal, rough, metal, ao, height/disp,
+        /// opacity, emissive…). Returns null when no convention matches.</summary>
+        public static string ClassifyFileToSlot(string filePath, IDictionary<string, IList<string>> suffixRules = null)
+        {
+            if (!IsImageFile(filePath)) return null;
+            var rules = suffixRules ?? BuiltInSuffixRules();
+            return MatchSlot(Path.GetFileNameWithoutExtension(filePath).ToLowerInvariant(), rules);
+        }
+
+        /// <summary>Build a manifest from an explicit set of files (e.g. a
+        /// multi-file drag-drop), auto-assigning each to a slot by the same
+        /// filename-suffix convention the folder ingester uses. Returns null
+        /// when nothing matched.</summary>
+        public static TexturePackManifest BuildFromFiles(IEnumerable<string> files,
+            string providerId = "user-drop", IDictionary<string, IList<string>> suffixRules = null)
+        {
+            if (files == null) return null;
+            var rules = suffixRules ?? BuiltInSuffixRules();
+            var manifest = new TexturePackManifest
+            {
+                PackId = "drop-" + Guid.NewGuid().ToString("N").Substring(0, 8),
+                DisplayName = "Dropped maps",
+                ProviderId = providerId ?? "user-drop",
+                License = "varies",
+                Maps = new TexturePackMaps(),
+            };
+            foreach (var f in files)
+            {
+                if (!IsImageFile(f) || !File.Exists(f)) continue;
+                var slot = MatchSlot(Path.GetFileNameWithoutExtension(f).ToLowerInvariant(), rules);
+                if (!string.IsNullOrEmpty(slot)) AssignIfEmpty(manifest.Maps, slot, f);
+            }
+            return manifest.Maps.FilledSlotCount == 0 ? null : manifest;
+        }
+
         /// <summary>Match a file stem to a PBR slot by suffix. Uses
         /// <c>EndsWith</c> ONLY (no <c>Contains</c>) so file names that
         /// happen to embed a suffix word as a substring (e.g.

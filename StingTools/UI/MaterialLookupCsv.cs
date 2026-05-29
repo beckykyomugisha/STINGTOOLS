@@ -69,7 +69,18 @@ namespace StingTools.UI
                     if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
                     var lines = File.ReadAllLines(path);
                     if (lines.Length < 2) return;
-                    var header = StingToolsApp.ParseCsvLine(lines[0]);
+                    // Skip leading comment ('#') + blank lines so the real
+                    // header row is read (MATERIAL_LOOKUP.csv opens with a
+                    // multi-line '# ...' banner).
+                    int headerIdx = 0;
+                    while (headerIdx < lines.Length)
+                    {
+                        string t = (lines[headerIdx] ?? "").Trim();
+                        if (t.Length == 0 || t.StartsWith("#")) { headerIdx++; continue; }
+                        break;
+                    }
+                    if (headerIdx >= lines.Length) { StingLog.Warn($"MaterialLookupCsv: no header row in {path}"); return; }
+                    var header = StingToolsApp.ParseCsvLine(lines[headerIdx]);
                     // Build a column-name → index map so re-ordering the CSV
                     // doesn't break us.
                     int Idx(params string[] candidates)
@@ -88,8 +99,10 @@ namespace StingTools.UI
                     int iLambda  = Idx("ThermalConductivity", "Lambda", "ThermalCond_W_mK");
 
                     if (iName < 0) { StingLog.Warn($"MaterialLookupCsv: no Name column in {path}"); return; }
-                    for (int li = 1; li < lines.Length; li++)
+                    for (int li = headerIdx + 1; li < lines.Length; li++)
                     {
+                        string raw = (lines[li] ?? "").Trim();
+                        if (raw.Length == 0 || raw.StartsWith("#")) continue;
                         var fields = StingToolsApp.ParseCsvLine(lines[li]);
                         if (fields == null || fields.Length <= iName) continue;
                         string key = (fields[iName] ?? "").Trim();
