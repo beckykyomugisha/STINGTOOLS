@@ -2485,17 +2485,27 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"ShowMaterialsTab: {ex.Message}"); }
         }
 
-        public void SetLayerRows(System.Collections.IEnumerable rows) { /* stub */ }
-        public System.Collections.Generic.List<LayerRow> GetLayerRows() => new System.Collections.Generic.List<LayerRow>();
-        public Autodesk.Revit.DB.ElementId GetLayerHostId() => Autodesk.Revit.DB.ElementId.InvalidElementId;
-        public string GetDuplicateMode() => "All";
-        public void SetDuplicateRows(System.Collections.IEnumerable rows) { /* stub */ }
-        public System.Collections.Generic.List<DuplicateRow> GetDuplicateRows() => new System.Collections.Generic.List<DuplicateRow>();
-        public System.Collections.Generic.IEnumerable<MaterialRow> GetCachedMaterialRows() => _matRows ?? Enumerable.Empty<MaterialRow>();
-        public string GetSelectedAssetKind() => "Appearance";
+        // Material Manager layer and duplicate backing fields
+        private System.Collections.Generic.List<MaterialLayer> _layerRows = new System.Collections.Generic.List<MaterialLayer>();
+        private Autodesk.Revit.DB.ElementId _layerHostId = Autodesk.Revit.DB.ElementId.InvalidElementId;
+        private DuplicateMode _duplicateMode = DuplicateMode.SameName;
+        private System.Collections.Generic.List<DuplicateRow> _duplicateRows = new System.Collections.Generic.List<DuplicateRow>();
 
-        // Placeholder types for compilation
-        public class LayerRow { public string Name { get; set; } public double Thickness { get; set; } }
-        public class DuplicateRow { public string Name { get; set; } public long Id { get; set; } }
+        public void SetLayerRows(System.Collections.Generic.IList<MaterialLayer> rows, Autodesk.Revit.DB.ElementId hostId)
+        {
+            _layerRows = rows != null ? new System.Collections.Generic.List<MaterialLayer>(rows) : new System.Collections.Generic.List<MaterialLayer>();
+            _layerHostId = hostId ?? Autodesk.Revit.DB.ElementId.InvalidElementId;
+        }
+        public System.Collections.Generic.List<MaterialLayer> GetLayerRows() => _layerRows;
+        public Autodesk.Revit.DB.ElementId GetLayerHostId() => _layerHostId;
+        public DuplicateMode GetDuplicateMode() => _duplicateMode;
+        public void SetDuplicateMode(DuplicateMode mode) => _duplicateMode = mode;
+        public void SetDuplicateRows(System.Collections.Generic.IReadOnlyList<DuplicateRow> rows)
+        {
+            _duplicateRows = rows != null ? new System.Collections.Generic.List<DuplicateRow>(rows) : new System.Collections.Generic.List<DuplicateRow>();
+        }
+        public System.Collections.Generic.List<DuplicateRow> GetDuplicateRows() => _duplicateRows;
+        public System.Collections.Generic.IReadOnlyList<MaterialRow> GetCachedMaterialRows() => _matRows ?? (System.Collections.Generic.IReadOnlyList<MaterialRow>)System.Array.Empty<MaterialRow>();
+        public string GetSelectedAssetKind() => "Appearance";
     }
 }
