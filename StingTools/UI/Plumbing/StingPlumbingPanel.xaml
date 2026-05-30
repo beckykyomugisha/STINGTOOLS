@@ -5,53 +5,60 @@
       Background="{DynamicResource PrimaryBg}">
 
     <Page.Resources>
-        <Style x:Key="PlumbSectionHeader" TargetType="TextBlock">
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Margin" Value="0,4,0,2"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-        </Style>
-        <Style x:Key="PlumbLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Margin" Value="0,2,4,2"/>
-            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-        <Style x:Key="PlumbActionBtn" TargetType="Button">
-            <Setter Property="MinWidth" Value="64"/>
-            <Setter Property="Height" Value="24"/>
-            <Setter Property="Margin" Value="2,1"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style x:Key="PlumbToolBtn" TargetType="Button" BasedOn="{StaticResource PlumbActionBtn}">
-            <Setter Property="MinWidth" Value="30"/>
-            <Setter Property="Width" Value="30"/>
-            <Setter Property="FontSize" Value="11"/>
-        </Style>
-        <Style x:Key="PlumbPrimaryBtn" TargetType="Button" BasedOn="{StaticResource PlumbActionBtn}">
-            <Setter Property="Background" Value="#FF0288D1"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="MinWidth" Value="100"/>
-            <Setter Property="Height" Value="26"/>
-        </Style>
-        <Style x:Key="PlumbSymBtn" TargetType="Button" BasedOn="{StaticResource PlumbActionBtn}">
-            <Setter Property="MinWidth" Value="80"/>
-            <Setter Property="Margin" Value="2"/>
-        </Style>
-        <Style x:Key="PlumbExpander" TargetType="Expander">
-            <Setter Property="Margin" Value="0,3"/>
-            <Setter Property="Padding" Value="2"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
-            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Phase C: shared button/section styling — single source of
+                     truth. Plumbing carries no service-coded brand colours of
+                     its own (BS 1710 DCW / DHW / HWS / SAN / RWD / GAS service
+                     tints are applied via Revit view filters, not panel chrome).
+                     Every button on this panel is neutral / Primary / muted, so
+                     the shared dictionary covers 100% of the surface. -->
+                <ResourceDictionary Source="/StingTools;component/UI/Resources/StingButtonStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="PlumbSectionHeader" TargetType="TextBlock" BasedOn="{StaticResource StingSectionHeader}">
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Margin" Value="0,4,0,2"/>
+            </Style>
+            <Style x:Key="PlumbLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="Margin" Value="0,2,4,2"/>
+                <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            <!-- PlumbActionBtn now inherits the shared StingButton look
+                 (rounded corners + hover lift + theme-driven surface).
+                 Density tuned to the original Plumbing metrics
+                 (Height 24, MinWidth 64). -->
+            <Style x:Key="PlumbActionBtn" TargetType="Button" BasedOn="{StaticResource StingButton}">
+                <Setter Property="MinWidth" Value="64"/>
+                <Setter Property="Height" Value="24"/>
+            </Style>
+            <Style x:Key="PlumbToolBtn" TargetType="Button" BasedOn="{StaticResource PlumbActionBtn}">
+                <Setter Property="MinWidth" Value="30"/>
+                <Setter Property="Width" Value="30"/>
+                <Setter Property="FontSize" Value="11"/>
+            </Style>
+            <!-- PlumbPrimaryBtn now routes to the shared outline Primary
+                 (teal border + text on transparent fill — matches the rest
+                 of STING). Size override keeps the Plumbing density. -->
+            <Style x:Key="PlumbPrimaryBtn" TargetType="Button" BasedOn="{StaticResource StingPrimaryButton}">
+                <Setter Property="MinWidth" Value="100"/>
+                <Setter Property="Height" Value="26"/>
+            </Style>
+            <Style x:Key="PlumbSymBtn" TargetType="Button" BasedOn="{StaticResource PlumbActionBtn}">
+                <Setter Property="MinWidth" Value="80"/>
+                <Setter Property="Margin" Value="2"/>
+            </Style>
+            <Style x:Key="PlumbExpander" TargetType="Expander">
+                <Setter Property="Margin" Value="0,3"/>
+                <Setter Property="Padding" Value="2"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+                <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+            </Style>
+        </ResourceDictionary>
     </Page.Resources>
 
     <Grid>
@@ -912,11 +919,13 @@
             </TabItem>
         </TabControl>
 
-        <!-- Status strip at the very bottom — mirrors the Electrical panel pattern -->
-        <Border Grid.Row="3" Background="#FF214060" Padding="10,4">
+        <!-- Status strip at the very bottom — mirrors the Electrical panel pattern.
+             Phase C: hardcoded navy → theme-driven HeaderBg so the footer cycles
+             with ThemeManager.CycleTheme() like every other chrome surface. -->
+        <Border Grid.Row="3" Background="{DynamicResource HeaderBg}" Padding="10,4">
             <TextBlock x:Name="txtPlumbFooter"
                        Text="STING Plumbing — configure SYSTEM tab first · BS EN 12056 default"
-                       Foreground="White" FontSize="11"/>
+                       Foreground="{DynamicResource HeaderFg}" FontSize="11"/>
         </Border>
     </Grid>
 </Page>
