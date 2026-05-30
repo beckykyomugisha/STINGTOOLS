@@ -161,7 +161,27 @@
 
   async function render() {
     const main = document.getElementById("main");
-    if (!state.projectId) { main.innerHTML = `<div class="empty">No projects available.</div>`; return; }
+    if (!state.projectId) {
+      // P0-5 — empty-projects state. A freshly-logged-in user (or any tenant
+      // whose projects list is empty) used to land on a bare "No projects
+      // available." string with no path forward. Render a friendly panel
+      // with a "+ New project" button that reuses the existing modal flow.
+      const userName = (localStorage.getItem(USER_KEY) || "").split("@")[0] || "there";
+      main.innerHTML = `
+        <div class="greeting-strip">
+          <div>
+            <h2>Welcome, ${esc(userName)}.</h2>
+            <div class="summary">No projects yet — create one to start tracking issues, documents, transmittals, and the rest of the coordination workflow.</div>
+          </div>
+          <div class="actions">
+            <button id="btnEmptyNewProject" class="btn-primary">＋ New Project</button>
+          </div>
+        </div>
+        <div id="modal-mount"></div>`;
+      const btn = document.getElementById("btnEmptyNewProject");
+      if (btn) btn.onclick = openNewProjectModal;
+      return;
+    }
     syncSidebarScope();
     main.innerHTML = `<div class="empty">Loading…</div>`;
     try {
