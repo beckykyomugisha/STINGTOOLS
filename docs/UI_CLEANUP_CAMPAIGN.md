@@ -321,19 +321,80 @@ A prompt was written and pasted into the terminal Claude Code session covering 4
 
 ### Phase Z — newly-surfaced findings
 
-These came up DURING the campaign work but weren't in the audit. Each is its own ticket-sized item.
+These came up DURING the campaign work but weren't in the audit. Each is its own ticket-sized item. **Status legend:** ✅ closed · 🔄 in flight · ⏸ user-config / external · 📤 terminal-agent-owned · 📥 cloud-agent-owned
 
-**Z-1 — Photo*.cs services break the build (43 pre-existing CS1061 errors)**
+**Z-1 — Photo*.cs services break the build (43 pre-existing CS1061 errors)** 📤
 Discovered during P1-A. `Planscape.Server/src/Planscape.Infrastructure/Services/PhotoChecklistDueJob.cs` and related Photo*.cs files reference missing `PhotoChecklistItems` / `PhotoAlbumPhotos` / `PhotoPolicies` / `PhotoAlbums` DbSets on `PlanscapeDbContext`. Either the feature is dead (delete the orphan services) or unfinished (add the DbSets). Audit needed before deciding. The running webapp must use a different build path because Infrastructure literally doesn't compile right now.
 
-**Z-2 — EF model snapshot is severely stale**
+**Z-2 — EF model snapshot is severely stale** 📤
 Discovered during P1-A. Snapshot tracks 58 entities; `OnModelCreating` configures 113. The Migrate() pattern is unused. Future migrations face the same trap that P1-A worked around. Either regenerate the snapshot cleanly OR commit to the `CreateTables()`-only workflow and delete the now-half-used EF migration infrastructure.
 
-**Z-3 — MgasVerify ComboBox label drift**
-Discovered during Phase D MgasVerify wiring. The XAML ComboBox labels ("Pressure decay", "Cross-connection", etc) **do not match the canonical 12-step checklist order** in `HTMStandards.MgpsVerificationChecklist`. The fix dispatches the right `MgpsVerificationChecklist[N-1]` based on the picker's numeric Tag, so step 7 always runs index `[6]` whatever the label says — but the labels lie to the user. Relabelling required.
+**Z-3 — MgasVerify ComboBox label drift** ✅ closed (cloud commit `e3959fee3`)
+The XAML ComboBox labels did not match the canonical 12-step checklist order in `HTMStandards.MgpsVerificationChecklist`. Relabelled all 12 ComboBoxItems to match the canonical order; Tag values (the step indices) unchanged.
 
-**Z-4 — Main dock panel still has the 6-button DOCS align row**
-Phase D collapsed the row inside `DrawingTypeEditorDialog`. The main panel (DOCS tab, lines 1358-1363) still has 6 separate `VPAlignTop / MidY / Bot / Left / MidX / Right` buttons all routing to `AlignViewportsCommand`. Could be collapsed to 1 the same way the dialog was, with the same external-ref policy.
+**Z-4 — Main dock panel still has the 6-button DOCS align row** 📤
+Phase D collapsed the row inside `DrawingTypeEditorDialog`. The main panel (DOCS tab, lines 1358-1363) still has 6 separate `VPAlignTop / MidY / Bot / Left / MidX / Right` buttons all routing to `AlignViewportsCommand`. Could be collapsed to 1 the same way the dialog was, with the same external-ref policy. **Terminal agent Task 2.**
+
+**Z-5 — Deletion briefs need dependency-graph audit** ✅ closed (process change)
+Lesson from the Material Hub regression: when an agent is briefed to delete a "dialog" file, the brief must require a class-by-class consumer audit BEFORE delete. Bake this into future deletion briefs.
+
+**Z-6 — `MergeRecoveryStubs.cs` dead-returning methods** 📤
+16+ methods in `StingTools/Core/MergeRecoveryStubs.cs` return `Task.FromResult(false/null/0)` without making HTTP calls. P1-B fixed one cluster (HVAC); the other 16 cover Photo NDA, Photo Albums, Photo Export, Photo Bulk Ops, Distribution Groups, Model dedup/delete. Each is a UI surface silently reporting fake success. Audit + per-resource PR plan in `docs/PHASE_Z_AUDITS.md`. **Terminal agent Task 3 (sequential PRs).**
+
+**Z-7 — SignalR subscribers gap** ✅ closed (cloud commit `1ac9a5c13`)
+P1-D wired 9 events, missed 4. Cloud added `CommentAdded` → issues view, `ApprovalDecided` → documents view, `TagsUpdated` → overview view. Dropped `NotificationCreated` (no server raise). Deferred: LpsRecordPushed, SitePhoto*, PhotoAlbumChanged, Deliverable* (no UI surface yet — wire when views land).
+
+**Z-8 — `ClashLive` button misleading label** ✅ closed (cloud commit `7d621dcf8`)
+Two "Live" buttons renamed to "Refresh" with corrected ToolTip explaining the in-Revit clash kernel architecture. No behaviour change.
+
+**Z-9 — Agent brief discipline: always grep server raises, never invent names** ✅ closed (process change)
+Lesson from P1-D: my brief invented `WorkflowStateUpdate` (real name: `WorkflowRunCompleted`) and `ClashNotification` (doesn't exist). Agent caught both. Apply to every future "subscribe to event X" brief.
+
+**Z-10 — Mapbox token literal placeholder reaches production HTML** ⏸ user-config
+`PLANSCAPE_MAPBOX_TOKEN` placeholder appears in `index.html`. No code fix needed — P0-2's `loadPublicConfig` already plumbs from `/api/public-config`. User obtains a token at mapbox.com, sets env var, restarts server.
+
+**Z-11 — docker-compose.yml duplicate `seq:` key** ✅ closed (cloud commit `d51269c05`)
+Lines 264-308 were a byte-identical duplicate of the observability section at lines 184-228. Deleted. YAML now parses cleanly.
+
+**Z-12 — wwwroot bind-mount for dev iteration** ✅ closed (cloud commit `b8c0b5a45`)
+Added `../src/Planscape.API/wwwroot/js:/app/wwwroot/js` + same for `css/` to the api service. Dev workflow before: edit → `docker compose down` → `up --build` (~3 min) → reload. After: edit → reload. No image rebuild needed for JS/CSS changes.
+
+**Z-13 — Team handbook: `--remove-orphans` after compose edits** ⏸ doc-only
+Add to onboarding: `docker compose down --remove-orphans` before `up --build` to avoid stale containers holding ports (the 2-day-old container that served stale `dashboard.js` for hours).
+
+**Z-14 — `.dockerignore` for wwwroot** ⏸ superseded by Z-12
+The bind-mount achieves the same effect (live JS changes without rebuild). Skip unless image-size becomes a concern.
+
+**Z-15 — Forensic: when did the duplicate `seq:` enter the repo?** ✅ documented
+Introduced by merge commit `41ae11234` on April 17, 2026 — a `-X ours` consolidation where both parents had ONE seq block each at different line positions. `-X ours` preserved both without YAML semantic dedup. Multiple downstream `-X ours` merges propagated.
+
+**Z-16 — CI check: `docker compose config -q`** 📤
+Add to `.github/workflows/` so `docker-compose.yml` parse failures are caught in CI. The Z-11 duplicate ran for weeks because nobody locally was running `compose up` from main; CI would have caught it on the introducing merge.
+
+**Z-17 — `git push --delete` loops need squash-merge-aware check** 📤 (lesson)
+The terminal agent's branch-deletion loop's `git branch -r --contains` check returns false for squash-merged branches (squash creates a new SHA that's not a textual descendant of the source). Future deletion scripts should fall back to `git log --oneline --grep="<source branch's commit subject>" origin/main` OR `git log --cherry-pick` for content-equivalence detection.
+
+### Phase Z numerics — deep formula/cost/material audit findings
+
+Audit branch `audit/numerics-deep-review` commit `8774be49` — `docs/PHASE_Z_NUMERIC_AUDIT.md`. 0 P0 / 14 P1 / 11 P2. Three P1s reach delivered BOQs/carbon reports via common export paths and are "fix-next":
+
+**Z-18 — VAT missing from headline `GrandTotalUGX`** 🔄 in flight (terminal agent)
+`BOQModels.cs:162-163` computes the headline total WITHOUT VAT. Only `BOQProfessionalExportCommand.cs:1537` adds it in the Word export. Standard XLSX, budget-variance, dashboard, BCC totals are **~18% short** of true contract sum. Fix: centralize VAT into the model (don't sprinkle into each export path). Also verify `VatPct` default = 18 (Uganda VAT).
+
+**Z-19 — Sand bulking DRY=1.15 non-physical** 📤
+`MATERIAL_LOOKUP.csv:219-222` has DRY=1.15 (dry sand doesn't bulk — should be ≈1.00), DAMP=1.25 ✓, WET=1.10 (saturated sand collapses back near dry — should be ≈1.05). Reference: CIRIA / IS 2386. Fix: pure CSV one-line edit. Direct quantity error on every sand line.
+
+**Z-20 — Embodied-carbon undercount for metals & glass (~4–9× low)** 📤
+`MEP_MATERIALS.csv` steel/copper/glass carbon factors 4-9× below ICE v3.0 reference values. Plus **Z-20b**: concrete-carbon cross-file drift — `BLE_MATERIALS.csv` says 150 kgCO₂/m³ vs `MATERIAL_LOOKUP.csv` 345. Any delivered carbon report or RIBA-stage carbon number is materially wrong-low. Fix scope: not just edit CSVs — DECIDE which file is canonical (MATERIAL_LOOKUP recommended per Phase 76+ work) and route consumers there.
+
+**Z-21 — Waste% skipped on BOQ legacy-fallback path** 📤
+`BOQCostManager.cs:368-372` applies `q *= 1+Waste%` only when a TakeoffRule matches. Elements routed through the legacy fallback (`:380+`) apply 0% waste — under-quantified. P1, runner-up to top-3.
+
+**Z-22 — 63 of 278 formulas in dependency cycles** 📤 LARGE
+`FORMULAS_WITH_DEPENDENCIES.csv` — Kahn's topological sort orders only 215 of 278 nodes; 63 in/downstream of cycles, including `CST_S_CON_CEMENT_BAGS_NR`, `CST_S_CON_SAND_VOLUME_CU_M`, `CST_CALC_STEEL_KG`, `PLM_HED_M`, `HVC_PIPE_FLOWRATE_LPS`. Engine logs "Formula cycle detected" and runs them last with stale inputs — concrete/steel-takeoff can produce non-deterministic BOQ numbers between runs. **Not a single-PR fix** — multi-day project: identify each cycle, decide algebraic resolution (parameter elimination / fixed-point iteration with convergence test / break-by-construction), wire into FormulaEngine.
+
+**Z-23 — Smaller numeric findings (10 P1 + 11 P2)** 📤
+See `docs/PHASE_Z_NUMERIC_AUDIT.md` for the full table. Categories: material constants (BLE template-default rows for non-concrete materials carry wrong density/thermal/carbon), softwood density = hardwood, timber biogenic carbon mixed with gross, BOQ ProvisionalSum reconciliation uses `Math.Abs` (no signed credit/overrun), CIBSE velocity max slightly permissive, BS 7671 cooker circuit borderline.
 
 ### Deferred from triage, never picked up
 
