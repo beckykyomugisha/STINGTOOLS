@@ -230,10 +230,98 @@ namespace StingTools.UI
             "SmartPlaceTags", "TagStudio_SmartPlace", "BatchPlaceTags",
         };
 
+        // ── Phase B Round 1 shared helpers ───────────────────────────────
+        //
+        // Pattern 2 (RadioButton ring) — every routing RadioButton tagged
+        // with its dispatch string fires the same handler. Single source of
+        // truth so subsequent Phase B agents reuse rather than duplicate.
+        // Matches the signature in docs/UI_PHASE_B_PATTERNS.md.
+        private void OnRadioRouteChecked(object sender, RoutedEventArgs e)
+        {
+            // Radios that gate a ComboBox-style mode picker should NOT
+            // auto-dispatch on Check — they only update the active mode for
+            // the suite-runner button to consume. Dispatch only when the Tag
+            // is one of the explicit dispatch tags. If a future tab wants
+            // the auto-dispatch behaviour, set IsAutoDispatch via Tag prefix
+            // — for now everything in scope is suite-runner-style, so this
+            // is intentionally a no-op stash.
+            // (The runner Cmd_Click branches read the radio state directly.)
+        }
+
+        // INTEROP suite-runner helper. Resolves a runner tag to one or more
+        // concrete dispatch tags (defined by the INTEROP XAML layout) and
+        // dispatches each. Kept tab-scoped — if another tab needs a generic
+        // suite runner, generalise this rather than copy-paste.
+        private bool RunInteropRunner(string runnerTag)
+        {
+            if (string.IsNullOrEmpty(runnerTag)) return false;
+
+            switch (runnerTag)
+            {
+                case "ExcelLink_SyncSuite":
+                {
+                    // Reads sibling CheckBoxes from the EXCEL LINK section.
+                    bool elements  = chkSyncElements  != null && chkSyncElements.IsChecked  == true;
+                    bool schedules = chkSyncSchedules != null && chkSyncSchedules.IsChecked == true;
+                    bool template  = chkSyncTemplate  != null && chkSyncTemplate.IsChecked  == true;
+                    if (!elements && !schedules && !template) return true; // nothing ticked, no-op
+                    if (elements)  { DispatchCommand("ExportToExcel");           DispatchCommand("ImportFromExcel"); }
+                    if (schedules) { DispatchCommand("ExportSchedulesToExcel");  DispatchCommand("ImportSchedulesFromExcel"); }
+                    if (template)  { DispatchCommand("ExportExcelTemplate"); }
+                    return true;
+                }
+                case "Platform_PublishTarget":
+                {
+                    // Reads the platform-target ComboBox.
+                    var item = cmbPlatformTarget != null ? cmbPlatformTarget.SelectedItem as System.Windows.Controls.ComboBoxItem : null;
+                    string target = item != null ? item.Tag as string : null;
+                    if (string.IsNullOrEmpty(target)) return true;
+                    DispatchCommand(target);
+                    return true;
+                }
+                case "ExLinkDynamic_Run":
+                {
+                    // Reads the EXLINK DYNAMIC EXPORT radios.
+                    string fmt = null;
+                    if (rbExLinkPDF != null && rbExLinkPDF.IsChecked == true) fmt = (rbExLinkPDF.Tag as string) ?? "ExLinkDynamicPDF";
+                    else if (rbExLinkDWG != null && rbExLinkDWG.IsChecked == true) fmt = (rbExLinkDWG.Tag as string) ?? "ExLinkDynamicDWG";
+                    else if (rbExLinkNWC != null && rbExLinkNWC.IsChecked == true) fmt = (rbExLinkNWC.Tag as string) ?? "ExLinkDynamicNWC";
+                    if (string.IsNullOrEmpty(fmt)) fmt = "ExLinkDynamicPDF"; // default
+                    DispatchCommand(fmt);
+                    return true;
+                }
+                case "ISB_CreateSelected":
+                {
+                    // Reads the ISB SCHEDULES ComboBox.
+                    var item = cmbISBSchedule != null ? cmbISBSchedule.SelectedItem as System.Windows.Controls.ComboBoxItem : null;
+                    string sched = item != null ? item.Tag as string : null;
+                    if (string.IsNullOrEmpty(sched)) sched = "ISBDoorSchedule"; // default
+                    DispatchCommand(sched);
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        }
+
         private void Cmd_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
             {
+                // Phase B Round 1 — INTEROP suite runners route here first.
+                // If matched, the runner reads sibling UI controls and
+                // dispatches one or more concrete tags itself; suppress the
+                // normal ExternalEvent path so the runner tag isn't sent as
+                // an unknown command.
+                if (cmdTag == "ExcelLink_SyncSuite" ||
+                    cmdTag == "Platform_PublishTarget" ||
+                    cmdTag == "ExLinkDynamic_Run" ||
+                    cmdTag == "ISB_CreateSelected")
+                {
+                    RunInteropRunner(cmdTag);
+                    return;
+                }
+
                 // Phase 165 — Issue #14. After a mode-switch button fires,
                 // refresh the depth-tier labels under the depth slider so
                 // the user sees the correct tier-set for the new active mode.
