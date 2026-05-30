@@ -6,7 +6,18 @@
       Background="{DynamicResource PrimaryBg}">
 
     <Page.Resources>
-        <Style x:Key="LpsSectionHeader" TargetType="TextBlock">
+        <ResourceDictionary>
+            <!-- Phase C reconciliation: merge shared StingButtonStyles so new LPS
+                 sections can reach StingButton / StingPrimaryButton / StingSectionHeader
+                 / StingDangerButton without redefining them. The local Lps* styles
+                 below are kept verbatim — LpsActionBtn (H 24, MinWidth 74) and the
+                 solid-fill brand variants (LpsPrimaryBtn purple, LpsWarnBtn orange,
+                 LpsAccentBtn blue) diverge from the shared outline-teal language
+                 and the user explicitly likes the existing LPS look. -->
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/StingTools;component/UI/Resources/StingButtonStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="LpsSectionHeader" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Margin" Value="0,4,0,2"/>
@@ -73,6 +84,7 @@
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="AlternatingRowBackground" Value="{DynamicResource SecondaryBg}"/>
         </Style>
+        </ResourceDictionary>
     </Page.Resources>
 
     <Grid>
