@@ -5,55 +5,39 @@
       Title="STING Material Hub"
       Background="#F5F7FA">
     <Page.Resources>
-        <SolidColorBrush x:Key="HubHeaderBg" Color="#1F2A3A"/>
-        <SolidColorBrush x:Key="HubHeaderFg" Color="#FFFFFF"/>
-        <SolidColorBrush x:Key="HubKpiBg"    Color="#EAEFF5"/>
-        <SolidColorBrush x:Key="HubLineBr"   Color="#D0D7E0"/>
-        <SolidColorBrush x:Key="HubAccent"   Color="#3D6FBA"/>
-        <SolidColorBrush x:Key="HubMuted"    Color="#6E7A8A"/>
-        <Style x:Key="HubBtn" TargetType="Button">
-            <Setter Property="Padding" Value="8,3"/>
-            <Setter Property="Margin"  Value="2,2,0,0"/>
-            <Setter Property="MinWidth" Value="72"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="{StaticResource HubLineBr}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style x:Key="HubAccentBtn" TargetType="Button" BasedOn="{StaticResource HubBtn}">
-            <Setter Property="Background" Value="{StaticResource HubAccent}"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-        </Style>
-        <Style x:Key="HubGroupLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{StaticResource HubMuted}"/>
-            <Setter Property="Margin" Value="4,2,4,1"/>
-        </Style>
-        <Style x:Key="KpiCard" TargetType="Border">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="{StaticResource HubLineBr}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="2"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="Margin"  Value="2"/>
-            <Setter Property="MinWidth" Value="100"/>
-        </Style>
-        <Style x:Key="CardBorder" TargetType="Border">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="{StaticResource HubLineBr}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="2"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="Margin"  Value="0,0,0,6"/>
-        </Style>
-        <Style x:Key="CardHeader" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{StaticResource HubHeaderBg}"/>
-            <Setter Property="Margin" Value="0,0,0,4"/>
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Phase C: shared button styling — tune the look in one file.
+                     Implicit <Style TargetType="Button" BasedOn="StingButton"/>
+                     from the dictionary applies to every <Button/> on the page
+                     plus every dynamically-built Button in
+                     MaterialHubPanel.Builders.cs / .Textures.cs. The three
+                     navy chrome buttons in the header bar (Refresh / Settings /
+                     Help) keep their local Background="#324A66" — locally-set
+                     properties beat implicit styles, and that colour is
+                     Material Hub brand chrome (parallel to LPS keeping its
+                     purple primary). Likewise, material-preview / PBR-swatch
+                     colours in the data grid are DATA, not chrome — left as-is. -->
+                <ResourceDictionary Source="/StingTools;component/UI/Resources/StingButtonStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <!-- Material Hub identity chrome — NOT theme-neutral by design.
+                 The dark navy header / pale KPI strip / line colour are the
+                 Hub's brand chrome (same role as LPS purple). Kept verbatim. -->
+            <SolidColorBrush x:Key="HubHeaderBg" Color="#1F2A3A"/>
+            <SolidColorBrush x:Key="HubHeaderFg" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="HubKpiBg"    Color="#EAEFF5"/>
+            <SolidColorBrush x:Key="HubLineBr"   Color="#D0D7E0"/>
+            <SolidColorBrush x:Key="HubAccent"   Color="#3D6FBA"/>
+            <SolidColorBrush x:Key="HubMuted"    Color="#6E7A8A"/>
+            <!-- Sub-header TextBlock style (NAVIGATE / INSPECTOR). Kept —
+                 actively referenced in the markup below. -->
+            <Style x:Key="HubGroupLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="9"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{StaticResource HubMuted}"/>
+                <Setter Property="Margin" Value="4,2,4,1"/>
+            </Style>
+        </ResourceDictionary>
     </Page.Resources>
 
     <DockPanel>
