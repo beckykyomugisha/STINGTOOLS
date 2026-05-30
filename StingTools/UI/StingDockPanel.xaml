@@ -1321,17 +1321,18 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Map Sheets" Tag="MapSheets" Click="Cmd_Click" ToolTip="Map native sheet number/name to STING parameters"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Tag Sheets" Tag="TagSheets" Click="Cmd_Click" ToolTip="Tag all sheets with ISO 19650 document codes (DISC, FORM, LEVEL, REV, TAG1, TAG7)"/>
                                 </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="SHEET NUMBER"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource CatBtn}" Content="Reset Title" Tag="SheetResetTitle" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="+1" Tag="SheetNumPlus" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="-1" Tag="SheetNumMinus" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Prefix" Tag="SheetPrefix" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Suffix" Tag="SheetSuffix" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Rem Pre" Tag="SheetRemovePrefix" Click="Cmd_Click" ToolTip="Remove prefix token from selected sheet names"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Rem Suf" Tag="SheetRemoveSuffix" Click="Cmd_Click" ToolTip="Remove suffix token from selected sheet names"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Rename…" Tag="SheetFindReplace" Click="Cmd_Click" ToolTip="Open the Batch Rename Views dialog (BatchRenameViewsCommand)"/>
-                                </WrapPanel>
+                                <Expander Header="Advanced renumber / rename" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource CatBtn}" Content="Reset" Tag="SheetResetTitle" Click="Cmd_Click" ToolTip="Reset sheet title to default"/>
+                                        <Button Style="{StaticResource CatBtn}" Content="+1" Tag="SheetNumPlus" Click="Cmd_Click" ToolTip="Increment numeric portion of selected sheet numbers"/>
+                                        <Button Style="{StaticResource CatBtn}" Content="-1" Tag="SheetNumMinus" Click="Cmd_Click" ToolTip="Decrement numeric portion of selected sheet numbers"/>
+                                        <Button Style="{StaticResource CatBtn}" Content="Prefix" Tag="SheetPrefix" Click="Cmd_Click" ToolTip="Add prefix token to selected sheet numbers"/>
+                                        <Button Style="{StaticResource CatBtn}" Content="Suffix" Tag="SheetSuffix" Click="Cmd_Click" ToolTip="Add suffix token to selected sheet numbers"/>
+                                        <Button Style="{StaticResource CatBtn}" Content="Rem Pre" Tag="SheetRemovePrefix" Click="Cmd_Click" ToolTip="Remove prefix token from selected sheet names"/>
+                                        <Button Style="{StaticResource CatBtn}" Content="Rem Suf" Tag="SheetRemoveSuffix" Click="Cmd_Click" ToolTip="Remove suffix token from selected sheet names"/>
+                                        <Button Style="{StaticResource CatBtn}" Content="Rename…" Tag="SheetFindReplace" Click="Cmd_Click" ToolTip="Open the Batch Rename Views dialog (BatchRenameViewsCommand)"/>
+                                    </WrapPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
@@ -1349,15 +1350,19 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="From Scope Boxes" Tag="DrawingTypes_FromScopeBoxes" Click="Cmd_Click" ToolTip="Scan scope boxes in the active project and suggest drawing-type stub ids (with auto-discipline detection from the scope box name)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↓ Export to Excel" Tag="DrawingTypes_ExportExcel" Click="Cmd_Click" ToolTip="Export all Drawing Types and Style Packs to an editable Excel workbook (8 sheets, colour swatches, validation dropdowns)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↑ Import from Excel" Tag="DrawingTypes_ImportExcel" Click="Cmd_Click" ToolTip="Import Drawing Types and Style Packs from an edited Excel workbook (validation pre-flight, change preview, applies to project _BIM_COORD/ overrides)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Heal TBs" Tag="DrawingTypes_HealTitleBlocks" Click="Cmd_Click" ToolTip="Phase 168 — Re-apply title-block parameter bindings on every stamped sheet WITHOUT touching scale / detail / templates / annotation. Writes an audit row per sheet to _BIM_COORD/titleblock_heal_audit.jsonl."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Renumber" Tag="DrawingTypes_Renumber" Click="Cmd_Click" ToolTip="Phase 168 — Compact sheet-number gaps within each (DrawingType, package) bucket. Two-pass rename avoids collisions; locked sheets are skipped."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Doctor" Tag="DrawingTypes_Doctor" Click="Cmd_Click" ToolTip="Phase 168 — Audit the title-block layer: cross-stamps (CSV vs recipe), family swaps, missing TBs, stale syncs."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Migrate CSV" Tag="DrawingTypes_MigrateCsv" Click="Cmd_Click" ToolTip="Phase 168 — Export TITLE_BLOCK.csv as a recipe-ready JSON snippet (baseline + per-discipline deltas) ready to paste into the Drawing Types editor."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Migrate TB Params" Tag="DrawingTypes_MigrateParams" Click="Cmd_Click" ToolTip="One-time migration: copy PRJ_TB_* values from title blocks into PRJ_ORG_* on ProjectInformation, then re-stamp all sheets."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Audit TB Params" Tag="DrawingTypes_AuditLegacyParams" Click="Cmd_Click" ToolTip="Read-only audit: shows which PRJ_TB_* values would be migrated without writing anything."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Rev Strip" Tag="DrawingTypes_SyncRevisions" Click="Cmd_Click" ToolTip="Sync Revit Revision sequence into title-block revision-strip rows (PRJ_TB_REV_COL_n / DATE / DESC) on all STING-stamped sheets."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Re-Stamp Sheets" Tag="DrawingTypes_BulkReStamp" Click="Cmd_Click" ToolTip="Re-apply a DrawingType profile (scale / template / style pack / annotation) to selected sheets or all project sheets."/>
                                 </WrapPanel>
+                                <Expander Header="Advanced drawing-type ops" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Heal TBs" Tag="DrawingTypes_HealTitleBlocks" Click="Cmd_Click" ToolTip="Phase 168 — Re-apply title-block parameter bindings on every stamped sheet WITHOUT touching scale / detail / templates / annotation. Writes an audit row per sheet to _BIM_COORD/titleblock_heal_audit.jsonl."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Renumber" Tag="DrawingTypes_Renumber" Click="Cmd_Click" ToolTip="Phase 168 — Compact sheet-number gaps within each (DrawingType, package) bucket. Two-pass rename avoids collisions; locked sheets are skipped."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Doctor" Tag="DrawingTypes_Doctor" Click="Cmd_Click" ToolTip="Phase 168 — Audit the title-block layer: cross-stamps (CSV vs recipe), family swaps, missing TBs, stale syncs."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Migrate CSV" Tag="DrawingTypes_MigrateCsv" Click="Cmd_Click" ToolTip="Phase 168 — Export TITLE_BLOCK.csv as a recipe-ready JSON snippet (baseline + per-discipline deltas) ready to paste into the Drawing Types editor."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Migrate Params" Tag="DrawingTypes_MigrateParams" Click="Cmd_Click" ToolTip="One-time migration: copy PRJ_TB_* values from title blocks into PRJ_ORG_* on ProjectInformation, then re-stamp all sheets."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Audit Params" Tag="DrawingTypes_AuditLegacyParams" Click="Cmd_Click" ToolTip="Read-only audit: shows which PRJ_TB_* values would be migrated without writing anything."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sync Rev" Tag="DrawingTypes_SyncRevisions" Click="Cmd_Click" ToolTip="Sync Revit Revision sequence into title-block revision-strip rows (PRJ_TB_REV_COL_n / DATE / DESC) on all STING-stamped sheets."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Re-Stamp" Tag="DrawingTypes_BulkReStamp" Click="Cmd_Click" ToolTip="Re-apply a DrawingType profile (scale / template / style pack / annotation) to selected sheets or all project sheets."/>
+                                    </WrapPanel>
+                                </Expander>
                                 <!-- Phase 137 — Production -->
                                 <Separator/>
                                 <TextBlock Text="Production" FontWeight="SemiBold" Margin="2,4,0,2"/>
@@ -1379,26 +1384,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit Packages" Tag="DrawingTypes_AuditPackages" Click="Cmd_Click" ToolTip="Phase 137 — list all drawing packages with sheet count, view count, and sequence-gap count"/>
                                     <Button Style="{StaticResource StingPrimaryButton}" Content="⚡ Produce &amp; Export" Tag="DrawingTypes_ProduceAndExport" Click="Cmd_Click" ToolTip="AUTO-2: One-click produce all plan views per level, sync styles and revisions, export every stamped sheet to PDF, and write a sheet register CSV."/>
                                 </WrapPanel>
-                                <!-- Phase 137 — Production -->
-                                <Separator/>
-                                <TextBlock Text="Production" FontWeight="SemiBold" Margin="2,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Produce Per Level" Tag="DrawingTypes_ProducePerLevel" Click="Cmd_Click" ToolTip="Phase 137 — open production-config dialog and produce per-level views/sheets for the selected drawing types"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Produce Sections" Tag="DrawingTypes_ProduceSections" Click="Cmd_Click" ToolTip="Phase 137 — produce section views via grid alignment / room walls / manual selection per the chosen preset"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Exterior Elevations" Tag="DrawingTypes_ProduceExteriorElevations" Click="Cmd_Click" ToolTip="Phase 137 — auto-place 4 exterior elevations using detected building footprint, with optional 1+4-view sheet"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Interior Elevations" Tag="DrawingTypes_ProduceInteriorElevations" Click="Cmd_Click" ToolTip="Phase 137 — produce interior elevations for selected rooms"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="From Scope Boxes (Produce)" Tag="DrawingTypes_ProduceFromScopeBoxes" Click="Cmd_Click" ToolTip="Phase 137 — produce views/sheets driven by STING::… scope boxes"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Regenerate Templates" Tag="DrawingTypes_RegenerateTemplates" Click="Cmd_Click" ToolTip="Phase 137 — re-mint managed view templates for selected packs"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="→ Managed Mode" Tag="DrawingTypes_ConvertToManaged" Click="Cmd_Click" ToolTip="Phase 137 — convert an external pack to managed mode by importing settings from a chosen view template"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Detach Managed" Tag="DrawingTypes_DetachManaged" Click="Cmd_Click" ToolTip="Phase 137 — flip a managed pack to external and rename its STING:* templates"/>
-                                </WrapPanel>
-                                <Separator/>
-                                <TextBlock Text="Packages" FontWeight="SemiBold" Margin="2,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Export Package" Tag="DrawingTypes_ExportPackage" Click="Cmd_Click" ToolTip="Phase 137 — export every sheet in a selected drawing package as PDFs in sequence order"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sequence Package" Tag="DrawingTypes_SequencePackage" Click="Cmd_Click" ToolTip="Phase 137 — re-stamp STING_SHEET_SEQUENCE for a selected package, ordered by current sheet number"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Audit Packages" Tag="DrawingTypes_AuditPackages" Click="Cmd_Click" ToolTip="Phase 137 — list all drawing packages with sheet count, view count, and sequence-gap count"/>
-                                </WrapPanel>
+                                <!-- Phase B Round 2: duplicate Production + Packages blocks deduped per SPECKLE precedent. -->
                             </StackPanel>
                         </Border>
 
@@ -1413,24 +1399,22 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Set Variant" Tag="TitleBlockSetVariant" Click="Cmd_Click" ToolTip="Auto-swap STING_TB_* family based on paper size and viewport aspect (A0/A1/A3 × R/B)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Legend Bind" Tag="DisciplineLegendBind" Click="Cmd_Click" ToolTip="Place LGD-{DISC}-NOTES legend view into notes region of each sheet's title block (Option C)"/>
                                 </WrapPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Count Sheets" Tag="SheetCountAutoUpdate" Click="Cmd_Click" ToolTip="Refresh PRJ_TB_TOTAL_NO_SHEETS_TXT — counts sheets where 'Appears in Sheet List' is Yes"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Revision Sync" Tag="RevisionSync" Click="Cmd_Click" ToolTip="Mirror Revit native revision number/date into PRJ_TB_REVISION_NR_TXT / PRJ_TB_REVISION_DATE_TXT"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Stamp TX" Tag="TransmittalAutoIssue" Click="Cmd_Click" ToolTip="Stamp transmittal metadata (PRJ_TB_LAST_TRANSMITTAL_*, PRJ_TB_DELIVERABLE_*) onto selected sheets"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Pre-Export" Tag="PreExportValidate" Click="Cmd_Click" ToolTip="Run pre-export completeness gate — blocks PDF/DWF when critical fields are empty"/>
-                                </WrapPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Build Family…" Tag="TitleBlock_Create" Click="Cmd_Click" ToolTip="Phase 170 factory — mint a STING title-block .rfa from STING_TITLE_BLOCKS.json. Picker appears when multiple concrete (non-abstract) families exist; abstract base specs are filtered out."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Build All Families" Tag="TitleBlock_CreateAll" Click="Cmd_Click" ToolTip="Mint every concrete (non-abstract) family in STING_TITLE_BLOCKS.json in one batch. Abstract `_common` bases are skipped — they're inheritance scaffolding only."/>
-                                </WrapPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-place Viewports" Tag="TitleBlock_AutoPlaceViewports" Click="Cmd_Click" ToolTip="For each selected view, look up its purpose tag via STING_VIEWPORT_PLACEMENT_RULES.json and place a Viewport at the active sheet's matching slot. Slot bounds are read from the title-block .rfa's named reference planes; scaleHint + viewportType applied at creation time."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Toggle BIM Mode" Tag="TitleBlock_ToggleBIMMode" Click="Cmd_Click" ToolTip="Swap the active sheet's title block between its BIM and NONBIM family variants. Auto-loads the target .rfa from Families/TitleBlocks/ when not already in the project. Updates STING_SHEET_BIM_MODE_TXT."/>
-                                </WrapPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Audit Legacy" Tag="TitleBlock_AuditLegacy" Click="Cmd_Click" ToolTip="Read-only — list every sheet whose title block follows the pre-May-2026 single-family naming (STING_TB_&lt;SIZE&gt;_v&lt;N&gt;). Reports counts + sample sheet numbers grouped by legacy family. Run before Migrate Legacy."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Migrate Legacy" Tag="TitleBlock_MigrateLegacy" Click="Cmd_Click" ToolTip="For each legacy single-family title block, swap to the BIM variant of the same paper size + version. Auto-loads the target .rfa. Sets STING_SHEET_BIM_MODE_TXT = 'BIM'. Run Toggle BIM Mode afterwards on individual sheets that should be NONBIM."/>
-                                </WrapPanel>
+                                <Expander Header="Advanced title-block ops" FontSize="10" Margin="0,2,0,0">
+                                    <StackPanel Margin="0,4">
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Count" Tag="SheetCountAutoUpdate" Click="Cmd_Click" ToolTip="Refresh PRJ_TB_TOTAL_NO_SHEETS_TXT — counts sheets where 'Appears in Sheet List' is Yes"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Rev Sync" Tag="RevisionSync" Click="Cmd_Click" ToolTip="Mirror Revit native revision number/date into PRJ_TB_REVISION_NR_TXT / PRJ_TB_REVISION_DATE_TXT"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Stamp TX" Tag="TransmittalAutoIssue" Click="Cmd_Click" ToolTip="Stamp transmittal metadata (PRJ_TB_LAST_TRANSMITTAL_*, PRJ_TB_DELIVERABLE_*) onto selected sheets"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Pre-Export" Tag="PreExportValidate" Click="Cmd_Click" ToolTip="Run pre-export completeness gate — blocks PDF/DWF when critical fields are empty"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Build…" Tag="TitleBlock_Create" Click="Cmd_Click" ToolTip="Phase 170 factory — mint a STING title-block .rfa from STING_TITLE_BLOCKS.json. Picker appears when multiple concrete (non-abstract) families exist; abstract base specs are filtered out."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Build All" Tag="TitleBlock_CreateAll" Click="Cmd_Click" ToolTip="Mint every concrete (non-abstract) family in STING_TITLE_BLOCKS.json in one batch. Abstract `_common` bases are skipped — they're inheritance scaffolding only."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Auto-VPs" Tag="TitleBlock_AutoPlaceViewports" Click="Cmd_Click" ToolTip="For each selected view, look up its purpose tag via STING_VIEWPORT_PLACEMENT_RULES.json and place a Viewport at the active sheet's matching slot. Slot bounds are read from the title-block .rfa's named reference planes; scaleHint + viewportType applied at creation time."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="BIM Mode" Tag="TitleBlock_ToggleBIMMode" Click="Cmd_Click" ToolTip="Swap the active sheet's title block between its BIM and NONBIM family variants. Auto-loads the target .rfa from Families/TitleBlocks/ when not already in the project. Updates STING_SHEET_BIM_MODE_TXT."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Audit Legacy" Tag="TitleBlock_AuditLegacy" Click="Cmd_Click" ToolTip="Read-only — list every sheet whose title block follows the pre-May-2026 single-family naming (STING_TB_&lt;SIZE&gt;_v&lt;N&gt;). Reports counts + sample sheet numbers grouped by legacy family. Run before Migrate Legacy."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Migrate Legacy" Tag="TitleBlock_MigrateLegacy" Click="Cmd_Click" ToolTip="For each legacy single-family title block, swap to the BIM variant of the same paper size + version. Auto-loads the target .rfa. Sets STING_SHEET_BIM_MODE_TXT = 'BIM'. Run Toggle BIM Mode afterwards on individual sheets that should be NONBIM."/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
@@ -1450,33 +1434,32 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Batch Arrange" Tag="BatchArrange" Click="Cmd_Click" ToolTip="Arrange viewports on all sheets"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Move VP" Tag="MoveViewport" Click="Cmd_Click" ToolTip="Move selected viewport to different sheet"/>
                                 </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="ADVANCED"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="MaxRects" Tag="MaxRectsLayout" Click="Cmd_Click" ToolTip="MaxRects packing algorithm for optimal viewport density"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Save Layout" Tag="SaveLayoutPreset" Click="Cmd_Click" ToolTip="Save current viewport layout as reusable preset"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Apply Layout" Tag="ApplyLayoutPreset" Click="Cmd_Click" ToolTip="Apply saved layout preset to active sheet"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Overflow" Tag="PlaceWithOverflow" Click="Cmd_Click" ToolTip="Place views with auto-overflow to new sheets"/>
-                                </WrapPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Clone" Tag="BatchCloneSheets" Click="Cmd_Click" ToolTip="Clone multiple sheets at once"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Renumber" Tag="BatchRenumberSheets" Click="Cmd_Click" ToolTip="Renumber sheets within a discipline"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="VP Types" Tag="AutoAssignVPTypes" Click="Cmd_Click" ToolTip="Auto-assign viewport types by rules"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportSheetSet" Click="Cmd_Click" ToolTip="Export sheet set to CSV file"/>
-                                </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="TEMPLATES &amp; COMPLIANCE"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="From Template" Tag="CreateFromTemplate" Click="Cmd_Click" ToolTip="Create sheet from a built-in or saved template"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Save Template" Tag="SaveSheetTemplate" Click="Cmd_Click" ToolTip="Save current sheet layout as reusable template"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="ISO Check" Tag="SheetComplianceCheck" Click="Cmd_Click" ToolTip="ISO 19650 sheet compliance audit"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Sheets" Tag="TagSheets" Click="Cmd_Click" ToolTip="Tag all sheets with ISO 19650 document codes"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Register" Tag="ExportSheetRegister" Click="Cmd_Click" ToolTip="Export comprehensive sheet register to CSV"/>
-                                </WrapPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Align" Tag="GridAlignViewports" Click="Cmd_Click" ToolTip="Snap viewport centres to alignment grid"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Align Edges" Tag="AlignViewportEdges" Click="Cmd_Click" ToolTip="Align viewport edges (left/right/top/bottom)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Distribute" Tag="DistributeViewports" Click="Cmd_Click" ToolTip="Distribute viewports evenly across sheet"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Print" Tag="BatchPrintSheets" Click="Cmd_Click" ToolTip="Export sheets to PDF by discipline or selection"/>
-                                </WrapPanel>
+                                <Expander Header="Advanced layout &amp; batch ops" FontSize="10" Margin="0,2,0,0">
+                                    <StackPanel Margin="0,4">
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource ActionBtn}" Content="MaxRects" Tag="MaxRectsLayout" Click="Cmd_Click" ToolTip="MaxRects packing algorithm for optimal viewport density"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Save Layout" Tag="SaveLayoutPreset" Click="Cmd_Click" ToolTip="Save current viewport layout as reusable preset"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Apply Layout" Tag="ApplyLayoutPreset" Click="Cmd_Click" ToolTip="Apply saved layout preset to active sheet"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Overflow" Tag="PlaceWithOverflow" Click="Cmd_Click" ToolTip="Place views with auto-overflow to new sheets"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Batch Clone" Tag="BatchCloneSheets" Click="Cmd_Click" ToolTip="Clone multiple sheets at once"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Renumber" Tag="BatchRenumberSheets" Click="Cmd_Click" ToolTip="Renumber sheets within a discipline"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="VP Types" Tag="AutoAssignVPTypes" Click="Cmd_Click" ToolTip="Auto-assign viewport types by rules"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportSheetSet" Click="Cmd_Click" ToolTip="Export sheet set to CSV file"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="Templates &amp; compliance" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,4,0,2"/>
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource ActionBtn}" Content="From Tpl" Tag="CreateFromTemplate" Click="Cmd_Click" ToolTip="Create sheet from a built-in or saved template"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Save Tpl" Tag="SaveSheetTemplate" Click="Cmd_Click" ToolTip="Save current sheet layout as reusable template"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="ISO Check" Tag="SheetComplianceCheck" Click="Cmd_Click" ToolTip="ISO 19650 sheet compliance audit"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Tag Sheets" Tag="TagSheets" Click="Cmd_Click" ToolTip="Tag all sheets with ISO 19650 document codes"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Register" Tag="ExportSheetRegister" Click="Cmd_Click" ToolTip="Export comprehensive sheet register to CSV"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Grid Align" Tag="GridAlignViewports" Click="Cmd_Click" ToolTip="Snap viewport centres to alignment grid"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Align Edges" Tag="AlignViewportEdges" Click="Cmd_Click" ToolTip="Align viewport edges (left/right/top/bottom)"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Distribute" Tag="DistributeViewports" Click="Cmd_Click" ToolTip="Distribute viewports evenly across sheet"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Batch Print" Tag="BatchPrintSheets" Click="Cmd_Click" ToolTip="Export sheets to PDF by discipline or selection"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
@@ -1523,16 +1506,20 @@
                                 <TextBlock Style="{StaticResource SubLabel}" Text="SCHEDULE MANAGEMENT"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="ScheduleAudit" Click="Cmd_Click" ToolTip="Audit all schedules for issues and CSV coverage"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Compare" Tag="ScheduleCompare" Click="Cmd_Click" ToolTip="Compare two schedules side-by-side"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Duplicate" Tag="ScheduleDuplicate" Click="Cmd_Click" ToolTip="Clone current schedule with new name"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Refresh" Tag="ScheduleRefresh" Click="Cmd_Click" ToolTip="Re-apply formatting from CSV definitions"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Field Mgr" Tag="ScheduleFieldMgr" Click="Cmd_Click" ToolTip="Bulk add/remove/reorder fields"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Colors" Tag="ScheduleColor" Click="Cmd_Click" ToolTip="Apply discipline color formatting"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Stats" Tag="ScheduleStats" Click="Cmd_Click" ToolTip="Schedule statistics and data fill"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Delete" Tag="ScheduleDelete" Click="Cmd_Click" ToolTip="Batch delete empty/unplaced/non-STING schedules"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Report" Tag="ScheduleReport" Click="Cmd_Click" ToolTip="Export comprehensive schedule report to CSV"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Field Remap" Tag="ScheduleFieldRemapAudit" Click="Cmd_Click" ToolTip="Audit schedules for deprecated field names from SCHEDULE_FIELD_REMAP.csv"/>
                                 </WrapPanel>
+                                <Expander Header="Advanced schedule ops" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Compare" Tag="ScheduleCompare" Click="Cmd_Click" ToolTip="Compare two schedules side-by-side"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Duplicate" Tag="ScheduleDuplicate" Click="Cmd_Click" ToolTip="Clone current schedule with new name"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Fields" Tag="ScheduleFieldMgr" Click="Cmd_Click" ToolTip="Bulk add/remove/reorder fields"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Colors" Tag="ScheduleColor" Click="Cmd_Click" ToolTip="Apply discipline color formatting"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Stats" Tag="ScheduleStats" Click="Cmd_Click" ToolTip="Schedule statistics and data fill"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Delete" Tag="ScheduleDelete" Click="Cmd_Click" ToolTip="Batch delete empty/unplaced/non-STING schedules"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Report" Tag="ScheduleReport" Click="Cmd_Click" ToolTip="Export comprehensive schedule report to CSV"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Remap" Tag="ScheduleFieldRemapAudit" Click="Cmd_Click" ToolTip="Audit schedules for deprecated field names from SCHEDULE_FIELD_REMAP.csv"/>
+                                    </WrapPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
@@ -1603,12 +1590,18 @@
                         <!-- REVISION TOOLS -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="📋 REVISION TOOLS"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Show Clouds" Tag="RevShowClouds" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Show Tags" Tag="RevShowTags" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource RedBtn}" Content="Del Clouds (View)" Tag="RevDelCloudsView" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource RedBtn}" Content="Del Clouds (Sel)" Tag="RevDelCloudsSel" Click="Cmd_Click"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Show Clouds" Tag="RevShowClouds" Click="Cmd_Click" ToolTip="Show revision clouds in active view"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Show Tags" Tag="RevShowTags" Click="Cmd_Click" ToolTip="Show revision tags in active view"/>
+                                </WrapPanel>
+                                <TextBlock Text="Delete scope" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,4,0,1"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <RadioButton x:Name="rbRevScopeView" Content="View" GroupName="RevDelScope" Tag="RevDelCloudsView" IsChecked="True" Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="rbRevScopeSel"  Content="Selection" GroupName="RevDelScope" Tag="RevDelCloudsSel" Checked="OnRadioRouteChecked" FontSize="10" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button Style="{StaticResource RedBtn}" Content="⚡ Delete clouds" Tag="Rev_DeleteClouds" Click="Cmd_Click" ToolTip="Delete revision clouds at the selected scope (active view or current selection)" HorizontalAlignment="Left"/>
+                            </StackPanel>
                         </Border>
 
                         <!-- DOCUMENTATION AUTOMATION -->
@@ -1620,44 +1613,52 @@
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Doc Wizard" Tag="DocWizard" Click="Cmd_Click" ToolTip="Unified documentation wizard: sheets, views, viewports, export in one dialog"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Doc Package" Tag="DocumentationPackage" Click="Cmd_Click" ToolTip="One-click full documentation set: views + dependents + sheets + templates"/>
                                 </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="VIEW CREATION"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Views" Tag="BatchCreateViews" Click="Cmd_Click" ToolTip="Create views from levels x disciplines x scope boxes"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Dependents" Tag="CreateDependentViews" Click="Cmd_Click" ToolTip="Create dependent views from scope boxes"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sections" Tag="BatchCreateSections" Click="Cmd_Click" ToolTip="Create sections from grids"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Elevations" Tag="BatchCreateElevations" Click="Cmd_Click" ToolTip="Create exterior/interior elevations"/>
-                                </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="SHEET CREATION"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Sheets" Tag="BatchCreateSheets" Click="Cmd_Click" ToolTip="Create sheets with auto-numbering and viewport placement"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Drawing Register" Tag="DocsDrawingRegister" Click="Cmd_Click" ToolTip="ISO 19650 drawing register with revision tracking"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Title Block" Tag="CorporateTitleBlock" Click="Cmd_Click" ToolTip="Corporate title block schedule with project info and discipline summary"/>
-                                </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="MANAGEMENT"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Scope Boxes" Tag="ScopeBoxManager" Click="Cmd_Click" ToolTip="Assign/audit scope box usage"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Templates" Tag="ViewTemplateAssigner" Click="Cmd_Click" ToolTip="7-layer intelligent template assignment"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Browser Org" Tag="ProjectBrowserOrganizer" Click="Cmd_Click" ToolTip="Organize project browser by naming convention"/>
-                                </WrapPanel>
+                                <Expander Header="Manual view / sheet creation" FontSize="10" Margin="0,2,0,0">
+                                    <StackPanel Margin="0,4">
+                                        <TextBlock Text="Views" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,0,0,1"/>
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Batch Views" Tag="BatchCreateViews" Click="Cmd_Click" ToolTip="Create views from levels x disciplines x scope boxes"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Dependents" Tag="CreateDependentViews" Click="Cmd_Click" ToolTip="Create dependent views from scope boxes"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Sections" Tag="BatchCreateSections" Click="Cmd_Click" ToolTip="Create sections from grids"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Elevations" Tag="BatchCreateElevations" Click="Cmd_Click" ToolTip="Create exterior/interior elevations"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="Sheets" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,4,0,1"/>
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Batch Sheets" Tag="BatchCreateSheets" Click="Cmd_Click" ToolTip="Create sheets with auto-numbering and viewport placement"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Register" Tag="DocsDrawingRegister" Click="Cmd_Click" ToolTip="ISO 19650 drawing register with revision tracking"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Title Block" Tag="CorporateTitleBlock" Click="Cmd_Click" ToolTip="Corporate title block schedule with project info and discipline summary"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="Management" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,4,0,1"/>
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Scope Boxes" Tag="ScopeBoxManager" Click="Cmd_Click" ToolTip="Assign/audit scope box usage"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Templates" Tag="ViewTemplateAssigner" Click="Cmd_Click" ToolTip="7-layer intelligent template assignment"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Browser Org" Tag="ProjectBrowserOrganizer" Click="Cmd_Click" ToolTip="Organize project browser by naming convention"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
                         <!-- VIEWS -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="VIEWS"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Organizer" Tag="ViewOrganizer" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Del Unused" Tag="DeleteUnusedViews" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Duplicate" Tag="DuplicateView" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Batch Rename" Tag="BatchRenameViews" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Magic Rename" Tag="MagicRename" Click="Cmd_Click"
-                                        ToolTip="Universal rename: prefix/suffix/find-replace/case/numbering"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="View Colours" Tag="ViewTabColour" Click="Cmd_Click"
-                                        ToolTip="Analyse views by discipline and colour-code tabs"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Copy Settings" Tag="CopyViewSettings" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Crop Content" Tag="CropToContent" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Sum Areas" Tag="SumAreas" Click="Cmd_Click"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Organizer" Tag="ViewOrganizer" Click="Cmd_Click" ToolTip="Organize views by type/level/discipline"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Del Unused" Tag="DeleteUnusedViews" Click="Cmd_Click" ToolTip="Delete views not placed on any sheet"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Duplicate" Tag="DuplicateView" Click="Cmd_Click" ToolTip="Duplicate selected view with options"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Rename" Tag="BatchRenameViews" Click="Cmd_Click" ToolTip="Open the Batch Rename Views dialog with live preview"/>
+                                </WrapPanel>
+                                <Expander Header="Advanced view ops" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Magic Rename" Tag="MagicRename" Click="Cmd_Click" ToolTip="Universal rename: prefix/suffix/find-replace/case/numbering"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="View Colours" Tag="ViewTabColour" Click="Cmd_Click" ToolTip="Analyse views by discipline and colour-code tabs"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Copy Settings" Tag="CopyViewSettings" Click="Cmd_Click" ToolTip="Copy filters, graphic overrides, and template from source view"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Crop Content" Tag="CropToContent" Click="Cmd_Click" ToolTip="Smart crop region generation based on element extents"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sum Areas" Tag="SumAreas" Click="Cmd_Click" ToolTip="Calculate total area of rooms in view"/>
+                                    </WrapPanel>
+                                </Expander>
+                            </StackPanel>
                         </Border>
 
                         <!-- MEASUREMENT TOOLS -->
@@ -1702,6 +1703,7 @@
                                     <Button Style="{StaticResource BlueBtn}" Content="PDF Preset" Tag="ExportCenterPDF" Click="Cmd_Click" ToolTip="Open Export Center with PDF preset selected"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
+                                    <TextBlock Text="Paper" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <ComboBox x:Name="cmbPaperSize" FontSize="10" Height="24" Width="60">
                                         <ComboBoxItem Content="A1" IsSelected="True"/>
                                         <ComboBoxItem Content="A0"/>
@@ -1709,10 +1711,14 @@
                                         <ComboBoxItem Content="A3"/>
                                         <ComboBoxItem Content="A4"/>
                                     </ComboBox>
-                                    <Button Style="{StaticResource ActionBtn}" Content="All Sheets" Tag="PrintSheets" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Selected Sheets" Tag="PdfSelectedSheets" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Active View" Tag="PdfActiveView" Click="Cmd_Click"/>
                                 </WrapPanel>
+                                <TextBlock Text="Print scope" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,4,0,1"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <RadioButton x:Name="rbPrintAll"      Content="All"      GroupName="PrintScope" Tag="PrintSheets"       IsChecked="True" Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="rbPrintSelected" Content="Selected" GroupName="PrintScope" Tag="PdfSelectedSheets" Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="rbPrintActive"   Content="Active"   GroupName="PrintScope" Tag="PdfActiveView"     Checked="OnRadioRouteChecked" FontSize="10" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button Style="{StaticResource StingPrimaryButton}" Content="⚡ Print PDF" Tag="Export_PrintScope" Click="Cmd_Click" ToolTip="Print to PDF at the selected scope (All sheets / Selected sheets / Active view)" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </Border>
                         <!-- SHEET INDEX -->
@@ -1789,13 +1795,19 @@
                         <!-- Group 5: surfaced AVF heatmaps (were orphaned — no button) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ANALYSIS HEATMAPS (AVF)"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Compliance" Tag="Heatmap_Compliance" Click="Cmd_Click" ToolTip="Paint a tag-completeness / compliance heatmap on the active view."/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Fill %" Tag="Heatmap_Fill" Click="Cmd_Click" ToolTip="Paint a conduit/duct fill-% heatmap on the active view."/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Carbon" Tag="Heatmap_Carbon" Click="Cmd_Click" ToolTip="Paint an embodied-carbon heatmap on the active view."/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Acoustic" Tag="Heatmap_Acoustic" Click="Cmd_Click" ToolTip="Paint an acoustic-performance heatmap on the active view."/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clear" Tag="Heatmap_Clear" Click="Cmd_Click" ToolTip="Clear all AVF heatmap overrides from the active view."/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <TextBlock Text="Metric" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,0,0,1"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <RadioButton x:Name="rbHeatmapCompliance" Content="Compliance" GroupName="HeatmapMetric" Tag="Heatmap_Compliance" IsChecked="True" Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="rbHeatmapFill"       Content="Fill %"     GroupName="HeatmapMetric" Tag="Heatmap_Fill"       Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="rbHeatmapCarbon"     Content="Carbon"     GroupName="HeatmapMetric" Tag="Heatmap_Carbon"     Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="rbHeatmapAcoustic"   Content="Acoustic"   GroupName="HeatmapMetric" Tag="Heatmap_Acoustic"   Checked="OnRadioRouteChecked" FontSize="10" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource StingPrimaryButton}" Content="⚡ Paint heatmap" Tag="Heatmap_PaintSelected" Click="Cmd_Click" ToolTip="Paint the selected heatmap metric on the active view."/>
+                                    <Button Style="{StaticResource RedBtn}" Content="Clear" Tag="Heatmap_Clear" Click="Cmd_Click" ToolTip="Clear all AVF heatmap overrides from the active view."/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                     </StackPanel>

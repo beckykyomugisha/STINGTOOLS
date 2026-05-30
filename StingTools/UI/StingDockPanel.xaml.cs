@@ -304,6 +304,53 @@ namespace StingTools.UI
             }
         }
 
+        // Phase B Round 2 — DOCS suite-runner helper. Mirrors RunInteropRunner.
+        // Resolves a runner tag to its concrete dispatch tag by reading
+        // sibling RadioButtons / ComboBoxes in the DOCS tab.
+        private bool RunDocsRunner(string runnerTag)
+        {
+            if (string.IsNullOrEmpty(runnerTag)) return false;
+
+            switch (runnerTag)
+            {
+                case "Rev_DeleteClouds":
+                {
+                    // Reads the REVISION TOOLS delete-scope radios.
+                    string tag = null;
+                    if (rbRevScopeView != null && rbRevScopeView.IsChecked == true) tag = (rbRevScopeView.Tag as string) ?? "RevDelCloudsView";
+                    else if (rbRevScopeSel != null && rbRevScopeSel.IsChecked == true) tag = (rbRevScopeSel.Tag as string) ?? "RevDelCloudsSel";
+                    if (string.IsNullOrEmpty(tag)) tag = "RevDelCloudsView";
+                    DispatchCommand(tag);
+                    return true;
+                }
+                case "Export_PrintScope":
+                {
+                    // Reads the EXPORT CENTER print-scope radios.
+                    string tag = null;
+                    if (rbPrintAll != null && rbPrintAll.IsChecked == true) tag = (rbPrintAll.Tag as string) ?? "PrintSheets";
+                    else if (rbPrintSelected != null && rbPrintSelected.IsChecked == true) tag = (rbPrintSelected.Tag as string) ?? "PdfSelectedSheets";
+                    else if (rbPrintActive != null && rbPrintActive.IsChecked == true) tag = (rbPrintActive.Tag as string) ?? "PdfActiveView";
+                    if (string.IsNullOrEmpty(tag)) tag = "PrintSheets";
+                    DispatchCommand(tag);
+                    return true;
+                }
+                case "Heatmap_PaintSelected":
+                {
+                    // Reads the ANALYSIS HEATMAPS metric radios.
+                    string tag = null;
+                    if (rbHeatmapCompliance != null && rbHeatmapCompliance.IsChecked == true) tag = (rbHeatmapCompliance.Tag as string) ?? "Heatmap_Compliance";
+                    else if (rbHeatmapFill != null && rbHeatmapFill.IsChecked == true) tag = (rbHeatmapFill.Tag as string) ?? "Heatmap_Fill";
+                    else if (rbHeatmapCarbon != null && rbHeatmapCarbon.IsChecked == true) tag = (rbHeatmapCarbon.Tag as string) ?? "Heatmap_Carbon";
+                    else if (rbHeatmapAcoustic != null && rbHeatmapAcoustic.IsChecked == true) tag = (rbHeatmapAcoustic.Tag as string) ?? "Heatmap_Acoustic";
+                    if (string.IsNullOrEmpty(tag)) tag = "Heatmap_Compliance";
+                    DispatchCommand(tag);
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        }
+
         private void Cmd_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
@@ -319,6 +366,15 @@ namespace StingTools.UI
                     cmdTag == "ISB_CreateSelected")
                 {
                     RunInteropRunner(cmdTag);
+                    return;
+                }
+
+                // Phase B Round 2 — DOCS suite runners.
+                if (cmdTag == "Rev_DeleteClouds" ||
+                    cmdTag == "Export_PrintScope" ||
+                    cmdTag == "Heatmap_PaintSelected")
+                {
+                    RunDocsRunner(cmdTag);
                     return;
                 }
 
