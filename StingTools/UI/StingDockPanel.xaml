@@ -5608,7 +5608,8 @@
                                                 <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                                 <TextBlock Text="Step" FontSize="9" VerticalAlignment="Center"/>
                                                 <ComboBox Grid.Column="1" x:Name="cmbHcMgasStep" FontSize="9" Height="22">
-                                                    <ComboBoxItem Content="1 — Pressure decay"     Tag="1" IsSelected="True"/>
+                                                    <ComboBoxItem Content="All — Full 12-step verify" Tag="0" IsSelected="True"/>
+                                                    <ComboBoxItem Content="1 — Pressure decay"     Tag="1"/>
                                                     <ComboBoxItem Content="2 — Cross-connection"   Tag="2"/>
                                                     <ComboBoxItem Content="3 — Valve identification" Tag="3"/>
                                                     <ComboBoxItem Content="4 — Alarm identification" Tag="4"/>
@@ -5625,7 +5626,7 @@
                                             <CheckBox Content="Sign at completion" x:Name="chkHcMgasSignAtEnd" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
                                             <WrapPanel Margin="0,6,0,0">
                                                 <Button Style="{StaticResource GreenBtn}" Content="Run audit"  Tag="Healthcare_MgasAudit"        Click="Cmd_Click" Width="80" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="MGAS Verify (Full)"   Tag="Healthcare_MgasVerifyStep"   Click="Cmd_Click" Width="120" Height="26" ToolTip="Runs the full NFPA 99 §5.1.12 verification. (Single-step run by the Step selector is a TODO — see HEALTHCARE_WIRING.md.)"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="MGAS Verify"   Tag="Healthcare_MgasVerifyStep"   Click="Cmd_Click" Width="120" Height="26" ToolTip="Runs NFPA 99 §5.1.12 verification for the selected step (or all 12 steps when 'All' is selected)."/>
                                                 <Button Style="{StaticResource ActionBtn}" Content="Full verify" Tag="Healthcare_MgasVerify"      Click="Cmd_Click" Width="80" Height="26"/>
                                             </WrapPanel>
                                         </StackPanel>

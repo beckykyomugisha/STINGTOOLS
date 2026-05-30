@@ -22,19 +22,38 @@ namespace StingTools.Commands.MedGas
             try
             {
                 var doc = commandData.Application.ActiveUIDocument.Document;
+
+                // Phase D — honour HcOptions.MgasStep. 0 ⇒ run all 12 steps (legacy
+                // behaviour); 1..12 ⇒ run only that single NFPA 99 §5.1.12 step.
+                // Out-of-range values fall back to "All" rather than silently
+                // running the wrong step.
+                int requestedStep = HcOptions.MgasStep;
+                var checklist = HTMStandards.MgpsVerificationChecklist;
+                bool runSingleStep = requestedStep >= 1 && requestedStep <= checklist.Length;
+
                 var rec = new MgasVerificationRecord
                 {
                     DateUtc = DateTime.UtcNow,
                     ProjectCode = doc.ProjectInformation?.LookupParameter("PRJ_PROJECT_COD_TXT")?.AsString() ?? "",
-                    Zone = "ALL",
-                    GasCode = "ALL",
-                    VerifierName = Environment.UserName
+                    Zone = string.IsNullOrEmpty(HcOptions.MgasZone) ? "ALL" : HcOptions.MgasZone,
+                    GasCode = string.IsNullOrEmpty(HcOptions.MgasGas) ? "ALL" : HcOptions.MgasGas,
+                    VerifierName = string.IsNullOrEmpty(HcOptions.MgasVerifier) ? Environment.UserName : HcOptions.MgasVerifier
                 };
 
+                // Build the step list to run: single step (1-based → 0-based index)
+                // or the full 12-step checklist.
+                var stepsToRun = runSingleStep
+                    ? new[] { checklist[requestedStep - 1] }
+                    : checklist;
+
+                string headerSuffix = runSingleStep
+                    ? $" — Step {requestedStep}/{checklist.Length}"
+                    : " — Full";
+
                 int pass = 0, fail = 0;
-                foreach (var step in HTMStandards.MgpsVerificationChecklist)
+                foreach (var step in stepsToRun)
                 {
-                    var dlg = new TaskDialog("STING — MGPS Verification step")
+                    var dlg = new TaskDialog("STING — MGPS Verification step" + headerSuffix)
                     {
                         MainInstruction = step,
                         MainContent = "Mark this step as PASS or FAIL.",
@@ -55,10 +74,15 @@ namespace StingTools.Commands.MedGas
                 var root = string.IsNullOrEmpty(doc_path) ? Path.GetTempPath() : Path.GetDirectoryName(doc_path);
                 var written = MgasVerificationLog.Persist(root, rec);
 
+                string scopeLabel = runSingleStep
+                    ? $"Step {requestedStep}/{checklist.Length}"
+                    : $"All {checklist.Length} steps";
+
                 TaskDialog.Show("STING — MGPS Verification complete",
+                    $"Scope: {scopeLabel}\n" +
                     $"Result: {(rec.OverallPass ? "PASS" : "FAIL")}\n" +
                     $"Pass={pass}  Fail={fail}\nLog: {written}");
-                StingLog.Info($"MGPS verification persisted to {written} (pass={pass} fail={fail})");
+                StingLog.Info($"MGPS verification ({scopeLabel}) persisted to {written} (pass={pass} fail={fail})");
                 return Result.Succeeded;
             }
             catch (Exception ex)

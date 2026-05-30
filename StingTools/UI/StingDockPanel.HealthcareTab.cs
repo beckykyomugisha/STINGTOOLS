@@ -224,7 +224,7 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("Hc.Mgas.Gas",       SelectedComboTag(cmbHcMgasGas, "O2"));
                 StingCommandHandler.SetExtraParam("Hc.Mgas.Zone",      SelectedComboTag(cmbHcMgasZone, ""));
                 StingCommandHandler.SetExtraParam("Hc.Mgas.Verifier",  txtHcMgasVerifier?.Text ?? "");
-                StingCommandHandler.SetExtraParam("Hc.Mgas.Step",      SelectedComboTag(cmbHcMgasStep, "1"));
+                StingCommandHandler.SetExtraParam("Hc.Mgas.Step",      SelectedComboTag(cmbHcMgasStep, "0"));
                 StingCommandHandler.SetExtraParam("Hc.Mgas.SignAtEnd", BoolStr(chkHcMgasSignAtEnd?.IsChecked));
 
                 // Radiation sub-tab

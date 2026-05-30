@@ -65,7 +65,10 @@ namespace StingTools.Core
         public static string MgasGas        => Get   ("Hc.Mgas.Gas", "O2");
         public static string MgasZone       => Get   ("Hc.Mgas.Zone", "");
         public static string MgasVerifier   => Get   ("Hc.Mgas.Verifier", "");
-        public static int    MgasStep       => (int)GetDouble("Hc.Mgas.Step", 1);
+        /// <summary>NFPA 99 §5.1.12 step number. 0 ⇒ "All" (run all 12 steps);
+        /// 1..12 ⇒ run only that single step. Default 0 (All) so callers that
+        /// never opened the Healthcare tab get the legacy full-verify behaviour.</summary>
+        public static int    MgasStep       => (int)GetDouble("Hc.Mgas.Step", 0);
         public static bool   MgasSignAtEnd  => GetBool("Hc.Mgas.SignAtEnd", true);
 
         // ── Radiation ──────────────────────────────────────────────────
