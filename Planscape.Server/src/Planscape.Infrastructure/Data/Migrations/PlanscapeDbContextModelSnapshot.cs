@@ -1276,7 +1276,12 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.HasIndex("Tag1");
 
                 b.HasIndex("ProjectId", "RevitElementId")
-                    .IsUnique();
+                    .IsUnique()
+                    .HasFilter("\"RevitElementId\" > 0");
+
+                b.HasIndex("ProjectId", "UniqueId")
+                    .IsUnique()
+                    .HasFilter("\"UniqueId\" <> ''");
 
                 b.HasIndex("ProjectId", "LastModifiedUtc");
 
@@ -1696,7 +1701,83 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.ToTable("MaintenanceTasks");
             });
 
+            modelBuilder.Entity("Planscape.Core.Entities.ExternalElementMapping", b =>
+            {
+                b.Property<Guid>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uuid");
+
+                b.Property<DateTime>("FirstSeenUtc")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("Host")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)");
+
+                b.Property<string>("HostDisplayLabel")
+                    .HasColumnType("text");
+
+                b.Property<string>("HostDocumentGuid")
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)");
+
+                b.Property<string>("HostElementId")
+                    .IsRequired()
+                    .HasMaxLength(200)
+                    .HasColumnType("character varying(200)");
+
+                b.Property<string>("IfcGlobalId")
+                    .IsRequired()
+                    .HasMaxLength(22)
+                    .HasColumnType("character varying(22)");
+
+                b.Property<int>("IngestionCount")
+                    .HasColumnType("integer");
+
+                b.Property<DateTime>("LastSeenUtc")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<Guid>("ProjectId")
+                    .HasColumnType("uuid");
+
+                b.Property<Guid>("TenantId")
+                    .HasColumnType("uuid");
+
+                b.HasKey("Id");
+
+                b.HasIndex("TenantId");
+
+                b.HasIndex("ProjectId", "IfcGlobalId");
+
+                b.HasIndex("ProjectId", "Host", "HostElementId");
+
+                b.HasIndex("ProjectId", "IfcGlobalId", "Host", "HostDocumentGuid")
+                    .IsUnique();
+
+                b.ToTable("ExternalElementMappings");
+            });
+
             // ── Relationships ──
+
+            modelBuilder.Entity("Planscape.Core.Entities.ExternalElementMapping", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
+                    .WithMany()
+                    .HasForeignKey("ProjectId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
+                    .WithMany()
+                    .HasForeignKey("TenantId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Project");
+
+                b.Navigation("Tenant");
+            });
 
             modelBuilder.Entity("Planscape.Core.Entities.AccessProfile", b =>
             {
