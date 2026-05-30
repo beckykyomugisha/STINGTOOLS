@@ -283,11 +283,11 @@ namespace StingTools.BIMManager
 {
     public sealed partial class PlanscapeServerClient
     {
-        // HVAC publish — snapshot caller uses .HasValue (bool? result), bulk/nc
-        // callers do `bool ok = await ...` (plain bool result).
-        public Task<bool?> PushHvacSnapshotAsync(Guid projectId, object payload) => Task.FromResult<bool?>(false);
-        public Task<bool>  PushHvacLoadsBulkAsync(Guid projectId, object payload) => Task.FromResult(false);
-        public Task<bool>  PushHvacNcAsync(Guid projectId, object payload) => Task.FromResult(false);
+        // HVAC publish — real implementation lives in PlanscapeServerClient.Hvac.cs
+        // (P1-B fix/hvac-publish-rewire). PushHvacLoadsBulkAsync / PushHvacNcAsync
+        // were never-real routes (/hvac/loads, /hvac/nc) and are removed — callers
+        // now route through PushHvacSnapshotAsync → POST /hvac/snapshots with a Kind
+        // discriminator, the server's actual contract (HvacController).
 
         // Model registry — ComputeSha256 must be static per call sites in PublishModelCommand.
         public static string ComputeSha256(string s) => "";

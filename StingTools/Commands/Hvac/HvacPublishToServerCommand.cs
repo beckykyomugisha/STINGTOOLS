@@ -1,9 +1,15 @@
 // StingTools — Push HVAC panel results to Planscape Server.
 //
 // Bundles whatever's currently in the HVAC dock panel grids (SpaceLoadRows
-// from BlockLoad, IssueRows from NC, EquipmentRows from RefreshGrids) and
-// POSTs them to the matching /api/projects/{id}/hvac/* endpoints. Single
-// click; no per-step push wiring inside the engines themselves.
+// from BlockLoad, IssueRows from NC) and POSTs them to the server's unified
+// HVAC snapshot route — POST /api/projects/{id}/hvac/snapshots — with a "kind"
+// discriminator (HvacController). Single click; no per-step push wiring inside
+// the engines themselves.
+//
+// P1-B fix: the old build targeted /hvac/loads + /hvac/nc, routes that never
+// existed server-side (the methods were Task.FromResult(false) stubs). It now
+// wraps each grid in the snapshot envelope (per-row detail in PayloadJson) and
+// calls the real PushHvacSnapshotAsync.
 //
 // Resolves the project id from <bim-dir>/planscape_config.json (the same
 // path BOQ + BCF sync use). Reports counts + per-endpoint status.
@@ -16,6 +22,7 @@ using System.Threading.Tasks;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json.Linq;
 using StingTools.BIMManager;
 using StingTools.Core;
 using StingTools.UI;
@@ -50,7 +57,9 @@ namespace StingTools.Commands.Hvac
                     return Result.Cancelled;
                 }
 
-                // Build the three payload lists from the live panel state.
+                // Build the per-row payloads from the live panel state. These ride
+                // inside the snapshot envelope's PayloadJson — the mobile HVAC
+                // dashboard renders the row tables from it.
                 var loadDtos = p.SpaceLoadRows.Select(r => (object)new
                 {
                     SystemId        = r.SpaceType ?? "(default)",
@@ -66,40 +75,72 @@ namespace StingTools.Commands.Hvac
                     Source          = "PLUGIN"
                 }).ToList();
 
-                var ncDtos = p.IssueRows
+                var ncRows = p.IssueRows
                     .Where(i => (i.Issue ?? "").Contains("NC"))
-                    .Select(i => (object)new
-                    {
-                        PathLabel            = i.Element ?? "",
-                        ReceiverRoom         = i.Element ?? "",
-                        PredictedNc          = ExtractNc(i.Issue),
-                        TargetNc             = 35,
-                        PathFlowLs           = 0.0,
-                        PathPressureDropPa   = 0.0,
-                        OctaveLpJson         = "[]",
-                        ElementBreakdownJson = i.Suggestion ?? "",
-                        CapturedBy           = Environment.UserName
-                    }).ToList();
+                    .ToList();
+                var ncDtos = ncRows.Select(i => (object)new
+                {
+                    PathLabel            = i.Element ?? "",
+                    ReceiverRoom         = i.Element ?? "",
+                    PredictedNc          = ExtractNc(i.Issue),
+                    TargetNc             = 35,
+                    PathFlowLs           = 0.0,
+                    PathPressureDropPa   = 0.0,
+                    OctaveLpJson         = "[]",
+                    ElementBreakdownJson = i.Suggestion ?? "",
+                    CapturedBy           = Environment.UserName
+                }).ToList();
+
+                // The server exposes ONE write route — POST /hvac/snapshots with a
+                // "kind" discriminator (HvacController). Wrap each grid as a snapshot;
+                // KPI columns drive the dashboard RAG cards, PayloadJson the row table.
+                int loadSpaces = loadDtos.Count;
+                var loadsBody = new JObject
+                {
+                    ["kind"]        = "loads",
+                    ["inspected"]   = loadSpaces,
+                    ["pass"]        = loadSpaces,
+                    ["warn"]        = 0,
+                    ["fail"]        = 0,
+                    ["totalKw"]     = p.SpaceLoadRows.Sum(r => r.CoolingKw + r.HeatingKw),
+                    ["worstValue"]  = p.SpaceLoadRows.Count == 0
+                        ? 0.0 : p.SpaceLoadRows.Max(r => Math.Max(r.CoolingKw, r.HeatingKw)),
+                    ["rag"]         = "G",
+                    ["payloadJson"] = JArray.FromObject(loadDtos).ToString(Newtonsoft.Json.Formatting.None)
+                };
+
+                int ncOver  = ncRows.Count(i => ExtractNc(i.Issue) > 35);
+                int worstNc = ncRows.Count == 0 ? 0 : ncRows.Max(i => ExtractNc(i.Issue));
+                var ncBody = new JObject
+                {
+                    ["kind"]        = "nc",
+                    ["inspected"]   = ncRows.Count,
+                    ["pass"]        = ncRows.Count - ncOver,
+                    ["warn"]        = 0,
+                    ["fail"]        = ncOver,
+                    ["totalKw"]     = 0.0,
+                    ["worstValue"]  = worstNc,
+                    ["rag"]         = ncOver == 0 ? "G" : (ncOver > ncRows.Count / 2 ? "R" : "A"),
+                    ["payloadJson"] = JArray.FromObject(ncDtos).ToString(Newtonsoft.Json.Formatting.None)
+                };
 
                 // Async push (Task.Run keeps Revit's API thread free).
-                int loadOk = 0, ncOk = 0;
+                int snapshotsOk = 0;
                 string lastErr = null;
                 Task.Run(async () =>
                 {
                     try
                     {
-                        if (loadDtos.Count > 0)
+                        var client = PlanscapeServerClient.Instance;
+                        if (loadSpaces > 0)
                         {
-                            bool ok = await PlanscapeServerClient.Instance
-                                .PushHvacLoadsBulkAsync(projectId, loadDtos);
-                            if (ok) loadOk = loadDtos.Count;
-                            else lastErr = PlanscapeServerClient.Instance.LastError;
+                            var id = await client.PushHvacSnapshotAsync(projectId, loadsBody);
+                            if (id.HasValue) snapshotsOk++; else lastErr = client.LastError;
                         }
-                        foreach (var dto in ncDtos)
+                        if (ncRows.Count > 0)
                         {
-                            bool ok = await PlanscapeServerClient.Instance.PushHvacNcAsync(projectId, dto);
-                            if (ok) ncOk++;
-                            else { lastErr = PlanscapeServerClient.Instance.LastError; break; }
+                            var id = await client.PushHvacSnapshotAsync(projectId, ncBody);
+                            if (id.HasValue) snapshotsOk++; else lastErr = client.LastError;
                         }
                     }
                     catch (Exception ex)
@@ -112,16 +153,15 @@ namespace StingTools.Commands.Hvac
                 var resPanel = StingResultPanel.Create("HVAC — Publish to Server");
                 resPanel.SetSubtitle($"projectId={projectId}");
                 resPanel.AddSection("PUSH RESULT")
-                        .Metric("Load rows queued",   loadDtos.Count.ToString())
-                        .Metric("Load rows accepted", loadOk.ToString())
-                        .Metric("NC rows queued",     ncDtos.Count.ToString())
-                        .Metric("NC rows accepted",   ncOk.ToString())
-                        .Metric("Server last error",  lastErr ?? "(none)");
+                        .Metric("Load rows",         loadDtos.Count.ToString())
+                        .Metric("NC rows",           ncRows.Count.ToString())
+                        .Metric("Snapshots pushed",  snapshotsOk.ToString())
+                        .Metric("Server last error", lastErr ?? "(none)");
                 resPanel.Text("Run Hvac_BlockLoad + Hvac_NcPredict + Hvac_RefreshGrids before " +
                               "publishing — this command snapshots the current dock-panel grids. " +
-                              "Endpoints: /api/projects/{id}/hvac/loads, /hvac/nc, /hvac/refrigerant.");
+                              "Endpoint: POST /api/projects/{id}/hvac/snapshots (kind=loads, kind=nc).");
                 resPanel.Show();
-                try { p.PushRunRow($"Server publish ({loadOk + ncOk} rows)", lastErr == null ? "⬤" : "⬡"); }
+                try { p.PushRunRow($"Server publish ({snapshotsOk} snapshots)", lastErr == null ? "⬤" : "⬡"); }
                 catch (Exception ex) { StingLog.Warn($"Panel push: {ex.Message}"); }
                 return Result.Succeeded;
             }
