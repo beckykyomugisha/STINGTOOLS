@@ -398,6 +398,45 @@ namespace StingTools.UI
             }
         }
 
+        // Phase B Round 3 (TAG STUDIO) suite-runner helper. Parallel to
+        // RunInteropRunner / RunDocsRunner / RunSetupRunner; tab-scoped —
+        // resolves a runner tag to one or more concrete dispatch tags
+        // defined by the TAG STUDIO sub-tab layouts.
+        private bool RunTagStudioRunner(string runnerTag)
+        {
+            if (string.IsNullOrEmpty(runnerTag)) return false;
+
+            switch (runnerTag)
+            {
+                case "Standards_RunSuite":
+                {
+                    // Reads the STANDARDS sub-tab calculator CheckBoxes.
+                    bool any = false;
+                    if (chkStdCableSize != null && chkStdCableSize.IsChecked == true) { DispatchCommand("Std_CalcCableSize");    any = true; }
+                    if (chkStdWindLoad  != null && chkStdWindLoad.IsChecked  == true) { DispatchCommand("Std_CalcWindLoad");     any = true; }
+                    if (chkStdCooling   != null && chkStdCooling.IsChecked   == true) { DispatchCommand("Std_CalcCoolingLoad");  any = true; }
+                    if (chkStdLighting  != null && chkStdLighting.IsChecked  == true) { DispatchCommand("Std_CalcLighting");     any = true; }
+                    if (chkStdEgress    != null && chkStdEgress.IsChecked    == true) { DispatchCommand("Std_CalcEgress");       any = true; }
+                    if (chkStdSprinkler != null && chkStdSprinkler.IsChecked == true) { DispatchCommand("Std_DesignSprinkler");  any = true; }
+                    _ = any;
+                    return true;
+                }
+                case "Mep_AutoSizeRun":
+                {
+                    // Reads the MEP sub-tab AUTO-SIZE target radios.
+                    string tag = null;
+                    if (rbMepSizePipes != null && rbMepSizePipes.IsChecked == true) tag = (rbMepSizePipes.Tag as string) ?? "Mep_AutoSizePipe";
+                    else if (rbMepSizeDucts != null && rbMepSizeDucts.IsChecked == true) tag = (rbMepSizeDucts.Tag as string) ?? "Mep_AutoSizeDuct";
+                    else if (rbMepSizeConduits != null && rbMepSizeConduits.IsChecked == true) tag = (rbMepSizeConduits.Tag as string) ?? "Mep_AutoSizeConduit";
+                    if (string.IsNullOrEmpty(tag)) tag = "Mep_AutoSizePipe";
+                    DispatchCommand(tag);
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        }
+
         private void Cmd_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
@@ -431,6 +470,14 @@ namespace StingTools.UI
                     cmdTag == "Setup_QuickWorkflowRun")
                 {
                     RunSetupRunner(cmdTag);
+                    return;
+                }
+
+                // Phase B Round 3 — TAG STUDIO suite runners.
+                if (cmdTag == "Standards_RunSuite" ||
+                    cmdTag == "Mep_AutoSizeRun")
+                {
+                    RunTagStudioRunner(cmdTag);
                     return;
                 }
 

@@ -4339,77 +4339,93 @@
                                         <TextBlock Text="MAINTENANCE (surfaced)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
                                             <WrapPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Migrate Tag-Style Code" Tag="Tags_MigrateStyleCode" Click="Cmd_Click" Height="26" ToolTip="Migrate legacy TAG_STYLE_CODE_BOOL params to the text representation."/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Migrate styles" Tag="Tags_MigrateStyleCode" Click="Cmd_Click" Height="26" MinWidth="84" ToolTip="Migrate legacy TAG_STYLE_CODE_BOOL params to the text representation."/>
                                             </WrapPanel>
                                         </Border>
 
-                                        <!-- TAG PLACEMENT TOOLS -->
+                                        <!-- TAG PLACEMENT TOOLS — Pattern 5: primary + Expander -->
                                         <TextBlock Text="TAG PLACEMENT TOOLS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
-                                            <WrapPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Smart place" Tag="SmartPlaceTags" Click="Cmd_Click" Width="72" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Batch place" Tag="BatchPlaceTags" Click="Cmd_Click" Width="72" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Arrange" Tag="ArrangeTags" Click="Cmd_Click" Width="62" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Align bands" Tag="TagStudio_AlignBands" Click="Cmd_Click" Width="72" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Overlap audit" Tag="TagOverlapAnalysis" Click="Cmd_Click" Width="80" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Remove tags" Tag="RemoveAnnotationTags" Click="Cmd_Click" Width="80" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Place 3D tags" Tag="Tag3D" Click="Cmd_Click" Width="80" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Repair dupes" Tag="RepairDuplicateSeq" Click="Cmd_Click" Width="80" Height="26"/>
-                                            </WrapPanel>
+                                            <StackPanel>
+                                                <Button Style="{StaticResource StingPrimaryButton}" Content="Smart place" Tag="SmartPlaceTags" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,0,0,4" ToolTip="Priority-based IndependentTag placement with 8-position collision avoidance"/>
+                                                <Expander Header="Advanced placement ops" FontSize="10" Margin="0,2,0,0">
+                                                    <WrapPanel Margin="0,4">
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Batch place"   Tag="BatchPlaceTags"        Click="Cmd_Click" MinWidth="64" Height="26" ToolTip="Place visual annotation tags across multiple views"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Arrange"       Tag="ArrangeTags"           Click="Cmd_Click" MinWidth="54" Height="26" ToolTip="Auto-arrange placed tags into aligned grid patterns"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Align bands"   Tag="TagStudio_AlignBands"  Click="Cmd_Click" MinWidth="64" Height="26" ToolTip="Align tag bands across the view"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Overlap audit" Tag="TagOverlapAnalysis"    Click="Cmd_Click" MinWidth="70" Height="26" ToolTip="Detect and report overlapping tags in view"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Remove tags"   Tag="RemoveAnnotationTags"  Click="Cmd_Click" MinWidth="68" Height="26" ToolTip="Remove all IndependentTag annotations from view"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="3D tags"       Tag="Tag3D"                 Click="Cmd_Click" MinWidth="54" Height="26" ToolTip="Tag elements in 3D views with spatial auto-detect"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Repair dupes"  Tag="RepairDuplicateSeq"    Click="Cmd_Click" MinWidth="70" Height="26" ToolTip="Smart duplicate SEQ repair with spatial proximity"/>
+                                                    </WrapPanel>
+                                                </Expander>
+                                            </StackPanel>
                                         </Border>
 
-                                        <!-- TOKEN PIPELINE -->
+                                        <!-- TOKEN PIPELINE — Pattern 5: primary + Expander -->
                                         <TextBlock Text="TOKEN PIPELINE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
-                                            <WrapPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Tag family params" Tag="FamilyParamCreator" Click="Cmd_Click" Width="112" Height="26" ToolTip="Tag Family Parameter Creator — tag schema only. For regular families use Temp › Family Parameter Processor."/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Stage populate" Tag="FamilyStagePopulate" Click="Cmd_Click" Width="88" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Auto tag" Tag="AutoTag" Click="Cmd_Click" Width="62" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Batch tag" Tag="BatchTag" Click="Cmd_Click" Width="62" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Tag + combine" Tag="TagAndCombine" Click="Cmd_Click" Width="82" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Pre-tag audit" Tag="PreTagAudit" Click="Cmd_Click" Width="78" Height="26"/>
-                                            </WrapPanel>
+                                            <StackPanel>
+                                                <Button Style="{StaticResource StingPrimaryButton}" Content="Tag + combine" Tag="TagAndCombine" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,0,0,4" ToolTip="One-click: populate + tag + combine ALL 36 containers"/>
+                                                <Expander Header="Advanced token ops" FontSize="10" Margin="0,2,0,0">
+                                                    <WrapPanel Margin="0,4">
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Family params" Tag="FamilyParamCreator"   Click="Cmd_Click" MinWidth="76" Height="26" ToolTip="Tag Family Parameter Creator — tag schema only. For regular families use Temp › Family Parameter Processor."/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Stage populate" Tag="FamilyStagePopulate" Click="Cmd_Click" MinWidth="80" Height="26" ToolTip="Pre-populate all 7 tokens before tagging"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Auto tag"       Tag="AutoTag"             Click="Cmd_Click" MinWidth="58" Height="26" ToolTip="Tag elements in active view with spatial auto-detect"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Batch tag"      Tag="BatchTag"            Click="Cmd_Click" MinWidth="58" Height="26" ToolTip="Tag all elements in entire project"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Pre-tag audit"  Tag="PreTagAudit"         Click="Cmd_Click" MinWidth="74" Height="26" ToolTip="Dry-run audit: predict tags, collisions, ISO violations before committing"/>
+                                                    </WrapPanel>
+                                                </Expander>
+                                            </StackPanel>
                                         </Border>
 
-                                        <!-- TEMPLATE TOOLS -->
+                                        <!-- TEMPLATE TOOLS — Pattern 1 chip row -->
                                         <TextBlock Text="TEMPLATE TOOLS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
                                             <WrapPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Learn from view" Tag="LearnTagPlacement" Click="Cmd_Click" Width="88" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Apply template" Tag="ApplyTagTemplate" Click="Cmd_Click" Width="88" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="List presets" Tag="ListWorkflowPresets" Click="Cmd_Click" Width="74" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Linked models" Tag="ExportLinkedManifest" Click="Cmd_Click" Width="88" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Learn view"   Tag="LearnTagPlacement"    Click="Cmd_Click" MinWidth="66" Height="26" ToolTip="Analyse existing tag placements in view to learn rules"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Apply tmpl"   Tag="ApplyTagTemplate"     Click="Cmd_Click" MinWidth="66" Height="26" ToolTip="Apply saved placement template to view"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Presets"      Tag="ListWorkflowPresets"  Click="Cmd_Click" MinWidth="58" Height="26" ToolTip="List available workflow presets"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Linked mdls"  Tag="ExportLinkedManifest" Click="Cmd_Click" MinWidth="72" Height="26" ToolTip="Export the linked-models manifest"/>
                                             </WrapPanel>
                                         </Border>
 
-                                        <!-- VALIDATION TOOLS -->
+                                        <!-- VALIDATION TOOLS — Pattern 5: primary + Expander -->
                                         <TextBlock Text="VALIDATION TOOLS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
-                                            <WrapPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Validate tags" Tag="ValidateTags" Click="Cmd_Click" Width="78" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Check data" Tag="CheckData" Click="Cmd_Click" Width="72" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Compliance scan" Tag="ComplianceScan" Click="Cmd_Click" Width="100" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Resolve issues" Tag="ResolveAllIssues" Click="Cmd_Click" Width="88" Height="26"/>
-                                            </WrapPanel>
+                                            <StackPanel>
+                                                <Button Style="{StaticResource StingPrimaryButton}" Content="Resolve issues" Tag="ResolveAllIssues" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,0,0,4" ToolTip="One-click ISO 19650 compliance resolution"/>
+                                                <Expander Header="Audits" FontSize="10" Margin="0,2,0,0">
+                                                    <WrapPanel Margin="0,4">
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Validate"   Tag="ValidateTags"   Click="Cmd_Click" MinWidth="62" Height="26" ToolTip="Validate tag completeness with ISO 19650 codes"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Check data" Tag="CheckData"      Click="Cmd_Click" MinWidth="68" Height="26" ToolTip="Run the project-wide data integrity check"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Scan"       Tag="ComplianceScan" Click="Cmd_Click" MinWidth="52" Height="26" ToolTip="Refresh the cached compliance scan with per-discipline breakdown"/>
+                                                    </WrapPanel>
+                                                </Expander>
+                                            </StackPanel>
                                         </Border>
 
-                                        <!-- STYLE PIPELINE -->
+                                        <!-- STYLE PIPELINE — Pattern 5: primary + Expander -->
                                         <TextBlock Text="STYLE PIPELINE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
-                                            <WrapPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Apply style" Tag="ApplyTagStyle" Click="Cmd_Click" Width="72" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Batch style" Tag="BatchApplyColorScheme" Click="Cmd_Click" Width="72" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Set depth" Tag="SetParagraphDepth" Click="Cmd_Click" Width="66" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Style report" Tag="TagStyleReport" Click="Cmd_Click" Width="78" Height="26"/>
-                                            </WrapPanel>
+                                            <StackPanel>
+                                                <Button Style="{StaticResource StingPrimaryButton}" Content="Apply style" Tag="ApplyTagStyle" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,0,0,4" ToolTip="Multi-step size → style → colour picker, applied to active selection"/>
+                                                <Expander Header="More style ops" FontSize="10" Margin="0,2,0,0">
+                                                    <WrapPanel Margin="0,4">
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Batch style"  Tag="BatchApplyColorScheme" Click="Cmd_Click" MinWidth="72" Height="26" ToolTip="Apply colour scheme across all views in project"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Set depth"    Tag="SetParagraphDepth"     Click="Cmd_Click" MinWidth="64" Height="26" ToolTip="Set TAG7 paragraph depth tier (1-10)"/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Style report" Tag="TagStyleReport"        Click="Cmd_Click" MinWidth="74" Height="26" ToolTip="Report current tag style status per element type"/>
+                                                    </WrapPanel>
+                                                </Expander>
+                                            </StackPanel>
                                         </Border>
 
-                                        <!-- EXPORT TOOLS -->
+                                        <!-- EXPORT TOOLS — Pattern 1 chip row -->
                                         <TextBlock Text="EXPORT TOOLS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
                                             <WrapPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Export positions" Tag="ExportCSV" Click="Cmd_Click" Width="96" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Export schedules" Tag="ExportSchedule4D" Click="Cmd_Click" Width="98" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Positions" Tag="ExportCSV"        Click="Cmd_Click" MinWidth="68" Height="26" ToolTip="Export tag positions / placement CSV"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Schedules" Tag="ExportSchedule4D" Click="Cmd_Click" MinWidth="68" Height="26" ToolTip="Export 4D / project schedules to CSV"/>
                                             </WrapPanel>
                                         </Border>
 
@@ -4428,14 +4444,14 @@
                                             </StackPanel>
                                         </Border>
 
-                                        <!-- SCHEDULES -->
+                                        <!-- SCHEDULES — Pattern 1 chip row -->
                                         <TextBlock Text="SCHEDULES" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
                                             <WrapPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Batch schedules" Tag="BatchSchedules" Click="Cmd_Click" Width="92" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Auto-populate" Tag="AutoPopulate" Click="Cmd_Click" Width="88" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Drawing register" Tag="DrawingRegister" Click="Cmd_Click" Width="100" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Sheet index" Tag="SheetIndex" Click="Cmd_Click" Width="72" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Batch"     Tag="BatchSchedules"  Click="Cmd_Click" MinWidth="58" Height="26" ToolTip="Batch-create the corporate schedule set"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Auto-pop"  Tag="AutoPopulate"    Click="Cmd_Click" MinWidth="62" Height="26" ToolTip="Auto-populate token fields across schedules"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Register"  Tag="DrawingRegister" Click="Cmd_Click" MinWidth="62" Height="26" ToolTip="Generate / refresh the drawing register schedule"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Sht index" Tag="SheetIndex"      Click="Cmd_Click" MinWidth="64" Height="26" ToolTip="Generate the sheet index schedule"/>
                                             </WrapPanel>
                                         </Border>
 
@@ -4575,49 +4591,54 @@
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                                         <StackPanel Margin="4">
 
-                                            <TextBlock Text="ARCHITECTURE (P111 — 6 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Auto stair (BS 5395 + Part K)"    Tag="Arch_AutoStair"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Auto railing (BS 6180 + Part K)" Tag="Arch_AutoRailing"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Curtain wall grid (BS EN 13830)"  Tag="Arch_AutoCurtainWall" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Wall opening"                       Tag="Arch_AutoOpening"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Plaster + paint takeoff"            Tag="Arch_AutoPlaster"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Cover audit (fire + U-value)"        Tag="Arch_CoverAudit"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                            </StackPanel></Border>
+                                            <!-- Pattern 5: each discipline list wrapped in collapsed Expander -->
+                                            <Expander Header="ARCHITECTURE (P111 — 6 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4">
+                                                <Border Style="{StaticResource GroupBorder}" Margin="0,4,0,0"><StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Stair"          Tag="Arch_AutoStair"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Auto stair (BS 5395 + Part K)"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Railing"        Tag="Arch_AutoRailing"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Auto railing (BS 6180 + Part K)"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Curtain wall"   Tag="Arch_AutoCurtainWall" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Curtain wall grid (BS EN 13830)"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Wall opening"   Tag="Arch_AutoOpening"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Create wall openings from selected profiles"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Plaster + paint" Tag="Arch_AutoPlaster"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Plaster + paint takeoff"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Cover audit"    Tag="Arch_CoverAudit"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="ARCH-06 Fire / moisture / thermal cover audit"/>
+                                                </StackPanel></Border>
+                                            </Expander>
 
-                                            <TextBlock Text="STRUCTURAL EXT (P112 — 10 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Auto slab rebar"         Tag="StrExt_AutoSlabRebar"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Full column takedown"     Tag="StrExt_FullColumnTakedown" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Wind auto-apply"          Tag="StrExt_WindAutoApply"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Seismic auto-apply"       Tag="StrExt_SeismicAutoApply"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Pile group design"        Tag="StrExt_PileGroup"             Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Retaining wall check"      Tag="StrExt_RetainingWall"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Auto connection (SCI P358)" Tag="StrExt_AutoConnection"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Composite beam (EC4)"      Tag="StrExt_CompositeBeam"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Fab tolerance"              Tag="StrExt_ToleranceCheck"        Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Creep deflection (EC2)"     Tag="StrExt_CreepDeflection"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                            </StackPanel></Border>
+                                            <Expander Header="STRUCTURAL EXT (P112 — 10 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,4,0,4">
+                                                <Border Style="{StaticResource GroupBorder}" Margin="0,4,0,0"><StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Slab rebar"      Tag="StrExt_AutoSlabRebar"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Auto slab rebar"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Column takedown" Tag="StrExt_FullColumnTakedown" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Full column takedown to foundations"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Wind apply"      Tag="StrExt_WindAutoApply"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="STR-03 ASCE 7 / EC 1 wind pressure"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Seismic apply"   Tag="StrExt_SeismicAutoApply"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="EC 8 seismic auto-apply"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Pile group"      Tag="StrExt_PileGroup"          Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Pile group design"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Retaining wall"  Tag="StrExt_RetainingWall"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Retaining wall check"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Connection"      Tag="StrExt_AutoConnection"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Auto steel connection (SCI P358)"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Composite beam"  Tag="StrExt_CompositeBeam"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Composite beam check (EC 4)"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Fab tolerance"   Tag="StrExt_ToleranceCheck"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Fabrication tolerance check"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Creep deflect"   Tag="StrExt_CreepDeflection"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Long-term creep deflection (EC 2)"/>
+                                                </StackPanel></Border>
+                                            </Expander>
 
-                                            <TextBlock Text="MEP DESIGN (P113 — 12 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Panel schedule build"  Tag="MepA_PanelSchedule"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Breaker size (IEC)"     Tag="MepA_BreakerAutoSize"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Grounding (BS 7671)"    Tag="MepA_GroundingDesign"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Pump size (Guide C)"    Tag="MepA_PumpSize"          Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Transformer size"        Tag="MepA_TransformerSize"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Generator size"          Tag="MepA_GeneratorSize"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Drainage (BS EN 12056)"  Tag="MepA_DrainageSize"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                            </StackPanel></Border>
+                                            <Expander Header="MEP DESIGN (P113 — 7 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,4,0,4">
+                                                <Border Style="{StaticResource GroupBorder}" Margin="0,4,0,0"><StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Panel sched"   Tag="MepA_PanelSchedule"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Build the per-board panel schedule"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Breaker size"  Tag="MepA_BreakerAutoSize"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Breaker auto-size (IEC)"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Grounding"     Tag="MepA_GroundingDesign"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Grounding design (BS 7671)"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Pump size"     Tag="MepA_PumpSize"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Pump size (CIBSE Guide C)"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Transformer"   Tag="MepA_TransformerSize"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Transformer size"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Generator"     Tag="MepA_GeneratorSize"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Generator size"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Drainage"      Tag="MepA_DrainageSize"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Drainage size (BS EN 12056)"/>
+                                                </StackPanel></Border>
+                                            </Expander>
 
-                                            <TextBlock Text="STANDARDS BULK (P116 — 30 items, see Dynamo for full list)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Stage audit (RIBA)"     Tag="StdExt_StageCompliance"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Accessibility audit"     Tag="StdExt_AccessibilityAudit" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="EUI benchmark"            Tag="StdExt_EUIBenchmark"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Load combinations"        Tag="StdExt_LoadCombinations" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Regional overlay"          Tag="StdExt_SetRegion"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
-                                            </StackPanel></Border>
+                                            <Expander Header="STANDARDS BULK (P116 — 5 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,4,0,4">
+                                                <Border Style="{StaticResource GroupBorder}" Margin="0,4,0,0"><StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Stage audit"  Tag="StdExt_StageCompliance"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="RIBA 0-7 stage compliance gate"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Accessibility" Tag="StdExt_AccessibilityAudit" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Accessibility audit (BS 8300 / Approved Doc M)"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="EUI benchmark" Tag="StdExt_EUIBenchmark"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Energy-use-intensity benchmark"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Load combos"   Tag="StdExt_LoadCombinations"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Load combinations (EC 0 / ASCE 7)"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Region overlay" Tag="StdExt_SetRegion"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1" ToolTip="Set regional overlay (UK / US / EU / SE / etc.)"/>
+                                                </StackPanel></Border>
+                                            </Expander>
 
                                             <TextBlock Text="REFERENCE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
                                             <Border Style="{StaticResource GroupBorder}"><TextBlock FontSize="9" TextWrapping="Wrap" Text="All 80+ new commands also dispatch as Dynamo nodes under STING Tools.Architecture, .Structural, .MEP, .Placement, .Routing, .Fabrication, .Standards. See docs/DESIGN_MODELING_AUTOMATION_ROADMAP.md for the full catalogue."/></Border>
@@ -4638,33 +4659,21 @@
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                                         <StackPanel Margin="4">
 
-                                            <TextBlock Text="ELECTRICAL" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                            <!-- Pattern 4: CheckBox grid + Run-selected suite runner -->
+                                            <TextBlock Text="CALCULATORS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
                                             <Border Style="{StaticResource GroupBorder}">
                                                 <StackPanel>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Cable size (V/A/length → AWG, Vdrop)"  Tag="Std_CalcCableSize"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <TextBlock Text="STRUCTURAL" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}">
-                                                <StackPanel>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Wind load (ASCE 7 / EC 1991-1-4)"       Tag="Std_CalcWindLoad"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <TextBlock Text="HVAC + LIGHTING" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}">
-                                                <StackPanel>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Cooling load (ASHRAE / CIBSE Guide A)"   Tag="Std_CalcCoolingLoad"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Lighting (CIBSE / EN 12464-1)"            Tag="Std_CalcLighting"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <TextBlock Text="LIFE SAFETY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}">
-                                                <StackPanel>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Egress + travel distance (IBC / NFPA 101)"  Tag="Std_CalcEgress"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Sprinkler design (NFPA 13 / EN 12845)"      Tag="Std_DesignSprinkler"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                    <Grid Margin="0,2">
+                                                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                                        <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                                        <CheckBox Grid.Row="0" Grid.Column="0" x:Name="chkStdCableSize" Content="Cable size"   IsChecked="True"  FontSize="10" Margin="0,1" Tag="Std_CalcCableSize"   ToolTip="BS 7671 / IEC 60364 / NEC 310 cable sizing"/>
+                                                        <CheckBox Grid.Row="0" Grid.Column="1" x:Name="chkStdWindLoad"  Content="Wind load"    IsChecked="True"  FontSize="10" Margin="0,1" Tag="Std_CalcWindLoad"    ToolTip="ASCE 7 / EN 1991-1-4 / BS 6399-2 wind pressure"/>
+                                                        <CheckBox Grid.Row="1" Grid.Column="0" x:Name="chkStdCooling"   Content="Cooling load" IsChecked="False" FontSize="10" Margin="0,1" Tag="Std_CalcCoolingLoad" ToolTip="ASHRAE / CIBSE Guide A cooling load"/>
+                                                        <CheckBox Grid.Row="1" Grid.Column="1" x:Name="chkStdLighting"  Content="Lighting"     IsChecked="False" FontSize="10" Margin="0,1" Tag="Std_CalcLighting"    ToolTip="CIBSE / EN 12464-1 lux calculation"/>
+                                                        <CheckBox Grid.Row="2" Grid.Column="0" x:Name="chkStdEgress"    Content="Egress"       IsChecked="False" FontSize="10" Margin="0,1" Tag="Std_CalcEgress"      ToolTip="IBC / NFPA 101 egress + travel distance"/>
+                                                        <CheckBox Grid.Row="2" Grid.Column="1" x:Name="chkStdSprinkler" Content="Sprinkler"    IsChecked="False" FontSize="10" Margin="0,1" Tag="Std_DesignSprinkler" ToolTip="NFPA 13 / EN 12845 sprinkler design"/>
+                                                    </Grid>
+                                                    <Button Style="{StaticResource StingPrimaryButton}" Content="Run selected" Tag="Standards_RunSuite" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,4,0,0" ToolTip="Run every ticked calculator in sequence"/>
                                                 </StackPanel>
                                             </Border>
 
@@ -4692,52 +4701,53 @@
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                                         <StackPanel Margin="4">
 
+                                            <!-- INTELLIGENCE — Pattern 5: primary + Expander -->
                                             <TextBlock Text="INTELLIGENCE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
                                             <Border Style="{StaticResource GroupBorder}">
                                                 <StackPanel>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Pressure-drop analyse" Tag="Mep_PressureDrop"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Darcy-Weisbach + Swamee-Jain pressure drop per CIBSE Guide C"/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Fitting loss report"    Tag="Mep_FittingLoss"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Kv + equivalent length per ASHRAE / CIBSE / DW144"/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Hardy-Cross balance"    Tag="Mep_Balance"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Iterative flow balancer with damper Cv sizing"/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Vibro-acoustic check"   Tag="Mep_VibroAcoustic"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="CIBSE TG6 isolation + NC criteria"/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="System analyse (model)"  Tag="Mep_SystemAnalyse"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Whole-model analyser"/>
+                                                    <Button Style="{StaticResource StingPrimaryButton}" Content="System analyse (model)" Tag="Mep_SystemAnalyse" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,0,0,4" ToolTip="Whole-model MEP analyser"/>
+                                                    <Expander Header="More intelligence ops" FontSize="10" Margin="0,2,0,0">
+                                                        <StackPanel Margin="0,4">
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Pressure drop"   Tag="Mep_PressureDrop"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Darcy-Weisbach + Swamee-Jain pressure drop per CIBSE Guide C"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Fitting loss"    Tag="Mep_FittingLoss"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Kv + equivalent length per ASHRAE / CIBSE / DW144"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Hardy-Cross"     Tag="Mep_Balance"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Iterative Hardy-Cross flow balancer with damper Cv sizing"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Vibro-acoustic"  Tag="Mep_VibroAcoustic" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="CIBSE TG6 isolation + NC criteria"/>
+                                                        </StackPanel>
+                                                    </Expander>
                                                 </StackPanel>
                                             </Border>
 
+                                            <!-- AUTO-SIZE — Pattern 2: RadioButton ring + Run -->
                                             <TextBlock Text="AUTO-SIZE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
                                             <Border Style="{StaticResource GroupBorder}">
                                                 <StackPanel>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Pipes"    Tag="Mep_AutoSizePipe"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Size pipes for ≤ 2.5 m/s, BS EN 10255 bore table"/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Ducts"    Tag="Mep_AutoSizeDuct"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Size ducts for ≤ 6 m/s, SMACNA standard sizes"/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Conduits" Tag="Mep_AutoSizeConduit" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Size conduits for ≤ 45% fill (BS 7671 522.8)"/>
+                                                    <TextBlock Text="Target" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,2,0,1"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                        <RadioButton x:Name="rbMepSizePipes"    Content="Pipes"    GroupName="MepAutoSizeTarget" IsChecked="True" Tag="Mep_AutoSizePipe"    Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center" ToolTip="Size pipes for ≤ 2.5 m/s, BS EN 10255 bore table"/>
+                                                        <RadioButton x:Name="rbMepSizeDucts"    Content="Ducts"    GroupName="MepAutoSizeTarget"                  Tag="Mep_AutoSizeDuct"    Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center" ToolTip="Size ducts for ≤ 6 m/s, SMACNA standard sizes"/>
+                                                        <RadioButton x:Name="rbMepSizeConduits" Content="Conduits" GroupName="MepAutoSizeTarget"                  Tag="Mep_AutoSizeConduit" Checked="OnRadioRouteChecked" FontSize="10" VerticalAlignment="Center" ToolTip="Size conduits for ≤ 45% fill (BS 7671 522.8)"/>
+                                                    </StackPanel>
+                                                    <Button Style="{StaticResource StingPrimaryButton}" Content="Auto-size" Tag="Mep_AutoSizeRun" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,2,0,0" ToolTip="Auto-size the selected target with the active sizing strategy"/>
                                                 </StackPanel>
                                             </Border>
 
+                                            <!-- QA — Pattern 5: primary + Expander -->
                                             <TextBlock Text="QA" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
                                             <Border Style="{StaticResource GroupBorder}">
                                                 <StackPanel>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Live fill calc"        Tag="Mep_FillLiveCalc" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Recompute conduit + tray fill% from current cable cross section"/>
-                                                    <Button Style="{StaticResource CatBtn}" Content="W-Ann"
-                                                            Tag="Electrical_WireAnnotate" Click="Cmd_Click"
-                                                            ToolTip="Place wire annotation on a picked conduit (BS 7671 format)"/>
-                                                    <Button Style="{StaticResource CatBtn}" Content="W-Batch"
-                                                            Tag="Electrical_WireAnnotateBatch" Click="Cmd_Click"
-                                                            ToolTip="Annotate all conduits in active view with wire specifications"/>
-                                                    <Button Style="{StaticResource CatBtn}" Content="H-Run"
-                                                            Tag="Electrical_HomeRunArrow" Click="Cmd_Click"
-                                                            ToolTip="Place home-run arrow on picked conduit pointing toward panel"/>
-                                                    <Button Style="{StaticResource CatBtn}" Content="W-Clr"
-                                                            Tag="Electrical_ClearWireAnnotations" Click="Cmd_Click"
-                                                            ToolTip="Remove all STING wire annotations from active view"/>
-                                                    <Button Style="{StaticResource CatBtn}" Content="W-Refresh"
-                                                            Tag="Electrical_RefreshWireAnnotations" Click="Cmd_Click"
-                                                            ToolTip="Detect and refresh stale wire annotations in the active view"/>
-                                                    <Button Style="{StaticResource CatBtn}" Content="H-Run Batch"
-                                                            Tag="Electrical_HomeRunArrowBatch" Click="Cmd_Click"
-                                                            ToolTip="Place home-run arrows for all conduits in the active view"/>
-                                                    <Button Style="{StaticResource CatBtn}" Content="Pnl Reconcile"
-                                                            Tag="Electrical_PanelWireReconcile" Click="Cmd_Click"
-                                                            ToolTip="Audit wire annotations against actual panel schedule circuits"/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="System naming audit"    Tag="Mep_NamingAudit"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Audit MEP system names against CIBSE / BSRIA / Uniclass 2015 prefix set"/>
+                                                    <Button Style="{StaticResource StingPrimaryButton}" Content="System naming audit" Tag="Mep_NamingAudit" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,0,0,4" ToolTip="Audit MEP system names against CIBSE / BSRIA / Uniclass 2015 prefix set"/>
+                                                    <Expander Header="Wire + fill ops" FontSize="10" Margin="0,2,0,0">
+                                                        <WrapPanel Margin="0,4">
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Live fill"     Tag="Mep_FillLiveCalc"                  Click="Cmd_Click" MinWidth="64" Height="26" ToolTip="Recompute conduit + tray fill% from current cable cross section"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Wire annotate" Tag="Electrical_WireAnnotate"           Click="Cmd_Click" MinWidth="84" Height="26" ToolTip="Place wire annotation on a picked conduit (BS 7671 format)"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Wire batch"    Tag="Electrical_WireAnnotateBatch"      Click="Cmd_Click" MinWidth="72" Height="26" ToolTip="Annotate all conduits in active view with wire specifications"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Home run"      Tag="Electrical_HomeRunArrow"           Click="Cmd_Click" MinWidth="68" Height="26" ToolTip="Place home-run arrow on picked conduit pointing toward panel"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Home batch"    Tag="Electrical_HomeRunArrowBatch"      Click="Cmd_Click" MinWidth="72" Height="26" ToolTip="Place home-run arrows for all conduits in the active view"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Wire clear"    Tag="Electrical_ClearWireAnnotations"   Click="Cmd_Click" MinWidth="68" Height="26" ToolTip="Remove all STING wire annotations from active view"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Wire refresh"  Tag="Electrical_RefreshWireAnnotations" Click="Cmd_Click" MinWidth="76" Height="26" ToolTip="Detect and refresh stale wire annotations in the active view"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Panel reconcile" Tag="Electrical_PanelWireReconcile"   Click="Cmd_Click" MinWidth="92" Height="26" ToolTip="Audit wire annotations against actual panel schedule circuits"/>
+                                                        </WrapPanel>
+                                                    </Expander>
                                                 </StackPanel>
                                             </Border>
 
@@ -4756,14 +4766,15 @@
                             <!-- ─── v4 MVP: Fabrication Tab ─── -->
                             <TabItem Header="Fabrication">
                                 <DockPanel>
+                                    <!-- Pattern 6: short labels + tooltips on the action rows -->
                                     <WrapPanel DockPanel.Dock="Top" Margin="4,4,4,2">
-                                        <Button Style="{StaticResource OrangeBtn}" Content="Open Workspace…" Tag="Fabrication_OpenWorkspace" Click="Cmd_Click" Width="140" Height="28" ToolTip="Open the full Fabrication Workspace dialog (light theme, Drawing-Type-Editor style: presets, scope counts, configure title block, dispatch any export)"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Workspace…" Tag="Fabrication_OpenWorkspace" Click="Cmd_Click" Width="110" Height="28" ToolTip="Open the full Fabrication Workspace dialog (light theme, Drawing-Type-Editor style: presets, scope counts, configure title block, dispatch any export)"/>
                                     </WrapPanel>
                                     <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
-                                        <Button Style="{StaticResource GreenBtn}"  Content="Generate package" Tag="Fabrication_OpenWorkspace" Click="Cmd_Click" Width="110" Height="30" ToolTip="Open the Fabrication Workspace — configure scope / categories / rules, then click Generate inside the workspace to build assemblies + views + sheets"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Cut list"         Tag="Fabrication_ExportCutList"   Click="Cmd_Click" Width="80"  Height="30" ToolTip="Re-emit pipe cut list CSV"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Isometrics"       Tag="Fabrication_ExportIsometrics" Click="Cmd_Click" Width="80"  Height="30" ToolTip="Index SP-... isometric sheets"/>
-                                        <Button Style="{StaticResource OrangeBtn}" Content="Weld map"         Tag="Fabrication_ExportWeldMap"   Click="Cmd_Click" Width="80"  Height="30" ToolTip="Re-emit weld map CSV"/>
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Generate"   Tag="Fabrication_OpenWorkspace"    Click="Cmd_Click" Width="90"  Height="30" ToolTip="Open the Fabrication Workspace — configure scope / categories / rules, then click Generate inside the workspace to build assemblies + views + sheets"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Cut list"   Tag="Fabrication_ExportCutList"    Click="Cmd_Click" Width="78"  Height="30" ToolTip="Re-emit pipe cut list CSV"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Isometrics" Tag="Fabrication_ExportIsometrics" Click="Cmd_Click" Width="86"  Height="30" ToolTip="Index SP-... isometric sheets"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Weld map"   Tag="Fabrication_ExportWeldMap"    Click="Cmd_Click" Width="78"  Height="30" ToolTip="Re-emit weld map CSV"/>
                                     </WrapPanel>
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                                         <StackPanel Margin="4">
@@ -4832,17 +4843,17 @@
                                 </DockPanel>
                             </TabItem>
 
-                            <!-- ─── Routing launcher (full controls in Placement Centre > Run & Routing) ─── -->
+                            <!-- ─── Routing launcher (Pattern 6 — labels already short, tooltips sharpened) ─── -->
                             <TabItem Header="Routing">
                                 <StackPanel Margin="6">
                                     <TextBlock FontSize="9" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,8"
                                                Text="Quick routing actions. Open the Placement Centre for scope selection, discipline filters, and inline results."/>
-                                    <Button Style="{StaticResource GreenBtn}"  Content="Auto-drop"        Tag="Routing_AutoDrop"        Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Drop conduit/pipe/duct from selected fixtures to nearest containment"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Generate layout"  Tag="Routing_GenerateLayout"  Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Manhattan layout for selected runs (preview)"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Validate fills"   Tag="Routing_ValidateFills"   Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Run conduit/tray/pipe/duct fill validators"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Place hangers"    Tag="Routing_PlaceHangers"    Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Auto-place pipe/duct support hangers at code spacing"/>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="Auto-drop"      Tag="Routing_AutoDrop"       Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Drop conduit / pipe / duct from selected fixtures to the nearest containment run"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Layout"         Tag="Routing_GenerateLayout" Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Generate a Manhattan layout for the selected runs (preview only)"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Validate fills" Tag="Routing_ValidateFills"  Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Run conduit / tray / pipe / duct fill validators against the active spec"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Hangers"        Tag="Routing_PlaceHangers"   Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Auto-place pipe / duct support hangers at the code-prescribed spacing"/>
                                     <Separator Margin="0,6"/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="▶ Open Placement Centre (Run &amp; Routing tab)"
+                                    <Button Style="{StaticResource PurpleBtn}" Content="▶ Placement Centre — Run &amp; Routing"
                                             Tag="Placement_OpenCentre" Click="Cmd_Click" Height="30" Margin="0,2"
                                             ToolTip="Open Placement Centre and switch to the Run &amp; Routing tab for full inline controls"/>
                                     <!-- Placement result strip — updated by PlacementResultBus subscription in code-behind -->
@@ -4852,17 +4863,17 @@
                                 </StackPanel>
                             </TabItem>
 
-                            <!-- ─── Fixtures launcher (full controls in Placement Centre > Run & Routing) ─── -->
+                            <!-- ─── Fixtures launcher (Pattern 6 — labels already short, tooltips sharpened) ─── -->
                             <TabItem Header="Fixtures">
                                 <StackPanel Margin="6">
                                     <TextBlock FontSize="9" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,8"
                                                Text="Quick fixture placement. Open the Placement Centre for rule editing, scope selection, dry-run preview, and inline results."/>
-                                    <Button Style="{StaticResource GreenBtn}"  Content="Place fixtures"   Tag="Placement_PlaceFixtures" Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Place all fixture categories per STING_PLACEMENT_RULES.json in scope rooms"/>
-                                    <Button Style="{StaticResource GreenBtn}"  Content="Toilet rooms"     Tag="Placement_ToiletRoom"    Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Place all toilet-room fixtures (BS 6465-1 provision check, WC at window, accessories)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Lighting grid"    Tag="Placement_LightingGrid"  Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="BS EN 12464-1 lux-target grid for the active room"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Learn from model" Tag="Placement_Learn"         Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Extract project-level rule overrides from already-placed fixtures"/>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="Place fixtures" Tag="Placement_PlaceFixtures" Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Place all fixture categories per STING_PLACEMENT_RULES.json in the scope rooms"/>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="Toilet rooms"   Tag="Placement_ToiletRoom"    Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Place toilet-room fixtures (BS 6465-1 provision check, WC at window, accessories)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Lighting grid"  Tag="Placement_LightingGrid"  Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="BS EN 12464-1 lux-target grid for the active room"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Learn"          Tag="Placement_Learn"         Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Extract project-level rule overrides from already-placed fixtures"/>
                                     <Separator Margin="0,6"/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="▶ Open Placement Centre (Rules + Run tabs)"
+                                    <Button Style="{StaticResource PurpleBtn}" Content="▶ Placement Centre — Rules + Run"
                                             Tag="Placement_OpenCentre" Click="Cmd_Click" Height="30" Margin="0,2"
                                             ToolTip="Open the full Placement Centre — rule editor, run options, inline results, tools"/>
                                     <!-- Placement result strip — updated by PlacementResultBus subscription in code-behind -->
