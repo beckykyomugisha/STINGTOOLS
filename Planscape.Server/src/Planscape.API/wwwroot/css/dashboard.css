@@ -37,6 +37,11 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
 .nav-link { display: block; padding: 10px 20px; color: var(--muted); text-decoration: none; font-weight: 500; }
 .nav-link:hover { background: var(--bg); color: var(--text); }
 .nav-link.active { color: var(--primary); border-left: 3px solid var(--accent); background: var(--bg); }
+/* P1-C — live warning-count badge on the Warnings nav link (SignalR WarningsReported). */
+.nav-badge { display: inline-block; min-width: 18px; margin-left: 8px; padding: 0 6px; border-radius: 9px;
+  background: #888; color: #fff; font-size: 11px; line-height: 18px; text-align: center; vertical-align: middle; }
+.nav-badge.up   { background: #c0392b; }
+.nav-badge.down { background: #27ae60; }
 /* Project-scoped sidebar section — hidden until a project is opened. */
 .nav-section[data-scope="project"] { display: none; }
 body.in-project .nav-section[data-scope="project"] { display: block; }

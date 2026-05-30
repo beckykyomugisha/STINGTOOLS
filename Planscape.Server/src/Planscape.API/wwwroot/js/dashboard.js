@@ -130,6 +130,139 @@
     }
   }
 
+  // ── Realtime hub (SignalR) ────────────────────────────────────────────
+  // P1-C — the dashboard previously had NO realtime client, so server
+  // broadcasts (NotificationHub) were invisible until a manual reload.
+  // `Hub` is a thin, reusable client: it lazy-loads @microsoft/signalr from
+  // the same pinned CDN the viewer shim uses, connects to /hubs/notifications
+  // with the dashboard's JWT (same-origin; the hub is NOT under /api), and
+  // re-joins the active project's group. Subscribe to any server event with
+  // Hub.on(event, handler). WarningsReported is the first consumer; add
+  // IssueCreated / TransmittalUpdated / ComplianceChanged the same way
+  // (they are pre-registered below, so a one-line Hub.on() is all it takes).
+  const SIGNALR_CDN = "https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js";
+  const Hub = (function () {
+    const subs = new Map();
+    let conn = null;
+    let joinedProject = null;
+    // Keep in lockstep with what NotificationHub emits to project groups.
+    const KNOWN_EVENTS = [
+      "WarningsReported",
+      "IssueCreated", "IssueUpdated",
+      "TransmittalUpdated", "ComplianceChanged", "ComplianceUpdated",
+      "DocumentUpdated",
+      "MeetingCreated", "MeetingUpdated",
+      "WorkflowRunCompleted",
+      "ModelUpdated",
+      "NotificationCreated",
+    ];
+
+    function emit(event, payload) {
+      const list = subs.get(event); if (!list) return;
+      for (const fn of list) { try { fn(payload); } catch (e) { console.warn("[hub] handler", event, e); } }
+    }
+    function on(event, handler) {
+      if (typeof handler !== "function") return;
+      let list = subs.get(event); if (!list) { list = []; subs.set(event, list); }
+      list.push(handler);
+    }
+    function loadLib() {
+      return new Promise((resolve, reject) => {
+        if (window.signalR) return resolve(window.signalR);
+        const tag = document.createElement("script");
+        tag.src = SIGNALR_CDN; tag.async = true;
+        tag.onload  = () => window.signalR ? resolve(window.signalR) : reject(new Error("signalR global missing"));
+        tag.onerror = () => reject(new Error("SignalR CDN unreachable"));
+        document.head.appendChild(tag);
+      });
+    }
+    async function join(projectId) {
+      if (!conn || !projectId || joinedProject === projectId) return;
+      try {
+        if (joinedProject) { try { await conn.invoke("LeaveProject", joinedProject); } catch (_) {} }
+        await conn.invoke("JoinProject", projectId);
+        joinedProject = projectId;
+      } catch (e) { console.warn("[hub] JoinProject", e); }
+    }
+    async function start() {
+      if (conn) { await join(state.projectId); return; }
+      let SR;
+      try { SR = await loadLib(); }
+      catch (e) { console.warn("[hub] realtime disabled —", e.message); return; }
+      conn = new SR.HubConnectionBuilder()
+        .withUrl("/hubs/notifications", { accessTokenFactory: () => getToken() || "" })
+        .withAutomaticReconnect([0, 1000, 5000, 15000, 30000])
+        .configureLogging(SR.LogLevel.Warning)
+        .build();
+      KNOWN_EVENTS.forEach(name => conn.on(name, payload => emit(name, payload)));
+      conn.onreconnected(() => {
+        const pid = joinedProject; joinedProject = null;
+        if (pid) join(pid);
+      });
+      conn.onclose(err => { if (err) console.warn("[hub] connection closed", err); });
+      try { await conn.start(); await join(state.projectId); }
+      catch (e) { console.warn("[hub] start failed", e); }
+    }
+    return { start, join, on };
+  })();
+
+  // Update / create the live count badge on the Warnings nav link.
+  function setWarnBadge(total, delta) {
+    const link = document.querySelector('.nav-link[data-view="warnings"]');
+    if (!link) return;
+    let badge = link.querySelector(".nav-badge");
+    if (!badge) { badge = document.createElement("span"); badge.className = "nav-badge"; link.appendChild(badge); }
+    badge.textContent = String(total);
+    badge.classList.toggle("up",   (delta || 0) > 0);
+    badge.classList.toggle("down", (delta || 0) < 0);
+  }
+
+  // First realtime consumer: live warning counts. Filters to the active
+  // project, updates the sidebar badge, toasts the delta, and refreshes the
+  // Warnings list if it's the view on screen.
+  Hub.on("WarningsReported", (payload) => {
+    if (!payload) return;
+    const samePid = String(payload.projectId).toLowerCase() === String(state.projectId).toLowerCase();
+    if (!samePid) return;
+    const delta = payload.delta || 0;
+    setWarnBadge(payload.totalWarnings, delta);
+    const verb = delta > 0 ? `+${delta}` : (delta < 0 ? String(delta) : "no change");
+    try { showToast(`Warnings: ${payload.totalWarnings} (${verb})`); } catch (_) {}
+    if (state.view === "warnings") render();
+  });
+
+  // ── P1-D — live refresh for the other dashboard views ─────────────────
+  // Builds on the P1-C Hub. Each dashboard list view maps to the
+  // NotificationHub events that invalidate its data; we re-render only when
+  // that view is on screen. The connection is already scoped to one project
+  // group so we receive only the active project's events — the projectId
+  // check is a belt-and-suspenders guard for events that carry one.
+  //
+  // Names are the server's ACTUAL raise-site events (verified by grepping
+  // SendAsync across Controllers + SignalR/): the workflow event is
+  // WorkflowRunCompleted (not "WorkflowStateUpdate"), and there is NO server
+  // clash event — the clash kernel runs in-Revit and there is no /hubs/clash —
+  // so "ClashNotification" is intentionally absent (matches the audit).
+  function matchesActiveProject(payload) {
+    if (!payload || payload.projectId == null) return true;
+    return String(payload.projectId).toLowerCase() === String(state.projectId).toLowerCase();
+  }
+  const LIVE_VIEW_EVENTS = {
+    issues:       ["IssueCreated", "IssueUpdated"],
+    documents:    ["DocumentUpdated"],
+    transmittals: ["TransmittalUpdated"],
+    meetings:     ["MeetingCreated", "MeetingUpdated"],
+    workflows:    ["WorkflowRunCompleted"],
+    models:       ["ModelUpdated"],
+    overview:     ["ComplianceChanged", "ComplianceUpdated"],
+  };
+  Object.keys(LIVE_VIEW_EVENTS).forEach(view => {
+    LIVE_VIEW_EVENTS[view].forEach(ev => Hub.on(ev, payload => {
+      if (!matchesActiveProject(payload)) return;
+      if (state.view === view) render();
+    }));
+  });
+
   // ── Boot + router ─────────────────────────────────────────────────────
 
   async function boot() {
@@ -145,7 +278,11 @@
       .map(p => `<option value="${p.id}">${esc(p.name)} (${esc(p.code)})</option>`)
       .join("");
     state.projectId = state.projects[0]?.id || null;
-    picker.addEventListener("change", () => { state.projectId = picker.value; render(); });
+    picker.addEventListener("change", () => { state.projectId = picker.value; Hub.join(state.projectId); render(); });
+
+    // P1-C — open the realtime connection once we have a project context.
+    // Fire-and-forget: rendering must not wait on the SignalR CDN load.
+    Hub.start();
 
     document.querySelectorAll(".nav-link").forEach(link => {
       link.addEventListener("click", (ev) => {
