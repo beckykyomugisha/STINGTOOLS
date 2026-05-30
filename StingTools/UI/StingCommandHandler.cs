@@ -1263,8 +1263,6 @@ namespace StingTools.UI
                     // ── Materials ──
                     case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;
                     case "CreateMEPMaterials": RunCommand<Temp.CreateMEPMaterialsCommand>(app); break;
-                    case "MaterialManager":     RunCommand<Temp.StingMaterialManagerCommand>(app); break;
-                    case "MaterialManagerFull": RunCommand<Temp.MaterialManagerCommand>(app); break;
                     case "Pbr_BrowseLibrary":   RunCommand<Commands.Materials.BrowsePbrTexturesCommand>(app); break;
                     case "Pbr_BulkApply":       RunCommand<Commands.Materials.BulkApplyPbrTexturesCommand>(app); break;
                     case "Pbr_ReloadProviders": RunCommand<Commands.Materials.ReloadPbrProvidersCommand>(app); break;
