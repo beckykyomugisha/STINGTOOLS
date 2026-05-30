@@ -304,6 +304,55 @@ namespace StingTools.UI
             }
         }
 
+        // Phase B Round 2 (SETUP) suite-runner helper. Parallel to
+        // RunInteropRunner; tab-scoped — resolves a runner tag to one or
+        // more concrete dispatch tags defined by the SETUP XAML layout.
+        private bool RunSetupRunner(string runnerTag)
+        {
+            if (string.IsNullOrEmpty(runnerTag)) return false;
+
+            switch (runnerTag)
+            {
+                case "Setup_ValidatorSuite":
+                {
+                    // Reads the DATA QA validator CheckBoxes.
+                    bool any = false;
+                    if (chkValVTmpl   != null && chkValVTmpl.IsChecked   == true) { DispatchCommand("ValidateTemplate");        any = true; }
+                    if (chkValDynBind != null && chkValDynBind.IsChecked == true) { DispatchCommand("DynamicBindings");         any = true; }
+                    if (chkValSchema  != null && chkValSchema.IsChecked  == true) { DispatchCommand("SchemaValidate");          any = true; }
+                    if (chkValClash   != null && chkValClash.IsChecked   == true) { DispatchCommand("ClashDetect");             any = true; }
+                    if (chkValXClash  != null && chkValXClash.IsChecked  == true) { DispatchCommand("CrossModelClash");         any = true; }
+                    if (chkValMep     != null && chkValMep.IsChecked     == true) { DispatchCommand("MEPClearance");            any = true; }
+                    if (chkValNaming  != null && chkValNaming.IsChecked  == true) { DispatchCommand("NamingAudit");             any = true; }
+                    if (chkValIfc     != null && chkValIfc.IsChecked     == true) { DispatchCommand("IFCPropertyValidation");   any = true; }
+                    if (chkValGbxml   != null && chkValGbxml.IsChecked   == true) { DispatchCommand("GbXMLEnrichment");         any = true; }
+                    // No-op if nothing ticked; caller suppresses dispatch of the runner tag itself.
+                    _ = any;
+                    return true;
+                }
+                case "Setup_MepScheduleCreate":
+                {
+                    // Reads the MEP SCHEDULES ComboBox.
+                    var item = cmbMepScheduleType != null ? cmbMepScheduleType.SelectedItem as System.Windows.Controls.ComboBoxItem : null;
+                    string sched = item != null ? item.Tag as string : null;
+                    if (string.IsNullOrEmpty(sched)) sched = "PanelSchedule"; // default
+                    DispatchCommand(sched);
+                    return true;
+                }
+                case "Setup_QuickWorkflowRun":
+                {
+                    // Reads the QUICK WORKFLOWS ComboBox.
+                    var item = cmbQuickWorkflow != null ? cmbQuickWorkflow.SelectedItem as System.Windows.Controls.ComboBoxItem : null;
+                    string wf = item != null ? item.Tag as string : null;
+                    if (string.IsNullOrEmpty(wf)) wf = "RunWorkflow_MorningHealthCheck"; // default
+                    DispatchCommand(wf);
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        }
+
         private void Cmd_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
@@ -319,6 +368,17 @@ namespace StingTools.UI
                     cmdTag == "ISB_CreateSelected")
                 {
                     RunInteropRunner(cmdTag);
+                    return;
+                }
+
+                // Phase B Round 2 — SETUP suite runners. Same shape as
+                // Round 1: matched runner tag is consumed locally and the
+                // normal dispatch path is suppressed.
+                if (cmdTag == "Setup_ValidatorSuite" ||
+                    cmdTag == "Setup_MepScheduleCreate" ||
+                    cmdTag == "Setup_QuickWorkflowRun")
+                {
+                    RunSetupRunner(cmdTag);
                     return;
                 }
 

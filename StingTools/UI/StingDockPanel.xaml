@@ -1811,44 +1811,49 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ SETUP"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
                             <StackPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="Project Setup Wizard" Tag="ProjectSetup" Click="Cmd_Click"
-                                            ToolTip="6-page wizard: project info, levels, grids, disciplines, automation — then runs full setup" FontWeight="Bold"/>
-                                </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Master Setup" Tag="MasterSetup" Click="Cmd_Click" ToolTip="One-click full project setup (no wizard). Assumes a fresh project."/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Retrofit Project" Tag="RetrofitProject" Click="Cmd_Click" ToolTip="Convert an existing non-STING project to the STING schema. Chained wizard: shared params → loaded families → placed elements → visual standards. Each phase is Run/Skip/Stop and commits independently."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Create Params" Tag="CreateParameters" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Check Data" Tag="CheckData" Click="Cmd_Click"/>
-                                </WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="★ Project Setup Wizard" Tag="ProjectSetup" Click="Cmd_Click"
+                                        ToolTip="6-page wizard: project info, levels, grids, disciplines, automation — then runs full setup" FontWeight="Bold" HorizontalAlignment="Stretch"/>
+                                <Expander Header="Advanced setup" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource PurpleBtn}" Content="Master" Tag="MasterSetup" Click="Cmd_Click" ToolTip="Master Setup — one-click full project setup (no wizard). Assumes a fresh project."/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Retrofit" Tag="RetrofitProject" Click="Cmd_Click" ToolTip="Retrofit Project — convert an existing non-STING project to the STING schema. Chained wizard: shared params → loaded families → placed elements → visual standards."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Params" Tag="CreateParameters" Click="Cmd_Click" ToolTip="Create Parameters — bind STING shared parameters"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Check" Tag="CheckData" Click="Cmd_Click" ToolTip="Check Data — verify referenced CSV / JSON / TXT data files are present"/>
+                                    </WrapPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
                         <!-- MATERIALS -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="MATERIALS"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="BLE (815)" Tag="CreateBLEMaterials" Click="Cmd_Click" ToolTip="815 building materials"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="MEP (464)" Tag="CreateMEPMaterials" Click="Cmd_Click" ToolTip="464 MEP materials"/>
-                                <Button Style="{StaticResource BlueBtn}" Content="Material Manager" Tag="MaterialManagerFull" Click="Cmd_Click" ToolTip="7-tab Material Manager: Library, Editor, Layers, Paint, Audit, Import/Export, BOQ Link"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="Browse PBR Library…" Tag="Pbr_BrowseLibrary" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="Bulk Apply PBR" Tag="Pbr_BulkApply" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Reload Providers" Tag="Pbr_ReloadProviders" Click="Cmd_Click"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <Button Style="{StaticResource BlueBtn}" Content="★ Material Manager" Tag="MaterialManagerFull" Click="Cmd_Click"
+                                        ToolTip="7-tab Material Manager: Library, Editor, Layers, Paint, Audit, Import/Export, BOQ Link" FontWeight="Bold" HorizontalAlignment="Stretch"/>
+                                <Expander Header="Bulk creation + PBR library" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="BLE (815)" Tag="CreateBLEMaterials" Click="Cmd_Click" ToolTip="Create 815 building materials from CSV"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="MEP (464)" Tag="CreateMEPMaterials" Click="Cmd_Click" ToolTip="Create 464 MEP materials from CSV"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="PBR Browse" Tag="Pbr_BrowseLibrary" Click="Cmd_Click" ToolTip="Browse PBR appearance asset library"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="PBR Bulk" Tag="Pbr_BulkApply" Click="Cmd_Click" ToolTip="Bulk-apply PBR assets to project materials"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="PBR Reload" Tag="Pbr_ReloadProviders" Click="Cmd_Click" ToolTip="Reload PBR provider list"/>
+                                    </WrapPanel>
+                                </Expander>
+                            </StackPanel>
                         </Border>
 
                         <!-- FAMILY TYPES -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="FAMILY TYPES"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource CatBtn}" Content="Walls" Tag="CreateWalls" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Floors" Tag="CreateFloors" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Ceilings" Tag="CreateCeilings" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Roofs" Tag="CreateRoofs" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Ducts" Tag="CreateDucts" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Pipes" Tag="CreatePipes" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource CatBtn}" Content="CblTray" Tag="CreateCableTrays" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Conduit" Tag="CreateConduits" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Walls" Tag="CreateWalls" Click="Cmd_Click" ToolTip="Create wall types from CSV"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Floors" Tag="CreateFloors" Click="Cmd_Click" ToolTip="Create floor types from CSV"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Ceilings" Tag="CreateCeilings" Click="Cmd_Click" ToolTip="Create ceiling types from CSV"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Roofs" Tag="CreateRoofs" Click="Cmd_Click" ToolTip="Create roof types from CSV"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Ducts" Tag="CreateDucts" Click="Cmd_Click" ToolTip="Create duct types from CSV"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Pipes" Tag="CreatePipes" Click="Cmd_Click" ToolTip="Create pipe types from CSV"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Tray" Tag="CreateCableTrays" Click="Cmd_Click" ToolTip="Create cable tray types from CSV"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Cond." Tag="CreateConduits" Click="Cmd_Click" ToolTip="Create conduit types from CSV"/>
                             </WrapPanel>
                         </Border>
 
@@ -1857,183 +1862,232 @@
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
                             <StackPanel>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ Create All Symbols" Tag="Symbols_CreateAll" Click="Cmd_Click"
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Create All" Tag="Symbols_CreateAll" Click="Cmd_Click"
                                             ToolTip="Build the full MEP/FP/SLD symbol library (~190 families) into _BIM_COORD/Families/Symbols and load into the project" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="SLD" Tag="Symbols_CreateSLD" Click="Cmd_Click" ToolTip="IEC 60617 single-line diagram symbols"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Lighting" Tag="Symbols_CreateLighting" Click="Cmd_Click" ToolTip="Lighting tag families"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Fire Prot." Tag="Symbols_CreateFP" Click="Cmd_Click" ToolTip="Sprinklers, detectors, alarm devices, valves"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Reload" Tag="Symbols_Reload" Click="Cmd_Click" ToolTip="Reload every previously-created symbol family from disk"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Inspect" Tag="Symbols_Inspect" Click="Cmd_Click" ToolTip="Read-only diagnostic: defined vs loaded counts per group"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Set Profile" Tag="Symbols_SetProfile" Click="Cmd_Click" ToolTip="Set the active mixed-standard profile (Uganda / US-Intl / UK / Full-IEC)" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Place MEP" Tag="Symbols_PlaceMepDetail" Click="Cmd_Click" ToolTip="Place scale-aware MEP detail symbols (FamilyInstance) on MEP elements in the active view. Distinct from tag overlays — uses MepSymbolEngine + CSV catalogue." FontWeight="Bold"/>
                                 </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ Set Profile" Tag="Symbols_SetProfile" Click="Cmd_Click" ToolTip="Set the active mixed-standard profile (Uganda / US-Intl / UK / Full-IEC)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Switch Project Std" Tag="Symbols_SwitchProject" Click="Cmd_Click" ToolTip="Swap every symbol overlay in the project to a chosen standard"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Switch View Std" Tag="Symbols_SwitchView" Click="Cmd_Click" ToolTip="Set the symbol standard for the active view only"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Place In View" Tag="Symbols_PlaceView" Click="Cmd_Click" ToolTip="Place symbol overlays on every uncovered MEP element in the active view"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Place All Views" Tag="Symbols_PlaceAll" Click="Cmd_Click" ToolTip="Same, project-wide"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Std Audit" Tag="Symbols_Audit" Click="Cmd_Click" ToolTip="Drift + coverage report"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Filters" Tag="Symbols_SyncFilters" Click="Cmd_Click" ToolTip="Mirror host visibility onto symbol tags"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Place Toggle" Tag="Symbols_AutoPlaceToggle" Click="Cmd_Click" ToolTip="Toggle whether the StingAutoTagger drops symbol overlays on every newly-placed MEP element (project_config.symbol_auto_place)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Remove In View" Tag="Symbols_RemoveInView" Click="Cmd_Click" ToolTip="Delete every STING symbol overlay (and its label TextNote) from the active view; non-STING tags untouched"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Remove All Views" Tag="Symbols_RemoveAll" Click="Cmd_Click" ToolTip="Project-wide: delete every STING symbol overlay across all views (chunked, interruptible). Tally-confirmation dialog shows top views by count before committing."/>
-                                </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource ActionBtn}" Content="Augment Families" Tag="Symbols_AugmentAll" Click="Cmd_Click" ToolTip="Inject STING symbol parameters into all loaded families"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Augment Selected" Tag="Symbols_AugmentSelected" Click="Cmd_Click" ToolTip="Augment selected families only"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Rollback Augment" Tag="Symbols_RollbackAugment" Click="Cmd_Click" ToolTip="Remove STING parameters from a previously augmented family"/>
-                                    <Button Style="{StaticResource GreenBtn}" Content="Author Symbols" Tag="Symbols_AuthorSymbols" Click="Cmd_Click" ToolTip="Wire plan/elevation symbolic curves, STING subcategories, annotation plan symbol, and MEP connector size params into .rfa files"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Set Elem. Std" Tag="Symbols_SetElementStandard" Click="Cmd_Click" ToolTip="Set STING_SYMBOL_STD on selected instances to show IEC/ANSI/BS/NFPA/CIBSE symbol variant"/>
-                                </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource ActionBtn}" Content="Heal Orphans" Tag="Symbols_HealOrphans" Click="Cmd_Click" ToolTip="Delete symbol tags whose host has been deleted"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Coverage" Tag="Symbols_Coverage" Click="Cmd_Click" ToolTip="Show MEP-element coverage % by category and level"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Fix Drift" Tag="Symbols_FixDrift" Click="Cmd_Click" ToolTip="Re-mint symbols whose stamped standard doesn't match the resolver"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Heal All" Tag="Symbols_BatchHeal" Click="Cmd_Click" ToolTip="Heal orphans + fix drift + sync filter visibility in one pass"/>
-                                </WrapPanel>
-                                <!-- MEP Detail Symbols — FamilyInstance-based, scale-aware, colour-coded -->
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ Place MEP Symbols" Tag="Symbols_PlaceMepDetail" Click="Cmd_Click" ToolTip="Place scale-aware MEP detail symbols (FamilyInstance) on MEP elements in the active view. Distinct from tag overlays — uses MepSymbolEngine + CSV catalogue."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Place All Views" Tag="Symbols_PlaceMepDetailAll" Click="Cmd_Click" ToolTip="Place MEP detail symbols across all eligible views project-wide (Corporate std, CIBSE colours)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Clear MEP Symbols" Tag="Symbols_ClearMepDetail" Click="Cmd_Click" ToolTip="Remove all STING MEP detail symbols from the active view"/>
-                                </WrapPanel>
+                                <Expander Header="Create &amp; standards" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="SLD" Tag="Symbols_CreateSLD" Click="Cmd_Click" ToolTip="Create SLD — IEC 60617 single-line diagram symbols"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Lighting" Tag="Symbols_CreateLighting" Click="Cmd_Click" ToolTip="Create lighting tag families"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Fire" Tag="Symbols_CreateFP" Click="Cmd_Click" ToolTip="Fire protection — sprinklers, detectors, alarm devices, valves"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Reload" Tag="Symbols_Reload" Click="Cmd_Click" ToolTip="Reload every previously-created symbol family from disk"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Inspect" Tag="Symbols_Inspect" Click="Cmd_Click" ToolTip="Read-only diagnostic — defined vs loaded counts per group"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Std Proj" Tag="Symbols_SwitchProject" Click="Cmd_Click" ToolTip="Switch Project Standard — swap every symbol overlay in the project to a chosen standard"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Std View" Tag="Symbols_SwitchView" Click="Cmd_Click" ToolTip="Switch View Standard — set the symbol standard for the active view only"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Std Elem" Tag="Symbols_SetElementStandard" Click="Cmd_Click" ToolTip="Set Element Standard — STING_SYMBOL_STD on selected instances (IEC/ANSI/BS/NFPA/CIBSE)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Place View" Tag="Symbols_PlaceView" Click="Cmd_Click" ToolTip="Place symbol overlays on every uncovered MEP element in the active view"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Place All" Tag="Symbols_PlaceAll" Click="Cmd_Click" ToolTip="Place symbol overlays project-wide"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Place MEP All" Tag="Symbols_PlaceMepDetailAll" Click="Cmd_Click" ToolTip="Place MEP detail symbols across all eligible views project-wide (Corporate std, CIBSE colours)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Auto Toggle" Tag="Symbols_AutoPlaceToggle" Click="Cmd_Click" ToolTip="Toggle whether the StingAutoTagger drops symbol overlays on every newly-placed MEP element"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sync Filt" Tag="Symbols_SyncFilters" Click="Cmd_Click" ToolTip="Sync Filters — mirror host visibility onto symbol tags"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Std Audit" Tag="Symbols_Audit" Click="Cmd_Click" ToolTip="Std Audit — drift + coverage report"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Rm View" Tag="Symbols_RemoveInView" Click="Cmd_Click" ToolTip="Remove In View — delete every STING symbol overlay from the active view"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Rm All" Tag="Symbols_RemoveAll" Click="Cmd_Click" ToolTip="Remove All Views — delete every STING symbol overlay project-wide (chunked)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Clear MEP" Tag="Symbols_ClearMepDetail" Click="Cmd_Click" ToolTip="Clear MEP Symbols — remove all STING MEP detail symbols from the active view"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Augment families" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Augment All" Tag="Symbols_AugmentAll" Click="Cmd_Click" ToolTip="Inject STING symbol parameters into all loaded families"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Augment Sel" Tag="Symbols_AugmentSelected" Click="Cmd_Click" ToolTip="Augment selected families only"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Rollback" Tag="Symbols_RollbackAugment" Click="Cmd_Click" ToolTip="Rollback Augment — remove STING parameters from a previously augmented family"/>
+                                        <Button Style="{StaticResource GreenBtn}" Content="Author" Tag="Symbols_AuthorSymbols" Click="Cmd_Click" ToolTip="Author Symbols — wire plan/elevation symbolic curves, STING subcategories, annotation plan symbol, MEP connector size params into .rfa files"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Heal &amp; coverage" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Orphans" Tag="Symbols_HealOrphans" Click="Cmd_Click" ToolTip="Heal Orphans — delete symbol tags whose host has been deleted"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Coverage" Tag="Symbols_Coverage" Click="Cmd_Click" ToolTip="Coverage — show MEP-element coverage % by category and level"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Fix Drift" Tag="Symbols_FixDrift" Click="Cmd_Click" ToolTip="Fix Drift — re-mint symbols whose stamped standard doesn't match the resolver"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Heal All" Tag="Symbols_BatchHeal" Click="Cmd_Click" ToolTip="Batch Heal All — heal orphans + fix drift + sync filter visibility in one pass"/>
+                                    </WrapPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
                         <!-- SLD GENERATOR (Phase 175) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SLD GENERATOR"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#0277BD">
-                            <WrapPanel>
+                            <StackPanel>
                                 <Button Style="{StaticResource GreenBtn}" Content="★ Generate SLD" Tag="SLD_Generate" Click="Cmd_Click"
-                                        ToolTip="Walk the electrical hierarchy and emit a drafting view with symbols + busbars + labels" FontWeight="Bold"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="With Options" Tag="SLD_GenerateOptions" Click="Cmd_Click" ToolTip="Pick standard before generating"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Update" Tag="SLD_Update" Click="Cmd_Click" ToolTip="Refresh existing SLD views in place"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Sync Toggle" Tag="SLD_SyncToggle" Click="Cmd_Click" ToolTip="Enable / disable the live SLD sync IUpdater (project_config.json)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="SLD_Validate" Click="Cmd_Click" ToolTip="Compare SLD topology against the live electrical model"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Migrate Labels" Tag="SLD_MigrateLabels" Click="Cmd_Click" ToolTip="One-shot: stamp STING_SYMBOL_LABEL_ID on every SLD symbol that doesn't have one (so the fast-path update can find labels by ID instead of spatially)"/>
-                            </WrapPanel>
+                                        ToolTip="Walk the electrical hierarchy and emit a drafting view with symbols + busbars + labels" FontWeight="Bold" HorizontalAlignment="Stretch"/>
+                                <Expander Header="SLD options &amp; maintenance" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Options" Tag="SLD_GenerateOptions" Click="Cmd_Click" ToolTip="With Options — pick standard before generating"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Update" Tag="SLD_Update" Click="Cmd_Click" ToolTip="Update — refresh existing SLD views in place"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sync" Tag="SLD_SyncToggle" Click="Cmd_Click" ToolTip="Sync Toggle — enable / disable the live SLD sync IUpdater (project_config.json)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="SLD_Validate" Click="Cmd_Click" ToolTip="Validate — compare SLD topology against the live electrical model"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Migrate" Tag="SLD_MigrateLabels" Click="Cmd_Click" ToolTip="Migrate Labels — stamp STING_SYMBOL_LABEL_ID on every SLD symbol so fast-path update can find labels by ID instead of spatially"/>
+                                    </WrapPanel>
+                                </Expander>
+                            </StackPanel>
                         </Border>
 
                         <!-- SCHEDULES -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SCHEDULES"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource GreenBtn}" Content="★ Schedule Wizard" Tag="ScheduleWizard" Click="Cmd_Click" ToolTip="Unified schedule wizard: create, populate, audit, export in one dialog"/>
-                                <Button Style="{StaticResource GreenBtn}" Content="Full AutoPop" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="Zero-input full pipeline"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Batch Create" Tag="BatchSchedules" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Mat Takeoff" Tag="MaterialSchedules" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="AutoPop Tok" Tag="AutoPopulate" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Formulas" Tag="FormulaEvaluator" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportCSV" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource GreenBtn}" Content="Export BOQ" Tag="BOQExport" Click="Cmd_Click"
-                                        ToolTip="Export grouped Bill of Quantities (NRM2 + TAG7 descriptions)"/>
-                                <Button Style="{StaticResource GreenBtn}" Content="Excel Link" Tag="ExcelLinkExport" Click="Cmd_Click"
-                                        ToolTip="ExLink-style export: pick categories and properties, export to Excel" FontWeight="Bold"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Wizard" Tag="ScheduleWizard" Click="Cmd_Click" ToolTip="Schedule Wizard — unified schedule wizard: create, populate, audit, export in one dialog" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Full AutoPop" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="Full AutoPopulate — zero-input full pipeline" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Excel Link" Tag="ExcelLinkExport" Click="Cmd_Click" ToolTip="Excel Link — ExLink-style export: pick categories and properties, export to Excel" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <Expander Header="Batch &amp; export" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Batch" Tag="BatchSchedules" Click="Cmd_Click" ToolTip="Batch Create — create all default schedules"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Mat Take" Tag="MaterialSchedules" Click="Cmd_Click" ToolTip="Material Takeoff — bill of materials schedule"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="AutoPop" Tag="AutoPopulate" Click="Cmd_Click" ToolTip="AutoPopulate tokens only (no schedule creation)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Formulas" Tag="FormulaEvaluator" Click="Cmd_Click" ToolTip="Evaluate Formulas — runs the 199-formula dependency-ordered evaluator"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="CSV" Tag="ExportCSV" Click="Cmd_Click" ToolTip="Export CSV — export the active schedule to CSV"/>
+                                        <Button Style="{StaticResource GreenBtn}" Content="BOQ" Tag="BOQExport" Click="Cmd_Click" ToolTip="Export BOQ — grouped Bill of Quantities (NRM2 + TAG7 descriptions)"/>
+                                    </WrapPanel>
+                                </Expander>
+                            </StackPanel>
                         </Border>
 
                         <!-- MEP SCHEDULES -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="MEP SCHEDULES"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#2196F3">
-                            <WrapPanel>
-                                <Button Style="{StaticResource GreenBtn}" Content="Batch MEP" Tag="BatchMEPSchedules" Click="Cmd_Click" ToolTip="Create all MEP schedules at once"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Panels" Tag="PanelSchedule" Click="Cmd_Click" ToolTip="Create panel schedules for electrical equipment"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Lighting" Tag="LightingFixtureSchedule" Click="Cmd_Click" ToolTip="Create lighting fixture schedule"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Mech Equip" Tag="MechEquipSchedule" Click="Cmd_Click" ToolTip="Create mechanical equipment schedule"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Plumbing" Tag="PlumbingFixtureSchedule" Click="Cmd_Click" ToolTip="Create plumbing fixture schedule"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Fire Dev" Tag="FireDeviceSchedule" Click="Cmd_Click" ToolTip="Create fire safety device schedule"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Elec Dev" Tag="ElectricalDeviceSchedule" Click="Cmd_Click" ToolTip="Create electrical device schedule"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="★ Batch MEP — create all" Tag="BatchMEPSchedules" Click="Cmd_Click"
+                                        ToolTip="Batch MEP — create all MEP schedules at once" FontWeight="Bold" HorizontalAlignment="Stretch"/>
+                                <DockPanel LastChildFill="True" Margin="0,4,0,0">
+                                    <TextBlock DockPanel.Dock="Left" Text="Type" FontSize="10" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <ComboBox x:Name="cmbMepScheduleType" FontSize="10" Height="22" SelectedIndex="0" ToolTip="Pick a discipline-specific MEP schedule to create">
+                                        <ComboBoxItem Content="Panels (electrical)"   Tag="PanelSchedule"/>
+                                        <ComboBoxItem Content="Lighting fixtures"     Tag="LightingFixtureSchedule"/>
+                                        <ComboBoxItem Content="Mechanical equipment"  Tag="MechEquipSchedule"/>
+                                        <ComboBoxItem Content="Plumbing fixtures"     Tag="PlumbingFixtureSchedule"/>
+                                        <ComboBoxItem Content="Fire safety devices"   Tag="FireDeviceSchedule"/>
+                                        <ComboBoxItem Content="Electrical devices"    Tag="ElectricalDeviceSchedule"/>
+                                    </ComboBox>
+                                </DockPanel>
+                                <Button Style="{StaticResource StingPrimaryButton}" Content="Create selected" Tag="Setup_MepScheduleCreate" Click="Cmd_Click"
+                                        ToolTip="Create the discipline-specific MEP schedule picked above" Margin="0,4,0,0"/>
+                            </StackPanel>
                         </Border>
 
                         <!-- ROOM / SPACE MANAGEMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ROOM / SPACE"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Room Audit" Tag="RoomAudit" Click="Cmd_Click" ToolTip="Audit rooms for completeness and issues"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Connectivity" Tag="SpatialConnectivityAudit" Click="Cmd_Click" ToolTip="Validate rooms: doors, dead-end corridors, min area per BS 6465"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Data Drop" Tag="DataDropReadiness" Click="Cmd_Click" ToolTip="Assess model readiness against DD1-DD4 milestones"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Weekly Report" Tag="WeeklyReport" Click="Cmd_Click" ToolTip="Generate HTML weekly BIM coordinator report"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="COBie Import" Tag="COBieImport" Click="Cmd_Click" ToolTip="Import COBie spreadsheet data back into model"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Zone Assign" Tag="RoomZoneAssign" Click="Cmd_Click" ToolTip="Auto-assign ZONE codes from department names"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Room Sched" Tag="RoomSchedule" Click="Cmd_Click" ToolTip="Create room schedule with area, finishes, tags"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Room Export" Tag="RoomDataExport" Click="Cmd_Click" ToolTip="Export room data to CSV"/>
-                                <Button Style="{StaticResource GreenBtn}" Content="Room Push" Tag="RoomParamPush" Click="Cmd_Click" ToolTip="Push LOC/ZONE from rooms to contained elements"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Room Push" Tag="RoomParamPush" Click="Cmd_Click" ToolTip="Push LOC/ZONE from rooms to contained elements" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Connectivity" Tag="SpatialConnectivityAudit" Click="Cmd_Click" ToolTip="Validate rooms — doors, dead-end corridors, min area per BS 6465"/>
+                                </WrapPanel>
+                                <Expander Header="Audits &amp; reports" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="RoomAudit" Click="Cmd_Click" ToolTip="Room Audit — completeness + issue scan"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="DD Ready" Tag="DataDropReadiness" Click="Cmd_Click" ToolTip="Data Drop Readiness — assess model against DD1-DD4 milestones"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Weekly" Tag="WeeklyReport" Click="Cmd_Click" ToolTip="Weekly Report — HTML BIM coordinator report"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="COBie In" Tag="COBieImport" Click="Cmd_Click" ToolTip="COBie Import — round-trip COBie spreadsheet data back into the model"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Zones" Tag="RoomZoneAssign" Click="Cmd_Click" ToolTip="Zone Assign — auto-assign ZONE codes from department names"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sched" Tag="RoomSchedule" Click="Cmd_Click" ToolTip="Room Schedule — area, finishes, tags"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Export" Tag="RoomDataExport" Click="Cmd_Click" ToolTip="Room Export — write room data to CSV"/>
+                                    </WrapPanel>
+                                </Expander>
+                            </StackPanel>
                         </Border>
 
                         <!-- VIEW TEMPLATES -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="VIEW TEMPLATES"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Filters" Tag="CreateFilters" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Apply Filt" Tag="ApplyFilters" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Worksets" Tag="CreateWorksets" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="View Tmpl" Tag="ViewTemplates" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Line Pat" Tag="CreateLinePatterns" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Phases" Tag="CreatePhases" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Filters" Tag="CreateFilters" Click="Cmd_Click" ToolTip="Create Filters — 28 STING filter definitions"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Apply Filt" Tag="ApplyFilters" Click="Cmd_Click" ToolTip="Apply Filters to View Templates"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Worksets" Tag="CreateWorksets" Click="Cmd_Click" ToolTip="Create Worksets — 35 ISO 19650 worksets"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="VTmpl" Tag="ViewTemplates" Click="Cmd_Click" ToolTip="Create View Templates — 23 corporate templates"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="LinePat" Tag="CreateLinePatterns" Click="Cmd_Click" ToolTip="Create Line Patterns — 10 ISO line styles"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Phases" Tag="CreatePhases" Click="Cmd_Click" ToolTip="Create Phases — 6 standard phase definitions"/>
                             </WrapPanel>
                         </Border>
 
                         <!-- TEMPLATE MANAGER -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="TEMPLATE MANAGER"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#009688">
-                            <WrapPanel>
-                                <Button Style="{StaticResource GreenBtn}" Content="★ Dashboard" Tag="TemplateDashboard" Click="Cmd_Click" ToolTip="Unified Template Manager Dashboard — all template, style, and automation operations in one dialog"/>
-                                <Button Style="{StaticResource TealBtn}" Content="Wizard" Tag="TemplateSetupWizard" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Auto-Assign" Tag="AutoAssignTemplates" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="TemplateAudit" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="VG Audit" Tag="TemplateVGAudit" Click="Cmd_Click"
-                                        ToolTip="Audit VG colour/transparency/filter consistency"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Diff" Tag="TemplateDiff" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Comply" Tag="TemplateComplianceScore" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="AutoFix" Tag="AutoFixTemplate" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Sync VG" Tag="SyncTemplateOverrides" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Apply VG" Tag="CreateVGOverrides" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clone" Tag="CloneTemplate" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="VG Reset" Tag="BatchVGReset" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Fam Params" Tag="BatchAddFamilyParams" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Fam Processor" Tag="FamilyParamProcessor" Click="Cmd_Click" ToolTip="Open .rfa files, add parameters and formulas by category, save modified copies"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Tmpl Sched" Tag="CreateTemplateSchedules" Click="Cmd_Click"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Dashboard" Tag="TemplateDashboard" Click="Cmd_Click" ToolTip="Unified Template Manager Dashboard — all template, style, and automation operations in one dialog" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="Wizard" Tag="TemplateSetupWizard" Click="Cmd_Click" ToolTip="Template Setup Wizard — guided multi-step template creation"/>
+                                </WrapPanel>
+                                <Expander Header="Advanced template ops" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Auto-Assign" Tag="AutoAssignTemplates" Click="Cmd_Click" ToolTip="Auto-Assign Templates — apply 5-layer matching to unassigned views"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="TemplateAudit" Click="Cmd_Click" ToolTip="Template Audit — assignment status across all views"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="VG Audit" Tag="TemplateVGAudit" Click="Cmd_Click" ToolTip="VG Audit — colour/transparency/filter consistency"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Diff" Tag="TemplateDiff" Click="Cmd_Click" ToolTip="Template Diff — compare VG settings between two templates"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Comply" Tag="TemplateComplianceScore" Click="Cmd_Click" ToolTip="Compliance Score — 10-point weighted scoring per view"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="AutoFix" Tag="AutoFixTemplate" Click="Cmd_Click" ToolTip="Auto-Fix Template — repair missing filters, wrong detail level"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sync VG" Tag="SyncTemplateOverrides" Click="Cmd_Click" ToolTip="Sync VG Overrides — push template VG to all views using it"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Apply VG" Tag="CreateVGOverrides" Click="Cmd_Click" ToolTip="Apply VG Overrides — write comprehensive VG settings"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Clone" Tag="CloneTemplate" Click="Cmd_Click" ToolTip="Clone Template — deep copy with VG, filters, overrides"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Reset" Tag="BatchVGReset" Click="Cmd_Click" ToolTip="Batch VG Reset — clear VG settings across multiple views"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="FamParms" Tag="BatchAddFamilyParams" Click="Cmd_Click" ToolTip="Batch Add Family Params — push shared params into family documents"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="FamProc" Tag="FamilyParamProcessor" Click="Cmd_Click" ToolTip="Family Param Processor — open .rfa files, add parameters and formulas by category, save modified copies"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="TmplSched" Tag="CreateTemplateSchedules" Click="Cmd_Click" ToolTip="Create Template Schedules — standard schedule templates"/>
+                                    </WrapPanel>
+                                </Expander>
+                            </StackPanel>
                         </Border>
 
                         <!-- STYLES -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="STYLES"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Fill Pat" Tag="CreateFillPatterns" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Line Sty" Tag="CreateLineStyles" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Obj Sty" Tag="CreateObjectStyles" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Txt Sty" Tag="CreateTextStyles" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Dim Sty" Tag="CreateDimensionStyles" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Fill Pat" Tag="CreateFillPatterns" Click="Cmd_Click" ToolTip="Create Fill Patterns — AEC standard hatching"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Line" Tag="CreateLineStyles" Click="Cmd_Click" ToolTip="Create Line Styles — ISO-compliant line styles"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Object" Tag="CreateObjectStyles" Click="Cmd_Click" ToolTip="Create Object Styles — standard object style definitions"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Text" Tag="CreateTextStyles" Click="Cmd_Click" ToolTip="Create Text Styles — AEC standard text styles"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Dim" Tag="CreateDimensionStyles" Click="Cmd_Click" ToolTip="Create Dimension Styles — AEC standard dim styles"/>
                             </WrapPanel>
                         </Border>
 
                         <!-- DATA QA -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="DATA QA"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#F44336">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Val Tmpl" Tag="ValidateTemplate" Click="Cmd_Click" ToolTip="Validate template (45 checks)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Dyn Bind" Tag="DynamicBindings" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Schema" Tag="SchemaValidate" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clash Detect" Tag="ClashDetect" Click="Cmd_Click" ToolTip="Rule-based MEP-structure clash detection"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="X-Model Clash" Tag="CrossModelClash" Click="Cmd_Click" ToolTip="Cross-model clash detection including linked Revit models"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="MEP Clearance" Tag="MEPClearance" Click="Cmd_Click" ToolTip="Validate MEP maintenance clearances per CIBSE Guide W"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Naming Audit" Tag="NamingAudit" Click="Cmd_Click" ToolTip="Audit naming conventions per BS 1192 / ISO 19650"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="IFC Validate" Tag="IFCPropertyValidation" Click="Cmd_Click" ToolTip="Validate IFC property sets per ISO 16739"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="gbXML Check" Tag="GbXMLEnrichment" Click="Cmd_Click" ToolTip="Assess gbXML energy model readiness with STING data"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Productivity" Tag="UserProductivity" Click="Cmd_Click" ToolTip="Per-user tagging and workflow productivity report"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Tasks" Tag="TaskAssignment" Click="Cmd_Click" ToolTip="Assign tasks to team members with workset checkout"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Notify Prefs" Tag="NotificationPrefs" Click="Cmd_Click" ToolTip="Configure per-user notification preferences"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="IFC Export" Tag="IFCExport" Click="Cmd_Click" ToolTip="Automated IFC 2x3/4 export with STING property sets"/>
-                                <Button Style="{StaticResource GreenBtn}" Content="COBie" Tag="COBieExport" Click="Cmd_Click" ToolTip="Export COBie spreadsheet for FM handover"/>
-                                <Button Style="{StaticResource GreenBtn}" Content="JSON" Tag="JSONExport" Click="Cmd_Click" ToolTip="Export element data as JSON for data interchange"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Excel Import" Tag="ExcelImport" Click="Cmd_Click" ToolTip="Import BOQ data from Excel back to Revit"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Keynotes" Tag="KeynoteSync" Click="Cmd_Click" ToolTip="Auto-sync keynote table from STING tags"/>
-                                <Button Style="{StaticResource GreenBtn}" Content="Excel → View" Tag="ExcelToDraftingView" Click="Cmd_Click" ToolTip="Import Excel spreadsheet into a Revit drafting view as formatted table" FontWeight="Bold"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Schedule → Excel" Tag="ScheduleToExcel" Click="Cmd_Click" ToolTip="Export Revit schedule to formatted Excel workbook"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Sticky Import" Tag="BatchStickyImport" Click="Cmd_Click" ToolTip="Batch import QA notes from Excel/CSV (Tag | Note | Category)"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <TextBlock Text="Validator suite" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,2,0,2"/>
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <CheckBox Grid.Row="0" Grid.Column="0" x:Name="chkValVTmpl"    Tag="ValidateTemplate"        Content="Template (45)" IsChecked="True"  FontSize="10" Margin="0,1" ToolTip="ValidateTemplate — 45-check template validation"/>
+                                    <CheckBox Grid.Row="0" Grid.Column="1" x:Name="chkValDynBind"  Tag="DynamicBindings"         Content="Dyn bindings"   IsChecked="False" FontSize="10" Margin="0,1" ToolTip="DynamicBindings — runtime category-binding scan"/>
+                                    <CheckBox Grid.Row="0" Grid.Column="2" x:Name="chkValSchema"   Tag="SchemaValidate"          Content="Schema"         IsChecked="True"  FontSize="10" Margin="0,1" ToolTip="SchemaValidate — JSON/CSV schema integrity"/>
+                                    <CheckBox Grid.Row="1" Grid.Column="0" x:Name="chkValClash"    Tag="ClashDetect"             Content="Clash"          IsChecked="True"  FontSize="10" Margin="0,1" ToolTip="ClashDetect — rule-based MEP-structure clash detection"/>
+                                    <CheckBox Grid.Row="1" Grid.Column="1" x:Name="chkValXClash"   Tag="CrossModelClash"         Content="X-model"        IsChecked="False" FontSize="10" Margin="0,1" ToolTip="CrossModelClash — clash including linked Revit models"/>
+                                    <CheckBox Grid.Row="1" Grid.Column="2" x:Name="chkValMep"      Tag="MEPClearance"            Content="MEP clear."     IsChecked="False" FontSize="10" Margin="0,1" ToolTip="MEPClearance — maintenance clearances per CIBSE Guide W"/>
+                                    <CheckBox Grid.Row="2" Grid.Column="0" x:Name="chkValNaming"   Tag="NamingAudit"             Content="Naming"         IsChecked="True"  FontSize="10" Margin="0,1" ToolTip="NamingAudit — BS 1192 / ISO 19650 conventions"/>
+                                    <CheckBox Grid.Row="2" Grid.Column="1" x:Name="chkValIfc"      Tag="IFCPropertyValidation"   Content="IFC props"      IsChecked="False" FontSize="10" Margin="0,1" ToolTip="IFCPropertyValidation — property sets per ISO 16739"/>
+                                    <CheckBox Grid.Row="2" Grid.Column="2" x:Name="chkValGbxml"    Tag="GbXMLEnrichment"         Content="gbXML"          IsChecked="False" FontSize="10" Margin="0,1" ToolTip="GbXMLEnrichment — energy model readiness with STING data"/>
+                                </Grid>
+                                <Button Style="{StaticResource StingPrimaryButton}" Content="Run selected" Tag="Setup_ValidatorSuite" Click="Cmd_Click"
+                                        ToolTip="Run each ticked validator in sequence" Margin="0,4,0,0"/>
+                                <Expander Header="Exchange &amp; reports" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Producv" Tag="UserProductivity" Click="Cmd_Click" ToolTip="Productivity — per-user tagging and workflow productivity report"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Tasks" Tag="TaskAssignment" Click="Cmd_Click" ToolTip="Tasks — assign to team members with workset checkout"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Notify" Tag="NotificationPrefs" Click="Cmd_Click" ToolTip="Notification preferences — per-user"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="IFC Out" Tag="IFCExport" Click="Cmd_Click" ToolTip="IFC Export — automated IFC 2x3/4 with STING property sets"/>
+                                        <Button Style="{StaticResource GreenBtn}" Content="COBie" Tag="COBieExport" Click="Cmd_Click" ToolTip="COBie Export — spreadsheet for FM handover"/>
+                                        <Button Style="{StaticResource GreenBtn}" Content="JSON" Tag="JSONExport" Click="Cmd_Click" ToolTip="JSON Export — element data for data interchange"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Xlsx In" Tag="ExcelImport" Click="Cmd_Click" ToolTip="Excel Import — BOQ data from Excel back to Revit"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Keynote" Tag="KeynoteSync" Click="Cmd_Click" ToolTip="Keynotes — auto-sync keynote table from STING tags"/>
+                                        <Button Style="{StaticResource GreenBtn}" Content="Xlsx→View" Tag="ExcelToDraftingView" Click="Cmd_Click" ToolTip="Excel → Drafting View — import Excel as formatted table"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sched→Xlsx" Tag="ScheduleToExcel" Click="Cmd_Click" ToolTip="Schedule → Excel — export Revit schedule to formatted xlsx"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sticky" Tag="BatchStickyImport" Click="Cmd_Click" ToolTip="Sticky Import — batch QA notes from Excel/CSV (Tag | Note | Category)"/>
+                                    </WrapPanel>
+                                </Expander>
+                            </StackPanel>
                         </Border>
 
                         <!-- COBie EXPORT DASHBOARD -->
@@ -2045,54 +2099,71 @@
                         <!-- COBie REFERENCE DATA -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="COBie REFERENCE DATA"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#00695C">
-                            <WrapPanel>
-                                <Button Style="{StaticResource GreenBtn}" Content="★ Type Map" Tag="COBieTypeMap" Click="Cmd_Click" ToolTip="Browse COBie equipment types — push warranty, cost, material data to elements" HorizontalAlignment="Stretch"/>
-                                <Button Style="{StaticResource GreenBtn}" Content="Auto-Match" Tag="COBieAutoMatch" Click="Cmd_Click" ToolTip="Auto-match ALL elements to COBie types by category + PROD code"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="PickLists" Tag="COBiePickLists" Click="Cmd_Click" ToolTip="Browse COBie V2.4 controlled vocabulary lists"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Jobs" Tag="COBieJobTemplates" Click="Cmd_Click" ToolTip="SFG20 / BS 8210 maintenance job templates"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Spares" Tag="COBieSpareParts" Click="Cmd_Click" ToolTip="Spare parts catalogue per equipment type"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Attributes" Tag="COBieAttributes" Click="Cmd_Click" ToolTip="Expected COBie attributes per Type/Space/Component"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Zones" Tag="COBieZoneTypes" Click="Cmd_Click" ToolTip="COBie zone classifications — fire, HVAC, lighting, security, acoustic"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Systems" Tag="COBieSystemMap" Click="Cmd_Click" ToolTip="Building system map — Uniclass/CIBSE codes with STING token mapping"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Doc Types" Tag="COBieDocTypes" Click="Cmd_Click" ToolTip="O&amp;M document types — regulatory refs, retention periods, naming conventions"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="Doc Type Audit" Tag="COBieDocTypeAudit" Click="Cmd_Click" ToolTip="Audit project against 28 COBie document types — find missing mandatory O&amp;M documents"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="Zone Type Audit" Tag="COBieZoneTypeAudit" Click="Cmd_Click" ToolTip="Audit project zones against 16 COBie zone types — find missing fire, HVAC, lighting, security zones"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Summary" Tag="COBieDataSummary" Click="Cmd_Click" ToolTip="Overview of all COBie reference data loaded"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Type Map" Tag="COBieTypeMap" Click="Cmd_Click" ToolTip="Browse COBie equipment types — push warranty, cost, material data to elements" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Auto-Match" Tag="COBieAutoMatch" Click="Cmd_Click" ToolTip="Auto-match ALL elements to COBie types by category + PROD code" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <Expander Header="Reference browsers &amp; audits" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Picks" Tag="COBiePickLists" Click="Cmd_Click" ToolTip="PickLists — COBie V2.4 controlled vocabulary lists"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Jobs" Tag="COBieJobTemplates" Click="Cmd_Click" ToolTip="Jobs — SFG20 / BS 8210 maintenance job templates"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Spares" Tag="COBieSpareParts" Click="Cmd_Click" ToolTip="Spares — spare parts catalogue per equipment type"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Attrs" Tag="COBieAttributes" Click="Cmd_Click" ToolTip="Attributes — expected COBie attributes per Type/Space/Component"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Zones" Tag="COBieZoneTypes" Click="Cmd_Click" ToolTip="Zones — fire, HVAC, lighting, security, acoustic classifications"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sys" Tag="COBieSystemMap" Click="Cmd_Click" ToolTip="Systems — Uniclass/CIBSE codes with STING token mapping"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Docs" Tag="COBieDocTypes" Click="Cmd_Click" ToolTip="Doc Types — O&amp;M document types, regulatory refs, retention"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="DocAudit" Tag="COBieDocTypeAudit" Click="Cmd_Click" ToolTip="Doc Type Audit — project against 28 COBie document types"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="ZoneAudit" Tag="COBieZoneTypeAudit" Click="Cmd_Click" ToolTip="Zone Type Audit — project zones against 16 COBie zone types"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Summary" Tag="COBieDataSummary" Click="Cmd_Click" ToolTip="Summary — overview of all COBie reference data loaded"/>
+                                    </WrapPanel>
+                                </Expander>
+                            </StackPanel>
                         </Border>
 
                         <TextBlock Style="{StaticResource SectionLabel}" Text="WORKFLOW AUTOMATION"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
                             <WrapPanel>
-                                <Button Style="{StaticResource GreenBtn}" Content="Run Workflow" Tag="RunWorkflow" Click="Cmd_Click" ToolTip="Run a named workflow preset (Project Kickoff, Daily QA, Document Package)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="List Presets" Tag="ListWorkflows" Click="Cmd_Click" ToolTip="List all available workflow presets"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Create Preset" Tag="CreateWorkflow" Click="Cmd_Click" ToolTip="Create a new workflow preset from template"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Auto-Tagger" Tag="AutoTaggerToggle" Click="Cmd_Click" ToolTip="Toggle real-time auto-tagging on element placement"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Anomaly Fix" Tag="AnomalyAutoFix" Click="Cmd_Click" ToolTip="Auto-fix common parameter anomalies (empty DISC, wrong LOC, etc.)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Rev Clouds" Tag="RevisionCloudAuto" Click="Cmd_Click" ToolTip="Auto-place revision clouds on sheets with changed elements"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Run" Tag="RunWorkflow" Click="Cmd_Click" ToolTip="Run Workflow — pick a named workflow preset (Project Kickoff, Daily QA, Document Package)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="List" Tag="ListWorkflows" Click="Cmd_Click" ToolTip="List Presets — all available workflow presets"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="New" Tag="CreateWorkflow" Click="Cmd_Click" ToolTip="Create Preset — new workflow preset from template"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="AutoTag" Tag="AutoTaggerToggle" Click="Cmd_Click" ToolTip="Auto-Tagger — toggle real-time auto-tagging on element placement"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Anomaly" Tag="AnomalyAutoFix" Click="Cmd_Click" ToolTip="Anomaly Fix — auto-fix common parameter anomalies (empty DISC, wrong LOC, etc.)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Rev" Tag="RevisionCloudAuto" Click="Cmd_Click" ToolTip="Rev Clouds — auto-place revision clouds on sheets with changed elements"/>
                             </WrapPanel>
                         </Border>
                         <TextBlock Style="{StaticResource SectionLabel}" Text="QUICK WORKFLOWS" Foreground="#6A1B9A"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
-                            <WrapPanel>
-                                <Button Style="{StaticResource GreenBtn}" Content="Morning Check" Tag="RunWorkflow_MorningHealthCheck" Click="Cmd_Click" ToolTip="Daily coordinator routine: stale fix, warnings, compliance (8 steps)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Quick Fix" Tag="RunWorkflow_QuickFixCycle" Click="Cmd_Click" ToolTip="Rapid quality improvement: auto-fix, resolve, validate (6 steps)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Daily QA" Tag="RunWorkflow_DailyQASync" Click="Cmd_Click" ToolTip="Adaptive daily sync: tag new, delta-sync, validate (13 steps)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Meeting Prep" Tag="RunWorkflow_CoordinationMeetingPrep" Click="Cmd_Click" ToolTip="Prepare for coordination meeting: compliance, warnings, reports (7 steps)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clash Coord" Tag="RunWorkflow_ClashCoordination" Click="Cmd_Click" ToolTip="Cross-discipline clash detection and coordination (5 steps)"/>
-                                <Button Style="{StaticResource GreenBtn}"  Content="Clash Manager" Tag="ClashManager" Click="Cmd_Click" ToolTip="Open the Clash Manager dialog — run detection, browse results, mark resolved, export BCF 2.1 for ACC / Navisworks / Solibri"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Run Clash"     Tag="ClashRun" Click="Cmd_Click" ToolTip="Execute full clash pipeline (mesh → OBB tree → classify → persist)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clash Live"    Tag="ClashSessionRefresh" Click="Cmd_Click" ToolTip="Refresh live clash session from active 3D view"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clash BCF"     Tag="ClashBcfExport" Click="Cmd_Click" ToolTip="Export current clashes.json → BCF 2.1 ZIP"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clash Matrix"  Tag="ClashMatrixEdit" Click="Cmd_Click" ToolTip="Edit the category-pair matrix that drives clash detection"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Data Drop" Tag="RunWorkflow_WeeklyDataDrop" Click="Cmd_Click" ToolTip="ISO 19650 weekly information exchange (8 steps)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Handover" Tag="RunWorkflow_HandoverReadiness" Click="Cmd_Click" ToolTip="Pre-handover validation and export (9 steps)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Stage Gate" Tag="RunWorkflow_EndOfStageGate" Click="Cmd_Click" ToolTip="RIBA stage transition gate: full validation (11 steps)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="End of Day" Tag="RunWorkflow_EndOfDaySync" Click="Cmd_Click" ToolTip="End-of-day sync: validate, export registers, save baseline (8 steps)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Fed. Audit" Tag="RunWorkflow_FederatedModelAudit" Click="Cmd_Click" ToolTip="Federated model audit: linked models, clashes, naming (7 steps)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Pre-Meeting" Tag="RunWorkflow_PreMeetingPrep" Click="Cmd_Click" ToolTip="Pre-meeting preparation: fix warnings, validate, generate report (7 steps)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Repeat Last" Tag="RepeatLastWorkflow" Click="Cmd_Click" ToolTip="Re-run the last executed workflow preset"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <DockPanel LastChildFill="True" Margin="0,2,0,0">
+                                    <TextBlock DockPanel.Dock="Left" Text="Preset" FontSize="10" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <ComboBox x:Name="cmbQuickWorkflow" FontSize="10" Height="22" SelectedIndex="0" ToolTip="Pick a workflow preset to run">
+                                        <ComboBoxItem Content="Morning health check (8 steps)"         Tag="RunWorkflow_MorningHealthCheck"/>
+                                        <ComboBoxItem Content="Quick fix cycle (6 steps)"              Tag="RunWorkflow_QuickFixCycle"/>
+                                        <ComboBoxItem Content="Daily QA sync (13 steps)"               Tag="RunWorkflow_DailyQASync"/>
+                                        <ComboBoxItem Content="Coordination meeting prep (7 steps)"    Tag="RunWorkflow_CoordinationMeetingPrep"/>
+                                        <ComboBoxItem Content="Clash coordination (5 steps)"           Tag="RunWorkflow_ClashCoordination"/>
+                                        <ComboBoxItem Content="Weekly data drop (8 steps)"             Tag="RunWorkflow_WeeklyDataDrop"/>
+                                        <ComboBoxItem Content="Handover readiness (9 steps)"           Tag="RunWorkflow_HandoverReadiness"/>
+                                        <ComboBoxItem Content="End-of-stage gate (11 steps)"           Tag="RunWorkflow_EndOfStageGate"/>
+                                        <ComboBoxItem Content="End-of-day sync (8 steps)"              Tag="RunWorkflow_EndOfDaySync"/>
+                                        <ComboBoxItem Content="Federated model audit (7 steps)"        Tag="RunWorkflow_FederatedModelAudit"/>
+                                        <ComboBoxItem Content="Pre-meeting prep (7 steps)"             Tag="RunWorkflow_PreMeetingPrep"/>
+                                    </ComboBox>
+                                </DockPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource StingPrimaryButton}" Content="Run preset" Tag="Setup_QuickWorkflowRun" Click="Cmd_Click" ToolTip="Run the workflow preset picked above"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Repeat last" Tag="RepeatLastWorkflow" Click="Cmd_Click" ToolTip="Repeat Last Workflow — re-run the last executed preset"/>
+                                </WrapPanel>
+                                <TextBlock Text="Clash detection" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,6,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="★ Manager" Tag="ClashManager" Click="Cmd_Click" ToolTip="Clash Manager — run detection, browse results, mark resolved, export BCF 2.1 for ACC / Navisworks / Solibri" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Run"        Tag="ClashRun" Click="Cmd_Click" ToolTip="Run Clash — full clash pipeline (mesh → OBB tree → classify → persist)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Live"       Tag="ClashSessionRefresh" Click="Cmd_Click" ToolTip="Clash Live — refresh live clash session from active 3D view"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BCF"        Tag="ClashBcfExport" Click="Cmd_Click" ToolTip="Clash BCF — export current clashes.json → BCF 2.1 ZIP"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Matrix"     Tag="ClashMatrixEdit" Click="Cmd_Click" ToolTip="Clash Matrix — edit the category-pair matrix that drives detection"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                     </StackPanel>
