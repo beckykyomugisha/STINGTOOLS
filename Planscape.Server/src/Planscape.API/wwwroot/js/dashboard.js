@@ -115,6 +115,21 @@
     location.reload();
   });
 
+  // ── Public runtime config ────────────────────────────────────────────
+
+  async function loadPublicConfig() {
+    try {
+      const r = await fetch("/api/public-config", { cache: "no-store" });
+      if (!r.ok) return;
+      const cfg = await r.json();
+      if (cfg && typeof cfg === "object") {
+        if (cfg.mapboxToken) CONFIG.mapboxToken = cfg.mapboxToken;
+      }
+    } catch {
+      // Non-fatal — fall back to compiled-in CONFIG defaults.
+    }
+  }
+
   // ── Boot + router ─────────────────────────────────────────────────────
 
   async function boot() {
@@ -784,87 +799,6 @@
           <path d="${conPath}" fill="none" stroke="#22C55E" stroke-width="2" stroke-dasharray="4 3"/>
         </svg>
       </div>`;
-      return;
-    }
-    if (!CONFIG.mapboxToken || CONFIG.mapboxToken === "PLANSCAPE_MAPBOX_TOKEN") {
-      container.outerHTML = `<div class="map-fallback">
-        <h4>Map view requires a Mapbox token</h4>
-        <p>Replace <code>PLANSCAPE_MAPBOX_TOKEN</code> in <code>js/dashboard.js</code> with a real token from <a href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noopener">mapbox.com</a> (free tier — no credit card required).</p>
-      </div>`;
-      return;
-    }
-
-    mapboxgl.accessToken = CONFIG.mapboxToken;
-    const map = new mapboxgl.Map({
-      container: "projects-map",
-      style: "mapbox://styles/mapbox/dark-v11",
-      center: [20, 5],
-      zoom: 3.2,
-    });
-    state.mapInstance = map;
-    map.addControl(new mapboxgl.NavigationControl(), "top-right");
-
-    const located = projects.filter(p => p.latitude != null && p.longitude != null);
-    if (located.length === 0) return;
-
-    const bounds = new mapboxgl.LngLatBounds();
-
-    for (const p of located) {
-      const sk = statusKey(p);
-      const el = document.createElement("div");
-      el.className = `map-marker ${sk}`;
-
-      const pct = Math.round(p.compliancePercent || 0);
-      const colour = complianceColor(pct);
-      const barColour = colour === "green" ? "#22C55E" : colour === "amber" ? "#F59E0B" : "#EF4444";
-      const popupHtml = `
-        <div class="popup-body">
-          <div class="top-row">
-            <span class="pop-status ${sk}">${statusLabel(sk)}</span>
-            <span class="pop-code">${esc(p.code || "")}</span>
-          </div>
-          <h4>${esc(p.name || "")}</h4>
-          <div class="pop-loc">📍 ${esc(p.city || "")}${p.country ? ", " + esc(p.country) : ""}</div>
-          <hr>
-          <div>Compliance <strong style="float:right">${pct}%</strong></div>
-          <div class="pop-bar"><div class="pop-bar-fill" style="width:${pct}%;background:${barColour}"></div></div>
-          <div class="pop-stats">
-            <span>Open Issues ${p.warningCount || 0}</span>
-            <span>Phase: ${esc(p.phase || "—")}</span>
-            <span>Team: ${p.memberCount ?? 0} members</span>
-            <span>Last sync: ${timeAgo(p.lastSyncAt)}</span>
-          </div>
-          <hr>
-          <button class="pop-open-btn" data-pop-open-id="${esc(p.id)}">Open Project →</button>
-        </div>
-      `;
-
-      const popup = new mapboxgl.Popup({ offset: 24, closeButton: true })
-        .setHTML(popupHtml);
-
-      // After Mapbox injects the popup HTML, wire up the open button.
-      popup.on("open", () => {
-        const btn = document.querySelector(`[data-pop-open-id="${p.id}"]`);
-        if (btn) btn.onclick = () => {
-          popup.remove();
-          navigateToProject(p.id, "overview");
-        };
-      });
-
-      new mapboxgl.Marker({ element: el })
-        .setLngLat([p.longitude, p.latitude])
-        .setPopup(popup)
-        .addTo(map);
-
-      bounds.extend([p.longitude, p.latitude]);
-    }
-
-    if (located.length > 1) {
-      map.fitBounds(bounds, { padding: 60, maxZoom: 6, duration: 0 });
-    } else {
-      map.setCenter([located[0].longitude, located[0].latitude]);
-      map.setZoom(5);
-    }
   }
 
   // ── New Project modal + toast ────────────────────────────────────────
