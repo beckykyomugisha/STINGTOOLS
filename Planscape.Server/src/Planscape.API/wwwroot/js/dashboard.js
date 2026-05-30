@@ -149,7 +149,11 @@
     const KNOWN_EVENTS = [
       "WarningsReported",
       "IssueCreated", "IssueUpdated",
-      "TransmittalUpdated", "ComplianceChanged",
+      "TransmittalUpdated", "ComplianceChanged", "ComplianceUpdated",
+      "DocumentUpdated",
+      "MeetingCreated", "MeetingUpdated",
+      "WorkflowRunCompleted",
+      "ModelUpdated",
       "NotificationCreated",
     ];
 
@@ -225,6 +229,38 @@
     const verb = delta > 0 ? `+${delta}` : (delta < 0 ? String(delta) : "no change");
     try { showToast(`Warnings: ${payload.totalWarnings} (${verb})`); } catch (_) {}
     if (state.view === "warnings") render();
+  });
+
+  // ── P1-D — live refresh for the other dashboard views ─────────────────
+  // Builds on the P1-C Hub. Each dashboard list view maps to the
+  // NotificationHub events that invalidate its data; we re-render only when
+  // that view is on screen. The connection is already scoped to one project
+  // group so we receive only the active project's events — the projectId
+  // check is a belt-and-suspenders guard for events that carry one.
+  //
+  // Names are the server's ACTUAL raise-site events (verified by grepping
+  // SendAsync across Controllers + SignalR/): the workflow event is
+  // WorkflowRunCompleted (not "WorkflowStateUpdate"), and there is NO server
+  // clash event — the clash kernel runs in-Revit and there is no /hubs/clash —
+  // so "ClashNotification" is intentionally absent (matches the audit).
+  function matchesActiveProject(payload) {
+    if (!payload || payload.projectId == null) return true;
+    return String(payload.projectId).toLowerCase() === String(state.projectId).toLowerCase();
+  }
+  const LIVE_VIEW_EVENTS = {
+    issues:       ["IssueCreated", "IssueUpdated"],
+    documents:    ["DocumentUpdated"],
+    transmittals: ["TransmittalUpdated"],
+    meetings:     ["MeetingCreated", "MeetingUpdated"],
+    workflows:    ["WorkflowRunCompleted"],
+    models:       ["ModelUpdated"],
+    overview:     ["ComplianceChanged", "ComplianceUpdated"],
+  };
+  Object.keys(LIVE_VIEW_EVENTS).forEach(view => {
+    LIVE_VIEW_EVENTS[view].forEach(ev => Hub.on(ev, payload => {
+      if (!matchesActiveProject(payload)) return;
+      if (state.view === view) render();
+    }));
   });
 
   // ── Boot + router ─────────────────────────────────────────────────────
