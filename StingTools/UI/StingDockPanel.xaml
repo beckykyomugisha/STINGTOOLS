@@ -2244,7 +2244,7 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource GreenBtn}"  Content="★ Manager" Tag="ClashManager" Click="Cmd_Click" ToolTip="Clash Manager — run detection, browse results, mark resolved, export BCF 2.1 for ACC / Navisworks / Solibri" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Run"        Tag="ClashRun" Click="Cmd_Click" ToolTip="Run Clash — full clash pipeline (mesh → OBB tree → classify → persist)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Live"       Tag="ClashSessionRefresh" Click="Cmd_Click" ToolTip="Clash Live — refresh live clash session from active 3D view"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Refresh"    Tag="ClashSessionRefresh" Click="Cmd_Click" ToolTip="Re-run the local Revit clash kernel from the active 3D view. (Not a server-streamed live feed — clash detection runs in-Revit.)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BCF"        Tag="ClashBcfExport" Click="Cmd_Click" ToolTip="Clash BCF — export current clashes.json → BCF 2.1 ZIP"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Matrix"     Tag="ClashMatrixEdit" Click="Cmd_Click" ToolTip="Clash Matrix — edit the category-pair matrix that drives detection"/>
                                 </WrapPanel>
@@ -3017,8 +3017,8 @@
                                             ToolTip="Cross-model clash detection including linked Revit models"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BCF" Tag="ClashBcfExport" Click="Cmd_Click"
                                             ToolTip="Export current clashes.json → BCF 2.1 ZIP"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Live" Tag="ClashSessionRefresh" Click="Cmd_Click"
-                                            ToolTip="Refresh live clash session from active 3D view"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Refresh" Tag="ClashSessionRefresh" Click="Cmd_Click"
+                                            ToolTip="Re-run the local Revit clash kernel from the active 3D view. (Not a server-streamed live feed — clash detection runs in-Revit.)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Matrix" Tag="ClashMatrixEdit" Click="Cmd_Click"
                                             ToolTip="Edit the category-pair matrix that drives clash detection"/>
                                 </WrapPanel>
