@@ -2345,43 +2345,47 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- QUICK BUILD -->
+                        <!-- QUICK BUILD — Pattern 5: primaries proud, secondaries in Expanders -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="QUICK BUILD"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">
                             <StackPanel>
                                 <WrapPanel>
-                                    <!-- Phase 108m — Preset combinations + roadmap buttons -->
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Placement Centre" Tag="Placement_OpenCentre" Click="Cmd_Click" FontWeight="Bold"
                                             ToolTip="Open the modeless STING Placement Centre — full rule editor, run / preview / validate, history with select-in-Revit, push-to-families, undo last run, import/export rules. Ctrl+S Save · Ctrl+R Run · Ctrl+P Preview · Ctrl+V Validate · F5 Refresh · Esc Clear preview."/>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ Preset Combinations" Tag="PresetCombinations" Click="Cmd_Click" FontWeight="Bold"
-                                            ToolTip="One-click macros that chain multiple Model* commands — Build Room / Structural Bay / Wet Room / Corridor / Staircase. Defined in Data/PRESET_COMBINATIONS.json."/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Unified DWG Wizard" Tag="UnifiedDWGWizard" Click="Cmd_Click"
-                                            ToolTip="Auto-detect whether the imported DWG is structural / architectural / MEP and dispatch to the right wizard."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="LOD Validation" Tag="LODValidation" Click="Cmd_Click"
-                                            ToolTip="Score every element against the RIBA-stage target LOD (100-500). Fails elements missing material / level / discipline / manufacturer."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Family Library Audit" Tag="FamilyLibraryAudit" Click="Cmd_Click"
-                                            ToolTip="Audit the project against the STING 110-family library manifest. Reports missing / misnamed families per discipline."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Apply Sector Pack" Tag="ApplySectorPack" Click="Cmd_Click"
-                                            ToolTip="Pick Healthcare / Education / Data Centre / Residential starter pack — applies preamble profile, tag style, BOQ defaults, recommended presets + families in one click."/>
-                                    <Separator Margin="0,4,0,4"/>
-                                    <TextBlock Style="{StaticResource SubLabel}" Text="MULTI-BUILDING SITE (§B1-B6)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Seed Building Levels + Grids" Tag="BuildingCodeSeed" Click="Cmd_Click"
-                                            ToolTip="Create pre-named Levels + Grids prefixed with a volume code (BLD1-GF-FFL, BLD1-L01-SSL, BLD1-1..12, BLD1-A..K). Configurable via ExtraParams SeedBuildingCode / SeedLevelCount / SeedGridsX / SeedGridsY."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Set PRJ_VOLUME_CODE" Tag="PrjVolumeCodeAuto" Click="Cmd_Click"
-                                            ToolTip="Parse the ISO 19650 file name and write the Volume code (BLD1/BLD2/SITE) to the PRJ_VOLUME_CODE shared parameter on ProjectInformation."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="SEQ Range Allocation" Tag="SeqRangeValidation" Click="Cmd_Click"
-                                            ToolTip="Show the per-building SEQ counter ranges from project_config.json (Phase 59 FUT-01). Prevents tag-collision when federating multi-building models."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Building-Aware CDE Folders" Tag="BuildingAwareCDEFolders" Click="Cmd_Click"
-                                            ToolTip="Generate the ISO 19650 CDE tree (_CDE/WIP/SHARED/PUBLISHED/ARCHIVE) with per-building sub-folders from the LOC vocabulary."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Federation Review" Tag="FederationReview" Click="Cmd_Click"
-                                            ToolTip="Open every linked RVT in the host doc and verify Levels + Grids are prefixed with a recognised volume code. Reports unprefixed ones as findings."/>
-                                    <Separator Margin="0,4,0,4"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Presets" Tag="PresetCombinations" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Preset Combinations — one-click macros that chain multiple Model* commands (Build Room / Structural Bay / Wet Room / Corridor / Staircase). Defined in Data/PRESET_COMBINATIONS.json."/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="DWG Wizard" Tag="UnifiedDWGWizard" Click="Cmd_Click"
+                                            ToolTip="Unified DWG Wizard — auto-detect whether the imported DWG is structural / architectural / MEP and dispatch to the right wizard."/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Building Shell" Tag="ModelBuildingShell" Click="Cmd_Click" ToolTip="Create complete building: 4 walls + floor + roof"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Room" Tag="ModelCreateRoom" Click="Cmd_Click" ToolTip="Create rectangular room enclosure (4 walls + room)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Ramp" Tag="ModelCreateRamp" Click="Cmd_Click" ToolTip="Create ramp with BS 8300 compliance (gradient, width, landings)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Canopy" Tag="ModelCreateCanopy" Click="Cmd_Click" ToolTip="Create canopy/overhang for building envelope"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Route Analysis" Tag="MEPRouteAnalysis" Click="Cmd_Click" ToolTip="Analyse MEP routing clearances per CIBSE Guide W"/>
                                 </WrapPanel>
+                                <Expander Header="Multi-building site (§B1-B6)" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Seed Levels+Grids" Tag="BuildingCodeSeed" Click="Cmd_Click"
+                                                ToolTip="Seed Building Levels + Grids — pre-named Levels + Grids prefixed with a volume code (BLD1-GF-FFL, BLD1-L01-SSL, BLD1-1..12, BLD1-A..K). Configurable via ExtraParams SeedBuildingCode / SeedLevelCount / SeedGridsX / SeedGridsY."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Set Volume Code" Tag="PrjVolumeCodeAuto" Click="Cmd_Click"
+                                                ToolTip="Set PRJ_VOLUME_CODE — parse the ISO 19650 file name and write the Volume code (BLD1/BLD2/SITE) to the PRJ_VOLUME_CODE shared parameter on ProjectInformation."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="SEQ Ranges" Tag="SeqRangeValidation" Click="Cmd_Click"
+                                                ToolTip="SEQ Range Allocation — show the per-building SEQ counter ranges from project_config.json (Phase 59 FUT-01). Prevents tag-collision when federating multi-building models."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="CDE Folders" Tag="BuildingAwareCDEFolders" Click="Cmd_Click"
+                                                ToolTip="Building-Aware CDE Folders — generate the ISO 19650 CDE tree (_CDE/WIP/SHARED/PUBLISHED/ARCHIVE) with per-building sub-folders from the LOC vocabulary."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Federation Review" Tag="FederationReview" Click="Cmd_Click"
+                                                ToolTip="Open every linked RVT in the host doc and verify Levels + Grids are prefixed with a recognised volume code. Reports unprefixed ones as findings."/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="More creators" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="LOD Check" Tag="LODValidation" Click="Cmd_Click"
+                                                ToolTip="LOD Validation — score every element against the RIBA-stage target LOD (100-500). Fails elements missing material / level / discipline / manufacturer."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Family Audit" Tag="FamilyLibraryAudit" Click="Cmd_Click"
+                                                ToolTip="Family Library Audit — audit the project against the STING 110-family library manifest. Reports missing / misnamed families per discipline."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sector Pack" Tag="ApplySectorPack" Click="Cmd_Click"
+                                                ToolTip="Apply Sector Pack — pick Healthcare / Education / Data Centre / Residential starter pack. Applies preamble profile, tag style, BOQ defaults, recommended presets + families in one click."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Ramp" Tag="ModelCreateRamp" Click="Cmd_Click" ToolTip="Create ramp with BS 8300 compliance (gradient, width, landings)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Canopy" Tag="ModelCreateCanopy" Click="Cmd_Click" ToolTip="Create canopy/overhang for building envelope"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="MEP Route Audit" Tag="MEPRouteAnalysis" Click="Cmd_Click" ToolTip="Analyse MEP routing clearances per CIBSE Guide W"/>
+                                    </WrapPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
@@ -2392,212 +2396,239 @@
                             </WrapPanel>
                         </Border>
 
-                        <!-- ARCHITECTURAL -->
+                        <!-- ARCHITECTURAL — Pattern 1 chips -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ARCHITECTURAL"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <StackPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Wall" Tag="ModelCreateWall" Click="Cmd_Click" ToolTip="Pick two points to create a wall"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Floor" Tag="ModelCreateFloor" Click="Cmd_Click" ToolTip="Create rectangular floor slab"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Ceiling" Tag="ModelCreateCeiling" Click="Cmd_Click" ToolTip="Create rectangular ceiling"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Roof" Tag="ModelCreateRoof" Click="Cmd_Click" ToolTip="Create footprint roof"/>
-                                </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource BlueBtn}" Content="Door" Tag="ModelPlaceDoor" Click="Cmd_Click" ToolTip="Place door in selected wall"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Window" Tag="ModelPlaceWindow" Click="Cmd_Click" ToolTip="Place window in selected wall"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Opening" Tag="ArchCreateOpening" Click="Cmd_Click" ToolTip="Create wall/floor opening (900×2100mm)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Curtain Wall" Tag="ArchCurtainWall" Click="Cmd_Click" ToolTip="Create curtain wall facade — pick 2 points"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Stair Design" Tag="ArchStairDesign" Click="Cmd_Click" ToolTip="BS 5395 stair design: rise, going, 2R+G, pitch, compliance"/>
-                                </WrapPanel>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- STRUCTURAL -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="STRUCTURAL"/>
-                        <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Column" Tag="ModelPlaceColumn" Click="Cmd_Click" ToolTip="Place structural column at point"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Column Grid" Tag="ModelColumnGrid" Click="Cmd_Click" ToolTip="Create rectangular column grid"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Beam" Tag="ModelCreateBeam" Click="Cmd_Click" ToolTip="Create beam between two points"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Wall" Tag="ModelCreateWall" Click="Cmd_Click" ToolTip="Pick two points to create a wall" MinWidth="44"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Floor" Tag="ModelCreateFloor" Click="Cmd_Click" ToolTip="Create rectangular floor slab" MinWidth="44"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Ceiling" Tag="ModelCreateCeiling" Click="Cmd_Click" ToolTip="Create rectangular ceiling" MinWidth="44"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Roof" Tag="ModelCreateRoof" Click="Cmd_Click" ToolTip="Create footprint roof" MinWidth="44"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Door" Tag="ModelPlaceDoor" Click="Cmd_Click" ToolTip="Place door in selected wall" MinWidth="44"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Window" Tag="ModelPlaceWindow" Click="Cmd_Click" ToolTip="Place window in selected wall" MinWidth="50"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Opening" Tag="ArchCreateOpening" Click="Cmd_Click" ToolTip="Create wall/floor opening (900×2100mm)" MinWidth="56"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Curtain" Tag="ArchCurtainWall" Click="Cmd_Click" ToolTip="Create curtain wall facade — pick 2 points" MinWidth="52"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Stair" Tag="ArchStairDesign" Click="Cmd_Click" ToolTip="Stair Design — BS 5395: rise, going, 2R+G, pitch, compliance" MinWidth="44"/>
                             </WrapPanel>
                         </Border>
 
-                        <!-- STRUCTURAL AUTOMATION -->
+                        <!-- STRUCTURAL — Pattern 1 chips -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="STRUCTURAL"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Column" Tag="ModelPlaceColumn" Click="Cmd_Click" ToolTip="Place structural column at point" MinWidth="56"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Col Grid" Tag="ModelColumnGrid" Click="Cmd_Click" ToolTip="Column Grid — create rectangular column grid" MinWidth="56"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Beam" Tag="ModelCreateBeam" Click="Cmd_Click" ToolTip="Create beam between two points" MinWidth="44"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- STRUCTURAL AUTOMATION — Pattern 5: primaries proud, 13 sub-bands in Expanders -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="STRUCTURAL AUTOMATION"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#C62828">
                             <StackPanel>
                                 <TextBlock Text="Advanced structural modeling with load analysis" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Grid Frame" Tag="StrCreateGridFrame" Click="Cmd_Click" ToolTip="Create multi-bay structural grid frame (columns + beams + optional bracing)" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Full Bay" Tag="StrCreateFullBayFrame" Click="Cmd_Click" ToolTip="Complete bay: 4 columns + beams + bracing + slab in one click" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Build All" Tag="StrBuildComplete" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="ONE-CLICK Build Complete — grid + columns + beams + slabs + foundations + bracing + materials + checks"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Diagnostics" Tag="StrDiagnostics" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="ONE-CLICK health check: BIM + continuity + load paths + constraints + materials → RAG score"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Grid Frame" Tag="StrCreateGridFrame" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Create multi-bay structural grid frame (columns + beams + optional bracing)"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Full Bay" Tag="StrCreateFullBayFrame" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Complete bay: 4 columns + beams + bracing + slab in one click"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Full Report" Tag="StrFullReport" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Comprehensive structural analysis: system classification, deflection, punching shear, wind, sequencing"/>
                                 </WrapPanel>
-                                <TextBlock Text="Foundations" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Pad Footing" Tag="StrCreatePadFooting" Click="Cmd_Click" ToolTip="Isolated pad footing with auto-sizing from load"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Strip Footing" Tag="StrCreateStripFooting" Click="Cmd_Click" ToolTip="Strip/continuous footing along wall line"/>
-                                </WrapPanel>
-                                <TextBlock Text="Framing" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Beam System" Tag="StrCreateBeamSystem" Click="Cmd_Click" ToolTip="Beam system with tributary area analysis and auto secondary beams"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Bracing" Tag="StrCreateBracing" Click="Cmd_Click" ToolTip="Bracing patterns: X, V, chevron, K between columns"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Truss" Tag="StrCreateTruss" Click="Cmd_Click" ToolTip="Parametric truss: Pratt, Warren, Howe, Vierendeel"/>
-                                </WrapPanel>
-                                <TextBlock Text="Elements" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Struct Wall" Tag="StrCreateStructuralWall" Click="Cmd_Click" ToolTip="Shear wall, core wall, or retaining wall"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Struct Slab" Tag="StrCreateStructuralSlab" Click="Cmd_Click" ToolTip="Structural slab with optional openings"/>
-                                </WrapPanel>
-                                <TextBlock Text="Analysis &amp; Auto-Sizing" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Load Paths" Tag="StrAnalyzeLoadPaths" Click="Cmd_Click" ToolTip="Load path analysis: connectivity graph, missing foundations"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Detect Bays" Tag="StrDetectBays" Click="Cmd_Click" ToolTip="Detect structural bays from existing columns"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Guide" Tag="StrRecommendGrid" Click="Cmd_Click" ToolTip="Optimal grid spacing recommendations by building type"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Auto Footings" Tag="StrAutoFoundations" Click="Cmd_Click" ToolTip="Auto-size pad footings from column loads + soil capacity" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Load Takedown" Tag="StrColumnLoadTakedown" Click="Cmd_Click" ToolTip="Calculate tributary loads on each column"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Edge Beams" Tag="StrSlabEdgeBeams" Click="Cmd_Click" ToolTip="Auto-create edge beams along unsupported slab edges"/>
-                                </WrapPanel>
-                                <TextBlock Text="DWG → STRUCTURAL BIM" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★★ CAD Wizard" Tag="StrCADWizard" Click="Cmd_Click" ToolTip="Single-page CAD wizard with EaseBit-style detection: layer analysis, dry-run preview, min/max wall thickness clamps, spatial index, opening detection, numbering" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Dry-Run Preview" Tag="DWGDryRunPreview" Click="Cmd_Click" ToolTip="Run detection pipeline only — report counts with no element creation"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Explode Imports" Tag="DWGExplodeImports" Click="Cmd_Click" ToolTip="Fully explode nested DWG block references so hidden geometry surfaces on its host layer"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Pick Wall" Tag="DWGInteractivePickWall" Click="Cmd_Click" ToolTip="Interactive: pick two parallel DWG lines to create one wall with measured thickness"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Pick Column" Tag="DWGInteractivePickColumn" Click="Cmd_Click" ToolTip="Interactive: pick a column rectangle in the DWG to create one Revit column"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Pick Beam" Tag="DWGInteractivePickBeam" Click="Cmd_Click" ToolTip="Interactive: pick two parallel DWG lines to create one beam with measured width"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Detect Openings" Tag="DWGDetectOpenings" Click="Cmd_Click" ToolTip="Scan selected walls for door/window-sized gaps and create opening voids"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="DWG → Struct (Legacy)" Tag="StrCADToStructural" Click="Cmd_Click" ToolTip="Legacy: Convert structural DWG layers to BIM elements"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Preview Struct" Tag="StrCADPreview" Click="Cmd_Click" ToolTip="Preview structural layers from DWG with confidence scores"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Prerequisites" Tag="StrCheckPrerequisites" Click="Cmd_Click" ToolTip="Check loaded families and project readiness"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Type Catalog" Tag="StrBrowseTypeCatalog" Click="Cmd_Click" ToolTip="Browse loaded structural families with extracted dimensions"/>
-                                </WrapPanel>
-                                <TextBlock Text="Structural Analysis" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Full Report" Tag="StrFullReport" Click="Cmd_Click" ToolTip="Comprehensive structural analysis: system classification, deflection, punching shear, wind, sequencing" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="System Type" Tag="StrClassifySystem" Click="Cmd_Click" ToolTip="Auto-classify: frame, braced, shear wall, dual, flat slab"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Deflection" Tag="StrDeflectionCheck" Click="Cmd_Click" ToolTip="Check beam deflections per EC2/EC3 serviceability limits"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Punching Shear" Tag="StrPunchingShearCheck" Click="Cmd_Click" ToolTip="Check punching shear at slab-column interfaces (EC2 §6.4)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Wind Loads" Tag="StrWindLoad" Click="Cmd_Click" ToolTip="Calculate wind loads per EC1-1-4 and distribute to storeys"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Voronoi Areas" Tag="StrVoronoiAreas" Click="Cmd_Click" ToolTip="True Voronoi tessellation for column tributary areas"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Construction Seq" Tag="StrConstructionSequence" Click="Cmd_Click" ToolTip="Auto-generate construction phase sequence"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Clash Check" Tag="StrClashPreCheck" Click="Cmd_Click" ToolTip="Pre-detect clashes before placing elements"/>
-                                </WrapPanel>
-                                <TextBlock Text="Advanced Analysis" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ FEA Frame" Tag="StrFrameAnalysis" Click="Cmd_Click" ToolTip="2D frame analysis — Direct Stiffness Method with member forces and displacements" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Seismic EC8" Tag="StrSeismicAnalysis" Click="Cmd_Click" ToolTip="EC8 seismic analysis — equivalent lateral force, base shear, storey forces, drift" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="GA Optimize" Tag="StrOptimizeGrid" Click="Cmd_Click" ToolTip="Genetic algorithm grid optimization — find optimal column spacing"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Robustness" Tag="StrProgressiveCollapse" Click="Cmd_Click" ToolTip="Progressive collapse check — GSA robustness assessment"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Auto Size" Tag="StrAutoSize" Click="Cmd_Click" ToolTip="Iterative auto-sizing — converge member sizes to optimal utilisation"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Fire Rating" Tag="StrFireResistance" Click="Cmd_Click" ToolTip="Fire resistance check per EC2-1-2 (R30/R60/R90/R120)"/>
-                                </WrapPanel>
-                                <TextBlock Text="Intelligent Automation" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Build Complete" Tag="StrBuildComplete" Click="Cmd_Click" ToolTip="ONE-CLICK: Create complete building — grid + columns + beams + slabs + foundations + bracing + materials + checks" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Auto Materials" Tag="StrAutoMaterials" Click="Cmd_Click" ToolTip="Auto-apply structural materials (grade/exposure/fire-aware)" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Smart Column" Tag="StrSmartColumn" Click="Cmd_Click" ToolTip="Intelligent column: grid-snap, clash-check, material, stacking validation"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Smart Beam" Tag="StrSmartBeam" Click="Cmd_Click" ToolTip="Intelligent beam: auto-size, deflection pre-check, connection validation"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Model Score" Tag="StrModelScore" Click="Cmd_Click" ToolTip="Score structural model quality (completeness, connectivity, design, materials)"/>
-                                </WrapPanel>
-                                <TextBlock Text="Design &amp; Sustainability" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ BIM Validate" Tag="StrBIMValidation" Click="Cmd_Click" ToolTip="30+ structural BIM validation rules (geometry, connectivity, materials, standards)" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Carbon CO₂" Tag="StrCarbonAssessment" Click="Cmd_Click" ToolTip="Embodied carbon assessment with RICS rating (ICE Database v3)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Rebar Est." Tag="StrRebarEstimate" Click="Cmd_Click" ToolTip="Estimate reinforcement quantities (IStructE Manual ratios)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Stability" Tag="StrStabilityCheck" Click="Cmd_Click" ToolTip="P-Delta sway sensitivity check (EC2 §5.8 / EC3 §5.2)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Composite" Tag="StrCompositeBeam" Click="Cmd_Click" ToolTip="EC4 composite beam design with shear studs"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Pile Design" Tag="StrPileDesign" Click="Cmd_Click" ToolTip="Pile group design with Converse-Labarre efficiency"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Retaining" Tag="StrRetainingWall" Click="Cmd_Click" ToolTip="EC7 cantilever retaining wall — sliding, overturning, bearing, stem rebar"/>
-                                </WrapPanel>
-                                <TextBlock Text="Precision Intelligence" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Load Paths" Tag="StrTraceLoadPaths" Click="Cmd_Click" ToolTip="Trace gravity loads roof→foundation, detect floating elements &amp; incomplete paths" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Topology" Tag="StrTopologyOptimize" Click="Cmd_Click" ToolTip="SIMP topology optimization — optimal material distribution with ASCII visualization" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="SSI Springs" Tag="StrSSIAnalysis" Click="Cmd_Click" ToolTip="Winkler spring soil-structure interaction with Terzaghi subgrade modulus"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Rebar Detail" Tag="StrRebarDetail" Click="Cmd_Click" ToolTip="Auto rebar layout — curtailment, anchorage EC2 §8.4, lap lengths, BS 8666 schedule"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Bracing Opt" Tag="StrBracingOptimize" Click="Cmd_Click" ToolTip="Optimal bracing layout — minimize torsional eccentricity (EC8 §4.2.3)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Constraints" Tag="StrConstraintCheck" Click="Cmd_Click" ToolTip="Design constraint cascade — span/depth, deflection, fire cover, headroom, stacking"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Continuity" Tag="StrContinuityCheck" Click="Cmd_Click" ToolTip="Structural path continuity — detect floating beams, unsupported slabs, missing foundations"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Adaptive Size" Tag="StrAdaptiveSize" Click="Cmd_Click" ToolTip="Multi-criteria Pareto sizing — weight/cost/carbon/deflection convergence" FontWeight="Bold"/>
-                                </WrapPanel>
-                                <TextBlock Text="Detail Design (EC2/EC3)" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Connections" Tag="StrConnectionDesign" Click="Cmd_Click" ToolTip="EC3-1-8 connection design: fin plate, moment end plate, base plate" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Vibration" Tag="StrVibrationCheck" Click="Cmd_Click" ToolTip="Floor vibration check per SCI P354 — response factor, natural frequency"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Crack Width" Tag="StrCrackWidth" Click="Cmd_Click" ToolTip="EC2 §7.3 crack width: wk = Sr,max × (εsm-εcm)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Thermal" Tag="StrThermalMovement" Click="Cmd_Click" ToolTip="Expansion joint analysis: movement calculation, joint positions"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Deep Beam" Tag="StrDeepBeamSTM" Click="Cmd_Click" ToolTip="Strut-and-tie model for deep beams (EC2 §6.5)"/>
-                                </WrapPanel>
-                                <TextBlock Text="Smart Factory" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Column+" Tag="StrSmartColumnFactory" Click="Cmd_Click" ToolTip="10-step intelligent column: grid-snap → level → stacking → clash → material → tags" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Beam+" Tag="StrSmartBeamFactory" Click="Cmd_Click" ToolTip="9-step intelligent beam: grid-snap → connection → auto-type → deflection → tags" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Diagnostics" Tag="StrDiagnostics" Click="Cmd_Click" ToolTip="ONE-CLICK health check: BIM + continuity + load paths + constraints + materials → RAG score" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Wall+" Tag="StrSmartWallFactory" Click="Cmd_Click" ToolTip="8-step intelligent wall: grid-snap → levels → type match → structural flag → tags" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Pad+" Tag="StrSmartFoundation" Click="Cmd_Click" ToolTip="Auto-sized pad footing: N/q bearing → depth → material → tags" FontWeight="Bold"/>
-                                </WrapPanel>
-                                <TextBlock Text="EC Code Checks" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Fatigue" Tag="StrFatigueAssess" Click="Cmd_Click" ToolTip="EC3-1-9 fatigue: S-N curves, detail categories, Palmgren-Miner damage"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Torsion" Tag="StrTorsionDesign" Click="Cmd_Click" ToolTip="EC2 §6.3 torsion: thin-wall analogy, moment-torsion interaction"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Robustness" Tag="StrRobustness" Click="Cmd_Click" ToolTip="EC1-1-7 robustness: CC classes, tie forces, key elements"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Composite Slab" Tag="StrCompositeSlab" Click="Cmd_Click" ToolTip="EC4-1-1 composite slab: deck profiles, mesh, fire rating"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Partial Factors" Tag="StrPartialFactors" Click="Cmd_Click" ToolTip="Multi-code γ-factor comparison: EC/BS/ACI/AS"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Code Compliance" Tag="StrCodeCompliance" Click="Cmd_Click" ToolTip="Full design code compliance report: vibration + crack + thermal + robustness + slab → RAG" FontWeight="Bold"/>
-                                </WrapPanel>
+                                <Expander Header="Foundations" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Pad" Tag="StrCreatePadFooting" Click="Cmd_Click" ToolTip="Pad Footing — isolated pad footing with auto-sizing from load"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Strip" Tag="StrCreateStripFooting" Click="Cmd_Click" ToolTip="Strip Footing — strip/continuous footing along wall line"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Framing" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Beam System" Tag="StrCreateBeamSystem" Click="Cmd_Click" ToolTip="Beam system with tributary area analysis and auto secondary beams"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Bracing" Tag="StrCreateBracing" Click="Cmd_Click" ToolTip="Bracing patterns: X, V, chevron, K between columns"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Truss" Tag="StrCreateTruss" Click="Cmd_Click" ToolTip="Parametric truss: Pratt, Warren, Howe, Vierendeel"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Elements" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Struct Wall" Tag="StrCreateStructuralWall" Click="Cmd_Click" ToolTip="Shear wall, core wall, or retaining wall"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Struct Slab" Tag="StrCreateStructuralSlab" Click="Cmd_Click" ToolTip="Structural slab with optional openings"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Analysis &amp; Auto-Sizing" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★ Auto Footings" Tag="StrAutoFoundations" Click="Cmd_Click" FontWeight="Bold" ToolTip="Auto-size pad footings from column loads + soil capacity"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Load Paths" Tag="StrAnalyzeLoadPaths" Click="Cmd_Click" ToolTip="Load path analysis: connectivity graph, missing foundations"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Detect Bays" Tag="StrDetectBays" Click="Cmd_Click" ToolTip="Detect structural bays from existing columns"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Grid Guide" Tag="StrRecommendGrid" Click="Cmd_Click" ToolTip="Optimal grid spacing recommendations by building type"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Load Takedown" Tag="StrColumnLoadTakedown" Click="Cmd_Click" ToolTip="Calculate tributary loads on each column"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Edge Beams" Tag="StrSlabEdgeBeams" Click="Cmd_Click" ToolTip="Auto-create edge beams along unsupported slab edges"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="DWG → Structural BIM" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource GreenBtn}" Content="★★ CAD Wizard" Tag="StrCADWizard" Click="Cmd_Click" FontWeight="Bold"
+                                                ToolTip="Single-page CAD wizard with EaseBit-style detection: layer analysis, dry-run preview, min/max wall thickness clamps, spatial index, opening detection, numbering"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Dry-Run" Tag="DWGDryRunPreview" Click="Cmd_Click" ToolTip="Dry-Run Preview — run detection pipeline only; report counts with no element creation"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Explode" Tag="DWGExplodeImports" Click="Cmd_Click" ToolTip="Explode Imports — fully explode nested DWG block references so hidden geometry surfaces on its host layer"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Pick Wall" Tag="DWGInteractivePickWall" Click="Cmd_Click" ToolTip="Interactive: pick two parallel DWG lines to create one wall with measured thickness"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Pick Column" Tag="DWGInteractivePickColumn" Click="Cmd_Click" ToolTip="Interactive: pick a column rectangle in the DWG to create one Revit column"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Pick Beam" Tag="DWGInteractivePickBeam" Click="Cmd_Click" ToolTip="Interactive: pick two parallel DWG lines to create one beam with measured width"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Openings" Tag="DWGDetectOpenings" Click="Cmd_Click" ToolTip="Detect Openings — scan selected walls for door/window-sized gaps and create opening voids"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Legacy" Tag="StrCADToStructural" Click="Cmd_Click" ToolTip="DWG → Struct (Legacy) — convert structural DWG layers to BIM elements"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="StrCADPreview" Click="Cmd_Click" ToolTip="Preview structural layers from DWG with confidence scores"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Prereqs" Tag="StrCheckPrerequisites" Click="Cmd_Click" ToolTip="Prerequisites — check loaded families and project readiness"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Catalog" Tag="StrBrowseTypeCatalog" Click="Cmd_Click" ToolTip="Type Catalog — browse loaded structural families with extracted dimensions"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Structural analysis" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="System Type" Tag="StrClassifySystem" Click="Cmd_Click" ToolTip="Auto-classify: frame, braced, shear wall, dual, flat slab"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Deflection" Tag="StrDeflectionCheck" Click="Cmd_Click" ToolTip="Check beam deflections per EC2/EC3 serviceability limits"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Punching" Tag="StrPunchingShearCheck" Click="Cmd_Click" ToolTip="Punching Shear — check punching shear at slab-column interfaces (EC2 §6.4)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Wind" Tag="StrWindLoad" Click="Cmd_Click" ToolTip="Wind Loads — calculate wind loads per EC1-1-4 and distribute to storeys"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Voronoi" Tag="StrVoronoiAreas" Click="Cmd_Click" ToolTip="Voronoi Areas — true Voronoi tessellation for column tributary areas"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Seq" Tag="StrConstructionSequence" Click="Cmd_Click" ToolTip="Construction Sequence — auto-generate construction phase sequence"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Clash" Tag="StrClashPreCheck" Click="Cmd_Click" ToolTip="Clash Check — pre-detect clashes before placing elements"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Advanced analysis" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★ FEA Frame" Tag="StrFrameAnalysis" Click="Cmd_Click" FontWeight="Bold" ToolTip="2D frame analysis — Direct Stiffness Method with member forces and displacements"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★ Seismic" Tag="StrSeismicAnalysis" Click="Cmd_Click" FontWeight="Bold" ToolTip="Seismic EC8 — equivalent lateral force, base shear, storey forces, drift"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="GA Optimize" Tag="StrOptimizeGrid" Click="Cmd_Click" ToolTip="Genetic algorithm grid optimization — find optimal column spacing"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Robustness" Tag="StrProgressiveCollapse" Click="Cmd_Click" ToolTip="Progressive collapse check — GSA robustness assessment"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Auto Size" Tag="StrAutoSize" Click="Cmd_Click" ToolTip="Iterative auto-sizing — converge member sizes to optimal utilisation"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Fire" Tag="StrFireResistance" Click="Cmd_Click" ToolTip="Fire Rating — fire resistance check per EC2-1-2 (R30/R60/R90/R120)"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Intelligent automation" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★ Materials" Tag="StrAutoMaterials" Click="Cmd_Click" FontWeight="Bold" ToolTip="Auto Materials — auto-apply structural materials (grade/exposure/fire-aware)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Smart Col" Tag="StrSmartColumn" Click="Cmd_Click" ToolTip="Smart Column — grid-snap, clash-check, material, stacking validation"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Smart Beam" Tag="StrSmartBeam" Click="Cmd_Click" ToolTip="Smart Beam — auto-size, deflection pre-check, connection validation"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Score" Tag="StrModelScore" Click="Cmd_Click" ToolTip="Model Score — score structural model quality (completeness, connectivity, design, materials)"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Design &amp; sustainability" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★ BIM Validate" Tag="StrBIMValidation" Click="Cmd_Click" FontWeight="Bold" ToolTip="30+ structural BIM validation rules (geometry, connectivity, materials, standards)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Carbon" Tag="StrCarbonAssessment" Click="Cmd_Click" ToolTip="Carbon CO₂ — embodied carbon assessment with RICS rating (ICE Database v3)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Rebar" Tag="StrRebarEstimate" Click="Cmd_Click" ToolTip="Rebar Estimate — estimate reinforcement quantities (IStructE Manual ratios)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Stability" Tag="StrStabilityCheck" Click="Cmd_Click" ToolTip="P-Delta sway sensitivity check (EC2 §5.8 / EC3 §5.2)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Composite" Tag="StrCompositeBeam" Click="Cmd_Click" ToolTip="EC4 composite beam design with shear studs"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Pile" Tag="StrPileDesign" Click="Cmd_Click" ToolTip="Pile Design — pile group design with Converse-Labarre efficiency"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Retaining" Tag="StrRetainingWall" Click="Cmd_Click" ToolTip="EC7 cantilever retaining wall — sliding, overturning, bearing, stem rebar"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Precision intelligence" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★ Trace Paths" Tag="StrTraceLoadPaths" Click="Cmd_Click" FontWeight="Bold" ToolTip="Trace Load Paths — trace gravity loads roof→foundation, detect floating elements &amp; incomplete paths"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★ Topology" Tag="StrTopologyOptimize" Click="Cmd_Click" FontWeight="Bold" ToolTip="SIMP topology optimization — optimal material distribution with ASCII visualization"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★ Adaptive" Tag="StrAdaptiveSize" Click="Cmd_Click" FontWeight="Bold" ToolTip="Adaptive Size — multi-criteria Pareto sizing (weight/cost/carbon/deflection convergence)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="SSI" Tag="StrSSIAnalysis" Click="Cmd_Click" ToolTip="SSI Springs — Winkler spring soil-structure interaction with Terzaghi subgrade modulus"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Rebar Detail" Tag="StrRebarDetail" Click="Cmd_Click" ToolTip="Auto rebar layout — curtailment, anchorage EC2 §8.4, lap lengths, BS 8666 schedule"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Bracing Opt" Tag="StrBracingOptimize" Click="Cmd_Click" ToolTip="Optimal bracing layout — minimize torsional eccentricity (EC8 §4.2.3)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Constraints" Tag="StrConstraintCheck" Click="Cmd_Click" ToolTip="Design constraint cascade — span/depth, deflection, fire cover, headroom, stacking"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Continuity" Tag="StrContinuityCheck" Click="Cmd_Click" ToolTip="Structural path continuity — detect floating beams, unsupported slabs, missing foundations"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Detail design (EC2/EC3)" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★ Connections" Tag="StrConnectionDesign" Click="Cmd_Click" FontWeight="Bold" ToolTip="EC3-1-8 connection design: fin plate, moment end plate, base plate"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Vibration" Tag="StrVibrationCheck" Click="Cmd_Click" ToolTip="Floor vibration check per SCI P354 — response factor, natural frequency"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Crack" Tag="StrCrackWidth" Click="Cmd_Click" ToolTip="Crack Width — EC2 §7.3: wk = Sr,max × (εsm-εcm)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Thermal" Tag="StrThermalMovement" Click="Cmd_Click" ToolTip="Thermal — expansion joint analysis: movement calculation, joint positions"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Deep Beam" Tag="StrDeepBeamSTM" Click="Cmd_Click" ToolTip="Strut-and-tie model for deep beams (EC2 §6.5)"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="Smart factory" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★★ Column+" Tag="StrSmartColumnFactory" Click="Cmd_Click" FontWeight="Bold" ToolTip="Smart Column+ — 10-step intelligent column: grid-snap → level → stacking → clash → material → tags"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★★ Beam+" Tag="StrSmartBeamFactory" Click="Cmd_Click" FontWeight="Bold" ToolTip="Smart Beam+ — 9-step intelligent beam: grid-snap → connection → auto-type → deflection → tags"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★★ Wall+" Tag="StrSmartWallFactory" Click="Cmd_Click" FontWeight="Bold" ToolTip="Smart Wall+ — 8-step intelligent wall: grid-snap → levels → type match → structural flag → tags"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★★ Pad+" Tag="StrSmartFoundation" Click="Cmd_Click" FontWeight="Bold" ToolTip="Smart Pad+ — auto-sized pad footing: N/q bearing → depth → material → tags"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="EC code checks" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★★★ Code Compliance" Tag="StrCodeCompliance" Click="Cmd_Click" FontWeight="Bold" ToolTip="Full design code compliance report: vibration + crack + thermal + robustness + slab → RAG"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Fatigue" Tag="StrFatigueAssess" Click="Cmd_Click" ToolTip="EC3-1-9 fatigue: S-N curves, detail categories, Palmgren-Miner damage"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Torsion" Tag="StrTorsionDesign" Click="Cmd_Click" ToolTip="EC2 §6.3 torsion: thin-wall analogy, moment-torsion interaction"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Robustness" Tag="StrRobustness" Click="Cmd_Click" ToolTip="EC1-1-7 robustness: CC classes, tie forces, key elements"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Comp Slab" Tag="StrCompositeSlab" Click="Cmd_Click" ToolTip="Composite Slab — EC4-1-1: deck profiles, mesh, fire rating"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="γ Factors" Tag="StrPartialFactors" Click="Cmd_Click" ToolTip="Partial Factors — multi-code γ-factor comparison: EC/BS/ACI/AS"/>
+                                    </WrapPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
-                        <!-- COVERINGS (Plaster + Paint) -->
+                        <!-- COVERINGS — Pattern 5: 3 primaries proud, secondaries in Expander -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="COVERINGS"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
                             <StackPanel>
                                 <TextBlock Text="Plaster, render, paint &amp; coatings — walls, beams, columns, floors" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Covering" Tag="CoveringSmartApply" Click="Cmd_Click" ToolTip="Intelligent pipeline: substrate detect → mix design → coverage → layer inject (walls) / param write (beams/columns) → QA → tags. Supports plaster + paint on ANY element." FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Batch All" Tag="CoveringBatchApply" Click="Cmd_Click" ToolTip="Batch plaster ALL walls + beams + columns in project" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Room Finishes" Tag="CoveringRoomSchedule" Click="Cmd_Click" ToolTip="Generate room finish schedule (wall/floor/ceiling) from placed rooms"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Covering" Tag="CoveringSmartApply" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Intelligent pipeline: substrate detect → mix design → coverage → layer inject (walls) / param write (beams/columns) → QA → tags. Supports plaster + paint on ANY element."/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Batch All" Tag="CoveringBatchApply" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Batch plaster ALL walls + beams + columns in project"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Room Finishes" Tag="CoveringRoomSchedule" Click="Cmd_Click"
+                                            ToolTip="Generate room finish schedule (wall/floor/ceiling) from placed rooms"/>
                                 </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource ActionBtn}" Content="Materials" Tag="CoveringMaterialBrowser" Click="Cmd_Click" ToolTip="Browse plaster (BLE_MATERIALS.csv) + paint (BS 6150) database"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Substrate" Tag="CoveringSubstrateAnalyze" Click="Cmd_Click" ToolTip="Analyze ANY element substrate: walls, beams, columns, floors"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Paint System" Tag="CoveringPaintSystem" Click="Cmd_Click" ToolTip="Paint system design: DFT, coats, VOC, primer (BS 6150)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Coverage" Tag="CoveringCoverageCalc" Click="Cmd_Click" ToolTip="Element-agnostic coverage: area, bags/litres, cost, carbon"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="QA Checklist" Tag="CoveringQualityCheck" Click="Cmd_Click" ToolTip="Plaster QA (BS EN 13914) or Paint QA (BS 6150)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="CoveringScheduleExport" Click="Cmd_Click" ToolTip="Export covering schedule for all walls + beams + columns"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Fire Rating" Tag="CoveringFireRating" Click="Cmd_Click" ToolTip="Hp/A fire protection calc for steel — intumescent DFT or board thickness"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Moisture Risk" Tag="CoveringMoistureRisk" Click="Cmd_Click" ToolTip="Interstitial condensation check (BS EN ISO 13788 Glaser method)"/>
-                                </WrapPanel>
+                                <Expander Header="Advanced covering ops" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Materials" Tag="CoveringMaterialBrowser" Click="Cmd_Click" ToolTip="Browse plaster (BLE_MATERIALS.csv) + paint (BS 6150) database"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Substrate" Tag="CoveringSubstrateAnalyze" Click="Cmd_Click" ToolTip="Analyze ANY element substrate: walls, beams, columns, floors"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Paint Sys" Tag="CoveringPaintSystem" Click="Cmd_Click" ToolTip="Paint System — DFT, coats, VOC, primer (BS 6150)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Coverage" Tag="CoveringCoverageCalc" Click="Cmd_Click" ToolTip="Element-agnostic coverage: area, bags/litres, cost, carbon"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="QA" Tag="CoveringQualityCheck" Click="Cmd_Click" ToolTip="QA Checklist — plaster QA (BS EN 13914) or paint QA (BS 6150)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Export" Tag="CoveringScheduleExport" Click="Cmd_Click" ToolTip="Export CSV — covering schedule for all walls + beams + columns"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Fire" Tag="CoveringFireRating" Click="Cmd_Click" ToolTip="Fire Rating — Hp/A fire protection calc for steel (intumescent DFT or board thickness)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Moisture" Tag="CoveringMoistureRisk" Click="Cmd_Click" ToolTip="Moisture Risk — interstitial condensation check (BS EN ISO 13788 Glaser method)"/>
+                                    </WrapPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
-                        <!-- EXCEL → STRUCTURAL -->
+                        <!-- EXCEL → STRUCTURAL — Pattern 5 + 6: shorten labels, fold Enhanced into Expander -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="EXCEL → STRUCTURAL"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
                             <StackPanel>
                                 <TextBlock Text="Import structural design from Excel schedules (BS EN 1992/1993/1997)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Excel Import" Tag="StrExcelImport" Click="Cmd_Click" ToolTip="Full structural import from Excel: columns, beams, slabs, foundations, walls with auto-rebar per EC2" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Import Columns" Tag="StrExcelImportColumns" Click="Cmd_Click" ToolTip="Import columns only from Excel schedule"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Import Beams" Tag="StrExcelImportBeams" Click="Cmd_Click" ToolTip="Import beams only from Excel schedule"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Export Schedule" Tag="StrExcelExportSchedule" Click="Cmd_Click" ToolTip="Export existing structural elements to Excel schedule format"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Import" Tag="StrExcelImport" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Excel Import — full structural import from Excel: columns, beams, slabs, foundations, walls with auto-rebar per EC2"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Auto Rebar" Tag="StrAutoRebar" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Auto-design and place rebar per EC2 on selected elements"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Numbering" Tag="SmartNumbering" Click="Cmd_Click"
+                                            ToolTip="Smart Numbering — element numbering with template, grouping, and live preview"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cols Only" Tag="StrExcelImportColumns" Click="Cmd_Click" ToolTip="Import Columns — columns only from Excel schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Beams Only" Tag="StrExcelImportBeams" Click="Cmd_Click" ToolTip="Import Beams — beams only from Excel schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export" Tag="StrExcelExportSchedule" Click="Cmd_Click" ToolTip="Export Schedule — existing structural elements to Excel schedule format"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Template" Tag="StrExcelTemplate" Click="Cmd_Click" ToolTip="Generate blank Excel template with data validation"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Auto Rebar" Tag="StrAutoRebar" Click="Cmd_Click" ToolTip="Auto-design and place rebar per EC2 on selected elements" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Numbering" Tag="SmartNumbering" Click="Cmd_Click" ToolTip="Smart element numbering with template, grouping, and live preview"/>
                                 </WrapPanel>
-                                <TextBlock Text="Enhanced Structural Algorithms" FontSize="9" Foreground="#1565C0" FontWeight="Bold" Margin="0,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Auto-Size Report" Tag="StrAutoSizeAll" Click="Cmd_Click" ToolTip="Report-only: lists recommended sections per EC2/EC3/EC7 without changing the model"/>
-                                    <Button Style="{StaticResource GreenBtn}"  Content="★★ Auto-Size + Apply" Tag="StrAutoSizeApply" Click="Cmd_Click" ToolTip="Preview-and-apply: walks beams / columns / foundations, swaps each FamilySymbol via ChangeTypeId to the recommended section, stamps STR_*_SECTION_TXT" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="RC Design (EC2)" Tag="StrRCDesign" Click="Cmd_Click" ToolTip="Walks concrete beams + columns, derives demand from LoadCombinationEngine, calls EC2 reinforcement design, stamps STR_REBAR_DETAIL_TXT + STR_REBAR_SIZE_MM"/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="🇺🇬 Uganda defaults" Tag="StrSetUgandanDefaults" Click="Cmd_Click" ToolTip="Pick a Uganda region (Kampala / Mbarara / Fort Portal / Gulu / Mbale / Jinja / Lira / Kasese / Kabale / Arua / Soroti) and write the regional wind / seismic / soil / rainfall / live-load defaults onto ProjectInformation. ProjectLoadCombinationEngine picks them up automatically."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Optimize" Tag="StrGridOptimize" Click="Cmd_Click" ToolTip="Genetic algorithm column grid optimization"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Carbon Opt" Tag="StrCarbonOptimize" Click="Cmd_Click" ToolTip="Embodied carbon minimization per structural element"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="BBS Export" Tag="StrBarBending" Click="Cmd_Click" ToolTip="Bar bending schedule export per BS 8666"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Design Report" Tag="StrDesignReport" Click="Cmd_Click" ToolTip="Comprehensive EC2/EC3 structural design report"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Load Paths" Tag="StrLoadPathVisualizer" Click="Cmd_Click" ToolTip="Visualize load paths with utilization coloring"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Design Check" Tag="StrDesignCheck" Click="Cmd_Click" ToolTip="Full EC2/EC3/EC7 design compliance check"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Enhanced DWG" Tag="StrEnhancedCADImport" Click="Cmd_Click" ToolTip="Enhanced DWG import with 60+ international layer patterns" FontWeight="Bold"/>
-                                </WrapPanel>
+                                <Expander Header="Enhanced structural algorithms" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="★★ Auto-Size+Apply" Tag="StrAutoSizeApply" Click="Cmd_Click" FontWeight="Bold"
+                                                ToolTip="Auto-Size + Apply — preview-and-apply: walks beams / columns / foundations, swaps each FamilySymbol via ChangeTypeId to the recommended section, stamps STR_*_SECTION_TXT"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★ Size Report" Tag="StrAutoSizeAll" Click="Cmd_Click"
+                                                ToolTip="Auto-Size Report — report-only: lists recommended sections per EC2/EC3/EC7 without changing the model"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="★ DWG+" Tag="StrEnhancedCADImport" Click="Cmd_Click" FontWeight="Bold"
+                                                ToolTip="Enhanced DWG — DWG import with 60+ international layer patterns"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="RC EC2" Tag="StrRCDesign" Click="Cmd_Click" ToolTip="RC Design (EC2) — walks concrete beams + columns, derives demand from LoadCombinationEngine, calls EC2 reinforcement design, stamps STR_REBAR_DETAIL_TXT + STR_REBAR_SIZE_MM"/>
+                                        <Button Style="{StaticResource PurpleBtn}" Content="🇺🇬 Uganda" Tag="StrSetUgandanDefaults" Click="Cmd_Click" ToolTip="Uganda defaults — pick a Uganda region (Kampala / Mbarara / Fort Portal / Gulu / Mbale / Jinja / Lira / Kasese / Kabale / Arua / Soroti) and write the regional wind / seismic / soil / rainfall / live-load defaults onto ProjectInformation. ProjectLoadCombinationEngine picks them up automatically."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Grid Opt" Tag="StrGridOptimize" Click="Cmd_Click" ToolTip="Grid Optimize — genetic algorithm column grid optimization"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Carbon Opt" Tag="StrCarbonOptimize" Click="Cmd_Click" ToolTip="Embodied carbon minimization per structural element"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="BBS" Tag="StrBarBending" Click="Cmd_Click" ToolTip="BBS Export — bar bending schedule export per BS 8666"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Report" Tag="StrDesignReport" Click="Cmd_Click" ToolTip="Design Report — comprehensive EC2/EC3 structural design report"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Path Viz" Tag="StrLoadPathVisualizer" Click="Cmd_Click" ToolTip="Load Paths — visualize load paths with utilization coloring"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Check" Tag="StrDesignCheck" Click="Cmd_Click" ToolTip="Design Check — full EC2/EC3/EC7 design compliance check"/>
+                                    </WrapPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
@@ -2609,160 +2640,174 @@
                             </WrapPanel>
                         </Border>
 
-                        <!-- MEP -->
+                        <!-- MEP — Pattern 1 chips -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="MEP"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource TealBtn}" Content="Duct" Tag="ModelCreateDuct" Click="Cmd_Click" ToolTip="Create duct run between two points"/>
-                                <Button Style="{StaticResource TealBtn}" Content="Pipe" Tag="ModelCreatePipe" Click="Cmd_Click" ToolTip="Create pipe run between two points"/>
-                                <Button Style="{StaticResource TealBtn}" Content="Fixture" Tag="ModelPlaceFixture" Click="Cmd_Click" ToolTip="Place MEP fixture (light, plumbing, electrical)"/>
+                                <Button Style="{StaticResource TealBtn}" Content="Duct" Tag="ModelCreateDuct" Click="Cmd_Click" ToolTip="Create duct run between two points" MinWidth="44"/>
+                                <Button Style="{StaticResource TealBtn}" Content="Pipe" Tag="ModelCreatePipe" Click="Cmd_Click" ToolTip="Create pipe run between two points" MinWidth="44"/>
+                                <Button Style="{StaticResource TealBtn}" Content="Fixture" Tag="ModelPlaceFixture" Click="Cmd_Click" ToolTip="Place MEP fixture (light, plumbing, electrical)" MinWidth="52"/>
                             </WrapPanel>
                         </Border>
 
-                        <!-- FAMILY QUICK EDIT — inline family fixes without opening the family editor -->
+                        <!-- FAMILY QUICK EDIT — Pattern 5: 2 primaries proud, 4 secondary in Expander -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="FAMILY QUICK EDIT"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#582C83">
                             <StackPanel>
                                 <TextBlock Text="Select a family instance, then click." FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="★ Family Quick Edit" Tag="FamilyQuickEdit" Click="Cmd_Click" ToolTip="Open the family quick-edit dialog — launches host / category / param-pack actions on the selected instance" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Change Host" Tag="FamilyChangeHost" Click="Cmd_Click" ToolTip="Mode picker: Wall / Floor-Ceiling-Roof / Face / Work Plane / Detach to free-standing / Delete instance. Preserves parameters on rehost."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Swap Category" Tag="FamilySwapCategory" Click="Cmd_Click" ToolTip="Change the family's category via EditFamily + reload (Generic Model ↔ Furniture ↔ Equipment etc.)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Automation Pack" Tag="FamilyInjectAutomationPack" Click="Cmd_Click" ToolTip="Inject clearance, fire rating, acoustic, cost, CO₂, manufacturer, model, datasheet URL, warranty, LOD switches, workset hint, OmniClass"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Family Params" Tag="FamilyParamCreator" Click="Cmd_Click" ToolTip="Batch-inject STING tag parameters into tag family .rfa files. Regular families → Temp › Family Parameter Processor."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Conformance Check" Tag="FamilyConformanceCheck" Click="Cmd_Click" ToolTip="Phase 185: read-only audit of a folder of .rfa families against the STING contract. Surfaces missing placement params / tag style matrix / wrong placement type BEFORE you bulk-stamp a manufacturer library. CSV report + summary, no mutations. Run this before any vendor intake."/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="★ Family Quick Edit" Tag="FamilyQuickEdit" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Open the family quick-edit dialog — launches host / category / param-pack actions on the selected instance"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Family Params" Tag="FamilyParamCreator" Click="Cmd_Click"
+                                            ToolTip="Batch-inject STING tag parameters into tag family .rfa files. Regular families → Temp › Family Parameter Processor."/>
                                 </WrapPanel>
+                                <Expander Header="Advanced family ops" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Change Host" Tag="FamilyChangeHost" Click="Cmd_Click"
+                                                ToolTip="Mode picker: Wall / Floor-Ceiling-Roof / Face / Work Plane / Detach to free-standing / Delete instance. Preserves parameters on rehost."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Swap Category" Tag="FamilySwapCategory" Click="Cmd_Click"
+                                                ToolTip="Change the family's category via EditFamily + reload (Generic Model ↔ Furniture ↔ Equipment etc.)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Auto Pack" Tag="FamilyInjectAutomationPack" Click="Cmd_Click"
+                                                ToolTip="Automation Pack — inject clearance, fire rating, acoustic, cost, CO₂, manufacturer, model, datasheet URL, warranty, LOD switches, workset hint, OmniClass"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Conformance" Tag="FamilyConformanceCheck" Click="Cmd_Click"
+                                                ToolTip="Conformance Check — Phase 185 read-only audit of a folder of .rfa families against the STING contract. Surfaces missing placement params / tag style matrix / wrong placement type BEFORE you bulk-stamp a manufacturer library. CSV report + summary, no mutations. Run this before any vendor intake."/>
+                                    </WrapPanel>
+                                </Expander>
                                 <TextBlock Text="Rehost · recategorise · inject params · pre-stamp audit — all without leaving the project." FontSize="8" Foreground="#AAA" Margin="0,4,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
-                        <!-- DWG TO MODEL -->
+                        <!-- DWG TO MODEL — Pattern 1 chips -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="DWG TO MODEL"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">
                             <StackPanel>
                                 <TextBlock Text="Convert imported/linked DWG to BIM elements" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource OrangeBtn}" Content="DWG → Model" Tag="ModelDWGToModel" Click="Cmd_Click" ToolTip="Convert DWG import to walls, floors, rooms"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Preview DWG" Tag="ModelDWGPreview" Click="Cmd_Click" ToolTip="Audit DWG layers and entities without creating elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="ModelDWGPreview" Click="Cmd_Click" ToolTip="Preview DWG — audit DWG layers and entities without creating elements"/>
                                 </WrapPanel>
                                 <TextBlock Text="Pipeline: parallel lines → walls → PlanTopology → rooms → closed loops → floors" FontSize="8" Foreground="#AAA" Margin="0,4,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
-                        <!-- Phase 68: Model Intelligence -->
+                        <!-- MODEL INTELLIGENCE — Pattern 1 chips -->
                         <Border Background="{DynamicResource SecondaryBg}" CornerRadius="6" Padding="10" Margin="0,6,0,0">
                             <StackPanel>
                                 <TextBlock Text="MODEL INTELLIGENCE" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Embodied Carbon" Tag="EmbodiedCarbon" Click="Cmd_Click" ToolTip="Calculate embodied carbon (kgCO2e) per RICS Whole Life Carbon / ICE Database v3.0"/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Floor Efficiency" Tag="FloorEfficiency" Click="Cmd_Click" ToolTip="Gross-to-net floor area ratio per BCO Guide (target >80%)"/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Room Area Audit" Tag="RoomAreaAudit" Click="Cmd_Click" ToolTip="Audit rooms against minimum area standards (BCO/BS 6465/BS 5395)"/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Model Complexity" Tag="ModelComplexity" Click="Cmd_Click" ToolTip="Calculate model complexity score (0-100): elements, links, worksets, systems"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Carbon" Tag="EmbodiedCarbon" Click="Cmd_Click" ToolTip="Embodied Carbon — calculate embodied carbon (kgCO2e) per RICS Whole Life Carbon / ICE Database v3.0"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Floor Eff" Tag="FloorEfficiency" Click="Cmd_Click" ToolTip="Floor Efficiency — gross-to-net floor area ratio per BCO Guide (target &gt;80%)"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Room Audit" Tag="RoomAreaAudit" Click="Cmd_Click" ToolTip="Room Area Audit — audit rooms against minimum area standards (BCO/BS 6465/BS 5395)"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Complexity" Tag="ModelComplexity" Click="Cmd_Click" ToolTip="Model Complexity — calculate model complexity score (0-100): elements, links, worksets, systems"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- Phase 68: BIM Coordinator Tools -->
+                        <!-- BIM COORDINATOR — Pattern 1 chips -->
                         <Border Background="{DynamicResource SecondaryBg}" CornerRadius="6" Padding="10" Margin="0,6,0,0">
                             <StackPanel>
                                 <TextBlock Text="BIM COORDINATOR" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Deliverable Readiness" Tag="DeliverableReadiness" Click="Cmd_Click" ToolTip="Assess model readiness for COBie, IFC, PDF, FM handover deliverables"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Readiness" Tag="DeliverableReadiness" Click="Cmd_Click" ToolTip="Deliverable Readiness — assess model readiness for COBie, IFC, PDF, FM handover deliverables"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Action Plan" Tag="ActionPlan" Click="Cmd_Click" ToolTip="Generate prioritised BIM coordinator action plan based on model state"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Readiness" Tag="RunWorkflow_COBieReadiness" Click="Cmd_Click" ToolTip="Run COBie readiness workflow: retag, resolve, validate, export"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Drawing Issue" Tag="RunWorkflow_DrawingIssue" Click="Cmd_Click" ToolTip="Prepare drawings for issue: templates, naming, print, register"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie" Tag="RunWorkflow_COBieReadiness" Click="Cmd_Click" ToolTip="COBie Readiness — run COBie readiness workflow: retag, resolve, validate, export"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Issue" Tag="RunWorkflow_DrawingIssue" Click="Cmd_Click" ToolTip="Drawing Issue — prepare drawings for issue: templates, naming, print, register"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Spatial QA" Tag="RunWorkflow_SpatialQA" Click="Cmd_Click" ToolTip="Validate rooms, areas, connectivity for FM handover"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- PHASE 74: BIM COORDINATOR DAILY PLANNER -->
+                        <!-- BIM COORDINATOR PLANNER — Pattern 1 chips -->
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
                             <StackPanel>
                                 <TextBlock Text="BIM COORDINATOR PLANNER" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Daily Planner" Tag="DailyPlanner" Click="Cmd_Click" ToolTip="Generate prioritised BIM coordinator daily task list"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Deliverable Matrix" Tag="DeliverableMatrix" Click="Cmd_Click" ToolTip="DD1-DD4 deliverable tracking matrix with completion status"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Warning Prediction" Tag="WarningPrediction" Click="Cmd_Click" ToolTip="Predict warning count trend for next 7 days"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Compliance Check" Tag="ComplianceFallCheck" Click="Cmd_Click" ToolTip="Detect compliance regression since last check"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Export Audit Log" Tag="ActionAuditExport" Click="Cmd_Click" ToolTip="Export coordination action audit trail to CSV"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Planner" Tag="DailyPlanner" Click="Cmd_Click" ToolTip="Daily Planner — generate prioritised BIM coordinator daily task list"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Matrix" Tag="DeliverableMatrix" Click="Cmd_Click" ToolTip="Deliverable Matrix — DD1-DD4 deliverable tracking matrix with completion status"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Predict" Tag="WarningPrediction" Click="Cmd_Click" ToolTip="Warning Prediction — predict warning count trend for next 7 days"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Regression" Tag="ComplianceFallCheck" Click="Cmd_Click" ToolTip="Compliance Check — detect compliance regression since last check"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Audit Log" Tag="ActionAuditExport" Click="Cmd_Click" ToolTip="Export Audit Log — coordination action audit trail to CSV"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- PHASE 75: WORKFLOW/COORDINATION ENHANCEMENTS (29 gaps) -->
+                        <!-- WORKFLOW & COORDINATION — Pattern 5: 3 primaries proud, 8 secondary in Expander -->
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#00695C">
                             <StackPanel>
                                 <TextBlock Text="WORKFLOW &amp; COORDINATION" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Scheduler" Tag="WorkflowScheduler" Click="Cmd_Click" ToolTip="Manage scheduled workflow triggers (on-open, compliance-fall, SLA, periodic)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Root Cause" Tag="WarningRootCause" Click="Cmd_Click" ToolTip="Warning root-cause analysis: identify source warnings that cascade"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Suppression Audit" Tag="SuppressionAudit" Click="Cmd_Click" ToolTip="Warning suppression audit trail: who, when, why, expiry"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Team Activity" Tag="TeamActivity" Click="Cmd_Click" ToolTip="Team worksharing activity: workset checkouts, issues, discipline edits"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Compliance Trends" Tag="ComplianceTrendView" Click="Cmd_Click" ToolTip="7-day compliance trend with per-discipline trajectory and ETA"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="SLA Report" Tag="SLAViolationReport" Click="Cmd_Click" ToolTip="Issue SLA violation report (Critical=4h, High=24h, Medium=1wk)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Mid-Day Check" Tag="MidDayCoordination" Click="Cmd_Click" ToolTip="Quick coordination checkpoint before meetings (2-3 min)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Mid-Day" Tag="MidDayCoordination" Click="Cmd_Click" ToolTip="Mid-Day Check — quick coordination checkpoint before meetings (2-3 min)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Review Prep" Tag="DesignReviewPrep" Click="Cmd_Click" ToolTip="Prepare model for design review (retag, fix, validate, report)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Fed. Pre-Flight" Tag="FederatedPreFlight" Click="Cmd_Click" ToolTip="Federated pre-flight: validate host + linked models for duplicate tags and compliance"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Transmittal Gate" Tag="TransmittalGateCheck" Click="Cmd_Click" ToolTip="Check compliance gate before creating transmittals"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Container Check" Tag="ContainerWarningCheck" Click="Cmd_Click" ToolTip="Cross-validate container completeness against warning patterns"/>
                                 </WrapPanel>
+                                <Expander Header="More coordination ops" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Root Cause" Tag="WarningRootCause" Click="Cmd_Click" ToolTip="Warning root-cause analysis: identify source warnings that cascade"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Suppression" Tag="SuppressionAudit" Click="Cmd_Click" ToolTip="Suppression Audit — warning suppression audit trail: who, when, why, expiry"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Team" Tag="TeamActivity" Click="Cmd_Click" ToolTip="Team Activity — worksharing activity: workset checkouts, issues, discipline edits"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Trends" Tag="ComplianceTrendView" Click="Cmd_Click" ToolTip="Compliance Trends — 7-day compliance trend with per-discipline trajectory and ETA"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="SLA" Tag="SLAViolationReport" Click="Cmd_Click" ToolTip="SLA Report — issue SLA violation report (Critical=4h, High=24h, Medium=1wk)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Pre-Flight" Tag="FederatedPreFlight" Click="Cmd_Click" ToolTip="Federated Pre-Flight — validate host + linked models for duplicate tags and compliance"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Tx Gate" Tag="TransmittalGateCheck" Click="Cmd_Click" ToolTip="Transmittal Gate — check compliance gate before creating transmittals"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Container" Tag="ContainerWarningCheck" Click="Cmd_Click" ToolTip="Container Check — cross-validate container completeness against warning patterns"/>
+                                    </WrapPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
-                        <!-- PHASE 69: ACOUSTIC & SUSTAINABILITY -->
+                        <!-- ACOUSTIC & SUSTAINABILITY — Pattern 1 chips -->
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
                             <StackPanel>
                                 <TextBlock Text="ACOUSTIC &amp; SUSTAINABILITY" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Acoustic Analysis" Tag="AcousticAnalysis" Click="Cmd_Click" ToolTip="BS 8233/BB93/HTM acoustic performance: Rw, RT60, impact, flanking"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="BREEAM Assessment" Tag="BREEAMAssessment" Click="Cmd_Click" ToolTip="BREEAM v6.0 credit assessment across 10 categories"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Lifecycle Assessment" Tag="LifecycleAssessment" Click="Cmd_Click" ToolTip="BS EN 15978 whole-life carbon: A1-C4 + LETI benchmark"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Acoustic" Tag="AcousticAnalysis" Click="Cmd_Click" ToolTip="Acoustic Analysis — BS 8233/BB93/HTM acoustic performance: Rw, RT60, impact, flanking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BREEAM" Tag="BREEAMAssessment" Click="Cmd_Click" ToolTip="BREEAM v6.0 credit assessment across 10 categories"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Lifecycle" Tag="LifecycleAssessment" Click="Cmd_Click" ToolTip="Lifecycle Assessment — BS EN 15978 whole-life carbon: A1-C4 + LETI benchmark"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- PHASE 70: MEP INTELLIGENCE -->
+                        <!-- MEP INTELLIGENCE — leave (1 button) -->
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#2196F3">
                             <StackPanel>
                                 <TextBlock Text="MEP INTELLIGENCE" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Pressure Drop Analysis" Tag="MEPPressureDrop" Click="Cmd_Click" ToolTip="Darcy-Weisbach + minor losses for ducts and pipes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Pressure Drop" Tag="MEPPressureDrop" Click="Cmd_Click" ToolTip="Darcy-Weisbach + minor losses for ducts and pipes"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- PHASE 71: STRUCTURAL DEEP -->
+                        <!-- STRUCTURAL DEEP — leave (1 button) -->
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#F44336">
                             <StackPanel>
                                 <TextBlock Text="STRUCTURAL DEEP ANALYSIS" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Deep Structural Analysis" Tag="StructuralDeepAnalysis" Click="Cmd_Click" ToolTip="Torsion detection, LTB, connection detailing, tolerances"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Deep Analysis" Tag="StructuralDeepAnalysis" Click="Cmd_Click" ToolTip="Deep Structural Analysis — torsion detection, LTB, connection detailing, tolerances"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- PHASE 72: DOC/SCHEDULE AUTOMATION -->
+                        <!-- DOC & SCHEDULE AUTOMATION — Pattern 1 chips -->
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#FF9800">
                             <StackPanel>
                                 <TextBlock Text="DOC &amp; SCHEDULE AUTOMATION" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Drawing Register" Tag="DrawingRegisterSync" Click="Cmd_Click" ToolTip="Export/sync drawing register CSV from model sheets"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Schedule Validation" Tag="CrossScheduleValidate" Click="Cmd_Click" ToolTip="Cross-schedule consistency validation"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Print Queue" Tag="PrintQueue" Click="Cmd_Click" ToolTip="Build and export prioritised print queue"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Document Package" Tag="DocumentPackage" Click="Cmd_Click" ToolTip="Assemble ISO 19650 document package for milestone"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Register" Tag="DrawingRegisterSync" Click="Cmd_Click" ToolTip="Drawing Register — export/sync drawing register CSV from model sheets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="CrossScheduleValidate" Click="Cmd_Click" ToolTip="Schedule Validation — cross-schedule consistency validation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Print Q" Tag="PrintQueue" Click="Cmd_Click" ToolTip="Print Queue — build and export prioritised print queue"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Doc Pkg" Tag="DocumentPackage" Click="Cmd_Click" ToolTip="Document Package — assemble ISO 19650 document package for milestone"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- PHASE 73: WORKFLOW MATURITY -->
+                        <!-- WORKFLOW AUTOMATION — Pattern 1 chips -->
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
                             <StackPanel>
                                 <TextBlock Text="WORKFLOW AUTOMATION" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Commissioning" Tag="CommissioningWorkflow" Click="Cmd_Click" ToolTip="MEP commissioning T&amp;B workflow (8 steps)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Handover Validation" Tag="HandoverValidation" Click="Cmd_Click" ToolTip="Pre-handover validation workflow (8 steps)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sustainability" Tag="SustainabilityWorkflow" Click="Cmd_Click" ToolTip="Sustainability assessment workflow (6 steps)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Commission" Tag="CommissioningWorkflow" Click="Cmd_Click" ToolTip="Commissioning — MEP commissioning T&amp;B workflow (8 steps)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Handover" Tag="HandoverValidation" Click="Cmd_Click" ToolTip="Handover Validation — pre-handover validation workflow (8 steps)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sustain" Tag="SustainabilityWorkflow" Click="Cmd_Click" ToolTip="Sustainability — assessment workflow (6 steps)"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
