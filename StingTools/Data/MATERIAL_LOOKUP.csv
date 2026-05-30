@@ -216,10 +216,10 @@ FORMWORK,DEFAULT,RELEASE_AGENT_M2_PER_L,30,m²/L,Default coverage
 #
 # SAND BULKING (by moisture class)
 # TypeKey sourced from: CST_SAND_MOISTURE_TXT
-SAND,DRY,BULKING_FACTOR,1.15,,Dry sand bulking (+15%)
-SAND,DAMP,BULKING_FACTOR,1.25,,Damp sand bulking (+25%)
-SAND,WET,BULKING_FACTOR,1.10,,Wet sand bulking (+10%)
-SAND,DEFAULT,BULKING_FACTOR,1.20,,Default: moderate bulking (+20%)
+SAND,DRY,BULKING_FACTOR,1.00,,Dry sand — no bulking ~0% per CIRIA/IS 2386
+SAND,DAMP,BULKING_FACTOR,1.30,,Damp sand — peak bulking +30% per CIRIA/IS 2386
+SAND,WET,BULKING_FACTOR,1.05,,Saturated/wet sand collapses to ~0 — +5% upper per CIRIA/IS 2386
+SAND,DEFAULT,BULKING_FACTOR,1.25,,Default: damp-site average +25%
 #
 # PLYWOOD SHEET SIZES
 # TypeKey sourced from: CST_PLYWOOD_SIZE_TXT
