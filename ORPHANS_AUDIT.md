@@ -133,3 +133,52 @@ styles). TAGS → Scale sub-tab untouched.
 0/0, no CompiledPlugin churn. Section-B items stay in ORPHANS_TODO.md (no surfacing)
 unless you direct otherwise (e.g. greenlight `ClashDetectionCommand` or
 `PlatformEventDrainCommand`).
+
+---
+
+## IMPLEMENTED (Group 5 surfacing)
+
+Per the standing decision: surfaced the 48 (49 minus `PlatformEventDrainCommand`), **minus
+1 more correction found during build** (`GenerateFromScopeBoxesCommand`, below) →
+**47 surfaced**. Build 0 warnings / 0 errors (clean rebuild, Revit 2025). No CompiledPlugin
+churn. TAGS → Scale untouched.
+
+### Correction found during implementation (verifying live dispatch, not just instantiation)
+- **`GenerateFromScopeBoxesCommand` is SUPERSEDED — not surfaced.** The tag
+  `DrawingTypes_FromScopeBoxes` already dispatches to an inline method
+  (`DrawingTypesFromScopeBoxesInline`), and `DrawingTypes_ProduceFromScopeBoxes` is its own
+  command — the "create views from scope boxes" feature is already reachable, so a button
+  would duplicate. Same false-positive class as `DrawingSyncStylesCommand` (the
+  instantiation-based audit can't see inline reimplementations). Moved to TODO. **A3 = 5.**
+- `DrawingBrowserOrganizerCommand` was **kept** — it actually *applies* a Project Browser
+  organization (distinct from the `DrawingTypes_GroupBrowser` inline's group-report).
+
+### Surfaced (47) — buttons added with shared styles
+
+| Group | Count | Home | Tags |
+|---|---|---|---|
+| A1 Plumbing engines | 13 | **Plumbing panel** DOCS tab "Advanced engines"; cases in `StingPlumbingCommandHandler` | `Plumb_PumpSelect/BoosterSet/BuildNetwork/NetworkPressure/NetworkStats/PressureZone/SlopeAutomation/GenerateSpools/SpoolSchedule/DrainageSchematic/TMVEngine/LegionellaReport/WaterSafetyPlan` |
+| A2 AVF heatmaps | 5 | **VIEW** tab "ANALYSIS HEATMAPS" | `Heatmap_Compliance/Fill/Carbon/Acoustic/Clear` |
+| A3 Drawing / AEC | 5 | **DOCS** tab "AEC FILTERS + DRAWING TYPES" | `AecFilters_Create/Inspect/Reload`, `Drawing_BrowserOrganize`, `DrawingTypes_ForceResync` |
+| A4 Compliance gates | 4 | **BIM** tab "COMPLIANCE GATES" | `Gate_Coverage/FireWall/Healthcare/Sustainability` |
+| A5 Platform/sched/cost | 10 | **BIM** tab "PLATFORM · SCHEDULING · COST" | `Export4DViewer`, `P6_LinkConfig/SyncNow/Writeback`, `BCF_Sync`, `Folder_CloudSync` (reg) + `Folder_CloudMirrorNow`, `BOQ_PushSnapshot`, `Cost_FileBrowser`, `Revision_CloudAudit` |
+| A6 V6 + A8 Clash | 6 | **BIM** tab "LABOUR · QR · HEALTH" | `Labour_Apply/Export`, `QR_AdvanceCommission`, `QR_CommissionReport`, `Health_DashboardHtml`, `Clash_XlsxExport` |
+| A7 Electrical clears | 2 | **Electrical panel** circuit-tools row; cases in `StingElectricalCommandHandler` | `Circuit_ClearTrace`, `Circuit_ClearHomeRuns` |
+| A9 Tag-style migrate | 1 | **TAGS → Tools** "MAINTENANCE" (tag pre-registered) | `Tags_MigrateStyleCode` |
+| A9 HBN auto-populate | 1 | **Healthcare → Rooms / RDS** (tag pre-registered) | `HC_HbnAutoPopulate` |
+
+Dispatch added: 29 cases in `StingCommandHandler` (one consolidated Group-5 block) + 13 in
+`StingPlumbingCommandHandler` + 2 in `StingElectricalCommandHandler`. The 3 pre-registered
+tags (`Folder_CloudSync`, `Tags_MigrateStyleCode`, `HC_HbnAutoPopulate`) got buttons only.
+Gate classes are nested in `MaterialGateCommands` (fixed during build).
+
+### Left as TODO (not surfaced)
+- `PlatformEventDrainCommand` — internal manual event-drainer trigger (standing decision).
+- `ClashDetectionCommand` — overlaps live `ClashRunCommand` (standing decision).
+- `GenerateFromScopeBoxesCommand` — superseded by inline (correction above).
+- Section-B items unchanged (`PluginOnboardingWizardCommand` stub; `DrawingSyncStylesCommand`
+  / `BatchPrintSheetsCommand` / `CircuitWizardCommand` superseded / already-surfaced).
+
+### Net
+48 intended → **47 surfaced** (1 found superseded during build) · 3 TODO + Section-B flagged
+· build 0/0 · no CompiledPlugin churn · Scale untouched.

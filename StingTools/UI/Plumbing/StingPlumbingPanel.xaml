@@ -889,6 +889,24 @@
                         <Button Content="Stage Commissioning Pack" Style="{StaticResource PlumbActionBtn}"
                                 Tag="Plumb_CommPack" Click="Cmd_Click" HorizontalAlignment="Stretch"
                                 ToolTip="Plans the commissioning artefact folder under _BIM_COORD/plumbing/commissioning."/>
+
+                        <!-- Group 5: advanced plumbing engines surfaced (were complete but had no button) -->
+                        <TextBlock Text="ADVANCED ENGINES (network · spools · water safety)" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="Pump Select" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_PumpSelect" Click="Cmd_Click" ToolTip="Derive duty point and size the pump from the catalogue."/>
+                            <Button Content="Booster Set" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_BoosterSet" Click="Cmd_Click" ToolTip="Break-tank volume + booster-set duty sizing."/>
+                            <Button Content="Build Network" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_BuildNetwork" Click="Cmd_Click" ToolTip="Build the pipe network graph; accumulate DFU/pressure; report the critical path."/>
+                            <Button Content="Network Pressure" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_NetworkPressure" Click="Cmd_Click" ToolTip="Colour pipes by pressure zone and write kPa params."/>
+                            <Button Content="Network Stats" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_NetworkStats" Click="Cmd_Click" ToolTip="Report network stats by system / DFU / fixtures."/>
+                            <Button Content="Pressure Zones" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_PressureZone" Click="Cmd_Click" ToolTip="Colour supply pipes by pressure zone."/>
+                            <Button Content="Slope Automation" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_SlopeAutomation" Click="Cmd_Click" ToolTip="Apply BS EN 12056-2 minimum slopes to drainage."/>
+                            <Button Content="Generate Spools" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_GenerateSpools" Click="Cmd_Click" ToolTip="Group pipes into spools, stamp numbers, build assemblies."/>
+                            <Button Content="Spool Schedule" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_SpoolSchedule" Click="Cmd_Click" ToolTip="Create/refresh the pipe-spool schedule view."/>
+                            <Button Content="Drainage Schematic" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_DrainageSchematic" Click="Cmd_Click" ToolTip="Generate the drainage riser schematic drafting view."/>
+                            <Button Content="TMV Engine" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_TMVEngine" Click="Cmd_Click" ToolTip="Scan TMVs and export the CSV register."/>
+                            <Button Content="Legionella Report" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_LegionellaReport" Click="Cmd_Click" ToolTip="ACOP L8 Legionella risk report (docx/text)."/>
+                            <Button Content="Water Safety Plan" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_WaterSafetyPlan" Click="Cmd_Click" ToolTip="RAG dashboard: dead legs / TMV / backflow."/>
+                        </WrapPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

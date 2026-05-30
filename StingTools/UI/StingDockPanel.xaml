@@ -1459,6 +1459,18 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- Group 5: surfaced drawing / AEC-filter commands (were orphaned — no button) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="AEC FILTERS + DRAWING TYPES (surfaced)"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="AEC Filters: Create" Tag="AecFilters_Create" Click="Cmd_Click" ToolTip="Mint the AEC ParameterFilterElements from the JSON registry."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="AEC Filters: Inspect" Tag="AecFilters_Inspect" Click="Cmd_Click" ToolTip="List filter definitions and whether each is present in the active document."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="AEC Filters: Reload" Tag="AecFilters_Reload" Click="Cmd_Click" ToolTip="Invalidate the AEC filter registry cache (re-read JSON)."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Browser Organize" Tag="Drawing_BrowserOrganize" Click="Cmd_Click" ToolTip="Apply the Project Browser organization grouped by Drawing Type."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Force Resync Styles" Tag="DrawingTypes_ForceResync" Click="Cmd_Click" ToolTip="Re-apply profiles to ALL stamped views (including template-suppressed)."/>
+                            </WrapPanel>
+                        </Border>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -2298,6 +2310,18 @@
 
                         <!-- Always on top -->
                         <TextBlock Text="Always on top: ON" FontSize="10" Foreground="#888" Margin="0,4,0,0"/>
+
+                        <!-- Group 5: surfaced AVF heatmaps (were orphaned — no button) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="ANALYSIS HEATMAPS (AVF)"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Compliance" Tag="Heatmap_Compliance" Click="Cmd_Click" ToolTip="Paint a tag-completeness / compliance heatmap on the active view."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Fill %" Tag="Heatmap_Fill" Click="Cmd_Click" ToolTip="Paint a conduit/duct fill-% heatmap on the active view."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Carbon" Tag="Heatmap_Carbon" Click="Cmd_Click" ToolTip="Paint an embodied-carbon heatmap on the active view."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Acoustic" Tag="Heatmap_Acoustic" Click="Cmd_Click" ToolTip="Paint an acoustic-performance heatmap on the active view."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clear" Tag="Heatmap_Clear" Click="Cmd_Click" ToolTip="Clear all AVF heatmap overrides from the active view."/>
+                            </WrapPanel>
+                        </Border>
 
                     </StackPanel>
                 </ScrollViewer>
@@ -3674,6 +3698,45 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Group 5: surfaced BIM / QA / platform / V6 / clash commands (were orphaned — no button) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="COMPLIANCE GATES (surfaced)"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Coverage Gate" Tag="Gate_Coverage" Click="Cmd_Click" ToolTip="Run the material coverage gate check."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Fire-Wall Gate" Tag="Gate_FireWall" Click="Cmd_Click" ToolTip="Run the fire-wall material gate check."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Healthcare Gate" Tag="Gate_Healthcare" Click="Cmd_Click" ToolTip="Run the healthcare material gate check."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Sustainability Gate" Tag="Gate_Sustainability" Click="Cmd_Click" ToolTip="Run the sustainability material gate check."/>
+                            </WrapPanel>
+                        </Border>
+
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="PLATFORM · SCHEDULING · COST (surfaced)"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Export 4D Viewer" Tag="Export4DViewer" Click="Cmd_Click" ToolTip="Export elements + phases to 4D-viewer JSON."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="P6 Link Config" Tag="P6_LinkConfig" Click="Cmd_Click" ToolTip="Configure the Primavera P6 live-link connection (needs server)."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="P6 Sync Now" Tag="P6_SyncNow" Click="Cmd_Click" ToolTip="Trigger an immediate P6 activity sync."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="P6 Writeback" Tag="P6_Writeback" Click="Cmd_Click" ToolTip="Write P6 actual dates / % back to element parameters."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="BCF Sync" Tag="BCF_Sync" Click="Cmd_Click" ToolTip="Bidirectional sync of STING issues with BCF topics."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Cloud Sync Settings" Tag="Folder_CloudSync" Click="Cmd_Click" ToolTip="Configure the project-folder cloud provider + auto-mirror."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Cloud Mirror Now" Tag="Folder_CloudMirrorNow" Click="Cmd_Click" ToolTip="One-shot mirror of the project folder to the cloud (needs config)."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Push BOQ Snapshot" Tag="BOQ_PushSnapshot" Click="Cmd_Click" ToolTip="Push a BOQ cost/qty snapshot to Planscape (needs server)."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Cost File Browser" Tag="Cost_FileBrowser" Click="Cmd_Click" ToolTip="Browse/validate a cost CSV and save the override path."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Revision-Cloud Audit" Tag="Revision_CloudAudit" Click="Cmd_Click" ToolTip="Audit all revision clouds, grouped by revision / sheet."/>
+                            </WrapPanel>
+                        </Border>
+
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LABOUR · QR COMMISSIONING · HEALTH (surfaced)"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Apply Labour Hours" Tag="Labour_Apply" Click="Cmd_Click" ToolTip="Apply labour hours to the selected elements."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Export Labour Hours" Tag="Labour_Export" Click="Cmd_Click" ToolTip="Export the labour-hours summary to CSV."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="QR: Advance Commissioning" Tag="QR_AdvanceCommission" Click="Cmd_Click" ToolTip="Advance the commissioning state for the selected element."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="QR: Commissioning Report" Tag="QR_CommissionReport" Click="Cmd_Click" ToolTip="Generate the commissioning progress CSV report."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Health Dashboard (HTML)" Tag="Health_DashboardHtml" Click="Cmd_Click" ToolTip="Build and export the model-health dashboard as HTML."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clash → Excel" Tag="Clash_XlsxExport" Click="Cmd_Click" ToolTip="Export clashes.json to a filtered Excel workbook."/>
+                            </WrapPanel>
+                        </Border>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -4435,6 +4498,14 @@
                             <TabItem Header="Tools">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="4">
+
+                                        <!-- Group 5: surfaced tag maintenance command (was orphaned — registered but no button) -->
+                                        <TextBlock Text="MAINTENANCE (surfaced)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <WrapPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Migrate Tag-Style Code" Tag="Tags_MigrateStyleCode" Click="Cmd_Click" Height="26" ToolTip="Migrate legacy TAG_STYLE_CODE_BOOL params to the text representation."/>
+                                            </WrapPanel>
+                                        </Border>
 
                                         <!-- TAG PLACEMENT TOOLS -->
                                         <TextBlock Text="TAG PLACEMENT TOOLS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
@@ -5461,6 +5532,10 @@
                         <TabItem Header="Rooms / RDS">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel Margin="4">
+                                    <!-- Group 5: surfaced HBN room auto-populate (was orphaned — registered but no button) -->
+                                    <TextBlock Text="HBN ROOM AUTO-POPULATE (surfaced)" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="Auto-populate HTM / HBN params" Tag="HC_HbnAutoPopulate" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,0,0,6" ToolTip="Auto-populate HTM/HBN clinical design parameters on rooms."/>
+
                                     <TextBlock Text="ROOM DATA SHEETS — H-8" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
                                     <Border Style="{StaticResource GroupBorder}">
                                         <StackPanel>

@@ -1331,6 +1331,46 @@ namespace StingTools.UI
                     case "LibraryPush": RunCommand<Commands.TemplateManager.LibraryPushCommand>(app); break;
                     case "LibraryConfigure": RunCommand<Commands.TemplateManager.LibraryConfigureCommand>(app); break;
                     case "AecFiltersBrowse": RunCommand<Commands.TemplateManager.AecFiltersBrowseCommand>(app); break;
+
+                    // ══ Group 5: surfaced orphan commands (were complete but had no button) ══
+                    //    See ORPHANS_AUDIT.md. Buttons added in their proposed home tabs/panels.
+                    // AVF heatmaps → VIEW tab
+                    case "Heatmap_Compliance": RunCommand<Commands.Visualization.VisualiseComplianceHeatmapCommand>(app); break;
+                    case "Heatmap_Fill":       RunCommand<Commands.Visualization.VisualiseFillHeatmapCommand>(app); break;
+                    case "Heatmap_Carbon":     RunCommand<Commands.Visualization.VisualiseCarbonHeatmapCommand>(app); break;
+                    case "Heatmap_Acoustic":   RunCommand<Commands.Visualization.VisualiseAcousticHeatmapCommand>(app); break;
+                    case "Heatmap_Clear":      RunCommand<Commands.Visualization.ClearHeatmapCommand>(app); break;
+                    // Drawing / AEC filters → DOCS tab
+                    case "AecFilters_Create":  RunCommand<Commands.Drawing.AecFiltersCreateCommand>(app); break;
+                    case "AecFilters_Inspect": RunCommand<Commands.Drawing.AecFiltersInspectCommand>(app); break;
+                    case "AecFilters_Reload":  RunCommand<Commands.Drawing.AecFiltersReloadCommand>(app); break;
+                    case "Drawing_BrowserOrganize": RunCommand<Commands.Drawing.DrawingBrowserOrganizerCommand>(app); break;
+                    case "DrawingTypes_ForceResync": RunCommand<Commands.Drawing.DrawingForceResyncCommand>(app); break;
+                    // Material / QA compliance gates → BIM tab (QA)
+                    case "Gate_Coverage":       RunCommand<Core.MaterialGateCommands.CoverageGateCommand>(app); break;
+                    case "Gate_FireWall":       RunCommand<Core.MaterialGateCommands.FireWallGateCommand>(app); break;
+                    case "Gate_Healthcare":     RunCommand<Core.MaterialGateCommands.HealthcareGateCommand>(app); break;
+                    case "Gate_Sustainability": RunCommand<Core.MaterialGateCommands.SustainabilityGateCommand>(app); break;
+                    // BIM platform / scheduling → BIM tab
+                    case "Export4DViewer":      RunCommand<BIMManager.ExportFor4DViewerCommand>(app); break;
+                    case "P6_LinkConfig":       RunCommand<BIMManager.P6LiveLinkConfigCommand>(app); break;
+                    case "P6_SyncNow":          RunCommand<BIMManager.P6SyncNowCommand>(app); break;
+                    case "P6_Writeback":        RunCommand<BIMManager.P6WritebackCommand>(app); break;
+                    case "BCF_Sync":            RunCommand<BIMManager.BCFSyncCommand>(app); break;
+                    case "Folder_CloudMirrorNow": RunCommand<BIMManager.FolderCloudMirrorNowCommand>(app); break;
+                    case "BOQ_PushSnapshot":    RunCommand<BIMManager.PushBoqSnapshotCommand>(app); break;
+                    case "Cost_FileBrowser":    RunCommand<BIMManager.CostFileBrowserCommand>(app); break;
+                    case "Revision_CloudAudit": RunCommand<BIMManager.RevisionCloudAuditCommand>(app); break;
+                    // V6 next-gen → BIM tab
+                    case "Labour_Apply":        RunCommand<V6.ApplyLabourHoursCommand>(app); break;
+                    case "Labour_Export":       RunCommand<V6.ExportLabourHoursCommand>(app); break;
+                    case "QR_AdvanceCommission": RunCommand<V6.QRAdvanceCommissioningCommand>(app); break;
+                    case "QR_CommissionReport": RunCommand<V6.QRCommissioningReportCommand>(app); break;
+                    case "Health_DashboardHtml": RunCommand<V6.HealthDashboardExportHtmlCommand>(app); break;
+                    // Clash → BIM tab
+                    case "Clash_XlsxExport":    RunCommand<Core.Clash.ClashXlsxExportCommand>(app); break;
+                    // ══ end Group 5 ══
+
                     case "DrawingTypesBrowse": RunCommand<Commands.Drawing.DrawingTypesInspectCommand>(app); break;
                     case "ViewStylePacksBrowse": RunCommand<Commands.TemplateManager.ViewStylePacksBrowseCommand>(app); break;
                     case "CreateVGOverrides": RunCommand<Temp.CreateVGOverridesCommand>(app); break;

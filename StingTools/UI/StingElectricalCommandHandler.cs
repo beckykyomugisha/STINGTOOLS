@@ -444,6 +444,10 @@ namespace StingTools.UI
                 case "SldAnnotate_Clear":        RunCommand<StingTools.Commands.Symbols.SldAnnotationClearCommand>(app); break;
                 case "SldAnnotate_Audit":        RunCommand<StingTools.Commands.Symbols.SldAnnotationAuditCommand>(app); break;
 
+                // ── Group 5: surfaced electrical clears (were orphaned — no button) ──
+                case "Circuit_ClearTrace":       RunCommand<StingTools.Commands.Electrical.ClearCircuitTraceCommand>(app); break;
+                case "Circuit_ClearHomeRuns":    RunCommand<StingTools.Commands.Electrical.ClearHomeRunAnnotationsCommand>(app); break;
+
                 default:
                     StingLog.Info($"ElectricalCommandHandler: unknown tag '{tag}'");
                     break;

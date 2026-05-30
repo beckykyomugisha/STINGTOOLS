@@ -297,6 +297,11 @@
                                     ToolTip="Create circuits" Click="Cmd_Click"/>
                             <Button Content="🗑" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Delete"
                                     ToolTip="Delete circuit" Click="Cmd_Click"/>
+                            <!-- Group 5: surfaced view-cleanup commands (were orphaned — no button) -->
+                            <Button Content="🧹T" Style="{StaticResource ElecToolBtn}" Tag="Circuit_ClearTrace"
+                                    ToolTip="Clear circuit-trace graphic overrides from the active view" Click="Cmd_Click"/>
+                            <Button Content="🧹H" Style="{StaticResource ElecToolBtn}" Tag="Circuit_ClearHomeRuns"
+                                    ToolTip="Clear home-run annotations from the active view" Click="Cmd_Click"/>
                             <Button Content="⬇" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Sort"
                                     ToolTip="Sort circuits" Click="Cmd_Click"/>
                             <Button Content="📋" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Excel"

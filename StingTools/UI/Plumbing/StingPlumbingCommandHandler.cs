@@ -185,6 +185,21 @@ namespace StingTools.UI.Plumbing
                     case "PlumbSym_BrowseAll":
                         Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.BrowsePlumbingSymbolsCommand>(app); break;
 
+                    // ── Group 5: surfaced plumbing engines (were orphaned — no button) ──
+                    case "Plumb_PumpSelect":        Run<StingTools.Commands.Plumbing.PlumbPumpSelectCommand>(app); break;
+                    case "Plumb_BoosterSet":        Run<StingTools.Commands.Plumbing.PlumbBoosterSetCommand>(app); break;
+                    case "Plumb_BuildNetwork":      Run<StingTools.Commands.Plumbing.PlumbBuildNetworkCommand>(app); break;
+                    case "Plumb_NetworkPressure":   Run<StingTools.Commands.Plumbing.PlumbNetworkPressureCommand>(app); break;
+                    case "Plumb_NetworkStats":      Run<StingTools.Commands.Plumbing.PlumbNetworkStatsCommand>(app); break;
+                    case "Plumb_PressureZone":      Run<StingTools.Commands.Plumbing.PlumbPressureZoneCommand>(app); break;
+                    case "Plumb_SlopeAutomation":   Run<StingTools.Commands.Plumbing.PlumbSlopeAutomationCommand>(app); break;
+                    case "Plumb_GenerateSpools":    Run<StingTools.Commands.Plumbing.PlumbGenerateSpoolsCommand>(app); break;
+                    case "Plumb_SpoolSchedule":     Run<StingTools.Commands.Plumbing.PlumbSpoolScheduleCommand>(app); break;
+                    case "Plumb_DrainageSchematic": Run<StingTools.Commands.Plumbing.PlumbDrainageSchematicCommand>(app); break;
+                    case "Plumb_TMVEngine":         Run<StingTools.Commands.Plumbing.PlumbTMVEngineCommand>(app); break;
+                    case "Plumb_LegionellaReport":  Run<StingTools.Commands.Plumbing.PlumbLegionellaReportCommand>(app); break;
+                    case "Plumb_WaterSafetyPlan":   Run<StingTools.Commands.Plumbing.PlumbWaterSafetyPlanCommand>(app); break;
+
                     default:
                         StingLog.Warn($"StingPlumbingCommandHandler: unknown tag '{tag}'");
                         break;
