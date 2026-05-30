@@ -51,6 +51,17 @@ services:
       # so the dashboard keeps showing a "published" entry pointing at
       # bytes that no longer exist → /api/.../models/.../file → 404.
       - storage:/app/storage
+      # DEV-ITERATION — bind-mount the dashboard JS + CSS so edits to
+      # wwwroot/js/*.js and wwwroot/css/*.css reflect in the browser
+      # after a hard-reload (Ctrl+Shift+R) WITHOUT rebuilding the image.
+      # Scoped to js/ and css/ on purpose — the top-level wwwroot also
+      # holds the built viewer/ dist (baked in by Dockerfile from
+      # Planscape/assets/viewer/) which we don't want to mask. If you
+      # need to iterate on the Next.js viewer too, run `npm run build`
+      # in Planscape/assets/viewer locally and the dist propagates via
+      # an analogous bind-mount, or just docker compose build --no-cache.
+      - ../src/Planscape.API/wwwroot/js:/app/wwwroot/js
+      - ../src/Planscape.API/wwwroot/css:/app/wwwroot/css
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
