@@ -73,9 +73,15 @@ Branch: `feature/phase3` (off `main`). Build clean `--no-incremental`, 0/0, no C
   `ORPHANS_AUDIT.md`, `DEDUPE_AUDIT.md`, `SILENT_BUTTONS_TODO.md`, `HEALTHCARE_WIRING.md`.
   Not creating it as part of a restyle; flagging per "don't auto-fix unrelated issues."
 
-## 3b — REORG (next, after you OK the 3a look)
-Audit-first: `REORG_PLAN.md` enumerating every top-level tab + its buttons (incl. the
-Group-5 additions) and a proposed new map, one-line justification per move. Committed +
-pushed with **no XAML moves**, then I pause for your approval before moving anything.
-Constraints honoured: no behaviour change, Scale sub-tab and Healthcare dispatcher untouched,
-dedicated-panel work stays out of the main panel.
+## 3b — REORG (PLAN pushed; no XAML moved yet)
+`REORG_PLAN.md` enumerates all 11 top-level tabs (section-group granularity, incl. the
+Group-5 additions) and proposes a 9-tab map. Pushed with **no XAML moves** — paused for
+approval. Constraints honoured: no behaviour change, Scale sub-tab + Healthcare dispatcher +
+dedicated panels untouched.
+
+### Flagged during the 3b audit (NOT acting on — out of reorg scope)
+- **Quick-access duplicates of dedicated-panel work inside the main panel:** BIM →
+  "Lightning Protection" (overlaps the LPS panel), TEMP → "SLD Generator" / "Symbols &
+  Devices" / "MEP Schedules", BIM → "MEP Schedules". These mirror work owned by the
+  dedicated panels. The reorg only regroups; *removing/deduping* them is a separate
+  "dedicated-panel dedupe" decision for a later round (see DEDUPE_AUDIT.md deferred list).
