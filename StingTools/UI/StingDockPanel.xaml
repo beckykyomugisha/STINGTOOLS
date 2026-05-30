@@ -2200,10 +2200,10 @@
                                 <TextBlock x:Name="txtCreateScope" Text="Scope: View  |  Overwrite: No" FontSize="10" Foreground="#888"/>
                                 <TextBlock Text="Scope" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,4,0,1"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                    <RadioButton x:Name="rbCtScopeView"      Content="View"      GroupName="CtScope" Tag="ScopeView"      Checked="OnRadioRouteChecked" IsChecked="True" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
-                                    <RadioButton x:Name="rbCtScopeSelection" Content="Selection" GroupName="CtScope" Tag="ScopeSelection" Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
-                                    <RadioButton x:Name="rbCtScopeProject"   Content="Project"   GroupName="CtScope" Tag="ScopeProject"   Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Apply" Tag="CreateTags_ScopeApply" Click="Cmd_Click" ToolTip="Apply selected scope (View / Selection / Project) to subsequent CREATE TAGS operations" MinWidth="50"/>
+                                    <RadioButton x:Name="rbCtScopeView"    Content="View"    GroupName="CtScope" Tag="SetScopeView"    Checked="OnRadioRouteChecked" IsChecked="True" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="rbCtScopeProject" Content="Project" GroupName="CtScope" Tag="SetScopeProject" Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Apply"  Tag="CreateTags_ScopeApply" Click="Cmd_Click" ToolTip="Apply selected scope (View / Project) to subsequent CREATE TAGS operations" MinWidth="50"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Toggle" Tag="ScopeView" Click="Cmd_Click" ToolTip="Legacy scope toggle (flips between View / Project)" MinWidth="50" Margin="4,0,0,0"/>
                                 </StackPanel>
                                 <TextBlock Text="Overwrite existing tags" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,2,0,1"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,2">

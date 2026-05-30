@@ -410,13 +410,13 @@ namespace StingTools.UI
             {
                 case "CreateTags_ScopeApply":
                 {
-                    // Reads the ISO HEADER Scope radios. Dispatches the
-                    // matching concrete scope tag.
+                    // Reads the ISO HEADER Scope radios. SelectionScopeHelper
+                    // is a 2-state boolean (View / Project) — no third
+                    // "Selection" mode exists in the handler.
                     string tag = null;
-                    if (rbCtScopeView != null && rbCtScopeView.IsChecked == true) tag = (rbCtScopeView.Tag as string) ?? "ScopeView";
-                    else if (rbCtScopeSelection != null && rbCtScopeSelection.IsChecked == true) tag = (rbCtScopeSelection.Tag as string) ?? "ScopeSelection";
-                    else if (rbCtScopeProject != null && rbCtScopeProject.IsChecked == true) tag = (rbCtScopeProject.Tag as string) ?? "ScopeProject";
-                    if (string.IsNullOrEmpty(tag)) tag = "ScopeView";
+                    if (rbCtScopeView != null && rbCtScopeView.IsChecked == true) tag = (rbCtScopeView.Tag as string) ?? "SetScopeView";
+                    else if (rbCtScopeProject != null && rbCtScopeProject.IsChecked == true) tag = (rbCtScopeProject.Tag as string) ?? "SetScopeProject";
+                    if (string.IsNullOrEmpty(tag)) tag = "SetScopeView";
                     DispatchCommand(tag);
                     return true;
                 }
