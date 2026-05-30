@@ -1,20 +1,31 @@
 <!--
   StingButtonStyles.xaml — shared button / section styling for the STING dock panel.
 
-  ONE place to tune the look. Adjust the named brushes/sizes below and rebuild;
-  every button that inherits these styles updates. Inspired by the dedicated
-  STING panels (HVAC / Electrical / Plumbing / LPS) — restrained palette, no
-  gradients, hover = subtle brightness lift (a translucent white overlay), never
-  a colour swap.
+  Phase A restyle:
+    - DynamicResource throughout → ThemeManager.CycleTheme() actually repaints
+    - Outline aesthetic for Primary / Danger (corporate-flat; brand colour as
+      border + text, not fill — inspired by the LPS panel)
+    - Base buttons follow theme ButtonBg / ButtonFg / BorderColor so dark/light
+      themes work without per-button overrides
+    - LPS-style density: H 22, FontSize 10, MinWidth 70, Padding 4,2
 
-  BRUSH ROLES (tune these):
-    ActionBtnBrush     default action buttons (neutral, theme-light grey)
-    PrimaryBtnBrush    key actions — Run / Apply / Build / Issue (mild accent)
-    MutedBtnBrush      audits / diagnostics (subdued)
-    DangerBtnBrush     delete / reset (red)
-    SectionHeaderBrush function-group header text accent
-    BtnFgBrush         default (dark) button text
-    BtnHoverBrush      translucent overlay applied on hover (brightness lift)
+  ONE place to tune the look. The brand brushes (teal / red / amber) are local
+  on purpose — corporate identity does NOT cycle with theme. Theme cycling
+  only affects the neutral surface (background, foreground, borders, panel
+  chrome).
+
+  THEME-DRIVEN BRUSH KEYS (from ThemeManager.cs):
+    ButtonBg     base button background (theme-aware grey)
+    ButtonFg     base button text (theme-aware dark)
+    BorderColor  base button + divider border
+    AccentBrush  section header text accent
+    SecondaryBg  muted button background (audits / diagnostics)
+
+  LOCAL BRAND BRUSHES (do NOT cycle):
+    PrimaryBtnBrush    teal — Run / Apply / Build / Issue
+    DangerBtnBrush     red  — delete / reset
+    BtnHoverBrush      translucent overlay for hover (brightness lift)
+    BtnPressBrush      translucent overlay for press feedback
 
   SIZES (tune these):
     BtnHeight  BtnMinWidth  BtnFontSize  SectionHeaderHeight
@@ -23,48 +34,45 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
-    <!-- ═══ Named brushes (single tuning point) ═══ -->
-    <SolidColorBrush x:Key="ActionBtnBrush"     Color="#F0F0F0"/>
+    <!-- ═══ Local brand brushes (do NOT cycle with theme) ═══ -->
     <SolidColorBrush x:Key="PrimaryBtnBrush"    Color="#00897B"/>
-    <SolidColorBrush x:Key="MutedBtnBrush"      Color="#DDE3E6"/>
     <SolidColorBrush x:Key="DangerBtnBrush"     Color="#C62828"/>
-    <SolidColorBrush x:Key="SectionHeaderBrush" Color="#E8912D"/>
-    <SolidColorBrush x:Key="BtnFgBrush"         Color="#333333"/>
-    <SolidColorBrush x:Key="BtnBorderBrush"     Color="#CFD8DC"/>
-    <!-- translucent white → lifts brightness over ANY base colour on hover -->
-    <SolidColorBrush x:Key="BtnHoverBrush"      Color="#26FFFFFF"/>
-    <!-- translucent black → subtle press feedback -->
+    <!-- translucent overlays — brightness lift on hover, dim on press -->
+    <SolidColorBrush x:Key="BtnHoverBrush"      Color="#22FFFFFF"/>
     <SolidColorBrush x:Key="BtnPressBrush"      Color="#1A000000"/>
+    <!-- subtle brand tints used by Primary/Danger hover (outline buttons need their own hover) -->
+    <SolidColorBrush x:Key="PrimaryTintBrush"   Color="#1400897B"/>
+    <SolidColorBrush x:Key="DangerTintBrush"    Color="#14C62828"/>
 
     <!-- ═══ Named sizes (single tuning point) ═══ -->
-    <sys:Double x:Key="BtnHeight">24</sys:Double>
-    <sys:Double x:Key="BtnMinWidth">64</sys:Double>
+    <sys:Double x:Key="BtnHeight">22</sys:Double>
+    <sys:Double x:Key="BtnMinWidth">70</sys:Double>
     <sys:Double x:Key="BtnFontSize">10</sys:Double>
-    <sys:Double x:Key="SectionHeaderHeight">18</sys:Double>
+    <sys:Double x:Key="SectionHeaderHeight">16</sys:Double>
 
-    <!-- ═══ StingButton — default look (rounded, theme-neutral, hover lift) ═══ -->
+    <!-- ═══ StingButton — default look (theme-driven, hover lift) ═══ -->
     <Style x:Key="StingButton" TargetType="Button">
-        <Setter Property="Background"   Value="{StaticResource ActionBtnBrush}"/>
-        <Setter Property="Foreground"   Value="{StaticResource BtnFgBrush}"/>
-        <Setter Property="BorderBrush"  Value="{StaticResource BtnBorderBrush}"/>
+        <Setter Property="Background"   Value="{DynamicResource ButtonBg}"/>
+        <Setter Property="Foreground"   Value="{DynamicResource ButtonFg}"/>
+        <Setter Property="BorderBrush"  Value="{DynamicResource BorderColor}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="MinWidth"     Value="{StaticResource BtnMinWidth}"/>
-        <Setter Property="Height"       Value="{StaticResource BtnHeight}"/>
-        <Setter Property="FontSize"     Value="{StaticResource BtnFontSize}"/>
+        <Setter Property="MinWidth"     Value="{DynamicResource BtnMinWidth}"/>
+        <Setter Property="Height"       Value="{DynamicResource BtnHeight}"/>
+        <Setter Property="FontSize"     Value="{DynamicResource BtnFontSize}"/>
         <Setter Property="Margin"       Value="2,1"/>
-        <Setter Property="Padding"      Value="6,2"/>
+        <Setter Property="Padding"      Value="4,2"/>
         <Setter Property="Cursor"       Value="Hand"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Grid>
-                        <Border x:Name="bd" CornerRadius="4"
+                        <Border x:Name="bd" CornerRadius="3"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"/>
                         <!-- hover/press overlays sit on top so the base colour is unchanged -->
-                        <Border x:Name="overlay" CornerRadius="4" Background="{StaticResource BtnHoverBrush}"
+                        <Border x:Name="overlay" CornerRadius="3" Background="{DynamicResource BtnHoverBrush}"
                                 Visibility="Collapsed"/>
                         <ContentPresenter Margin="{TemplateBinding Padding}"
                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -75,7 +83,7 @@
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="overlay" Property="Visibility" Value="Visible"/>
-                            <Setter TargetName="overlay" Property="Background" Value="{StaticResource BtnPressBrush}"/>
+                            <Setter TargetName="overlay" Property="Background" Value="{DynamicResource BtnPressBrush}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
@@ -89,41 +97,101 @@
     <!-- implicit default: every <Button/> with no explicit Style gets StingButton -->
     <Style TargetType="Button" BasedOn="{StaticResource StingButton}"/>
 
-    <!-- ═══ StingPrimaryButton — key actions (Run / Apply / Build / Issue) ═══ -->
+    <!-- ═══ StingPrimaryButton — outline brand (Run / Apply / Build / Issue) ═══ -->
+    <!-- Transparent fill, teal border + text, hover = subtle teal tint -->
     <Style x:Key="StingPrimaryButton" TargetType="Button" BasedOn="{StaticResource StingButton}">
-        <Setter Property="Background" Value="{StaticResource PrimaryBtnBrush}"/>
-        <Setter Property="Foreground" Value="White"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBtnBrush}"/>
+        <Setter Property="Background"  Value="Transparent"/>
+        <Setter Property="Foreground"  Value="{DynamicResource PrimaryBtnBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBtnBrush}"/>
+        <Setter Property="BorderThickness" Value="1.4"/>
+        <Setter Property="FontWeight"  Value="SemiBold"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="bd" CornerRadius="3"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"/>
+                        <Border x:Name="overlay" CornerRadius="3" Background="{DynamicResource PrimaryTintBrush}"
+                                Visibility="Collapsed"/>
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="overlay" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="overlay" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="overlay" Property="Background" Value="{DynamicResource BtnPressBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
-    <!-- ═══ StingMutedButton — audits / diagnostics ═══ -->
+    <!-- ═══ StingMutedButton — audits / diagnostics (subdued surface) ═══ -->
     <Style x:Key="StingMutedButton" TargetType="Button" BasedOn="{StaticResource StingButton}">
-        <Setter Property="Background" Value="{StaticResource MutedBtnBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource BtnFgBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
     </Style>
 
-    <!-- ═══ StingDangerButton — delete / reset ═══ -->
+    <!-- ═══ StingDangerButton — outline red (delete / reset) ═══ -->
     <Style x:Key="StingDangerButton" TargetType="Button" BasedOn="{StaticResource StingButton}">
-        <Setter Property="Background" Value="{StaticResource DangerBtnBrush}"/>
-        <Setter Property="Foreground" Value="White"/>
-        <Setter Property="BorderBrush" Value="{StaticResource DangerBtnBrush}"/>
+        <Setter Property="Background"  Value="Transparent"/>
+        <Setter Property="Foreground"  Value="{DynamicResource DangerBtnBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DangerBtnBrush}"/>
+        <Setter Property="BorderThickness" Value="1.4"/>
+        <Setter Property="FontWeight"  Value="SemiBold"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="bd" CornerRadius="3"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"/>
+                        <Border x:Name="overlay" CornerRadius="3" Background="{DynamicResource DangerTintBrush}"
+                                Visibility="Collapsed"/>
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="overlay" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="overlay" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="overlay" Property="Background" Value="{DynamicResource BtnPressBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
-    <!-- ═══ StingSectionHeader — function-group label ═══ -->
+    <!-- ═══ StingSectionHeader — function-group label (text-only, accent colour) ═══ -->
     <Style x:Key="StingSectionHeader" TargetType="TextBlock">
         <Setter Property="FontWeight" Value="Bold"/>
-        <Setter Property="FontSize" Value="10.5"/>
-        <Setter Property="Foreground" Value="{StaticResource SectionHeaderBrush}"/>
-        <Setter Property="Margin" Value="2,7,0,3"/>
-        <Setter Property="MinHeight" Value="{StaticResource SectionHeaderHeight}"/>
+        <Setter Property="FontSize"   Value="10"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Margin"     Value="2,6,0,2"/>
+        <Setter Property="MinHeight"  Value="{DynamicResource SectionHeaderHeight}"/>
     </Style>
 
     <!-- ═══ StingDivider — thin separator between groups ═══ -->
     <Style x:Key="StingDivider" TargetType="Border">
-        <Setter Property="Height" Value="1"/>
-        <Setter Property="Background" Value="{StaticResource BtnBorderBrush}"/>
-        <Setter Property="Margin" Value="0,5"/>
+        <Setter Property="Height"     Value="1"/>
+        <Setter Property="Background" Value="{DynamicResource BorderColor}"/>
+        <Setter Property="Margin"     Value="0,4"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
 

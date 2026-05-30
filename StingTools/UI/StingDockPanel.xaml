@@ -46,11 +46,14 @@
             <Setter Property="Height" Value="26"/>
             <Setter Property="Margin" Value="1"/>
         </Style>
+        <!-- Phase A: emphasis buttons converted to outline (transparent fill,
+             coloured border + text). Hover gets a faint tint of the brand colour. -->
         <Style x:Key="OrangeBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
-            <Setter Property="Background" Value="#FF9800"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#E65100"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderBrush" Value="#F57C00"/>
+            <Setter Property="BorderThickness" Value="1.2"/>
         </Style>
         <!-- RedBtn = delete / reset → shared Danger -->
         <Style x:Key="RedBtn" TargetType="Button" BasedOn="{StaticResource StingDangerButton}">
@@ -59,22 +62,25 @@
             <Setter Property="Margin" Value="1"/>
         </Style>
         <Style x:Key="BlueBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
-            <Setter Property="Background" Value="#2196F3"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#1565C0"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderBrush" Value="#1976D2"/>
+            <Setter Property="BorderThickness" Value="1.2"/>
         </Style>
         <Style x:Key="PurpleBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
-            <Setter Property="Background" Value="#9C27B0"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#6A1B9A"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderBrush" Value="#7B1FA2"/>
+            <Setter Property="BorderThickness" Value="1.2"/>
         </Style>
         <Style x:Key="TealBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
-            <Setter Property="Background" Value="#009688"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#00796B"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderBrush" Value="#00796B"/>
+            <Setter Property="BorderThickness" Value="1.2"/>
         </Style>
         <Style x:Key="SectionLabel" TargetType="TextBlock" BasedOn="{StaticResource StingSectionHeader}">
             <Setter Property="Margin" Value="0,6,0,2"/>
