@@ -146,15 +146,21 @@
     let conn = null;
     let joinedProject = null;
     // Keep in lockstep with what NotificationHub emits to project groups.
+    // Audited against Planscape.API/Controllers/ SendAsync sites — see
+    // docs/PHASE_Z_AUDITS.md §Z-7. Server raises 17 distinct events; we
+    // subscribe to the 13 that have a UI surface in this dashboard. The
+    // 4 unsubscribed (LpsRecordPushed, SitePhoto*, PhotoAlbumChanged,
+    // Deliverable*) target views not present in the SPA today — wire
+    // their LIVE_VIEW_EVENTS entries the day those views are added.
     const KNOWN_EVENTS = [
       "WarningsReported",
-      "IssueCreated", "IssueUpdated",
-      "TransmittalUpdated", "ComplianceChanged", "ComplianceUpdated",
-      "DocumentUpdated",
+      "IssueCreated", "IssueUpdated", "CommentAdded",
+      "TransmittalUpdated",
+      "ComplianceChanged", "ComplianceUpdated", "TagsUpdated",
+      "DocumentUpdated", "ApprovalDecided",
       "MeetingCreated", "MeetingUpdated",
       "WorkflowRunCompleted",
       "ModelUpdated",
-      "NotificationCreated",
     ];
 
     function emit(event, payload) {
@@ -248,13 +254,13 @@
     return String(payload.projectId).toLowerCase() === String(state.projectId).toLowerCase();
   }
   const LIVE_VIEW_EVENTS = {
-    issues:       ["IssueCreated", "IssueUpdated"],
-    documents:    ["DocumentUpdated"],
+    issues:       ["IssueCreated", "IssueUpdated", "CommentAdded"],
+    documents:    ["DocumentUpdated", "ApprovalDecided"],
     transmittals: ["TransmittalUpdated"],
     meetings:     ["MeetingCreated", "MeetingUpdated"],
     workflows:    ["WorkflowRunCompleted"],
     models:       ["ModelUpdated"],
-    overview:     ["ComplianceChanged", "ComplianceUpdated"],
+    overview:     ["ComplianceChanged", "ComplianceUpdated", "TagsUpdated"],
   };
   Object.keys(LIVE_VIEW_EVENTS).forEach(view => {
     LIVE_VIEW_EVENTS[view].forEach(ev => Hub.on(ev, payload => {
