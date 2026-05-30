@@ -38,10 +38,20 @@ namespace StingTools.UI
         public static event Action<string> ThemeChanged;
 
         /// <summary>
-        /// Reference to the host Page/FrameworkElement for direct resource setting.
-        /// Set via RegisterTarget() from StingDockPanel constructor.
+        /// Reference list of host Page/FrameworkElements that should receive
+        /// theme resources. Phase A.6: changed from single static target to a
+        /// multi-target registry — 8 panels (main dock, LPS, HVAC, Electrical,
+        /// Plumbing, Placement Centre, and two dialogs) all call
+        /// <see cref="RegisterTarget"/> in their constructors. The previous
+        /// single-slot design let whichever panel constructed LAST clobber every
+        /// other panel's registration, so theme cycling only repainted the most
+        /// recently opened panel. WeakReferences let short-lived dialogs be
+        /// garbage-collected without leaking; <see cref="ApplyToAllTargets"/>
+        /// prunes dead refs on each apply.
         /// </summary>
-        private static FrameworkElement _targetElement;
+        private static readonly List<WeakReference<FrameworkElement>> _targets =
+            new List<WeakReference<FrameworkElement>>();
+        private static readonly object _targetsLock = new object();
 
         private static readonly Dictionary<string, Dictionary<string, string>> Themes =
             new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
@@ -178,12 +188,27 @@ namespace StingTools.UI
             };
 
         /// <summary>
-        /// Register the panel element that will receive theme resources.
-        /// Call once from the panel constructor after InitializeComponent().
+        /// Register a panel element that will receive theme resources. Safe to
+        /// call from every panel/dialog constructor — each registered element
+        /// gets its own brush set on every <see cref="ApplyTheme"/>, so all
+        /// open panels repaint when the user cycles the theme. Re-registering
+        /// the same element is a no-op.
         /// </summary>
         public static void RegisterTarget(FrameworkElement element)
         {
-            _targetElement = element;
+            if (element == null) return;
+            lock (_targetsLock)
+            {
+                // Dedupe by identity + prune dead refs in the same pass.
+                for (int i = _targets.Count - 1; i >= 0; i--)
+                {
+                    if (!_targets[i].TryGetTarget(out var existing) || existing == null)
+                        _targets.RemoveAt(i);
+                    else if (ReferenceEquals(existing, element))
+                        return; // already registered
+                }
+                _targets.Add(new WeakReference<FrameworkElement>(element));
+            }
         }
 
         /// <summary>Alias for RegisterTarget for backwards compatibility.</summary>
@@ -219,10 +244,13 @@ namespace StingTools.UI
                         theme[ov.Key] = ov.Value;
                 }
 
-                // Set resources on the host element FIRST (direct, always works in Revit)
-                ApplyToTarget(theme, _targetElement?.Resources);
+                // Phase A.6: write to EVERY registered target — single-target
+                // singleton clobber was why theme cycling only repainted whichever
+                // panel constructed last.
+                ApplyToAllTargets(theme);
 
                 // Also set on Application.Current for any child windows/dialogs
+                // that don't register a target.
                 ApplyToTarget(theme, Application.Current?.Resources);
 
                 CurrentTheme = themeName;
@@ -249,6 +277,30 @@ namespace StingTools.UI
             }
         }
 
+
+        /// <summary>
+        /// Walk every registered target, write the theme brushes into its
+        /// <see cref="FrameworkElement.Resources"/>, and prune dead WeakReferences
+        /// in the same pass so short-lived dialogs don't leak.
+        /// </summary>
+        private static void ApplyToAllTargets(Dictionary<string, string> theme)
+        {
+            List<FrameworkElement> live;
+            lock (_targetsLock)
+            {
+                live = new List<FrameworkElement>(_targets.Count);
+                for (int i = _targets.Count - 1; i >= 0; i--)
+                {
+                    if (_targets[i].TryGetTarget(out var target) && target != null)
+                        live.Add(target);
+                    else
+                        _targets.RemoveAt(i);
+                }
+            }
+            // Apply outside the lock — Resources writes can fire WPF callbacks.
+            foreach (var target in live)
+                ApplyToTarget(theme, target.Resources);
+        }
 
         private static void ApplyToTarget(Dictionary<string, string> theme, ResourceDictionary resources)
         {
@@ -335,10 +387,30 @@ namespace StingTools.UI
         private static readonly Dictionary<string, string> _corporateOverrides =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>H-02: Clear static reference to prevent memory leak on shutdown.</summary>
+        /// <summary>H-02: Clear all target references to prevent memory leaks
+        /// on shutdown. Safe to call multiple times.</summary>
         public static void ClearTarget()
         {
-            _targetElement = null;
+            lock (_targetsLock) { _targets.Clear(); }
+        }
+
+        /// <summary>
+        /// Remove a single element from the target registry. Call this from
+        /// short-lived dialogs in their <see cref="System.Windows.Window.Closed"/>
+        /// handler so they stop receiving theme updates after they're gone.
+        /// </summary>
+        public static void UnregisterTarget(FrameworkElement element)
+        {
+            if (element == null) return;
+            lock (_targetsLock)
+            {
+                for (int i = _targets.Count - 1; i >= 0; i--)
+                {
+                    if (!_targets[i].TryGetTarget(out var existing) || existing == null
+                        || ReferenceEquals(existing, element))
+                        _targets.RemoveAt(i);
+                }
+            }
         }
 
         /// <summary>Get all available theme names.</summary>
