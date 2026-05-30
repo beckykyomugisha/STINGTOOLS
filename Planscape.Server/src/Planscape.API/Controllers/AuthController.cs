@@ -67,16 +67,19 @@ public class AuthController : ControllerBase
     private readonly IConfiguration _config;
     private readonly IPermissionRevocationStore _revocations;
     private readonly IConnectionMultiplexer _redis;
+    private readonly ILogger<AuthController> _logger;
 
     public AuthController(PlanscapeDbContext db,
                           IConfiguration config,
                           IPermissionRevocationStore revocations,
-                          IConnectionMultiplexer redis)
+                          IConnectionMultiplexer redis,
+                          ILogger<AuthController> logger)
     {
         _db = db;
         _config = config;
         _revocations = revocations;
         _redis = redis;
+        _logger = logger;
     }
 
     // ── Login ──────────────────────────────────────────────────────────────────
@@ -98,16 +101,34 @@ public class AuthController : ControllerBase
         // the IP-based "auth" rate limiter so an attacker who rotates IPs
         // (residential proxy / Tor) still hits a wall once they've burned
         // 5 attempts on a single account.
+        // P0-3 — fail OPEN on Redis outage. Failing CLOSED here would
+        // create a self-DoS: a Redis blip would 429 every login attempt
+        // platform-wide. SEC-EA-09 protection degrades during the outage;
+        // the IP-based "auth" RateLimiter (Program.cs) still caps abuse,
+        // and bcrypt verify still throttles brute force naturally.
         if (!string.IsNullOrEmpty(emailKey))
         {
-            var current = (long?)await redisDb.StringGetAsync(lockKey) ?? 0;
-            if (current >= MaxFailedLoginsPerWindow)
+            try
             {
-                Response.Headers["Retry-After"] = ((int)FailedLoginWindow.TotalSeconds).ToString();
-                return StatusCode(StatusCodes.Status429TooManyRequests, new
+                var current = (long?)await redisDb.StringGetAsync(lockKey) ?? 0;
+                if (current >= MaxFailedLoginsPerWindow)
                 {
-                    error = "Too many failed login attempts. Please wait 5 minutes before trying again."
-                });
+                    Response.Headers["Retry-After"] = ((int)FailedLoginWindow.TotalSeconds).ToString();
+                    return StatusCode(StatusCodes.Status429TooManyRequests, new
+                    {
+                        error = "Too many failed login attempts. Please wait 5 minutes before trying again."
+                    });
+                }
+            }
+            catch (RedisException ex)
+            {
+                _logger.LogWarning(ex,
+                    "Redis unavailable during login lockout pre-check; proceeding (fail-open). SEC-EA-09 protection degraded.");
+            }
+            catch (Exception ex) when (ex is TimeoutException or System.Net.Sockets.SocketException)
+            {
+                _logger.LogWarning(ex,
+                    "Redis transport failure during login lockout pre-check; proceeding (fail-open).");
             }
         }
 
@@ -120,17 +141,38 @@ public class AuthController : ControllerBase
         {
             // SEC-EA-09 — increment failure counter with sliding 5-min
             // expiry. Don't reveal whether the email exists.
+            // P0-3 — Redis write failure must not change the response; the
+            // 401 path is the security-critical part. Log + continue.
             if (!string.IsNullOrEmpty(emailKey))
             {
-                var n = await redisDb.StringIncrementAsync(lockKey);
-                if (n == 1) await redisDb.KeyExpireAsync(lockKey, FailedLoginWindow);
+                try
+                {
+                    var n = await redisDb.StringIncrementAsync(lockKey);
+                    if (n == 1) await redisDb.KeyExpireAsync(lockKey, FailedLoginWindow);
+                }
+                catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+                {
+                    _logger.LogWarning(ex,
+                        "Redis write failed while recording failed-login counter; SEC-EA-09 counter not updated.");
+                }
             }
             return Unauthorized(new { message = "Invalid email or password" });
         }
 
         // Successful login — clear lockout counter for this email.
+        // P0-3 — non-critical Redis op; log + continue on failure.
         if (!string.IsNullOrEmpty(emailKey))
-            await redisDb.KeyDeleteAsync(lockKey);
+        {
+            try
+            {
+                await redisDb.KeyDeleteAsync(lockKey);
+            }
+            catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+            {
+                _logger.LogWarning(ex,
+                    "Redis unavailable while clearing failed-login counter after successful login.");
+            }
+        }
 
         var token = GenerateJwt(user);
         var refreshToken = Guid.NewGuid().ToString("N");
@@ -147,10 +189,23 @@ public class AuthController : ControllerBase
 
         // SEC-EA-08 — seed the refresh-token last-activity clock. Sliding
         // inactivity expiry (60 min) is enforced inside RefreshToken.
-        await redisDb.StringSetAsync(
-            RefreshActivityKey(refreshToken),
-            DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            TimeSpan.FromDays(7));
+        // P0-3 — must not fail the login if Redis is down. The refresh
+        // path below also fails-open when the activity key is missing
+        // (the absent-key branch is treated as "no inactivity recorded
+        // yet"), so the user can still refresh; only the inactivity
+        // window protection degrades during the outage.
+        try
+        {
+            await redisDb.StringSetAsync(
+                RefreshActivityKey(refreshToken),
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                TimeSpan.FromDays(7));
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+        {
+            _logger.LogWarning(ex,
+                "Redis unavailable while seeding refresh-token activity key; SEC-EA-08 inactivity expiry degraded for this session.");
+        }
 
         return Ok(new AuthLoginResponse
         {
@@ -198,8 +253,22 @@ public class AuthController : ControllerBase
         var ttl = jwt.ValidTo - DateTime.UtcNow;
         if (ttl <= TimeSpan.Zero) ttl = TimeSpan.FromMinutes(1); // already-expired tokens: keep a short marker so a clock-skew replay still fails
 
+        // P0-3 — JTI blacklist write must not fail the logout. If Redis
+        // is down, the DB-side refresh-token wipe below still kills the
+        // session; only the bearer-token-still-in-pocket replay window
+        // (until AccessTokenLifetime expires, 30 min) is unprotected.
+        // Matches the existing fail-open in JwtBearer.OnTokenValidated.
         var redisDb = _redis.GetDatabase();
-        await redisDb.StringSetAsync(revocationKey, "1", ttl);
+        try
+        {
+            await redisDb.StringSetAsync(revocationKey, "1", ttl);
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+        {
+            _logger.LogWarning(ex,
+                "Redis unavailable during logout; JTI revocation marker not stored. SEC-EA-02 protection degraded until token expires (max {AccessLifetimeMin} min).",
+                AccessTokenLifetime.TotalMinutes);
+        }
 
         // Also clear the user's refresh token so refresh paths can't
         // continue the session.
@@ -247,9 +316,26 @@ public class AuthController : ControllerBase
         // been silent for more than RefreshInactivityWindow, force a
         // fresh login. The absolute 7-day cap from SEC-EA-03 still
         // applies on top.
+        // P0-3 — fail OPEN if Redis is unavailable. The absolute 7-day
+        // expiry (RefreshTokenExpiresAt, DB-backed) still caps the
+        // session; only the sliding inactivity window degrades. Failing
+        // closed here would prevent every user from refreshing during a
+        // Redis blip — a self-DoS.
         var redisDb = _redis.GetDatabase();
         var activityKey = RefreshActivityKey(req.RefreshToken);
-        var lastActiveRaw = await redisDb.StringGetAsync(activityKey);
+        RedisValue lastActiveRaw = RedisValue.Null;
+        var redisReachable = true;
+        try
+        {
+            lastActiveRaw = await redisDb.StringGetAsync(activityKey);
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+        {
+            redisReachable = false;
+            _logger.LogWarning(ex,
+                "Redis unavailable during refresh-token inactivity check; skipping SEC-EA-08 sliding-window gate (fail-open).");
+        }
+
         if (lastActiveRaw.HasValue
             && long.TryParse(lastActiveRaw.ToString(), out var lastActiveUnix))
         {
@@ -261,7 +347,11 @@ public class AuthController : ControllerBase
                 user.RefreshToken = null;
                 user.RefreshTokenExpiresAt = null;
                 await _db.SaveChangesAsync();
-                await redisDb.KeyDeleteAsync(activityKey);
+                try { await redisDb.KeyDeleteAsync(activityKey); }
+                catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+                {
+                    _logger.LogWarning(ex, "Redis unavailable while deleting expired refresh-token activity key.");
+                }
                 return Unauthorized(new
                 {
                     error = "Session expired due to inactivity. Please log in again."
@@ -280,11 +370,23 @@ public class AuthController : ControllerBase
 
         // SEC-EA-08 — rotate the activity-tracking key alongside the
         // refresh token rotation (catch-and-burn for token theft).
-        await redisDb.KeyDeleteAsync(activityKey);
-        await redisDb.StringSetAsync(
-            RefreshActivityKey(newRefreshToken),
-            DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            TimeSpan.FromDays(7));
+        // P0-3 — Redis write failure must not fail the refresh response;
+        // the DB-backed RefreshTokenExpiresAt + IsActive still cap the
+        // session. Log + continue.
+        try
+        {
+            await redisDb.KeyDeleteAsync(activityKey);
+            await redisDb.StringSetAsync(
+                RefreshActivityKey(newRefreshToken),
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                TimeSpan.FromDays(7));
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+        {
+            _logger.LogWarning(ex,
+                "Redis unavailable while rotating refresh-token activity key; SEC-EA-08 sliding-window degraded for this rotation. redisReachable={Reachable}",
+                redisReachable);
+        }
 
         return Ok(new
         {
