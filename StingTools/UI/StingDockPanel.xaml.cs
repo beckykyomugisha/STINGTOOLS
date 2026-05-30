@@ -500,6 +500,105 @@ namespace StingTools.UI
             }
         }
 
+        // Phase B Round 4 (TAGGING) suite-runner helper. Parallel to the
+        // earlier runners. Resolves a TAGGING-tab runner tag (set on the
+        // primary Apply button of a radio ring or the Run-selected button
+        // of a checkbox grid) to one or more concrete dispatch tags read
+        // from sibling controls. Every concrete tag dispatched here was
+        // already wired in StingCommandHandler before Round 4 (they were
+        // the underlying buttons we replaced with radios / checkboxes).
+        private bool RunTaggingRunner(string runnerTag)
+        {
+            if (string.IsNullOrEmpty(runnerTag)) return false;
+
+            switch (runnerTag)
+            {
+                case "Tagging_OrientApply":
+                {
+                    string tag = null;
+                    if (rbOrientToggle != null && rbOrientToggle.IsChecked == true) tag = (rbOrientToggle.Tag as string) ?? "ToggleTagOrientation";
+                    else if (rbOrientAllH != null && rbOrientAllH.IsChecked == true) tag = (rbOrientAllH.Tag as string) ?? "AllH";
+                    else if (rbOrientAllV != null && rbOrientAllV.IsChecked == true) tag = (rbOrientAllV.Tag as string) ?? "AllV";
+                    if (string.IsNullOrEmpty(tag)) tag = "ToggleTagOrientation";
+                    DispatchCommand(tag);
+                    return true;
+                }
+                case "Tagging_TextAlignApply":
+                {
+                    string tag = null;
+                    if (rbTextAlignLeft != null && rbTextAlignLeft.IsChecked == true) tag = (rbTextAlignLeft.Tag as string) ?? "AlignTextLeft";
+                    else if (rbTextAlignCenter != null && rbTextAlignCenter.IsChecked == true) tag = (rbTextAlignCenter.Tag as string) ?? "AlignTextCenter";
+                    else if (rbTextAlignRight != null && rbTextAlignRight.IsChecked == true) tag = (rbTextAlignRight.Tag as string) ?? "AlignTextRight";
+                    if (string.IsNullOrEmpty(tag)) tag = "AlignTextLeft";
+                    DispatchCommand(tag);
+                    return true;
+                }
+                case "Tagging_AlignApply":
+                {
+                    string tag = null;
+                    if (rbAlignLeft != null && rbAlignLeft.IsChecked == true) tag = (rbAlignLeft.Tag as string) ?? "AlignLeft";
+                    else if (rbAlignRight != null && rbAlignRight.IsChecked == true) tag = (rbAlignRight.Tag as string) ?? "AlignRight";
+                    else if (rbAlignTop != null && rbAlignTop.IsChecked == true) tag = (rbAlignTop.Tag as string) ?? "AlignTop";
+                    else if (rbAlignBottom != null && rbAlignBottom.IsChecked == true) tag = (rbAlignBottom.Tag as string) ?? "AlignBottom";
+                    else if (rbAlignCenterH != null && rbAlignCenterH.IsChecked == true) tag = (rbAlignCenterH.Tag as string) ?? "AlignCenterH";
+                    else if (rbAlignCenterV != null && rbAlignCenterV.IsChecked == true) tag = (rbAlignCenterV.Tag as string) ?? "AlignCenterV";
+                    if (string.IsNullOrEmpty(tag)) tag = "AlignLeft";
+                    DispatchCommand(tag);
+                    return true;
+                }
+                case "Tagging_PosApply":
+                {
+                    string tag = null;
+                    if (rbTagPos1 != null && rbTagPos1.IsChecked == true) tag = (rbTagPos1.Tag as string) ?? "SwitchTagPos1";
+                    else if (rbTagPos2 != null && rbTagPos2.IsChecked == true) tag = (rbTagPos2.Tag as string) ?? "SwitchTagPos2";
+                    else if (rbTagPos3 != null && rbTagPos3.IsChecked == true) tag = (rbTagPos3.Tag as string) ?? "SwitchTagPos3";
+                    else if (rbTagPos4 != null && rbTagPos4.IsChecked == true) tag = (rbTagPos4.Tag as string) ?? "SwitchTagPos4";
+                    if (string.IsNullOrEmpty(tag)) tag = "SwitchTagPos1";
+                    DispatchCommand(tag);
+                    return true;
+                }
+                case "Tagging_RoomTagApply":
+                {
+                    // Dispatch anchor + leader in sequence so the user picks
+                    // both with one button press.
+                    string anchorTag = null;
+                    if (rbRoomTagCentroid != null && rbRoomTagCentroid.IsChecked == true) anchorTag = (rbRoomTagCentroid.Tag as string) ?? "RoomTagCentroid";
+                    else if (rbRoomTagTopLeft != null && rbRoomTagTopLeft.IsChecked == true) anchorTag = (rbRoomTagTopLeft.Tag as string) ?? "RoomTagTopLeft";
+                    else if (rbRoomTagTopCentre != null && rbRoomTagTopCentre.IsChecked == true) anchorTag = (rbRoomTagTopCentre.Tag as string) ?? "RoomTagTopCentre";
+                    if (string.IsNullOrEmpty(anchorTag)) anchorTag = "RoomTagCentroid";
+                    DispatchCommand(anchorTag);
+
+                    string leaderTag = null;
+                    if (rbRoomLeaderLock != null && rbRoomLeaderLock.IsChecked == true) leaderTag = (rbRoomLeaderLock.Tag as string) ?? "RoomTagLeaderLock";
+                    else if (rbRoomLeaderFree != null && rbRoomLeaderFree.IsChecked == true) leaderTag = (rbRoomLeaderFree.Tag as string) ?? "RoomTagLeaderFree";
+                    if (string.IsNullOrEmpty(leaderTag)) leaderTag = "RoomTagLeaderLock";
+                    DispatchCommand(leaderTag);
+                    return true;
+                }
+                case "Tagging_AnalyseSuite":
+                {
+                    // Walk every ticked check + dispatch the underlying tag.
+                    bool any = false;
+                    if (chkAnalyseScore      != null && chkAnalyseScore.IsChecked      == true) { DispatchCommand((chkAnalyseScore.Tag      as string) ?? "AnalyseScore");           any = true; }
+                    if (chkAnalyseClashes    != null && chkAnalyseClashes.IsChecked    == true) { DispatchCommand((chkAnalyseClashes.Tag    as string) ?? "AnalyseClashes");         any = true; }
+                    if (chkAnalyseCrossings  != null && chkAnalyseCrossings.IsChecked  == true) { DispatchCommand((chkAnalyseCrossings.Tag  as string) ?? "AnalyseCrossings");       any = true; }
+                    if (chkAnalyseDensity    != null && chkAnalyseDensity.IsChecked    == true) { DispatchCommand((chkAnalyseDensity.Tag    as string) ?? "AnalyseDensity");         any = true; }
+                    if (chkAnalyseClusters   != null && chkAnalyseClusters.IsChecked   == true) { DispatchCommand((chkAnalyseClusters.Tag   as string) ?? "AnalyseClusters");        any = true; }
+                    if (chkAnalyseStats      != null && chkAnalyseStats.IsChecked      == true) { DispatchCommand((chkAnalyseStats.Tag      as string) ?? "TagStats");               any = true; }
+                    if (chkAnalyseByDisc     != null && chkAnalyseByDisc.IsChecked     == true) { DispatchCommand((chkAnalyseByDisc.Tag     as string) ?? "SelectByDiscipline");     any = true; }
+                    if (chkAnalysePin        != null && chkAnalysePin.IsChecked        == true) { DispatchCommand((chkAnalysePin.Tag        as string) ?? "PinTags");                any = true; }
+                    if (chkAnalyseResetPos   != null && chkAnalyseResetPos.IsChecked   == true) { DispatchCommand((chkAnalyseResetPos.Tag   as string) ?? "ResetTagPositions");      any = true; }
+                    if (chkAnalyseDiscComp   != null && chkAnalyseDiscComp.IsChecked   == true) { DispatchCommand((chkAnalyseDiscComp.Tag   as string) ?? "DiscComplianceReport");   any = true; }
+                    if (chkAnalyseWfTrend    != null && chkAnalyseWfTrend.IsChecked    == true) { DispatchCommand((chkAnalyseWfTrend.Tag    as string) ?? "WorkflowTrend");          any = true; }
+                    if (chkAnalyseLinkedMan  != null && chkAnalyseLinkedMan.IsChecked  == true) { DispatchCommand((chkAnalyseLinkedMan.Tag  as string) ?? "ExportLinkedManifest");   any = true; }
+                    _ = any;
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        }
+
         private void Cmd_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
@@ -557,6 +656,18 @@ namespace StingTools.UI
                     cmdTag == "Bim_DeliverableRun")
                 {
                     RunBimRunner(cmdTag);
+                    return;
+                }
+
+                // Phase B Round 4 — TAGGING suite runners.
+                if (cmdTag == "Tagging_OrientApply" ||
+                    cmdTag == "Tagging_TextAlignApply" ||
+                    cmdTag == "Tagging_AlignApply" ||
+                    cmdTag == "Tagging_PosApply" ||
+                    cmdTag == "Tagging_RoomTagApply" ||
+                    cmdTag == "Tagging_AnalyseSuite")
+                {
+                    RunTaggingRunner(cmdTag);
                     return;
                 }
 

@@ -421,7 +421,42 @@ builder.Services.AddStackExchangeRedisCache(options =>
 // backplane, the cache, the permission-revocation store, AND the
 // Redis-backed rate limiter below. Avoid creating a second connection
 // just for the limiter's ConnectionMultiplexerFactory.
-var redisMux = ConnectionMultiplexer.Connect(redisConn);
+// P0-3 — make startup resilient to Redis being down. Use explicit
+// ConfigurationOptions with AbortOnConnectFail=false so the multiplexer
+// returns instead of throwing when Redis is unreachable; the underlying
+// StackExchange.Redis client will silently reconnect once Redis is back.
+// Add a 5s ConnectTimeout so the app doesn't hang on startup if the
+// DNS/network is slow. A blanket try/catch wraps the whole thing as a
+// last-resort guard against any other unexpected failure mode.
+ConnectionMultiplexer redisMux;
+try
+{
+    var redisOptions = ConfigurationOptions.Parse(redisConn);
+    redisOptions.AbortOnConnectFail = false;
+    redisOptions.ConnectTimeout = 5000;
+    redisOptions.ConnectRetry = 3;
+    redisMux = ConnectionMultiplexer.Connect(redisOptions);
+    if (!redisMux.IsConnected)
+    {
+        Console.Error.WriteLine(
+            "[STARTUP WARN] Redis unavailable at '" + redisConn +
+            "' — multiplexer created in disconnected state. " +
+            "Auth lockout / rate-limit / SignalR backplane features will degrade until Redis recovers.");
+    }
+}
+catch (Exception ex)
+{
+    // Fall back to a disconnected-but-valid multiplexer so DI registration
+    // succeeds and the app starts. Callers must defensively handle Redis
+    // exceptions at every call site (AuthController already does post-P0-3).
+    Console.Error.WriteLine(
+        "[STARTUP WARN] Redis connect failed: " + ex.Message +
+        ". Retrying in background; Redis-backed features will degrade until recovery.");
+    var fallbackOptions = ConfigurationOptions.Parse(redisConn);
+    fallbackOptions.AbortOnConnectFail = false;
+    fallbackOptions.ConnectTimeout = 1000;
+    redisMux = ConnectionMultiplexer.Connect(fallbackOptions);
+}
 builder.Services.AddSingleton<IConnectionMultiplexer>(redisMux);
 
 builder.Services.AddSignalR().AddStackExchangeRedis(redisConn, options =>

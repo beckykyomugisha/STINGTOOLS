@@ -31,8 +31,8 @@ public class MfaController : ControllerBase
     }
 
     private Guid GetTenantId() =>
-        Guid.Parse(User.FindFirst("tenantId")?.Value
-            ?? throw new InvalidOperationException("tenantId claim missing"));
+        Guid.Parse(User.FindFirst("tenant_id")?.Value
+            ?? throw new InvalidOperationException("tenant_id claim missing"));
 
     private Guid GetUserId() =>
         Guid.Parse(User.FindFirst("sub")?.Value
