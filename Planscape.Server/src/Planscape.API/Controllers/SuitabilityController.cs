@@ -25,8 +25,8 @@ public class SuitabilityController : ControllerBase
     }
 
     private Guid GetTenantId() =>
-        Guid.Parse(User.FindFirst("tenantId")?.Value
-            ?? throw new InvalidOperationException("tenantId claim missing"));
+        Guid.Parse(User.FindFirst("tenant_id")?.Value
+            ?? throw new InvalidOperationException("tenant_id claim missing"));
 
     // ── Transition Rules ──────────────────────────────────────────────────
 

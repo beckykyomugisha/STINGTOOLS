@@ -38,8 +38,8 @@ public class SsoController : ControllerBase
         cipher is null ? null : _protector.Unprotect(cipher);
 
     private Guid GetTenantId() =>
-        Guid.Parse(User.FindFirst("tenantId")?.Value
-            ?? throw new InvalidOperationException("tenantId claim missing"));
+        Guid.Parse(User.FindFirst("tenant_id")?.Value
+            ?? throw new InvalidOperationException("tenant_id claim missing"));
 
     [HttpGet]
     public async Task<ActionResult> GetConfigs()
