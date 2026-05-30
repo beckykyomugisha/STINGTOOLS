@@ -5658,7 +5658,7 @@ namespace StingTools.Core
                 { "ExportDeliverablesRegister", "DocumentRegister" },
                 { "BulkDeliverableStatus", "DocumentRegister" },
                 { "RevisionExportXlsx", "RevisionExport" },
-                { "ApprovalWorkflow", "CDEStatus" },
+                { "ApprovalWorkflow", "CDEApprovalWorkflow" },   // Group 3 rewire: real approval-workflow command (was CDEStatus)
                 { "FixContainers", "CombineParameters" },
                 { "ViewDocument", "DocumentManager" },
             };

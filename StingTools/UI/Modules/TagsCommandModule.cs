@@ -78,7 +78,8 @@ namespace StingTools.UI.Modules
             registry.Register("QRCode",                    app => StingCommandHandler.RunCommandPublic<Tags.QRCodeCommand>(app));
             registry.Register("GenerateQRCode",            app => StingCommandHandler.RunCommandPublic<Tags.QRCodeCommand>(app));
             registry.Register("GenerateQRSheet",           app => StingCommandHandler.RunCommandPublic<Tags.QRCodeCommand>(app));
-            registry.Register("PrintQRTags",               app => StingCommandHandler.RunCommandPublic<Tags.QRCodeCommand>(app));
+            // "PrintQRTags" registration retired (Group 3 QR collapse — button removed; it ran the
+            // same QRCodeCommand as GenerateQRCode). See MISWIRE_AUDIT.md cluster E.
             registry.Register("CodeLegend",                app => StingCommandHandler.RunCommandPublic<Tags.CodeLegendCommand>(app));
 
             // ── Validation / QA ─────────────────────────────────────────────

@@ -1695,6 +1695,7 @@ namespace StingTools.Core
                 case "PlatformSync":            return new BIMManager.PlatformSyncCommand();
                 case "CDEPackage":              return new BIMManager.CDEPackageCommand();
                 case "CDEStatus":               return new BIMManager.CDEStatusCommand();
+                case "CDEApprovalWorkflow":     return new BIMManager.CDEApprovalWorkflowCommand();
                 case "ValidateDocNaming":       return new BIMManager.ValidateDocNamingCommand();
                 case "CreateTransmittal":       return new BIMManager.CreateTransmittalCommand();
                 case "ExportToExcel":           return new BIMManager.ExportToExcelCommand();
@@ -1800,7 +1801,7 @@ namespace StingTools.Core
                 case "QRCode":
                 case "GenerateQRCode":
                 case "GenerateQRSheet":
-                case "PrintQRTags":
+                // "PrintQRTags" tag retired (Group 3 QR collapse) — its button was removed.
                 case "PlanscapeQR":              return new Tags.QRCodeCommand();
 
                 // Phase 96: BCC-Perm-01 fix — ExportPermissionMatrix was resolvable from the

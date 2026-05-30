@@ -2623,15 +2623,14 @@ namespace StingTools.UI
                     case "ExportCOBie":
                         RunCommand<BIMManager.COBieExportCommand>(app); break;
 
-                    // IoT / Maintenance / Asset Condition (wired to IoTMaintenanceCommands.cs)
-                    case "IoTSensorLink": RunCommand<Temp.AssetConditionCommand>(app); break;
-                    case "IoTDashboard": RunCommand<Temp.MaintenanceScheduleCommand>(app); break;
-                    case "IoTAlertConfig": RunCommand<Temp.EnergyAnalysisCommand>(app); break;
-                    case "IoTHistoryExport": RunCommand<Temp.DigitalTwinExportCommand>(app); break;
+                    // IoT cases removed (Group 3 mis-wire cleanup): IoTSensorLink/IoTDashboard/
+                    // IoTAlertConfig/IoTHistoryExport ran unrelated FM commands and their buttons
+                    // were removed. See MISWIRE_AUDIT.md cluster A.
 
                     // Standards / Compliance (wired to StandardsEngine.cs commands)
                     case "ISO19650Checker": RunCommand<Temp.Iso19650DeepComplianceCommand>(app); break;
-                    case "BS1192Checker": RunCommand<Temp.Bs7671ComplianceCommand>(app); break;
+                    // "BS1192Checker" case removed (Group 3): it ran BS 7671 (electrical), a
+                    // different standard; its button was removed. See MISWIRE_AUDIT.md cluster B.
                     // H-02 FIX: Corrected dispatch mismatches (COBieValidator→COBieDataSummary, Uniclass not Unicode)
                     case "COBieValidator": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
                     case "UniclassValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break;
@@ -2712,7 +2711,8 @@ namespace StingTools.UI
                     case "ProjectWiseExport":
                         RunCommand<BIMManager.CDEPackageCommand>(app); break;
                     case "PlatformDashboard": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
-                    case "WebhookPayload": RunCommand<BIMManager.BCFExportCommand>(app); break;
+                    // "WebhookPayload" case removed (Group 3): it ran BCF export, not any
+                    // webhook feature; its button was removed. See MISWIRE_AUDIT.md cluster C.
 
                     // Revision Management (12 commands)
                     case "CreateRevision": RunCommand<BIMManager.CreateRevisionCommand>(app); break;
@@ -3706,7 +3706,8 @@ namespace StingTools.UI
                     // ── QR Codes ──
                     case "GenerateQRCode": RunCommand<Tags.QRCodeCommand>(app); break;
                     case "GenerateQRSheet": RunCommand<Tags.QRCodeCommand>(app); break;
-                    case "PrintQRTags": RunCommand<Tags.QRCodeCommand>(app); break;
+                    // "PrintQRTags" case removed (Group 3 QR collapse): identical to
+                    // GenerateQRSheet (both → QRCodeCommand). See MISWIRE_AUDIT.md cluster E.
 
                     // ── 4D/5D ──
                     case "ExportMilestones": RunCommand<BIMManager.MilestoneRegisterCommand>(app); break;
@@ -3755,7 +3756,10 @@ namespace StingTools.UI
                         if (dmDoc != null) { DocumentManagementDialog.GenerateAutoAgenda(dmDoc); }
                         break;
                     }
-                    case "ApprovalWorkflow":      RunCommand<BIMManager.DocumentRegisterCommand>(app); break;
+                    // Group 3 rewire: was DocumentRegisterCommand (label "Approval Workflow"
+                    // promised an approval flow that command never did). The real
+                    // CDEApprovalWorkflowCommand exists — route to it. See MISWIRE_AUDIT.md cluster C.
+                    case "ApprovalWorkflow":      RunCommand<BIMManager.CDEApprovalWorkflowCommand>(app); break;
                     case "LogMinutes":
                     {
                         var dmDoc = app.ActiveUIDocument?.Document;

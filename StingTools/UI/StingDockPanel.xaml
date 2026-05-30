@@ -1065,7 +1065,7 @@
                                     <Button Style="{StaticResource CatBtn}" Content="↓Bot" Tag="VPAlignBot" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource CatBtn}" Content="←Left" Tag="VPAlignLeft" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource CatBtn}" Content="↔MidX" Tag="VPAlignMidX" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="→Right" Tag="VPAlignRight" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Align…" Tag="VPAlignRight" Click="Cmd_Click" ToolTip="Open the viewport alignment dialog (AlignViewportsCommand)"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="NUMBERING"/>
                                 <WrapPanel>
@@ -1109,7 +1109,7 @@
                                     <Button Style="{StaticResource CatBtn}" Content="Suffix" Tag="SheetSuffix" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource CatBtn}" Content="Rem Pre" Tag="SheetRemovePrefix" Click="Cmd_Click" ToolTip="Remove prefix token from selected sheet names"/>
                                     <Button Style="{StaticResource CatBtn}" Content="Rem Suf" Tag="SheetRemoveSuffix" Click="Cmd_Click" ToolTip="Remove suffix token from selected sheet names"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Find&amp;Replace" Tag="SheetFindReplace" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Rename…" Tag="SheetFindReplace" Click="Cmd_Click" ToolTip="Open the Batch Rename Views dialog (BatchRenameViewsCommand)"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -2158,7 +2158,7 @@
                                     <Border Grid.Column="1" x:Name="brdGradStart" Width="30" Height="22" Background="#2196F3" BorderBrush="#CCC" BorderThickness="1"/>
                                     <TextBlock Grid.Column="2" Text="→" FontSize="12" VerticalAlignment="Center" Margin="4,0"/>
                                     <Border Grid.Column="3" x:Name="brdGradEnd" Width="30" Height="22" Background="#F44336" BorderBrush="#CCC" BorderThickness="1"/>
-                                    <Button Grid.Column="5" Style="{StaticResource GreenBtn}" Content="Apply Gradient" Tag="GradientApply" Click="Cmd_Click"/>
+                                    <Button Grid.Column="5" Style="{StaticResource GreenBtn}" Content="Color by Value" Tag="GradientApply" Click="Cmd_Click" ToolTip="Colour elements by a parameter value (ColorByParameterCommand)"/>
                                 </Grid>
                                 <!-- Pattern -->
                                 <Grid Margin="0,4,0,0">
@@ -2972,22 +2972,10 @@
                         </Border>
 
                         <!-- IoT / SENSOR DATA -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="IoT — SENSOR DATA"/>
-                        <Border Style="{StaticResource GroupBorder}">
-                            <StackPanel>
-                                <TextBlock Text="Live BMS/sensor feeds linked to tagged elements" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sensor Link" Tag="IoTSensorLink" Click="Cmd_Click"
-                                            ToolTip="Connect BMS/IoT sensor feeds to tagged elements"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="IoT Dashboard" Tag="IoTDashboard" Click="Cmd_Click"
-                                            ToolTip="View live sensor data dashboard for tagged assets"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Alert Config" Tag="IoTAlertConfig" Click="Cmd_Click"
-                                            ToolTip="Configure anomaly detection alerts for sensor feeds"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="History Export" Tag="IoTHistoryExport" Click="Cmd_Click"
-                                            ToolTip="Export historical sensor data for tagged elements"/>
-                                </WrapPanel>
-                            </StackPanel>
-                        </Border>
+                        <!-- IoT — SENSOR DATA section removed (Group 3 mis-wire cleanup):
+                             the 4 buttons (Sensor Link / IoT Dashboard / Alert Config /
+                             History Export) all ran unrelated FM commands and the IoT
+                             features were never built. See MISWIRE_AUDIT.md cluster A. -->
 
                         <!-- STANDARDS / COMPLIANCE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="STANDARDS — COMPLIANCE"/>
@@ -2997,10 +2985,11 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="ISO 19650" Tag="ISO19650Checker" Click="Cmd_Click"
                                             ToolTip="Run ISO 19650 compliance checker"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="BS 1192" Tag="BS1192Checker" Click="Cmd_Click"
-                                            ToolTip="Run BS 1192 naming convention checker"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Check" Tag="COBieValidator" Click="Cmd_Click"
-                                            ToolTip="Validate COBie data completeness"/>
+                                    <!-- "BS 1192" button removed (Group 3): it ran the BS 7671
+                                         (electrical) compliance command — a different standard.
+                                         See MISWIRE_AUDIT.md cluster B. -->
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Summary" Tag="COBieValidator" Click="Cmd_Click"
+                                            ToolTip="Summarise COBie data completeness (COBieDataSummaryCommand)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Classification" Tag="ClassificationAudit" Click="Cmd_Click"
                                             ToolTip="Audit Uniclass/OmniClass classification codes"/>
                                 </WrapPanel>
@@ -3411,8 +3400,8 @@
                                             ToolTip="Delta sync with change tracking and history"/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="Dashboard" Tag="PlatformDashboard" Click="Cmd_Click"
                                             ToolTip="Unified platform integration status overview"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Webhook" Tag="WebhookPayload" Click="Cmd_Click"
-                                            ToolTip="Generate webhook payload for Power Automate/Zapier"/>
+                                    <!-- "Webhook" button removed (Group 3): it ran BCF export, not
+                                         any webhook feature. See MISWIRE_AUDIT.md cluster C. -->
                                     <Button Style="{StaticResource OrangeBtn}" Content="Publish 3D Model" Tag="PublishModelToPlanscape" Click="Cmd_Click"
                                             ToolTip="Export the active 3D view to GLB (or pick a file) and publish it + the element-map sidecar to Planscape Models"/>
                                     <Button Style="{StaticResource TealBtn}" Content="Push Geometry" Tag="IFC_PushModel" Click="Cmd_Click"
@@ -5262,10 +5251,11 @@
                                                 <WrapPanel Margin="0,4,0,0">
                                                     <Button Style="{StaticResource TealBtn}"   Content="Registry"     Tag="Healthcare_IoTRegistry"  Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Inventory of IoT devices grouped by protocol."/>
                                                     <Button Style="{StaticResource TealBtn}"   Content="Staleness"    Tag="Healthcare_IoTStaleness" Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Devices not seen within the panel-set threshold."/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Sensor Link"  Tag="IoTSensorLink"           Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Link a Revit element to an IoT sensor record (AssetConditionCommand)."/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Dashboard"    Tag="IoTDashboard"            Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Open IoT maintenance dashboard."/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Alert Config" Tag="IoTAlertConfig"          Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Configure threshold / staleness alerts (EnergyAnalysisCommand surface)."/>
-                                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV"   Tag="IoTHistoryExport"        Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Export IoT device history / digital-twin snapshot."/>
+                                                    <!-- Sensor Link / Dashboard / Alert Config / Export CSV removed (Group 3):
+                                                         each ran an unrelated FM command (AssetCondition / MaintenanceSchedule /
+                                                         EnergyAnalysis / DigitalTwinExport); IoT features were never built.
+                                                         Registry + Staleness above are the real healthcare IoT commands. -->
+
                                                 </WrapPanel>
                                                 <Grid Margin="0,6,0,0">
                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

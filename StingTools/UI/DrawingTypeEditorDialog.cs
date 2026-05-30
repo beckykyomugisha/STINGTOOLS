@@ -1553,7 +1553,7 @@ namespace StingTools.UI
                     ("Suffix",        "SheetSuffix",         "Add suffix to sheet numbers (e.g. -R1)"),
                     ("Rem Pre",       "SheetRemovePrefix",   "Strip prefix from sheet numbers"),
                     ("Rem Suf",       "SheetRemoveSuffix",   "Strip suffix from sheet numbers"),
-                    ("Find&Replace",  "SheetFindReplace",    "Open the Batch Rename dialog (sheets scope)"),
+                    ("Rename Views…", "SheetFindReplace",    "Open the Batch Rename Views dialog (BatchRenameViewsCommand)"),
                 }));
             stack.Children.Add(SectionCardRich("View automation",
                 "Duplicate, rename, retemplate views in bulk.",

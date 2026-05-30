@@ -1999,8 +1999,10 @@ namespace StingTools.UI
             stack.Children.Add(MakeSectionHeader("QR CODES"));
             var qrWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
             qrWrap.Children.Add(MakeActionButton("Generate QR for Selected", "GenerateQRCode", Br(CHeaderBg), "Generate QR code PNG for selected elements (encodes ASS_TAG_1_TXT)"));
-            qrWrap.Children.Add(MakeActionButton("QR Sheet Register", "GenerateQRSheet", Br(CGreen), "Generate a sheet of QR codes for all tagged elements"));
-            qrWrap.Children.Add(MakeActionButton("Print QR Tags", "PrintQRTags", Br(CAccent), "Print QR code label sheet for FM/handover use"));
+            // Group 3 QR collapse: "QR Sheet Register" (GenerateQRSheet) and "Print QR Tags"
+            // (PrintQRTags) both ran the same QRCodeCommand as the button above — neither built
+            // a sheet/print variant. Removed to avoid 3 identical buttons. Distinct sheet/print
+            // variants need QRCodeCommand parameterised — see MISWIRE_AUDIT.md cluster E (TODO).
             stack.Children.Add(qrWrap);
             var qrResultArea = new System.Windows.Controls.Image { Width = 150, Height = 150, Margin = new Thickness(0, 4, 0, 0), Stretch = System.Windows.Media.Stretch.Uniform };
             var qrCard = MakeCard();
@@ -4259,7 +4261,7 @@ namespace StingTools.UI
                     ("📧 Email Report",        "PlanscapeEmail",    Color.FromRgb(0x15, 0x65, 0xC0), "Generate email with project status summary (Excel attachment)"),
                     ("💬 Teams Message",       "PlanscapeTeams",    Color.FromRgb(0x46, 0x4E, 0xB8), "Generate Teams/Slack message with coordination status cards"),
                     ("📱 WhatsApp Update",     "PlanscapeWhatsApp", CGreen,                           "Generate WhatsApp-ready text with project summary link"),
-                    ("🔗 Generate QR Link",    "PlanscapeQR",       CHeaderBg,                        "Generate QR code linking to the latest exported HTML dashboard"),
+                    ("🔗 QR Code",             "PlanscapeQR",       CHeaderBg,                        "Generate a QR code PNG for selected elements (QRCodeCommand). Note: a dashboard-linking QR variant is not yet built — see MISWIRE_AUDIT.md cluster E."),
                     ("📊 Export HTML Dashboard","PlanscapeHTML",    Color.FromRgb(0x6A, 0x1B, 0x9A), "Export full coordination dashboard as standalone HTML file (shareable, no login needed)"),
                     ("🧊 Publish 3D Model",    "PublishModelToPlanscape", Color.FromRgb(0xE6, 0x5F, 0x00), "Export the active 3D view to GLB (or pick a file) and publish it + the element-map sidecar to Planscape Models"),
                 };
