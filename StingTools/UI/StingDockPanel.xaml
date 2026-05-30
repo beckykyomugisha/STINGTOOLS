@@ -306,8 +306,8 @@
                                 <Button Style="{StaticResource CatBtn}" Content="Duct" Tag="SelectDucts" Click="Cmd_Click" ToolTip="Ducts"/>
                                 <Button Style="{StaticResource CatBtn}" Content="Cnd" Tag="SelectConduits" Click="Cmd_Click" ToolTip="Conduits"/>
                                 <Button Style="{StaticResource CatBtn}" Content="Cbl" Tag="SelectCableTrays" Click="Cmd_Click" ToolTip="Cable Trays"/>
-                                <Button Style="{StaticResource CatBtn}" Content="ALL..." Tag="SelectAllTaggable" Click="Cmd_Click" ToolTip="ALL Taggable" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Pick..." Tag="SelectCustomCategory" Click="Cmd_Click" ToolTip="Choose from ALL categories in view" Background="#2196F3" Foreground="White"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="ALL..." Tag="SelectAllTaggable" Click="Cmd_Click" ToolTip="ALL Taggable"/>
+                                <Button Style="{StaticResource BlueBtn}"  Content="Pick..." Tag="SelectCustomCategory" Click="Cmd_Click" ToolTip="Choose from ALL categories in view"/>
                                 <Button Style="{StaticResource CatBtn}" Content="View" Tag="SelectView" Click="Cmd_Click" ToolTip="Select view elements"/>
                             </WrapPanel>
                         </Border>
@@ -330,8 +330,8 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SELECTION SCOPE"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource CatBtn}" Content="View" Tag="SetScopeView" Click="Cmd_Click" Background="#2196F3" Foreground="White" FontWeight="Bold" ToolTip="Select from active view only (default)"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Project" Tag="SetScopeProject" Click="Cmd_Click" Background="#FF5722" Foreground="White" FontWeight="Bold" ToolTip="Select from entire project"/>
+                                <Button Style="{StaticResource BlueBtn}"   Content="View" Tag="SetScopeView" Click="Cmd_Click" ToolTip="Select from active view only (default)"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Project" Tag="SetScopeProject" Click="Cmd_Click" ToolTip="Select from entire project"/>
                             </WrapPanel>
                         </Border>
 
@@ -349,11 +349,11 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="STATE"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource CatBtn}" Content="Untagged" Tag="SelectUntagged" Click="Cmd_Click" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Tagged" Tag="SelectTagged" Click="Cmd_Click" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
-                                <Button Style="{StaticResource CatBtn}" Content="EmptyMark" Tag="SelectEmptyMark" Click="Cmd_Click" Background="#FF9800" Foreground="White" FontWeight="Bold"/>
+                                <Button Style="{StaticResource GreenBtn}"  Content="Untagged" Tag="SelectUntagged" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource GreenBtn}"  Content="Tagged" Tag="SelectTagged" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="EmptyMark" Tag="SelectEmptyMark" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource CatBtn}" Content="Visible" Tag="SelectVisible" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource CatBtn}" Content="[Pin]Pinned" Tag="SelectPinned" Click="Cmd_Click" Background="#2196F3" Foreground="White"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="[Pin]Pinned" Tag="SelectPinned" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource CatBtn}" Content="Unpinned" Tag="SelectUnpinned" Click="Cmd_Click"/>
                             </WrapPanel>
                         </Border>
@@ -1377,7 +1377,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Export Package" Tag="DrawingTypes_ExportPackage" Click="Cmd_Click" ToolTip="Phase 137 — export every sheet in a selected drawing package as PDFs in sequence order"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sequence Package" Tag="DrawingTypes_SequencePackage" Click="Cmd_Click" ToolTip="Phase 137 — re-stamp STING_SHEET_SEQUENCE for a selected package, ordered by current sheet number"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit Packages" Tag="DrawingTypes_AuditPackages" Click="Cmd_Click" ToolTip="Phase 137 — list all drawing packages with sheet count, view count, and sequence-gap count"/>
-                                    <Button Style="{StaticResource ActionBtn}" Background="#1A6B2A" Foreground="White" FontWeight="Bold" Content="⚡ Produce &amp; Export" Tag="DrawingTypes_ProduceAndExport" Click="Cmd_Click" ToolTip="AUTO-2: One-click produce all plan views per level, sync styles and revisions, export every stamped sheet to PDF, and write a sheet register CSV."/>
+                                    <Button Style="{StaticResource StingPrimaryButton}" Content="⚡ Produce &amp; Export" Tag="DrawingTypes_ProduceAndExport" Click="Cmd_Click" ToolTip="AUTO-2: One-click produce all plan views per level, sync styles and revisions, export every stamped sheet to PDF, and write a sheet register CSV."/>
                                 </WrapPanel>
                                 <!-- Phase 137 — Production -->
                                 <Separator/>
@@ -2773,34 +2773,17 @@
                         </Border>
 
                         <!-- BIM COORDINATION CENTER — PRIMARY ENTRY POINT -->
-                        <Border BorderBrush="#1A237E" BorderThickness="2" CornerRadius="4" Margin="0,2,0,6" Padding="8"
-                                Background="#E8EAF6">
+                        <Border BorderBrush="#1A237E" BorderThickness="0,0,0,2" Margin="0,2,0,6" Padding="8,6"
+                                Background="{DynamicResource SecondaryBg}">
                             <StackPanel>
                                 <TextBlock Text="★ BIM COORDINATION CENTER" FontWeight="Bold" FontSize="12" Foreground="#1A237E" Margin="0,0,0,4"/>
                                 <TextBlock Text="Unified dashboard: Model Health • Warnings • Issues • Revisions • Workflows • QA • 4D/5D" FontSize="9" Foreground="#555" Margin="0,0,0,6" TextWrapping="Wrap"/>
-                                <Button Tag="BIMCoordinationCenter" Click="Cmd_Click"
-                                        FontWeight="Bold" FontSize="12"
-                                        Background="#1A237E" Foreground="White" BorderBrush="#0D1642" BorderThickness="1"
-                                        ToolTip="Unified BIM Coordination Center: 9-tab dashboard with KPIs, compliance tracking, issues, revisions, warnings, workflows, QA and 4D/5D scheduling"
-                                        Cursor="Hand" HorizontalAlignment="Stretch">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#1A237E" BorderBrush="#0D1642" BorderThickness="1"
-                                                    CornerRadius="4" Padding="14,10">
-                                                <TextBlock Text="★  OPEN COORDINATION CENTER" FontWeight="Bold" FontSize="12"
-                                                           Foreground="White" HorizontalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#283593"/>
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#0D1642"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
+                                <Button Style="{StaticResource StingPrimaryButton}"
+                                        Content="★  OPEN COORDINATION CENTER"
+                                        Tag="BIMCoordinationCenter" Click="Cmd_Click"
+                                        FontSize="12" Height="30" Padding="14,6"
+                                        HorizontalAlignment="Stretch"
+                                        ToolTip="Unified BIM Coordination Center: 9-tab dashboard with KPIs, compliance tracking, issues, revisions, warnings, workflows, QA and 4D/5D scheduling"/>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="COORDINATION CHECKS" Margin="0,8,0,2"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource RedBtn}" Content="Clash Detect" Tag="ClashDetect" Click="Cmd_Click"
@@ -2823,31 +2806,16 @@
 
                         <!-- WARNINGS MANAGER — HIGH VISIBILITY -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚠  WARNINGS MANAGER"/>
-                        <Border BorderBrush="#E65100" BorderThickness="2" CornerRadius="3" Margin="0,0,0,4" Padding="6"
-                                Background="#FFF3E0">
+                        <Border BorderBrush="#E65100" BorderThickness="0,0,0,2" Margin="0,0,0,4" Padding="6,4"
+                                Background="{DynamicResource SecondaryBg}">
                             <StackPanel>
                                 <TextBlock Text="Classify, auto-fix, track and export Revit warnings with SLA enforcement" FontSize="9" Foreground="#555" Margin="0,0,0,6" TextWrapping="Wrap"/>
                                 <WrapPanel Margin="0,0,0,4">
-                                    <Button Tag="WarningsDashboard" Click="Cmd_Click" FontWeight="Bold" FontSize="11" Cursor="Hand"
-                                            ToolTip="Warnings dashboard: severity/category/level/discipline breakdown, trend, SLA violations, hotspot elements">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border x:Name="border" Background="#E65100" BorderBrush="#BF360C" BorderThickness="1"
-                                                        CornerRadius="3" Padding="10,6">
-                                                    <TextBlock Text="⚠  WARNINGS DASHBOARD" FontWeight="Bold" FontSize="11"
-                                                               Foreground="White" HorizontalAlignment="Center"/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="border" Property="Background" Value="#F4511E"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsPressed" Value="True">
-                                                        <Setter TargetName="border" Property="Background" Value="#BF360C"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                    </Button>
+                                    <Button Style="{StaticResource OrangeBtn}"
+                                            Content="⚠  WARNINGS DASHBOARD"
+                                            Tag="WarningsDashboard" Click="Cmd_Click"
+                                            FontSize="11" Height="28" Padding="10,6"
+                                            ToolTip="Warnings dashboard: severity/category/level/discipline breakdown, trend, SLA violations, hotspot elements"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Full Dashboard" Tag="WarningsDashboardDialog" Click="Cmd_Click"
                                             ToolTip="Unified Warnings Dashboard — all warning operations: classify, auto-fix, baseline, SLA, export, cross-system integration" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Auto-Fix" Tag="WarningsAutoFix" Click="Cmd_Click"
@@ -5287,7 +5255,7 @@
                                          glance: blue = HVAC, green = water, purple = electrical,
                                          orange = radiation, teal = IoT, red = adjacency / waste. -->
                                     <TextBlock Text="QUICK SINGLE-VALIDATOR LAUNCHERS" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
-                                    <Border Style="{StaticResource GroupBorder}" BorderBrush="#B2DFDB" Background="#E0F2F1">
+                                    <Border Style="{StaticResource GroupBorder}" BorderBrush="#B2DFDB" Background="{DynamicResource SecondaryBg}">
                                         <WrapPanel>
                                             <Button Style="{StaticResource BlueBtn}"   Content="Pressure"   Tag="Healthcare_PressureAudit"     Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
                                             <Button Style="{StaticResource BlueBtn}"   Content="MGPS Audit" Tag="Healthcare_MgasAudit"         Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
@@ -5313,7 +5281,7 @@
                                          so the launcher row above stays the focal action. -->
                                     <Expander x:Name="expHcIotFunctions" Header="IoT Functions  (BACnet / OPC-UA / Modbus / REST)"
                                               FontSize="9" Margin="0,8,0,0">
-                                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#80CBC4" Background="#E0F2F1">
+                                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#80CBC4" Background="{DynamicResource SecondaryBg}">
                                             <StackPanel>
                                                 <TextBlock FontSize="9" Foreground="#666" TextWrapping="Wrap"
                                                            Text="Device-side IoT ops. Stale threshold lives in Advanced thresholds above and is read live from Hc.IotStaleMins on every call."/>
