@@ -467,6 +467,39 @@ namespace StingTools.UI
             }
         }
 
+        // Phase B Round 3 (BIM) suite-runner helper. Parallel to
+        // RunInteropRunner / RunDocsRunner / RunSetupRunner /
+        // RunCreateTagsRunner / RunTagStudioRunner; tab-scoped — resolves
+        // a runner tag to one concrete dispatch tag defined by the BIM
+        // XAML layout (combo-driven mode pickers for MEP schedules and
+        // deliverable lifecycle).
+        private bool RunBimRunner(string runnerTag)
+        {
+            if (string.IsNullOrEmpty(runnerTag)) return false;
+
+            switch (runnerTag)
+            {
+                case "Bim_MepScheduleCreate":
+                {
+                    var item = cmbBimMepSchedule != null ? cmbBimMepSchedule.SelectedItem as System.Windows.Controls.ComboBoxItem : null;
+                    string sched = item != null ? item.Tag as string : null;
+                    if (string.IsNullOrEmpty(sched)) sched = "MEPScheduleHVAC";
+                    DispatchCommand(sched);
+                    return true;
+                }
+                case "Bim_DeliverableRun":
+                {
+                    var item = cmbBimDeliverableOp != null ? cmbBimDeliverableOp.SelectedItem as System.Windows.Controls.ComboBoxItem : null;
+                    string op = item != null ? item.Tag as string : null;
+                    if (string.IsNullOrEmpty(op)) op = "IssueDeliverable";
+                    DispatchCommand(op);
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        }
+
         private void Cmd_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
@@ -516,6 +549,14 @@ namespace StingTools.UI
                     cmdTag == "Mep_AutoSizeRun")
                 {
                     RunTagStudioRunner(cmdTag);
+                    return;
+                }
+
+                // Phase B Round 3 — BIM suite runners.
+                if (cmdTag == "Bim_MepScheduleCreate" ||
+                    cmdTag == "Bim_DeliverableRun")
+                {
+                    RunBimRunner(cmdTag);
                     return;
                 }
 
