@@ -1993,16 +1993,15 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- SLD GENERATOR (Phase 175) -->
+                        <!-- SLD GENERATOR (Phase 175) — Phase D dedupe: SLD_Generate + SLD_Update reachable from STING Electrical panel. Only the 4 main-panel-only options/maintenance commands remain here. -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SLD GENERATOR"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#0277BD">
                             <StackPanel>
-                                <Button Style="{StaticResource GreenBtn}" Content="★ Generate SLD" Tag="SLD_Generate" Click="Cmd_Click"
-                                        ToolTip="Walk the electrical hierarchy and emit a drafting view with symbols + busbars + labels" FontWeight="Bold" HorizontalAlignment="Stretch"/>
+                                <Button Style="{StaticResource StingPrimaryButton}" Content="→ STING Electrical panel (Generate / Update SLD)" Tag="ToggleElectricalPanel" Click="Cmd_Click"
+                                        ToolTip="Open the dedicated STING Electrical panel — full SLD Generate / Update + electrical engineering toolkit" HorizontalAlignment="Stretch"/>
                                 <Expander Header="SLD options &amp; maintenance" FontSize="10" Margin="0,4,0,0">
                                     <WrapPanel Margin="0,4">
                                         <Button Style="{StaticResource ActionBtn}" Content="Options" Tag="SLD_GenerateOptions" Click="Cmd_Click" ToolTip="With Options — pick standard before generating"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Update" Tag="SLD_Update" Click="Cmd_Click" ToolTip="Update — refresh existing SLD views in place"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Sync" Tag="SLD_SyncToggle" Click="Cmd_Click" ToolTip="Sync Toggle — enable / disable the live SLD sync IUpdater (project_config.json)"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="SLD_Validate" Click="Cmd_Click" ToolTip="Validate — compare SLD topology against the live electrical model"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Migrate" Tag="SLD_MigrateLabels" Click="Cmd_Click" ToolTip="Migrate Labels — stamp STING_SYMBOL_LABEL_ID on every SLD symbol so fast-path update can find labels by ID instead of spatially"/>
@@ -3235,57 +3234,17 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- LIGHTNING PROTECTION (BS EN 62305) -->
+                        <!-- LIGHTNING PROTECTION (BS EN 62305) — Phase D dedupe: dedicated STING LPS panel owns the day-to-day toolkit (Dashboard/Class Setup/Compliance/Down Cond/Earth/Bonding/Zone Tag/Mark Types/Recalc Kc/Colour/Clear/Plan Vis/3D Cover/Sep Dist/Inspection/Schedules/Full Rpt/Sync Srv → reachable via Lps_* tags). Only LPS_RiskModel + LPS_CreateFamilyShells remain here — they are the main-panel-only setup commands. -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚡ LIGHTNING PROTECTION"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
-                                <TextBlock Text="LPS class setup, compliance, conductor + earth checks (BS EN 62305)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Text="Full LPS toolkit: open via ribbon → STING LPS panel. Set-up commands remain below." FontSize="9" Foreground="#888" Margin="0,0,0,4" TextWrapping="Wrap"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Dashboard" Tag="LPS_Dashboard" Click="Cmd_Click"
-                                            ToolTip="LPS dashboard — overview, inspection due dates, open issues"/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Class Setup" Tag="LPS_ClassSetup" Click="Cmd_Click"
-                                            ToolTip="Risk assessment and LPS class selection wizard (BS EN 62305-2)"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Risk Model" Tag="LPS_RiskModel" Click="Cmd_Click"
+                                            ToolTip="Full BS EN 62305-2 risk model — computes R1–R4 from model extents + default Annex B/C factors and recommends LPS class + SPD level"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fam Shells" Tag="LPS_CreateFamilyShells" Click="Cmd_Click"
+                                            ToolTip="Create the 20 STING LPS family shells (.rfa) from templates per LPS_FAMILY_INVENTORY.json — geometry left empty for the author; existing families are never overwritten"/>
                                 </WrapPanel>
-                                <Expander Header="LPS engineering ops" FontSize="10" Margin="0,2,0,0">
-                                    <WrapPanel Margin="0,4">
-                                        <Button Style="{StaticResource PurpleBtn}" Content="Risk Model" Tag="LPS_RiskModel" Click="Cmd_Click"
-                                                ToolTip="Full BS EN 62305-2 risk model — computes R1–R4 from model extents + default Annex B/C factors and recommends LPS class + SPD level"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Fam Shells" Tag="LPS_CreateFamilyShells" Click="Cmd_Click"
-                                                ToolTip="Create the 20 STING LPS family shells (.rfa) from templates per LPS_FAMILY_INVENTORY.json — geometry left empty for the author; existing families are never overwritten"/>
-                                        <Button Style="{StaticResource BlueBtn}" Content="Compliance" Tag="LPS_ComplianceCheck" Click="Cmd_Click"
-                                                ToolTip="Run all LPS compliance checks and stamp project verdict"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Down Cond" Tag="LPS_DownConductorCheck" Click="Cmd_Click"
-                                                ToolTip="Check down conductor spacing against class limit"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Earth" Tag="LPS_EarthCheck" Click="Cmd_Click"
-                                                ToolTip="Validate earth electrode resistance against class target"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Bonding" Tag="LPS_BondingInventory" Click="Cmd_Click"
-                                                ToolTip="Identify equipotential bonding requirements at LPZ boundaries"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Zone Tag" Tag="LPS_ZoneTag" Click="Cmd_Click"
-                                                ToolTip="Assign LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3 to rooms (BS EN 62305-4)"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Mark Types" Tag="LPS_MarkElementTypes" Click="Cmd_Click"
-                                                ToolTip="Stamp ELC_LPS_ELEMENT_TYPE_TXT on all LPS families (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD)"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="kc Recalc" Tag="LPS_RecalcKcFactor" Click="Cmd_Click"
-                                                ToolTip="Recompute kc partition factor and re-stamp separation distance on all down conductors"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Colour" Tag="LPS_ColourZones" Click="Cmd_Click"
-                                                ToolTip="Apply BS EN 62305-4 LPZ palette to rooms in active view"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Clear" Tag="LPS_ClearZoneColours" Click="Cmd_Click"
-                                                ToolTip="Clear LPZ zone graphic overrides in active view"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Plan Vis" Tag="LPS_PlanVisualise" Click="Cmd_Click"
-                                                ToolTip="Generate plan-view rolling-sphere protection projection"/>
-                                        <Button Style="{StaticResource PurpleBtn}" Content="3D Cover" Tag="LPS_RollingSphere3D" Click="Cmd_Click"
-                                                ToolTip="Rolling-sphere 3D coverage analyser — flags exposed roof points (BS EN 62305-3 §E.4)"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Sep Dist" Tag="LPS_SepDistCheck" Click="Cmd_Click"
-                                                ToolTip="Check separation distance between LPS conductors and MEP services"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Inspection" Tag="LPS_InspectionSchedule" Click="Cmd_Click"
-                                                ToolTip="LPS inspection due-date register (BS EN 62305-3 §5.5)"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Schedules" Tag="LPS_CreateSchedules" Click="Cmd_Click"
-                                                ToolTip="Create / refresh LPS Revit schedules (Element Register, Earth Summary, Inspection Register)"/>
-                                        <Button Style="{StaticResource GreenBtn}" Content="Full Rpt" Tag="LPS_FullReport" Click="Cmd_Click"
-                                                ToolTip="Compile full LPS compliance report (BS EN 62305 deliverable)"/>
-                                        <Button Style="{StaticResource TealBtn}" Content="Sync Srv" Tag="LPS_SyncToServer" Click="Cmd_Click"
-                                                ToolTip="Push LPS components and inspection state to the Planscape MIM asset registry"/>
-                                    </WrapPanel>
-                                </Expander>
                             </StackPanel>
                         </Border>
 
