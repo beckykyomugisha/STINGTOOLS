@@ -5,62 +5,71 @@
       Background="{DynamicResource PrimaryBg}">
 
     <Page.Resources>
-        <Style x:Key="HvacSectionHeader" TargetType="TextBlock">
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Margin" Value="0,4,0,2"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-        </Style>
-        <Style x:Key="HvacLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Margin" Value="0,2,4,2"/>
-            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-        <Style x:Key="HvacActionBtn" TargetType="Button">
-            <Setter Property="MinWidth" Value="74"/>
-            <Setter Property="Height" Value="24"/>
-            <Setter Property="Margin" Value="2,1"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style x:Key="HvacPrimaryBtn" TargetType="Button" BasedOn="{StaticResource HvacActionBtn}">
-            <Setter Property="Background" Value="#FF00897B"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="MinWidth" Value="100"/>
-            <Setter Property="Height" Value="26"/>
-        </Style>
-        <Style x:Key="HvacWarnBtn" TargetType="Button" BasedOn="{StaticResource HvacActionBtn}">
-            <Setter Property="Background" Value="#FFEF6C00"/>
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style x:Key="HvacExpander" TargetType="Expander">
-            <Setter Property="Margin" Value="0,3"/>
-            <Setter Property="Padding" Value="2"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
-            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
-        </Style>
-        <Style x:Key="ChipCheck" TargetType="CheckBox">
-            <Setter Property="Margin" Value="0,2,8,2"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-        <Style x:Key="HvacGrid" TargetType="DataGrid">
-            <Setter Property="AutoGenerateColumns" Value="False"/>
-            <Setter Property="CanUserAddRows" Value="False"/>
-            <Setter Property="HeadersVisibility" Value="Column"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="RowHeight" Value="20"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="AlternatingRowBackground" Value="{DynamicResource SecondaryBg}"/>
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/StingTools;component/UI/Resources/StingButtonStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Phase C: section header re-bases on shared StingSectionHeader
+                 (theme-driven AccentBrush, density-matched to main dock panel). -->
+            <Style x:Key="HvacSectionHeader" TargetType="TextBlock" BasedOn="{StaticResource StingSectionHeader}">
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Margin"   Value="0,4,0,2"/>
+            </Style>
+            <Style x:Key="HvacLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="Margin" Value="0,2,4,2"/>
+                <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            <!-- Phase C: generic action button now inherits the shared StingButton
+                 (theme-driven ButtonBg / ButtonFg / BorderColor + hover/press overlays).
+                 Local overrides preserve the slightly taller 24 px button + per-panel min width. -->
+            <Style x:Key="HvacActionBtn" TargetType="Button" BasedOn="{StaticResource StingButton}">
+                <Setter Property="MinWidth" Value="74"/>
+                <Setter Property="Height"   Value="24"/>
+            </Style>
+            <!-- Phase C: primary button re-bases on shared StingPrimaryButton (outline teal,
+                 corporate brand). Hardcoded #FF00897B fill removed — the shared style is
+                 transparent-bg / teal-border, matching corporate-flat aesthetic. -->
+            <Style x:Key="HvacPrimaryBtn" TargetType="Button" BasedOn="{StaticResource StingPrimaryButton}">
+                <Setter Property="MinWidth" Value="100"/>
+                <Setter Property="Height"   Value="26"/>
+            </Style>
+            <!-- Brand-semantic colour KEPT local: orange = "warning / caution" is a meaningful
+                 visual signal in HVAC context (over-velocity / stale-load / pressure-class breach).
+                 Distinct from corporate teal (primary action) and red (danger). Re-bases on
+                 StingButton for hover/press template consistency. -->
+            <Style x:Key="HvacWarnBtn" TargetType="Button" BasedOn="{StaticResource StingButton}">
+                <Setter Property="Background" Value="#FFEF6C00"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderBrush" Value="#FFE65100"/>
+                <Setter Property="MinWidth" Value="74"/>
+                <Setter Property="Height"   Value="24"/>
+            </Style>
+            <Style x:Key="HvacExpander" TargetType="Expander">
+                <Setter Property="Margin" Value="0,3"/>
+                <Setter Property="Padding" Value="2"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+                <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+            </Style>
+            <Style x:Key="ChipCheck" TargetType="CheckBox">
+                <Setter Property="Margin" Value="0,2,8,2"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            <Style x:Key="HvacGrid" TargetType="DataGrid">
+                <Setter Property="AutoGenerateColumns" Value="False"/>
+                <Setter Property="CanUserAddRows" Value="False"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+                <Setter Property="RowHeight" Value="20"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="AlternatingRowBackground" Value="{DynamicResource SecondaryBg}"/>
+            </Style>
+        </ResourceDictionary>
     </Page.Resources>
 
     <Grid>
