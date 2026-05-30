@@ -2193,115 +2193,136 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
 
-                        <!-- ISO HEADER -->
+                        <!-- ISO HEADER (Phase B Round 3: Pattern 2 — Scope + Overwrite radio rings) -->
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
                             <StackPanel>
                                 <TextBlock Text="ISO 19650 — CREATE &amp; POPULATE" FontWeight="Bold" FontSize="11" Foreground="#333"/>
                                 <TextBlock x:Name="txtCreateScope" Text="Scope: View  |  Overwrite: No" FontSize="10" Foreground="#888"/>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource BlueBtn}" Content="Scope: View" Tag="ScopeView" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Overwrite: No" Tag="ToggleOverwrite" Click="Cmd_Click"/>
-                                </WrapPanel>
+                                <TextBlock Text="Scope" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,4,0,1"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <RadioButton x:Name="rbCtScopeView"      Content="View"      GroupName="CtScope" Tag="ScopeView"      Checked="OnRadioRouteChecked" IsChecked="True" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="rbCtScopeSelection" Content="Selection" GroupName="CtScope" Tag="ScopeSelection" Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="rbCtScopeProject"   Content="Project"   GroupName="CtScope" Tag="ScopeProject"   Checked="OnRadioRouteChecked" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Apply" Tag="CreateTags_ScopeApply" Click="Cmd_Click" ToolTip="Apply selected scope (View / Selection / Project) to subsequent CREATE TAGS operations" MinWidth="50"/>
+                                </StackPanel>
+                                <TextBlock Text="Overwrite existing tags" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,2,0,1"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                    <RadioButton x:Name="rbCtOverwriteNo"  Content="No"  GroupName="CtOverwrite" IsChecked="True" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="rbCtOverwriteYes" Content="Yes" GroupName="CtOverwrite" Margin="0,0,10,0" FontSize="10" VerticalAlignment="Center"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Apply" Tag="CreateTags_OverwriteApply" Click="Cmd_Click" ToolTip="Apply selected overwrite mode (Yes/No) — dispatches ToggleOverwrite to flip current state if needed" MinWidth="50"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Toggle" Tag="ToggleOverwrite" Click="Cmd_Click" ToolTip="Directly toggle overwrite mode (legacy entry — same as Apply but without consulting the radio state)" MinWidth="50" Margin="4,0,0,0"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- SETUP -->
+                        <!-- SETUP (Phase B Round 3: Pattern 5 — primaries out, secondaries into Expander) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ SETUP"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Load Shared Params" Tag="LoadSharedParams" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource RedBtn}" Content="Purge Params" Tag="PurgeSharedParams"
-                                            Click="Cmd_Click" ToolTip="Audit or remove orphaned/all STING shared param bindings"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Project Config" Tag="ConfigEditor" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Edit Data Files" Tag="GuidedDataEditor"
-                                            Click="Cmd_Click" ToolTip="Guided editor for project_config.json, MR_PARAMETERS.txt, materials — with sync"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Config" Tag="TagConfig" Click="Cmd_Click" ToolTip="View/configure tag lookup tables"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Schema" Tag="SyncParamSchema" Click="Cmd_Click" ToolTip="Sync parameter schema"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Audit Schema" Tag="AuditParamSchema" Click="Cmd_Click" ToolTip="Audit parameter schema"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Add Remap" Tag="AddParamRemap" Click="Cmd_Click" ToolTip="Add parameter remap"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Params" Tag="LoadSharedParams" Click="Cmd_Click" ToolTip="Load all STING shared parameters into the project (2-pass binding)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Create Tag Fams" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Create STING tag families for all 50 categories"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Cfg Labels" Tag="ConfigureTagLabels" Click="Cmd_Click" ToolTip="Guided wizard to set Labels in each tag family. Merge-only: re-runs skip already-configured families."/>
                                 </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource BlueBtn}" Content="Create Tag Families" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Create STING tag families for all 50 categories"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Configure Labels" Tag="ConfigureTagLabels" Click="Cmd_Click" ToolTip="Guided wizard to set Labels in each tag family. Merge-only: re-runs skip already-configured families."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Load" Tag="LoadTagFamilies" Click="Cmd_Click" ToolTip="Load pre-created tag families into project"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="AuditTagFamilies" Click="Cmd_Click" ToolTip="Check tag family coverage by category"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Configure Loaded Families" Tag="ConfigureLoadedFamilies" Click="Cmd_Click" ToolTip="Inject STING parameters into every editable family already loaded in the active project. Mapped scope by default; 'All editable' and purge mode are opt-in."/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Migrate Tag Families" Tag="MigrateTagFamilies" Click="Cmd_Click" ToolTip="Upgrade loaded STING tag families: add PARA_STATE_4..10, 128 style BOOLs, box/leader colour params, and pre-create standard type variants"/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Migrate Label Refs" Tag="MigrateTagLabelRefs" Click="Cmd_Click" ToolTip="Rewrite renamed-parameter references inside loaded tag families using SCHEDULE_FIELD_REMAP.csv. Uses FamilyManager.ReplaceParameter to swap the underlying shared-param binding (preserves every label cell + formula + type value) plus formula text rewriting for token references."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Style Audit" Tag="StyleAudit" Click="Cmd_Click" ToolTip="Audit every tag family for missing params / variants and flag deviations from disciplinary defaults"/>
-                                </WrapPanel>
+                                <Expander Header="Advanced setup, schema &amp; migration" FontSize="10" Margin="0,4,0,0">
+                                    <StackPanel Margin="0,4">
+                                        <TextBlock Text="Project &amp; data" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,0,0,2"/>
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource RedBtn}"    Content="Purge"      Tag="PurgeSharedParams" Click="Cmd_Click" ToolTip="Audit or remove orphaned/all STING shared param bindings"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Project Cfg" Tag="ConfigEditor"      Click="Cmd_Click" ToolTip="View/edit/save/reload project_config.json"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Data Files"  Tag="GuidedDataEditor"  Click="Cmd_Click" ToolTip="Guided editor for project_config.json, MR_PARAMETERS.txt, materials — with sync"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Tag Cfg"    Tag="TagConfig"          Click="Cmd_Click" ToolTip="View/configure tag lookup tables"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="Schema" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,4,0,2"/>
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Sync"       Tag="SyncParamSchema"  Click="Cmd_Click" ToolTip="Sync parameter schema across families"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Audit"      Tag="AuditParamSchema" Click="Cmd_Click" ToolTip="Audit parameter schema"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Add Remap"  Tag="AddParamRemap"    Click="Cmd_Click" ToolTip="Add a parameter remap rule for renamed shared params"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="Tag families — load &amp; migrate" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,4,0,2"/>
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Load"        Tag="LoadTagFamilies"           Click="Cmd_Click" ToolTip="Load pre-created tag families into project"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Audit"       Tag="AuditTagFamilies"          Click="Cmd_Click" ToolTip="Check tag family coverage by category"/>
+                                            <Button Style="{StaticResource OrangeBtn}" Content="Cfg Loaded"  Tag="ConfigureLoadedFamilies"   Click="Cmd_Click" ToolTip="Inject STING parameters into every editable family already loaded. Mapped scope by default; 'All editable' and purge mode are opt-in."/>
+                                            <Button Style="{StaticResource PurpleBtn}" Content="Migrate Fams" Tag="MigrateTagFamilies"       Click="Cmd_Click" ToolTip="Upgrade loaded STING tag families: add PARA_STATE_4..10, 128 style BOOLs, box/leader colour params, pre-create standard type variants"/>
+                                            <Button Style="{StaticResource PurpleBtn}" Content="Migrate Refs" Tag="MigrateTagLabelRefs"      Click="Cmd_Click" ToolTip="Rewrite renamed-parameter references inside loaded tag families using SCHEDULE_FIELD_REMAP.csv. FamilyManager.ReplaceParameter preserves every label cell + formula + type value."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Style Audit"  Tag="StyleAudit"               Click="Cmd_Click" ToolTip="Audit every tag family for missing params / variants and flag deviations from disciplinary defaults"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
-                        <!-- POPULATE TOKENS -->
+                        <!-- POPULATE TOKENS (Phase B Round 3: Pattern 5 — auto-flow proud, manual overrides in Expander) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ POPULATE TOKENS"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
                             <StackPanel>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="▶ Auto Populate" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="One-click full pipeline"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Assign Numbers" Tag="AssignNumbers" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="[Brain] Smart Tokens" Tag="FamilyStagePopulate" Click="Cmd_Click" ToolTip="Pre-populate all 7 tokens"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Preview Tag" Tag="PreviewTag" Click="Cmd_Click" ToolTip="Dry-run: show predicted tag for selected element without writing"/>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="▶ Auto Populate"   Tag="FullAutoPopulate"   Click="Cmd_Click" ToolTip="One-click full pipeline — populate all 13 tokens across scope"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="[Brain] Smart"     Tag="FamilyStagePopulate" Click="Cmd_Click" ToolTip="Pre-populate all 7 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD) using family-stage intelligence"/>
+                                    <Button Style="{StaticResource TealBtn}"   Content="⚡ Build Tags"     Tag="BuildTags"          Click="Cmd_Click" ToolTip="Rebuild ASS_TAG_1 + all containers from current token values"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preview"           Tag="PreviewTag"         Click="Cmd_Click" ToolTip="Dry-run: show predicted tag for selected element without writing"/>
                                 </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource TealBtn}" Content="⚡ Build Tags" Tag="BuildTags" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Mat Tags" Tag="MatTags" Click="Cmd_Click" ToolTip="Build material tags"/>
-                                </WrapPanel>
-                                <TextBlock Text="Manual — all 13 tokens:" FontSize="9" Foreground="#888" Margin="0,4,0,1"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource CatBtn}" Content="PROJ" Tag="SetProj" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="ORIG" Tag="SetOrig" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="VOL" Tag="SetVol" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="LVL" Tag="SetLvl" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="DISC" Tag="SetDisc" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="LOC" Tag="SetLoc" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="ZONE" Tag="SetZone" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="SYS" Tag="SetSys" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="FUNC" Tag="SetFunc" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="PROD" Tag="SetProd" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="SEQ" Tag="AssignNumbers" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="STATUS" Tag="SetStatus" Click="Cmd_Click" FontSize="9"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="REV" Tag="SetRev" Click="Cmd_Click" FontSize="9"/>
-                                </WrapPanel>
+                                <Expander Header="Manual token overrides (13 tokens + secondary ops)" FontSize="10" Margin="0,4,0,0">
+                                    <StackPanel Margin="0,4">
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Assign Numbers" Tag="AssignNumbers" Click="Cmd_Click" ToolTip="Sequentially assign SEQ numbers grouped by (DISC, SYS, LVL)"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Mat Tags"       Tag="MatTags"       Click="Cmd_Click" ToolTip="Build material tags"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="Per-token override (13):" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,4,0,1"/>
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource CatBtn}" Content="PROJ"   Tag="SetProj"        Click="Cmd_Click" FontSize="9" ToolTip="Set PROJ token"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="ORIG"   Tag="SetOrig"        Click="Cmd_Click" FontSize="9" ToolTip="Set ORIG token"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="VOL"    Tag="SetVol"         Click="Cmd_Click" FontSize="9" ToolTip="Set VOL token"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="LVL"    Tag="SetLvl"         Click="Cmd_Click" FontSize="9" ToolTip="Set LVL token (level code)"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="DISC"   Tag="SetDisc"        Click="Cmd_Click" FontSize="9" ToolTip="Set DISC token (M / E / P / A / S / H / MG / RP / FP / LV)"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="LOC"    Tag="SetLoc"         Click="Cmd_Click" FontSize="9" ToolTip="Set LOC token (BLD1 / BLD2 / BLD3 / EXT / XX)"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="ZONE"   Tag="SetZone"        Click="Cmd_Click" FontSize="9" ToolTip="Set ZONE token (Z01-Z04 / ZZ / XX)"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="SYS"    Tag="SetSys"         Click="Cmd_Click" FontSize="9" ToolTip="Set SYS token (HVAC / DCW / SAN / HWS / LV / etc.)"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="FUNC"   Tag="SetFunc"        Click="Cmd_Click" FontSize="9" ToolTip="Set FUNC token (SUP / HTG / DCW / SAN / PWR / etc.)"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="PROD"   Tag="SetProd"        Click="Cmd_Click" FontSize="9" ToolTip="Set PROD token (AHU / DB / DR / etc.)"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="SEQ"    Tag="AssignNumbers"  Click="Cmd_Click" FontSize="9" ToolTip="Assign SEQ numbers (re-runs AssignNumbers)"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="STATUS" Tag="SetStatus"      Click="Cmd_Click" FontSize="9" ToolTip="Set STATUS token (NEW / EXISTING / DEMOLISHED / TEMPORARY)"/>
+                                            <Button Style="{StaticResource CatBtn}" Content="REV"    Tag="SetRev"         Click="Cmd_Click" FontSize="9" ToolTip="Set REV token (revision code)"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
-                        <!-- QUALITY ASSURANCE -->
+                        <!-- QUALITY ASSURANCE (Phase B Round 3: Pattern 1 — chip row) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ QUALITY ASSURANCE"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#2196F3">
-                            <StackPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="Validate" Tag="ValidateTags" Click="Cmd_Click" ToolTip="ISO 19650 tag validation"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Highlight" Tag="HighlightInvalid" Click="Cmd_Click" ToolTip="Color-code missing/incomplete tags"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Clear Art" Tag="ClearOverrides" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Pre-Flight" Tag="CombinePreFlight" Click="Cmd_Click" ToolTip="Combine parameters pre-flight check"/>
-                                </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource BlueBtn}" Content="Completeness %" Tag="CompletenessDashboard" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Find Duplicates" Tag="FindDuplicates" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Select Stale" Tag="SelectStale" Click="Cmd_Click" ToolTip="Select elements with stale tags (moved/changed since tagging)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Container Check" Tag="ContainerPreCheck" Click="Cmd_Click" ToolTip="Verify all container parameters are bound and writable"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="QR Code" Tag="QRCode" Click="Cmd_Click" ToolTip="Generate QR code PNG for each selected element (encodes ASS_TAG_1_TXT as sting:// asset URL)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Code Legend" Tag="CodeLegend" Click="Cmd_Click" ToolTip="Browse all ISO 19650, CDE, discipline, STING parameter and RIBA stage codes in a searchable reference window"/>
-                                </WrapPanel>
-                            </StackPanel>
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}"  Content="Valid"      Tag="ValidateTags"          Click="Cmd_Click" ToolTip="ISO 19650 tag validation — checks all 8 token segments for completeness + code validity"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Highlight"  Tag="HighlightInvalid"      Click="Cmd_Click" ToolTip="Color-code missing (red) and incomplete (orange) tags in active view"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clear Art"  Tag="ClearOverrides"        Click="Cmd_Click" ToolTip="Reset graphic overrides in active view"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Pre-Flight" Tag="CombinePreFlight"      Click="Cmd_Click" ToolTip="Combine parameters pre-flight check — verifies container bindings before bulk combine"/>
+                                <Button Style="{StaticResource BlueBtn}"   Content="Complete %" Tag="CompletenessDashboard" Click="Cmd_Click" ToolTip="Per-discipline tag completeness dashboard with percentage RAG status"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Dupes"      Tag="FindDuplicates"        Click="Cmd_Click" ToolTip="Find duplicate tag values + select affected elements"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Stale"      Tag="SelectStale"           Click="Cmd_Click" ToolTip="Select elements with stale tags (moved/changed since tagging)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Containers" Tag="ContainerPreCheck"     Click="Cmd_Click" ToolTip="Verify all 36+ tag container parameters are bound and writable"/>
+                                <Button Style="{StaticResource BlueBtn}"   Content="QR"         Tag="QRCode"                Click="Cmd_Click" ToolTip="Generate QR code PNG for each selected element (encodes ASS_TAG_1_TXT as sting:// asset URL)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Codes"      Tag="CodeLegend"            Click="Cmd_Click" ToolTip="Browse all ISO 19650, CDE, discipline, STING parameter and RIBA stage codes in a searchable reference window"/>
+                            </WrapPanel>
                         </Border>
 
-                        <!-- PARAGRAPH and PRESENTATION -->
+                        <!-- PARAGRAPH and PRESENTATION (Phase B Round 3: Pattern 5 — primaries out, label-spec ops into Expander) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ PARAGRAPH &amp; PRESENTATION"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#7B1FA2">
                             <StackPanel>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="Presentation Mode" Tag="SetPresentationMode" Click="Cmd_Click" ToolTip="One-click switch: Compact / Technical / Full Spec / Presentation / BOQ"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Paragraph Depth" Tag="SetParagraphDepth" Click="Cmd_Click" ToolTip="Set compact/standard/comprehensive depth on element types"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Toggle Warnings" Tag="ToggleWarningVisibility" Click="Cmd_Click" ToolTip="Show/hide threshold warning text in tags"/>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="Pres Mode"  Tag="SetPresentationMode"     Click="Cmd_Click" ToolTip="One-click switch: Compact / Technical / Full Spec / Presentation / BOQ"/>
+                                    <Button Style="{StaticResource BlueBtn}"   Content="Depth"      Tag="SetParagraphDepth"       Click="Cmd_Click" ToolTip="Set compact / standard / comprehensive paragraph depth on element types"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Warnings"   Tag="ToggleWarningVisibility" Click="Cmd_Click" ToolTip="Show / hide threshold warning text in tags"/>
                                 </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource ActionBtn}" Content="View Label Spec" Tag="ViewLabelSpec" Click="Cmd_Click" ToolTip="Show Edit Label configuration guide for any category"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Export Label Guide" Tag="ExportLabelGuide" Click="Cmd_Click" ToolTip="Export complete label guide to text file"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="TAG7 Heading Style" Tag="SetTag7HeadingStyle" Click="Cmd_Click" ToolTip="Set bold/italic/underline style for TAG7 short tag heading (ASS_TAG_2_TXT)"/>
-                                </WrapPanel>
+                                <Expander Header="Label spec &amp; export utilities" FontSize="10" Margin="0,4,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource ActionBtn}" Content="Label Spec"   Tag="ViewLabelSpec"       Click="Cmd_Click" ToolTip="Show Edit Label configuration guide for any category"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Export Guide" Tag="ExportLabelGuide"    Click="Cmd_Click" ToolTip="Export complete label guide to text file"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="TAG7 Heading" Tag="SetTag7HeadingStyle" Click="Cmd_Click" ToolTip="Set bold / italic / underline style for TAG7 short tag heading (ASS_TAG_2_TXT)"/>
+                                    </WrapPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
@@ -2352,29 +2373,28 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- FAMILY & DISPLAY -->
+                        <!-- FAMILY & DISPLAY (Phase B Round 3: Pattern 1 — chip row) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ FAMILY &amp; DISPLAY"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Tag Family Param Creator" Tag="FamilyParamCreator" Click="Cmd_Click" ToolTip="Inject STING tag parameters (tokens, containers, TAG_POS, style matrix) into tag family .rfa files. For regular Revit families, use Temp › Family Parameter Processor."/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Display Mode..." Tag="SetDisplayMode" Click="Cmd_Click" ToolTip="Set tag display variant (SEQ only, PROD-SEQ, etc.)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Seq Scheme..." Tag="SetSeqScheme" Click="Cmd_Click" ToolTip="Configure numbering scheme"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Auto-Tag Visual" Tag="AutoTagVisual" Click="Cmd_Click" ToolTip="Toggle visual auto-tagging"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Linked Tags" Tag="BatchPlaceLinkedTags" Click="Cmd_Click" ToolTip="Place visual tags on linked model elements"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Retag Stale" Tag="RetagStale" Click="Cmd_Click" ToolTip="Retag elements marked as stale"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Inject Params" Tag="FamilyParamCreator"      Click="Cmd_Click" ToolTip="Inject STING tag parameters (tokens, containers, TAG_POS, style matrix) into tag family .rfa files. For regular Revit families, use Temp › Family Parameter Processor."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Display"       Tag="SetDisplayMode"          Click="Cmd_Click" ToolTip="Set tag display variant (SEQ only, PROD-SEQ, full tag, etc.)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Seq"           Tag="SetSeqScheme"            Click="Cmd_Click" ToolTip="Configure SEQ numbering scheme (continuous / per-discipline / per-level)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Visual"        Tag="AutoTagVisual"           Click="Cmd_Click" ToolTip="Toggle visual auto-tagging (IndependentTag annotation placement on element add)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Linked"        Tag="BatchPlaceLinkedTags"    Click="Cmd_Click" ToolTip="Place visual tags on linked model elements"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Retag Stale"   Tag="RetagStale"              Click="Cmd_Click" ToolTip="Retag elements marked as stale (geometry changed since tag built)"/>
                             </WrapPanel>
                         </Border>
 
-                        <!-- EXPORT -->
+                        <!-- EXPORT (Phase B Round 3: Pattern 1 — chip row, ★ Data Export remains visually prominent) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ EXPORT"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Export Tag Register" Tag="TagRegisterExport" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Export Tag Map" Tag="ExportTagMap" Click="Cmd_Click" ToolTip="Export all tags to .sting_tagmap.json for cross-project transfer"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Import Tag Map" Tag="ImportTagMap" Click="Cmd_Click" ToolTip="Import tags from another project's tag map file"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="★ Data Export" Tag="StingDataExport" Click="Cmd_Click"
-                                        ToolTip="ExLink-style export: choose categories, parameters, family/type, format and location" FontWeight="Bold"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Combine Parameters" Tag="CombineParameters" Click="Cmd_Click" ToolTip="Auto-fill tokens into all 36 tag containers"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Register"     Tag="TagRegisterExport" Click="Cmd_Click" ToolTip="Export comprehensive tag register CSV (40+ columns: tags, identity, spatial, MEP, cost, validation)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Export Map"   Tag="ExportTagMap"      Click="Cmd_Click" ToolTip="Export all tags to .sting_tagmap.json for cross-project transfer"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Import Map"   Tag="ImportTagMap"      Click="Cmd_Click" ToolTip="Import tags from another project's tag map file"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="★ Data Export" Tag="StingDataExport"  Click="Cmd_Click" ToolTip="ExLink-style export: choose categories, parameters, family/type, format and location" FontWeight="Bold"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Combine"      Tag="CombineParameters" Click="Cmd_Click" ToolTip="Auto-fill tokens into all 36 tag containers"/>
                             </WrapPanel>
                         </Border>
 

@@ -398,6 +398,42 @@ namespace StingTools.UI
             }
         }
 
+        // Phase B Round 3 (CREATE TAGS) suite-runner helper. Parallel to
+        // RunInteropRunner / RunDocsRunner / RunSetupRunner; tab-scoped —
+        // resolves a runner tag to a concrete dispatch tag by reading the
+        // sibling RadioButtons in the CREATE TAGS ISO header.
+        private bool RunCreateTagsRunner(string runnerTag)
+        {
+            if (string.IsNullOrEmpty(runnerTag)) return false;
+
+            switch (runnerTag)
+            {
+                case "CreateTags_ScopeApply":
+                {
+                    // Reads the ISO HEADER Scope radios. Dispatches the
+                    // matching concrete scope tag.
+                    string tag = null;
+                    if (rbCtScopeView != null && rbCtScopeView.IsChecked == true) tag = (rbCtScopeView.Tag as string) ?? "ScopeView";
+                    else if (rbCtScopeSelection != null && rbCtScopeSelection.IsChecked == true) tag = (rbCtScopeSelection.Tag as string) ?? "ScopeSelection";
+                    else if (rbCtScopeProject != null && rbCtScopeProject.IsChecked == true) tag = (rbCtScopeProject.Tag as string) ?? "ScopeProject";
+                    if (string.IsNullOrEmpty(tag)) tag = "ScopeView";
+                    DispatchCommand(tag);
+                    return true;
+                }
+                case "CreateTags_OverwriteApply":
+                {
+                    // The overwrite command is toggle-style — both Yes and No
+                    // dispatch ToggleOverwrite; the radio's job is to surface
+                    // the desired state at-a-glance. Round 4 can refactor to
+                    // explicit OverwriteOn / OverwriteOff if needed.
+                    DispatchCommand("ToggleOverwrite");
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        }
+
         private void Cmd_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
@@ -431,6 +467,14 @@ namespace StingTools.UI
                     cmdTag == "Setup_QuickWorkflowRun")
                 {
                     RunSetupRunner(cmdTag);
+                    return;
+                }
+
+                // Phase B Round 3 — CREATE TAGS suite runners.
+                if (cmdTag == "CreateTags_ScopeApply" ||
+                    cmdTag == "CreateTags_OverwriteApply")
+                {
+                    RunCreateTagsRunner(cmdTag);
                     return;
                 }
 
