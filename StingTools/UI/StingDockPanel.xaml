@@ -5,6 +5,11 @@
       Background="{DynamicResource PrimaryBg}">
 
     <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Phase 3a: shared button/section styling — tune the look in this one file -->
+                <ResourceDictionary Source="/StingTools;component/UI/Resources/StingButtonStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
         <!-- FIX-3.3: DynamicResource bindings — ThemeManager.CycleTheme() now works -->
         <Style x:Key="SectionHeader" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/>
@@ -20,71 +25,59 @@
             <Setter Property="Margin" Value="0,3"/>
             <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
         </Style>
-        <Style x:Key="CatBtn" TargetType="Button">
+        <!-- Phase 3a: local button styles now inherit the shared StingButton look
+             (rounded corners + subtle hover lift + consistent metrics). Colours are
+             preserved; the two SEMANTIC styles route to the shared accents so they
+             retune from StingButtonStyles.xaml: GreenBtn→Primary, RedBtn→Danger. -->
+        <Style x:Key="CatBtn" TargetType="Button" BasedOn="{StaticResource StingButton}">
             <Setter Property="MinWidth" Value="34"/>
-            <Setter Property="Height" Value="24"/>
             <Setter Property="Margin" Value="1"/>
-            <Setter Property="FontSize" Value="10"/>
             <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
         </Style>
-        <Style x:Key="ActionBtn" TargetType="Button">
+        <Style x:Key="ActionBtn" TargetType="Button" BasedOn="{StaticResource StingButton}">
             <Setter Property="MinWidth" Value="46"/>
             <Setter Property="Height" Value="26"/>
             <Setter Property="Margin" Value="1"/>
-            <Setter Property="FontSize" Value="10"/>
             <Setter Property="Padding" Value="5,2"/>
-            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
-            <Setter Property="Cursor" Value="Hand"/>
         </Style>
-        <Style x:Key="GreenBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
-            <Setter Property="Background" Value="#4CAF50"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="BorderBrush" Value="#388E3C"/>
+        <!-- GreenBtn = key actions (Run / Apply / Build / Issue) → shared Primary -->
+        <Style x:Key="GreenBtn" TargetType="Button" BasedOn="{StaticResource StingPrimaryButton}">
+            <Setter Property="MinWidth" Value="46"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Margin" Value="1"/>
         </Style>
         <Style x:Key="OrangeBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
             <Setter Property="Background" Value="#FF9800"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderBrush" Value="#F57C00"/>
         </Style>
-        <Style x:Key="RedBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
-            <Setter Property="Background" Value="#F44336"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="BorderBrush" Value="#D32F2F"/>
+        <!-- RedBtn = delete / reset → shared Danger -->
+        <Style x:Key="RedBtn" TargetType="Button" BasedOn="{StaticResource StingDangerButton}">
+            <Setter Property="MinWidth" Value="46"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Margin" Value="1"/>
         </Style>
         <Style x:Key="BlueBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
             <Setter Property="Background" Value="#2196F3"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderBrush" Value="#1976D2"/>
         </Style>
         <Style x:Key="PurpleBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
             <Setter Property="Background" Value="#9C27B0"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderBrush" Value="#7B1FA2"/>
         </Style>
         <Style x:Key="TealBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
             <Setter Property="Background" Value="#009688"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderBrush" Value="#00796B"/>
         </Style>
-        <Style x:Key="SectionLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="10.5"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        <Style x:Key="SectionLabel" TargetType="TextBlock" BasedOn="{StaticResource StingSectionHeader}">
             <Setter Property="Margin" Value="0,6,0,2"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Opacity" Value="1.0"/>
         </Style>
         <Style x:Key="SubLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="9"/>
@@ -99,6 +92,7 @@
             <Setter Property="Orientation" Value="Horizontal"/>
             <Setter Property="Margin" Value="0,2,0,4"/>
         </Style>
+        </ResourceDictionary>
     </Page.Resources>
 
     <Grid>
