@@ -5,56 +5,101 @@
       Background="{DynamicResource PrimaryBg}">
 
     <Page.Resources>
-        <Style x:Key="ElecSectionHeader" TargetType="TextBlock">
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Margin" Value="0,4,0,2"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-        </Style>
-        <Style x:Key="ElecLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Margin" Value="0,2,4,2"/>
-            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-        <Style x:Key="ElecActionBtn" TargetType="Button">
-            <Setter Property="MinWidth" Value="64"/>
-            <Setter Property="Height" Value="24"/>
-            <Setter Property="Margin" Value="2,1"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style x:Key="ElecToolBtn" TargetType="Button" BasedOn="{StaticResource ElecActionBtn}">
-            <Setter Property="MinWidth" Value="28"/>
-            <Setter Property="Width" Value="28"/>
-            <Setter Property="FontSize" Value="11"/>
-        </Style>
-        <Style x:Key="ElecPrimaryBtn" TargetType="Button" BasedOn="{StaticResource ElecActionBtn}">
-            <Setter Property="Background" Value="#FF1976D2"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="MinWidth" Value="100"/>
-            <Setter Property="Height" Value="26"/>
-        </Style>
-        <Style x:Key="ElecExpander" TargetType="Expander">
-            <Setter Property="Margin" Value="0,3"/>
-            <Setter Property="Padding" Value="2"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
-            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
-        </Style>
-        <Style x:Key="LockBadge" TargetType="Border">
-            <Setter Property="Background" Value="#33FF6B6B"/>
-            <Setter Property="CornerRadius" Value="2"/>
-            <Setter Property="Padding" Value="3,1"/>
-            <Setter Property="Margin" Value="6,0,0,0"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
+        <ResourceDictionary>
+            <!-- Phase C: merge shared button styles so Electrical panel stays in lock-step with main dock panel + LPS look -->
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/StingTools;component/UI/Resources/StingButtonStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Section header — alias to shared style so theme cycling drives the accent -->
+            <Style x:Key="ElecSectionHeader" TargetType="TextBlock" BasedOn="{StaticResource StingSectionHeader}">
+                <Setter Property="FontSize" Value="11"/>
+            </Style>
+
+            <!-- Label remains local — TextBlock label, not in shared dictionary -->
+            <Style x:Key="ElecLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="Margin" Value="0,2,4,2"/>
+                <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <!-- Neutral action button — fully migrated to shared StingButton (theme-driven) -->
+            <Style x:Key="ElecActionBtn" TargetType="Button" BasedOn="{StaticResource StingButton}">
+                <Setter Property="MinWidth" Value="64"/>
+                <Setter Property="Height" Value="24"/>
+            </Style>
+
+            <!-- Tool button — small icon variant, still based on shared StingButton -->
+            <Style x:Key="ElecToolBtn" TargetType="Button" BasedOn="{StaticResource StingButton}">
+                <Setter Property="MinWidth" Value="28"/>
+                <Setter Property="Width" Value="28"/>
+                <Setter Property="Height" Value="24"/>
+                <Setter Property="FontSize" Value="11"/>
+            </Style>
+
+            <!-- Primary button — keeps BS 7671 phase-C blue as the BRAND-SEMANTIC outline colour
+                 (matches LPS panel's purple-outline primary pattern; theme drives chrome around it) -->
+            <SolidColorBrush x:Key="ElecPhaseCBlueBrush" Color="#1976D2"/>
+            <SolidColorBrush x:Key="ElecPhaseCBlueTintBrush" Color="#141976D2"/>
+            <Style x:Key="ElecPrimaryBtn" TargetType="Button" BasedOn="{StaticResource StingButton}">
+                <Setter Property="Background"  Value="Transparent"/>
+                <Setter Property="Foreground"  Value="{DynamicResource ElecPhaseCBlueBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource ElecPhaseCBlueBrush}"/>
+                <Setter Property="BorderThickness" Value="1.4"/>
+                <Setter Property="FontWeight"  Value="SemiBold"/>
+                <Setter Property="MinWidth"    Value="100"/>
+                <Setter Property="Height"      Value="26"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid>
+                                <Border x:Name="bd" CornerRadius="3"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"/>
+                                <Border x:Name="overlay" CornerRadius="3"
+                                        Background="{DynamicResource ElecPhaseCBlueTintBrush}"
+                                        Visibility="Collapsed"/>
+                                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="overlay" Property="Visibility" Value="Visible"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="overlay" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="overlay" Property="Background" Value="{DynamicResource BtnPressBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Expander remains local — Expander, not in shared dictionary -->
+            <Style x:Key="ElecExpander" TargetType="Expander">
+                <Setter Property="Margin" Value="0,3"/>
+                <Setter Property="Padding" Value="2"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+                <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+            </Style>
+
+            <!-- Lock badge — Border tint indicating locked panel; semantic state colour kept local -->
+            <Style x:Key="LockBadge" TargetType="Border">
+                <Setter Property="Background" Value="#33FF6B6B"/>
+                <Setter Property="CornerRadius" Value="2"/>
+                <Setter Property="Padding" Value="3,1"/>
+                <Setter Property="Margin" Value="6,0,0,0"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+        </ResourceDictionary>
     </Page.Resources>
 
     <Grid>
