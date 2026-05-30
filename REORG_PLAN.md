@@ -95,3 +95,32 @@ Net: **VIEW dissolved**, **EXLINK merged**, **CREATE merged into TAGGING**, **BI
 3. Confirm "TAGGING merges CREATE in" vs "keep CREATE separate."
 
 On approval I apply the moves, build 0/0, push the final commit on `feature/phase3`, and pause for your Revit verification.
+
+---
+
+## APPLIED — CORE moves (this commit)
+
+Per your sign-off: **CORE applied now, CREATE kept separate (renamed "CREATE TAGS"),
+INTEROP split DEFERRED to a follow-up commit.** Build 0/0, no CompiledPlugin churn,
+Scale sub-tab + Healthcare + dedicated panels untouched.
+
+**Tab map now 11 → 10:**
+`SELECT · TAGGING · DOCS · SETUP · CREATE TAGS · MODEL · BIM · TAG STUDIO · EXLINK · HEALTHCARE`
+
+What was applied:
+- **Renames:** ORGANISE→**TAGGING**, CREATE→**CREATE TAGS**, TEMP→**SETUP**, TAGS→**TAG STUDIO** (display-only; no code keys off the header strings).
+- **VIEW dissolved** (tab removed). Its 8 sections distributed:
+  - → **TAGGING**: View Tag Style, Parameter Anomaly Detection, AI Context-Aware Tag Placement, Colouriser, Tag Style Engine.
+  - → **DOCS**: Project Health Score, View Controls, Analysis Heatmaps (AVF).
+- **Export Center + Sheet Index** moved ORGANISE/TAGGING → **DOCS** (were stranded at the bottom of the tagging tab).
+
+How (safety): moves were whole-section line-range relocations done by a validated script —
+result was checked to be **well-formed XML**, **button count unchanged (1487 → 1487)**, VIEW
+header gone, then a clean `--no-incremental` build (BAML compile) passed 0/0. No Tag/handler
+changed → dispatch identical.
+
+### DEFERRED to the next commit on this branch (after your Revit OK of CORE)
+- **INTEROP split**: move BIM's data-exchange sections (Data Pipeline, IFC Ingestion, Excel
+  Link, Platform Integration, Speckle ×3, Data Export-ExLink-style, Cross-System Automation,
+  platform·scheduling·cost) + the whole **EXLINK** tab into a new **INTEROP** tab (→ 10 → 10,
+  EXLINK removed, INTEROP added). Held back so you can isolate any CORE regression first.

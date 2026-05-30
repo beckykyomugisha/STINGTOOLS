@@ -529,7 +529,7 @@
             </TabItem>
 
             <!-- =============== ORGANISE TAB =============== -->
-            <TabItem Header="ORGANISE">
+            <TabItem Header="TAGGING">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
 
@@ -998,47 +998,268 @@
                             </WrapPanel>
                         </Border>
 
-                        <!-- EXPORT CENTER -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="EXPORT CENTER"/>
+
+
+                        <!-- moved here from the former VIEW tab (Phase 3b reorg) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="VIEW TAG STYLE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Set View Style..." Tag="SetViewTagStyle" Click="Cmd_Click" ToolTip="Set per-view tag style preference"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Auto-Tagger Config" Tag="AutoTaggerConfig" Click="Cmd_Click" ToolTip="Configure auto-tagger settings"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- PROJECT HEALTH SCORE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Scan] PARAMETER ANOMALY DETECTION"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ Export Center" Tag="ExportCenter" Click="Cmd_Click" ToolTip="Unified export workspace: PDF / DWG / IFC / NWC / DGN / DWF / Image / XML with ISO 19650 naming, profiles &amp; scheduled exports"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="PDF Preset" Tag="ExportCenterPDF" Click="Cmd_Click" ToolTip="Open Export Center with PDF preset selected"/>
-                                </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <ComboBox x:Name="cmbPaperSize" FontSize="10" Height="24" Width="60">
-                                        <ComboBoxItem Content="A1" IsSelected="True"/>
-                                        <ComboBoxItem Content="A0"/>
-                                        <ComboBoxItem Content="A2"/>
-                                        <ComboBoxItem Content="A3"/>
-                                        <ComboBoxItem Content="A4"/>
-                                    </ComboBox>
-                                    <Button Style="{StaticResource ActionBtn}" Content="All Sheets" Tag="PrintSheets" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Selected Sheets" Tag="PdfSelectedSheets" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Active View" Tag="PdfActiveView" Click="Cmd_Click"/>
-                                </WrapPanel>
+                                <TextBlock Text="Statistical outlier analysis — values &gt;2σ from mean, empty mandatory fields, duplicates, type/instance mismatches."
+                                           FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="cmbAnomalyParam" IsEditable="True" FontSize="10" Height="22"/>
+                                    <Button Grid.Column="1" Content="↻" Width="26" Height="22" FontSize="12" Tag="AnomalyRefresh" Click="Cmd_Click"/>
+                                    <Button Grid.Column="2" Style="{StaticResource BlueBtn}" Content="[Scan] Run" Tag="AnomalyScan" Click="Cmd_Click"/>
+                                    <Button Grid.Column="3" Style="{StaticResource ActionBtn}" Content="Export" Tag="AnomalyExport" Click="Cmd_Click"/>
+                                </Grid>
+                                <TextBlock x:Name="txtAnomalyResult" Text="Select elements · click [Scan] Run" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
 
-                        <!-- SHEET INDEX -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="SHEET INDEX"/>
-                        <Border Style="{StaticResource GroupBorder}">
+                        <!-- AI CONTEXT-AWARE TAG PLACEMENT -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Bot] AI CONTEXT-AWARE TAG PLACEMENT"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#009688">
                             <StackPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportSheetCSV" Click="Cmd_Click"/>
+                                <TextBlock Text="Analyses view density, clash zones and element bounding boxes to find optimal tag head positions — no manual nudging needed."
+                                           FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource TealBtn}" Content="[Bot] Smart Place" Tag="BotSmartPlace" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="[Place] Density Map" Tag="BotDensityMap" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="↺ Undo AI" Tag="BotUndoAI" Click="Cmd_Click"/>
                                 </WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="⚙ Options" Tag="BotOptions" Click="Cmd_Click" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- COLOURISER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Art] COLOURISER"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
+                            <StackPanel>
+                                <!-- Saved schemes -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="cmbColorScheme" FontSize="10" Height="22" ToolTip="Saved colour schemes">
+                                        <ComboBoxItem Content="— saved schemes —" IsSelected="True"/>
+                                    </ComboBox>
+                                    <Button Grid.Column="1" Content="[Save]Save" Style="{StaticResource ActionBtn}" FontSize="9" Tag="SaveColorPreset" Click="Cmd_Click"/>
+                                    <Button Grid.Column="2" Content="[Open]Load" Style="{StaticResource ActionBtn}" FontSize="9" Tag="LoadColorPreset" Click="Cmd_Click"/>
+                                    <Button Grid.Column="3" Content="✕Del" Style="{StaticResource RedBtn}" FontSize="9" Tag="ColorSchemeDel" Click="Cmd_Click"/>
+                                </Grid>
+                                <!-- Color by -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="cmbColorByView" FontSize="10" Height="22" ToolTip="Color by parameter">
+                                        <ComboBoxItem Content="By Category" IsSelected="True"/>
+                                        <ComboBoxItem Content="By Discipline"/>
+                                        <ComboBoxItem Content="By System"/>
+                                        <ComboBoxItem Content="By Level"/>
+                                        <ComboBoxItem Content="By Workset"/>
+                                        <ComboBoxItem Content="By Phase"/>
+                                        <ComboBoxItem Content="By Parameter..."/>
+                                    </ComboBox>
+                                    <Button Grid.Column="1" Style="{StaticResource PurpleBtn}" Content="▶ Apply" Tag="ColorApply" Click="Cmd_Click"/>
+                                    <Button Grid.Column="2" Style="{StaticResource ActionBtn}" Content="[Art]ISO%" Tag="HighlightInvalid" Click="Cmd_Click"/>
+                                </Grid>
+                                <!-- Palette -->
                                 <Grid Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Prefix filter:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <TextBox Grid.Column="1" x:Name="txtSheetPrefix" FontSize="10" Height="24"/>
+                                    <TextBlock Text="Palette:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <ComboBox Grid.Column="1" x:Name="cmbPaletteView" FontSize="10" Height="22">
+                                        <ComboBoxItem Content="Material 500" IsSelected="True"/>
+                                        <ComboBoxItem Content="STING Discipline"/>
+                                        <ComboBoxItem Content="RAG Status"/>
+                                        <ComboBoxItem Content="Spectral"/>
+                                        <ComboBoxItem Content="High Contrast"/>
+                                        <ComboBoxItem Content="Accessible"/>
+                                        <ComboBoxItem Content="Pastel"/>
+                                        <ComboBoxItem Content="Monochrome"/>
+                                    </ComboBox>
                                 </Grid>
+                                <!-- FILL swatches -->
+                                <TextBlock Text="FILL — click swatch to apply to selection:" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
+                                <WrapPanel x:Name="pnlSwatchesView" Margin="0,2,0,0"/>
+                                <!-- Hex input -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="#" FontSize="10" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="1" x:Name="txtHexColorView" Text="RRGGBB" FontSize="10" Height="22"/>
+                                    <Border Grid.Column="2" x:Name="brdColorPreviewView" Width="22" Height="22" Background="White" BorderBrush="#CCC" BorderThickness="1" Margin="4,0"/>
+                                    <Border Grid.Column="3" Width="22" Height="22" Background="Red" BorderBrush="#CCC" BorderThickness="1"/>
+                                    <Button Grid.Column="4" Style="{StaticResource ActionBtn}" Content="Apply" Tag="ColorApplyHex" Click="Cmd_Click"/>
+                                </Grid>
+                                <!-- Transparency -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Transparency:" FontSize="10" VerticalAlignment="Center"/>
+                                    <Slider Grid.Column="1" x:Name="sldTransparencyView" Minimum="0" Maximum="100" Value="0"/>
+                                    <TextBlock Grid.Column="2" Text="0%" FontSize="10" VerticalAlignment="Center" Margin="4,0"/>
+                                    <Button Grid.Column="3" Style="{StaticResource ActionBtn}" Content="Apply" Tag="ColorApplyTransparency" Click="Cmd_Click"/>
+                                </Grid>
+                                <!-- Gradient -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Gradient:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <Border Grid.Column="1" x:Name="brdGradStart" Width="30" Height="22" Background="#2196F3" BorderBrush="#CCC" BorderThickness="1"/>
+                                    <TextBlock Grid.Column="2" Text="→" FontSize="12" VerticalAlignment="Center" Margin="4,0"/>
+                                    <Border Grid.Column="3" x:Name="brdGradEnd" Width="30" Height="22" Background="#F44336" BorderBrush="#CCC" BorderThickness="1"/>
+                                    <Button Grid.Column="5" Style="{StaticResource GreenBtn}" Content="Color by Value" Tag="GradientApply" Click="Cmd_Click" ToolTip="Colour elements by a parameter value (ColorByParameterCommand)"/>
+                                </Grid>
+                                <!-- Pattern -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Pattern:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <ComboBox Grid.Column="1" x:Name="cmbFillPattern" FontSize="10" Height="22">
+                                        <ComboBoxItem Content="Solid" IsSelected="True"/>
+                                        <ComboBoxItem Content="Crosshatch"/>
+                                        <ComboBoxItem Content="Diagonal"/>
+                                        <ComboBoxItem Content="Horizontal"/>
+                                        <ComboBoxItem Content="Vertical"/>
+                                    </ComboBox>
+                                    <Button Grid.Column="2" Style="{StaticResource ActionBtn}" Content="Apply" Tag="PatternApplyView" Click="Cmd_Click"/>
+                                </Grid>
+                                <!-- OUTLINE COLOUR -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="OUTLINE COLOUR" FontSize="9" FontWeight="Bold" Foreground="#888"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <TextBlock Text="Custom:" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <CheckBox x:Name="chkCustomOutline" Content="OFF" FontSize="9"/>
+                                    </StackPanel>
+                                </Grid>
+                                <WrapPanel x:Name="pnlOutlineSwatchesView" Margin="0,2,0,0"/>
+                                <!-- Fill/Outline/Weight controls -->
+                                <WrapPanel Margin="0,4,0,0">
+                                    <TextBlock Text="Fill:" FontSize="10" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                    <Border x:Name="brdFillColorView" Width="18" Height="18" Background="#2196F3" BorderThickness="1" BorderBrush="#CCC"/>
+                                    <TextBlock Text="Outline:" FontSize="10" VerticalAlignment="Center" Margin="8,0,2,0"/>
+                                    <Border x:Name="brdOutlineColorView" Width="18" Height="18" Background="Black" BorderThickness="1" BorderBrush="#CCC"/>
+                                    <TextBlock Text="Wt:" FontSize="10" VerticalAlignment="Center" Margin="8,0,2,0"/>
+                                    <ComboBox x:Name="cmbLineWeightView" Width="55" FontSize="10" Height="22">
+                                        <ComboBoxItem Content="Default" IsSelected="True"/>
+                                        <ComboBoxItem Content="1"/>
+                                        <ComboBoxItem Content="2"/>
+                                        <ComboBoxItem Content="3"/>
+                                        <ComboBoxItem Content="5"/>
+                                        <ComboBoxItem Content="8"/>
+                                    </ComboBox>
+                                    <Button Style="{StaticResource CatBtn}" Content="Wt" Tag="ApplyLineWeight" Click="Cmd_Click"/>
+                                    <RadioButton x:Name="rbFill" Content="● Fill" FontSize="10" IsChecked="True" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                </WrapPanel>
+                                <!-- Parameter Color -->
+                                <TextBlock Text="PARAMETER COLOUR" FontSize="9" FontWeight="Bold" Foreground="#888" Margin="0,6,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Color By Param" Tag="ColorByParameter" Click="Cmd_Click" ToolTip="Color elements by any parameter value"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Save Preset" Tag="SaveColorPreset" Click="Cmd_Click" ToolTip="Save color scheme as preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Preset" Tag="LoadColorPreset" Click="Cmd_Click" ToolTip="Load saved color preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="To Filters" Tag="CreateFiltersFromColors" Click="Cmd_Click" ToolTip="Convert colors to persistent filters"/>
+                                </WrapPanel>
+                                <!-- Clear ALL -->
+                                <Button Style="{StaticResource RedBtn}" Content="Clear ALL Colour Overrides in View" Tag="ClearColorOverrides" Click="Cmd_Click"
+                                        HorizontalAlignment="Stretch" Margin="0,6,0,0"/>
                             </StackPanel>
                         </Border>
 
+                        <!-- TAG STYLE ENGINE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG STYLE ENGINE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <TextBlock Text="Control tag size, style, and colour via shared BOOL parameters" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="TAG APPEARANCE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Apply Tag Style" Tag="ApplyTagStyle" Click="Cmd_Click" ToolTip="Pick size/style/colour for tag label visibility"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="By Discipline" Tag="SwitchTagStyleByDisc" Click="Cmd_Click" ToolTip="Auto-assign tag styles per discipline"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Style Report" Tag="TagStyleReport" Click="Cmd_Click" ToolTip="Audit current tag style usage"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="VIEW COLOUR SCHEME"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Apply Scheme" Tag="ApplyColorScheme" Click="Cmd_Click" ToolTip="Apply named colour scheme to view"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Batch Scheme" Tag="BatchApplyColorScheme" Click="Cmd_Click" ToolTip="Apply scheme to ALL views"/>
+                                    <Button Style="{StaticResource RedBtn}" Content="Clear Scheme" Tag="ClearColorScheme" Click="Cmd_Click" ToolTip="Remove all colour overrides"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="COLOUR BY VARIABLE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="By Variable" Tag="ColorByVariable" Click="Cmd_Click" ToolTip="Color by System/Status/Zone/Level/Function/Location"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Box Color" Tag="SetBoxColor" Click="Cmd_Click" ToolTip="Set tag bounding box fill colour (separate from text)"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="PARAGRAPH DEPTH"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Set Depth (1-10)" Tag="SetParagraphDepthExt" Click="Cmd_Click" ToolTip="Control TAG7 paragraph visibility tiers"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="PATTERN MODE (T4-T10 PAYLOAD SET)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Handover" Tag="SetPatternMode_Handover" Click="Cmd_Click" ToolTip="Switch active T4-T10 payload to handover pack"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="D&amp;C" Tag="SetPatternMode_DC" Click="Cmd_Click" ToolTip="Switch active T4-T10 payload to design &amp; construction pack (default)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Custom" Tag="SetPatternMode_Custom" Click="Cmd_Click" ToolTip="Switch active T4-T10 payload to project-custom pack"/>
+                                </WrapPanel>
+                                <!-- Phase 165 — Issue #15. Direct System B tier-write buttons.
+                                     Each launches a focused write command for a single tier so
+                                     QA / commissioning teams can populate one tier at a time. -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="SYSTEM B TIER WRITERS (HANDOVER MODE)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T4 Comm"      Tag="WriteSystemBTier_4"  Click="Cmd_Click" ToolTip="Write T4 commissioning data (COMM_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T5 Cost"      Tag="WriteSystemBTier_5"  Click="Cmd_Click" ToolTip="Write T5 cost data (CST_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T6 Carbon"    Tag="WriteSystemBTier_6"  Click="Cmd_Click" ToolTip="Write T6 carbon data (CBN_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T7 Fab"       Tag="WriteSystemBTier_7"  Click="Cmd_Click" ToolTip="Write T7 fabrication / QC data (FAB_/ASS_SPOOL_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T8 Clash"     Tag="WriteSystemBTier_8"  Click="Cmd_Click" ToolTip="Write T8 clash triage data (CLH_/CLASH_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T9 As-Built"  Tag="WriteSystemBTier_9"  Click="Cmd_Click" ToolTip="Write T9 as-built / health data (ASB_/ASBUILT_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T10 Audit"    Tag="WriteSystemBTier_10" Click="Cmd_Click" ToolTip="Write T10 compliance / audit data (AUD_/IFC_/ACC_*) on selected elements"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- VIEW CONTROLS -->
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -1465,12 +1686,118 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- moved here: Export Center + Sheet Index (from TAGGING) and view-analysis sections (from VIEW) — Phase 3b -->
+                        <!-- EXPORT CENTER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="EXPORT CENTER"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Export Center" Tag="ExportCenter" Click="Cmd_Click" ToolTip="Unified export workspace: PDF / DWG / IFC / NWC / DGN / DWF / Image / XML with ISO 19650 naming, profiles &amp; scheduled exports"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="PDF Preset" Tag="ExportCenterPDF" Click="Cmd_Click" ToolTip="Open Export Center with PDF preset selected"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <ComboBox x:Name="cmbPaperSize" FontSize="10" Height="24" Width="60">
+                                        <ComboBoxItem Content="A1" IsSelected="True"/>
+                                        <ComboBoxItem Content="A0"/>
+                                        <ComboBoxItem Content="A2"/>
+                                        <ComboBoxItem Content="A3"/>
+                                        <ComboBoxItem Content="A4"/>
+                                    </ComboBox>
+                                    <Button Style="{StaticResource ActionBtn}" Content="All Sheets" Tag="PrintSheets" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Selected Sheets" Tag="PdfSelectedSheets" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Active View" Tag="PdfActiveView" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                        <!-- SHEET INDEX -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SHEET INDEX"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportSheetCSV" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Prefix filter:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBox Grid.Column="1" x:Name="txtSheetPrefix" FontSize="10" Height="24"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Param] PROJECT HEALTH SCORE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="ISO completeness · tag coverage · leader consistency · view naming · param fill rates · annotation density"
+                                               FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Column="1" x:Name="txtHealthScore" Text="—/100" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
+                                </Grid>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <ComboBox x:Name="cmbHealthScope" Width="90" FontSize="10" Height="22">
+                                        <ComboBoxItem Content="Active View" IsSelected="True"/>
+                                        <ComboBoxItem Content="Project"/>
+                                    </ComboBox>
+                                    <Button Style="{StaticResource GreenBtn}" Content="▶ Score" Tag="HealthScore" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="[Chart] Report" Tag="HealthReport" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="[Fix] Fix All" Tag="HealthFixAll" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <ProgressBar x:Name="prgHealth" Height="6" Margin="0,4,0,0" Value="0" Maximum="100"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PARAMETER ANOMALY DETECTION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Eye] VIEW CONTROLS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="TEMP HIDE / ISOLATE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="[Find] Isolate" Tag="ViewIsolate" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="[Hide] Hide" Tag="ViewHide" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="[Look] Reveal" Tag="ViewReveal" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="↻ Reset" Tag="ViewReset" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="PERMANENT HIDE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Perm Hide" Tag="PermHide" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Perm Unhide" Tag="PermUnhide" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Unhide Cat" Tag="UnhideCategory" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="GRAPHIC OVERRIDES"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Halftone ON" Tag="HalftoneOn" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Halftone OFF" Tag="HalftoneOff" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Reset Override" Tag="ClearOverrides" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Always on top -->
+                        <TextBlock Text="Always on top: ON" FontSize="10" Foreground="#888" Margin="0,4,0,0"/>
+
+                        <!-- Group 5: surfaced AVF heatmaps (were orphaned — no button) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="ANALYSIS HEATMAPS (AVF)"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Compliance" Tag="Heatmap_Compliance" Click="Cmd_Click" ToolTip="Paint a tag-completeness / compliance heatmap on the active view."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Fill %" Tag="Heatmap_Fill" Click="Cmd_Click" ToolTip="Paint a conduit/duct fill-% heatmap on the active view."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Carbon" Tag="Heatmap_Carbon" Click="Cmd_Click" ToolTip="Paint an embodied-carbon heatmap on the active view."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Acoustic" Tag="Heatmap_Acoustic" Click="Cmd_Click" ToolTip="Paint an acoustic-performance heatmap on the active view."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clear" Tag="Heatmap_Clear" Click="Cmd_Click" ToolTip="Clear all AVF heatmap overrides from the active view."/>
+                            </WrapPanel>
+                        </Border>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
             <!-- =============== TEMP TAB =============== -->
-            <TabItem Header="TEMP">
+            <TabItem Header="SETUP">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
 
@@ -1773,7 +2100,7 @@
                  toolbar actions dispatch through Cmd_Click. -->
 
             <!-- =============== CREATE TAB =============== -->
-            <TabItem Header="CREATE">
+            <TabItem Header="CREATE TAGS">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
 
@@ -1986,340 +2313,6 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- =============== VIEW TAB =============== -->
-            <TabItem Header="VIEW">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
-                    <StackPanel>
-
-                        <!-- VIEW TAG STYLE -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="VIEW TAG STYLE"/>
-                        <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Set View Style..." Tag="SetViewTagStyle" Click="Cmd_Click" ToolTip="Set per-view tag style preference"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Auto-Tagger Config" Tag="AutoTaggerConfig" Click="Cmd_Click" ToolTip="Configure auto-tagger settings"/>
-                            </WrapPanel>
-                        </Border>
-
-                        <!-- PROJECT HEALTH SCORE -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Param] PROJECT HEALTH SCORE"/>
-                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
-                            <StackPanel>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="ISO completeness · tag coverage · leader consistency · view naming · param fill rates · annotation density"
-                                               FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Column="1" x:Name="txtHealthScore" Text="—/100" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
-                                </Grid>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <ComboBox x:Name="cmbHealthScope" Width="90" FontSize="10" Height="22">
-                                        <ComboBoxItem Content="Active View" IsSelected="True"/>
-                                        <ComboBoxItem Content="Project"/>
-                                    </ComboBox>
-                                    <Button Style="{StaticResource GreenBtn}" Content="▶ Score" Tag="HealthScore" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="[Chart] Report" Tag="HealthReport" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="[Fix] Fix All" Tag="HealthFixAll" Click="Cmd_Click"/>
-                                </WrapPanel>
-                                <ProgressBar x:Name="prgHealth" Height="6" Margin="0,4,0,0" Value="0" Maximum="100"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- PARAMETER ANOMALY DETECTION -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Scan] PARAMETER ANOMALY DETECTION"/>
-                        <Border Style="{StaticResource GroupBorder}">
-                            <StackPanel>
-                                <TextBlock Text="Statistical outlier analysis — values &gt;2σ from mean, empty mandatory fields, duplicates, type/instance mismatches."
-                                           FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="cmbAnomalyParam" IsEditable="True" FontSize="10" Height="22"/>
-                                    <Button Grid.Column="1" Content="↻" Width="26" Height="22" FontSize="12" Tag="AnomalyRefresh" Click="Cmd_Click"/>
-                                    <Button Grid.Column="2" Style="{StaticResource BlueBtn}" Content="[Scan] Run" Tag="AnomalyScan" Click="Cmd_Click"/>
-                                    <Button Grid.Column="3" Style="{StaticResource ActionBtn}" Content="Export" Tag="AnomalyExport" Click="Cmd_Click"/>
-                                </Grid>
-                                <TextBlock x:Name="txtAnomalyResult" Text="Select elements · click [Scan] Run" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- AI CONTEXT-AWARE TAG PLACEMENT -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Bot] AI CONTEXT-AWARE TAG PLACEMENT"/>
-                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#009688">
-                            <StackPanel>
-                                <TextBlock Text="Analyses view density, clash zones and element bounding boxes to find optimal tag head positions — no manual nudging needed."
-                                           FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource TealBtn}" Content="[Bot] Smart Place" Tag="BotSmartPlace" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="[Place] Density Map" Tag="BotDensityMap" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="↺ Undo AI" Tag="BotUndoAI" Click="Cmd_Click"/>
-                                </WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="⚙ Options" Tag="BotOptions" Click="Cmd_Click" HorizontalAlignment="Left" Margin="0,4,0,0"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- COLOURISER -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Art] COLOURISER"/>
-                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
-                            <StackPanel>
-                                <!-- Saved schemes -->
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="cmbColorScheme" FontSize="10" Height="22" ToolTip="Saved colour schemes">
-                                        <ComboBoxItem Content="— saved schemes —" IsSelected="True"/>
-                                    </ComboBox>
-                                    <Button Grid.Column="1" Content="[Save]Save" Style="{StaticResource ActionBtn}" FontSize="9" Tag="SaveColorPreset" Click="Cmd_Click"/>
-                                    <Button Grid.Column="2" Content="[Open]Load" Style="{StaticResource ActionBtn}" FontSize="9" Tag="LoadColorPreset" Click="Cmd_Click"/>
-                                    <Button Grid.Column="3" Content="✕Del" Style="{StaticResource RedBtn}" FontSize="9" Tag="ColorSchemeDel" Click="Cmd_Click"/>
-                                </Grid>
-                                <!-- Color by -->
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="cmbColorByView" FontSize="10" Height="22" ToolTip="Color by parameter">
-                                        <ComboBoxItem Content="By Category" IsSelected="True"/>
-                                        <ComboBoxItem Content="By Discipline"/>
-                                        <ComboBoxItem Content="By System"/>
-                                        <ComboBoxItem Content="By Level"/>
-                                        <ComboBoxItem Content="By Workset"/>
-                                        <ComboBoxItem Content="By Phase"/>
-                                        <ComboBoxItem Content="By Parameter..."/>
-                                    </ComboBox>
-                                    <Button Grid.Column="1" Style="{StaticResource PurpleBtn}" Content="▶ Apply" Tag="ColorApply" Click="Cmd_Click"/>
-                                    <Button Grid.Column="2" Style="{StaticResource ActionBtn}" Content="[Art]ISO%" Tag="HighlightInvalid" Click="Cmd_Click"/>
-                                </Grid>
-                                <!-- Palette -->
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Palette:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <ComboBox Grid.Column="1" x:Name="cmbPaletteView" FontSize="10" Height="22">
-                                        <ComboBoxItem Content="Material 500" IsSelected="True"/>
-                                        <ComboBoxItem Content="STING Discipline"/>
-                                        <ComboBoxItem Content="RAG Status"/>
-                                        <ComboBoxItem Content="Spectral"/>
-                                        <ComboBoxItem Content="High Contrast"/>
-                                        <ComboBoxItem Content="Accessible"/>
-                                        <ComboBoxItem Content="Pastel"/>
-                                        <ComboBoxItem Content="Monochrome"/>
-                                    </ComboBox>
-                                </Grid>
-                                <!-- FILL swatches -->
-                                <TextBlock Text="FILL — click swatch to apply to selection:" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
-                                <WrapPanel x:Name="pnlSwatchesView" Margin="0,2,0,0"/>
-                                <!-- Hex input -->
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="#" FontSize="10" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Column="1" x:Name="txtHexColorView" Text="RRGGBB" FontSize="10" Height="22"/>
-                                    <Border Grid.Column="2" x:Name="brdColorPreviewView" Width="22" Height="22" Background="White" BorderBrush="#CCC" BorderThickness="1" Margin="4,0"/>
-                                    <Border Grid.Column="3" Width="22" Height="22" Background="Red" BorderBrush="#CCC" BorderThickness="1"/>
-                                    <Button Grid.Column="4" Style="{StaticResource ActionBtn}" Content="Apply" Tag="ColorApplyHex" Click="Cmd_Click"/>
-                                </Grid>
-                                <!-- Transparency -->
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Transparency:" FontSize="10" VerticalAlignment="Center"/>
-                                    <Slider Grid.Column="1" x:Name="sldTransparencyView" Minimum="0" Maximum="100" Value="0"/>
-                                    <TextBlock Grid.Column="2" Text="0%" FontSize="10" VerticalAlignment="Center" Margin="4,0"/>
-                                    <Button Grid.Column="3" Style="{StaticResource ActionBtn}" Content="Apply" Tag="ColorApplyTransparency" Click="Cmd_Click"/>
-                                </Grid>
-                                <!-- Gradient -->
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Gradient:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <Border Grid.Column="1" x:Name="brdGradStart" Width="30" Height="22" Background="#2196F3" BorderBrush="#CCC" BorderThickness="1"/>
-                                    <TextBlock Grid.Column="2" Text="→" FontSize="12" VerticalAlignment="Center" Margin="4,0"/>
-                                    <Border Grid.Column="3" x:Name="brdGradEnd" Width="30" Height="22" Background="#F44336" BorderBrush="#CCC" BorderThickness="1"/>
-                                    <Button Grid.Column="5" Style="{StaticResource GreenBtn}" Content="Color by Value" Tag="GradientApply" Click="Cmd_Click" ToolTip="Colour elements by a parameter value (ColorByParameterCommand)"/>
-                                </Grid>
-                                <!-- Pattern -->
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Pattern:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <ComboBox Grid.Column="1" x:Name="cmbFillPattern" FontSize="10" Height="22">
-                                        <ComboBoxItem Content="Solid" IsSelected="True"/>
-                                        <ComboBoxItem Content="Crosshatch"/>
-                                        <ComboBoxItem Content="Diagonal"/>
-                                        <ComboBoxItem Content="Horizontal"/>
-                                        <ComboBoxItem Content="Vertical"/>
-                                    </ComboBox>
-                                    <Button Grid.Column="2" Style="{StaticResource ActionBtn}" Content="Apply" Tag="PatternApplyView" Click="Cmd_Click"/>
-                                </Grid>
-                                <!-- OUTLINE COLOUR -->
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="OUTLINE COLOUR" FontSize="9" FontWeight="Bold" Foreground="#888"/>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                        <TextBlock Text="Custom:" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                        <CheckBox x:Name="chkCustomOutline" Content="OFF" FontSize="9"/>
-                                    </StackPanel>
-                                </Grid>
-                                <WrapPanel x:Name="pnlOutlineSwatchesView" Margin="0,2,0,0"/>
-                                <!-- Fill/Outline/Weight controls -->
-                                <WrapPanel Margin="0,4,0,0">
-                                    <TextBlock Text="Fill:" FontSize="10" VerticalAlignment="Center" Margin="0,0,2,0"/>
-                                    <Border x:Name="brdFillColorView" Width="18" Height="18" Background="#2196F3" BorderThickness="1" BorderBrush="#CCC"/>
-                                    <TextBlock Text="Outline:" FontSize="10" VerticalAlignment="Center" Margin="8,0,2,0"/>
-                                    <Border x:Name="brdOutlineColorView" Width="18" Height="18" Background="Black" BorderThickness="1" BorderBrush="#CCC"/>
-                                    <TextBlock Text="Wt:" FontSize="10" VerticalAlignment="Center" Margin="8,0,2,0"/>
-                                    <ComboBox x:Name="cmbLineWeightView" Width="55" FontSize="10" Height="22">
-                                        <ComboBoxItem Content="Default" IsSelected="True"/>
-                                        <ComboBoxItem Content="1"/>
-                                        <ComboBoxItem Content="2"/>
-                                        <ComboBoxItem Content="3"/>
-                                        <ComboBoxItem Content="5"/>
-                                        <ComboBoxItem Content="8"/>
-                                    </ComboBox>
-                                    <Button Style="{StaticResource CatBtn}" Content="Wt" Tag="ApplyLineWeight" Click="Cmd_Click"/>
-                                    <RadioButton x:Name="rbFill" Content="● Fill" FontSize="10" IsChecked="True" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                </WrapPanel>
-                                <!-- Parameter Color -->
-                                <TextBlock Text="PARAMETER COLOUR" FontSize="9" FontWeight="Bold" Foreground="#888" Margin="0,6,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Color By Param" Tag="ColorByParameter" Click="Cmd_Click" ToolTip="Color elements by any parameter value"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Save Preset" Tag="SaveColorPreset" Click="Cmd_Click" ToolTip="Save color scheme as preset"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Load Preset" Tag="LoadColorPreset" Click="Cmd_Click" ToolTip="Load saved color preset"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="To Filters" Tag="CreateFiltersFromColors" Click="Cmd_Click" ToolTip="Convert colors to persistent filters"/>
-                                </WrapPanel>
-                                <!-- Clear ALL -->
-                                <Button Style="{StaticResource RedBtn}" Content="Clear ALL Colour Overrides in View" Tag="ClearColorOverrides" Click="Cmd_Click"
-                                        HorizontalAlignment="Stretch" Margin="0,6,0,0"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- TAG STYLE ENGINE -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG STYLE ENGINE"/>
-                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
-                            <StackPanel>
-                                <TextBlock Text="Control tag size, style, and colour via shared BOOL parameters" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="TAG APPEARANCE"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Apply Tag Style" Tag="ApplyTagStyle" Click="Cmd_Click" ToolTip="Pick size/style/colour for tag label visibility"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="By Discipline" Tag="SwitchTagStyleByDisc" Click="Cmd_Click" ToolTip="Auto-assign tag styles per discipline"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Style Report" Tag="TagStyleReport" Click="Cmd_Click" ToolTip="Audit current tag style usage"/>
-                                </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="VIEW COLOUR SCHEME"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Apply Scheme" Tag="ApplyColorScheme" Click="Cmd_Click" ToolTip="Apply named colour scheme to view"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Batch Scheme" Tag="BatchApplyColorScheme" Click="Cmd_Click" ToolTip="Apply scheme to ALL views"/>
-                                    <Button Style="{StaticResource RedBtn}" Content="Clear Scheme" Tag="ClearColorScheme" Click="Cmd_Click" ToolTip="Remove all colour overrides"/>
-                                </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="COLOUR BY VARIABLE"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="By Variable" Tag="ColorByVariable" Click="Cmd_Click" ToolTip="Color by System/Status/Zone/Level/Function/Location"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Box Color" Tag="SetBoxColor" Click="Cmd_Click" ToolTip="Set tag bounding box fill colour (separate from text)"/>
-                                </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="PARAGRAPH DEPTH"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Set Depth (1-10)" Tag="SetParagraphDepthExt" Click="Cmd_Click" ToolTip="Control TAG7 paragraph visibility tiers"/>
-                                </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="PATTERN MODE (T4-T10 PAYLOAD SET)"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Handover" Tag="SetPatternMode_Handover" Click="Cmd_Click" ToolTip="Switch active T4-T10 payload to handover pack"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="D&amp;C" Tag="SetPatternMode_DC" Click="Cmd_Click" ToolTip="Switch active T4-T10 payload to design &amp; construction pack (default)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Custom" Tag="SetPatternMode_Custom" Click="Cmd_Click" ToolTip="Switch active T4-T10 payload to project-custom pack"/>
-                                </WrapPanel>
-                                <!-- Phase 165 — Issue #15. Direct System B tier-write buttons.
-                                     Each launches a focused write command for a single tier so
-                                     QA / commissioning teams can populate one tier at a time. -->
-                                <TextBlock Style="{StaticResource SubLabel}" Text="SYSTEM B TIER WRITERS (HANDOVER MODE)"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="T4 Comm"      Tag="WriteSystemBTier_4"  Click="Cmd_Click" ToolTip="Write T4 commissioning data (COMM_*) on selected elements"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="T5 Cost"      Tag="WriteSystemBTier_5"  Click="Cmd_Click" ToolTip="Write T5 cost data (CST_*) on selected elements"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="T6 Carbon"    Tag="WriteSystemBTier_6"  Click="Cmd_Click" ToolTip="Write T6 carbon data (CBN_*) on selected elements"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="T7 Fab"       Tag="WriteSystemBTier_7"  Click="Cmd_Click" ToolTip="Write T7 fabrication / QC data (FAB_/ASS_SPOOL_*) on selected elements"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="T8 Clash"     Tag="WriteSystemBTier_8"  Click="Cmd_Click" ToolTip="Write T8 clash triage data (CLH_/CLASH_*) on selected elements"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="T9 As-Built"  Tag="WriteSystemBTier_9"  Click="Cmd_Click" ToolTip="Write T9 as-built / health data (ASB_/ASBUILT_*) on selected elements"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="T10 Audit"    Tag="WriteSystemBTier_10" Click="Cmd_Click" ToolTip="Write T10 compliance / audit data (AUD_/IFC_/ACC_*) on selected elements"/>
-                                </WrapPanel>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- VIEW CONTROLS -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Eye] VIEW CONTROLS"/>
-                        <Border Style="{StaticResource GroupBorder}">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="TEMP HIDE / ISOLATE"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="[Find] Isolate" Tag="ViewIsolate" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="[Hide] Hide" Tag="ViewHide" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="[Look] Reveal" Tag="ViewReveal" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="↻ Reset" Tag="ViewReset" Click="Cmd_Click"/>
-                                </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="PERMANENT HIDE"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Perm Hide" Tag="PermHide" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Perm Unhide" Tag="PermUnhide" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Unhide Cat" Tag="UnhideCategory" Click="Cmd_Click"/>
-                                </WrapPanel>
-                                <TextBlock Style="{StaticResource SubLabel}" Text="GRAPHIC OVERRIDES"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Halftone ON" Tag="HalftoneOn" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Halftone OFF" Tag="HalftoneOff" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Reset Override" Tag="ClearOverrides" Click="Cmd_Click"/>
-                                </WrapPanel>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Always on top -->
-                        <TextBlock Text="Always on top: ON" FontSize="10" Foreground="#888" Margin="0,4,0,0"/>
-
-                        <!-- Group 5: surfaced AVF heatmaps (were orphaned — no button) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="ANALYSIS HEATMAPS (AVF)"/>
-                        <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Compliance" Tag="Heatmap_Compliance" Click="Cmd_Click" ToolTip="Paint a tag-completeness / compliance heatmap on the active view."/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Fill %" Tag="Heatmap_Fill" Click="Cmd_Click" ToolTip="Paint a conduit/duct fill-% heatmap on the active view."/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Carbon" Tag="Heatmap_Carbon" Click="Cmd_Click" ToolTip="Paint an embodied-carbon heatmap on the active view."/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Acoustic" Tag="Heatmap_Acoustic" Click="Cmd_Click" ToolTip="Paint an acoustic-performance heatmap on the active view."/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clear" Tag="Heatmap_Clear" Click="Cmd_Click" ToolTip="Clear all AVF heatmap overrides from the active view."/>
-                            </WrapPanel>
-                        </Border>
-
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
 
             <!-- =============== MODEL TAB =============== -->
             <TabItem Header="MODEL">
@@ -3741,7 +3734,7 @@
                  lives in the separate panel (Ribbon → ❄ HVAC → STING HVAC). -->
 
             <!-- ═══════════════════════ TAGS TAB (Tag Studio) ═══════════════════════ -->
-            <TabItem Header="TAGS">
+            <TabItem Header="TAG STUDIO">
                 <!-- TAG TAB: DockPanel so sub-tab headers are ALWAYS visible at top.
                      Outer ScrollViewer removed — each sub-tab owns its ScrollViewer.
                      Tab strip no longer scrolls off-screen when user scrolls content. -->
