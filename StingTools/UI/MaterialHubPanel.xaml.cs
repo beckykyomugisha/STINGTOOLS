@@ -36,6 +36,12 @@ namespace StingTools.UI
         public MaterialHubPanel()
         {
             InitializeComponent();
+            // Phase C — register with ThemeManager so ThemeManager.CycleTheme()
+            // repaints the merged StingButtonStyles.xaml DynamicResource keys
+            // (ButtonBg / ButtonFg / BorderColor) on this panel. Identity
+            // chrome (HubHeaderBg etc.) is local + intentionally NOT theme-cycled.
+            try { ThemeManager.RegisterTarget(this); ThemeManager.InitialiseResources(); }
+            catch { /* theme is non-fatal */ }
             LastInstance = this;
             this.Loaded += (_, __) => { InitialPopulate(); ApplyResponsiveLayout(this.ActualWidth); };
             // The three-pane layout (nav | grid | inspector) needs a wide
