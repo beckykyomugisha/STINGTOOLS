@@ -3769,7 +3769,14 @@ namespace StingTools.UI
                     // issues). Previously dispatched RaiseIssueCommand, which silently
                     // raised a new blank issue instead of updating assignees.
                     case "AssignIssues":          RunCommand<BIMManager.UpdateIssueCommand>(app); break;
-                    case "CreateIssuesFromWarnings": RunCommand<BIMManager.RaiseIssueCommand>(app); break;
+                    // Phase D triage Top-5 #5 (fix/create-issues-from-warnings): "From
+                    // Warnings" routes to CreateIssuesFromWarningsCommand — scans Revit
+                    // warnings via WarningsEngine, groups by (category × fixability),
+                    // mints deterministic source_hash per group so re-runs dedup.
+                    // Previously dispatched RaiseIssueCommand, which silently launched
+                    // the IssueWizard and created a single blank manual issue, losing
+                    // every warning the user expected to triage.
+                    case "CreateIssuesFromWarnings": RunCommand<BIMManager.CreateIssuesFromWarningsCommand>(app); break;
                     case "ExportIssues":          ExportIssuesXlsx(app); break;
                     case "AddActionItem":
                     {

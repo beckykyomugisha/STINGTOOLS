@@ -38,7 +38,12 @@ namespace StingTools.UI.Modules
             // registry, so dispatch fell through to the historic switch which ran
             // RaiseIssueCommand by mistake.
             registry.Register("AssignIssues",              app => StingCommandHandler.RunCommandPublic<BIMManager.UpdateIssueCommand>(app));
-            registry.Register("CreateIssuesFromWarnings",  app => StingCommandHandler.RunCommandPublic<BIMManager.RaiseIssueCommand>(app));
+            // Phase D triage Top-5 #5 (fix/create-issues-from-warnings): "From Warnings"
+            // routes to CreateIssuesFromWarningsCommand — auto-creates NCR/SI/RFI from
+            // classified Revit warnings, grouped by (category × fixability), with
+            // deterministic source_hash dedup. Previously dispatched RaiseIssueCommand,
+            // which silently created a single blank manual issue via the IssueWizard.
+            registry.Register("CreateIssuesFromWarnings",  app => StingCommandHandler.RunCommandPublic<BIMManager.CreateIssuesFromWarningsCommand>(app));
 
             // ── COBie ────────────────────────────────────────────────────────
             registry.Register("COBieExport",               app => StingCommandHandler.RunCommandPublic<BIMManager.COBieExportCommand>(app));
