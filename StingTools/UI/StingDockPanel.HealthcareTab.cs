@@ -429,6 +429,33 @@ namespace StingTools.UI
             }
         }
 
+        // ── Cancel: clear the inline result strip + collapse details ───
+        // Called by the Healthcare_Cancel dispatch. Resets the bottom strip
+        // to its idle state; the cooperative-cancel flag is set separately by
+        // the dispatcher (Hc.CancelRequested).
+        public static void ClearHcResultStrip()
+        {
+            var inst = LastInstance;
+            if (inst == null) return;
+            void Apply()
+            {
+                try
+                {
+                    if (inst.lblHcLastRun != null) inst.lblHcLastRun.Text = "Cancellation requested — results cleared.";
+                    if (inst.prgHcRag != null) inst.prgHcRag.Value = 0;
+                    if (inst.hostHcResultPanel != null) inst.hostHcResultPanel.Content = null;
+                    if (inst.expHcResultDetails != null) inst.expHcResultDetails.IsExpanded = false;
+                }
+                catch (Exception ex) { Core.StingLog.Warn($"ClearHcResultStrip: {ex.Message}"); }
+            }
+            try
+            {
+                if (inst.Dispatcher.CheckAccess()) Apply();
+                else inst.Dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(Apply));
+            }
+            catch (Exception ex) { Core.StingLog.Warn($"ClearHcResultStrip dispatch: {ex.Message}"); }
+        }
+
         // ── Helpers ────────────────────────────────────────────────────
         private static string BoolStr(bool? v) => (v == true) ? "1" : "0";
 

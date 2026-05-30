@@ -3841,6 +3841,11 @@ namespace StingTools.UI
                         if (tag.StartsWith("SelectByDisc_"))      { SelectByDisciplineCode(app, tag.Substring(13)); break; }
                         if (tag.StartsWith("ViewLogs_") || tag.StartsWith("Disconnect_") || tag.StartsWith("ViewDocument_"))
                         { StingLog.Info($"Platform action '{tag}' — no Revit operation required."); break; }
+                        // ── Healthcare_* action resolver ──
+                        // Explicit Healthcare_<X> cases above take precedence; this
+                        // catches the inline-tab action buttons + future Healthcare_*
+                        // tags so none silently no-op.
+                        if (tag.StartsWith("Healthcare_")) { ResolveHealthcareAction(app, tag); break; }
                         // ── Unknown tag ──
                         _lastTagUnhandled = true;
                         StingLog.Warn($"Unrecognised command tag: {tag}");
@@ -4036,6 +4041,92 @@ namespace StingTools.UI
 
 
         // ── Generic command runner ────────────────────────────────────
+
+        /// <summary>
+        /// Resolves the Healthcare inline-tab action buttons that have no
+        /// explicit case. The selection model is already flushed into Hc.*
+        /// extra-params (HcOptions); these route to existing commands.
+        /// Explicit Healthcare_&lt;X&gt; cases take precedence (matched first).
+        /// </summary>
+        private void ResolveHealthcareAction(UIApplication app, string tag)
+        {
+            switch (tag)
+            {
+                // Runs the validators ticked in the grid (HealthcareRunAllValidators
+                // already filters to HcOptions.SelectedValidators(); empty ⇒ all).
+                case "Healthcare_RunSelected":
+                    RunCommand<Commands.Healthcare.HealthcareRunAllValidatorsCommand>(app);
+                    break;
+
+                // Issues RDS for the rooms ticked in the grid (BatchIssueRoomDataSheets
+                // reads HcOptions.RdsPickedRooms(); empty ⇒ all candidates).
+                case "Healthcare_IssueSelectedRds":
+                    RunCommand<Commands.Healthcare.BatchIssueRoomDataSheetsCommand>(app);
+                    break;
+
+                // NOTE: MgasVerifyCommand runs the FULL NFPA 99 §5.1.12 verify and
+                // does NOT yet honour Hc.Mgas.Step. The button is labelled
+                // "MGAS Verify (Full)" to match. TODO: make MgasVerifyCommand run a
+                // single selected step (HcOptions.MgasStep) — see HEALTHCARE_WIRING.md.
+                case "Healthcare_MgasVerifyStep":
+                    RunCommand<Commands.MedGas.MgasVerifyCommand>(app);
+                    break;
+
+                case "Healthcare_RadCalcInline":
+                    RunHealthcareRadCalcInline(app);
+                    break;
+
+                // Cooperative cancel: arm the flag (polled at validator boundaries)
+                // and clear the inline result strip. See HEALTHCARE_WIRING.md.
+                case "Healthcare_Cancel":
+                    SetExtraParam("Hc.CancelRequested", "1");
+                    try { UI.StingDockPanel.ClearHcResultStrip(); }
+                    catch (Exception ex) { StingLog.Warn($"Healthcare_Cancel strip clear: {ex.Message}"); }
+                    break;
+
+                default:
+                    StingLog.Warn($"Healthcare action not yet wired: {tag}");
+                    TaskDialog.Show("STING — Healthcare",
+                        $"This Healthcare action is not yet wired: {tag}");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// RadCalc inline run. Routes by HcOptions.RadCalcType (the cmbHcRadCalc
+        /// selection). "Custom"/unknown has no dedicated command, so prompt the
+        /// user to pick the barrier type (Chest/CT/LINAC) rather than guessing;
+        /// cancelling the chooser is a no-op.
+        /// </summary>
+        private void RunHealthcareRadCalcInline(UIApplication app)
+        {
+            string type = (Core.HcOptions.RadCalcType ?? "").Trim();
+            switch (type.ToUpperInvariant())
+            {
+                case "CHEST": RunCommand<Commands.Radiation.RadCalcChestRoomCommand>(app); return;
+                case "CT":    RunCommand<Commands.Radiation.RadCalcCtRoomCommand>(app);    return;
+                case "LINAC": RunCommand<Commands.Radiation.RadCalcLinacVaultCommand>(app); return;
+            }
+
+            // Custom / unrecognised → chooser (no guessing).
+            var td = new TaskDialog("STING — Radiation Calc")
+            {
+                MainInstruction = "Custom radiation calc",
+                MainContent = "Apply the inline inputs (kVp / W / U / T / D) as which barrier type?",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                DefaultButton = TaskDialogResult.Cancel,
+            };
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Chest room (NCRP 147)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "CT room (NCRP 147 secondary)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "LINAC vault (NCRP 151)");
+            switch (td.Show())
+            {
+                case TaskDialogResult.CommandLink1: RunCommand<Commands.Radiation.RadCalcChestRoomCommand>(app); break;
+                case TaskDialogResult.CommandLink2: RunCommand<Commands.Radiation.RadCalcCtRoomCommand>(app); break;
+                case TaskDialogResult.CommandLink3: RunCommand<Commands.Radiation.RadCalcLinacVaultCommand>(app); break;
+                default: break; // cancelled — no-op
+            }
+        }
 
         /// <summary>Phase 165 (INT-02 framework) — public bridge so the new
         /// CommandRegistry modules can invoke the same per-command pipeline

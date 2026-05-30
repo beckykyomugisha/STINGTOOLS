@@ -5120,7 +5120,7 @@
                             <WrapPanel>
                                 <Button x:Name="btnHcRunSelected" Style="{StaticResource GreenBtn}" Content="Run selected"  Tag="Healthcare_RunSelected"      Click="Cmd_Click" Width="96" Height="28" ToolTip="Run only the validators ticked in the Validators sub-tab. Reads Hc.SelectedValidators."/>
                                 <Button x:Name="btnHcRunAll"      Style="{StaticResource ActionBtn}" Content="Run all"      Tag="Healthcare_RunAllValidators" Click="Cmd_Click" Width="80" Height="28" ToolTip="Run every healthcare validator through the profile gate."/>
-                                <Button x:Name="btnHcCancel"      Style="{StaticResource ActionBtn}" Content="Cancel"       Tag="Healthcare_Cancel"           Click="Cmd_Click" Width="60" Height="28" ToolTip="Set the cancel flag — the next validator step will return early."/>
+                                <Button x:Name="btnHcCancel"      Style="{StaticResource ActionBtn}" Content="Cancel"       Tag="Healthcare_Cancel"           Click="Cmd_Click" Width="60" Height="28" ToolTip="Requests cancellation and clears the result strip. Takes effect at the next validator step; mid-run stop needs the async-run refactor (TODO — see HEALTHCARE_WIRING.md)."/>
                             </WrapPanel>
                             <TextBlock x:Name="lblHcLastRun" FontSize="9" Foreground="#666" Margin="2,4,2,2" Text="No run yet."/>
                             <ProgressBar x:Name="prgHcRag" Height="4" Minimum="0" Maximum="100" Value="0"/>
@@ -5364,7 +5364,7 @@
                                             <CheckBox Content="Sign at completion" x:Name="chkHcMgasSignAtEnd" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
                                             <WrapPanel Margin="0,6,0,0">
                                                 <Button Style="{StaticResource GreenBtn}" Content="Run audit"  Tag="Healthcare_MgasAudit"        Click="Cmd_Click" Width="80" Height="26"/>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Run step"   Tag="Healthcare_MgasVerifyStep"   Click="Cmd_Click" Width="80" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="MGAS Verify (Full)"   Tag="Healthcare_MgasVerifyStep"   Click="Cmd_Click" Width="120" Height="26" ToolTip="Runs the full NFPA 99 §5.1.12 verification. (Single-step run by the Step selector is a TODO — see HEALTHCARE_WIRING.md.)"/>
                                                 <Button Style="{StaticResource ActionBtn}" Content="Full verify" Tag="Healthcare_MgasVerify"      Click="Cmd_Click" Width="80" Height="26"/>
                                             </WrapPanel>
                                         </StackPanel>

@@ -1,5 +1,6 @@
 using Autodesk.Revit.DB;
 using System.Collections.Generic;
+using StingTools.Core;   // HcOptions (cooperative-cancel signal)
 
 namespace StingTools.Core.Validation.Healthcare
 {
@@ -40,8 +41,15 @@ namespace StingTools.Core.Validation.Healthcare
             {
                 var allowed = HealthcareValidatorGate.AllowedValidators(doc);
 
+                // Cooperative cancellation at each validator boundary (see
+                // HEALTHCARE_WIRING.md "Cancel path"). Synchronous dispatch
+                // means the Cancel click lands after the run today; this is the
+                // step hook for when a run observes the flag.
+                bool cancelled = false;
                 void RunIfPicked(string key, HealthcareValidatorBase v)
                 {
+                    if (cancelled) return;
+                    if (HcOptions.CancelRequested) { cancelled = true; return; }
                     if (!picked.Contains(key)) return;
                     if (!allowed.Contains(v.Name)) return;
                     all.AddRange(v.Validate(doc));
@@ -67,6 +75,7 @@ namespace StingTools.Core.Validation.Healthcare
                 RunIfPicked("WasteFlow",         new WasteFlowValidator());
                 RunIfPicked("IoTStaleness",      new IoTStalenessValidator());
 
+                if (cancelled) HcOptions.ClearCancel();
                 return all;
             }
             finally

@@ -37,8 +37,18 @@ namespace StingTools.Core.Validation.Healthcare
             try
             {
                 var allowed = HealthcareValidatorGate.AllowedValidators(doc);
+                // Cooperative cancellation: Healthcare_Cancel sets Hc.CancelRequested.
+                // We poll at each validator boundary and stop cleanly. NOTE: the
+                // dock-panel dispatch is synchronous on the Revit API thread, so a
+                // Cancel click cannot be processed mid-run today — this poll is the
+                // step-boundary hook that takes effect once a run sets the flag
+                // (e.g. a pre-armed cancel, or a future chunked/async run). See
+                // HEALTHCARE_WIRING.md "Cancel path".
+                bool cancelled = false;
                 void Run(HealthcareValidatorBase v)
                 {
+                    if (cancelled) return;
+                    if (HcOptions.CancelRequested) { cancelled = true; return; }
                     if (allowed.Contains(v.Name)) all.AddRange(v.Validate(doc));
                 }
 
@@ -58,6 +68,7 @@ namespace StingTools.Core.Validation.Healthcare
                 Run(new EesResilienceValidator());
                 Run(new RtlsCoverageValidator());
                 Run(new WasteFlowValidator());
+                if (cancelled) HcOptions.ClearCancel();
                 return all;
             }
             finally
