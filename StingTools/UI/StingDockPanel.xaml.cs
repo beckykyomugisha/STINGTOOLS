@@ -422,11 +422,44 @@ namespace StingTools.UI
                 }
                 case "CreateTags_OverwriteApply":
                 {
-                    // The overwrite command is toggle-style — both Yes and No
-                    // dispatch ToggleOverwrite; the radio's job is to surface
-                    // the desired state at-a-glance. Round 4 can refactor to
-                    // explicit OverwriteOn / OverwriteOff if needed.
                     DispatchCommand("ToggleOverwrite");
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        }
+
+        // Phase B Round 3 (TAG STUDIO) suite-runner helper. Parallel to
+        // RunInteropRunner / RunDocsRunner / RunSetupRunner / RunCreateTagsRunner;
+        // tab-scoped — resolves a runner tag to one or more concrete dispatch
+        // tags defined by the TAG STUDIO sub-tab layouts.
+        private bool RunTagStudioRunner(string runnerTag)
+        {
+            if (string.IsNullOrEmpty(runnerTag)) return false;
+
+            switch (runnerTag)
+            {
+                case "Standards_RunSuite":
+                {
+                    bool any = false;
+                    if (chkStdCableSize != null && chkStdCableSize.IsChecked == true) { DispatchCommand("Std_CalcCableSize");    any = true; }
+                    if (chkStdWindLoad  != null && chkStdWindLoad.IsChecked  == true) { DispatchCommand("Std_CalcWindLoad");     any = true; }
+                    if (chkStdCooling   != null && chkStdCooling.IsChecked   == true) { DispatchCommand("Std_CalcCoolingLoad");  any = true; }
+                    if (chkStdLighting  != null && chkStdLighting.IsChecked  == true) { DispatchCommand("Std_CalcLighting");     any = true; }
+                    if (chkStdEgress    != null && chkStdEgress.IsChecked    == true) { DispatchCommand("Std_CalcEgress");       any = true; }
+                    if (chkStdSprinkler != null && chkStdSprinkler.IsChecked == true) { DispatchCommand("Std_DesignSprinkler");  any = true; }
+                    _ = any;
+                    return true;
+                }
+                case "Mep_AutoSizeRun":
+                {
+                    string tag = null;
+                    if (rbMepSizePipes != null && rbMepSizePipes.IsChecked == true) tag = (rbMepSizePipes.Tag as string) ?? "Mep_AutoSizePipe";
+                    else if (rbMepSizeDucts != null && rbMepSizeDucts.IsChecked == true) tag = (rbMepSizeDucts.Tag as string) ?? "Mep_AutoSizeDuct";
+                    else if (rbMepSizeConduits != null && rbMepSizeConduits.IsChecked == true) tag = (rbMepSizeConduits.Tag as string) ?? "Mep_AutoSizeConduit";
+                    if (string.IsNullOrEmpty(tag)) tag = "Mep_AutoSizePipe";
+                    DispatchCommand(tag);
                     return true;
                 }
                 default:
@@ -475,6 +508,14 @@ namespace StingTools.UI
                     cmdTag == "CreateTags_OverwriteApply")
                 {
                     RunCreateTagsRunner(cmdTag);
+                    return;
+                }
+
+                // Phase B Round 3 — TAG STUDIO suite runners.
+                if (cmdTag == "Standards_RunSuite" ||
+                    cmdTag == "Mep_AutoSizeRun")
+                {
+                    RunTagStudioRunner(cmdTag);
                     return;
                 }
 
