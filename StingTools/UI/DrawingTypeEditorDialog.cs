@@ -1482,16 +1482,18 @@ namespace StingTools.UI
                 "Every button dispatches to the same Revit external-event handler the dock panel uses. " +
                 "Run on the active sheet's viewports, or on a multi-select."));
 
+            // Phase D triage #2: collapsed 6-button row → 1 button. The 6 tags
+            // (VPAlignTop / MidY / Bot / Left / MidX / Right) all dispatched to
+            // the same AlignViewportsCommand which prompts inside for the edge,
+            // so the six distinct labels here implied a parameterisation that
+            // did not exist. The 5 sibling tags remain wired in
+            // StingCommandHandler because StingDockPanel.xaml still references
+            // them.
             stack.Children.Add(SectionCardRich("Alignment",
                 "Snap selected viewports to a common edge or centre line.",
                 new (string,string,string)[]
                 {
-                    ("↑ Top",  "VPAlignTop",   "Align to topmost edge"),
-                    ("↕ MidY", "VPAlignMidY",  "Align horizontal centre lines"),
-                    ("↓ Bot",  "VPAlignBot",   "Align to bottom edge"),
-                    ("← Left", "VPAlignLeft",  "Align to leftmost edge"),
-                    ("↔ MidX", "VPAlignMidX",  "Align vertical centre lines"),
-                    ("→ Right","VPAlignRight", "Align to rightmost edge"),
+                    ("Align Viewports…", "VPAlignRight", "Open the viewport alignment dialog (edge/centre picker inside AlignViewportsCommand)"),
                 }));
             stack.Children.Add(SectionCardRich("Numbering",
                 "Auto-renumber viewports on the active sheet (left-to-right or top-to-bottom).",
