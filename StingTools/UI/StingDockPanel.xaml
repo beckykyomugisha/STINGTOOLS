@@ -1914,8 +1914,8 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="MATERIALS"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
-                                <Button Style="{StaticResource BlueBtn}" Content="★ Material Manager" Tag="MaterialManagerFull" Click="Cmd_Click"
-                                        ToolTip="7-tab Material Manager: Library, Editor, Layers, Paint, Audit, Import/Export, BOQ Link" FontWeight="Bold" HorizontalAlignment="Stretch"/>
+                                <Button Style="{StaticResource StingPrimaryButton}" Content="→ STING Material Hub (Library / Editor / Layers / Paint / Audit / Import-Export / BOQ Link)" Tag="ToggleMaterialHub" Click="Cmd_Click"
+                                        ToolTip="Open the dedicated STING Material Hub — 7-tab material workspace (mirrors Electrical / Plumbing / HVAC / LPS panel pattern)" HorizontalAlignment="Stretch"/>
                                 <Expander Header="Bulk creation + PBR library" FontSize="10" Margin="0,4,0,0">
                                     <WrapPanel Margin="0,4">
                                         <Button Style="{StaticResource ActionBtn}" Content="BLE (815)" Tag="CreateBLEMaterials" Click="Cmd_Click" ToolTip="Create 815 building materials from CSV"/>

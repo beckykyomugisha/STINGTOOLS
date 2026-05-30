@@ -15,7 +15,6 @@ namespace StingTools.UI.Modules
             // ── Materials ───────────────────────────────────────────────────
             registry.Register("CreateBLEMaterials",        app => StingCommandHandler.RunCommandPublic<Temp.CreateBLEMaterialsCommand>(app));
             registry.Register("CreateMEPMaterials",        app => StingCommandHandler.RunCommandPublic<Temp.CreateMEPMaterialsCommand>(app));
-            registry.Register("MaterialManagerFull",       app => StingCommandHandler.RunCommandPublic<Temp.MaterialManagerCommand>(app));
 
             // ── Families ────────────────────────────────────────────────────
             registry.Register("CreateWalls",               app => StingCommandHandler.RunCommandPublic<Temp.CreateWallsCommand>(app));
