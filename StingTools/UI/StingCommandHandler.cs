@@ -3766,7 +3766,11 @@ namespace StingTools.UI
                     }
 
                     // ── Issues ──
-                    case "AssignIssues":          RunCommand<BIMManager.RaiseIssueCommand>(app); break;
+                    // Phase D triage Top-5 #1 (fix/assign-issues-rewire): AssignIssues
+                    // routes to UpdateIssueCommand (multi-assign / reassign of EXISTING
+                    // issues). Previously dispatched RaiseIssueCommand, which silently
+                    // raised a new blank issue instead of updating assignees.
+                    case "AssignIssues":          RunCommand<BIMManager.UpdateIssueCommand>(app); break;
                     case "CreateIssuesFromWarnings": RunCommand<BIMManager.RaiseIssueCommand>(app); break;
                     case "ExportIssues":          ExportIssuesXlsx(app); break;
                     case "AddActionItem":

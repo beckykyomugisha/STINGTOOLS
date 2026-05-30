@@ -32,6 +32,12 @@ namespace StingTools.UI.Modules
             registry.Register("IssueTimeline",             app => StingCommandHandler.RunCommandPublic<BIMManager.IssueTimelineCommand>(app));
             registry.Register("IssueStatistics",           app => StingCommandHandler.RunCommandPublic<BIMManager.IssueStatisticsCommand>(app));
             registry.Register("IssueBatchUpdate",          app => StingCommandHandler.RunCommandPublic<BIMManager.IssueBatchUpdateCommand>(app));
+            // Phase D triage Top-5 #1 (fix/assign-issues-rewire): "Reassign" / "Assign
+            // Issues" buttons in BCC + IssueTrackerDashboard route here. UpdateIssueCommand
+            // is the multi-assign / reassign of EXISTING issues; previously absent from the
+            // registry, so dispatch fell through to the historic switch which ran
+            // RaiseIssueCommand by mistake.
+            registry.Register("AssignIssues",              app => StingCommandHandler.RunCommandPublic<BIMManager.UpdateIssueCommand>(app));
             registry.Register("CreateIssuesFromWarnings",  app => StingCommandHandler.RunCommandPublic<BIMManager.RaiseIssueCommand>(app));
 
             // ── COBie ────────────────────────────────────────────────────────
