@@ -273,6 +273,24 @@ public class PlanscapeDbContext : DbContext
     public DbSet<P6SyncLog>   P6SyncLogs   => Set<P6SyncLog>();
     public DbSet<BoqSnapshot> BoqSnapshots => Set<BoqSnapshot>();
 
+    // ── Photo albums / checklists / policies + distribution groups (Z-1) ──
+    // Entities, controllers, Hangfire jobs and the mobile site-photos screens
+    // were all authored, but these DbSet declarations were never added — so
+    // Planscape.Infrastructure (and the API) failed to compile (43 CS1061s).
+    // The named DbSets the Photo* services/controllers use are declared here.
+    // No EF migration: schema is created via the project's EnsureCreated /
+    // creator.CreateTables() path (Program.cs), the same mechanism the other
+    // unmigrated entities rely on — a `dotnet ef migrations add` would diff the
+    // stale snapshot (Z-2) and emit a monster.
+    public DbSet<PhotoAlbum>            PhotoAlbums            => Set<PhotoAlbum>();
+    public DbSet<PhotoAlbumPhoto>       PhotoAlbumPhotos       => Set<PhotoAlbumPhoto>();
+    public DbSet<PhotoAnnotation>       PhotoAnnotations       => Set<PhotoAnnotation>();
+    public DbSet<PhotoChecklist>        PhotoChecklists        => Set<PhotoChecklist>();
+    public DbSet<PhotoChecklistItem>    PhotoChecklistItems    => Set<PhotoChecklistItem>();
+    public DbSet<PhotoPolicy>           PhotoPolicies          => Set<PhotoPolicy>();
+    public DbSet<DistributionGroup>       DistributionGroups       => Set<DistributionGroup>();
+    public DbSet<DistributionGroupMember> DistributionGroupMembers => Set<DistributionGroupMember>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
