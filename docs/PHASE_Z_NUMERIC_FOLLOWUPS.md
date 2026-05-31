@@ -619,3 +619,476 @@ Once you pick, tell me the letter and I'll write the matching prompt:
 Default if you don't decide: Path A (disclose + move on). Recommend C
 when a carbon engineer / QS can confirm the client's expected report
 format.
+
+---
+
+# BATCH 2 — prompts added after the Z-22 Stage-1 audit + user decisions
+
+The Z-22 Stage-1 audit (branch `audit/formula-cycles`, doc
+`docs/PHASE_Z_FORMULA_CYCLES.md`) found **ZERO genuine cycles** — the
+audit's "63" was self-reference noise in the Input_Parameters column.
+So Z-22 collapses to a tiny CSV-hygiene PR (Stage 2 below), not the
+multi-day project originally feared.
+
+User decisions captured:
+- Z-25 timber → **Path C** (split into fossil + biogenic columns)
+
+---
+
+## Z-22 Stage 2 — remove the 19 spurious self-references (tiny CSV hygiene)
+
+```
+Z-22 Stage 2 — Clear the 19 spurious self-references from
+FORMULAS_WITH_DEPENDENCIES.csv. The Stage-1 audit proved there are NO
+genuine cycles — these are self-reference data artifacts the engine
+already self-skips at runtime. ~30 min. CSV + relabel only.
+
+REQUIRED reading FIRST
+
+git fetch origin audit/formula-cycles
+git show audit/formula-cycles:docs/PHASE_Z_FORMULA_CYCLES.md
+
+Key finding (verified by replicating the engine's actual detector):
+  - FormulaEvaluatorCommand.cs:485 already does
+    `if (token == ParameterName) continue;` — it self-skips, which is
+    why "cycle detected" never fires and Kahn orders all 278/278.
+  - The audit's "63 nodes in cycles" = 19 single-node self-loops +
+    44 non-cyclic downstream dependents (mis-counted).
+  - 18 of the 19 are mis-keyed VALIDATION formulas: if(SELF op
+    threshold, "[!WARN]", "") where the formula references its own
+    value param in Input_Parameters. Pure data-quality noise.
+  - 1 is BLE_STRUCT_CONCRETE_GRADE_TXT — a lookup-keyed text param
+    whose self-entry is metadata noise; it roots the concrete take-off
+    (17 CST_* downstream nodes that are NOT cyclic).
+
+BRANCH
+
+fix/formula-self-ref-cleanup off latest origin/main. No PR.
+
+SCOPE — Input_Parameters column hygiene + optional relabel
+
+1. Read docs/PHASE_Z_FORMULA_CYCLES.md for the exact list of the 19
+   parameters whose Input_Parameters column lists themselves.
+
+2. In FORMULAS_WITH_DEPENDENCIES.csv, for each of those 19 rows:
+   REMOVE the self-name from the Input_Parameters column ONLY. Keep
+   every other input. Don't touch Revit_Formula, Parameter_GUID,
+   Dependency_Level, or any other column.
+
+   Example: if BLE_FINISH_PAINT_WARN_TXT has
+     Input_Parameters = "BLE_FINISH_PAINT_AREA_SQ_M,BLE_FINISH_PAINT_WARN_TXT"
+   change to
+     Input_Parameters = "BLE_FINISH_PAINT_AREA_SQ_M"
+
+3. (Optional but recommended) For the 18 validation formulas, the
+   self-reference in the Revit_Formula itself (if(SELF op threshold...))
+   is the engine's intended "read my own current value to validate it"
+   pattern — that's fine and the engine handles it via self-skip. Do
+   NOT change the Revit_Formula. Only the Input_Parameters METADATA
+   column was wrong (it shouldn't list the formula's own output as an
+   input).
+
+4. Confirm the Dependency_Level column is recomputed correctly. The
+   engine computes it by topological sort at load (per an earlier fix),
+   so it doesn't trust the CSV column — but if the CSV column is used
+   anywhere for display/audit, regenerate it. Check whether
+   FormulaEngine.LoadFormulas recomputes or reads the column.
+
+VERIFY
+
+dotnet build StingTools/StingTools.csproj
+Add a test (StingTools.Boq.Tests or wherever FormulaEngine is testable):
+  - load FORMULAS_WITH_DEPENDENCIES.csv
+  - assert the dependency graph has 0 self-loops in Input_Parameters
+  - assert topological sort orders all 278 (already true; lock it)
+
+COMMIT + PUSH
+
+Single commit on fix/formula-self-ref-cleanup. Confirm push.
+
+REPLY (under 250 words)
+
+- The 19 parameters cleaned (list or count + the 1 BOQ-critical one)
+- Confirmation Revit_Formula expressions are UNTOUCHED (only the
+  Input_Parameters metadata column changed)
+- Whether Dependency_Level needed regeneration (engine recomputes? or
+  CSV column used for display?)
+- Test added (assert 0 self-loops + 278/278 ordering)
+- dotnet build + test result
+- Commit hash + push confirmation
+```
+
+---
+
+## Z-24b — populate LOOKUP with all materials + reorder resolver (gated, sequential)
+
+```
+Z-24b — Complete the canonical Tier-1 LOOKUP. Z-24 made the loader
+work but LOOKUP only carries concrete-grade carbon. Populate the rest,
+reconcile values, reorder the resolver, remove dead per-row columns.
+GATED — each step needs the prior + sign-off on number movement.
+~half-day across STEP 1; STEPS 3-4 are separate sign-off-gated PRs.
+
+REQUIRED reading FIRST
+
+git fetch origin main
+git show origin/main:docs/UI_CLEANUP_CAMPAIGN.md | grep -A20 'Z-24b'
+git show origin/main:StingTools/UI/MaterialLookupParser.cs | head -60
+
+Background: Z-24 (commit c0337a3d7) made MaterialLookupCsv load the
+long-format CSV. GetCarbon("C30") now returns 345 (was 0). But LOOKUP
+only has concrete-grade carbon rows — no steel/copper/glass/timber, no
+density/cost. The resolver still consults material-params FIRST (not
+reordered) so no delivered number changed. To make LOOKUP the true
+canonical Tier-1 (Phase 76+ intent) without breaking numbers:
+
+BRANCH
+
+fix/material-lookup-populate off latest origin/main. No PR yet.
+
+STEP 1 — POPULATE (this PR)
+
+Add to MATERIAL_LOOKUP.csv (long-format: Category,TypeKey,Property,Value)
+the carbon + density + cost rows for every material the per-row
+BLE/MEP columns currently cover. Use the SAME ICE v3.0 values Z-20 put
+into BLE/MEP (so LOOKUP matches, not contradicts):
+
+  steel (sections)      2.45 kgCO2e/kg, density 7850
+  galvanised steel      2.85, density 7850
+  copper                3.50, density 8960
+  float glass           1.55, density 2500
+  toughened glass       1.80, density 2500
+  timber (softwood)     SEE Z-25 — timber is split into fossil+biogenic
+                        columns; coordinate with that PR before adding
+                        timber carbon rows. SKIP timber here if Z-25
+                        hasn't landed.
+
+Match each LOOKUP value to the corresponding BLE/MEP per-row value
+EXACTLY (Z-20 already set those to ICE v3.0). The goal is parity so
+that STEP 3's reorder is a no-op on delivered numbers.
+
+STEP 2 — RECONCILE + REPORT (this PR's verification)
+
+For every material now in BOTH LOOKUP and a per-row BLE/MEP column,
+produce a reconciliation table: material | LOOKUP value | per-row value
+| match? If ANY mismatch, STOP and report — a mismatch means STEP 3's
+reorder would change a delivered number, which needs sign-off.
+
+STEP 3 — REORDER RESOLVER (SEPARATE PR — only after STEP 1+2 clean)
+
+This is its own branch fix/material-lookup-resolver-reorder. Flip the
+resolver in CarbonFactorResolver / CarbonTrackingCommands so Tier-1
+LOOKUP wins over per-row columns. ONLY do this when STEP 2 shows
+exact parity (no number moves) OR you have explicit sign-off on the
+deltas. Lock the resolved values with tests.
+
+STEP 4 — REMOVE DEAD COLUMNS (SEPARATE PR — after STEP 3 verified)
+
+Once the resolver prefers LOOKUP and tests lock the values, the per-row
+BLE/MEP carbon columns are dead fallback data. Remove them in a final
+schema-cleanup PR.
+
+HARD RULES
+
+1. STEP 1 (this PR) is POPULATE ONLY. Do NOT reorder the resolver here.
+   With the resolver unchanged, adding LOOKUP rows changes NO delivered
+   number (material-params still win). Safe.
+2. Timber: coordinate with Z-25 (fossil+biogenic split). Skip timber
+   rows if Z-25 hasn't landed; note it in the commit body.
+3. Tests: assert GetCarbon/GetDensity/GetCost return the populated
+   values for the new materials (was 0 pre-population).
+
+BUILD + TEST
+
+dotnet build StingTools/StingTools.csproj
+dotnet test StingTools.Boq.Tests
+
+COMMIT + PUSH
+
+Single commit on fix/material-lookup-populate (STEP 1+2 only).
+
+REPLY (under 350 words)
+
+- Materials added to LOOKUP (table: material → carbon/density/cost)
+- Reconciliation table (LOOKUP vs per-row BLE/MEP, match column)
+- Any mismatch found (STOP + report if so)
+- Timber: skipped (Z-25 pending) or coordinated
+- Tests added
+- dotnet build + test result
+- Commit hash + push confirmation
+- Confirm: with resolver UNCHANGED, zero delivered numbers moved
+  (material-params still win) — STEP 3 reorder is the separate
+  sign-off-gated PR
+```
+
+---
+
+## Z-25 — timber Path C: split into fossil + biogenic columns (USER CHOSE C)
+
+```
+Z-25 Path C — Split timber embodied carbon into separate fossil +
+biogenic columns so whole-life reports match RIBA 2030 / LETI / RICS
+WLCA conventions (show A1-A3 fossil + biogenic separately, sum either
+way). Schema change across the material CSVs + resolver awareness +
+tests. ~1 day.
+
+REQUIRED reading FIRST
+
+git fetch origin main audit/numerics-deep-review
+git show origin/main:docs/UI_CLEANUP_CAMPAIGN.md | grep -A12 'Z-25'
+git show audit/numerics-deep-review:docs/PHASE_Z_NUMERIC_AUDIT.md | grep -A8 '2\.8'
+
+Background: BLE_MATERIALS.csv timber rows carry C=-900 kgCO2/m3 — a
+biogenic-INCLUSIVE value (the -900 is sequestered carbon). Steel/
+concrete (post-Z-20) are A1-A3 GROSS (no biogenic). Mixing -900 timber
+with gross steel/concrete makes whole-life totals misleadingly low.
+RIBA 2030 / LETI / RICS WLCA all want SEPARATED reporting: fossil
+A1-A3 and biogenic A1-A3 as distinct line items.
+
+BRANCH
+
+fix/timber-biogenic-split off latest origin/main. No PR yet.
+
+SCOPE — schema change: 2 carbon columns instead of 1
+
+STEP 1 — define the two-column model
+  - PROP_CARBON_FOSSIL_KG_M3  (A1-A3 manufacturing, always >= 0)
+  - PROP_CARBON_BIOGENIC_KG_M3 (sequestered, <= 0 for timber, 0 for
+    non-bio materials)
+  The legacy single PROP_CARBON_KG_M3 = fossil + biogenic (for
+  backwards-compat display / existing consumers that want the net).
+
+STEP 2 — populate timber rows
+  For each timber material in BLE_MATERIALS.csv (and MEP if any):
+    - PROP_CARBON_FOSSIL_KG_M3 = the manufacturing-only A1-A3 value
+      (sawn softwood ~ +50 to +200 kgCO2/m3 per ICE v3.0 — cite the
+      exact value used)
+    - PROP_CARBON_BIOGENIC_KG_M3 = the sequestration value (the -900
+      was the biogenic component; refine to ICE v3.0 sawn softwood
+      sequestration ~ -1.6 kg/kg × density)
+    - keep/recompute PROP_CARBON_KG_M3 = fossil + biogenic (net) for
+      any consumer still reading the single column
+
+  For NON-timber materials: PROP_CARBON_FOSSIL_KG_M3 = existing
+  PROP_CARBON_KG_M3, PROP_CARBON_BIOGENIC_KG_M3 = 0.
+
+STEP 3 — resolver + model awareness
+  - MaterialRow (or the carbon model) gains FossilCarbon + BiogenicCarbon
+    properties alongside the existing net CarbonKgCo2e.
+  - CarbonFactorResolver / GetCarbon: keep the existing net API working
+    (returns fossil+biogenic), ADD GetCarbonFossil / GetCarbonBiogenic.
+  - BOQ carbon report / any carbon dashboard: surface the 3 numbers
+    (fossil / biogenic / net) where it currently shows 1. If the report
+    UI is out of scope for this PR, at minimum expose the data so a
+    follow-up report PR can render it — document that.
+
+STEP 4 — MATERIAL_LOOKUP coordination
+  If Z-24b is populating LOOKUP, the timber LOOKUP rows must carry both
+  fossil + biogenic properties too. Coordinate: either land this PR
+  first (so Z-24b adds timber with the split) or note the dependency.
+
+HARD RULES
+
+1. The legacy net PROP_CARBON_KG_M3 must keep working — don't break
+   existing consumers that read the single column. Net = fossil +
+   biogenic.
+2. Cite ICE v3.0 for both the fossil and biogenic timber values —
+   don't invent. The -900 was a net/biogenic blend; the split needs
+   real A1-A3-fossil and A1-A3-biogenic components.
+3. Tests: assert GetCarbonFossil + GetCarbonBiogenic == GetCarbon (net)
+   for timber; assert biogenic == 0 for steel/concrete; assert the
+   net value for non-timber is unchanged from today (no regression).
+4. This MOVES delivered carbon numbers for any report that sums timber
+   — that's the POINT (gross totals stop being misleadingly low). NOTE
+   the deltas in the commit body for sign-off.
+
+BUILD + TEST
+
+dotnet build StingTools/StingTools.csproj
+dotnet test StingTools.Boq.Tests
+
+COMMIT + PUSH
+
+Single commit on fix/timber-biogenic-split. Confirm push.
+
+REPLY (under 400 words)
+
+- The two new columns + the legacy-net relationship
+- Timber values used (fossil + biogenic, both ICE v3.0 cited)
+- Resolver API additions (GetCarbonFossil / GetCarbonBiogenic)
+- Report-surfacing: done in this PR, or data-exposed-for-followup?
+- Z-24b coordination (timber LOOKUP rows)
+- Tests added
+- Delivered carbon deltas (the gross totals that moved — table)
+- dotnet build + test result
+- Commit hash + push confirmation
+```
+
+---
+
+## Z-1 — Photo*.cs services break the server build (terminal, server-side)
+
+```
+Z-1 — Planscape.Infrastructure does not compile: 43 CS1061 errors in
+Photo*.cs services referencing DbSets that don't exist on
+PlanscapeDbContext. Decide: dead feature (delete) or unfinished
+(add DbSets). Audit FIRST, then act.
+
+REQUIRED reading FIRST
+
+git fetch origin main
+git show origin/main:docs/UI_CLEANUP_CAMPAIGN.md | grep -A4 'Z-1 —'
+
+The errors (from the P1-A build): PhotoChecklistDueJob.cs and related
+Photo*.cs in Planscape.Server/src/Planscape.Infrastructure/Services/
+reference PhotoChecklistItems / PhotoAlbumPhotos / PhotoPolicies /
+PhotoAlbums DbSets that aren't declared on PlanscapeDbContext.
+
+The running webapp uses a different build path (the API project builds;
+Infrastructure doesn't) — confirming the Photo* code is orphaned or
+half-wired.
+
+BRANCH
+
+First: audit/photo-services off latest origin/main (READ-ONLY audit).
+Then a fix branch once you've decided.
+
+STEP 1 — AUDIT (read-only, commit a findings note)
+
+1. dotnet build Planscape.Server/src/Planscape.Infrastructure/Planscape.Infrastructure.csproj
+   — capture the exact 43 errors + which Photo* files.
+2. For each missing DbSet (PhotoChecklistItems / PhotoAlbumPhotos /
+   PhotoPolicies / PhotoAlbums):
+   - Is there an Entity class for it? (grep the Entities folder)
+   - Is there a Controller / API surface that would use it? (grep
+     Controllers for Photo*)
+   - Is there a migration that would have created its table? (grep
+     Migrations)
+   - Is the mobile app calling its endpoints? (the Planscape Expo app
+     under Planscape/app/ — grep for photo-album / photo-checklist)
+3. Classify: DEAD (no entity, no controller, no migration, no caller —
+   delete the orphan services) vs UNFINISHED (entity + controller exist,
+   just the DbSet declaration + migration missing — wire it up).
+
+STEP 2 — ACT (separate fix branch, based on the classification)
+
+IF DEAD:
+  - Delete the orphan Photo*.cs services + any dead Hangfire job
+    registration. Confirm the API project still builds. Confirm no
+    controller references the deleted services.
+  - branch fix/remove-dead-photo-services
+
+IF UNFINISHED:
+  - Add the missing DbSet<T> declarations to PlanscapeDbContext.
+  - Generate the migration (dotnet ef migrations add PhotoServices —
+    BUT heed the Z-2 stale-snapshot trap: the model snapshot is 55
+    entities behind, so auto-migration may emit a monster. Hand-author
+    the migration like P1-A did if auto-gen is unsafe.)
+  - branch fix/wire-photo-services
+
+HARD RULES
+
+1. Audit before acting. The decision (dead vs unfinished) determines
+   the entire fix shape — don't guess.
+2. Heed Z-2: do NOT run a naive `dotnet ef migrations add` if the
+   snapshot is stale — it'll emit a 55-table monster. Hand-author.
+3. Whatever you do, Planscape.Infrastructure MUST compile cleanly after.
+4. Confirm push with git ls-remote.
+
+REPLY (under 400 words)
+
+- The 43 errors grouped by Photo* file
+- Per missing DbSet: entity exists? controller exists? migration
+  exists? mobile caller exists?
+- Classification: DEAD or UNFINISHED (+ evidence)
+- Action taken (delete vs wire) + branch name
+- dotnet build Planscape.Infrastructure result (0 errors required)
+- If migration generated: hand-authored or auto-gen? (Z-2 trap)
+- Commit hash + push confirmation
+```
+
+---
+
+## Z-2 — EF model snapshot is 55 entities stale (terminal, server-side)
+
+```
+Z-2 — PlanscapeDbContextModelSnapshot tracks 58 entities;
+OnModelCreating configures 113 (~55 stale). 0 of 72 migrations carry
+[Migration] attributes — the dev workflow uses CreateTables() not
+Migrate(). Future migrations face the trap P1-A hand-authored around.
+Decide the workflow + bring the snapshot current OR formalise the
+CreateTables-only path.
+
+REQUIRED reading FIRST
+
+git fetch origin main
+git show origin/main:docs/UI_CLEANUP_CAMPAIGN.md | grep -A4 'Z-2 —'
+
+Background (from P1-A): the EF model snapshot is severely behind the
+actual model. dotnet ef migrations add would emit a ~55-table diff.
+The app boots via CreateTables() (Program.cs:1280 era) not Migrate(),
+so migrations are half-abandoned infrastructure.
+
+BRANCH
+
+First: audit/ef-snapshot-state off latest origin/main (READ-ONLY).
+Then a decision + fix.
+
+STEP 1 — AUDIT (read-only, commit a findings note)
+
+1. Confirm the gap: count DbSets in PlanscapeDbContext vs entities in
+   the snapshot. (dotnet ef dbcontext info / read the snapshot file.)
+2. Confirm the boot path: does Program.cs call db.Database.Migrate()
+   or EnsureCreated() / a custom CreateTables()? Grep both.
+3. Confirm migration state: how many migrations, how many have
+   Designer/[Migration] files, when was the last real one applied?
+4. Determine: is ANY environment using migrations to deploy (prod?)
+   or is everything CreateTables()? This decides the path.
+
+STEP 2 — DECIDE (the audit informs this; recommend one)
+
+PATH A — formalise CreateTables-only, retire migrations
+  - If nothing deploys via migrations, the migration folder is dead
+    weight + a trap. Document the CreateTables workflow as canonical.
+    Optionally delete the abandoned migration files (CAUTION: only if
+    truly unused — prod schema history may need them).
+  - Lowest effort; matches reality.
+
+PATH B — regenerate the snapshot to match the 113-entity model
+  - dotnet ef migrations add SnapshotCatchup — but this emits the
+    55-table monster. Instead: regenerate the snapshot WITHOUT a
+    destructive migration (there are EF techniques to baseline a
+    snapshot to current model without a migration that drops/recreates).
+  - Higher effort; only worth it if you WANT migrations to work going
+    forward.
+
+PATH C — hybrid: baseline now, migrations forward
+  - Mark current schema as the baseline (an empty/no-op migration that
+    just snapshots current state), then real migrations from here.
+  - The "proper" EF answer; medium effort.
+
+STEP 3 — ACT (separate branch per the decision)
+
+HARD RULES
+
+1. Audit + decide before touching migrations. A wrong move here can
+   make P1-A's IfcIngest migration (and HealthcarePack, HvacEngine-
+   Snapshots) inconsistent.
+2. Do NOT run a destructive migration against any environment.
+3. If you delete migration files, confirm NO environment replays them
+   from scratch (prod that runs Migrate() on deploy would break).
+4. Coordinate with Z-1 (if Z-1 adds Photo DbSets + a migration, that
+   migration must fit whatever workflow Z-2 establishes).
+
+REPLY (under 400 words)
+
+- Snapshot entity count vs OnModelCreating count (confirm ~55 gap)
+- Boot path: Migrate() / EnsureCreated() / CreateTables()? (cite line)
+- Migration state: count, how many have Designer files, last applied
+- Does ANY env deploy via migrations? (the deciding question)
+- Recommended path (A retire / B regenerate / C baseline) + why
+- Action taken + branch name
+- Commit hash + push confirmation
+- IMPORTANT: if any environment runs Migrate() on deploy, FLAG before
+  changing anything — schema history is load-bearing there.
+```
