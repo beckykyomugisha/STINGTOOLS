@@ -288,6 +288,15 @@ public class PlanscapeDbContext : DbContext
     public DbSet<PhotoChecklist>        PhotoChecklists        => Set<PhotoChecklist>();
     public DbSet<PhotoChecklistItem>    PhotoChecklistItems    => Set<PhotoChecklistItem>();
     public DbSet<PhotoPolicy>           PhotoPolicies          => Set<PhotoPolicy>();
+    // ── Photo sharing / governance (Z-1c) ──
+    // Entities + controllers (SitePhotosExt / PhotoShare / SitePhotos) authored,
+    // DbSet declarations never added → 31 CS1061s once Z-1b cleared the dupe wall.
+    // No EF migration — CreateTables() builds these from the model (Z-2 trap).
+    public DbSet<PhotoAccessRule>       PhotoAccessRules       => Set<PhotoAccessRule>();
+    public DbSet<PhotoApprovalSignoff>  PhotoApprovalSignoffs  => Set<PhotoApprovalSignoff>();
+    public DbSet<PhotoNdaAcceptance>    PhotoNdaAcceptances    => Set<PhotoNdaAcceptance>();
+    public DbSet<PhotoShareLink>        PhotoShareLinks        => Set<PhotoShareLink>();
+    public DbSet<PhotoVoiceNote>        PhotoVoiceNotes        => Set<PhotoVoiceNote>();
     public DbSet<DistributionGroup>       DistributionGroups       => Set<DistributionGroup>();
     public DbSet<DistributionGroupMember> DistributionGroupMembers => Set<DistributionGroupMember>();
 
