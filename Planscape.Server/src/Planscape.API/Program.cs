@@ -1633,3 +1633,7 @@ static bool IsRfc1918(System.Net.IPAddress ip)
     }
     return false;
 }
+
+// Z-1d — expose the implicit top-level Program class so the integration tests
+// can reference WebApplicationFactory<Program>. Narrower than InternalsVisibleTo.
+public partial class Program { }
