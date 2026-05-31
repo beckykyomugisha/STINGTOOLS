@@ -395,6 +395,18 @@ namespace StingTools.BOQ
                 catch (Exception exr) { StingLog.WarnRateLimited("DeriveQuantity.OvrWaste", $"override waste read: {exr.Message}"); }
                 double wastePct = WasteFactor.ResolveWastePercent(
                     overrideWaste, TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
+
+                // Z-23b — discipline-specific MEASURED ADDITIONS, SEPARATE from the
+                // general waste above. NRM2: rebar laps are a measured addition to
+                // reinforcement mass (not waste); concrete over-order is a
+                // procurement buffer. Both knobs DEFAULT 0 (off) → no change until a
+                // project opts in. When enabled they are summed with wastePct and
+                // applied ONCE (MeasuredAddition.GrossUp) — never a second waste pass.
+                double rebarLap = MeasuredAddition.RebarLapPercent(
+                    IsRebarElement(el), TagConfig.GetConfigDouble("REBAR_LAP_ALLOWANCE_PCT", 0.0));
+                double concreteBuffer = MeasuredAddition.ConcreteOverOrderPercent(
+                    IsConcreteElement(el), TagConfig.GetConfigDouble("CONCRETE_OVERORDER_PCT", 0.0));
+
                 switch ((unit ?? "").ToLowerInvariant())
                 {
                     case "m²":
@@ -409,7 +421,8 @@ namespace StingTools.BOQ
                     case "cum":
                         Parameter volP = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
                         if (volP != null && volP.HasValue)
-                            return WasteFactor.Apply(volP.AsDouble() * 0.0283168, unit, wastePct); // ft³ → m³
+                            // waste + (opt-in) concrete over-order buffer, once.
+                            return MeasuredAddition.GrossUp(volP.AsDouble() * 0.0283168, unit, wastePct, concreteBuffer); // ft³ → m³
                         return 1.0;
                     case "m":
                         if (el.Location is LocationCurve lc)
@@ -424,7 +437,8 @@ namespace StingTools.BOQ
                     case "tonnes":
                         Parameter massP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
                         if (massP != null && massP.HasValue)
-                            return WasteFactor.Apply(massP.AsDouble(), unit, wastePct);
+                            // waste + (opt-in) rebar lap allowance, once.
+                            return MeasuredAddition.GrossUp(massP.AsDouble(), unit, wastePct, rebarLap);
                         return 1.0;
                     default:
                         return 1.0;
@@ -1889,6 +1903,33 @@ namespace StingTools.BOQ
             }
             catch (Exception ex) { StingLog.Warn($"GetPrimaryMaterialName: {ex.Message}"); }
             return "";
+        }
+
+        // Z-23b — discipline detection for the opt-in measured additions.
+        // Only consulted when the knobs are enabled (default 0 → never fires).
+        private static bool IsRebarElement(Element el)
+        {
+            try
+            {
+                if (el?.Category != null)
+                {
+                    if (el.Category.Id.Value == (long)BuiltInCategory.OST_Rebar) return true;
+                    string cat = el.Category.Name?.ToLowerInvariant() ?? "";
+                    if (cat.Contains("rebar") || cat.Contains("reinforc")) return true;
+                }
+                string m = GetPrimaryMaterialName(el).ToLowerInvariant();
+                return m.Contains("rebar") || m.Contains("reinforc");
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("IsRebar", $"IsRebarElement: {ex.Message}"); return false; }
+        }
+
+        private static bool IsConcreteElement(Element el)
+        {
+            try
+            {
+                return GetPrimaryMaterialName(el).ToLowerInvariant().Contains("concrete");
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("IsConcrete", $"IsConcreteElement: {ex.Message}"); return false; }
         }
     }
 }
