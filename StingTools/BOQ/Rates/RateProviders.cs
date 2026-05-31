@@ -83,11 +83,13 @@ namespace StingTools.BOQ.Rates
                 var ovr = StingCostRateOverrideSchema.Read(req.Element);
                 if (ovr == null || ovr.Rate <= 0) return null;
 
-                // v2 schema honoured — waste + overhead + profit applied
-                // to the base rate so the QS sees one fully-loaded number.
+                // v2 schema honoured. Z-21b — single-surface waste convention:
+                // WASTE is applied on the QUANTITY only (DeriveQuantity reads
+                // ovr.WastePercent via WasteFactor), NEVER baked into the rate
+                // here — otherwise an element would waste twice (rate × qty,
+                // compounding ~10.25% for a 5%+5% case). The rate still carries
+                // OVERHEAD + PROFIT, which are rate-side markups, not material waste.
                 double loadedRate = ovr.Rate;
-                if (ovr.WastePercent > 0)
-                    loadedRate *= 1.0 + ovr.WastePercent / 100.0;
                 if (ovr.OverheadPercent > 0)
                     loadedRate *= 1.0 + ovr.OverheadPercent / 100.0;
                 if (ovr.ProfitPercent > 0)
@@ -96,8 +98,10 @@ namespace StingTools.BOQ.Rates
                 string provenance = string.IsNullOrEmpty(ovr.Note)
                     ? $"ES override by {ovr.StampedBy}"
                     : $"ES override: {ovr.Note}";
-                if (ovr.WastePercent > 0 || ovr.OverheadPercent > 0 || ovr.ProfitPercent > 0)
-                    provenance += $" (+{ovr.WastePercent:0.#}% waste, +{ovr.OverheadPercent:0.#}% OH, +{ovr.ProfitPercent:0.#}% profit)";
+                if (ovr.OverheadPercent > 0 || ovr.ProfitPercent > 0)
+                    provenance += $" (+{ovr.OverheadPercent:0.#}% OH, +{ovr.ProfitPercent:0.#}% profit)";
+                if (ovr.WastePercent > 0)
+                    provenance += $" (+{ovr.WastePercent:0.#}% waste on qty)";
                 if (ovr.IsLocked)
                     provenance += $" [LOCKED by {ovr.LockedByUser}]";
 

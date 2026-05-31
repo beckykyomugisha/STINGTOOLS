@@ -21,6 +21,7 @@ using StingTools.BOQ.Rates;
 using StingTools.BOQ.Sync;
 using StingTools.BOQ.Takeoff;
 using StingTools.Core;
+using StingTools.Core.Storage;
 using StingTools.Temp;
 
 namespace StingTools.BOQ
@@ -379,14 +380,21 @@ namespace StingTools.BOQ
             // Z-21: a wastage allowance is now applied to genuinely-measured
             // quantities so the fallback path stops under-quantifying (audit
             // §6.3 — waste was previously applied only on the TakeoffRule path).
-            // Source: project-config knob COST_DEFAULT_WASTE_PCT (default 5%);
-            // applied via WasteFactor.Apply only to measured material units —
-            // never to "each"/"item" counts or the 1.0 "couldn't-measure"
-            // placeholders. Elements that match a TakeoffRule never reach here
-            // (the rule's own WastePercent governs them), so no double-count.
+            // Z-21b: waste is single-surface — applied to the QUANTITY only,
+            // never the rate (the ES rate-override no longer inflates the rate
+            // by WastePercent — see RateProviders ExtensibleStorageRateProvider).
+            // An explicit per-element StingCostRateOverride.WastePercent wins
+            // here (honoured on the quantity side); otherwise the project knob
+            // COST_DEFAULT_WASTE_PCT (default 5%). Applied via WasteFactor.Apply
+            // only to measured material units — never to "each"/"item" counts or
+            // the 1.0 "couldn't-measure" placeholders.
             try
             {
-                double wastePct = TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0);
+                double overrideWaste = 0;
+                try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
+                catch (Exception exr) { StingLog.WarnRateLimited("DeriveQuantity.OvrWaste", $"override waste read: {exr.Message}"); }
+                double wastePct = WasteFactor.ResolveWastePercent(
+                    overrideWaste, TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
                 switch ((unit ?? "").ToLowerInvariant())
                 {
                     case "m²":

@@ -45,6 +45,21 @@ namespace StingTools.BOQ
         }
 
         /// <summary>
+        /// Z-21b — single-surface waste convention. Waste is applied on the
+        /// QUANTITY only (never the rate; the rate carries OH&amp;P). This picks
+        /// the waste% that governs an element: an explicit per-element rate
+        /// override (StingCostRateOverride.WastePercent) wins; otherwise the
+        /// project-default knob (COST_DEFAULT_WASTE_PCT). A non-positive / NaN
+        /// override falls through to the default, so "no override" == default.
+        /// </summary>
+        public static double ResolveWastePercent(double overrideWastePercent, double projectDefaultPercent)
+        {
+            if (!double.IsNaN(overrideWastePercent) && overrideWastePercent > 0)
+                return overrideWastePercent;
+            return projectDefaultPercent;
+        }
+
+        /// <summary>
         /// Returns <paramref name="rawQuantity"/> grossed up by
         /// <paramref name="wastePercent"/> when the unit is a measured material
         /// quantity; otherwise returns it unchanged. Negative / NaN waste is

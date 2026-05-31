@@ -60,5 +60,56 @@ namespace StingTools.Boq.Tests
             // COST_DEFAULT_WASTE_PCT default is 5.0 in BOQCostManager.
             Assert.Equal(52.5, WasteFactor.Apply(50.0, "m3", 5.0), 6);
         }
+
+        // ── Z-21b — single-surface waste (no rate × quantity double-count) ──
+
+        [Fact]
+        public void ResolveWastePercent_ExplicitOverrideWins()
+        {
+            // Element carrying StingCostRateOverride.WastePercent = 8 → 8% governs.
+            Assert.Equal(8.0, WasteFactor.ResolveWastePercent(8.0, 5.0), 6);
+        }
+
+        [Theory]
+        [InlineData(0.0)]
+        [InlineData(-1.0)]
+        [InlineData(double.NaN)]
+        public void ResolveWastePercent_NoOverrideFallsToProjectDefault(double overrideWaste)
+        {
+            Assert.Equal(5.0, WasteFactor.ResolveWastePercent(overrideWaste, 5.0), 6);
+        }
+
+        [Fact]
+        public void LineTotal_RateOverrideElement_WastesExactlyOnce()
+        {
+            // Element: 10 m³, base rate 100, explicit rate-override waste 8%.
+            // Z-21b convention: waste applies on the QUANTITY only; the rate
+            // carries OH&P (none here) but NOT waste.
+            const double rawQty = 10.0, baseRate = 100.0, ovrWaste = 8.0;
+
+            double wastePct = WasteFactor.ResolveWastePercent(ovrWaste, 5.0);
+            double qty = WasteFactor.Apply(rawQty, "m3", wastePct);   // 10 × 1.08
+            double rate = baseRate;                                    // NOT inflated by waste
+            double lineTotal = qty * rate;
+
+            // Wasted exactly once: 10 × 1.08 × 100 = 1080.
+            Assert.Equal(1080.0, lineTotal, 6);
+
+            // And NOT the old double-count (waste on both rate and qty):
+            double doubleCounted = WasteFactor.Apply(rawQty, "m3", ovrWaste)
+                                 * (baseRate * (1.0 + ovrWaste / 100.0)); // 10.8 × 108 = 1166.4
+            Assert.NotEqual(doubleCounted, lineTotal);
+            Assert.Equal(1166.4, doubleCounted, 6); // documents the bug that no longer happens
+        }
+
+        [Fact]
+        public void LineTotal_NonOverrideElement_UnchangedFromZ21()
+        {
+            // No rate-override → project default 5% on quantity, rate untouched.
+            const double rawQty = 10.0, baseRate = 100.0;
+            double wastePct = WasteFactor.ResolveWastePercent(0.0, 5.0);   // → 5
+            double lineTotal = WasteFactor.Apply(rawQty, "m3", wastePct) * baseRate;
+            Assert.Equal(1050.0, lineTotal, 6); // identical to Z-21 behaviour
+        }
     }
 }
