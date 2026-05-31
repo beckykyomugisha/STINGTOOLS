@@ -25,4 +25,12 @@
     <Compile Include="..\StingTools\UI\MaterialLookupParser.cs" Link="UI\MaterialLookupParser.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Z-22 Stage 2: the real shipped formula CSV, copied so the self-ref /
+         topological-order regression test runs against production data. -->
+    <None Include="..\StingTools\Data\FORMULAS_WITH_DEPENDENCIES.csv" Link="Data\FORMULAS_WITH_DEPENDENCIES.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
