@@ -564,7 +564,7 @@ namespace StingTools.BOQ
                 if (unit == "m")
                 {
                     double areaMm2 = ReadCrossSectionMm2(el);
-                    if (areaMm2 <= 0) areaMm2 = 1000.0; // default ~32 mm circular equiv — caller can override via param
+                    if (areaMm2 <= 0) areaMm2 = 1000.0; // default Ø35.7 mm circular equiv (2·√(1000/π)) — caller can override via param
                     return quantity * (areaMm2 / 1_000_000.0);
                 }
 
@@ -1423,16 +1423,21 @@ namespace StingTools.BOQ
                 if (psTotal <= 0) continue;
                 foreach (var mod in candidates)
                 {
-                    double diff = Math.Abs(mod.TotalUGX - psTotal);
+                    // Z-23 (6.6): rank by magnitude (closeness), but keep the SIGN so
+                    // the QS sees overrun (+) vs credit-back (−). abs() alone hid it.
+                    double signed = mod.TotalUGX - psTotal;
+                    double diff = Math.Abs(signed);
                     double ratio = diff / psTotal;
                     if (ratio > 0.3) continue;
                     double confidence = Math.Round((1 - ratio) * 100, 0);
+                    string direction = signed > 0 ? "overrun" : signed < 0 ? "credit" : "exact";
                     results.Add(new BOQReconcileMatch
                     {
                         PSRow = ps,
                         ModeledRow = mod,
                         ConfidencePct = confidence,
-                        Reason = $"{ps.Category} total within {ratio * 100:F0}% of PS"
+                        SignedDeltaUGX = signed,
+                        Reason = $"{ps.Category} modeled is {ratio * 100:F0}% {direction} vs PS ({signed:+#,##0;-#,##0;0} UGX)"
                     });
                 }
             }

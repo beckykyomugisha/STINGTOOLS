@@ -321,6 +321,11 @@ namespace StingTools.BOQ
         public BOQLineItem ModeledRow;
         public double ConfidencePct;
         public string Reason;
+        // Z-23 (6.6): signed delta = modeled − provisional. POSITIVE = overrun
+        // (modeled cost exceeds the PS allowance); NEGATIVE = credit back to the
+        // client (modeled is under the PS). Closeness ranking still uses the
+        // magnitude — this preserves the direction the abs() previously lost.
+        public double SignedDeltaUGX;
     }
 
     // ── BOQHealthScore ─────────────────────────────────────────────────────

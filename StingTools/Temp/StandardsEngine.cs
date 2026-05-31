@@ -32,7 +32,9 @@ namespace StingTools.Temp
         // CIBSE system velocity limits (m/s) for duct/pipe sizing
         internal static readonly Dictionary<string, (double MinVelocity, double MaxVelocity)> CibseVelocityLimits = new()
         {
-            ["Supply Duct - Main"] = (3.0, 10.0),
+            // Z-23 (8.1): supply-main max tightened 10.0 → 9.0 m/s per CIBSE Guide B
+            // noise guidance (≤7.5–9 m/s for occupied-space supply mains); 10 was permissive.
+            ["Supply Duct - Main"] = (3.0, 9.0),
             ["Supply Duct - Branch"] = (2.0, 6.0),
             ["Return Duct - Main"] = (3.0, 8.0),
             ["Return Duct - Branch"] = (2.0, 5.0),
@@ -72,6 +74,10 @@ namespace StingTools.Temp
             ["Ring Main"] = (32.0, 2.5),
             ["Radial 20A"] = (20.0, 2.5),
             ["Radial 32A"] = (32.0, 4.0),
+            // Z-23 (8.2): 45 A cooker circuit on 6 mm² is clipped-correct (Iz ~46–47 A
+            // for reference methods C/100) but MARGINAL under thermal-insulation
+            // installation methods — verify the actual reference method per BS 7671
+            // 18th Ed App.4 before relying on 6 mm² for a 45 A cooker. Left as-is.
             ["Cooker"] = (45.0, 6.0),
             ["Shower"] = (45.0, 10.0),
             ["EV Charger"] = (32.0, 6.0),
