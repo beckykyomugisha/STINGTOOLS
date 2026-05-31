@@ -19,9 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The unit under test. WasteFactor has zero Autodesk.Revit.* dependencies,
-         so it compiles cleanly against net8.0 with no shims. -->
+    <!-- The units under test. Both have zero Autodesk.Revit.* dependencies,
+         so they compile cleanly against net8.0 with no shims. -->
     <Compile Include="..\StingTools\BOQ\WasteFactor.cs" Link="BOQ\WasteFactor.cs" />
+    <Compile Include="..\StingTools\UI\MaterialLookupParser.cs" Link="UI\MaterialLookupParser.cs" />
   </ItemGroup>
 
 </Project>
