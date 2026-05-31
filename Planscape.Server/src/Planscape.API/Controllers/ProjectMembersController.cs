@@ -107,7 +107,7 @@ public class ProjectMembersController : ControllerBase
     // ── Add a user to the project ──────────────────────────────────────────────
 
     [HttpPost]
-    public async Task<ActionResult> AddMember(Guid projectId, [FromBody] AddMemberRequest req)
+    public async Task<ActionResult> AddMember(Guid projectId, [FromBody] ProjectMemberAddRequest req)
     {
         if (!await IsManagerOrAboveAsync(projectId)) return Forbid();
 
@@ -549,7 +549,7 @@ public class ProjectMembersController : ControllerBase
 // the member; any explicitly-provided fields on the request still win
 // (so a PM can use a profile as the baseline and override one axis).
 
-public record AddMemberRequest(
+public record ProjectMemberAddRequest(
     Guid    UserId,
     string? ProjectRole,
     string? Iso19650Role,
