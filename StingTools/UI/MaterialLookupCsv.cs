@@ -57,7 +57,11 @@ namespace StingTools.UI
         }
 
         public static double GetCost(string name) => Get(name)?.Cost ?? 0;
-        public static double GetCarbon(string name) => Get(name)?.CarbonKgCo2e ?? 0;
+        public static double GetCarbon(string name) => Get(name)?.CarbonKgCo2e ?? 0;            // net = fossil + biogenic
+        // Z-25 — WLCA-separated A1-A3 carbon (RIBA 2030 / LETI / RICS). Net API above
+        // is unchanged; these expose the split for whole-life reports.
+        public static double GetCarbonFossil(string name) => Get(name)?.FossilCarbonKgCo2e ?? 0;
+        public static double GetCarbonBiogenic(string name) => Get(name)?.BiogenicCarbonKgCo2e ?? 0;
         public static double GetDensity(string name) => Get(name)?.DensityKgM3 ?? 0;
         public static double GetThermalConductivity(string name) => Get(name)?.ThermalConductivityWmK ?? 0;
 

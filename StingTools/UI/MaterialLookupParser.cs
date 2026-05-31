@@ -102,6 +102,9 @@ namespace StingTools.UI
                     TypeKey                = key.type,
                     Properties             = props,
                     CarbonKgCo2e           = Prop(props, "CARBON_KG_PER_M3", "EMBODIED_CARBON", "CARBON"),
+                    // Z-25: WLCA-separated A1-A3 carbon (net = fossil + biogenic).
+                    FossilCarbonKgCo2e     = Prop(props, "CARBON_FOSSIL_KG_M3", "CARBON_FOSSIL"),
+                    BiogenicCarbonKgCo2e   = Prop(props, "CARBON_BIOGENIC_KG_M3", "CARBON_BIOGENIC"),
                     DensityKgM3            = Prop(props, "DENSITY_KG_M3", "DENSITY"),
                     Cost                   = Prop(props, "COST", "COST_USD", "RATE"),
                     ThermalConductivityWmK = Prop(props, "THERMAL_CONDUCTIVITY", "LAMBDA", "THERMAL_COND_W_MK"),
@@ -202,7 +205,10 @@ namespace StingTools.UI
         public string Category { get; set; }
         public string TypeKey { get; set; }
         public double Cost { get; set; }
-        public double CarbonKgCo2e { get; set; }
+        public double CarbonKgCo2e { get; set; }        // net A1-A3 = fossil + biogenic
+        // Z-25 — RIBA 2030 / LETI / RICS WLCA separated A1-A3 reporting.
+        public double FossilCarbonKgCo2e { get; set; }  // manufacturing (>= 0)
+        public double BiogenicCarbonKgCo2e { get; set; } // sequestration (<= 0 for timber, 0 otherwise)
         public double DensityKgM3 { get; set; }
         public double ThermalConductivityWmK { get; set; }
         /// <summary>All long-format Property→Value pairs (upper-cased keys);
