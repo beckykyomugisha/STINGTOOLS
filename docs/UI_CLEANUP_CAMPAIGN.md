@@ -396,6 +396,36 @@ Audit branch `audit/numerics-deep-review` commit `8774be49` — `docs/PHASE_Z_NU
 **Z-23 — Smaller numeric findings (10 P1 + 11 P2)** 📤
 See `docs/PHASE_Z_NUMERIC_AUDIT.md` for the full table. Categories: material constants (BLE template-default rows for non-concrete materials carry wrong density/thermal/carbon), softwood density = hardwood, timber biogenic carbon mixed with gross, BOQ ProvisionalSum reconciliation uses `Math.Abs` (no signed credit/overrun), CIBSE velocity max slightly permissive, BS 7671 cooker circuit borderline.
 
+**Z-24 — `MATERIAL_LOOKUP.csv` Tier-1 resolver is dead code at runtime** 📤
+Discovered DURING Z-20 (the agent's investigation caught what the numeric audit assumed away). `MaterialLookupCsv.EnsureLoaded()` (file ~`MaterialLookupCsv.cs:56`) expects a **wide-format** CSV with `Material`/`Name` column. The shipped `MATERIAL_LOOKUP.csv` is **long-format** (`Category,TypeKey,Property,Value`). Loader can't find the name column → `iName < 0` → cache loads empty → `GetCarbon` / `GetCost` / `GetDensity` all return 0. The "Phase 76+ canonical Tier-1" architecture is non-functional today.
+
+Effect: all real BOQ carbon/cost/density values come from Tier-1 material parameters fed by `MEP_/BLE_MATERIALS.csv` `PROP_CARBON_KG_M3` columns (which Z-20 fixed). The Tier-1 LOOKUP layer is correctly designed but never consulted at runtime — invisible bug because the fallback chain transparently degrades to the next tier.
+
+Fix scope (own PR, test-backed):
+1. **Decide:** teach the loader the long format (parse `Category,TypeKey,Property,Value` pivot) OR convert the CSV to wide format (one row per material, columns for each property). Long format is more extensible for new properties; wide format matches existing loader assumption.
+2. **Wire up tests** for `MaterialLookupCsv.GetCarbon/GetCost/GetDensity` so this regression can't recur silently.
+3. **Re-order the resolver** to prefer LOOKUP over per-row BLE/MEP carbon columns (the documented "Phase 76+" design intent). The Z-20 agent flagged this explicitly: "(no reorder — that would invert the documented material-param wins design). Chain stays Tier-1 material-param → Tier-2 LOOKUP(dead) → Tier-3 legacy(dead) → Tier-4 keyword." Reorder makes sense ONLY after the loader works AND tests are in place.
+4. **After resolver respects LOOKUP**, the per-row carbon columns in BLE/MEP become fallback-only data → can be migrated into LOOKUP, removing duplication.
+
+This is the architectural cleanup that the numeric audit assumed had already happened.
+
+**Z-25 — Timber biogenic carbon reporting framework decision needed** ⏸ user-decision blocks any timber value change
+Discovered during Z-20 — the agent stopped at timber: `BLE timber −900 kgCO₂/m³ is biogenic-inclusive; mixing it with the now-gross steel/concrete makes totals misleadingly low. Need a decision: is the project's whole-life report A1-A3 incl. biogenic, or gross?` Z-20 left timber values untouched pending the call.
+
+Three resolution paths:
+
+| Path | Approach | Trade-off |
+|---|---|---|
+| **A — Leave timber at −900, document the asymmetry** | Disclose in release notes that timber is biogenic-inclusive while steel/concrete (post-Z-20) are A1-A3 gross. | Quickest. Numbers correct per their own scope; reports remain biased low; QS must know to compensate. |
+| **B — Strip biogenic from timber (≈+100-200 manufacturing-only)** | Everything in BLE/MEP becomes gross A1-A3, internally comparable. | Lose the timber sequestration story unless captured elsewhere. Industry-conservative. |
+| **C — Split timber into 2 columns: fossil + biogenic** | Reports can show both, sum either way. Matches RIBA 2030 / LETI / RICS WLCA modern guidance. | Best long-term. ~1d agent work; schema change touching MATERIAL_LOOKUP / BLE / MEP CSVs + the resolver. |
+
+**Industry direction:** modern frameworks (RIBA 2030 Challenge, LETI Climate Emergency Design Guide, RICS Whole Life Carbon Assessment) want **separated** reporting (path C) — show A1-A3 fossil + A1-A3 biogenic + A4-A5 + B1-B7 + C1-C4 as separate line items, sum at user's discretion.
+
+**Recommendation:** path A for now (zero further code change, just disclose in release notes); path C as a future PR when a carbon engineer / QS can confirm the report format the client expects.
+
+Blocks: any change to timber `PROP_CARBON_KG_M3` values until decided. Z-21 (waste% fallback) and Z-23 (smaller findings) are independent and unblocked.
+
 ### Deferred from triage, never picked up
 
 The triage doc (`docs/PHASE_D_TRIAGE.md`) lists items beyond the top-5 that we worked. Re-read it when starting the next campaign — most are still OPEN.
