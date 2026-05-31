@@ -1092,3 +1092,37 @@ REPLY (under 400 words)
 - IMPORTANT: if any environment runs Migrate() on deploy, FLAG before
   changing anything — schema history is load-bearing there.
 ```
+
+
+---
+
+## Z-1c → Z-1e — server + tests build green (MERGED chain)
+
+The Z-1 cascade is fully resolved. Linear branch chain, each build-verified
+on Windows before the next:
+
+- **Z-1b** `fix/api-dedupe-build` — deduped 6 merge-artifact duplicate
+  definitions in the API (cleared the wall hiding the rest).
+- **Z-1c** `fix/wire-photo-dbsets-and-api-bugs` — wired the 5 missing Photo
+  DbSets (`PhotoAccessRules` / `PhotoApprovalSignoffs` / `PhotoNdaAcceptances`
+  / `PhotoShareLinks` / `PhotoVoiceNotes`; no migration — `CreateTables()`
+  builds them, Z-2 trap avoided) **+** repaired the 20 genuine code bugs
+  (`IssueAudioNotes` DTO-migration leftover, byte-identical `IssuesController`
+  dup, `SeedData` rename repoint). API + Infrastructure + Core build clean.
+- **Z-1d** `fix/test-project-build` — removed the divergent duplicate
+  `StingBimWebApplicationFactory.cs` (kept canonical `PlanscapeWebApplicationFactory.cs`
+  with the correct `UserRole.Contributor`) + added `public partial class
+  Program { }` so the test host can see it.
+- **Z-1e** `fix/test-config-using` — one-line `using
+  Microsoft.Extensions.Configuration;` in `AuditCategoriesControllerTests.cs`.
+
+**Result: `Planscape.sln` builds 0 errors (14 warnings) for the first time** —
+server source AND test project. Current server source is now **DEPLOYABLE**,
+which is the trigger to revisit **Z-2b** (fresh-prod-DB boot via `CreateTables()`).
+
+Side-effect cleanup: the Z-1c "API bugs" commit had accidentally swept in
+unrelated 3D-viewer frontend work via `git add -A`. It was carved back out
+onto **`feat/coordination-viewer-orbit-pivot`** (ACC-style orbit-pivot/focus,
+dblclick pivot, shift-dblclick frame-fit — `coordination-viewer.js` +
+`viewer.html`), so Z-1c carries zero viewer diff. That branch awaits its own
+review/merge.
