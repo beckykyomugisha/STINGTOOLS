@@ -21,6 +21,7 @@ using StingTools.BOQ.Rates;
 using StingTools.BOQ.Sync;
 using StingTools.BOQ.Takeoff;
 using StingTools.Core;
+using StingTools.Core.Storage;
 using StingTools.Temp;
 
 namespace StingTools.BOQ
@@ -375,9 +376,25 @@ namespace StingTools.BOQ
             }
             catch (Exception ex) { StingLog.Warn($"DeriveQuantity rule lookup: {ex.Message}"); }
 
-            // Legacy fallback — preserved verbatim for back-compat.
+            // Legacy fallback — preserved verbatim for back-compat, except
+            // Z-21: a wastage allowance is now applied to genuinely-measured
+            // quantities so the fallback path stops under-quantifying (audit
+            // §6.3 — waste was previously applied only on the TakeoffRule path).
+            // Z-21b: waste is single-surface — applied to the QUANTITY only,
+            // never the rate (the ES rate-override no longer inflates the rate
+            // by WastePercent — see RateProviders ExtensibleStorageRateProvider).
+            // An explicit per-element StingCostRateOverride.WastePercent wins
+            // here (honoured on the quantity side); otherwise the project knob
+            // COST_DEFAULT_WASTE_PCT (default 5%). Applied via WasteFactor.Apply
+            // only to measured material units — never to "each"/"item" counts or
+            // the 1.0 "couldn't-measure" placeholders.
             try
             {
+                double overrideWaste = 0;
+                try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
+                catch (Exception exr) { StingLog.WarnRateLimited("DeriveQuantity.OvrWaste", $"override waste read: {exr.Message}"); }
+                double wastePct = WasteFactor.ResolveWastePercent(
+                    overrideWaste, TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
                 switch ((unit ?? "").ToLowerInvariant())
                 {
                     case "m²":
@@ -385,29 +402,29 @@ namespace StingTools.BOQ
                     case "sqm":
                         Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
                         if (areaP != null && areaP.HasValue)
-                            return areaP.AsDouble() * 0.092903; // ft² → m²
+                            return WasteFactor.Apply(areaP.AsDouble() * 0.092903, unit, wastePct); // ft² → m²
                         return 1.0;
                     case "m³":
                     case "m3":
                     case "cum":
                         Parameter volP = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
                         if (volP != null && volP.HasValue)
-                            return volP.AsDouble() * 0.0283168; // ft³ → m³
+                            return WasteFactor.Apply(volP.AsDouble() * 0.0283168, unit, wastePct); // ft³ → m³
                         return 1.0;
                     case "m":
                         if (el.Location is LocationCurve lc)
-                            return lc.Curve.Length * 0.3048; // ft → m
+                            return WasteFactor.Apply(lc.Curve.Length * 0.3048, unit, wastePct); // ft → m
                         Parameter lenP = el.LookupParameter("Length")
                             ?? el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
                         if (lenP != null && lenP.HasValue)
-                            return lenP.AsDouble() * 0.3048;
+                            return WasteFactor.Apply(lenP.AsDouble() * 0.3048, unit, wastePct);
                         return 1.0;
                     case "kg":
                     case "tonne":
                     case "tonnes":
                         Parameter massP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
                         if (massP != null && massP.HasValue)
-                            return massP.AsDouble();
+                            return WasteFactor.Apply(massP.AsDouble(), unit, wastePct);
                         return 1.0;
                     default:
                         return 1.0;
