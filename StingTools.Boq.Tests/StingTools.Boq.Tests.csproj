@@ -40,4 +40,11 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Z-25: BLE material data for the timber fossil/biogenic split test. -->
+    <None Include="..\StingTools\Data\BLE_MATERIALS.csv" Link="Data\BLE_MATERIALS.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
