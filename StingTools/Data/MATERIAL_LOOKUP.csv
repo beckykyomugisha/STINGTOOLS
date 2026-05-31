@@ -235,3 +235,21 @@ PUTTY,FAIR,KG_PER_M2,1.2,kg/m²,Fair-faced surface
 PUTTY,ROUGH,KG_PER_M2,1.8,kg/m²,Rough surface (moderate filling)
 PUTTY,VERY_ROUGH,KG_PER_M2,2.5,kg/m²,Very rough surface (heavy filling)
 PUTTY,DEFAULT,KG_PER_M2,1.5,kg/m²,Default: medium surface
+#
+# ── METALS / GLASS / TIMBER (Z-24b — ICE v3.0, parity with Z-20/Z-25 BLE/MEP per-row) ──
+# Populate-only. Resolver still consults material-params first (Z-24b STEP 3 reorder is
+# a SEPARATE, sign-off-gated PR) so these rows change NO delivered number today.
+STEEL,STRUCTURAL,CARBON_KG_PER_M3,12090,kgCO₂/m³,ICE v3.0 structural steel 1.54 kg/kg × 7850 (= Z-20 plain steel)
+STEEL,STRUCTURAL,DENSITY_KG_M3,7850,kg/m³,Steel density
+STEEL,GALVANISED,CARBON_KG_PER_M3,22372,kgCO₂/m³,ICE v3.0 galvanised sheet 2.85 kg/kg × 7850 (= Z-20 galv duct)
+STEEL,GALVANISED,DENSITY_KG_M3,7850,kg/m³,Steel density
+STEEL,STAINLESS,CARBON_KG_PER_M3,12090,kgCO₂/m³,as-shipped plain-steel basis (true stainless ~6.15 kg/kg pending)
+STEEL,STAINLESS,DENSITY_KG_M3,7850,kg/m³,Steel density
+COPPER,DEFAULT,CARBON_KG_PER_M3,31360,kgCO₂/m³,ICE v3.0 copper 3.50 kg/kg × 8960 (= Z-20 copper pipe)
+COPPER,DEFAULT,DENSITY_KG_M3,8960,kg/m³,Copper density
+GLASS,FLOAT,CARBON_KG_PER_M3,3600,kgCO₂/m³,ICE v3.0 general glass 1.44 kg/kg × 2500 (= Z-20 float glass)
+GLASS,FLOAT,DENSITY_KG_M3,2500,kg/m³,Float glass density
+TIMBER,SOFTWOOD,CARBON_FOSSIL_KG_M3,126,kgCO₂/m³,ICE v3.0 sawn softwood A1-A3 fossil 0.263 kg/kg × 480
+TIMBER,SOFTWOOD,CARBON_BIOGENIC_KG_M3,-787,kgCO₂/m³,ICE v3.0 sequestration -1.64 kg/kg × 480
+TIMBER,SOFTWOOD,CARBON_KG_PER_M3,-661,kgCO₂/m³,net = fossil + biogenic (Z-25 split)
+TIMBER,SOFTWOOD,DENSITY_KG_M3,480,kg/m³,corrected softwood density (CIBSE 420-550, Z-23)

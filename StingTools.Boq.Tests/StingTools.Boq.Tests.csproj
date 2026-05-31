@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Compile Include="..\StingTools\BOQ\WasteFactor.cs" Link="WasteFactor.cs" />
+    <Compile Include="..\StingTools\UI\MaterialLookupParser.cs" Link="UI\MaterialLookupParser.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,10 +31,11 @@
     <None Include="..\StingTools\Data\MEP_MATERIALS.csv" Link="Data\MEP_MATERIALS.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="..\StingTools\BOQ\CarbonModels.cs" Link="CarbonModels.cs" />
+    <!-- Z-24b: the long-format LOOKUP, copied so the populate test resolves
+         the new metal/glass/timber rows against production data. -->
+    <None Include="..\StingTools\Data\MATERIAL_LOOKUP.csv" Link="Data\MATERIAL_LOOKUP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
