@@ -53,6 +53,15 @@ namespace StingTools.UI
         }
 
         public static double GetCost(string name) => Get(name)?.Cost ?? 0;
+        // DEAD AT RUNTIME for the shipped MATERIAL_LOOKUP.csv (Z-20 finding):
+        // EnsureLoaded() resolves a wide-format "Material"/"Name" column, but the
+        // shipped file is long-format (Category,TypeKey,Property,Value) with no such
+        // column, so iName < 0 and the cache loads empty — GetCarbon/GetCost/
+        // GetDensity all return 0 here. The carbon resolver's LOOKUP tier is thus a
+        // no-op today; delivered carbon comes from the Tier-1 material param fed by
+        // MEP_/BLE_MATERIALS.csv PROP_CARBON_KG_M3 (where the Z-20 ICE v3.0 fix lives).
+        // Making MATERIAL_LOOKUP canonical (teach this the long format + reorder the
+        // resolver above the material param) is a deliberate, test-backed follow-up PR.
         public static double GetCarbon(string name) => Get(name)?.CarbonKgCo2e ?? 0;
         public static double GetDensity(string name) => Get(name)?.DensityKgM3 ?? 0;
         public static double GetThermalConductivity(string name) => Get(name)?.ThermalConductivityWmK ?? 0;

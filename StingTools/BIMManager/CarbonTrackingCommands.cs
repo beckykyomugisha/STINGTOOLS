@@ -29,6 +29,20 @@ namespace StingTools.BIMManager
         private static readonly object _lock = new object();
 
         /// <summary>Load embodied carbon factors from MATERIAL_LOOKUP.csv.</summary>
+        /// <remarks>
+        /// DEAD AT RUNTIME (Z-20 finding): the shipped MATERIAL_LOOKUP.csv is
+        /// long-format (Category,TypeKey,Property,Value) and opens with a "# ..."
+        /// comment banner. This loader reads lines[0] (the comment) as the header,
+        /// finds no EMBODIED/CARBON/KGCO2 column, hits `if (carbonCol &lt; 0) return;`
+        /// and leaves _carbonFactors empty — so Tier-3 here never contributes a
+        /// value; resolution falls straight through to the keyword defaults.
+        /// Delivered BOQ carbon therefore flows from Tier-1 (the material's
+        /// STING_EMB_CARBON_NR, populated at material-creation from the
+        /// MEP_/BLE_MATERIALS.csv PROP_CARBON_KG_M3 columns) — which is why the
+        /// Z-20 ICE v3.0 fix was applied there, not here. Re-wiring this to parse
+        /// the long format (or making MATERIAL_LOOKUP canonical) is a separate,
+        /// test-backed PR — see docs/PHASE_Z_NUMERIC_AUDIT.md §2.4–2.6, §7.1.
+        /// </remarks>
         internal static void EnsureLoaded()
         {
             if (_carbonFactors != null) return;
@@ -141,13 +155,18 @@ namespace StingTools.BIMManager
         private static double GetDefaultCarbonFactor(string name)
         {
             string lower = (name ?? "").ToLowerInvariant();
-            if (lower.Contains("steel")) return 1.55;
+            // Z-20 (ICE v3.0): these per-kg fallbacks are kept in lock-step with the
+            // per-m³ PROP_CARBON_KG_M3 columns in MEP_/BLE_MATERIALS.csv that feed the
+            // Tier-1 material param (factor ÷ density = the value below). "galvanised"
+            // is checked before "steel" so galvanised sheet (ducts) gets 2.85 not 1.55.
+            if (lower.Contains("galvani")) return 2.85;   // galvanised steel sheet (= 22372 kgCO₂/m³ ÷ 7850)
+            if (lower.Contains("steel")) return 1.55;     // plain/structural steel (= 12090 ÷ 7850)
             if (lower.Contains("concrete") || lower.Contains("cement")) return 0.13;
             if (lower.Contains("alumin")) return 6.67;
             if (lower.Contains("timber") || lower.Contains("wood")) return 0.31;
-            if (lower.Contains("glass")) return 0.86;
+            if (lower.Contains("glass")) return 1.44;     // ICE v3.0 general glass (= 3600 ÷ 2500)
             if (lower.Contains("brick")) return 0.24;
-            if (lower.Contains("copper")) return 3.81;
+            if (lower.Contains("copper")) return 3.50;    // copper pipe (= 31360 ÷ 8960)
             if (lower.Contains("plastic") || lower.Contains("pvc")) return 3.10;
             if (lower.Contains("insulation")) return 1.86;
             if (lower.Contains("plaster") || lower.Contains("gypsum")) return 0.12;
