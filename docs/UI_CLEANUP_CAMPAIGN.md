@@ -399,18 +399,21 @@ Resolved via Option A (quantity is the single waste surface). `RateProviders.cs:
 **Z-23 — Smaller numeric findings (10 P1 + 11 P2)** 📤
 See `docs/PHASE_Z_NUMERIC_AUDIT.md` for the full table. Categories: material constants (BLE template-default rows for non-concrete materials carry wrong density/thermal/carbon), softwood density = hardwood, timber biogenic carbon mixed with gross, BOQ ProvisionalSum reconciliation uses `Math.Abs` (no signed credit/overrun), CIBSE velocity max slightly permissive, BS 7671 cooker circuit borderline.
 
-**Z-24 — `MATERIAL_LOOKUP.csv` Tier-1 resolver is dead code at runtime** 📤
-Discovered DURING Z-20 (the agent's investigation caught what the numeric audit assumed away). `MaterialLookupCsv.EnsureLoaded()` (file ~`MaterialLookupCsv.cs:56`) expects a **wide-format** CSV with `Material`/`Name` column. The shipped `MATERIAL_LOOKUP.csv` is **long-format** (`Category,TypeKey,Property,Value`). Loader can't find the name column → `iName < 0` → cache loads empty → `GetCarbon` / `GetCost` / `GetDensity` all return 0. The "Phase 76+ canonical Tier-1" architecture is non-functional today.
+**Z-24 — `MATERIAL_LOOKUP.csv` Tier-1 resolver is dead code at runtime** ✅ MERGED to main (commit `c0337a3d7`, branch `fix/material-lookup-long-format`)
+Discovered DURING Z-20. `MaterialLookupCsv.EnsureLoaded()` did `iName = Idx("Material","Name","MaterialName")` against the long-format header `Category,TypeKey,Property,Value` → `iName = -1` → empty cache → `GetCarbon`/`GetCost`/`GetDensity` all returned 0. The "Phase 76+ canonical Tier-1" lookup was non-functional. Real BOQ values came entirely from per-row `PROP_CARBON_KG_M3` material params in BLE/MEP CSVs (which Z-20 fixed) — the invisible bug was masked because the fallback chain transparently degraded to the next tier.
 
-Effect: all real BOQ carbon/cost/density values come from Tier-1 material parameters fed by `MEP_/BLE_MATERIALS.csv` `PROP_CARBON_KG_M3` columns (which Z-20 fixed). The Tier-1 LOOKUP layer is correctly designed but never consulted at runtime — invisible bug because the fallback chain transparently degrades to the next tier.
+**Fix (Option A — long-format parse + pivot):** new `StingTools/UI/MaterialLookupParser.cs` (212 lines) pivots long rows into `MaterialLookupRow` keyed by `(Category, TypeKey)`, indexed under both `"Category TypeKey"` and bare `TypeKey` (when globally unique) + a `Category=DEFAULT` row. Legacy wide-format parser retained for backwards compat. `GetCarbon("C30")` was 0, now **345**. 10 new tests in `StingTools.Boq.Tests` (36 total): bare-TypeKey, composite keys, category-DEFAULT, ambiguous-DEFAULT-not-bare-keyed, multi-property pivot, unknown-material-0, header-only-empty, legacy-wide-still-parses. Build 0/0.
 
-Fix scope (own PR, test-backed):
-1. **Decide:** teach the loader the long format (parse `Category,TypeKey,Property,Value` pivot) OR convert the CSV to wide format (one row per material, columns for each property). Long format is more extensible for new properties; wide format matches existing loader assumption.
-2. **Wire up tests** for `MaterialLookupCsv.GetCarbon/GetCost/GetDensity` so this regression can't recur silently.
-3. **Re-order the resolver** to prefer LOOKUP over per-row BLE/MEP carbon columns (the documented "Phase 76+" design intent). The Z-20 agent flagged this explicitly: "(no reorder — that would invert the documented material-param wins design). Chain stays Tier-1 material-param → Tier-2 LOOKUP(dead) → Tier-3 legacy(dead) → Tier-4 keyword." Reorder makes sense ONLY after the loader works AND tests are in place.
-4. **After resolver respects LOOKUP**, the per-row carbon columns in BLE/MEP become fallback-only data → can be migrated into LOOKUP, removing duplication.
+**Resolver reorder: DEFERRED (correctly) → see Z-24b.** The agent did NOT reorder the carbon/cost resolver, so **no delivered BOQ number changed by reorder**. The chain stays material-param-first. The ONLY theoretical delta: an element named exactly like a bare-unique LOOKUP key (e.g. type "C30") with NO carbon material-param — it now resolves via LOOKUP (345) instead of the keyword fallback (was 0 / generic). That's a fix, not a regression — those elements were under-reporting carbon. Flagged for sign-off; couldn't enumerate without the live model.
 
-This is the architectural cleanup that the numeric audit assumed had already happened.
+**Z-24b — Populate LOOKUP + reorder resolver to make Tier-1 truly canonical** 📤 NEW (the deferred half of Z-24)
+LOOKUP now loads (Z-24) but only carries **concrete-grade carbon** — no steel/copper/glass rows, no density/cost. So it can't yet supersede the per-row BLE/MEP columns, and reordering the resolver to prefer LOOKUP would either change delivered numbers or resolve to 0 for materials LOOKUP doesn't cover. To complete the Phase 76+ canonical-Tier-1 intent:
+1. **Populate `MATERIAL_LOOKUP.csv`** with steel / copper / glass / timber carbon + density + cost rows (the ICE v3.0 values Z-20 put into BLE/MEP), so LOOKUP covers every material the per-row columns do.
+2. **Reconcile values FIRST** — confirm each LOOKUP value matches or supersedes the BLE/MEP per-row value, so the reorder causes NO silent number change (or a deliberate, signed-off change).
+3. **Reorder the resolver** to prefer Tier-1 LOOKUP over per-row columns (the documented "material-param wins" → "LOOKUP wins" flip). Gate on tests locking the resolved values.
+4. **After reorder**, the per-row BLE/MEP carbon columns become dead fallback data → can be removed in a final cleanup PR (schema change, own PR).
+This is gated work: each step needs the prior one + value reconciliation + sign-off on any delivered-number movement.
+
 
 **Z-25 — Timber biogenic carbon reporting framework decision needed** ⏸ user-decision blocks any timber value change
 Discovered during Z-20 — the agent stopped at timber: `BLE timber −900 kgCO₂/m³ is biogenic-inclusive; mixing it with the now-gross steel/concrete makes totals misleadingly low. Need a decision: is the project's whole-life report A1-A3 incl. biogenic, or gross?` Z-20 left timber values untouched pending the call.
