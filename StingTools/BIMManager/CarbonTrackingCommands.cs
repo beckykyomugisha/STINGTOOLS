@@ -225,8 +225,8 @@ namespace StingTools.BIMManager
                         var mat = doc.GetElement(matId) as Material;
                         if (mat == null) continue;
 
-                        double carbonFactor = GetCarbonFactor(mat.Name);
-                        if (carbonFactor <= 0) continue;
+                        double grossFactor = GetCarbonFactor(mat.Name);
+                        if (grossFactor <= 0 && !StingTools.BOQ.BiogenicCarbon.IsBiogenic(mat.Name)) continue;
 
                         // Get material volume fraction (approximate — equal split across materials)
                         double matVolume = volumeM3 / matIds.Count;
@@ -234,13 +234,23 @@ namespace StingTools.BIMManager
                         // Estimate density (default 2400 kg/m³ for concrete-like)
                         double density = EstimateDensity(mat.Name);
                         double mass = matVolume * density;
-                        double carbonKg = mass * carbonFactor;
 
-                        result.TotalCarbonKg += carbonKg;
-                        result.ByCategory[catName] = result.ByCategory.GetValueOrDefault(catName) + carbonKg;
+                        // Z-25b — WLCA fossil/biogenic split. HEADLINE = A1-A3 FOSSIL
+                        // (gross upfront, sequestration excluded; RICS WLCA 2nd ed /
+                        // RIBA 2030 / LETI). Biogenic is a separate ≤0 line; net is
+                        // fossil + biogenic for whole-life context.
+                        double fossilFactor   = StingTools.BOQ.BiogenicCarbon.FossilFactorPerKg(mat.Name, grossFactor);
+                        double biogenicFactor = StingTools.BOQ.BiogenicCarbon.BiogenicFactorPerKg(mat.Name);
+                        double fossilKg   = mass * fossilFactor;
+                        double biogenicKg = mass * biogenicFactor;
+
+                        result.FossilCarbonKg   += fossilKg;
+                        result.BiogenicCarbonKg += biogenicKg;
+                        // Breakdowns track the HEADLINE (fossil) figure.
+                        result.ByCategory[catName] = result.ByCategory.GetValueOrDefault(catName) + fossilKg;
                         if (!string.IsNullOrWhiteSpace(disc))
-                            result.ByDiscipline[disc] = result.ByDiscipline.GetValueOrDefault(disc) + carbonKg;
-                        result.ByMaterial[mat.Name] = result.ByMaterial.GetValueOrDefault(mat.Name) + carbonKg;
+                            result.ByDiscipline[disc] = result.ByDiscipline.GetValueOrDefault(disc) + fossilKg;
+                        result.ByMaterial[mat.Name] = result.ByMaterial.GetValueOrDefault(mat.Name) + fossilKg;
                         result.ElementCount++;
                     }
                 }
@@ -286,15 +296,27 @@ namespace StingTools.BIMManager
 
     internal class CarbonResult
     {
-        public double TotalCarbonKg { get; set; }
+        // Z-25b — WLCA three-line A1-A3 reporting.
+        public double FossilCarbonKg { get; set; }     // HEADLINE — gross upfront (RICS WLCA / RIBA 2030 / LETI)
+        public double BiogenicCarbonKg { get; set; }   // separate informational line (≤ 0)
+        public double NetCarbonKg => FossilCarbonKg + BiogenicCarbonKg;  // whole-life context
+
+        // Legacy alias — existing consumers read TotalCarbonKg as the headline.
+        // The headline is fossil (gross upfront), matching the pre-Z-25b semantics
+        // (sequestration was already gated out), so no consumer breaks.
+        public double TotalCarbonKg => FossilCarbonKg;
+
         public double FloorAreaM2 { get; set; }
-        public double CarbonPerM2 { get; set; }
+        public double CarbonPerM2 { get; set; }         // fossil headline / floor area
         public int ElementCount { get; set; }
         public TimeSpan Duration { get; set; }
         public Dictionary<string, double> ByCategory { get; set; } = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, double> ByDiscipline { get; set; } = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, double> ByMaterial { get; set; } = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-        public double TotalCarbonTonnes => TotalCarbonKg / 1000.0;
+        public double TotalCarbonTonnes  => TotalCarbonKg / 1000.0;
+        public double FossilCarbonTonnes => FossilCarbonKg / 1000.0;
+        public double BiogenicCarbonTonnes => BiogenicCarbonKg / 1000.0;
+        public double NetCarbonTonnes    => NetCarbonKg / 1000.0;
     }
 
     #endregion
@@ -323,13 +345,21 @@ namespace StingTools.BIMManager
             finally { progress.Close(); }
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Embodied Carbon Assessment");
+            sb.AppendLine($"Embodied Carbon Assessment (A1-A3)");
             sb.AppendLine($"─────────────────────────────────────────────\n");
-            sb.AppendLine($"  Total Carbon:     {result.TotalCarbonTonnes:F1} tCO₂e ({result.TotalCarbonKg:F0} kgCO₂e)");
+            // Z-25b — WLCA three-line reporting. Headline = FOSSIL (gross upfront).
+            sb.AppendLine($"  A1-A3 Fossil (headline): {result.FossilCarbonTonnes:F1} tCO₂e ({result.FossilCarbonKg:F0} kgCO₂e)");
+            sb.AppendLine($"  A1-A3 Biogenic (sep.):   {result.BiogenicCarbonTonnes:F1} tCO₂e ({result.BiogenicCarbonKg:F0} kgCO₂e)");
+            sb.AppendLine($"  Net (fossil + biogenic): {result.NetCarbonTonnes:F1} tCO₂e ({result.NetCarbonKg:F0} kgCO₂e)");
             sb.AppendLine($"  Floor Area:       {result.FloorAreaM2:F0} m²");
-            sb.AppendLine($"  Carbon Intensity: {result.CarbonPerM2:F1} kgCO₂e/m²");
+            sb.AppendLine($"  Carbon Intensity: {result.CarbonPerM2:F1} kgCO₂e/m² (fossil, upfront)");
             sb.AppendLine($"  Elements:         {result.ElementCount:N0}");
             sb.AppendLine($"  Duration:         {result.Duration.TotalSeconds:F1}s\n");
+            sb.AppendLine("  Methodology: headline = A1-A3 FOSSIL (gross upfront carbon);");
+            sb.AppendLine("  biogenic sequestration is reported separately and is NOT");
+            sb.AppendLine("  netted into the RIBA 2030 / LETI benchmark, per RICS Whole");
+            sb.AppendLine("  Life Carbon Assessment 2nd ed. (2023). Net is shown for");
+            sb.AppendLine("  whole-life context only.\n");
 
             // RIBA 2030 benchmark comparison
             string benchmark = result.CarbonPerM2 switch
@@ -374,9 +404,17 @@ namespace StingTools.BIMManager
             string path = OutputLocationHelper.GetTimestampedPath(ctx.Doc, "CarbonReport", ".csv");
 
             var sb = new StringBuilder();
+            // Z-25b — WLCA A1-A3 three-line reporting. Headline = FOSSIL (gross
+            // upfront, sequestration excluded) per RICS WLCA 2nd ed (2023) /
+            // RIBA 2030 / LETI; biogenic reported separately; net for context.
+            sb.AppendLine("# Methodology: A1-A3. Headline = FOSSIL (gross upfront carbon); biogenic");
+            sb.AppendLine("# reported separately, NOT netted into the RIBA 2030 / LETI benchmark");
+            sb.AppendLine("# (RICS Whole Life Carbon Assessment 2nd ed., 2023). Net = whole-life context.");
             sb.AppendLine("Section,Item,Value_kgCO2e,Percentage");
-            sb.AppendLine($"Summary,Total,{result.TotalCarbonKg:F2},100");
-            sb.AppendLine($"Summary,Per_m2,{result.CarbonPerM2:F2},");
+            sb.AppendLine($"Summary,A1A3_Fossil_Headline,{result.FossilCarbonKg:F2},100");
+            sb.AppendLine($"Summary,A1A3_Biogenic_Separate,{result.BiogenicCarbonKg:F2},");
+            sb.AppendLine($"Summary,Net_Fossil_Plus_Biogenic,{result.NetCarbonKg:F2},");
+            sb.AppendLine($"Summary,Per_m2_Fossil,{result.CarbonPerM2:F2},");
             sb.AppendLine($"Summary,Floor_Area_m2,{result.FloorAreaM2:F2},");
             foreach (var kvp in result.ByDiscipline.OrderByDescending(d => d.Value))
                 sb.AppendLine($"Discipline,{kvp.Key},{kvp.Value:F2},{(result.TotalCarbonKg > 0 ? 100 * kvp.Value / result.TotalCarbonKg : 0):F1}");
