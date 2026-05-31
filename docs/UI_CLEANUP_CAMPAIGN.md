@@ -387,10 +387,10 @@ Audit branch `audit/numerics-deep-review` commit `8774be49` — `docs/PHASE_Z_NU
 **Z-20 — Embodied-carbon undercount for metals & glass (~4–9× low)** 📤
 `MEP_MATERIALS.csv` steel/copper/glass carbon factors 4-9× below ICE v3.0 reference values. Plus **Z-20b**: concrete-carbon cross-file drift — `BLE_MATERIALS.csv` says 150 kgCO₂/m³ vs `MATERIAL_LOOKUP.csv` 345. Any delivered carbon report or RIBA-stage carbon number is materially wrong-low. Fix scope: not just edit CSVs — DECIDE which file is canonical (MATERIAL_LOOKUP recommended per Phase 76+ work) and route consumers there.
 
-**Z-21 — Waste% skipped on BOQ legacy-fallback path** 🔄 PR #283 OPEN — NOT yet on main
+**Z-21 — Waste% skipped on BOQ legacy-fallback path** ✅ MERGED to main (PR #283, commit `2b00a28e3`)
 Branch `fix/boq-waste-legacy-fallback` commit `2b00a28e3`. **The code is NOT on `origin/main` yet — PR #283 is still open.** Do not assume Z-21 is mergeable into a branch's base until #283 lands. Fixed in `BOQCostManager.DeriveQuantity` — fallback paths (m², m, m³, kg/tonne) now route through new pure-helper `WasteFactor.Apply(qty, unit, wastePct)`. "Each / item / couldn't-measure" placeholders deliberately stay at 0%. Waste% source: `COST_DEFAULT_WASTE_PCT` config knob (5% default, project-overridable). New `StingTools.Boq.Tests` project added — 20 tests pass, first tests-with-the-fix in the Phase Z numeric series.
 
-**Z-21b — Rate-override × quantity-fallback double-count** 🔄 shipped on `fix/boq-waste-dedup` commit `026c862af` (STACKED on Z-21, NOT yet on main)
+**Z-21b — Rate-override × quantity-fallback double-count** ✅ MERGED to main (commit `026c862af`, merge `8796f337c`)
 Resolved via Option A (quantity is the single waste surface). `RateProviders.cs:~88` — removed `loadedRate *= 1 + ovr.WastePercent/100` (kept Overhead + Profit); the rate no longer carries waste. `BOQCostManager.DeriveQuantity` legacy fallback — `wastePct = WasteFactor.ResolveWastePercent(overrideWaste, COST_DEFAULT_WASTE_PCT)` so the explicit `StingCostRateOverrideSchema.WastePercent` governs the quantity side and applies exactly once. 6 new tests (26 total): `LineTotal_RateOverrideElement_WastesExactlyOnce` asserts line == 1080 AND `NotEqual(1166.4)` (codifies the old double-count's absence); `LineTotal_NonOverrideElement_UnchangedFromZ21` == 1050 (common path not regressed). Build 0/0, 26/26 pass. **Branch is STACKED on the Z-21 branch — merge order: PR #283 (Z-21) FIRST, then this. If merged alone it carries both fixes.**
 
 **Z-22 — 63 of 278 formulas in dependency cycles** 📤 LARGE
