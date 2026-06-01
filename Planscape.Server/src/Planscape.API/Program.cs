@@ -566,6 +566,11 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcDeltaService,
 // (canonical IFC GlobalId ↔ host element id; IoT device binding).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityResolverService,
     Planscape.Infrastructure.Services.IdentityResolverService>();
+// K1 — Cross-host IFC ingest (the single write path into ExternalElementMapping +
+// the TaggedElement projection). Shared by IfcController (full ingest),
+// TagSyncController + ArchiCADController (mapping upsert).
+builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcIngestService,
+    Planscape.Infrastructure.Services.IfcIngestService>();
 // K2 — Platform event spine (durable cross-surface channel → STING plugin).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IPlatformEventService,
     Planscape.Infrastructure.Services.PlatformEventService>();

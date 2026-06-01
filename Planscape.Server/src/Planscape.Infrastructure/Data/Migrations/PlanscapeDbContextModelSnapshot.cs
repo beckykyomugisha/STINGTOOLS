@@ -1035,6 +1035,7 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<Guid>("TenantId").HasColumnType("uuid");
                 b.Property<Guid>("ProjectId").HasColumnType("uuid");
                 b.Property<string>("RoomBimId").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<string>("RoomIfcGlobalId").HasMaxLength(22).HasColumnType("character varying(22)");
                 b.Property<string>("RoomName").IsRequired().HasMaxLength(400).HasColumnType("character varying(400)").HasDefaultValue("");
                 b.Property<string>("RoomClass").IsRequired().HasMaxLength(80).HasColumnType("character varying(80)").HasDefaultValue("");
                 b.Property<string>("DesignRegime").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)").HasDefaultValue("");
@@ -1049,6 +1050,7 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.HasIndex("ProjectId");
                 b.HasIndex("ProjectId", "CapturedAt");
                 b.HasIndex("ProjectId", "RoomBimId");
+                b.HasIndex("ProjectId", "RoomIfcGlobalId");
                 b.ToTable("HealthcarePressureLogs");
             });
 

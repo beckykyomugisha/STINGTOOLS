@@ -1170,6 +1170,9 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
             e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
+            // Cross-host lookup: GET .../healthcare/by-ifc/{ifcGlobalId}.
+            e.Property(x => x.RoomIfcGlobalId).HasMaxLength(22);
+            e.HasIndex(x => new { x.ProjectId, x.RoomIfcGlobalId });
         });
         modelBuilder.Entity<HealthcareMgasVerification>(e =>
         {
@@ -1183,6 +1186,13 @@ public class PlanscapeDbContext : DbContext
         modelBuilder.Entity<HealthcareRdsSnapshot>(e =>
         {
             e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
+        });
+        modelBuilder.Entity<PenetrationSignoff>(e =>
+        {
+            // Cap the cross-host identity key; index it for golden-thread
+            // lookups that resolve a penetration by the penetrated element.
+            e.Property(x => x.ElementIfcGlobalId).HasMaxLength(22);
+            e.HasIndex(x => new { x.ProjectId, x.ElementIfcGlobalId });
         });
 
         // Phase 187d — HVAC engine result indexes. Dashboard queries

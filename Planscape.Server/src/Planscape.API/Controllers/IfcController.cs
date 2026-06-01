@@ -30,12 +30,13 @@ public class IfcController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly IIdentityResolverService _identity;
-    private const int IngestBatchSize = 500;
+    private readonly IIfcIngestService _ingest;
 
-    public IfcController(PlanscapeDbContext db, IIdentityResolverService identity)
+    public IfcController(PlanscapeDbContext db, IIdentityResolverService identity, IIfcIngestService ingest)
     {
         _db = db;
         _identity = identity;
+        _ingest = ingest;
     }
 
     /// <summary>
@@ -63,132 +64,10 @@ public class IfcController : ControllerBase
             .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project is null) return NotFound("project not found in this tenant");
 
-        var resp = new IfcIngestResponse
-        {
-            Warnings = new List<string>(),
-        };
-        int newMappings = 0, updMappings = 0;
-        int newElements = 0, updElements = 0, skipped = 0;
-        var nowUtc = DateTime.UtcNow;
-
-        // Process in batches of 500 to keep transactions small
-        foreach (var batch in Chunk(request.Elements, IngestBatchSize))
-        {
-            // -------------------------------------------------------
-            // 1. Upsert ExternalElementMapping rows
-            // -------------------------------------------------------
-            var batchGuids = batch.Select(e => e.IfcGlobalId).Where(g => !string.IsNullOrWhiteSpace(g)).ToList();
-            var existingMappings = await _db.ExternalElementMappings
-                .Where(m => m.ProjectId == projectId
-                            && m.Host == host
-                            && batchGuids.Contains(m.IfcGlobalId)
-                            && m.HostDocumentGuid == request.HostDocumentGuid)
-                .ToDictionaryAsync(m => m.IfcGlobalId);
-
-            foreach (var el in batch)
-            {
-                if (string.IsNullOrWhiteSpace(el.IfcGlobalId))
-                {
-                    skipped++;
-                    resp.Warnings.Add($"skipped element with empty IfcGlobalId (host_element_id={el.HostElementId})");
-                    continue;
-                }
-
-                if (existingMappings.TryGetValue(el.IfcGlobalId, out var mapping))
-                {
-                    mapping.HostElementId = el.HostElementId;
-                    mapping.HostDisplayLabel = el.HostDisplayLabel;
-                    mapping.LastSeenUtc = nowUtc;
-                    mapping.IngestionCount += 1;
-                    updMappings++;
-                }
-                else
-                {
-                    _db.ExternalElementMappings.Add(new ExternalElementMapping
-                    {
-                        TenantId = tenantId,
-                        ProjectId = projectId,
-                        IfcGlobalId = el.IfcGlobalId,
-                        Host = host,
-                        HostElementId = el.HostElementId,
-                        HostDocumentGuid = request.HostDocumentGuid,
-                        HostDisplayLabel = el.HostDisplayLabel,
-                        FirstSeenUtc = nowUtc,
-                        LastSeenUtc = nowUtc,
-                        IngestionCount = 1,
-                    });
-                    newMappings++;
-                }
-            }
-
-            // -------------------------------------------------------
-            // 2. Upsert TaggedElement projection
-            //    Match on (ProjectId, UniqueId == IfcGlobalId) — we reuse
-            //    TaggedElement.UniqueId to carry the IfcGlobalId for
-            //    non-Revit hosts. RevitElementId stays 0 for non-Revit.
-            // -------------------------------------------------------
-            var existingTagged = await _db.TaggedElements
-                .Where(t => t.ProjectId == projectId && batchGuids.Contains(t.UniqueId))
-                .ToDictionaryAsync(t => t.UniqueId);
-
-            foreach (var el in batch)
-            {
-                if (string.IsNullOrWhiteSpace(el.IfcGlobalId)) continue;
-
-                if (existingTagged.TryGetValue(el.IfcGlobalId, out var t))
-                {
-                    // Stale-write protection
-                    if (el.LastModifiedUtc.HasValue
-                        && t.LastModifiedUtc.HasValue
-                        && el.LastModifiedUtc.Value < t.LastModifiedUtc.Value)
-                    {
-                        skipped++;
-                        continue;
-                    }
-
-                    t.Disc = el.Discipline; t.Loc = el.Location; t.Zone = el.Zone; t.Lvl = el.Level;
-                    t.Sys = el.System; t.Func = el.Function; t.Prod = el.Product; t.Seq = el.Sequence;
-                    t.Tag1 = el.FullTag;
-                    t.CategoryName = el.CategoryName; t.FamilyName = el.FamilyName; t.TypeName = el.TypeName;
-                    t.Status = el.Status; t.Rev = el.Rev; t.RoomName = el.RoomName; t.Level = el.LevelName;
-                    t.IsComplete = el.IsComplete; t.IsFullyResolved = el.IsFullyResolved; t.IsStale = el.IsStale;
-                    t.ValidationErrors = el.ValidationErrors;
-                    t.LastModifiedUtc = el.LastModifiedUtc ?? nowUtc;
-                    updElements++;
-                }
-                else
-                {
-                    _db.TaggedElements.Add(new TaggedElement
-                    {
-                        TenantId = tenantId,
-                        ProjectId = projectId,
-                        UniqueId = el.IfcGlobalId,
-                        RevitElementId = 0,  // host-agnostic — IFC GlobalId is the key
-                        Disc = el.Discipline, Loc = el.Location, Zone = el.Zone, Lvl = el.Level,
-                        Sys = el.System, Func = el.Function, Prod = el.Product, Seq = el.Sequence,
-                        Tag1 = el.FullTag,
-                        CategoryName = el.CategoryName, FamilyName = el.FamilyName, TypeName = el.TypeName,
-                        Status = el.Status, Rev = el.Rev, RoomName = el.RoomName, Level = el.LevelName,
-                        IsComplete = el.IsComplete, IsFullyResolved = el.IsFullyResolved, IsStale = el.IsStale,
-                        ValidationErrors = el.ValidationErrors,
-                        LastModifiedUtc = el.LastModifiedUtc ?? nowUtc,
-                    });
-                    newElements++;
-                }
-            }
-
-            await _db.SaveChangesAsync();
-        }
-
-        return Ok(new IfcIngestResponse
-        {
-            NewMappings = newMappings,
-            UpdatedMappings = updMappings,
-            NewElements = newElements,
-            UpdatedElements = updElements,
-            Skipped = skipped,
-            Warnings = resp.Warnings,
-        });
+        // Ingest (ExternalElementMapping upsert + TaggedElement projection) is
+        // owned by IIfcIngestService so TagSync + ArchiCAD feed the same path.
+        var response = await _ingest.IngestAsync(tenantId, projectId, request);
+        return Ok(response);
     }
 
     /// <summary>
@@ -309,20 +188,5 @@ public class IfcController : ControllerBase
     {
         var claim = User.FindFirst("tenant_id")?.Value;
         return claim != null && Guid.TryParse(claim, out var id) ? id : Guid.Empty;
-    }
-
-    private static IEnumerable<List<T>> Chunk<T>(IEnumerable<T> source, int size)
-    {
-        var batch = new List<T>(size);
-        foreach (var item in source)
-        {
-            batch.Add(item);
-            if (batch.Count >= size)
-            {
-                yield return batch;
-                batch = new List<T>(size);
-            }
-        }
-        if (batch.Count > 0) yield return batch;
     }
 }

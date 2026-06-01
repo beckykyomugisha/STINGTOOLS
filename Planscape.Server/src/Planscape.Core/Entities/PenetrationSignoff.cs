@@ -21,6 +21,15 @@ public class PenetrationSignoff : ITenantScoped
     /// <summary>Mirror of PEN_PFV_UUID_TXT — UUIDv5(host, member). Cross-pipeline pairing key with sleeve schema.</summary>
     public string PfvUuid { get; set; } = "";
 
+    /// <summary>
+    /// IFC GlobalId of the penetrated host element (wall / floor / beam) —
+    /// the cross-host identity key shared with <see cref="ExternalElementMapping"/>.
+    /// Nullable: the mobile sign-off flow keys off the control number and
+    /// may not carry the IFC GlobalId. When present it lets the
+    /// golden-thread record resolve across Revit / ArchiCAD / Blender.
+    /// </summary>
+    public string? ElementIfcGlobalId { get; set; }
+
     /// <summary>FLOOR / WALL / BEAM / CEILING / ROOF.</summary>
     public string HostType { get; set; } = "";
 

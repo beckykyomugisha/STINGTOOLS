@@ -27,6 +27,8 @@ public class PenetrationsController : ControllerBase
     {
         public string PenetrationControlNumber { get; set; } = "";
         public string PfvUuid { get; set; } = "";
+        /// <summary>Optional IFC GlobalId of the penetrated host element (cross-host identity key).</summary>
+        public string? ElementIfcGlobalId { get; set; }
         public string HostType { get; set; } = "";
         public string FireRating { get; set; } = "";
         public string Certification { get; set; } = "";
@@ -77,6 +79,7 @@ public class PenetrationsController : ControllerBase
             _db.PenetrationSignoffs.Add(existing);
         }
 
+        if (req.ElementIfcGlobalId != null) existing.ElementIfcGlobalId = req.ElementIfcGlobalId;
         existing.HostType         = req.HostType ?? existing.HostType;
         existing.FireRating       = req.FireRating ?? existing.FireRating;
         existing.Certification    = req.Certification ?? existing.Certification;

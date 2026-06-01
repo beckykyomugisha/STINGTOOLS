@@ -21,6 +21,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
 using BCrypt.Net;
@@ -69,17 +71,51 @@ namespace Planscape.API.Controllers
         private readonly IHubContext<NotificationHub>      _notificationHub;
         private readonly PresenceTracker                   _presence;
         private readonly PlanscapeDbContext                _db;
+        private readonly IServiceScopeFactory              _scopeFactory;
 
         public ArchiCADController(
             IHubContext<ArchiCADHub> hub,
             IHubContext<NotificationHub> notificationHub,
             PresenceTracker presence,
-            PlanscapeDbContext db)
+            PlanscapeDbContext db,
+            IServiceScopeFactory scopeFactory)
         {
             _hub             = hub;
             _notificationHub = notificationHub;
             _presence        = presence;
             _db              = db;
+            _scopeFactory    = scopeFactory;
+        }
+
+        /// <summary>
+        /// Property-dict keys (case-insensitive) under which StingBridge may
+        /// carry the element's IFC GlobalId when the dedicated
+        /// <see cref="ArchiCADEvent.IfcGlobalId"/> field isn't populated.
+        /// </summary>
+        private static readonly string[] IfcGuidPropertyKeys =
+        {
+            "IfcGlobalId", "IfcGuid", "GlobalId", "IFC_GlobalId",
+            "General.IfcGlobalId", "IFC GUID",
+        };
+
+        /// <summary>
+        /// Resolve an IFC GlobalId for an event: prefer the dedicated field,
+        /// fall back to any of the known property-dict keys. Returns null when
+        /// no GlobalId is available (the event then can't seed identity).
+        /// </summary>
+        private static string? ExtractIfcGlobalId(ArchiCADEvent ev)
+        {
+            if (!string.IsNullOrWhiteSpace(ev.IfcGlobalId)) return ev.IfcGlobalId.Trim();
+            if (ev.Properties is null) return null;
+            foreach (var key in IfcGuidPropertyKeys)
+            {
+                if (ev.Properties.TryGetValue(key, out var raw) && raw is not null)
+                {
+                    var s = raw.ToString();
+                    if (!string.IsNullOrWhiteSpace(s)) return s.Trim();
+                }
+            }
+            return null;
         }
 
         // ── POST /api/archicad/{projectId}/push ──────────────────────────────
@@ -148,6 +184,36 @@ namespace Planscape.API.Controllers
                 authorInfo   = payload.AuthorInfo,
                 isLive       = true
             });
+
+            // Seed the cross-host identity table. Each event that carries an
+            // IFC GlobalId (dedicated field or Properties dict) maps to its
+            // ArchiCAD ElementId. Deleted events are skipped — the element no
+            // longer exists to map. Fire-and-forget in a fresh DI scope so it
+            // never blocks (or fails) the push response; tenant comes from the
+            // bridge-authenticated project, not an HTTP claim.
+            var tenantId = project.TenantId;
+            var mappings = payload.Events
+                .Where(ev => ev.Kind != "Deleted")
+                .Select(ev => new { Guid = ExtractIfcGlobalId(ev), ev.ElementId, ev.ElementType })
+                .Where(x => !string.IsNullOrWhiteSpace(x.Guid) && !string.IsNullOrWhiteSpace(x.ElementId))
+                .Select(x => new Planscape.Core.Interfaces.ElementMappingDto(x.Guid!, x.ElementId, x.ElementType))
+                .ToList();
+
+            if (mappings.Count > 0)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var scope = _scopeFactory.CreateScope();
+                        var ingest = scope.ServiceProvider.GetRequiredService<IIfcIngestService>();
+                        await ingest.UpsertMappingsAsync(
+                            tenantId, projectId, Planscape.Core.Constants.MappingHosts.ArchiCad,
+                            hostDocumentGuid: null, mappings);
+                    }
+                    catch { /* identity ingest is best-effort; never fails the push */ }
+                });
+            }
 
             return Ok(new { received = payload.Events.Count });
         }
@@ -296,6 +362,16 @@ namespace Planscape.API.Controllers
         public string                      Kind         { get; set; } = "Changed";
         public string                      ElementId    { get; set; } = "";
         public string                      ElementType  { get; set; } = "";
+
+        /// <summary>
+        /// Optional dedicated IFC GlobalId for the element. When StingBridge
+        /// can resolve it, populating this is preferred over burying the id in
+        /// <see cref="Properties"/>; the server falls back to the Properties
+        /// dict (see ArchiCADController.IfcGuidPropertyKeys) when this is empty.
+        /// Drives the cross-host ExternalElementMapping row.
+        /// </summary>
+        public string?                     IfcGlobalId  { get; set; }
+
         public Dictionary<string, object>? Properties   { get; set; }
         public BoundingBoxDto?             BoundingBox  { get; set; }
         public DateTime                    TimestampUtc { get; set; } = DateTime.UtcNow;

@@ -83,11 +83,13 @@ public class HealthcareController : ControllerBase
 
     [HttpGet("pressure-log")]
     public async Task<IActionResult> GetPressureLog(Guid projectId,
-        [FromQuery] DateTime? since = null, [FromQuery] string? roomBimId = null)
+        [FromQuery] DateTime? since = null, [FromQuery] string? roomBimId = null,
+        [FromQuery] string? roomIfcGlobalId = null)
     {
         var q = _db.Set<HealthcarePressureLog>().Where(x => x.ProjectId == projectId);
         if (since.HasValue) q = q.Where(x => x.CapturedAt >= since.Value);
         if (!string.IsNullOrEmpty(roomBimId)) q = q.Where(x => x.RoomBimId == roomBimId);
+        if (!string.IsNullOrEmpty(roomIfcGlobalId)) q = q.Where(x => x.RoomIfcGlobalId == roomIfcGlobalId);
         var rows = await q.OrderByDescending(x => x.CapturedAt).Take(500).ToListAsync();
         return Ok(rows);
     }
@@ -154,5 +156,65 @@ public class HealthcareController : ControllerBase
             .FirstOrDefaultAsync();
         if (snap == null) return NotFound();
         return Ok(snap);
+    }
+
+    // ── Cross-reference: all healthcare data for an IFC element ──────
+    /// <summary>
+    /// GET .../healthcare/by-ifc/{ifcGlobalId}
+    /// Cross-host lookup: given the canonical IFC GlobalId of a room/space
+    /// (the same key carried by <c>ExternalElementMapping</c>), return every
+    /// healthcare record linked to it. Pressure logs join directly via
+    /// <c>RoomIfcGlobalId</c>; RDS snapshots and anti-ligature audits are
+    /// resolved through the room's BIM id(s) discovered on those logs, so a
+    /// caller holding only the IFC GlobalId (e.g. a Blender/ArchiCAD viewer)
+    /// gets the full room picture without knowing the STING RoomBimId.
+    /// </summary>
+    [HttpGet("by-ifc/{ifcGlobalId}")]
+    public async Task<IActionResult> GetByIfcGlobalId(Guid projectId, string ifcGlobalId)
+    {
+        if (string.IsNullOrWhiteSpace(ifcGlobalId)) return BadRequest("ifcGlobalId is required");
+
+        var pressureLogs = await _db.Set<HealthcarePressureLog>()
+            .Where(x => x.ProjectId == projectId && x.RoomIfcGlobalId == ifcGlobalId)
+            .OrderByDescending(x => x.CapturedAt)
+            .Take(500)
+            .ToListAsync();
+
+        // Resolve the room's BIM id(s) from the matched logs so we can pull the
+        // sibling records that key on RoomBimId rather than the IFC GlobalId.
+        var roomBimIds = pressureLogs
+            .Select(x => x.RoomBimId)
+            .Where(s => !string.IsNullOrEmpty(s))
+            .Distinct()
+            .ToList();
+
+        var rds = roomBimIds.Count == 0
+            ? new List<HealthcareRdsSnapshot>()
+            : await _db.Set<HealthcareRdsSnapshot>()
+                .Where(x => x.ProjectId == projectId && roomBimIds.Contains(x.RoomBimId))
+                .OrderByDescending(x => x.CapturedAt)
+                .ToListAsync();
+
+        var antiLigature = roomBimIds.Count == 0
+            ? new List<HealthcareAntiLigatureAudit>()
+            : await _db.Set<HealthcareAntiLigatureAudit>()
+                .Where(x => x.ProjectId == projectId && roomBimIds.Contains(x.RoomBimId))
+                .OrderByDescending(x => x.CapturedAt)
+                .ToListAsync();
+
+        return Ok(new
+        {
+            ifcGlobalId,
+            roomBimIds,
+            pressureLogs,
+            rds,
+            antiLigature,
+            counts = new
+            {
+                pressureLogs = pressureLogs.Count,
+                rds = rds.Count,
+                antiLigature = antiLigature.Count,
+            },
+        });
     }
 }

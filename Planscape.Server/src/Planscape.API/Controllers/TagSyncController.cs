@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
 
@@ -23,14 +25,17 @@ public class TagSyncController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly IHubContext<TagSyncHub> _tagHub;
     private readonly IHubContext<ComplianceHub> _complianceHub;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     private const int SyncBatchSize = 500;
 
-    public TagSyncController(PlanscapeDbContext db, IHubContext<TagSyncHub> tagHub, IHubContext<ComplianceHub> complianceHub)
+    public TagSyncController(PlanscapeDbContext db, IHubContext<TagSyncHub> tagHub,
+        IHubContext<ComplianceHub> complianceHub, IServiceScopeFactory scopeFactory)
     {
         _db = db;
         _tagHub = tagHub;
         _complianceHub = complianceHub;
+        _scopeFactory = scopeFactory;
     }
 
     /// <summary>
@@ -171,6 +176,37 @@ public class TagSyncController : ControllerBase
                     .SendAsync("ComplianceUpdated", metrics);
             }
             catch { /* SignalR broadcast is best-effort */ }
+        });
+
+        // Feed the cross-host identity table. The Revit UniqueId carries the
+        // canonical key here — the same convention IfcController uses
+        // (TaggedElement.UniqueId == IfcGlobalId for non-Revit hosts). Each
+        // (UniqueId, RevitElementId) pair becomes an ExternalElementMapping row
+        // so an issue raised on this element in Blender/ArchiCAD resolves back
+        // to its Revit ElementId.
+        //
+        // Fire-and-forget in a FRESH DI scope: the request-scoped _db is
+        // disposed once we return, and the ingest service takes an explicit
+        // tenantId (the HTTP-derived tenant context is absent off-request).
+        var mappingHost = request.Host;
+        var mappingDocGuid = request.HostDocumentGuid;
+        var mappings = request.Elements
+            .Where(e => !string.IsNullOrWhiteSpace(e.UniqueId))
+            .Select(e => new ElementMappingDto(
+                e.UniqueId,
+                e.RevitElementId.ToString(),
+                string.IsNullOrWhiteSpace(e.Tag1) ? e.CategoryName : e.Tag1))
+            .ToList();
+        var ingestProjectId = project.Id;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var ingest = scope.ServiceProvider.GetRequiredService<IIfcIngestService>();
+                await ingest.UpsertMappingsAsync(tenantId, ingestProjectId, mappingHost, mappingDocGuid, mappings);
+            }
+            catch { /* identity ingest is best-effort; never fails the sync */ }
         });
 
         return Ok(new TagSyncResponse

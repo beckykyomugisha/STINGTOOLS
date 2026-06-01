@@ -9,6 +9,23 @@ public record TagSyncRequest
     public string UserName { get; init; } = "";
     public string RevitVersion { get; init; } = "";
     public string PluginVersion { get; init; } = "";
+
+    /// <summary>
+    /// Host plugin identifier (revit | blender | archicad | tekla). Defaults
+    /// to "revit" — this endpoint has historically only been called by the
+    /// Revit plugin. Attributes the cross-host
+    /// <see cref="Planscape.Core.Entities.ExternalElementMapping"/> rows the
+    /// post-sync ingest writes.
+    /// </summary>
+    public string Host { get; init; } = "revit";
+
+    /// <summary>
+    /// Host-side document GUID (Revit RVT GUID). Distinguishes the same IFC
+    /// GlobalId across federated documents in the identity table. Nullable —
+    /// older plugin builds omit it.
+    /// </summary>
+    public string? HostDocumentGuid { get; init; }
+
     public List<TagElementDto> Elements { get; init; } = new();
 }
 
