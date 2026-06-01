@@ -177,6 +177,16 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 > - Is `TaggedElement` actually rendered anywhere today, or is this dead
 >   code? If unused, the cheapest correct fix may be to align the type and
 >   move on — but confirm, don't assume.
+> - **This drift is not limited to `TaggedElement`.** A sweep confirmed the
+>   same camelCase-name mismatch on `ComplianceSnapshot`
+>   (`compliancePercent` vs server `tagPercent` — dashboard %, user-visible)
+>   and `Transmittal` (`transmittalNumber`/`issuedBy`/`issuedTo` vs server
+>   `transmittalCode`/`createdBy`/`recipient` — list view, user-visible).
+>   Fix them in the same pass. `DocumentRecord.updatedAt` (nullable) and
+>   `Meeting.type` (optional legacy fallback the server never emits) are
+>   minor — handle defensively. `BimIssue` / `IssueAttachment` / `Project` /
+>   `UserProfile` / `LoginResponse` / `NotificationPreferences` are clean —
+>   don't churn them.
 
 ---
 
@@ -369,3 +379,150 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 >   it with the measured latency.
 > - Check whether a reconciliation job already exists anywhere
 >   (`Hangfire`, `SyncScheduler`) before adding a new one.
+
+---
+
+## Prompt 7 — Make Revit key cross-host identity on the true IFC GlobalId (CRITICAL, Drift 4)
+
+> The cross-host identity feature is a **no-op between Revit and
+> Bonsai/ArchiCAD** because the hosts disagree on what the cross-host key
+> *is*. `ExternalElementMapping` and `GET /ifc/mappings?ifcGuid=` are keyed
+> on **IfcGlobalId**, but the Revit plugin stuffs `Element.UniqueId`
+> (Revit's 45-char UniqueId) into that field — confirmed by the comment at
+> `StingTools/BIMManager/PlanscapeServerClient.cs:1040`
+> (*"keys on IfcGlobalId (Revit UniqueId in our case)"*). Bonsai/ArchiCAD
+> send the true 22-char IFC GlobalId. The IFC GUID is *derived from* the
+> Revit UniqueId but is not equal to it, so a Revit lookup never matches a
+> Bonsai row, and "issue in Blender → highlight in Revit" silently fails.
+>
+> The plugin **already computes the correct key**:
+> `StingTools/Commands/Interop/StabilizeIfcGuidsCommand.cs` persists Revit's
+> `IfcGloballyUniqueId` into the shared param `IFC_GLOBAL_ID_TXT`
+> (feeding `ElementGlobalIdRegistry` / `IfcAlignmentValidator`). The true
+> IFC GlobalId is the **only** key every host can produce.
+>
+> Change the Revit cross-host path to key on `IFC_GLOBAL_ID_TXT`, not
+> `Element.UniqueId`:
+> 1. Wherever the Revit sync upserts `ExternalElementMapping` (the
+>    TagSync fire-and-forget path from the cross-host server work) and
+>    wherever the BCC selection resolution calls `GetIfcMappingsAsync` /
+>    `/ifc/mappings?ifcGuid=`, read `IFC_GLOBAL_ID_TXT` off the element and
+>    use that as the `ifcGuid`. Keep `Element.UniqueId` only as the
+>    *host_element_id* (the host-side identifier), which is its correct
+>    role.
+> 2. When `IFC_GLOBAL_ID_TXT` is empty (Revit re-generates IfcGUIDs across
+>    sessions until stabilised), **fall back gracefully** and surface a
+>    one-line "run *Stabilize IFC GUIDs* first" hint rather than silently
+>    querying with the wrong key.
+> 3. Make `StabilizeIfcGuidsCommand` a documented prerequisite of the
+>    cross-host workflow (it already exists — wire it into the sequence /
+>    mention it in the BCC panel's empty state).
+>
+> **Acceptance:** a Revit element that has been through *Stabilize IFC
+> GUIDs* and exported to IFC, then ingested by a Bonsai sync of the same
+> IFC, resolves to the Bonsai host row via `/ifc/mappings` (and vice
+> versa). Where no live multi-host setup exists, prove the key alignment
+> at the unit level: the value Revit sends as `ifcGuid` equals the
+> `IfcGlobalId` Bonsai would send for the same element (both = the IFC
+> `GlobalId`, not the Revit UniqueId).
+>
+> **Verify / challenge before you build:**
+> - This spans the cross-host **server** work and the **BCC** consumer,
+>   both on `claude/upbeat-noether-tg4pn`, **not this branch** — confirm
+>   they're reachable/merged before editing, or you'll patch absent code.
+> - Confirm the direction of Revit's IFC GUID derivation:
+>   `IfcGloballyUniqueId` (what `StabilizeIfcGuidsCommand` reads) **is** the
+>   value Revit writes to the exported IFC file and the value Bonsai then
+>   sees — verify this equality holds in your Revit version before
+>   committing to it as the join key. If Revit re-derives on export, the
+>   stabilised param and the file GUID could differ; that would change the
+>   fix.
+> - There may be **other** Revit→server paths that also key on UniqueId
+>   (BOQ lines at `PlanscapeServerClient.cs:1043`, P6 link, geometry sync).
+>   Decide whether this change is scoped to cross-host resolution only, or
+>   whether the UniqueId-as-IfcGlobalId convention should change
+>   project-wide. Flag the blast radius before expanding scope — a
+>   project-wide key change is a much bigger task than the BCC feature fix.
+> - `TaggedElement.UniqueId` already stores the Revit UniqueId for the
+>   Revit path and the IFC GlobalId for the `/ifc/data` path — that
+>   overload is itself part of the problem. Decide whether to split it
+>   (e.g. add an explicit `IfcGlobalId` column) rather than overloading
+>   `UniqueId`, and note the migration cost.
+
+---
+
+## Prompt 8 — Fix the Revit client ↔ server endpoint mismatches (Drift 6)
+
+> Four calls in `StingTools/BIMManager/PlanscapeServerClient.*.cs` target
+> server paths/verbs that don't exist → runtime 404/405:
+>
+> 1. `SendTransmittalAsync` @ `PlanscapeServerClient.cs:904` POSTs
+>    `.../transmittals/{id}/send`, but the server is
+>    `[HttpPut("{txId}/send")]` (`TransmittalsController.cs:358`) → **405**.
+>    Change the client to PUT.
+> 2. `PushWarningsAsync` @ `:955` POSTs `.../warnings`, but the server only
+>    exposes `[HttpPost("report")]` (`WarningsController.cs:33`) → **404**.
+>    Point the client at `.../warnings/report` (confirm the body matches
+>    that action's DTO).
+> 3. `PushBoqSnapshotAsync` @ `:1001` POSTs `.../boq/snapshot`, which has no
+>    route in `BoqController` → **404**. Either add the server route or
+>    redirect to the existing baseline/lines flow — investigate which was
+>    intended (the BOQ baseline endpoints at `:1027`/`:1050` already exist).
+> 4. `FullSyncAsync` @ `:382` POSTs `/api/tagsync/fullsync` (no route) but
+>    is already `[Obsolete("Use SyncScheduler…")]`. Confirm no live caller,
+>    then **delete it** rather than re-adding the route.
+>
+> **Acceptance:** every `/api/` literal in the client resolves to a real
+> route + verb; the plugin builds clean; no behavioural change beyond the
+> path/verb corrections. Don't touch request body shapes (they're already
+> camelCase-correct).
+>
+> **Verify / challenge before you build:**
+> - Re-run the inventory yourself (grep `"/api/` across the partials vs the
+>   controllers) — line numbers drift and there may be more than these four.
+>   Trust the current source over this list.
+> - For #2 and #3, the *body* may also need to change to match the real
+>   action's DTO — a path fix alone can still 400 if the payload shape is
+>   wrong. Check the target action's parameter type.
+> - For #4, grep for callers of `FullSyncAsync` before deleting; if
+>   `SyncScheduler` or a UI button still calls it, migrate the caller first.
+
+---
+
+## Prompt 9 — Route StingBridge through the cross-host contract + de-duplicate the Python client (Drift 5)
+
+> `StingBridge/planscape/client.py` is a **second, divergent** Planscape
+> Python client (separate from
+> `stingtools-core/python/stingtools_core/planscape/client.py`). The
+> ArchiCAD/IFC-watcher bridge posts to the legacy `/api/tagsync/sync` and
+> **fabricates a fake `revitElementId`** from `md5(ifc_guid)` (`client.py:181`,
+> sent at `:184`), with no `Host`, no `HostElementId`, and no
+> `ExternalElementMapping` write. ArchiCAD elements therefore land as
+> pseudo-Revit rows and are invisible to cross-host resolution.
+>
+> 1. Migrate the bridge to `POST /api/projects/{id}/ifc/data` with
+>    `Host="archicad"`, the **true IFC GlobalId** as the key, and the
+>    ArchiCAD element GUID as `HostElementId`. Reuse the camelCase
+>    `_element_to_wire` shaping from the core client (see Prompt 1) — do
+>    not re-invent it, and do not send the synthetic `revitElementId`.
+> 2. **De-duplicate the two Python clients.** Either make `StingBridge`
+>    import and use `stingtools_core.planscape.PlanscapeClient`, or retire
+>    one. Two diverging implementations of the same wire contract is how
+>    Drift 1 and Drift 5 happened independently.
+>
+> **Acceptance:** an ArchiCAD IFC sync produces real `ExternalElementMapping`
+> rows (Host="archicad", true IFC GlobalId, ArchiCAD GUID as host id) and a
+> `TaggedElement` projection without a fabricated Revit id; there is a
+> single shared Python client (or a clearly-retired one). Smoke tests green.
+>
+> **Verify / challenge before you build:**
+> - Confirm the IFC watcher can actually recover the ArchiCAD element GUID
+>   (not just the IFC GlobalId) to populate `HostElementId`; if it only has
+>   the IFC GlobalId, decide what `HostElementId` should be and say so.
+> - This depends on the core client's `_element_to_wire` (Prompt 1) and the
+>   `/ifc/data` path being reachable — both are on
+>   `claude/upbeat-noether-tg4pn`, **not this branch**. Confirm branch state
+>   first (see Execution status in the audit) so you build against real code.
+> - Don't break the legacy `/tagsync/sync` path if anything still depends on
+>   it — check before switching wholesale; a dual-write transition may be
+>   safer than a hard cutover.

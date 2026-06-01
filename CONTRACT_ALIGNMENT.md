@@ -123,6 +123,24 @@ or add one `mapTaggedElement()` adapter at the fetch boundary in
 Resolve `lvl` vs `level` explicitly (expose both as e.g. `levelCode` +
 `levelName`).
 
+**Drift 2 is not isolated to `TaggedElement`.** A sweep of the other
+mobile types found the same camelCase-name disease on two more
+high-traffic types (the rest — `BimIssue`, `IssueAttachment`, `Project`,
+`UserProfile`, `LoginResponse`, `NotificationPreferences` — are clean):
+
+| TS type | TS field (`types/api.ts`) | server emits | evidence |
+|---|---|---|---|
+| `ComplianceSnapshot` | `compliancePercent` | `tagPercent` | `api.ts:42` vs `ComplianceSnapshot.cs:26` — **dashboard compliance % is `undefined` on mobile** |
+| `Transmittal` | `transmittalNumber` | `transmittalCode` | `api.ts:241` vs `Transmittal.cs:11` |
+| `Transmittal` | `issuedBy` | `createdBy` | `api.ts:243` vs `Transmittal.cs:21` |
+| `Transmittal` | `issuedTo` | `recipient` | `api.ts:244` vs `Transmittal.cs:12` — **transmittal list shows blank sender/recipient** |
+
+Minor / defensive (not breaking): `DocumentRecord.updatedAt` is nullable
+server-side (handle `null`); `Meeting.type` is an optional legacy fallback
+the server never emits (`meetingType` only) — drop the fallback or alias
+it. Fix these the same way as `TaggedElement` (rename or adapter); the
+ComplianceSnapshot + Transmittal ones are user-visible bugs.
+
 ---
 
 ## Drift 3 — Two ingest paths, divergent keys (design seam, not a bug)
@@ -141,6 +159,154 @@ abbreviated/verbose split exists and leaks into Drift 2.
 **BCC/Revit needs no change** — it is already aligned to TagSync. Worth a
 one-line doc note that `/tagsync/sync` and `/ifc/data` are siblings
 writing the same projection.
+
+---
+
+## Drift 4 — Cross-host identity key: Revit UniqueId ≠ true IFC GlobalId (CRITICAL)
+
+This is the most consequential finding across the whole audit: the marquee
+cross-host feature — *"select/raise in one host, resolve on the others"* —
+is a **guaranteed no-op between Revit and Bonsai/ArchiCAD**, even though
+every layer builds clean and is internally consistent. The defect lives
+entirely in the *contract between* layers.
+
+- `ExternalElementMapping` and `GET /ifc/mappings?ifcGuid=` are keyed on
+  **IfcGlobalId**.
+- The Revit sync path stuffs `Element.UniqueId` (Revit's **45-char**
+  UniqueId) into that column. Confirmed in
+  `StingTools/BIMManager/PlanscapeServerClient.cs:1040`:
+  *"keys on IfcGlobalId (Revit UniqueId in our case)"*.
+- Bonsai / ArchiCAD send the **true 22-char IFC GlobalId**. The IFC GUID is
+  *derived* from the Revit UniqueId but is **not equal** to it — different
+  namespaces for the same physical element.
+- The BCC cross-host resolution (consumer work, screenshot summary) looks
+  up `Element.UniqueId` via `/ifc/mappings?ifcGuid=…` → matches only
+  Revit-origin rows (federated docs); **never matches a Bonsai/ArchiCAD
+  row**. The headline use case ("issue raised in Blender → highlight in
+  Revit") cannot fire.
+
+**The plugin already computes the correct key.**
+`StingTools/Commands/Interop/StabilizeIfcGuidsCommand.cs` persists Revit's
+`IfcGloballyUniqueId` into the shared param `IFC_GLOBAL_ID_TXT` (feeding
+`ElementGlobalIdRegistry` / `IfcAlignmentValidator`,
+`GLOBALID_DRIFT`). The **true IFC GlobalId is the only key every host can
+produce** — Bonsai/ArchiCAD have no access to Revit's UniqueId, so the
+common key *must* be the IFC GlobalId.
+
+**Fix direction (Prompt 7):** Revit must key cross-host identity on
+`IFC_GLOBAL_ID_TXT`, not `Element.UniqueId`, for both the mapping upsert
+and the BCC `/ifc/mappings` lookup. Fall back gracefully — and prompt the
+user to run *Stabilize IFC GUIDs* — when the param is empty (Revit
+re-generates IfcGUIDs across sessions until stabilised; that's exactly why
+`StabilizeIfcGuidsCommand` exists). Note this interacts with the
+TagSync `UniqueId`-as-key choice (Drift 3 / cross-host server work): the
+mapping column and the lookup must agree on the IFC GlobalId, not the
+Revit UniqueId.
+
+---
+
+## Drift 5 — StingBridge (ArchiCAD / IFC watcher) bypasses the cross-host contract
+
+There is a **second, divergent Python client** at
+`StingBridge/planscape/client.py` — separate from
+`stingtools-core/python/stingtools_core/planscape/client.py` (Drift 1).
+The ArchiCAD/IFC-watcher bridge:
+
+- Posts to the **legacy** `/api/tagsync/sync` (line 90), not `/ifc/data`.
+- **Fabricates a fake `revitElementId`** from an MD5 of the IFC GUID:
+  `revit_id = int(md5(guid)[:15], 16) & 0x7FFF…` (`client.py:181`), then
+  sends it as `"revitElementId"` (`:184`). ArchiCAD elements therefore
+  masquerade as Revit elements with synthetic ids.
+- Never sets `Host`, never sends `HostElementId`, **never populates
+  `ExternalElementMapping`.** ArchiCAD data lands in `TaggedElement` with a
+  bogus Revit id and is unreachable by cross-host resolution.
+
+This is Drift 4's disease in a worse form (a *fabricated* Revit key rather
+than a real-but-wrong one). Two problems to fix: (a) the bridge should
+ingest via `/ifc/data` with `Host="archicad"`, the true IFC GlobalId, and
+the ArchiCAD element GUID as `HostElementId`; (b) **there should not be two
+Python clients** — `StingBridge` and `stingtools-core` should share one
+`PlanscapeClient`, or one should be retired.
+
+---
+
+## Drift 6 — Revit client ↔ server endpoint mismatches (404 / 405 class)
+
+Inventory of `PlanscapeServerClient.*.cs` calls vs server routes found four
+paths that will fail at runtime (most of the ~60 calls are clean):
+
+| Client method @ line | Calls | Server has | Failure |
+|---|---|---|---|
+| `SendTransmittalAsync` @ `:904` | `POST .../transmittals/{id}/send` | `[HttpPut("{txId}/send")]` `TransmittalsController.cs:358` | **405** verb mismatch |
+| `PushWarningsAsync` @ `:955` | `POST .../warnings` | only `[HttpPost("report")]` `WarningsController.cs:33` | **404** wrong path |
+| `PushBoqSnapshotAsync` @ `:1001` | `POST .../boq/snapshot` | no `snapshot` route in `BoqController` | **404** no route |
+| `FullSyncAsync` @ `:382` | `POST /api/tagsync/fullsync` | no route | **404** (but `[Obsolete]`) |
+
+Field-name drift on the Revit client is otherwise **clean** — bodies
+serialize camelCase via `[JsonProperty]`, matching the server DTOs. These
+are pure path/verb fixes (rename the path / change POST→PUT / add the
+server route), not contract redesigns. The `FullSyncAsync` one is already
+`[Obsolete]` — confirm it has no live caller, then delete it rather than
+re-add the route.
+
+---
+
+## BCC cross-host consumer — review notes
+
+A fourth session (commit `cedcf3aba`, on `claude/upbeat-noether-tg4pn` —
+**not on this branch**) built the Revit/BCC consumer of the cross-host
+server work: a `PlanscapeServerClient.CrossHost.cs` partial
+(`GetHealthcareDashboardAsync` / `GetPenetrationsDashboardAsync` /
+`GetIfcMappingsAsync`), a Healthcare "LIVE DASHBOARD" panel, a new
+always-on Penetrations tab, and cross-host resolution appended to the
+selection dialog. Verified what's checkable on this branch:
+
+**Sound:**
+- Dashboard endpoints + shapes are real: `HealthcareController.cs:25`
+  (`pressure.totalLast7d`, `mgas.rag`, `antiLigature`) and
+  `PenetrationsController.cs:120` (`byStatus`, `byHost`/`HostType`) —
+  the `JObject` rendering targets actual camelCase keys.
+- Uses `?ifcGuid=` (not `?ifc_guid=`) — correct, matches the authority
+  flagged in Drift 1.
+- `dotnet build StingTools.csproj — 0 errors` is legitimate and is **not**
+  contradicted by the `Planscape.API` breakage: the Revit plugin and the
+  API are separate build targets.
+
+**Concerns:**
+- **Untestable end-to-end until the API builds.** Every endpoint this
+  panel calls lives in the non-building `Planscape.API` (see cross-host
+  review note 1 / Prompt 5). The plugin compiles; the round trip can't be
+  exercised yet.
+- **Hardcoded `JObject` keys are the same fragility class as Drift 2.**
+  `JObject.Value("totalLast7d")` returns null silently if the server shape
+  drifts → blank chips, no error. A shared contract or a smoke test
+  against a captured response would catch it.
+- **Drift 4 makes the cross-host resolution itself a no-op** for the
+  Revit↔Blender case — the panel is correct, the key it queries with is
+  not.
+
+---
+
+## Execution status / branch divergence (READ BEFORE RUNNING PROMPTS)
+
+The fixes for these drifts are **accumulating on a different branch than
+this audit.** As of this writing:
+
+- `claude/upbeat-noether-tg4pn` (Windows env, `C:\Dev\STINGTOOLS`) has:
+  the Bonsai client fix (`ff2c46564`, Drift 1) + its DTO-driven test +
+  the `?ifcGuid` comment fix; the cross-host server work; and the BCC
+  consumer work (`cedcf3aba`). **`ff2c46564` is not even reachable from
+  this clone.**
+- `claude/magical-mayer-hLnIk` (this branch) has: only these audit docs.
+  Drift 1 is genuinely **not done here** — `client.py` still sends raw
+  snake_case, no `_element_to_wire`, no test, stale `IfcController.cs:195`
+  comment.
+
+**Consequence:** prompts run against `upbeat-noether-tg4pn` keep returning
+"already done"; the same prompts against this branch are still real work.
+**Consolidate the two branches (or move this audit to where the code is)
+before executing more prompts** — otherwise the docs keep describing a
+world the sibling branch has already changed.
 
 ---
 
@@ -221,13 +387,22 @@ This work does **not** touch Drift 1 (Bonsai snake_case) or Drift 2
 1. **Drift 1 (Bonsai)** — highest impact, smallest change, already
    solved on `ff2c46564`. Port the `_element_to_wire` map + query-param
    fix into this branch's `client.py`.
-2. **Drift 2 (Mobile)** — one interface rename or one adapter function;
+2. **Drift 4 (Prompt 7) — Revit cross-host key.** CRITICAL: until Revit
+   keys on the true IFC GlobalId (`IFC_GLOBAL_ID_TXT`) instead of
+   `Element.UniqueId`, the entire cross-host identity investment is a
+   no-op for Revit↔Blender. Highest *feature* value of everything here.
+3. **Drift 2 (Mobile)** — one interface rename or one adapter function;
    resolve the `lvl`/`level` collision while there.
-3. **Drift 3** — documentation only (largely subsumed by the cross-host
+4. **Drift 3** — documentation only (largely subsumed by the cross-host
    work, which made TagSync populate the mapping table).
-4. **Cross-host hardening** (Prompt 6) — `AuditLog` + reconciliation for
+5. **Cross-host hardening** (Prompt 6) — `AuditLog` + reconciliation for
    the fire-and-forget mapping upsert; document mapping-table vs.
    `*IfcGlobalId`-column authority.
+
+**Before any of the above: consolidate branches** (see Execution status).
+Drift 1 is already fixed on `claude/upbeat-noether-tg4pn`; running its
+prompt here would redo it. Land that branch (or move this audit onto it)
+first so prompts act on the real current state.
 
 Authority is **server camelCase JSON**; align both client edges to it.
 Do **not** touch the `TaggedElement` entity / DB columns or the shipped
