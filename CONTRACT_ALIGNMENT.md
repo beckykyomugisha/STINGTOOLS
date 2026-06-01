@@ -170,6 +170,34 @@ proved its change is **byte-identical** to the 111-error baseline (zero new
 errors), which is the correct discipline, but the baseline itself needs its
 own clean-up task.
 
+**UPDATE (Prompt 17): 111 → 12.** The mobile baseline was driven from 111 to
+**12** errors — 99 real fixes to match server/store authority (no `any`
+loosening, no fabrication). New contract finding in passing: the mobile
+**warnings screen is client-ahead-of-server** — `GET /warnings` returns a
+compliance-snapshot *trend*, not per-`WarningRecord` rows, so the screen's
+fields were `??`-guarded; resolved by typing the 4 read fields *optional* +
+documenting (no faked server behaviour). The remaining **12 are genuine WIP
+blockers in 3 files** — each needs a feature built, not a typo fixed (see
+"Mobile WIP feature backlog" below). The mobile `tsc` CI gate stays **off**
+until those 12 are 0 (`tsconfig` now set to `module: esnext` so the gate is
+meaningful when added).
+
+**Mobile WIP feature backlog (the 12 blockers):**
+- **A — `src/utils/offlineQueue.ts` (9):** the S3.7 extended offline-replay
+  queue replays actions whose endpoints were never built — `placeIssuePin` /
+  `deleteIssuePin` (no pin endpoint anywhere), `postIssueComment` /
+  `upsertDiaryEntry` (object signatures that don't match the real
+  `addIssueComment(p,i,body)` / `createSiteDiary`/`updateSiteDiary`),
+  `idempotencyKey` (not accepted by `createIssue`/`updateIssue`/`addMeetingAction`),
+  `signOffStageCriterion` ({decision,comment} vs the endpoint's `met:boolean`),
+  `FULFIL_CHECKLIST_ITEM` (not in the action union).
+- **B — `app/(tabs)/issue-detail.tsx:328` (1):** `ModelViewerHandle.selectAndZoom`
+  is unimplemented — needs Three.js camera/selection-by-GUID work in `ModelViewer.tsx`.
+- **C — `app/healthcare/pressure-live.tsx:41,58` (2):** healthcare SignalR
+  client written against a non-existent API (`connect('/hubs/healthcare')→{stop}`
+  vs the real `RealtimeClient.connect(projectId):Promise<void>`); create payload
+  also omits required `roomClass`/`designRegime`.
+
 ---
 
 ## Drift 3 — Two ingest paths, divergent keys (design seam, not a bug)
