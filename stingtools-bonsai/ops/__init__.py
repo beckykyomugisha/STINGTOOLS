@@ -1,8 +1,9 @@
 """STING operator registrations.
 
-Day-1 scaffold: three diagnostic operators that confirm the substrate
-loads and Bonsai integration is working. Real tagging / validation /
-sync operators land per the MVP scope.
+Diagnostics (about / reload_substrate / bonsai_probe) confirm the
+substrate loads and Bonsai integration is working. The COORD operator
+(sync_planscape) is the first real federation op: it validates
+Pset_StingTags-bearing elements and ingests them into Planscape Server.
 """
 
 from __future__ import annotations
@@ -12,11 +13,13 @@ import bpy
 from .about import StingAboutOperator
 from .reload_substrate import StingReloadSubstrateOperator
 from .bonsai_probe import StingBonsaiProbeOperator
+from .sync_planscape import StingSyncPlanscapeOperator
 
 CLASSES = (
     StingAboutOperator,
     StingReloadSubstrateOperator,
     StingBonsaiProbeOperator,
+    StingSyncPlanscapeOperator,
 )
 
 

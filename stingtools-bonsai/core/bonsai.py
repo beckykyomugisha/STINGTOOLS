@@ -193,6 +193,39 @@ class BonsaiBridge:
                 continue
         return None
 
+    def host_element_id(self, element: Any) -> str:
+        """Resolve the host-side identifier for an IFC element.
+
+        For Blender that's the name of the Blender object Bonsai links to
+        the IFC element. Resolution order:
+          1. Bonsai's ``tool.Ifc.get_object(element).name`` (the live link).
+          2. The element's IFC ``Name`` attribute.
+          3. ``#<step-id>`` as a last resort so the field is never empty.
+
+        Stays defensive: any Bonsai API drift falls through to the IFC
+        attribute fallbacks rather than raising.
+        """
+        for tool_path in ("bonsai.tool", "bonsai_bim.tool", "blenderbim.tool"):
+            try:
+                mod = __import__(tool_path, fromlist=["Ifc"])
+                ifc_tool = getattr(mod, "Ifc", None)
+                getter = getattr(ifc_tool, "get_object", None) if ifc_tool else None
+                if getter is None:
+                    continue
+                obj = getter(element)
+                name = getattr(obj, "name", None)
+                if name:
+                    return str(name)
+            except Exception:  # noqa: BLE001 — Bonsai API drift must not break sync
+                continue
+        name = getattr(element, "Name", None)
+        if name:
+            return str(name)
+        try:
+            return f"#{element.id()}"
+        except Exception:  # noqa: BLE001
+            return ""
+
     # ------------------------------------------------------------------
     # IFC mutation — delegate through Bonsai when available
     # ------------------------------------------------------------------

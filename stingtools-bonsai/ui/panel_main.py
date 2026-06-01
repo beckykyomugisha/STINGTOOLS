@@ -47,7 +47,25 @@ class StingMainPanel(bpy.types.Panel):
         col.operator("sting.reload_substrate", icon="FILE_REFRESH")
         col.operator("sting.bonsai_probe", icon="VIEWZOOM")
 
-        # ─── Placeholder for the MVP sections ───────────────────
+        # ─── COORD — Planscape federation ───────────────────────
+        layout.separator()
+        box = layout.box()
+        box.label(text="COORD — Planscape", icon="URL")
+        try:
+            from ..prefs import get_prefs
+            prefs = get_prefs(context)
+            configured = bool((prefs.server_url or "").strip() and (prefs.project_id or "").strip())
+            if configured:
+                box.label(text=f"Project {prefs.project_id[:8]}…", icon="CHECKMARK")
+            else:
+                box.label(text="Set server URL + project in prefs", icon="ERROR")
+        except Exception:
+            configured = False
+        row = box.row()
+        row.enabled = configured
+        row.operator("sting.sync_planscape", icon="EXPORT")
+
+        # ─── Placeholder for the remaining MVP sections ─────────
         layout.separator()
         col = layout.column(align=True)
         col.label(text="Coming in MVP (per scope doc):", icon="TIME")
@@ -55,7 +73,7 @@ class StingMainPanel(bpy.types.Panel):
             "SELECT   — Untagged / Stale / By Discipline",
             "TAGS     — Auto Tag / Tag Selected / Token writers",
             "VALIDATE — IDS pipeline + dashboard",
-            "COORD    — Raise issue + Planscape sync",
+            "COORD    — Raise issue + SignalR live coordination",
         ):
             row = col.row()
             row.enabled = False

@@ -88,24 +88,103 @@ class PlanscapeClient:
         project_id: str,
         elements: list[dict],
         host_document_guid: Optional[str] = None,
+        plugin_version: str = "",
+        user_name: str = "",
     ) -> dict:
         """Send per-element STING data + host element ids to Planscape.
 
-        elements is a list of dicts shaped like:
-            {
-                "ifc_guid": "1Abc...",
-                "host_element_id": "blender:Wall.042",
-                "tag": "M-BLD1-Z01-L02-HVAC-SUP-AHU-0042",
-                "discipline": "M", "location": "BLD1", ...,
-                "compliance_pct": 0.92,
-            }
+        Callers pass Pythonic snake_case element dicts; this method maps
+        them onto the server's ``IfcElementDto`` field names (camelCase)
+        before serialising. The server
+        (``Planscape.Core.DTOs.IfcIngestDtos``) deserialises with the
+        ASP.NET Core "Web" defaults — case-INsensitive but NOT
+        snake_case-aware — so the wire payload must already use the DTO's
+        member names. The fix here is that mapping; see ``_element_to_wire``.
+
+        Each element dict may carry any of (snake_case keys; aliases in
+        parens are also accepted):
+
+            ifc_global_id   (ifc_guid, global_id)  -> ifcGlobalId   [required]
+            host_element_id                        -> hostElementId
+            host_display_label (display_label)     -> hostDisplayLabel
+            discipline / location / zone / level / system / function /
+                product / sequence                 -> same (camelCase identical)
+            full_tag        (tag)                  -> fullTag
+            ifc_class                              -> ifcClass
+            category_name   (category)             -> categoryName
+            family_name     (family)               -> familyName
+            type_name       (type)                 -> typeName
+            status / rev                           -> status / rev
+            room_name                              -> roomName
+            level_name                             -> levelName
+            is_complete / is_fully_resolved /
+                is_stale                           -> isComplete / ...
+            validation_errors                      -> validationErrors (JSON str)
+            last_modified_utc                      -> lastModifiedUtc (ISO-8601)
         """
         body = {
             "host": self._client_type,
-            "host_document_guid": host_document_guid,
-            "elements": elements,
+            "hostDocumentGuid": host_document_guid,
+            "pluginVersion": plugin_version,
+            "userName": user_name,
+            "elements": [self._element_to_wire(e) for e in elements],
         }
         return self._request("POST", f"/api/projects/{project_id}/ifc/data", body=body)
+
+    # Maps Pythonic snake_case element keys to the server IfcElementDto
+    # member names. Each entry is (wireName, (acceptedSourceKeys...)).
+    # First source key present in the input dict wins. Booleans are
+    # emitted even when False; other keys are emitted only when present.
+    _ELEMENT_FIELD_MAP: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("ifcGlobalId",      ("ifc_global_id", "ifc_guid", "global_id")),
+        ("hostElementId",    ("host_element_id",)),
+        ("hostDisplayLabel", ("host_display_label", "display_label")),
+        ("discipline",       ("discipline",)),
+        ("location",         ("location",)),
+        ("zone",             ("zone",)),
+        ("level",            ("level",)),
+        ("system",           ("system",)),
+        ("function",         ("function",)),
+        ("product",          ("product",)),
+        ("sequence",         ("sequence",)),
+        ("fullTag",          ("full_tag", "tag")),
+        ("ifcClass",         ("ifc_class",)),
+        ("categoryName",     ("category_name", "category")),
+        ("familyName",       ("family_name", "family")),
+        ("typeName",         ("type_name", "type")),
+        ("status",           ("status",)),
+        ("rev",              ("rev",)),
+        ("roomName",         ("room_name",)),
+        ("levelName",        ("level_name",)),
+        ("isComplete",       ("is_complete",)),
+        ("isFullyResolved",  ("is_fully_resolved",)),
+        ("isStale",          ("is_stale",)),
+        ("validationErrors", ("validation_errors",)),
+        ("lastModifiedUtc",  ("last_modified_utc",)),
+    )
+
+    @classmethod
+    def _element_to_wire(cls, el: dict) -> dict:
+        """Translate one snake_case element dict to the server DTO shape.
+
+        Pass-through for keys already in camelCase (so a caller that
+        hand-builds the wire shape isn't double-mangled): if a wire key
+        is already present verbatim in the input it is preserved.
+        """
+        _MISSING = object()
+        out: dict[str, Any] = {}
+        for wire_key, source_keys in cls._ELEMENT_FIELD_MAP:
+            value = _MISSING
+            if wire_key in el:                      # already-camelCase input
+                value = el[wire_key]
+            else:
+                for sk in source_keys:
+                    if sk in el:
+                        value = el[sk]
+                        break
+            if value is not _MISSING:
+                out[wire_key] = value
+        return out
 
     # ------------------------------------------------------------------
     # tag sync (existing endpoint)

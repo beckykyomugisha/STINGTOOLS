@@ -52,8 +52,9 @@ for _cand in _REPO_ROOT_CANDIDATES:
 
 
 def register():
-    """Blender entry point. Registers all operator + panel classes."""
-    from . import ui, ops
+    """Blender entry point. Registers preferences + operator + panel classes."""
+    from . import prefs, ui, ops
+    prefs.register()
     ui.register()
     ops.register()
     print("[STING] add-on registered")
@@ -61,9 +62,10 @@ def register():
 
 def unregister():
     """Blender exit point. Unregisters in reverse order."""
-    from . import ui, ops
+    from . import prefs, ui, ops
     ops.unregister()
     ui.unregister()
+    prefs.unregister()
     print("[STING] add-on unregistered")
 
 
