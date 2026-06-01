@@ -141,6 +141,35 @@ the server never emits (`meetingType` only) — drop the fallback or alias
 it. Fix these the same way as `TaggedElement` (rename or adapter); the
 ComplianceSnapshot + Transmittal ones are user-visible bugs.
 
+**Drift 2 — execution + corrections (session 6, on `upbeat-noether-tg4pn`).**
+Prompt 2 was executed and confirmed Drift 2 **live, not latent**: the
+scanner / element-search screen rendered blank DISC/SYS/PROD/SEQ/tag and an
+empty TAG7 because every renamed token deserialised to `undefined`. Three
+corrections to this audit:
+- **Consumers live in `Planscape/app/` (Expo Router screens), not
+  `Planscape/src/`.** `Planscape/src` is the data/types layer; the actual
+  `TaggedElement` consumers are `app/(tabs)/scanner.tsx` and
+  `app/ifc/index.tsx` (2 files). The rename (approach A) surfaced them via
+  `tsc`, so no runtime adapter was needed. Earlier "grep `Planscape/src` →
+  zero consumers" was a false negative.
+- The `lvl`/`level` collision was concrete: the scanner's "LVL" cell read
+  `element.level` (level *name*) instead of the level *code* — fixed to
+  `element.lvl`.
+- A **compile-time conformance test** was added
+  (`src/api/__typetests__/taggedElement.typetest.ts`) — captured server
+  JSON checked assignable, `@ts-expect-error` guards block the verbose
+  aliases from returning. This is the right micro-pattern; Prompt 10
+  generalises it.
+
+**Mobile baseline blocker (sibling to Prompt 5):** `Planscape/app/` carries
+**111 pre-existing `tsc` errors** (WIP tree, unrelated to these types). Like
+the non-building `Planscape.API`, the mobile app does not typecheck clean,
+so "`tsc --noEmit` passes" can never be a CI gate — and Prompt 10's drift
+gate can't assert it — until that baseline is fixed. The session-6 fix
+proved its change is **byte-identical** to the 111-error baseline (zero new
+errors), which is the correct discipline, but the baseline itself needs its
+own clean-up task.
+
 ---
 
 ## Drift 3 — Two ingest paths, divergent keys (design seam, not a bug)
@@ -241,6 +270,7 @@ paths that will fail at runtime (most of the ~60 calls are clean):
 | `PushWarningsAsync` @ `:955` | `POST .../warnings` | only `[HttpPost("report")]` `WarningsController.cs:33` | **404** wrong path |
 | `PushBoqSnapshotAsync` @ `:1001` | `POST .../boq/snapshot` | no `snapshot` route in `BoqController` | **404** no route |
 | `FullSyncAsync` @ `:382` | `POST /api/tagsync/fullsync` | no route | **404** (but `[Obsolete]`) |
+| `listIfcElements()` (mobile) @ `endpoints.ts:270` | `GET .../tagged-elements` | no route in any controller | **404** latent (feature unwired) |
 
 Field-name drift on the Revit client is otherwise **clean** — bodies
 serialize camelCase via `[JsonProperty]`, matching the server DTOs. These

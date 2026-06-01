@@ -149,11 +149,16 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 > blast radius); prefer (A) if it's referenced in only a couple of places.
 > Grep first and state which you chose and why.
 >
-> **Acceptance:** `tsc --noEmit` clean. The element-search screen shows
-> populated discipline/system/tag fields (or, if no live server, a unit
-> test of the mapper/interface against a captured server JSON sample). The
-> `lvl` vs `level` ambiguity is resolved explicitly in code, not left to
-> chance.
+> **Acceptance:** the element-search screen shows populated
+> discipline/system/tag fields; the `lvl` vs `level` ambiguity is resolved
+> explicitly in code (use `element.lvl` for the level code, not
+> `element.level`/name). Add a compile-time conformance test that asserts a
+> captured server JSON is assignable to the type and `@ts-expect-error`-
+> guards the old verbose aliases (session 6 did this — keep it). NOTE: a
+> global `tsc --noEmit` is **not** clean here — `Planscape/app/` has ~111
+> pre-existing errors (WIP, out of scope). Prove instead that your change
+> is **byte-identical** to that baseline (zero *new* errors) and that the
+> touched files compile clean.
 >
 > **Verify / challenge before you build:**
 > - Confirm `SearchElements` still returns the **raw entity** (not a DTO)
@@ -166,7 +171,12 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 >   `apiClient.ts:39` (`/tagsync/elements/{id}`). A mapper must wrap all of
 >   them or you'll fix one screen and leave others broken.
 > - Find every **consumer** (grep the `TaggedElement` type across
->   `Planscape/src`) to size approach (A) vs (B) honestly before choosing.
+>   `Planscape/src` **and `Planscape/app`** to size approach (A) vs (B)
+>   honestly before choosing. NOTE (session-6 correction): the real
+>   consumers live in `Planscape/app/` (Expo Router screens —
+>   `app/(tabs)/scanner.tsx`, `app/ifc/index.tsx`), not `Planscape/src`,
+>   which is only the data/types layer. A `Planscape/src`-only grep falsely
+>   reports zero consumers.
 > - `tag7Summary` vs the server's `tag7` (+ `tag7A..tag7F` sub-segments):
 >   decide whether `tag7Summary` should map to `tag7`, and whether the
 >   mobile type should surface the sub-segments at all.
