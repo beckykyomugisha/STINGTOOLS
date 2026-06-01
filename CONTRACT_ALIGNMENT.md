@@ -155,14 +155,79 @@ client. Future work, not part of this alignment.
 
 ---
 
+## Server cross-host identity — review notes
+
+A separate session (screenshot summary, not on this branch) extracted an
+`IfcIngestService`, made TagSync carry `Host`+`HostDocumentGuid` with a
+fire-and-forget mapping upsert, added optional `IfcGlobalId` to the
+ArchiCAD event + nullable `RoomIfcGlobalId`/`ElementIfcGlobalId` columns
+on healthcare/penetration entities, a `healthcare/by-ifc/{ifcGlobalId}`
+GET, and a hand-authored migration `20260601000000_CrossHostIdentityFields`.
+The work is sound; four notes (verified against this branch where possible):
+
+**1. BLOCKER — `Planscape.API` does not compile, and it is *pre-existing*,
+unrelated to the cross-host work (CONFIRMED on this branch's HEAD).** Real
+CS0101 duplicate-type collisions in namespace `Planscape.API.Controllers`:
+- `AddMemberRequest` — `DistributionGroupsController.cs:229` **and**
+  `ProjectMembersController.cs:552` (both top-level `public record`).
+- `ReorderRequest` — `IssueCustomFieldsController.cs:216`
+  (`ReorderItem[] Items`) **and** `PhotoAlbumsController.cs:465`
+  (`Guid[] Order`).
+- Plus the `Photo*` DbSet references (`SitePhotosExtController`,
+  `PhotoAclGate`, `SeedData`).
+
+A non-building API means the server can't deploy → the **entire** IFC
+ingest path is dead in prod, however clean the new controllers are. Three
+sessions have now stacked work on top of a non-compiling project. **Fix
+this first, as its own tiny PR** (Prompt 5), before any feature work
+merges on top. "Touched controllers emit zero diagnostics" is true but a
+full build can't confirm it until the collisions are gone.
+
+**2. This work closes the Drift 3 gap — good direction.** TagSync now
+carries `Host`+`HostDocumentGuid` and upserts `ExternalElementMapping`, so
+the Revit/BCC path finally populates the cross-host mapping table (was
+`/ifc/data`-only). Two cautions:
+- There are now **two** ways to tie an entity to an IFC GlobalId — the
+  `ExternalElementMapping` index **and** the new `RoomIfcGlobalId` /
+  `ElementIfcGlobalId` columns on domain entities. Both are legitimate
+  (cross-host index vs. direct domain FK) but document which is
+  authoritative and ensure they can't silently diverge.
+- `Host` defaults to `"revit"`. Confirm Blender/ArchiCAD callers actually
+  *set* it — a forgotten field tags every cross-host element `revit` and
+  poisons the mapping the feature exists for.
+
+**3. Fire-and-forget is the weak point.** "Never fails the sync, own DB
+scope, best-effort" is good UX for the *sync* — but the mapping **is the
+deliverable**. Best-effort + lossy means a process restart or transient DB
+error silently drops an identity row with nothing to reconcile it. At
+minimum log failures to `AuditLog`; better, add a backfill/reconciliation
+pass, or fold the upsert into the same transaction if the latency is
+tolerable. Don't let the one write the feature is named after be the one
+allowed to vanish.
+
+**4. Migration hygiene.** Hand-authored migration matches the repo
+convention (good). Ensure the model-snapshot edit is exact — a drifted
+snapshot makes the next `ef migrations add` emit a confusing phantom diff.
+
+This work does **not** touch Drift 1 (Bonsai snake_case) or Drift 2
+(mobile field names) — don't assume the cross-host commit fixed them.
+
+---
+
 ## Recommended order of operations
 
+0. **Prompt 5 — fix the pre-existing `Planscape.API` build breakage.**
+   Highest leverage, lowest risk; unblocks every other server change.
 1. **Drift 1 (Bonsai)** — highest impact, smallest change, already
    solved on `ff2c46564`. Port the `_element_to_wire` map + query-param
    fix into this branch's `client.py`.
 2. **Drift 2 (Mobile)** — one interface rename or one adapter function;
    resolve the `lvl`/`level` collision while there.
-3. **Drift 3** — documentation only.
+3. **Drift 3** — documentation only (largely subsumed by the cross-host
+   work, which made TagSync populate the mapping table).
+4. **Cross-host hardening** (Prompt 6) — `AuditLog` + reconciliation for
+   the fire-and-forget mapping upsert; document mapping-table vs.
+   `*IfcGlobalId`-column authority.
 
 Authority is **server camelCase JSON**; align both client edges to it.
 Do **not** touch the `TaggedElement` entity / DB columns or the shipped

@@ -262,3 +262,110 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 >   in live Blender. Treat the panel/operator/prefs registration as
 >   **unverified** and call that out — ideally load it in Blender before
 >   claiming done.
+
+---
+
+## Prompt 5 — Fix the pre-existing `Planscape.API` build breakage (do FIRST)
+
+> **`Planscape.Server/src/Planscape.API` does not compile**, and it has
+> nothing to do with IFC/tag work — it's pre-existing on `main`/HEAD.
+> Confirmed CS0101 duplicate top-level types in namespace
+> `Planscape.API.Controllers`:
+>
+> - `AddMemberRequest` — `Controllers/DistributionGroupsController.cs:229`
+>   **and** `Controllers/ProjectMembersController.cs:552`.
+> - `ReorderRequest` — `Controllers/IssueCustomFieldsController.cs:216`
+>   (`record ReorderRequest(ReorderItem[] Items)`) **and**
+>   `Controllers/PhotoAlbumsController.cs:465`
+>   (`record ReorderRequest(Guid[] Order)`).
+> - Plus reported breakage in `SeedData.cs` / `SitePhotosExtController.cs` /
+>   `Services/PhotoAclGate.cs` referencing absent `Photo*` DbSets, and a
+>   `DocumentsController.ValidateName` collision.
+>
+> A non-building API means the server can't deploy and every other
+> server-side task here is untestable by a full build. Fix it as a **small,
+> self-contained PR** before anything else merges on top:
+>
+> 1. Rename the duplicates to distinct, intent-revealing names — e.g.
+>    `AddDistributionMemberRequest` (DistributionGroups) vs the
+>    project-members one; `ReorderAlbumsRequest` (PhotoAlbums) vs
+>    `ReorderCustomFieldsRequest` (IssueCustomFields). Update every
+>    reference in the owning controller only.
+> 2. Resolve the `Photo*` DbSet references — either restore the missing
+>    `DbSet<Photo*>` on `PlanscapeDbContext` or remove the dead
+>    controllers/services that reference them, whichever matches intent.
+>    Investigate git history to see which side is the orphan.
+> 3. Get `dotnet build Planscape.Server/src/Planscape.API` to **0 errors**.
+>
+> **Acceptance:** the API project builds clean. No behavioural change to
+> any endpoint — this is purely de-duplication / dead-reference removal.
+> No DTO field renames that would change the wire contract (rename only
+> the C# type identifiers, not their `[JsonPropertyName]` / route-bound
+> shapes).
+>
+> **Verify / challenge before you build:**
+> - There is **no .NET toolchain in the audit sandbox** — the error list
+>   above is from source inspection, not a build. Run an actual
+>   `dotnet build` first to get the *real, complete* error set; it may be
+>   more or fewer than the 6 reported. Fix what the compiler says, not what
+>   this prompt guesses.
+> - For each duplicate, check which controller "owns" the canonical name
+>   and which should be renamed (don't rename the one with more references
+>   if you can avoid it). The two `ReorderRequest` records have **different
+>   shapes**, so they were never meant to be the same type — confirm no
+>   caller relies on the collision.
+> - For the `Photo*` DbSets: determine whether the feature was half-removed
+>   or half-added. Restoring vs deleting are opposite fixes — pick based on
+>   whether the controllers are wired into routing and whether the entities
+>   still exist. If ambiguous, stop and ask.
+
+---
+
+## Prompt 6 — Harden the cross-host mapping upsert (after Prompt 5)
+
+> A separate session added cross-host identity to the server: an extracted
+> `IfcIngestService` (`IngestAsync` + `UpsertMappingsAsync`), TagSync now
+> carrying `Host`+`HostDocumentGuid` and firing a **best-effort,
+> fire-and-forget** `ExternalElementMapping` upsert in a fresh DB scope
+> after commit, plus nullable `RoomIfcGlobalId`/`ElementIfcGlobalId`
+> columns on healthcare/penetration entities and migration
+> `20260601000000_CrossHostIdentityFields`. The behaviour is good; harden
+> two weaknesses:
+>
+> 1. **Fire-and-forget is lossy.** The mapping table *is* the deliverable
+>    (cross-host issue resolution depends on it), yet a process restart or
+>    transient DB error in the background scope silently drops the row with
+>    no reconciliation. Add: (a) failure logging to `AuditLog`; and (b) a
+>    reconciliation/backfill path — e.g. a periodic job, or a
+>    `UpsertMappingsAsync` re-run that derives missing mappings from
+>    existing `TaggedElement` rows (which carry `UniqueId == IfcGlobalId`
+>    and host attribution). Consider whether folding the upsert into the
+>    sync transaction is acceptable instead (measure the latency cost).
+> 2. **Two sources of truth for "entity ↔ IFC GlobalId".** The
+>    `ExternalElementMapping` index and the new `*IfcGlobalId` entity
+>    columns can diverge. Document which is authoritative in the entity
+>    XML-docs and the controller summaries, and make the dependent
+>    queries (`healthcare/by-ifc/{ifcGlobalId}`) resilient to one being
+>    populated without the other.
+>
+> Also confirm non-Revit callers set `Host` explicitly — TagSync defaults
+> it to `"revit"`, so a Blender/ArchiCAD caller that omits it poisons the
+> mapping table with wrong host attribution.
+>
+> **Acceptance:** mapping-upsert failures are observable (AuditLog),
+> mappings are recoverable after a dropped background write, and the
+> authority between the two identity surfaces is documented. Core +
+> Infrastructure build clean; API builds clean (depends on Prompt 5).
+>
+> **Verify / challenge before you build:**
+> - This cross-host work is **on a different branch, not here** — confirm
+>   it's actually merged/reachable before hardening it, or you'll be
+>   patching code that doesn't exist on your branch. Locate the real
+>   `IfcIngestService` and TagSync changes first.
+> - Decide deliberately between "same-transaction upsert" and
+>   "fire-and-forget + reconciliation." The original chose fire-and-forget
+>   *specifically so the mapping never fails the user's sync* — don't
+>   silently regress that UX; if you move it into the transaction, justify
+>   it with the measured latency.
+> - Check whether a reconciliation job already exists anywhere
+>   (`Hangfire`, `SyncScheduler`) before adding a new one.
