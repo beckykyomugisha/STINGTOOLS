@@ -568,8 +568,12 @@ the corrections they surfaced:
   the EF-migration premise** (Task 3): the Photo DbSets + cross-host columns
   are **already migrated**; the only real issues are a *stale model snapshot*
   and the `ArchiCADEventLogPersistence` migration (which lives in the
-  uncommitted ArchiCAD WIP). Task 1 (mobile `tsc`) deferred — ~18 of the 111
-  errors are missing-module structural WIP, can't reach 0. Task 4 skipped
+  uncommitted ArchiCAD WIP). Task 1 (mobile `tsc`) deferred —
+  *but the ~18 it called "structural WIP / fabrication" are actually 2
+  typo'd import paths to existing files (corrected): `@/stores/auth` →
+  `@/stores/authStore` (8 files), `@/src/components/MemberPicker` →
+  `@/components/MemberPicker` (doubled `src/`, 1 file) — trivially fixable,
+  clears ~18 of 111; the other ~93 are the unenumerated remainder.* Task 4 skipped
   (optional, highest risk).
 
 **New latent bug (Prompt 11 R4):** `IfcGuidEncoder.FromGuid`

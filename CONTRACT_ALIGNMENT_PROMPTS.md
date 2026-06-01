@@ -781,7 +781,15 @@ if it's wrong.
 > 1. **Mobile `tsc` baseline** — `Planscape/app/` carries ~111 pre-existing
 >    `tsc` errors (WIP tree). Drive to 0 so `tsc --noEmit` can become a CI
 >    gate. Pure type hygiene; touch only what the compiler flags; don't
->    change runtime behaviour.
+>    change runtime behaviour. **CORRECTION (investigated):** the ~18 errors
+>    a prior run dismissed as "structural WIP / fabrication" are actually
+>    **2 typo'd import paths to files that already exist** — fix these first,
+>    they're trivial: `@/stores/auth` → `@/stores/authStore` (8 files:
+>    payment-certs, boq, variations, model-checks) and
+>    `@/src/components/MemberPicker` → `@/components/MemberPicker` (doubled
+>    `src/`; `app/meetings/index.tsx`). That clears ~18 of the 111. The
+>    remaining ~93 are unenumerated — triage those before assuming any are
+>    real WIP.
 > 2. **Test project baseline** — `Planscape.Server/tests/Planscape.Tests`
 >    has ~7 pre-existing errors (duplicate `WebApplicationFactory`
 >    definitions + Program accessibility). Resolve so the test project
