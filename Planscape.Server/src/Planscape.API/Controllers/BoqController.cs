@@ -15,15 +15,18 @@ public class BoqController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly ILogger<BoqController> _logger;
     private readonly IFileStorageService _storage;
+    private readonly INotificationService? _notifications;
 
     public BoqController(
         PlanscapeDbContext db,
         ILogger<BoqController> logger,
-        IFileStorageService storage)
+        IFileStorageService storage,
+        INotificationService? notifications = null)
     {
         _db = db;
         _logger = logger;
         _storage = storage;
+        _notifications = notifications;
     }
 
     private Guid GetTenantId() =>
@@ -114,6 +117,46 @@ public class BoqController : ControllerBase
         doc.UpdatedAt                   = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return Ok(doc);
+    }
+
+    // ── Cost Snapshot ───────────────────────────────────────────────────────
+    // Drift 6 — this route was referenced (IfcBoqSeedJob cites
+    // "BoqController.PushSnapshot") and matches the plugin's
+    // PlanscapeServerClient.PushBoqSnapshotAsync POST /boq/snapshot, but was
+    // never added → 404. The BoqSnapshot entity, BoqSnapshotDto and
+    // BoqSnapshots DbSet already exist; this persists the aggregate cost
+    // snapshot and broadcasts the same boq_snapshot_updated signal the IFC
+    // seed job sends, so the mobile cost dashboard auto-refreshes.
+
+    [HttpPost("snapshot")]
+    public async Task<ActionResult> PushSnapshot(Guid projectId, [FromBody] BoqSnapshotDto dto)
+    {
+        if (dto == null) return BadRequest("missing body");
+        var tenantId = GetTenantId();
+
+        var snapshot = new BoqSnapshot
+        {
+            ProjectId       = projectId,
+            TenantId        = tenantId,
+            CreatedAt       = DateTime.UtcNow,
+            CreatedByUserId = User.Identity?.Name ?? "",
+            SnapshotJson    = System.Text.Json.JsonSerializer.Serialize(dto),
+        };
+        _db.BoqSnapshots.Add(snapshot);
+        await _db.SaveChangesAsync();
+
+        if (_notifications != null)
+        {
+            _ = _notifications.NotifyProjectAsync(
+                projectId,
+                "boq_snapshot_updated",
+                "BOQ Snapshot Updated",
+                $"Cost snapshot pushed — estimated {dto.TotalEstimated:F2}, actual {dto.TotalActual:F2}.",
+                new { projectId, source = "plugin", snapshotId = snapshot.Id },
+                CancellationToken.None);
+        }
+
+        return Ok(new { id = snapshot.Id, createdAt = snapshot.CreatedAt });
     }
 
     // ── Baselines ─────────────────────────────────────────────────────────

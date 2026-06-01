@@ -363,55 +363,11 @@ public sealed partial class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
-    // ────────────────────────────────────────────────────────────────────────────
-    //  Full sync (plugin v2.2+)
-    // ────────────────────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Full sync: elements + compliance snapshot + warning summary + SEQ counters.
-    /// Sends everything in one call. Auto-creates the project if projectId == Guid.Empty.
-    /// </summary>
-    [Obsolete("Use SyncScheduler for sync operations")]
-    public async Task<FullSyncResult> FullSyncAsync(FullSyncPayload payload)
-    {
-        if (!await EnsureAuthenticatedAsync())
-            return new FullSyncResult { Success = false, Error = LastError ?? "Not connected." };
-
-        try
-        {
-            var resp = await PostJsonAsync("/api/tagsync/fullsync",
-                new
-                {
-                    projectId     = payload.ProjectId,
-                    projectName   = payload.ProjectName,
-                    projectCode   = payload.ProjectCode,
-                    userName      = ConnectedUser,
-                    revitVersion  = payload.RevitVersion,
-                    pluginVersion = payload.PluginVersion,
-                    elements      = payload.Elements,
-                    compliance    = payload.Compliance,
-                    warnings      = payload.Warnings,
-                    seqCounters   = payload.SeqCounters
-                });
-
-            if (!resp.ok) { LastError = $"FullSync failed ({resp.status}): {resp.body}"; return new FullSyncResult { Success = false, Error = LastError }; }
-
-            var json = JObject.Parse(resp.body);
-            return new FullSyncResult
-            {
-                Success           = true,
-                ProjectId         = Guid.TryParse(json["projectId"]?.Value<string>(), out var pid) ? pid : payload.ProjectId,
-                ProjectCreated    = json["projectCreated"]?.Value<bool>() ?? false,
-                Received          = json["received"]?.Value<int>()          ?? payload.Elements.Count,
-                Created           = json["created"]?.Value<int>()           ?? 0,
-                Updated           = json["updated"]?.Value<int>()           ?? 0,
-                SeqCountersSaved  = json["seqCountersSaved"]?.Value<int>()  ?? 0,
-                CompliancePercent = json["compliancePercent"]?.Value<double>() ?? 0,
-                RagStatus         = json["ragStatus"]?.Value<string>()      ?? "AMBER"
-            };
-        }
-        catch (Exception ex) { LastError = ex.Message; StingLog.Error("Planscape: FullSync failed", ex); return new FullSyncResult { Success = false, Error = ex.Message }; }
-    }
+    // Drift 6 — removed obsolete FullSyncAsync. It targeted /api/tagsync/fullsync
+    // (no server route → 404), was [Obsolete("Use SyncScheduler…")], and had no
+    // callers. SyncScheduler / SyncElementsAsync is the live path. The
+    // FullSyncPayload / FullSyncResult DTOs are now unused but left in place
+    // (public types; removing them is out of scope for this path/verb fix).
 
     // ────────────────────────────────────────────────────────────────────────────
     //  Legacy tag sync (kept for backwards-compat with plugin v2.1 callers)
@@ -900,7 +856,9 @@ public sealed partial class PlanscapeServerClient : IDisposable
         if (!await EnsureAuthenticatedAsync()) return false;
         try
         {
-            var resp = await PostJsonAsync(
+            // Server action is [HttpPut("{txId}/send")] (TransmittalsController.MarkSent),
+            // which takes no body — PUT to match the verb (was POST → 405).
+            var resp = await PutJsonAsync(
                 $"/api/projects/{projectId}/transmittals/{transmittalId}/send", new { });
             return resp.ok;
         }
@@ -947,12 +905,19 @@ public sealed partial class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
+    /// <summary>
+    /// Push a warning report. Server action is
+    /// <c>[HttpPost("report")]</c> (WarningsController.PushReport), so the
+    /// <paramref name="payload"/> must match <c>PushWarningReportRequest</c>:
+    /// <c>{ totalWarnings, healthScore, byCategoryJson, bySeverityJson }</c>.
+    /// </summary>
     public async Task<bool> PushWarningsAsync(Guid projectId, object payload)
     {
         if (!await EnsureAuthenticatedAsync()) return false;
         try
         {
-            var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings", payload);
+            // Route is /warnings/report, not /warnings (was → 404).
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings/report", payload);
             return resp.ok;
         }
         catch (Exception ex) { LastError = ex.Message; return false; }
@@ -1574,6 +1539,27 @@ public sealed partial class PlanscapeServerClient : IDisposable
         var http = SnapshotHttpClient();
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
         var resp = await http.PostAsync(path, content).ConfigureAwait(false);
+        var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+        var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+        if (ok) TouchActivity(); // SEC-EA-08
+        return (ok, (int)resp.StatusCode, body);
+    }
+
+    // PUT counterpart of PostJsonAsync — for server actions exposed as [HttpPut]
+    // (e.g. transmittals/{id}/send). Same auth/serialisation/activity semantics.
+    private async Task<(bool ok, int status, string body)> PutJsonAsync(string path, object payload)
+    {
+        var content = new StringContent(
+            JsonConvert.SerializeObject(payload, new JsonSerializerSettings
+            {
+                NullValueHandling = NullValueHandling.Ignore,
+                DefaultValueHandling = DefaultValueHandling.Ignore
+            }),
+            Encoding.UTF8, "application/json");
+
+        var http = SnapshotHttpClient();
+        if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
+        var resp = await http.PutAsync(path, content).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
         var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
         if (ok) TouchActivity(); // SEC-EA-08
