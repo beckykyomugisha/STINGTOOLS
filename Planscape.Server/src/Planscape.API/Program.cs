@@ -1645,3 +1645,8 @@ static bool IsRfc1918(System.Net.IPAddress ip)
     }
     return false;
 }
+
+// Expose the top-level-statements Program class to the test project's
+// WebApplicationFactory<Program> (top-level Program is internal by default,
+// so Planscape.Tests' factories couldn't reference it — CS0122).
+public partial class Program { }

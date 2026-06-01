@@ -302,6 +302,27 @@ public class PlanscapeDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // ── PhotoAlbumPhoto (album↔photo join) — composite key, no surrogate Id.
+        //    EF convention can't infer a key for a keyless join entity, so
+        //    model validation throws "PhotoAlbumPhoto requires a primary key"
+        //    on the FIRST DbContext use under ANY provider (the API at runtime,
+        //    not only the in-memory test context). Declare the composite PK.
+        modelBuilder.Entity<PhotoAlbumPhoto>(e =>
+        {
+            e.HasKey(x => new { x.AlbumId, x.PhotoId });
+            e.HasIndex(x => x.PhotoId);
+        });
+
+        // ── PhotoNdaAcceptance — composite key (PhotoId, UserId), per the
+        //    entity's own contract ("re-acceptance is idempotent via PK
+        //    collision"). No surrogate Id ⇒ same keyless-validation throw as
+        //    PhotoAlbumPhoto without this.
+        modelBuilder.Entity<PhotoNdaAcceptance>(e =>
+        {
+            e.HasKey(x => new { x.PhotoId, x.UserId });
+            e.HasIndex(x => x.UserId);
+        });
+
         // ── Tenant ──
         modelBuilder.Entity<Tenant>(e =>
         {

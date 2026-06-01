@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Planscape.API.Controllers;
 using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
@@ -64,10 +65,18 @@ public class TagSyncConflictTests
         db.TaggedElements.Add(existing);
         await db.SaveChangesAsync();
 
+        // The controller gained an IServiceScopeFactory dependency (used only by
+        // the post-sync cross-host mapping path, which this stale-rejection case
+        // never reaches — 0 mappings). Pass a real, empty scope factory so it's
+        // non-null and CreateScope() is safe, mirroring the other tests' pattern.
+        var scopeFactory = new ServiceCollection()
+            .BuildServiceProvider()
+            .GetRequiredService<IServiceScopeFactory>();
         var controller = new TagSyncController(
             db,
             new NullHubContext<TagSyncHub>(),
-            new NullHubContext<ComplianceHub>());
+            new NullHubContext<ComplianceHub>(),
+            scopeFactory);
 
         // Build a ClaimsPrincipal carrying the tenant so GetTenantId() resolves
         controller.ControllerContext = new ControllerContext
