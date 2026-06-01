@@ -332,26 +332,35 @@ selection dialog. Verified what's checkable on this branch:
 
 ---
 
-## Execution status / branch divergence (READ BEFORE RUNNING PROMPTS)
+## Execution status / branch state (UPDATED — consolidation has occurred)
 
-The fixes for these drifts are **accumulating on a different branch than
-this audit.** As of this writing:
+**`claude/upbeat-noether-tg4pn` is now the integration branch.** As of
+merge `50f10555f` (*"Merge branch 'claude/magical-mayer-hLnIk' … into
+claude/upbeat-noether-tg4pn"*) it carries **both** all the implementation
+work **and** a copy of this audit:
 
-- `claude/upbeat-noether-tg4pn` (Windows env, `C:\Dev\STINGTOOLS`) has:
-  the Bonsai client fix (`ff2c46564`, Drift 1) + its DTO-driven test +
-  the `?ifcGuid` comment fix; the cross-host server work; and the BCC
-  consumer work (`cedcf3aba`). **`ff2c46564` is not even reachable from
-  this clone.**
-- `claude/magical-mayer-hLnIk` (this branch) has: only these audit docs.
-  Drift 1 is genuinely **not done here** — `client.py` still sends raw
-  snake_case, no `_element_to_wire`, no test, stale `IfcController.cs:195`
-  comment.
+- Implementation (all verified present there): Bonsai client fix
+  (`ff2c46564`, Drift 1) + DTO-driven test + `?ifcGuid` comment fix; the
+  full Bonsai integration set (sync op, `host_element_id`, `prefs.py`,
+  COORD panel); cross-host server work; BCC consumer (`cedcf3aba`);
+  validation-warnings + raise-issue + ArchiCAD event log; the Prompt 2
+  mobile `TaggedElement` fix; the Prompt 3 ingest-paths docs (`d056e2c5e`).
+- This audit + prompts (merged in via `50f10555f`).
 
-**Consequence:** prompts run against `upbeat-noether-tg4pn` keep returning
-"already done"; the same prompts against this branch are still real work.
-**Consolidate the two branches (or move this audit to where the code is)
-before executing more prompts** — otherwise the docs keep describing a
-world the sibling branch has already changed.
+**`claude/magical-mayer-hLnIk` (this branch) is now behind and impl-less.**
+`ff2c46564` is still unreachable here; `client.py` still has no
+`_element_to_wire`; no bonsai impl files. It holds **only** these audit
+docs. The session-5→8 review updates (Drifts 4–6, Prompts 5–10, the
+corrections) were committed here **after** `50f10555f`, so they are **not
+yet on the integration branch** — re-merge `magical-mayer → upbeat-noether`
+to capture them, or author future audit edits directly on
+`upbeat-noether`.
+
+**Consequence for the remaining prompts:** run them against
+`upbeat-noether-tg4pn` (where the code is). Prompts 1–4 there are
+"already done" no-ops; the open work is Prompt 5 (API build), the mobile
+`tsc` baseline, Prompt 7 (Revit IFC-GlobalId re-key), and Prompts 6/8/9/10.
+Do **not** run them against this stale branch.
 
 ---
 
