@@ -177,6 +177,16 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 > - Is `TaggedElement` actually rendered anywhere today, or is this dead
 >   code? If unused, the cheapest correct fix may be to align the type and
 >   move on — but confirm, don't assume.
+> - **This drift is not limited to `TaggedElement`.** A sweep confirmed the
+>   same camelCase-name mismatch on `ComplianceSnapshot`
+>   (`compliancePercent` vs server `tagPercent` — dashboard %, user-visible)
+>   and `Transmittal` (`transmittalNumber`/`issuedBy`/`issuedTo` vs server
+>   `transmittalCode`/`createdBy`/`recipient` — list view, user-visible).
+>   Fix them in the same pass. `DocumentRecord.updatedAt` (nullable) and
+>   `Meeting.type` (optional legacy fallback the server never emits) are
+>   minor — handle defensively. `BimIssue` / `IssueAttachment` / `Project` /
+>   `UserProfile` / `LoginResponse` / `NotificationPreferences` are clean —
+>   don't churn them.
 
 ---
 
@@ -438,3 +448,81 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 >   overload is itself part of the problem. Decide whether to split it
 >   (e.g. add an explicit `IfcGlobalId` column) rather than overloading
 >   `UniqueId`, and note the migration cost.
+
+---
+
+## Prompt 8 — Fix the Revit client ↔ server endpoint mismatches (Drift 6)
+
+> Four calls in `StingTools/BIMManager/PlanscapeServerClient.*.cs` target
+> server paths/verbs that don't exist → runtime 404/405:
+>
+> 1. `SendTransmittalAsync` @ `PlanscapeServerClient.cs:904` POSTs
+>    `.../transmittals/{id}/send`, but the server is
+>    `[HttpPut("{txId}/send")]` (`TransmittalsController.cs:358`) → **405**.
+>    Change the client to PUT.
+> 2. `PushWarningsAsync` @ `:955` POSTs `.../warnings`, but the server only
+>    exposes `[HttpPost("report")]` (`WarningsController.cs:33`) → **404**.
+>    Point the client at `.../warnings/report` (confirm the body matches
+>    that action's DTO).
+> 3. `PushBoqSnapshotAsync` @ `:1001` POSTs `.../boq/snapshot`, which has no
+>    route in `BoqController` → **404**. Either add the server route or
+>    redirect to the existing baseline/lines flow — investigate which was
+>    intended (the BOQ baseline endpoints at `:1027`/`:1050` already exist).
+> 4. `FullSyncAsync` @ `:382` POSTs `/api/tagsync/fullsync` (no route) but
+>    is already `[Obsolete("Use SyncScheduler…")]`. Confirm no live caller,
+>    then **delete it** rather than re-adding the route.
+>
+> **Acceptance:** every `/api/` literal in the client resolves to a real
+> route + verb; the plugin builds clean; no behavioural change beyond the
+> path/verb corrections. Don't touch request body shapes (they're already
+> camelCase-correct).
+>
+> **Verify / challenge before you build:**
+> - Re-run the inventory yourself (grep `"/api/` across the partials vs the
+>   controllers) — line numbers drift and there may be more than these four.
+>   Trust the current source over this list.
+> - For #2 and #3, the *body* may also need to change to match the real
+>   action's DTO — a path fix alone can still 400 if the payload shape is
+>   wrong. Check the target action's parameter type.
+> - For #4, grep for callers of `FullSyncAsync` before deleting; if
+>   `SyncScheduler` or a UI button still calls it, migrate the caller first.
+
+---
+
+## Prompt 9 — Route StingBridge through the cross-host contract + de-duplicate the Python client (Drift 5)
+
+> `StingBridge/planscape/client.py` is a **second, divergent** Planscape
+> Python client (separate from
+> `stingtools-core/python/stingtools_core/planscape/client.py`). The
+> ArchiCAD/IFC-watcher bridge posts to the legacy `/api/tagsync/sync` and
+> **fabricates a fake `revitElementId`** from `md5(ifc_guid)` (`client.py:181`,
+> sent at `:184`), with no `Host`, no `HostElementId`, and no
+> `ExternalElementMapping` write. ArchiCAD elements therefore land as
+> pseudo-Revit rows and are invisible to cross-host resolution.
+>
+> 1. Migrate the bridge to `POST /api/projects/{id}/ifc/data` with
+>    `Host="archicad"`, the **true IFC GlobalId** as the key, and the
+>    ArchiCAD element GUID as `HostElementId`. Reuse the camelCase
+>    `_element_to_wire` shaping from the core client (see Prompt 1) — do
+>    not re-invent it, and do not send the synthetic `revitElementId`.
+> 2. **De-duplicate the two Python clients.** Either make `StingBridge`
+>    import and use `stingtools_core.planscape.PlanscapeClient`, or retire
+>    one. Two diverging implementations of the same wire contract is how
+>    Drift 1 and Drift 5 happened independently.
+>
+> **Acceptance:** an ArchiCAD IFC sync produces real `ExternalElementMapping`
+> rows (Host="archicad", true IFC GlobalId, ArchiCAD GUID as host id) and a
+> `TaggedElement` projection without a fabricated Revit id; there is a
+> single shared Python client (or a clearly-retired one). Smoke tests green.
+>
+> **Verify / challenge before you build:**
+> - Confirm the IFC watcher can actually recover the ArchiCAD element GUID
+>   (not just the IFC GlobalId) to populate `HostElementId`; if it only has
+>   the IFC GlobalId, decide what `HostElementId` should be and say so.
+> - This depends on the core client's `_element_to_wire` (Prompt 1) and the
+>   `/ifc/data` path being reachable — both are on
+>   `claude/upbeat-noether-tg4pn`, **not this branch**. Confirm branch state
+>   first (see Execution status in the audit) so you build against real code.
+> - Don't break the legacy `/tagsync/sync` path if anything still depends on
+>   it — check before switching wholesale; a dual-write transition may be
+>   safer than a hard cutover.

@@ -123,6 +123,24 @@ or add one `mapTaggedElement()` adapter at the fetch boundary in
 Resolve `lvl` vs `level` explicitly (expose both as e.g. `levelCode` +
 `levelName`).
 
+**Drift 2 is not isolated to `TaggedElement`.** A sweep of the other
+mobile types found the same camelCase-name disease on two more
+high-traffic types (the rest — `BimIssue`, `IssueAttachment`, `Project`,
+`UserProfile`, `LoginResponse`, `NotificationPreferences` — are clean):
+
+| TS type | TS field (`types/api.ts`) | server emits | evidence |
+|---|---|---|---|
+| `ComplianceSnapshot` | `compliancePercent` | `tagPercent` | `api.ts:42` vs `ComplianceSnapshot.cs:26` — **dashboard compliance % is `undefined` on mobile** |
+| `Transmittal` | `transmittalNumber` | `transmittalCode` | `api.ts:241` vs `Transmittal.cs:11` |
+| `Transmittal` | `issuedBy` | `createdBy` | `api.ts:243` vs `Transmittal.cs:21` |
+| `Transmittal` | `issuedTo` | `recipient` | `api.ts:244` vs `Transmittal.cs:12` — **transmittal list shows blank sender/recipient** |
+
+Minor / defensive (not breaking): `DocumentRecord.updatedAt` is nullable
+server-side (handle `null`); `Meeting.type` is an optional legacy fallback
+the server never emits (`meetingType` only) — drop the fallback or alias
+it. Fix these the same way as `TaggedElement` (rename or adapter); the
+ComplianceSnapshot + Transmittal ones are user-visible bugs.
+
 ---
 
 ## Drift 3 — Two ingest paths, divergent keys (design seam, not a bug)
@@ -184,6 +202,52 @@ re-generates IfcGUIDs across sessions until stabilised; that's exactly why
 TagSync `UniqueId`-as-key choice (Drift 3 / cross-host server work): the
 mapping column and the lookup must agree on the IFC GlobalId, not the
 Revit UniqueId.
+
+---
+
+## Drift 5 — StingBridge (ArchiCAD / IFC watcher) bypasses the cross-host contract
+
+There is a **second, divergent Python client** at
+`StingBridge/planscape/client.py` — separate from
+`stingtools-core/python/stingtools_core/planscape/client.py` (Drift 1).
+The ArchiCAD/IFC-watcher bridge:
+
+- Posts to the **legacy** `/api/tagsync/sync` (line 90), not `/ifc/data`.
+- **Fabricates a fake `revitElementId`** from an MD5 of the IFC GUID:
+  `revit_id = int(md5(guid)[:15], 16) & 0x7FFF…` (`client.py:181`), then
+  sends it as `"revitElementId"` (`:184`). ArchiCAD elements therefore
+  masquerade as Revit elements with synthetic ids.
+- Never sets `Host`, never sends `HostElementId`, **never populates
+  `ExternalElementMapping`.** ArchiCAD data lands in `TaggedElement` with a
+  bogus Revit id and is unreachable by cross-host resolution.
+
+This is Drift 4's disease in a worse form (a *fabricated* Revit key rather
+than a real-but-wrong one). Two problems to fix: (a) the bridge should
+ingest via `/ifc/data` with `Host="archicad"`, the true IFC GlobalId, and
+the ArchiCAD element GUID as `HostElementId`; (b) **there should not be two
+Python clients** — `StingBridge` and `stingtools-core` should share one
+`PlanscapeClient`, or one should be retired.
+
+---
+
+## Drift 6 — Revit client ↔ server endpoint mismatches (404 / 405 class)
+
+Inventory of `PlanscapeServerClient.*.cs` calls vs server routes found four
+paths that will fail at runtime (most of the ~60 calls are clean):
+
+| Client method @ line | Calls | Server has | Failure |
+|---|---|---|---|
+| `SendTransmittalAsync` @ `:904` | `POST .../transmittals/{id}/send` | `[HttpPut("{txId}/send")]` `TransmittalsController.cs:358` | **405** verb mismatch |
+| `PushWarningsAsync` @ `:955` | `POST .../warnings` | only `[HttpPost("report")]` `WarningsController.cs:33` | **404** wrong path |
+| `PushBoqSnapshotAsync` @ `:1001` | `POST .../boq/snapshot` | no `snapshot` route in `BoqController` | **404** no route |
+| `FullSyncAsync` @ `:382` | `POST /api/tagsync/fullsync` | no route | **404** (but `[Obsolete]`) |
+
+Field-name drift on the Revit client is otherwise **clean** — bodies
+serialize camelCase via `[JsonProperty]`, matching the server DTOs. These
+are pure path/verb fixes (rename the path / change POST→PUT / add the
+server route), not contract redesigns. The `FullSyncAsync` one is already
+`[Obsolete]` — confirm it has no live caller, then delete it rather than
+re-add the route.
 
 ---
 
