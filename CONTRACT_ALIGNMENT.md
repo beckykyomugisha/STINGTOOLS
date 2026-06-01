@@ -436,28 +436,61 @@ This work does **not** touch Drift 1 (Bonsai snake_case) or Drift 2
 
 ## Recommended order of operations
 
-0. **Prompt 5 — fix the pre-existing `Planscape.API` build breakage.**
-   Highest leverage, lowest risk; unblocks every other server change.
-1. **Drift 1 (Bonsai)** — highest impact, smallest change, already
-   solved on `ff2c46564`. Port the `_element_to_wire` map + query-param
-   fix into this branch's `client.py`.
-2. **Drift 4 (Prompt 7) — Revit cross-host key.** CRITICAL: until Revit
-   keys on the true IFC GlobalId (`IFC_GLOBAL_ID_TXT`) instead of
-   `Element.UniqueId`, the entire cross-host identity investment is a
+**Status (executed on `upbeat-noether-tg4pn`):** Prompts 1, 2, 3, 4, 5, 6
+are DONE. Remaining: Prompt 7 (Drift 4, critical), Prompts 8, 9, 10, and
+two baseline blockers (mobile `tsc`, test project).
+
+0. ~~**Prompt 5 — fix the pre-existing `Planscape.API` build breakage.**~~
+   **DONE (session 9).** The audit's "6 errors" was an *underestimate* —
+   CS0101/CS0111 duplicate-type errors halt semantic analysis and **masked
+   a true set of 51 errors**; fixing the dups unmasked the rest. Real scope
+   was broader than the prompt listed (IssuesController CS0128,
+   IssueAudioNotesController CS0103, SeedData, 5 missing Photo DbSets).
+   Driven to **0 errors** across 8 files + DbContext (de-dup + dead-ref
+   repair, 21 ins / 157 del); Photo DbSets were **restored not deleted**
+   (entities exist + controllers routed = half-added — correct call); dup
+   types renamed identifier-only (no wire change). The "trust the compiler,
+   not the prompt" instruction paid off literally. **EF migration for the
+   restored Photo DbSets is still a pending runtime step.**
+1. ~~**Drift 1 (Bonsai)**~~ — **DONE** (`ff2c46564` + test/comment residue).
+2. **Drift 4 (Prompt 7) — Revit cross-host key.** CRITICAL and still open:
+   until Revit keys on the true IFC GlobalId (`IFC_GLOBAL_ID_TXT`) instead
+   of `Element.UniqueId`, the entire cross-host identity investment is a
    no-op for Revit↔Blender. Highest *feature* value of everything here.
-3. **Drift 2 (Mobile)** — one interface rename or one adapter function;
-   resolve the `lvl`/`level` collision while there.
-4. **Drift 3** — documentation only (largely subsumed by the cross-host
-   work, which made TagSync populate the mapping table).
-5. **Cross-host hardening** (Prompt 6) — `AuditLog` + reconciliation for
-   the fire-and-forget mapping upsert; document mapping-table vs.
-   `*IfcGlobalId`-column authority.
+3. ~~**Drift 2 (Mobile)**~~ — **DONE (session 6)**, approach A (rename +
+   2 consumers in `Planscape/app`). ComplianceSnapshot/Transmittal field
+   drifts (extended Drift 2) **still open**.
+4. ~~**Drift 3**~~ — **DONE (session 7)** — `element-ingest-paths.md` +
+   XML-docs; real invariant captured.
+5. ~~**Cross-host hardening (Prompt 6)**~~ — **DONE (session 10).**
+   Fire-and-forget **kept** and gap-closed (deliberate, documented):
+   `CrossHostMappingAudit.RecordUpsertFailureAsync` → `AuditLog` + ILogger
+   on failure; `MappingReconciliationJob` (Hangfire hourly) backfills
+   Revit-keyed mappings from committed `TaggedElement` rows; `MappingHosts`
+   guard so a mis-attributed host fails the audit rather than poisoning the
+   table; authority documented (`ExternalElementMapping` = GlobalId↔host;
+   `*IfcGlobalId` columns = "this record is about element X"; `by-ifc`
+   endpoint made resilient to one surface being populated without the other).
+
+**Baseline blockers (gate any CI conformance/test gate, incl. Prompt 10):**
+- `Planscape.API` build — **FIXED (Prompt 5).** EF migrations are now
+  generatable (the API builds), so the pending migrations (restored Photo
+  DbSets, `ArchiCADEventLogPersistence`, cross-host columns) can be
+  produced — do this next on the schema side.
+- **Mobile `tsc`** — `Planscape/app/` still carries ~111 pre-existing
+  errors; not yet cleared.
+- **Test project** — `Planscape.Server/tests/Planscape.Tests` has ~7
+  pre-existing errors (duplicate `WebApplicationFactory` definitions +
+  Program accessibility), surfaced by session 10. The test project does
+  **not build**, so there is no runnable test suite / test CI gate until
+  this is cleared. Sibling to the other two; agent-reported (no .NET build
+  in this audit env), structure corroborated.
 
 **Systemic option (Prompt 10):** Drifts 1/2/4/5/6 share one root cause —
 each client hand-writes the wire shape. Generating the client types from
 the server's OpenAPI (with explicit response DTOs) + a CI drift gate stops
 recurrence. Justified only if drift keeps happening; otherwise the manual
-prompts suffice. Prompt 5 is its prerequisite (needs a building API).
+prompts suffice. Its CI gate needs all three baseline blockers green.
 
 **Two facts from the session-5 review:**
 - `dotnet ef migrations add` builds the **startup (API) project**, which
