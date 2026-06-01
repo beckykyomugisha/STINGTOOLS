@@ -15,6 +15,18 @@ namespace Planscape.API.Controllers;
 /// <summary>
 /// Tag synchronization endpoint — receives tagged element data from the Revit plugin
 /// and broadcasts updates to connected web dashboard clients via SignalR.
+///
+/// SIBLING ENDPOINT: this is one of two ingest paths that write the same
+/// <see cref="Planscape.Core.Entities.TaggedElement"/> table. This one is the
+/// Revit/BCC path — abbreviated <see cref="Planscape.Core.DTOs.TagElementDto"/>
+/// (<c>Disc</c>/<c>Loc</c>/<c>Tag1</c>…) keyed on <c>RevitElementId</c>. The
+/// non-Revit path is <c>POST /api/projects/{id}/ifc/data</c>
+/// (<see cref="IfcController"/>), verbose <c>IfcElementDto</c> keyed on
+/// <c>IfcGlobalId</c>. The two DTOs deliberately diverge by field name; each
+/// controller maps its own vocabulary onto the shared TaggedElement columns.
+/// See <c>Planscape.Server/docs/element-ingest-paths.md</c> for the full diff,
+/// the shared-core invariant, and the filtered-unique-index key-space contract
+/// that lets the two hosts coexist in one table.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]

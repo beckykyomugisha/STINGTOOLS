@@ -21,6 +21,19 @@ namespace Planscape.API.Controllers;
 /// than Revit-specific <c>RevitElementId</c>, and it carries explicit
 /// host attribution so issues raised on one host surface on every host
 /// looking at the same IFC element.
+///
+/// SIBLING ENDPOINT: this and <c>/api/tagsync/sync</c>
+/// (<see cref="TagSyncController"/>) are the two ingest paths that write the
+/// same <see cref="TaggedElement"/> table. This (verbose
+/// <see cref="Planscape.Core.DTOs.IfcElementDto"/>: <c>Discipline</c>/
+/// <c>Location</c>/<c>FullTag</c>…, <c>RevitElementId = 0</c>) is the non-Revit
+/// path; tagsync (abbreviated <c>TagElementDto</c>: <c>Disc</c>/<c>Loc</c>/
+/// <c>Tag1</c>…) is the Revit/BCC path. The DTOs deliberately diverge by field
+/// name — they are NOT wire-compatible — but both map onto the same
+/// TaggedElement columns. See <c>Planscape.Server/docs/element-ingest-paths.md</c>
+/// for the full field diff, the shared-core invariant, and the filtered-unique
+/// -index key-space contract (Revit keyed on <c>RevitElementId &gt; 0</c>,
+/// non-Revit on <c>UniqueId</c>) that lets both hosts coexist in one table.
 /// </summary>
 [ApiController]
 [Route("api/projects/{projectId:guid}/ifc")]
