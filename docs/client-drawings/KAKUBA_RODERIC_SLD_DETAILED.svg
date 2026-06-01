@@ -1,0 +1,800 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 2100" width="1900" height="2100"
+     font-family="Arial, sans-serif">
+
+<!-- ══════════════════════════════════════════════════════════════
+     MR. KAKUBA RODERIC — PROPOSED RESIDENTIAL HOUSE
+     PLOT 9711, BLOCK 185, KYADONDO, KAMPALA DISTRICT
+     DETAILED ELECTRICAL SINGLE LINE DIAGRAM (SLD)
+     M&E Engineers: ICON CONSULTANTS, P.O. Box 6134, Kampala
+     Tel: 041-4540630 | 0312-263472/3
+     Standard: BS 7671:2018 | IEC 60364 | Uganda Electricity Act
+     Drawing: SLD-ELEC-001 Rev P01 | A1 | NTS
+══════════════════════════════════════════════════════════════ -->
+
+<!-- Background -->
+<rect width="1900" height="2100" fill="#0c1520"/>
+<rect x="6" y="6" width="1888" height="2088" fill="none" stroke="#2e6da4" stroke-width="2"/>
+<rect x="10" y="10" width="1880" height="2080" fill="none" stroke="#2e6da4" stroke-width="0.6"/>
+
+<!-- ── TITLE BLOCK ── -->
+<rect x="10" y="10" width="1880" height="58" fill="#101e2e" stroke="#2e6da4" stroke-width="1.2"/>
+<text x="950" y="30" text-anchor="middle" fill="#4fc3f7" font-size="14" font-weight="bold" letter-spacing="2">MR. KAKUBA RODERIC — PROPOSED RESIDENTIAL HOUSE AT PLOT 9711, BLOCK 185, KYADONDO, KAMPALA DISTRICT</text>
+<text x="950" y="50" text-anchor="middle" fill="#90caf9" font-size="11" letter-spacing="2">DETAILED SINGLE LINE DIAGRAM — ELECTRICAL SERVICES  |  M&amp;E: ICON CONSULTANTS, KAMPALA  |  BS 7671:2018 / IEC 60364</text>
+<text x="18" y="58" fill="#546e7a" font-size="7.5">DRAWING REF: SLD-ELEC-001</text>
+<text x="1882" y="58" text-anchor="end" fill="#546e7a" font-size="7.5">REV P01 | NTS | June 2026</text>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SECTION A — UTILITY SUPPLY  (top centre)
+══════════════════════════════════════════════════════════════ -->
+<!-- Section label -->
+<text x="950" y="84" text-anchor="middle" fill="#546e7a" font-size="8" letter-spacing="4">SECTION A — INCOMING SUPPLY</text>
+
+<!-- UMEME supply symbol -->
+<line x1="950" y1="88" x2="950" y2="108" stroke="#f9a825" stroke-width="2.5"/>
+<rect x="840" y="88" width="220" height="24" rx="3" fill="#141e2e" stroke="#f9a825" stroke-width="1.5"/>
+<text x="950" y="105" text-anchor="middle" fill="#f9a825" font-size="10" font-weight="bold">UMEME UTILITY — 3Ø 415V / 1Ø 240V  50Hz  TN-S</text>
+<!-- 3-phase lines -->
+<line x1="924" y1="112" x2="976" y2="112" stroke="#f9a825" stroke-width="1.2"/>
+<line x1="924" y1="117" x2="976" y2="117" stroke="#f9a825" stroke-width="1.2"/>
+<line x1="924" y1="122" x2="976" y2="122" stroke="#f9a825" stroke-width="1.2"/>
+<text x="982" y="120" fill="#607d8b" font-size="7.5">L1 L2 L3 N PE</text>
+<line x1="950" y1="108" x2="950" y2="128" stroke="#f9a825" stroke-width="2.5"/>
+
+<!-- kWh METER -->
+<rect x="914" y="128" width="72" height="34" rx="4" fill="#141e2e" stroke="#4fc3f7" stroke-width="1.5"/>
+<circle cx="950" cy="140" r="9" fill="none" stroke="#4fc3f7" stroke-width="1.2"/>
+<text x="950" y="144" text-anchor="middle" fill="#4fc3f7" font-size="8">kWh</text>
+<text x="950" y="156" text-anchor="middle" fill="#78909c" font-size="7.5">UMEME METER</text>
+<line x1="950" y1="162" x2="950" y2="180" stroke="#f9a825" stroke-width="2.5"/>
+
+<!-- MAIN ISOLATOR / CUTOUT (HRC fuse) -->
+<rect x="920" y="180" width="60" height="22" rx="3" fill="#141e2e" stroke="#ef5350" stroke-width="1.8"/>
+<line x1="930" y1="191" x2="970" y2="191" stroke="#ef5350" stroke-width="1.5"/>
+<line x1="938" y1="185" x2="962" y2="197" stroke="#ef5350" stroke-width="1.5"/>
+<circle cx="930" cy="191" r="2.5" fill="#ef5350"/>
+<circle cx="970" cy="191" r="2.5" fill="#ef5350"/>
+<text x="950" y="214" text-anchor="middle" fill="#ef5350" font-size="8">100A DP MAIN ISOLATOR (HRC)</text>
+<line x1="950" y1="202" x2="950" y2="222" stroke="#f9a825" stroke-width="2.5"/>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SECTION B — GENERATOR + AUTOMATIC TRANSFER SWITCH
+     (as shown on page 4 of drawings)
+══════════════════════════════════════════════════════════════ -->
+<text x="420" y="84" text-anchor="middle" fill="#546e7a" font-size="8" letter-spacing="4">SECTION B — STANDBY GENERATOR</text>
+
+<!-- Generator box -->
+<rect x="160" y="100" width="220" height="80" rx="5" fill="#141e2e" stroke="#ff8f00" stroke-width="1.8"/>
+<text x="270" y="120" text-anchor="middle" fill="#ff8f00" font-size="10" font-weight="bold">🔌 STANDBY GENERATOR</text>
+<text x="270" y="136" text-anchor="middle" fill="#90caf9" font-size="8.5">Diesel / 7.5kVA / 240V 1Ø / 50Hz</text>
+<text x="270" y="150" text-anchor="middle" fill="#78909c" font-size="8">Auto-start on mains failure</text>
+<text x="270" y="164" text-anchor="middle" fill="#78909c" font-size="8">10L fuel tank | Run time: ~6h</text>
+<text x="270" y="178" text-anchor="middle" fill="#f9a825" font-size="8">Location: External bldg plant area (pg.4)</text>
+
+<!-- Generator line to ATS -->
+<line x1="380" y1="152" x2="640" y2="200" stroke="#ff8f00" stroke-width="2" stroke-dasharray="8,4"/>
+
+<!-- ATS box (Automatic Transfer Switch — confirmed on page 4) -->
+<rect x="640" y="180" width="250" height="60" rx="4" fill="#141e2e" stroke="#ff8f00" stroke-width="2"/>
+<rect x="640" y="180" width="250" height="18" rx="4" fill="#1f2a0e" stroke="#ff8f00" stroke-width="2"/>
+<text x="765" y="193" text-anchor="middle" fill="#ff8f00" font-size="10" font-weight="bold">AUTOMATIC TRANSFER SWITCH (ATS)</text>
+<text x="765" y="212" text-anchor="middle" fill="#90caf9" font-size="8.5">MAINS normal → Auto-changeover on failure (&lt;2s)</text>
+<text x="765" y="228" text-anchor="middle" fill="#78909c" font-size="8">Rating: 100A / 2-pole | MAINS priority | Manual bypass</text>
+
+<!-- Mains line to ATS -->
+<line x1="950" y1="222" x2="890" y2="240" stroke="#f9a825" stroke-width="2.5"/>
+<line x1="890" y1="240" x2="800" y2="240" stroke="#f9a825" stroke-width="2.5"/>
+<text x="860" y="236" fill="#607d8b" font-size="7">MAINS IN</text>
+
+<!-- ATS out line down to MDB -->
+<line x1="765" y1="240" x2="765" y2="268" stroke="#f9a825" stroke-width="2.5"/>
+<line x1="765" y1="268" x2="950" y2="268" stroke="#f9a825" stroke-width="2.5"/>
+<line x1="950" y1="268" x2="950" y2="285" stroke="#f9a825" stroke-width="2.5"/>
+
+<!-- SPD beside ATS -->
+<rect x="896" y="255" width="50" height="20" rx="2" fill="#141e2e" stroke="#ab47bc" stroke-width="1"/>
+<text x="921" y="263" text-anchor="middle" fill="#ab47bc" font-size="7" font-weight="bold">SPD</text>
+<text x="921" y="271" text-anchor="middle" fill="#78909c" font-size="6.5">Class I+II</text>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SECTION C — MAIN DISTRIBUTION BOARD (MDB)
+     Located in external building plant room — confirmed page 4
+     Legend: 80A 5PN MCCB distribution board (3-phase)
+══════════════════════════════════════════════════════════════ -->
+<rect x="600" y="285" width="700" height="82" rx="6" fill="#111e2e" stroke="#4fc3f7" stroke-width="2.2"/>
+<rect x="600" y="285" width="700" height="20" rx="6" fill="#162030" stroke="#4fc3f7" stroke-width="2.2"/>
+<text x="950" y="300" text-anchor="middle" fill="#4fc3f7" font-size="11" font-weight="bold">MAIN DISTRIBUTION BOARD (MDB)  —  80A 5PN MCCB  |  3Ø 415V / 1Ø 240V</text>
+<text x="950" y="318" text-anchor="middle" fill="#90caf9" font-size="8.5">Location: External Kitchen/Sauna Building — Plant Room (as confirmed on dwg page 4)</text>
+<text x="950" y="332" text-anchor="middle" fill="#78909c" font-size="8">Incomer: 80A TP+N MCCB  |  SPD Class II fitted  |  Earth Leakage Relay 100mA  |  IP54 Enclosure</text>
+<text x="950" y="346" text-anchor="middle" fill="#78909c" font-size="8">Main Earth Bar: 16mm² CPC → 2× Earth Rods (1.2m depth, 3m apart)  |  MET bonding rail  |  Zs &lt; 0.8Ω</text>
+<text x="950" y="360" text-anchor="middle" fill="#f9a825" font-size="8.5" font-weight="bold">↓  OUTGOING SUB-CIRCUITS  ↓</text>
+
+<!-- BUSBAR -->
+<line x1="50" y1="390" x2="1850" y2="390" stroke="#f9a825" stroke-width="3"/>
+<line x1="950" y1="367" x2="950" y2="390" stroke="#f9a825" stroke-width="3"/>
+<text x="18" y="387" fill="#607d8b" font-size="7.5">BUS →</text>
+
+<!-- ══════════════════════════════════════════════════════════════
+     6 OUTGOING CIRCUITS FROM MDB
+     From left to right:
+     1. DB01 Main House (63A)
+     2. DB02 External Building (50A)
+     3. Swimming Pool DB (32A)
+     4. Auto Gate (20A)
+     5. Security / Ext Lighting (16A)
+     6. 5-pin 3Ø Socket (32A) — confirmed on dwg
+══════════════════════════════════════════════════════════════ -->
+
+<!-- ─────────── CIRCUIT 1: DB01 MAIN HOUSE 63A ─────────── -->
+<line x1="200" y1="390" x2="200" y2="408" stroke="#66bb6a" stroke-width="2.5"/>
+<!-- RCBO -->
+<rect x="172" y="408" width="56" height="24" rx="3" fill="#111e2e" stroke="#66bb6a" stroke-width="1.8"/>
+<line x1="182" y1="420" x2="218" y2="420" stroke="#66bb6a" stroke-width="1.5"/>
+<line x1="190" y1="413" x2="210" y2="427" stroke="#66bb6a" stroke-width="1.5"/>
+<circle cx="182" cy="420" r="2.5" fill="#66bb6a"/>
+<circle cx="218" cy="420" r="2.5" fill="#66bb6a"/>
+<text x="200" y="443" text-anchor="middle" fill="#66bb6a" font-size="8.5" font-weight="bold">63A RCBO</text>
+<text x="200" y="453" text-anchor="middle" fill="#78909c" font-size="7">30mA / Type B</text>
+<line x1="200" y1="432" x2="200" y2="458" stroke="#66bb6a" stroke-width="2.5"/>
+<rect x="172" y="450" width="56" height="12" rx="2" fill="#101828" stroke="#37474f" stroke-width="0.8"/>
+<text x="200" y="459" text-anchor="middle" fill="#90caf9" font-size="7">25mm² 4c SWA</text>
+<line x1="200" y1="462" x2="200" y2="480" stroke="#66bb6a" stroke-width="2.5"/>
+
+<!-- DB01 BOX - Main House -->
+<rect x="20" y="480" width="360" height="580" rx="6" fill="#0e1c0e" stroke="#66bb6a" stroke-width="2"/>
+<rect x="20" y="480" width="360" height="24" rx="6" fill="#163016" stroke="#66bb6a" stroke-width="2"/>
+<text x="200" y="497" text-anchor="middle" fill="#66bb6a" font-size="11" font-weight="bold">DB 01 — MAIN HOUSE (2-STOREY)</text>
+
+<!-- Incomer info -->
+<text x="30" y="518" fill="#90caf9" font-size="8.5" font-weight="bold">Incomer: 63A DP MCB  |  IP40  |  18-way DIN</text>
+<line x1="30" y1="523" x2="372" y2="523" stroke="#1a361a" stroke-width="1"/>
+
+<!-- GROUND FLOOR circuits header -->
+<text x="30" y="536" fill="#4fc3f7" font-size="8" font-weight="bold" letter-spacing="2">GROUND FLOOR CIRCUITS</text>
+<text x="30" y="550" fill="#607d8b" font-size="7.5">Cct  Description              Rating  Cable</text>
+<line x1="30" y1="554" x2="372" y2="554" stroke="#1a361a" stroke-width="0.8"/>
+<!-- GF lighting -->
+<text x="30" y="566" fill="#78909c" font-size="8">L1  GF Lighting (Dining+Lounge) 10A MCB  1.5mm²</text>
+<text x="282" y="566" fill="#546e7a" font-size="7.5">8× D1 18W downlights</text>
+<text x="30" y="578" fill="#78909c" font-size="8">L2  GF Lighting (Bedroom+WC)    10A MCB  1.5mm²</text>
+<text x="282" y="578" fill="#546e7a" font-size="7.5">C1/C2 ceiling, pendants</text>
+<text x="30" y="590" fill="#78909c" font-size="8">L3  GF Security / Photocell     6A MCB   1.5mm²</text>
+<text x="282" y="590" fill="#546e7a" font-size="7.5">6A photocell (page 1)</text>
+<text x="30" y="602" fill="#78909c" font-size="8">L4  External / Compound lights  10A MCB  2.5mm²</text>
+<text x="282" y="602" fill="#546e7a" font-size="7.5">B/C bulkhead IP65 DALI</text>
+<!-- GF power -->
+<text x="30" y="618" fill="#78909c" font-size="8">P1  GF Sockets (Dining/Lounge)  20A RCBO 2.5mm²</text>
+<text x="282" y="618" fill="#546e7a" font-size="7.5">13A 1G+2G switched</text>
+<text x="30" y="630" fill="#78909c" font-size="8">P2  GF Sockets USB Charging     20A RCBO 2.5mm²</text>
+<text x="282" y="630" fill="#546e7a" font-size="7.5">13A 2G + 2A USB outlets</text>
+<text x="30" y="642" fill="#78909c" font-size="8">P3  GF Bedroom Sockets          20A RCBO 2.5mm²</text>
+<text x="282" y="642" fill="#546e7a" font-size="7.5">13A sockets + USB</text>
+<text x="30" y="654" fill="#ffd54f" font-size="8">H1  GF Water Heater             20A RCBO 4mm²</text>
+<text x="282" y="654" fill="#546e7a" font-size="7.5">20A DP neon indicator</text>
+<text x="30" y="666" fill="#ffd54f" font-size="8">K1  Kitchen Cooker (CCU)        45A RCBO 10mm²</text>
+<text x="282" y="666" fill="#546e7a" font-size="7.5">45A DP + 13A socket FCU</text>
+<text x="30" y="678" fill="#78909c" font-size="8">A1  Air Conditioning (GF)       20A RCBO 4mm²</text>
+<line x1="30" y1="684" x2="372" y2="684" stroke="#1a361a" stroke-width="1"/>
+
+<!-- FIRST FLOOR circuits header -->
+<text x="30" y="697" fill="#4fc3f7" font-size="8" font-weight="bold" letter-spacing="2">FIRST FLOOR CIRCUITS</text>
+<line x1="30" y1="702" x2="372" y2="702" stroke="#1a361a" stroke-width="0.8"/>
+<!-- FF lighting -->
+<text x="30" y="714" fill="#78909c" font-size="8">L5  FF Lighting (Master Bed)    10A MCB  1.5mm²</text>
+<text x="282" y="714" fill="#546e7a" font-size="7.5">60W chandelier + D2 spots</text>
+<text x="30" y="726" fill="#78909c" font-size="8">L6  FF Lighting (Bed1 + Bed2)   10A MCB  1.5mm²</text>
+<text x="282" y="726" fill="#546e7a" font-size="7.5">D1/D2 18W downlights</text>
+<text x="30" y="738" fill="#78909c" font-size="8">L7  FF Lighting (3 Baths+Laund) 10A MCB  1.5mm²</text>
+<text x="282" y="738" fill="#546e7a" font-size="7.5">IP65 C1 flush ceiling</text>
+<text x="30" y="750" fill="#78909c" font-size="8">L8  FF Lighting (Gym + Void)    10A MCB  1.5mm²</text>
+<text x="282" y="750" fill="#546e7a" font-size="7.5">Surface/downlights</text>
+<!-- FF power -->
+<text x="30" y="766" fill="#78909c" font-size="8">P4  FF Sockets (Master Bed)     20A RCBO 2.5mm²</text>
+<text x="282" y="766" fill="#546e7a" font-size="7.5">13A 2G + USB charging</text>
+<text x="30" y="778" fill="#78909c" font-size="8">P5  FF Sockets (Bed1 + Bed2)    20A RCBO 2.5mm²</text>
+<text x="282" y="778" fill="#546e7a" font-size="7.5">13A outlets each room</text>
+<text x="30" y="790" fill="#78909c" font-size="8">P6  FF Sockets (Gym + Laund)    16A RCBO 2.5mm²</text>
+<text x="282" y="790" fill="#546e7a" font-size="7.5">13A sockets</text>
+<text x="30" y="802" fill="#ffd54f" font-size="8">H2  FF Water Heater (Master)    20A RCBO 4mm²</text>
+<text x="282" y="802" fill="#546e7a" font-size="7.5">20A DP neon indicator</text>
+<text x="30" y="814" fill="#ffd54f" font-size="8">H3  FF Water Heater (Bed1/2)    20A RCBO 4mm²</text>
+<text x="282" y="814" fill="#546e7a" font-size="7.5">20A DP neon indicator</text>
+<text x="30" y="826" fill="#78909c" font-size="8">A2  Air Conditioning (FF)       20A RCBO 4mm²</text>
+<text x="30" y="838" fill="#78909c" font-size="8">S1  Spare                       16A MCB</text>
+<line x1="30" y1="844" x2="372" y2="844" stroke="#1a361a" stroke-width="1"/>
+<text x="30" y="856" fill="#4fc3f7" font-size="7.5">Earth: 10mm² CPC to MDB  |  Supplementary bonding: 4mm² to bath/shower metalwork</text>
+<text x="30" y="868" fill="#4fc3f7" font-size="7.5">Lighting control: DALI interface (Thorn Contus + Radiant B/C bulkheads)</text>
+<text x="30" y="880" fill="#f9a825" font-size="8" font-weight="bold">Total installed load: ~42 kW  |  Max demand: ~55A after diversity</text>
+<text x="30" y="892" fill="#78909c" font-size="7.5">All cables: thermoplastic 90°C (LSF/LSZH where concealed)</text>
+<text x="30" y="904" fill="#78909c" font-size="7.5">Switches: 1G/2G 1-way + 2G/3G 2-way (as per lighting plan)</text>
+<text x="30" y="918" fill="#78909c" font-size="7.5">All sockets: switched 13A BS1363 | USB charging outlets: 2A Type A</text>
+<text x="30" y="932" fill="#78909c" font-size="7.5">DALI lighting bus: Thorn CONTUS 60W LED linear (4000K, L80 50kh, CRI80, IP44)</text>
+<text x="30" y="946" fill="#78909c" font-size="7.5">Chandeliers: 8×60W 1.9m (Radiant 3P073) + 3×60W antique (Radiant JP436)</text>
+<text x="30" y="960" fill="#f9a825" font-size="7.5" font-weight="bold">CCU: 45A DP main switch + 13A switched socket faceplate marked COOKER</text>
+
+<!-- ─────────── CIRCUIT 2: DB02 EXTERNAL BUILDING 50A ─────────── -->
+<line x1="570" y1="390" x2="570" y2="408" stroke="#ff7043" stroke-width="2.5"/>
+<rect x="542" y="408" width="56" height="24" rx="3" fill="#111e2e" stroke="#ff7043" stroke-width="1.8"/>
+<line x1="552" y1="420" x2="588" y2="420" stroke="#ff7043" stroke-width="1.5"/>
+<line x1="560" y1="413" x2="580" y2="427" stroke="#ff7043" stroke-width="1.5"/>
+<circle cx="552" cy="420" r="2.5" fill="#ff7043"/>
+<circle cx="588" cy="420" r="2.5" fill="#ff7043"/>
+<text x="570" y="443" text-anchor="middle" fill="#ff7043" font-size="8.5" font-weight="bold">50A RCBO</text>
+<text x="570" y="453" text-anchor="middle" fill="#78909c" font-size="7">30mA / Type B</text>
+<line x1="570" y1="432" x2="570" y2="458" stroke="#ff7043" stroke-width="2.5"/>
+<rect x="540" y="450" width="60" height="12" rx="2" fill="#101828" stroke="#37474f" stroke-width="0.8"/>
+<text x="570" y="459" text-anchor="middle" fill="#90caf9" font-size="7">16mm² 4c SWA</text>
+<line x1="570" y1="462" x2="570" y2="480" stroke="#ff7043" stroke-width="2.5"/>
+
+<!-- DB02 BOX — External Kitchen / Sauna / Billiard Building -->
+<rect x="394" y="480" width="360" height="520" rx="6" fill="#1e0e0a" stroke="#ff7043" stroke-width="2"/>
+<rect x="394" y="480" width="360" height="24" rx="6" fill="#301608" stroke="#ff7043" stroke-width="2"/>
+<text x="574" y="497" text-anchor="middle" fill="#ff7043" font-size="10" font-weight="bold">DB 02 — EXTERNAL BLDG (Kitchen/Sauna/Billiard)</text>
+<text x="574" y="516" text-anchor="middle" fill="#90caf9" font-size="8.5" font-weight="bold">Incomer: 50A DP MCB  |  IP44  |  DIN rail</text>
+<text x="574" y="530" text-anchor="middle" fill="#78909c" font-size="7.5">Located same room as MDB — confirmed drawing page 4</text>
+<line x1="404" y1="534" x2="744" y2="534" stroke="#2a1008" stroke-width="1"/>
+
+<!-- DB02 Kitchen circuits -->
+<text x="404" y="547" fill="#ffd54f" font-size="8" font-weight="bold" letter-spacing="1">KITCHEN</text>
+<text x="404" y="561" fill="#78909c" font-size="8">L1  Kitchen Lighting            10A MCB  1.5mm²</text>
+<text x="628" y="561" fill="#546e7a" font-size="7.5">IP65 C1 + surface fittings</text>
+<text x="404" y="575" fill="#78909c" font-size="8">P1  Kitchen Sockets             20A RCBO 2.5mm²</text>
+<text x="628" y="575" fill="#546e7a" font-size="7.5">13A 2G + USB outlets</text>
+<text x="404" y="589" fill="#ffd54f" font-size="8">K2  Kitchen Cooker (CCU)        45A RCBO 10mm²</text>
+<text x="628" y="589" fill="#546e7a" font-size="7.5">45A DP + 13A FCU (pg.4)</text>
+<text x="404" y="603" fill="#ffd54f" font-size="8">H4  Kitchen Water Heater        20A RCBO 4mm²</text>
+<text x="628" y="603" fill="#546e7a" font-size="7.5">20A DP neon (pg.4 DP sym)</text>
+<text x="404" y="617" fill="#78909c" font-size="8">TP  5-pin 3Ø Socket (400V)      32A RCBO 6mm²</text>
+<text x="628" y="617" fill="#546e7a" font-size="7.5">Industrial 3Ø outlet (pg.4)</text>
+<line x1="404" y1="622" x2="744" y2="622" stroke="#2a1008" stroke-width="0.8"/>
+
+<!-- DB02 Sauna circuits -->
+<text x="404" y="635" fill="#ff8f00" font-size="8" font-weight="bold" letter-spacing="1">🔥 SAUNA (IEC 60364-7-703)</text>
+<text x="404" y="649" fill="#78909c" font-size="8">SA1 Sauna Heater (9kW unit)     40A RCBO 10mm²</text>
+<text x="628" y="649" fill="#546e7a" font-size="7.5">Harvia/Tylö 9kW 240V 1Ø</text>
+<text x="404" y="663" fill="#78909c" font-size="8">SA2 Sauna Lighting (IP65)       6A MCB   1.5mm²</text>
+<text x="628" y="663" fill="#546e7a" font-size="7.5">SELV/heat-resistant 90°C</text>
+<text x="404" y="677" fill="#78909c" font-size="8">SA3 Sauna Ventilation           10A MCB  1.5mm²</text>
+<text x="628" y="677" fill="#546e7a" font-size="7.5">Fan + thermo-hygrometer ctrl</text>
+<text x="404" y="691" fill="#78909c" font-size="7.5">   Overheat thermostat: 110°C  |  All cables heat-resist 90°C min</text>
+<line x1="404" y1="696" x2="744" y2="696" stroke="#2a1008" stroke-width="0.8"/>
+
+<!-- DB02 Billiard / Entertainment circuits -->
+<text x="404" y="709" fill="#80cbc4" font-size="8" font-weight="bold" letter-spacing="1">BILLIARD TABLE / OUTDOOR ENTERTAINMENT AREA</text>
+<text x="404" y="723" fill="#78909c" font-size="8">L2  Billiard/Out-Door Lighting   10A MCB  2.5mm²</text>
+<text x="628" y="723" fill="#546e7a" font-size="7.5">60W LED linear surface IP44</text>
+<text x="404" y="737" fill="#78909c" font-size="8">P2  Billiard Area Sockets        20A RCBO 2.5mm²</text>
+<text x="628" y="737" fill="#546e7a" font-size="7.5">13A IP44 weatherproof</text>
+<line x1="404" y1="742" x2="744" y2="742" stroke="#2a1008" stroke-width="0.8"/>
+
+<!-- DB02 Bedroom 2 / WC circuits -->
+<text x="404" y="755" fill="#ce93d8" font-size="8" font-weight="bold" letter-spacing="1">BEDROOM 2 + WC/SH + TOILETS</text>
+<text x="404" y="769" fill="#78909c" font-size="8">L3  Bed2 Lighting               10A MCB  1.5mm²</text>
+<text x="628" y="769" fill="#546e7a" font-size="7.5">D1/D2 downlights + switch</text>
+<text x="404" y="783" fill="#78909c" font-size="8">L4  Toilets + WC/SH Lighting    6A MCB   1.5mm²</text>
+<text x="628" y="783" fill="#546e7a" font-size="7.5">IP65 C1 flush ceiling</text>
+<text x="404" y="797" fill="#78909c" font-size="8">P3  Bed2 Sockets                16A RCBO 2.5mm²</text>
+<text x="628" y="797" fill="#546e7a" font-size="7.5">13A + USB outlets</text>
+<text x="404" y="811" fill="#78909c" font-size="8">SC  Security Lights (photocell)  6A MCB   1.5mm²</text>
+<text x="628" y="811" fill="#546e7a" font-size="7.5">6A photocell (B bulkhead)</text>
+<line x1="404" y1="816" x2="744" y2="816" stroke="#2a1008" stroke-width="0.8"/>
+<text x="404" y="828" fill="#4fc3f7" font-size="7.5">Sauna: IEC 60364-7-703 | All sauna cable: HELKAMA 3×4mm² RKUB heat-resist</text>
+<text x="404" y="841" fill="#4fc3f7" font-size="7.5">Sauna: Zone 1 (above 1.0m from heater) — only heating appliances permitted</text>
+<text x="404" y="854" fill="#4fc3f7" font-size="7.5">Earth: 6mm² CPC | Sauna metalwork bonded: 6mm² to MET rail</text>
+<text x="404" y="867" fill="#f9a825" font-size="8" font-weight="bold">Total DB02 load: ~25 kW  |  Max demand: ~50A incl. sauna</text>
+<text x="404" y="880" fill="#78909c" font-size="7.5">5-pin 3Ø socket: CEE IEC 60309 (BS EN 60309-2) 400V 32A 3P+N+E</text>
+<text x="404" y="893" fill="#78909c" font-size="7.5">CCU symbol confirmed on kitchen layout page 4 — 45A DP + 13A FCU</text>
+
+<!-- ─────────── CIRCUIT 3: SWIMMING POOL DB 32A ─────────── -->
+<line x1="870" y1="390" x2="870" y2="408" stroke="#29b6f6" stroke-width="2.5"/>
+<rect x="842" y="408" width="56" height="24" rx="3" fill="#111e2e" stroke="#29b6f6" stroke-width="1.8"/>
+<line x1="852" y1="420" x2="888" y2="420" stroke="#29b6f6" stroke-width="1.5"/>
+<line x1="860" y1="413" x2="880" y2="427" stroke="#29b6f6" stroke-width="1.5"/>
+<circle cx="852" cy="420" r="2.5" fill="#29b6f6"/>
+<circle cx="888" cy="420" r="2.5" fill="#29b6f6"/>
+<text x="870" y="443" text-anchor="middle" fill="#29b6f6" font-size="8.5" font-weight="bold">40A RCBO</text>
+<text x="870" y="453" text-anchor="middle" fill="#78909c" font-size="7">30mA Type A</text>
+<line x1="870" y1="432" x2="870" y2="458" stroke="#29b6f6" stroke-width="2.5"/>
+<rect x="840" y="450" width="60" height="12" rx="2" fill="#101828" stroke="#37474f" stroke-width="0.8"/>
+<text x="870" y="459" text-anchor="middle" fill="#90caf9" font-size="7">16mm² 4c SWA</text>
+<line x1="870" y1="462" x2="870" y2="480" stroke="#29b6f6" stroke-width="2.5"/>
+
+<!-- Pool DB box -->
+<rect x="770" y="480" width="200" height="420" rx="6" fill="#0a1828" stroke="#29b6f6" stroke-width="2"/>
+<rect x="770" y="480" width="200" height="22" rx="6" fill="#102030" stroke="#29b6f6" stroke-width="2"/>
+<text x="870" y="497" text-anchor="middle" fill="#29b6f6" font-size="10" font-weight="bold">🏊 POOL DB</text>
+<text x="870" y="516" text-anchor="middle" fill="#90caf9" font-size="8.5" font-weight="bold">Incomer: 40A DP  |  IP65</text>
+<text x="780" y="532" text-anchor="middle" fill="#78909c" font-size="7.5">Pool area: IEC 60364-7-702</text>
+<line x1="780" y1="537" x2="960" y2="537" stroke="#102030" stroke-width="0.8"/>
+<text x="780" y="552" fill="#78909c" font-size="8">PU1 Pool Pump/Filter   20A RCBO</text>
+<text x="780" y="566" fill="#f9a825" font-size="8">    1.5kW submersible / IP68</text>
+<text x="780" y="580" fill="#78909c" font-size="8">PL1 Pool Lighting      10A RCBO</text>
+<text x="780" y="594" fill="#f9a825" font-size="8">    12V SELV transformer + LED</text>
+<text x="780" y="608" fill="#f9a825" font-size="7.5">    All in Zone 0: IP68 min</text>
+<text x="780" y="624" fill="#78909c" font-size="8">PH1 Pool Heater        32A RCBO</text>
+<text x="780" y="638" fill="#f9a825" font-size="8">    7kW electric heat pump</text>
+<text x="780" y="652" fill="#78909c" font-size="8">PC1 Chemical Dosing    10A MCB</text>
+<text x="780" y="666" fill="#78909c" font-size="8">PM1 Pool Cover Motor   10A MCB</text>
+<text x="780" y="680" fill="#78909c" font-size="8">PP1 Control Panel/timer 6A MCB</text>
+<line x1="780" y1="686" x2="960" y2="686" stroke="#102030" stroke-width="0.8"/>
+<text x="780" y="700" fill="#4fc3f7" font-size="7.5">Zone 0: IP68 (submerged)</text>
+<text x="780" y="713" fill="#4fc3f7" font-size="7.5">Zone 1: IP55 (0-2m pool edge)</text>
+<text x="780" y="726" fill="#4fc3f7" font-size="7.5">Zone 2: IP44 (2-3.5m edge)</text>
+<text x="780" y="742" fill="#4fc3f7" font-size="7.5">Equipotential bonding ring:</text>
+<text x="780" y="755" fill="#4fc3f7" font-size="7.5">4mm² Cu — all pool metalwork</text>
+<text x="780" y="768" fill="#4fc3f7" font-size="7.5">to MET. PELV lighting only</text>
+<text x="780" y="781" fill="#4fc3f7" font-size="7.5">in Zone 0 (max 12V SELV)</text>
+<text x="780" y="797" fill="#f9a825" font-size="7.5" font-weight="bold">Pool load: ~11kW / ~46A</text>
+<text x="780" y="810" fill="#78909c" font-size="7">No 13A sockets within 3.5m</text>
+<text x="780" y="823" fill="#78909c" font-size="7">of pool edge (IEC 60364-7-702)</text>
+<text x="780" y="836" fill="#78909c" font-size="7">RCBO type A for VFD pumps</text>
+<text x="780" y="850" fill="#78909c" font-size="7">SWA cable, buried 600mm</text>
+<text x="780" y="863" fill="#78909c" font-size="7">min from pool structure</text>
+<text x="780" y="879" fill="#f9a825" font-size="7.5" font-weight="bold">All RCDs tested 6-monthly</text>
+
+<!-- ─────────── CIRCUIT 4: AUTO ELECTRIC GATE 20A ─────────── -->
+<line x1="1130" y1="390" x2="1130" y2="408" stroke="#ab47bc" stroke-width="2.5"/>
+<rect x="1102" y="408" width="56" height="24" rx="3" fill="#111e2e" stroke="#ab47bc" stroke-width="1.8"/>
+<line x1="1112" y1="420" x2="1148" y2="420" stroke="#ab47bc" stroke-width="1.5"/>
+<line x1="1120" y1="413" x2="1140" y2="427" stroke="#ab47bc" stroke-width="1.5"/>
+<circle cx="1112" cy="420" r="2.5" fill="#ab47bc"/>
+<circle cx="1148" cy="420" r="2.5" fill="#ab47bc"/>
+<text x="1130" y="443" text-anchor="middle" fill="#ab47bc" font-size="8.5" font-weight="bold">20A RCBO</text>
+<text x="1130" y="453" text-anchor="middle" fill="#78909c" font-size="7">30mA / Type B</text>
+<line x1="1130" y1="432" x2="1130" y2="458" stroke="#ab47bc" stroke-width="2.5"/>
+<rect x="1100" y="450" width="60" height="12" rx="2" fill="#101828" stroke="#37474f" stroke-width="0.8"/>
+<text x="1130" y="459" text-anchor="middle" fill="#90caf9" font-size="7">6mm² 4c SWA</text>
+<line x1="1130" y1="462" x2="1130" y2="480" stroke="#ab47bc" stroke-width="2.5"/>
+
+<!-- Gate DB box -->
+<rect x="980" y="480" width="300" height="380" rx="6" fill="#160e20" stroke="#ab47bc" stroke-width="2"/>
+<rect x="980" y="480" width="300" height="22" rx="6" fill="#200e30" stroke="#ab47bc" stroke-width="2"/>
+<text x="1130" y="497" text-anchor="middle" fill="#ab47bc" font-size="10" font-weight="bold">⚡ AUTO ELECTRIC GATE</text>
+<text x="1130" y="516" text-anchor="middle" fill="#90caf9" font-size="8.5" font-weight="bold">Incomer: 20A DP  |  IP54 ctrl panel</text>
+<text x="1130" y="530" text-anchor="middle" fill="#78909c" font-size="7.5">Location: Gate pillar panel</text>
+<line x1="990" y1="535" x2="1270" y2="535" stroke="#200e30" stroke-width="0.8"/>
+<text x="990" y="550" fill="#78909c" font-size="8">GM1 Gate Motor Drive     16A MCB</text>
+<text x="990" y="564" fill="#f9a825" font-size="8">    Sliding gate 400W motor 24V</text>
+<text x="990" y="578" fill="#f9a825" font-size="7.5">    or Swing 300W (site dependent)</text>
+<text x="990" y="594" fill="#78909c" font-size="8">GV1 Video Intercom       6A MCB</text>
+<text x="990" y="608" fill="#f9a825" font-size="7.5">    7" colour monitor + outdoor cam</text>
+<text x="990" y="624" fill="#78910c" font-size="8">GL1 Gate Pillar Lights   10A MCB</text>
+<text x="990" y="638" fill="#f9a825" font-size="7.5">    2× PIR floodlights IP44</text>
+<text x="990" y="654" fill="#78909c" font-size="8">GB1 Battery Backup UPS   6A MCB</text>
+<text x="990" y="668" fill="#f9a825" font-size="7.5">    2× 12V 65Ah AGM (24V system)</text>
+<text x="990" y="682" fill="#f9a825" font-size="7.5">    Backup opens gate 80+ cycles</text>
+<text x="990" y="698" fill="#78909c" font-size="8">GC1 Control Board / GSM  6A MCB</text>
+<text x="990" y="712" fill="#f9a825" font-size="7.5">    GSM module: remote open/close</text>
+<text x="990" y="726" fill="#f9a825" font-size="7.5">    App + keypad + remote fob</text>
+<text x="990" y="742" fill="#78909c" font-size="8">GS1 Safety Photo-cells   6A MCB</text>
+<text x="990" y="756" fill="#f9a825" font-size="7.5">    Infra-red beam anti-crush</text>
+<line x1="990" y1="762" x2="1270" y2="762" stroke="#200e30" stroke-width="0.8"/>
+<text x="990" y="776" fill="#4fc3f7" font-size="7.5">Auto-close timer: 30 sec</text>
+<text x="990" y="790" fill="#4fc3f7" font-size="7.5">Soft start/stop: yes</text>
+<text x="990" y="804" fill="#4fc3f7" font-size="7.5">Manual release: key override</text>
+<text x="990" y="818" fill="#4fc3f7" font-size="7.5">Cable: SWA buried 600mm</text>
+<text x="990" y="832" fill="#f9a825" font-size="7.5" font-weight="bold">Gate total: ~1.5kW / ~7A</text>
+<text x="990" y="846" fill="#78909c" font-size="7">BS EN 12453 safety std</text>
+
+<!-- ─────────── CIRCUIT 5: SECURITY + EXTERNAL LIGHTING 16A ─────────── -->
+<line x1="1450" y1="390" x2="1450" y2="408" stroke="#ffd54f" stroke-width="2.5"/>
+<rect x="1422" y="408" width="56" height="24" rx="3" fill="#111e2e" stroke="#ffd54f" stroke-width="1.8"/>
+<line x1="1432" y1="420" x2="1468" y2="420" stroke="#ffd54f" stroke-width="1.5"/>
+<line x1="1440" y1="413" x2="1460" y2="427" stroke="#ffd54f" stroke-width="1.5"/>
+<circle cx="1432" cy="420" r="2.5" fill="#ffd54f"/>
+<circle cx="1468" cy="420" r="2.5" fill="#ffd54f"/>
+<text x="1450" y="443" text-anchor="middle" fill="#ffd54f" font-size="8.5" font-weight="bold">16A RCBO</text>
+<text x="1450" y="453" text-anchor="middle" fill="#78909c" font-size="7">30mA / Type A</text>
+<line x1="1450" y1="432" x2="1450" y2="458" stroke="#ffd54f" stroke-width="2.5"/>
+<rect x="1420" y="450" width="60" height="12" rx="2" fill="#101828" stroke="#37474f" stroke-width="0.8"/>
+<text x="1450" y="459" text-anchor="middle" fill="#90caf9" font-size="7">4mm² 3c SWA</text>
+<line x1="1450" y1="462" x2="1450" y2="480" stroke="#ffd54f" stroke-width="2.5"/>
+
+<!-- External / Security box -->
+<rect x="1300" y="480" width="300" height="360" rx="6" fill="#1a1a08" stroke="#ffd54f" stroke-width="2"/>
+<rect x="1300" y="480" width="300" height="22" rx="6" fill="#2a2a0a" stroke="#ffd54f" stroke-width="2"/>
+<text x="1450" y="497" text-anchor="middle" fill="#ffd54f" font-size="10" font-weight="bold">💡 EXTERNAL + SECURITY</text>
+<text x="1450" y="516" text-anchor="middle" fill="#90caf9" font-size="8.5" font-weight="bold">Incomer: 16A DP  |  IP55 enclosure</text>
+<line x1="1310" y1="521" x2="1590" y2="521" stroke="#2a2a0a" stroke-width="0.8"/>
+<text x="1310" y="536" fill="#78909c" font-size="8">EL1 Compound Perimeter   10A MCB</text>
+<text x="1310" y="550" fill="#f9a825" font-size="7.5">    B/C bulkhead IP65 DALI (pg.1)</text>
+<text x="1310" y="564" fill="#78909c" font-size="8">EL2 Driveway / Garden    10A MCB</text>
+<text x="1310" y="578" fill="#f9a825" font-size="7.5">    LED pathway lights IP44</text>
+<text x="1310" y="594" fill="#78909c" font-size="8">EL3 Photocell Sec. Main  6A MCB</text>
+<text x="1310" y="608" fill="#f9a825" font-size="7.5">    6A photocell ctrl (pg.1+2)</text>
+<text x="1310" y="624" fill="#78909c" font-size="8">EL4 Photocell Sec. Ext   6A MCB</text>
+<text x="1310" y="638" fill="#f9a825" font-size="7.5">    External bldg photocell</text>
+<text x="1310" y="654" fill="#78909c" font-size="8">EP1 External IP44 Sockets 16A RCBO</text>
+<text x="1310" y="668" fill="#f9a825" font-size="7.5">    13A IP44 weatherproof</text>
+<text x="1310" y="684" fill="#78909c" font-size="8">BH1 Borehole Pump         20A RCBO</text>
+<text x="1310" y="698" fill="#f9a825" font-size="7.5">    0.75kW submersible pump</text>
+<text x="1310" y="714" fill="#78909c" font-size="8">CC1 CCTV / Alarm          6A MCB</text>
+<text x="1310" y="728" fill="#f9a825" font-size="7.5">    DVR + 4 cameras IP66</text>
+<line x1="1310" y1="734" x2="1590" y2="734" stroke="#2a2a0a" stroke-width="0.8"/>
+<text x="1310" y="748" fill="#4fc3f7" font-size="7.5">All SWA cables directly buried</text>
+<text x="1310" y="762" fill="#4fc3f7" font-size="7.5">min 500mm depth with marker tape</text>
+<text x="1310" y="776" fill="#4fc3f7" font-size="7.5">B bulkhead: 20W DALI IP65 (Radiant)</text>
+<text x="1310" y="790" fill="#4fc3f7" font-size="7.5">C bulkhead: 20W Anti-Arab IP65 (Radiant)</text>
+<text x="1310" y="806" fill="#f9a825" font-size="7.5" font-weight="bold">Ext total: ~4kW / ~17A</text>
+<text x="1310" y="820" fill="#78909c" font-size="7">DALI bus shared with DB01 lighting</text>
+
+<!-- ─────────── CIRCUIT 6: CAR PARKING LIGHTS 10A ─────────── -->
+<line x1="1750" y1="390" x2="1750" y2="408" stroke="#80cbc4" stroke-width="2.5"/>
+<rect x="1722" y="408" width="56" height="24" rx="3" fill="#111e2e" stroke="#80cbc4" stroke-width="1.8"/>
+<line x1="1732" y1="420" x2="1768" y2="420" stroke="#80cbc4" stroke-width="1.5"/>
+<line x1="1740" y1="413" x2="1760" y2="427" stroke="#80cbc4" stroke-width="1.5"/>
+<circle cx="1732" cy="420" r="2.5" fill="#80cbc4"/>
+<circle cx="1768" cy="420" r="2.5" fill="#80cbc4"/>
+<text x="1750" y="443" text-anchor="middle" fill="#80cbc4" font-size="8.5" font-weight="bold">16A RCBO</text>
+<text x="1750" y="453" text-anchor="middle" fill="#78909c" font-size="7">30mA / Type A</text>
+<line x1="1750" y1="432" x2="1750" y2="458" stroke="#80cbc4" stroke-width="2.5"/>
+<rect x="1720" y="450" width="60" height="12" rx="2" fill="#101828" stroke="#37474f" stroke-width="0.8"/>
+<text x="1750" y="459" text-anchor="middle" fill="#90caf9" font-size="7">4mm² 3c SWA</text>
+<line x1="1750" y1="462" x2="1750" y2="480" stroke="#80cbc4" stroke-width="2.5"/>
+
+<!-- Car Parking box -->
+<rect x="1620" y="480" width="260" height="280" rx="6" fill="#0a1818" stroke="#80cbc4" stroke-width="2"/>
+<rect x="1620" y="480" width="260" height="22" rx="6" fill="#102020" stroke="#80cbc4" stroke-width="2"/>
+<text x="1750" y="497" text-anchor="middle" fill="#80cbc4" font-size="10" font-weight="bold">🅿 CAR PARKING</text>
+<text x="1750" y="516" text-anchor="middle" fill="#90caf9" font-size="8.5" font-weight="bold">Incomer: 16A DP  |  IP55</text>
+<text x="1750" y="530" text-anchor="middle" fill="#78909c" font-size="7.5">Site plan shows car park area</text>
+<line x1="1630" y1="535" x2="1870" y2="535" stroke="#102020" stroke-width="0.8"/>
+<text x="1630" y="552" fill="#78909c" font-size="8">CP1 Car Park Lights     10A MCB</text>
+<text x="1630" y="566" fill="#f9a825" font-size="7.5">    IP44 surface LED 60W</text>
+<text x="1630" y="580" fill="#78909c" font-size="8">CP2 Photocell Control   6A MCB</text>
+<text x="1630" y="594" fill="#f9a825" font-size="7.5">    Dusk-to-dawn auto</text>
+<text x="1630" y="610" fill="#78909c" font-size="8">CP3 Car Park Sockets    16A RCBO</text>
+<text x="1630" y="624" fill="#f9a825" font-size="7.5">    13A IP44 outlets</text>
+<text x="1630" y="640" fill="#78909c" font-size="8">CP4 Future EV Charge    32A RCBO</text>
+<text x="1630" y="654" fill="#546e7a" font-size="7.5">    Provision: conduit only</text>
+<line x1="1630" y1="660" x2="1870" y2="660" stroke="#102020" stroke-width="0.8"/>
+<text x="1630" y="675" fill="#4fc3f7" font-size="7.5">From site plan: car parking</text>
+<text x="1630" y="689" fill="#4fc3f7" font-size="7.5">area northwest of compound</text>
+<text x="1630" y="703" fill="#4fc3f7" font-size="7.5">Access road frontage 30.5m</text>
+<text x="1630" y="717" fill="#f9a825" font-size="7.5" font-weight="bold">Parking: ~3kW / ~13A</text>
+<text x="1630" y="731" fill="#78909c" font-size="7">Future: EV Mode 3 / 7.4kW</text>
+<text x="1630" y="745" fill="#78909c" font-size="7">Conduit provision req. now</text>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SECTION D — LIGHTING SCHEDULE (from drawings)
+══════════════════════════════════════════════════════════════ -->
+<rect x="10" y="1080" width="1880" height="22" rx="3" fill="#162030" stroke="#2e6da4" stroke-width="1"/>
+<text x="950" y="1096" text-anchor="middle" fill="#4fc3f7" font-size="10" font-weight="bold" letter-spacing="3">SECTION D — LUMINAIRE SCHEDULE  (extracted from AutoCAD drawings, page 1–4)</text>
+
+<rect x="10" y="1102" width="1880" height="310" rx="4" fill="#0c1520" stroke="#2e6da4" stroke-width="1"/>
+
+<!-- Table header -->
+<rect x="10" y="1102" width="1880" height="20" fill="#162030"/>
+<text x="30" y="1117" fill="#90caf9" font-size="8" font-weight="bold">REF</text>
+<text x="80" y="1117" fill="#90caf9" font-size="8" font-weight="bold">DESCRIPTION</text>
+<text x="480" y="1117" fill="#90caf9" font-size="8" font-weight="bold">MANUFACTURER / CAT NO</text>
+<text x="740" y="1117" fill="#90caf9" font-size="8" font-weight="bold">WATTAGE</text>
+<text x="810" y="1117" fill="#90caf9" font-size="8" font-weight="bold">CCT / CRI</text>
+<text x="900" y="1117" fill="#90caf9" font-size="8" font-weight="bold">LUMENS</text>
+<text x="980" y="1117" fill="#90caf9" font-size="8" font-weight="bold">IP</text>
+<text x="1030" y="1117" fill="#90caf9" font-size="8" font-weight="bold">DALI</text>
+<text x="1090" y="1117" fill="#90caf9" font-size="8" font-weight="bold">INTERFACE</text>
+<text x="1200" y="1117" fill="#90caf9" font-size="8" font-weight="bold">LIFETIME (L80)</text>
+<text x="1340" y="1117" fill="#90caf9" font-size="8" font-weight="bold">LOCATION</text>
+<text x="1580" y="1117" fill="#90caf9" font-size="8" font-weight="bold">SWITCHING</text>
+<text x="1740" y="1117" fill="#90caf9" font-size="8" font-weight="bold">NOTES</text>
+
+<line x1="10" y1="1122" x2="1890" y2="1122" stroke="#2e6da4" stroke-width="0.8"/>
+
+<!-- Luminaire rows -->
+<text x="30" y="1138" fill="#f9a825" font-size="8" font-weight="bold">LINEAR</text>
+<text x="80" y="1138" fill="#78909c" font-size="8">60W LED 1500mm Surface Linear Luminaire</text>
+<text x="480" y="1138" fill="#90caf9" font-size="8">THORN CONTUS  (or equal approved)</text>
+<text x="740" y="1138" fill="#78909c" font-size="8">60W</text>
+<text x="810" y="1138" fill="#78909c" font-size="8">4000K / CRI80</text>
+<text x="900" y="1138" fill="#78909c" font-size="8">7400lm</text>
+<text x="980" y="1138" fill="#78909c" font-size="8">IP44</text>
+<text x="1030" y="1138" fill="#4fc3f7" font-size="8">YES</text>
+<text x="1090" y="1138" fill="#78909c" font-size="8">DALI Interface  |  Type F2</text>
+<text x="1200" y="1138" fill="#78909c" font-size="8">50,000 hrs  L80</text>
+<text x="1340" y="1138" fill="#78909c" font-size="8">External/Billiard/Compound</text>
+<text x="1580" y="1138" fill="#78909c" font-size="8">DALI dimming</text>
+<text x="1740" y="1138" fill="#546e7a" font-size="7.5">Confirmed pages 1,3,4</text>
+
+<text x="30" y="1155" fill="#f9a825" font-size="8" font-weight="bold">TUBE</text>
+<text x="80" y="1155" fill="#78909c" font-size="8">20W LED 1200mm Surface Tube</text>
+<text x="480" y="1155" fill="#90caf9" font-size="8">As per specification</text>
+<text x="740" y="1155" fill="#78909c" font-size="8">20W</text>
+<text x="810" y="1155" fill="#78909c" font-size="8">4000K / CRI80</text>
+<text x="900" y="1155" fill="#78909c" font-size="8">2200lm</text>
+<text x="980" y="1155" fill="#78909c" font-size="8">IP20</text>
+<text x="1030" y="1155" fill="#78909c" font-size="8">—</text>
+<text x="1340" y="1155" fill="#78909c" font-size="8">Laundry / Store / Utility</text>
+<text x="1580" y="1155" fill="#78909c" font-size="8">1-way switch</text>
+
+<text x="30" y="1172" fill="#f9a825" font-size="8" font-weight="bold">D1</text>
+<text x="80" y="1172" fill="#78909c" font-size="8">1× 18W LED Downlight</text>
+<text x="480" y="1172" fill="#90caf9" font-size="8">Radiant BA20  (or equal approved)</text>
+<text x="740" y="1172" fill="#78909c" font-size="8">18W</text>
+<text x="810" y="1172" fill="#78909c" font-size="8">4000K / CRI80</text>
+<text x="900" y="1172" fill="#78909c" font-size="8">1400lm</text>
+<text x="980" y="1172" fill="#78909c" font-size="8">IP20</text>
+<text x="1030" y="1172" fill="#78909c" font-size="8">—</text>
+<text x="1340" y="1172" fill="#78909c" font-size="8">GF Dining, Lounge, Bedroom</text>
+<text x="1580" y="1172" fill="#78909c" font-size="8">2G 1-way / 2-way switches</text>
+<text x="1740" y="1172" fill="#546e7a" font-size="7.5">Pages 1,3 lighting plan</text>
+
+<text x="30" y="1189" fill="#f9a825" font-size="8" font-weight="bold">D2</text>
+<text x="80" y="1189" fill="#78909c" font-size="8">1× 18W LED Recessed Downlight 2700K warm</text>
+<text x="480" y="1189" fill="#90caf9" font-size="8">Radiant LBT003  (or equal approved)</text>
+<text x="740" y="1189" fill="#78909c" font-size="8">18W</text>
+<text x="810" y="1189" fill="#78909c" font-size="8">2700K / CRI90</text>
+<text x="900" y="1189" fill="#78909c" font-size="8">1300lm</text>
+<text x="980" y="1189" fill="#78909c" font-size="8">IP20</text>
+<text x="1030" y="1189" fill="#4fc3f7" font-size="8">—</text>
+<text x="1340" y="1189" fill="#78909c" font-size="8">Bedrooms (all), Bathrooms</text>
+<text x="1580" y="1189" fill="#78909c" font-size="8">2-way switch (2 doors)</text>
+<text x="1740" y="1189" fill="#546e7a" font-size="7.5">Warm tone for bedrooms</text>
+
+<text x="30" y="1206" fill="#f9a825" font-size="8" font-weight="bold">C1</text>
+<text x="80" y="1206" fill="#78909c" font-size="8">1× 18W IP65 Flush Ceiling (opal diffuser)</text>
+<text x="480" y="1206" fill="#90caf9" font-size="8">Radiant RB120  (or equal approved)</text>
+<text x="740" y="1206" fill="#78909c" font-size="8">18W</text>
+<text x="810" y="1206" fill="#78909c" font-size="8">4000K / CRI80</text>
+<text x="900" y="1206" fill="#78909c" font-size="8">1200lm</text>
+<text x="980" y="1206" fill="#4fc3f7" font-size="8">IP65</text>
+<text x="1340" y="1206" fill="#78909c" font-size="8">All Bathrooms, Sauna, Kitchen</text>
+<text x="1580" y="1206" fill="#78909c" font-size="8">1-way switch</text>
+<text x="1740" y="1206" fill="#546e7a" font-size="7.5">Mandatory IP65 in bathrooms</text>
+
+<text x="30" y="1223" fill="#f9a825" font-size="8" font-weight="bold">C2</text>
+<text x="80" y="1223" fill="#78909c" font-size="8">1× 36W Chrome Ceiling Luminaire (metal/glass)</text>
+<text x="480" y="1223" fill="#90caf9" font-size="8">As per specification</text>
+<text x="740" y="1223" fill="#78909c" font-size="8">36W</text>
+<text x="810" y="1223" fill="#78909c" font-size="8">3000K / CRI85</text>
+<text x="900" y="1223" fill="#78909c" font-size="8">3000lm</text>
+<text x="980" y="1223" fill="#78909c" font-size="8">IP20</text>
+<text x="1340" y="1223" fill="#78909c" font-size="8">Master Bed, Dining, Lounge</text>
+<text x="1580" y="1223" fill="#78909c" font-size="8">2-way (2G) switch</text>
+
+<text x="30" y="1240" fill="#f9a825" font-size="8" font-weight="bold">P1</text>
+<text x="80" y="1240" fill="#78909c" font-size="8">1× 60W Decorative Chrome Pendant  E27</text>
+<text x="480" y="1240" fill="#90caf9" font-size="8">Radiant PB20  (or equal approved)</text>
+<text x="740" y="1240" fill="#78909c" font-size="8">60W</text>
+<text x="810" y="1240" fill="#78909c" font-size="8">3000K / CRI85</text>
+<text x="900" y="1240" fill="#78909c" font-size="8">700lm</text>
+<text x="980" y="1240" fill="#78909c" font-size="8">IP20</text>
+<text x="1340" y="1240" fill="#78909c" font-size="8">Bedroom pendants, Lounge</text>
+<text x="1580" y="1240" fill="#78909c" font-size="8">To switch above (pg.1 note)</text>
+<text x="1740" y="1240" fill="#546e7a" font-size="7.5">"To switch above" note pg1</text>
+
+<text x="30" y="1257" fill="#f9a825" font-size="8" font-weight="bold">A</text>
+<text x="80" y="1257" fill="#78909c" font-size="8">Wall Mounted Chandelier</text>
+<text x="480" y="1257" fill="#90caf9" font-size="8">Radiant PB20</text>
+<text x="740" y="1257" fill="#78909c" font-size="8">60W</text>
+<text x="810" y="1257" fill="#78909c" font-size="8">3000K</text>
+<text x="980" y="1257" fill="#78909c" font-size="8">IP20</text>
+<text x="1340" y="1257" fill="#78909c" font-size="8">Staircase / Void / Hall</text>
+<text x="1580" y="1257" fill="#78909c" font-size="8">3G 2-way (stair switching)</text>
+
+<text x="30" y="1274" fill="#f9a825" font-size="8" font-weight="bold">B</text>
+<text x="80" y="1274" fill="#78909c" font-size="8">20W LED Wall Security Bulkhead (DALI)</text>
+<text x="480" y="1274" fill="#90caf9" font-size="8">Radiant — DALI Interface, IP65</text>
+<text x="740" y="1274" fill="#78909c" font-size="8">20W</text>
+<text x="810" y="1274" fill="#78909c" font-size="8">4000K / CRI80</text>
+<text x="900" y="1274" fill="#78909c" font-size="8">1800lm</text>
+<text x="980" y="1274" fill="#4fc3f7" font-size="8">IP65</text>
+<text x="1030" y="1274" fill="#4fc3f7" font-size="8">YES</text>
+<text x="1340" y="1274" fill="#78909c" font-size="8">External walls, perimeter</text>
+<text x="1580" y="1274" fill="#78909c" font-size="8">Photocell 6A auto control</text>
+
+<text x="30" y="1291" fill="#f9a825" font-size="8" font-weight="bold">C</text>
+<text x="80" y="1291" fill="#78909c" font-size="8">20W LED Anti-Vandal Bulkhead (DALI)</text>
+<text x="480" y="1291" fill="#90caf9" font-size="8">Radiant — DALI Interface, IP65</text>
+<text x="740" y="1291" fill="#78909c" font-size="8">20W</text>
+<text x="810" y="1291" fill="#78909c" font-size="8">4000K</text>
+<text x="980" y="1291" fill="#4fc3f7" font-size="8">IP65</text>
+<text x="1030" y="1291" fill="#4fc3f7" font-size="8">YES</text>
+<text x="1340" y="1291" fill="#78909c" font-size="8">First floor external / gate area</text>
+<text x="1580" y="1291" fill="#78909c" font-size="8">Photocell controlled</text>
+
+<text x="30" y="1308" fill="#f9a825" font-size="8" font-weight="bold">CH1</text>
+<text x="80" y="1308" fill="#78909c" font-size="8">8× 60W 1.9m Chandelier</text>
+<text x="480" y="1308" fill="#90caf9" font-size="8">Radiant 3P073/Teal  (or equal approved)</text>
+<text x="740" y="1308" fill="#78909c" font-size="8">8× 60W = 480W</text>
+<text x="810" y="1308" fill="#78909c" font-size="8">3000K / E27</text>
+<text x="980" y="1308" fill="#78909c" font-size="8">IP20</text>
+<text x="1340" y="1308" fill="#78909c" font-size="8">Dining Area (main house)</text>
+<text x="1580" y="1308" fill="#78909c" font-size="8">3G 2-way dimmer switch</text>
+<text x="1740" y="1308" fill="#546e7a" font-size="7.5">Confirms chandeliers in dining</text>
+
+<text x="30" y="1325" fill="#f9a825" font-size="8" font-weight="bold">CH2</text>
+<text x="80" y="1325" fill="#78909c" font-size="8">3× 60W Antique Cream Chandelier (E27)</text>
+<text x="480" y="1325" fill="#90caf9" font-size="8">Radiant JP436  (or equal approved)</text>
+<text x="740" y="1325" fill="#78909c" font-size="8">3× 60W = 180W</text>
+<text x="810" y="1325" fill="#78909c" font-size="8">3000K / E27 Amber</text>
+<text x="980" y="1325" fill="#78909c" font-size="8">IP20</text>
+<text x="1340" y="1325" fill="#78909c" font-size="8">Lounge / Master Bedroom</text>
+<text x="1580" y="1325" fill="#78909c" font-size="8">2G dimmer switch</text>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SECTION E — SOCKET / SWITCH / CONTROL SCHEDULE
+══════════════════════════════════════════════════════════════ -->
+<rect x="10" y="1420" width="1880" height="22" rx="3" fill="#162030" stroke="#2e6da4" stroke-width="1"/>
+<text x="950" y="1436" text-anchor="middle" fill="#4fc3f7" font-size="10" font-weight="bold" letter-spacing="3">SECTION E — SOCKET / SWITCH / SPECIALIST OUTLET SCHEDULE</text>
+
+<rect x="10" y="1442" width="920" height="220" rx="4" fill="#0c1520" stroke="#2e6da4" stroke-width="1"/>
+<text x="20" y="1458" fill="#90caf9" font-size="8.5" font-weight="bold">SOCKET OUTLETS (BS 1363)</text>
+<text x="20" y="1472" fill="#78909c" font-size="8">13A SP 1-Gang switched socket outlet           — rooms, all locations</text>
+<text x="20" y="1486" fill="#78909c" font-size="8">13A SP 2-Gang switched socket outlet           — bedrooms (pairs)</text>
+<text x="20" y="1500" fill="#78909c" font-size="8">13A 2-Gang + 2A USB charging outlet            — master bed, bedrooms (USB-A)</text>
+<text x="20" y="1514" fill="#78909c" font-size="8">20A DP Control Switch + neon + water heater    — bathrooms (DP for WH)</text>
+<text x="20" y="1528" fill="#78909c" font-size="8">45A DP main switch + 13A socket (CCU)          — kitchen(s): marked COOKER</text>
+<text x="20" y="1542" fill="#78909c" font-size="8">5-pin 3-phase socket (CEE 400V 32A 3P+N+E)    — external building (pg.4)</text>
+<text x="20" y="1556" fill="#4fc3f7" font-size="8" font-weight="bold">SWITCHES</text>
+<text x="20" y="1570" fill="#78909c" font-size="8">1-Gang 1-way                          — individual luminaires (single control)</text>
+<text x="20" y="1584" fill="#78909c" font-size="8">2-Gang 1-way                          — 2 luminaires from one plate</text>
+<text x="20" y="1598" fill="#78909c" font-size="8">2-Gang 2-way                          — staircase, landing, corridor (2 points)</text>
+<text x="20" y="1612" fill="#78909c" font-size="8">3-Gang 2-way                          — chandeliers, large rooms (3 circuits)</text>
+<text x="20" y="1626" fill="#78909c" font-size="8">6A Photocell                          — security/external lighting (auto dusk-dawn)</text>
+<text x="20" y="1645" fill="#f9a825" font-size="7.5" font-weight="bold">NOTE: All sockets to be flush mounted — metal or white moulded as per interior schedule</text>
+<text x="20" y="1658" fill="#78909c" font-size="7.5">Bathrooms: shaver socket only within Zone 3 — 13A sockets min 3m from bath/shower</text>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SECTION E-2: MEP NOTES
+══════════════════════════════════════════════════════════════ -->
+<rect x="940" y="1442" width="950" height="220" rx="4" fill="#0c1520" stroke="#2e6da4" stroke-width="1"/>
+<text x="950" y="1458" fill="#90caf9" font-size="8.5" font-weight="bold">MECHANICAL / PLUMBING INTERFACE NOTES</text>
+<text x="950" y="1474" fill="#78909c" font-size="8">Water Heaters: 20A DP switch with neon indicator — one per bathroom/level</text>
+<text x="950" y="1488" fill="#78909c" font-size="8">   Main house 2-storey: minimum 3× water heater circuits (GF + FF Master + FF Beds)</text>
+<text x="950" y="1502" fill="#78909c" font-size="8">   External building: 1× water heater circuit (kitchen/bedroom 2 shared)</text>
+<text x="950" y="1516" fill="#78909c" font-size="8">Borehole/Pump: 20A RCBO dedicated — submersible 0.75kW (site plan shows compound)</text>
+<text x="950" y="1530" fill="#78909c" font-size="8">A/C Provisions: 20A RCBO per indoor unit — split system, location TBC by M&amp;E</text>
+<text x="950" y="1544" fill="#78909c" font-size="8">   Recommend: Inverter type (COP &gt;3.5) — trunking from DB to indoor unit position</text>
+<text x="950" y="1558" fill="#78909c" font-size="8">Sauna Ventilation: dedicated circuit — interlock with heater (vent off during heat phase)</text>
+<text x="950" y="1572" fill="#78909c" font-size="8">Pool Pump: timer-controlled — 8h/day filtration cycle (off-peak if tariff available)</text>
+<text x="950" y="1586" fill="#f9a825" font-size="8" font-weight="bold">Generator: Diesel, rated 7.5kVA — located external building plant area (page 4)</text>
+<text x="950" y="1600" fill="#f9a825" font-size="8" font-weight="bold">   ATS confirmed on page 4: automatic changeover — seamless switchover on mains failure</text>
+<text x="950" y="1614" fill="#78909c" font-size="8">   Generator start: auto on voltage drop below 180V | Cooldown: 3min before shutdown</text>
+<text x="950" y="1628" fill="#78909c" font-size="8">   Fuel tank: integral 10L + external 200L reserve — weekly test run recommended</text>
+<text x="950" y="1645" fill="#4fc3f7" font-size="7.5">Cable containment: PVC conduit in walls/ceilings | Steel conduit in plant areas | SWA for underground</text>
+<text x="950" y="1658" fill="#4fc3f7" font-size="7.5">All conduit runs to be continuous with inspection boxes ≤ 750mm from bends | Min 20mm dia. in walls</text>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SECTION F — LOAD SUMMARY
+══════════════════════════════════════════════════════════════ -->
+<rect x="10" y="1672" width="1880" height="22" rx="3" fill="#162030" stroke="#2e6da4" stroke-width="1"/>
+<text x="950" y="1688" text-anchor="middle" fill="#4fc3f7" font-size="10" font-weight="bold" letter-spacing="3">SECTION F — LOAD SCHEDULE &amp; DIVERSITY CALCULATION</text>
+
+<rect x="10" y="1694" width="1880" height="158" rx="4" fill="#0c1520" stroke="#2e6da4" stroke-width="1"/>
+<!-- Load table header -->
+<rect x="10" y="1694" width="1880" height="18" fill="#162030"/>
+<text x="30" y="1707" fill="#90caf9" font-size="8" font-weight="bold">CIRCUIT / BOARD</text>
+<text x="340" y="1707" fill="#90caf9" font-size="8" font-weight="bold">INCOMER MCB</text>
+<text x="480" y="1707" fill="#90caf9" font-size="8" font-weight="bold">INSTALLED kW</text>
+<text x="620" y="1707" fill="#90caf9" font-size="8" font-weight="bold">DIVERSITY FACTOR</text>
+<text x="800" y="1707" fill="#90caf9" font-size="8" font-weight="bold">MAX DEMAND kW</text>
+<text x="970" y="1707" fill="#90caf9" font-size="8" font-weight="bold">MAX DEMAND A</text>
+<text x="1120" y="1707" fill="#90caf9" font-size="8" font-weight="bold">CABLE</text>
+<text x="1270" y="1707" fill="#90caf9" font-size="8" font-weight="bold">PROTECTION</text>
+<text x="1480" y="1707" fill="#90caf9" font-size="8" font-weight="bold">SUPPLY PATH</text>
+<text x="1720" y="1707" fill="#90caf9" font-size="8" font-weight="bold">LOCATION</text>
+<line x1="10" y1="1712" x2="1890" y2="1712" stroke="#2e6da4" stroke-width="0.8"/>
+
+<text x="30" y="1728" fill="#78909c" font-size="8">DB01 Main House (GF + FF, 2-storey)</text>
+<text x="340" y="1728" fill="#66bb6a" font-size="8">63A RCBO 30mA</text>
+<text x="480" y="1728" fill="#78909c" font-size="8">42.0 kW</text>
+<text x="620" y="1728" fill="#78909c" font-size="8">0.65</text>
+<text x="800" y="1728" fill="#78909c" font-size="8">27.3 kW</text>
+<text x="970" y="1728" fill="#78909c" font-size="8">~114A → 55A</text>
+<text x="1120" y="1728" fill="#78909c" font-size="8">25mm² 4c SWA</text>
+<text x="1270" y="1728" fill="#78909c" font-size="8">63A RCBO Type B 30mA</text>
+<text x="1480" y="1728" fill="#78909c" font-size="8">MDB → DB01 in main house</text>
+<text x="1720" y="1728" fill="#78909c" font-size="8">Main house hallway/utility</text>
+
+<text x="30" y="1745" fill="#78909c" font-size="8">DB02 External Bldg (Kitchen/Sauna/Billiard)</text>
+<text x="340" y="1745" fill="#ff7043" font-size="8">50A RCBO 30mA</text>
+<text x="480" y="1745" fill="#78909c" font-size="8">25.5 kW</text>
+<text x="620" y="1745" fill="#78909c" font-size="8">0.70</text>
+<text x="800" y="1745" fill="#78909c" font-size="8">17.9 kW</text>
+<text x="970" y="1745" fill="#78909c" font-size="8">~106A → 50A</text>
+<text x="1120" y="1745" fill="#78909c" font-size="8">16mm² 4c SWA</text>
+<text x="1270" y="1745" fill="#78909c" font-size="8">50A RCBO Type B 30mA</text>
+<text x="1480" y="1745" fill="#78909c" font-size="8">MDB → DB02 same building</text>
+<text x="1720" y="1745" fill="#78909c" font-size="8">External bldg plant room (pg4)</text>
+
+<text x="30" y="1762" fill="#78909c" font-size="8">Swimming Pool Distribution Board</text>
+<text x="340" y="1762" fill="#29b6f6" font-size="8">40A RCBO 30mA Type A</text>
+<text x="480" y="1762" fill="#78909c" font-size="8">11.0 kW</text>
+<text x="620" y="1762" fill="#78909c" font-size="8">0.60</text>
+<text x="800" y="1762" fill="#78909c" font-size="8">6.6 kW</text>
+<text x="970" y="1762" fill="#78909c" font-size="8">~28A</text>
+<text x="1120" y="1762" fill="#78909c" font-size="8">16mm² 4c SWA</text>
+<text x="1270" y="1762" fill="#78909c" font-size="8">40A RCBO Type A 30mA</text>
+<text x="1480" y="1762" fill="#78909c" font-size="8">MDB → Pool plant room</text>
+<text x="1720" y="1762" fill="#78909c" font-size="8">Poolside IP65 enclosure</text>
+
+<text x="30" y="1779" fill="#78909c" font-size="8">Auto Electric Gate + Intercom + UPS</text>
+<text x="340" y="1779" fill="#ab47bc" font-size="8">20A RCBO 30mA Type B</text>
+<text x="480" y="1779" fill="#78909c" font-size="8">1.5 kW</text>
+<text x="620" y="1779" fill="#78909c" font-size="8">0.90</text>
+<text x="800" y="1779" fill="#78909c" font-size="8">1.4 kW</text>
+<text x="970" y="1779" fill="#78909c" font-size="8">~6A</text>
+<text x="1120" y="1779" fill="#78909c" font-size="8">6mm² 4c SWA</text>
+<text x="1270" y="1779" fill="#78909c" font-size="8">20A RCBO Type B 30mA</text>
+<text x="1480" y="1779" fill="#78909c" font-size="8">MDB → gate pillar panel</text>
+<text x="1720" y="1779" fill="#78909c" font-size="8">Gate pillar (see site plan pg1)</text>
+
+<text x="30" y="1796" fill="#78909c" font-size="8">External + Security Lighting + CCTV + Borehole</text>
+<text x="340" y="1796" fill="#ffd54f" font-size="8">16A RCBO 30mA Type A</text>
+<text x="480" y="1796" fill="#78909c" font-size="8">4.0 kW</text>
+<text x="620" y="1796" fill="#78909c" font-size="8">0.60</text>
+<text x="800" y="1796" fill="#78909c" font-size="8">2.4 kW</text>
+<text x="970" y="1796" fill="#78909c" font-size="8">~10A</text>
+<text x="1120" y="1796" fill="#78909c" font-size="8">4mm² 3c SWA</text>
+<text x="1270" y="1796" fill="#78909c" font-size="8">16A RCBO Type A 30mA</text>
+<text x="1480" y="1796" fill="#78909c" font-size="8">MDB → compound perimeter</text>
+<text x="1720" y="1796" fill="#78909c" font-size="8">External — weatherproof boxes</text>
+
+<text x="30" y="1813" fill="#78909c" font-size="8">Car Parking Area Lighting + Sockets</text>
+<text x="340" y="1813" fill="#80cbc4" font-size="8">16A RCBO 30mA Type A</text>
+<text x="480" y="1813" fill="#78909c" font-size="8">3.0 kW</text>
+<text x="620" y="1813" fill="#78909c" font-size="8">0.55</text>
+<text x="800" y="1813" fill="#78909c" font-size="8">1.7 kW</text>
+<text x="970" y="1813" fill="#78909c" font-size="8">~7A</text>
+<text x="1120" y="1813" fill="#78909c" font-size="8">4mm² 3c SWA</text>
+<text x="1270" y="1813" fill="#78909c" font-size="8">16A RCBO Type A 30mA</text>
+<text x="1480" y="1813" fill="#78909c" font-size="8">MDB → car park area (NW)</text>
+<text x="1720" y="1813" fill="#78909c" font-size="8">Site plan: NW compound (pg1)</text>
+
+<line x1="10" y1="1818" x2="1890" y2="1818" stroke="#2e6da4" stroke-width="1.2"/>
+<text x="30" y="1832" fill="#f9a825" font-size="9" font-weight="bold">TOTALS</text>
+<text x="480" y="1832" fill="#f9a825" font-size="9" font-weight="bold">87.0 kW installed</text>
+<text x="620" y="1832" fill="#f9a825" font-size="9" font-weight="bold">—</text>
+<text x="800" y="1832" fill="#f9a825" font-size="9" font-weight="bold">57.3 kW after diversity</text>
+<text x="970" y="1832" fill="#f9a825" font-size="9" font-weight="bold">~239A → ~88A after diversity</text>
+<text x="1120" y="1832" fill="#f9a825" font-size="8.5" font-weight="bold">100A Isolator + ATS rated 100A</text>
+<text x="1480" y="1832" fill="#78909c" font-size="8">Generator: 7.5kVA (~31A) — covers essential loads</text>
+<text x="1720" y="1832" fill="#78909c" font-size="8">80A MCCB MDB (site drawings)</text>
+<text x="30" y="1845" fill="#78909c" font-size="7.5">Diversity per IEE On-Site Guide Table 1B: First 3kW @ 100%, remainder @ 40% for domestic</text>
+<text x="900" y="1845" fill="#78909c" font-size="7.5">80A MCCB main board as per drawing legend — review with UMEME for supply capacity</text>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SECTION G — EARTHING + GENERAL NOTES
+══════════════════════════════════════════════════════════════ -->
+<rect x="10" y="1858" width="920" height="220" rx="4" fill="#0c1520" stroke="#4caf50" stroke-width="1.5"/>
+<text x="20" y="1875" fill="#4caf50" font-size="9" font-weight="bold">SECTION G — EARTHING, BONDING &amp; PROTECTION</text>
+<text x="20" y="1892" fill="#78909c" font-size="8">System:          TN-S throughout the installation</text>
+<text x="20" y="1906" fill="#78909c" font-size="8">Main Earth:      16mm² Cu CPC from MDB to 2× earth rods (1.2m, 3m apart)</text>
+<text x="20" y="1920" fill="#78909c" font-size="8">Earth rods:      Copper-bonded steel, 1.2m × 16mm, compound near MDB</text>
+<text x="20" y="1934" fill="#78909c" font-size="8">Main bonding:    10mm² Cu — water service, gas (if any), structural steel</text>
+<text x="20" y="1948" fill="#78909c" font-size="8">Supp. bonding:   4mm² Cu — all bath/shower room extraneous metalwork</text>
+<text x="20" y="1962" fill="#78909c" font-size="8">Pool bonding:    4mm² Cu ring equipotential — ALL pool metalwork to MET</text>
+<text x="20" y="1976" fill="#78909c" font-size="8">Sauna bonding:   6mm² Cu — metal frame, bench brackets, door frame to MET</text>
+<text x="20" y="1990" fill="#78909c" font-size="8">Gate bonding:    6mm² Cu — gate motor frame, fence, pillars to earth</text>
+<text x="20" y="2004" fill="#78909c" font-size="8">Generator:       Separately earthed to dedicated earth rod + bonded to MDB earth bar</text>
+<text x="20" y="2018" fill="#78909c" font-size="8">Testing:         Zs &lt; 1.0Ω at all points  |  Rcd: test every 6 months  |  Insulation: &gt;1MΩ</text>
+<text x="20" y="2032" fill="#4fc3f7" font-size="7.5">Inspection: Full installation test + EICR on completion before supply connection</text>
+<text x="20" y="2046" fill="#4fc3f7" font-size="7.5">ENA (UMEME) approval required for connection — submit as-built drawings for approval</text>
+<text x="20" y="2060" fill="#f9a825" font-size="7.5" font-weight="bold">PME not used at pool / sauna zones — local TT earthing for these areas</text>
+
+<!-- GENERAL NOTES -->
+<rect x="940" y="1858" width="950" height="220" rx="4" fill="#0c1520" stroke="#2e6da4" stroke-width="1.5"/>
+<text x="950" y="1875" fill="#4fc3f7" font-size="9" font-weight="bold">GENERAL NOTES</text>
+<text x="950" y="1890" fill="#78909c" font-size="8">① Drawings prepared by ICON CONSULTANTS, P.O. Box 6134, Kampala — Tel: 041-4540630</text>
+<text x="950" y="1904" fill="#78909c" font-size="8">② Standards: BS 7671:2018+A2:2022 (18th Ed.) | IEC 60364 | Uganda Electricity Act Cap 145</text>
+<text x="950" y="1918" fill="#78909c" font-size="8">③ 3 buildings: Main House (2-storey, octagonal) | External (Kitchen/Sauna/Billiard) | Pool/Gate</text>
+<text x="950" y="1932" fill="#78909c" font-size="8">④ MDB + Generator ATS located in external building plant room — confirmed drawing page 4</text>
+<text x="950" y="1946" fill="#78909c" font-size="8">⑤ DB01 in main house | DB02 in external building (local) — both fed from MDB via SWA</text>
+<text x="950" y="1960" fill="#78909c" font-size="8">⑥ All RCBO Type B for motor/inductive loads (sauna, pool pump, gate) — Type A for general</text>
+<text x="950" y="1974" fill="#78909c" font-size="8">⑦ Sauna: IEC 60364-7-703 | Pool: IEC 60364-7-702 | Gate: BS EN 12453 | External: IP44 min</text>
+<text x="950" y="1988" fill="#78909c" font-size="8">⑧ All cable sizes to be verified by voltage drop calc. for actual cable routes when confirmed</text>
+<text x="950" y="2002" fill="#78909c" font-size="8">⑨ DALI lighting bus: Thorn CONTUS + Radiant B/C bulkheads — wired per DALI protocol (IEC 62386)</text>
+<text x="950" y="2016" fill="#78909c" font-size="8">⑩ This schematic supersedes previous Rev 00 — no solar/battery provision in this design</text>
+<text x="950" y="2030" fill="#f9a825" font-size="7.5" font-weight="bold">⑪ Generator confirmed (page 4) — diesel auto-start. Solar/battery NOT in this project.</text>
+<text x="950" y="2044" fill="#78909c" font-size="7.5">⑫ As-built drawings to be issued after practical completion + full test &amp; inspection certificate</text>
+<text x="950" y="2058" fill="#78909c" font-size="7.5">⑬ Site: Plot 9711, Block 185, Kyadondo, Kampala  |  Client: Mr. Kakuba Roderic</text>
+
+<!-- STAMP -->
+<rect x="1620" y="2010" width="260" height="68" rx="3" fill="#101e2e" stroke="#3a8fc4" stroke-width="1.2"/>
+<text x="1750" y="2026" text-anchor="middle" fill="#4fc3f7" font-size="9" font-weight="bold">ICON CONSULTANTS</text>
+<text x="1750" y="2040" text-anchor="middle" fill="#78909c" font-size="8">Architecture, Engineering, Environment</text>
+<text x="1750" y="2053" text-anchor="middle" fill="#78909c" font-size="8">Drawing: SLD-ELEC-001  Rev P01</text>
+<text x="1750" y="2066" text-anchor="middle" fill="#f9a825" font-size="8" font-weight="bold">FOR COMMENT — NTS — A1</text>
+
+</svg>

@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 980" width="1400" height="980"
+     font-family="Arial, sans-serif">
+
+  <!-- ═══════════════════════════════════════════════════════
+       KAKUBA RODERIC — RESIDENTIAL SINGLE LINE DIAGRAM (SLD)
+       General Schematic — Electrical & MEP
+       Prepared by: STING MEP Engineering
+       Date: June 2026  |  Rev: P01
+       Standard: BS 7671 / IEC 60364
+  ═══════════════════════════════════════════════════════ -->
+
+  <!-- Background -->
+  <rect width="1400" height="980" fill="#0f1923"/>
+  <rect x="8" y="8" width="1384" height="964" fill="none" stroke="#3a8fc4" stroke-width="1.5"/>
+  <rect x="12" y="12" width="1376" height="956" fill="none" stroke="#3a8fc4" stroke-width="0.5"/>
+
+  <!-- ── TITLE BLOCK ── -->
+  <rect x="12" y="12" width="1376" height="52" fill="#192838" stroke="#3a8fc4" stroke-width="1"/>
+  <text x="700" y="32" text-anchor="middle" fill="#4fc3f7" font-size="15" font-weight="bold" letter-spacing="3">
+    KAKUBA RODERIC — RESIDENTIAL PROPERTY
+  </text>
+  <text x="700" y="52" text-anchor="middle" fill="#90caf9" font-size="11" letter-spacing="2">
+    GENERAL SCHEMATIC SINGLE LINE DIAGRAM (SLD) — ELECTRICAL &amp; MEP SERVICES
+  </text>
+  <text x="20" y="52" fill="#607d8b" font-size="8">BS 7671 / IEC 60364</text>
+  <text x="1380" y="52" text-anchor="end" fill="#607d8b" font-size="8">Rev P01 | June 2026</text>
+
+  <!-- ══════════════════════════════════════════════
+       LEVEL 0 — UTILITY SUPPLY
+  ══════════════════════════════════════════════ -->
+
+  <!-- Utility pole / supply symbol -->
+  <line x1="700" y1="75" x2="700" y2="100" stroke="#f9a825" stroke-width="2.5"/>
+  <!-- 3-phase lines coming from utility -->
+  <line x1="670" y1="82" x2="730" y2="82" stroke="#f9a825" stroke-width="1.5"/>
+  <line x1="670" y1="88" x2="730" y2="88" stroke="#f9a825" stroke-width="1.5"/>
+  <line x1="670" y1="94" x2="730" y2="94" stroke="#f9a825" stroke-width="1.5"/>
+  <line x1="680" y1="76" x2="680" y2="100" stroke="#607d8b" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <rect x="618" y="75" width="164" height="26" rx="3" fill="#192838" stroke="#f9a825" stroke-width="1"/>
+  <text x="700" y="93" text-anchor="middle" fill="#f9a825" font-size="10" font-weight="bold">UMEME / UTILITY SUPPLY</text>
+  <text x="700" y="107" text-anchor="middle" fill="#90caf9" font-size="9">3Ø 415V / 1Ø 240V  |  50 Hz  |  TN-S System</text>
+
+  <!-- Supply line down to meter -->
+  <line x1="700" y1="112" x2="700" y2="132" stroke="#f9a825" stroke-width="2.5"/>
+  <!-- 3 phase tick marks -->
+  <line x1="694" y1="118" x2="706" y2="118" stroke="#f9a825" stroke-width="1.5"/>
+  <line x1="694" y1="123" x2="706" y2="123" stroke="#f9a825" stroke-width="1.5"/>
+  <line x1="694" y1="128" x2="706" y2="128" stroke="#f9a825" stroke-width="1.5"/>
+
+  <!-- ── kWh ENERGY METER ── -->
+  <rect x="658" y="132" width="84" height="38" rx="4" fill="#1a2a3a" stroke="#4fc3f7" stroke-width="1.5"/>
+  <circle cx="700" cy="145" r="10" fill="none" stroke="#4fc3f7" stroke-width="1.2"/>
+  <text x="700" y="149" text-anchor="middle" fill="#4fc3f7" font-size="9">kWh</text>
+  <text x="700" y="164" text-anchor="middle" fill="#90caf9" font-size="8">ENERGY METER</text>
+
+  <!-- Line to main isolator -->
+  <line x1="700" y1="170" x2="700" y2="188" stroke="#f9a825" stroke-width="2.5"/>
+
+  <!-- ── MAIN ISOLATOR / CUTOUT ── -->
+  <rect x="668" y="188" width="64" height="26" rx="3" fill="#1a2a3a" stroke="#ef5350" stroke-width="1.8"/>
+  <line x1="680" y1="201" x2="720" y2="201" stroke="#ef5350" stroke-width="1.5"/>
+  <circle cx="680" cy="201" r="3" fill="#ef5350"/>
+  <circle cx="720" cy="201" r="3" fill="#ef5350"/>
+  <line x1="688" y1="196" x2="712" y2="206" stroke="#ef5350" stroke-width="1.5"/>
+  <text x="700" y="223" text-anchor="middle" fill="#ef5350" font-size="8.5">MAIN ISOLATOR 100A</text>
+
+  <!-- Line to MDB -->
+  <line x1="700" y1="226" x2="700" y2="248" stroke="#f9a825" stroke-width="2.5"/>
+
+  <!-- ══════════════════════════════════════════════
+       LEVEL 1 — MAIN DISTRIBUTION BOARD (MDB)
+  ══════════════════════════════════════════════ -->
+  <rect x="540" y="248" width="320" height="74" rx="5" fill="#1a2a3a" stroke="#4fc3f7" stroke-width="2"/>
+  <text x="700" y="264" text-anchor="middle" fill="#4fc3f7" font-size="11" font-weight="bold">MAIN DISTRIBUTION BOARD (MDB)</text>
+  <text x="700" y="278" text-anchor="middle" fill="#90caf9" font-size="9">Incomer: 100A MCCB  |  240/415V  |  IP54  |  Surface Mount</text>
+  <text x="700" y="291" text-anchor="middle" fill="#78909c" font-size="8">Surge Protection Device (SPD) Class II fitted  |  Earth Leakage Relay</text>
+  <text x="700" y="304" text-anchor="middle" fill="#78909c" font-size="8">Main Earth: 16mm² CPC to Earth Rod  |  MET bonding rail</text>
+  <text x="700" y="316" text-anchor="middle" fill="#f9a825" font-size="8.5" font-weight="bold">OUTGOING CIRCUITS ↓</text>
+
+  <!-- ══════════════════════════════════════════════
+       LEVEL 2 — 6 SUB-DISTRIBUTION BOARDS / FINAL CIRCUITS
+       Spread horizontally below MDB
+  ══════════════════════════════════════════════ -->
+
+  <!-- Bus bar line at top of circuits -->
+  <line x1="120" y1="340" x2="1280" y2="340" stroke="#f9a825" stroke-width="2.5"/>
+  <line x1="700" y1="322" x2="700" y2="340" stroke="#f9a825" stroke-width="2.5"/>
+
+  <!-- ─────────────────────────────────────────────
+       CIRCUIT 1 — MAIN HOUSE DB (63A)
+  ───────────────────────────────────────────── -->
+  <line x1="170" y1="340" x2="170" y2="360" stroke="#66bb6a" stroke-width="2.5"/>
+  <!-- RCBO symbol -->
+  <rect x="146" y="360" width="48" height="22" rx="3" fill="#1a2a3a" stroke="#66bb6a" stroke-width="1.5"/>
+  <text x="170" y="375" text-anchor="middle" fill="#66bb6a" font-size="8.5" font-weight="bold">63A RCBO</text>
+  <text x="170" y="388" text-anchor="middle" fill="#78909c" font-size="7.5">30mA / Тype B</text>
+  <line x1="170" y1="382" x2="170" y2="402" stroke="#66bb6a" stroke-width="2.5"/>
+  <!-- Cable label -->
+  <rect x="144" y="392" width="52" height="12" rx="2" fill="#192838" stroke="#455a64" stroke-width="0.8"/>
+  <text x="170" y="401" text-anchor="middle" fill="#90caf9" font-size="7">25mm² 4c SWA</text>
+  <line x1="170" y1="404" x2="170" y2="424" stroke="#66bb6a" stroke-width="2.5"/>
+
+  <!-- House DB box -->
+  <rect x="70" y="424" width="200" height="260" rx="6" fill="#1e2d1e" stroke="#66bb6a" stroke-width="2"/>
+  <rect x="70" y="424" width="200" height="22" rx="6" fill="#243324" stroke="#66bb6a" stroke-width="2"/>
+  <text x="170" y="439" text-anchor="middle" fill="#66bb6a" font-size="10" font-weight="bold">MAIN HOUSE DB</text>
+  <text x="170" y="458" text-anchor="middle" fill="#90caf9" font-size="8.5" font-weight="bold">Incomer: 63A DP MCB</text>
+  <!-- Sub circuits inside house DB -->
+  <text x="80" y="475" fill="#78909c" font-size="8">─ Lighting Cct 1    10A MCB  (10mm²)</text>
+  <text x="80" y="490" fill="#78909c" font-size="8">─ Lighting Cct 2    10A MCB  (10mm²)</text>
+  <text x="80" y="505" fill="#78909c" font-size="8">─ Power Sockets 1  20A RCBO (2.5mm²)</text>
+  <text x="80" y="520" fill="#78909c" font-size="8">─ Power Sockets 2  20A RCBO (2.5mm²)</text>
+  <text x="80" y="535" fill="#78909c" font-size="8">─ Kitchen Circuits  32A RCBO (6mm²)</text>
+  <text x="80" y="550" fill="#78909c" font-size="8">─ A/C Units         20A RCBO (4mm²)</text>
+  <text x="80" y="565" fill="#78909c" font-size="8">─ Water Heater      20A RCBO (4mm²)</text>
+  <text x="80" y="580" fill="#78909c" font-size="8">─ Alarm/CCTV       6A MCB  (1.5mm²)</text>
+  <text x="80" y="595" fill="#78909c" font-size="8">─ Spare             16A MCB</text>
+  <line x1="80" y1="602" x2="260" y2="602" stroke="#2d4a2d" stroke-width="0.8"/>
+  <text x="80" y="614" fill="#4fc3f7" font-size="7.5">Earth: 10mm² CPC  |  RCD upstream</text>
+  <text x="80" y="627" fill="#4fc3f7" font-size="7.5">Bonding: 10mm² to water/gas</text>
+  <text x="80" y="643" fill="#f9a825" font-size="7.5" font-weight="bold">Est. Load: ~38 kW diversified</text>
+  <text x="80" y="657" fill="#f9a825" font-size="7.5">PF: 0.85 lag  |  Max Demand: 40A</text>
+  <text x="80" y="672" fill="#78909c" font-size="7">Consumer Unit: 18-way DIN rail</text>
+
+  <!-- ─────────────────────────────────────────────
+       CIRCUIT 2 — ELECTRIC SAUNA DB
+  ───────────────────────────────────────────── -->
+  <line x1="400" y1="340" x2="400" y2="360" stroke="#ff7043" stroke-width="2.5"/>
+  <rect x="376" y="360" width="48" height="22" rx="3" fill="#1a2a3a" stroke="#ff7043" stroke-width="1.5"/>
+  <text x="400" y="375" text-anchor="middle" fill="#ff7043" font-size="8.5" font-weight="bold">32A RCBO</text>
+  <text x="400" y="388" text-anchor="middle" fill="#78909c" font-size="7.5">30mA / Type B</text>
+  <line x1="400" y1="382" x2="400" y2="402" stroke="#ff7043" stroke-width="2.5"/>
+  <rect x="374" y="392" width="52" height="12" rx="2" fill="#192838" stroke="#455a64" stroke-width="0.8"/>
+  <text x="400" y="401" text-anchor="middle" fill="#90caf9" font-size="7">10mm² 3c+E</text>
+  <line x1="400" y1="404" x2="400" y2="424" stroke="#ff7043" stroke-width="2.5"/>
+
+  <!-- Sauna DB box -->
+  <rect x="300" y="424" width="200" height="240" rx="6" fill="#2d1a14" stroke="#ff7043" stroke-width="2"/>
+  <rect x="300" y="424" width="200" height="22" rx="6" fill="#3d2018" stroke="#ff7043" stroke-width="2"/>
+  <text x="400" y="439" text-anchor="middle" fill="#ff7043" font-size="10" font-weight="bold">🔥 ELECTRIC SAUNA DB</text>
+  <text x="400" y="458" text-anchor="middle" fill="#90caf9" font-size="8.5" font-weight="bold">Incomer: 32A DP RCBO  |  IP55</text>
+  <text x="310" y="475" fill="#78909c" font-size="8">─ Sauna Heater     32A MCB (10mm²)</text>
+  <text x="310" y="490" fill="#f9a825" font-size="8">   Sauna Unit: 9kW / 240V / 1Ø</text>
+  <text x="310" y="505" fill="#f9a825" font-size="8">   Harvia / Tylö / Similar grade</text>
+  <text x="310" y="520" fill="#78909c" font-size="8">─ Sauna Lighting   10A MCB (1.5mm²)</text>
+  <text x="310" y="535" fill="#78909c" font-size="8">   IP65 rated fittings (heat zone)</text>
+  <text x="310" y="550" fill="#78909c" font-size="8">─ Sauna Ventilation 10A MCB</text>
+  <text x="310" y="565" fill="#78909c" font-size="8">   Thermo-hygrometer control</text>
+  <text x="310" y="580" fill="#78909c" font-size="8">─ Overheat thermostat (110°C)</text>
+  <text x="310" y="597" fill="#4fc3f7" font-size="7.5">Earth: 6mm² CPC  |  SELV lighting</text>
+  <text x="310" y="612" fill="#4fc3f7" font-size="7.5">All cabling: heat-resistant 90°C</text>
+  <text x="310" y="627" fill="#f9a825" font-size="7.5" font-weight="bold">Est. Load: 9.5 kW / ~40A</text>
+  <text x="310" y="643" fill="#78909c" font-size="7">Zone 1-3 compliance: IEC 60364-7-703</text>
+
+  <!-- ─────────────────────────────────────────────
+       CIRCUIT 3 — SWIMMING POOL DB
+  ───────────────────────────────────────────── -->
+  <line x1="580" y1="340" x2="580" y2="360" stroke="#29b6f6" stroke-width="2.5"/>
+  <rect x="556" y="360" width="48" height="22" rx="3" fill="#1a2a3a" stroke="#29b6f6" stroke-width="1.5"/>
+  <text x="580" y="375" text-anchor="middle" fill="#29b6f6" font-size="8.5" font-weight="bold">40A RCBO</text>
+  <text x="580" y="388" text-anchor="middle" fill="#78909c" font-size="7.5">30mA / Type A</text>
+  <line x1="580" y1="382" x2="580" y2="402" stroke="#29b6f6" stroke-width="2.5"/>
+  <rect x="554" y="392" width="52" height="12" rx="2" fill="#192838" stroke="#455a64" stroke-width="0.8"/>
+  <text x="580" y="401" text-anchor="middle" fill="#90caf9" font-size="7">16mm² 3c+E</text>
+  <line x1="580" y1="404" x2="580" y2="424" stroke="#29b6f6" stroke-width="2.5"/>
+
+  <!-- Pool DB box -->
+  <rect x="490" y="424" width="180" height="260" rx="6" fill="#112233" stroke="#29b6f6" stroke-width="2"/>
+  <rect x="490" y="424" width="180" height="22" rx="6" fill="#1a3044" stroke="#29b6f6" stroke-width="2"/>
+  <text x="580" y="439" text-anchor="middle" fill="#29b6f6" font-size="10" font-weight="bold">🏊 POOL DB</text>
+  <text x="580" y="458" text-anchor="middle" fill="#90caf9" font-size="8.5" font-weight="bold">Incomer: 40A DP RCBO  |  IP65</text>
+  <text x="500" y="475" fill="#78909c" font-size="8">─ Pool Pump/Filter  20A RCBO</text>
+  <text x="500" y="490" fill="#f9a825" font-size="8">   Pump: 1.5kW / 240V / 1Ø</text>
+  <text x="500" y="505" fill="#78909c" font-size="8">─ Pool Lighting     10A RCBO</text>
+  <text x="500" y="520" fill="#f9a825" font-size="8">   12V SELV LED (transformer)</text>
+  <text x="500" y="535" fill="#78909c" font-size="8">─ Pool Heater       32A RCBO</text>
+  <text x="500" y="550" fill="#f9a825" font-size="8">   Electric: 7kW heat pump</text>
+  <text x="500" y="565" fill="#78909c" font-size="8">─ Chemical Dosing   10A MCB</text>
+  <text x="500" y="580" fill="#78909c" font-size="8">─ Cover Motor       10A MCB</text>
+  <text x="500" y="595" fill="#78909c" font-size="8">─ Control Panel     6A MCB</text>
+  <line x1="500" y1="603" x2="660" y2="603" stroke="#1a3044" stroke-width="0.8"/>
+  <text x="500" y="615" fill="#4fc3f7" font-size="7.5">Earth: 6mm² to pool bonding grid</text>
+  <text x="500" y="630" fill="#4fc3f7" font-size="7.5">Bonding: all metalwork equipotential</text>
+  <text x="500" y="645" fill="#f9a825" font-size="7.5" font-weight="bold">Est. Load: 11 kW / ~46A</text>
+  <text x="500" y="660" fill="#78909c" font-size="7">Zone 0-2: IEC 60364-7-702</text>
+  <text x="500" y="675" fill="#78909c" font-size="7">All eqpt: min IP68 (submerged)</text>
+
+  <!-- ─────────────────────────────────────────────
+       CIRCUIT 4 — ELECTRIC GATE
+  ───────────────────────────────────────────── -->
+  <line x1="760" y1="340" x2="760" y2="360" stroke="#ab47bc" stroke-width="2.5"/>
+  <rect x="736" y="360" width="48" height="22" rx="3" fill="#1a2a3a" stroke="#ab47bc" stroke-width="1.5"/>
+  <text x="760" y="375" text-anchor="middle" fill="#ab47bc" font-size="8.5" font-weight="bold">20A RCBO</text>
+  <text x="760" y="388" text-anchor="middle" fill="#78909c" font-size="7.5">30mA / Type B</text>
+  <line x1="760" y1="382" x2="760" y2="402" stroke="#ab47bc" stroke-width="2.5"/>
+  <rect x="734" y="392" width="52" height="12" rx="2" fill="#192838" stroke="#455a64" stroke-width="0.8"/>
+  <text x="760" y="401" text-anchor="middle" fill="#90caf9" font-size="7">4mm² 3c Armoured</text>
+  <line x1="760" y1="404" x2="760" y2="424" stroke="#ab47bc" stroke-width="2.5"/>
+
+  <!-- Gate box -->
+  <rect x="670" y="424" width="180" height="250" rx="6" fill="#1e1228" stroke="#ab47bc" stroke-width="2"/>
+  <rect x="670" y="424" width="180" height="22" rx="6" fill="#2d1a3d" stroke="#ab47bc" stroke-width="2"/>
+  <text x="760" y="439" text-anchor="middle" fill="#ab47bc" font-size="10" font-weight="bold">⚡ AUTO GATE DB</text>
+  <text x="760" y="458" text-anchor="middle" fill="#90caf9" font-size="8.5" font-weight="bold">Incomer: 20A DP RCBO  |  IP54</text>
+  <text x="680" y="475" fill="#78909c" font-size="8">─ Gate Motor Drive   16A MCB</text>
+  <text x="680" y="490" fill="#f9a825" font-size="8">   Sliding/Swing 400W motor</text>
+  <text x="680" y="505" fill="#78909c" font-size="8">─ Intercom/Video     6A MCB</text>
+  <text x="680" y="520" fill="#78909c" font-size="8">─ Perimeter Lighting 10A MCB</text>
+  <text x="680" y="535" fill="#78909c" font-size="8">─ UPS/Battery 12VDC  6A MCB</text>
+  <text x="680" y="550" fill="#f9a825" font-size="8">   Backup: 2×12V 60Ah AGM</text>
+  <text x="680" y="565" fill="#78909c" font-size="8">─ Control Board      6A MCB</text>
+  <text x="680" y="580" fill="#78909c" font-size="8">   Remote: GSM module</text>
+  <text x="680" y="595" fill="#78909c" font-size="8">─ Gate Lights (PIR)  10A MCB</text>
+  <text x="680" y="612" fill="#4fc3f7" font-size="7.5">Auto-close timer: 30 sec</text>
+  <text x="680" y="627" fill="#4fc3f7" font-size="7.5">Safety: photo-cell obstruction</text>
+  <text x="680" y="642" fill="#f9a825" font-size="7.5" font-weight="bold">Est. Load: 1.5 kW / ~7A</text>
+
+  <!-- ─────────────────────────────────────────────
+       CIRCUIT 5 — EXTERNAL SERVICES DB
+  ───────────────────────────────────────────── -->
+  <line x1="970" y1="340" x2="970" y2="360" stroke="#ffd54f" stroke-width="2.5"/>
+  <rect x="946" y="360" width="48" height="22" rx="3" fill="#1a2a3a" stroke="#ffd54f" stroke-width="1.5"/>
+  <text x="970" y="375" text-anchor="middle" fill="#ffd54f" font-size="8.5" font-weight="bold">20A RCBO</text>
+  <text x="970" y="388" text-anchor="middle" fill="#78909c" font-size="7.5">30mA / Type A</text>
+  <line x1="970" y1="382" x2="970" y2="402" stroke="#ffd54f" stroke-width="2.5"/>
+  <rect x="944" y="392" width="52" height="12" rx="2" fill="#192838" stroke="#455a64" stroke-width="0.8"/>
+  <text x="970" y="401" text-anchor="middle" fill="#90caf9" font-size="7">6mm² 3c SWA</text>
+  <line x1="970" y1="404" x2="970" y2="424" stroke="#ffd54f" stroke-width="2.5"/>
+
+  <!-- External Services DB box -->
+  <rect x="875" y="424" width="190" height="250" rx="6" fill="#1e1e10" stroke="#ffd54f" stroke-width="2"/>
+  <rect x="875" y="424" width="190" height="22" rx="6" fill="#2d2d14" stroke="#ffd54f" stroke-width="2"/>
+  <text x="970" y="439" text-anchor="middle" fill="#ffd54f" font-size="10" font-weight="bold">💡 EXTERNAL SERVICES</text>
+  <text x="970" y="458" text-anchor="middle" fill="#90caf9" font-size="8.5" font-weight="bold">Incomer: 20A DP RCBO  |  IP55</text>
+  <text x="885" y="475" fill="#78909c" font-size="8">─ External Lighting 1  10A MCB</text>
+  <text x="885" y="490" fill="#f9a825" font-size="8">   Garden / Driveway LEDs</text>
+  <text x="885" y="505" fill="#78909c" font-size="8">─ External Lighting 2  10A MCB</text>
+  <text x="885" y="520" fill="#f9a825" font-size="8">   Perimeter wall lights</text>
+  <text x="885" y="535" fill="#78909c" font-size="8">─ Garden Sockets       16A RCBO</text>
+  <text x="885" y="550" fill="#f9a825" font-size="8">   IP44 weatherproof</text>
+  <text x="885" y="565" fill="#78909c" font-size="8">─ Borehole/Pump        20A RCBO</text>
+  <text x="885" y="580" fill="#f9a825" font-size="8">   0.75kW submersible</text>
+  <text x="885" y="595" fill="#78909c" font-size="8">─ Security Lights PIR  10A MCB</text>
+  <text x="885" y="612" fill="#4fc3f7" font-size="7.5">All ext fittings: min IP44</text>
+  <text x="885" y="627" fill="#4fc3f7" font-size="7.5">Cable: SWA direct burial</text>
+  <text x="885" y="642" fill="#f9a825" font-size="7.5" font-weight="bold">Est. Load: 4 kW / ~17A</text>
+
+  <!-- ─────────────────────────────────────────────
+       CIRCUIT 6 — GENERATOR / UPS / SOLAR (FUTURE)
+  ───────────────────────────────────────────── -->
+  <line x1="1200" y1="340" x2="1200" y2="360" stroke="#26c6da" stroke-width="2.5" stroke-dasharray="6,3"/>
+  <rect x="1170" y="360" width="60" height="22" rx="3" fill="#1a2a3a" stroke="#26c6da" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <text x="1200" y="372" text-anchor="middle" fill="#26c6da" font-size="8" font-weight="bold">ATS/CHANGE</text>
+  <text x="1200" y="382" text-anchor="middle" fill="#26c6da" font-size="8">OVER SWITCH</text>
+  <line x1="1200" y1="382" x2="1200" y2="402" stroke="#26c6da" stroke-width="2.5" stroke-dasharray="6,3"/>
+  <rect x="1174" y="392" width="52" height="12" rx="2" fill="#192838" stroke="#455a64" stroke-width="0.8"/>
+  <text x="1200" y="401" text-anchor="middle" fill="#90caf9" font-size="7">Future provision</text>
+  <line x1="1200" y1="404" x2="1200" y2="424" stroke="#26c6da" stroke-width="2.5" stroke-dasharray="6,3"/>
+
+  <!-- Generator/UPS box -->
+  <rect x="1105" y="424" width="190" height="250" rx="6" fill="#112222" stroke="#26c6da" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <rect x="1105" y="424" width="190" height="22" rx="6" fill="#1a3333" stroke="#26c6da" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="1200" y="439" text-anchor="middle" fill="#26c6da" font-size="10" font-weight="bold">⚡ STANDBY / SOLAR</text>
+  <text x="1200" y="455" text-anchor="middle" fill="#ffd54f" font-size="8.5" font-style="italic">(Future Provision)</text>
+  <text x="1115" y="475" fill="#546e7a" font-size="8">─ Standby Generator    ATS</text>
+  <text x="1115" y="490" fill="#546e7a" font-size="8">   5kVA diesel / 240V</text>
+  <text x="1115" y="505" fill="#546e7a" font-size="8">─ Solar PV Array       MPPT</text>
+  <text x="1115" y="520" fill="#546e7a" font-size="8">   Roof: 8 × 400W panels</text>
+  <text x="1115" y="535" fill="#546e7a" font-size="8">─ Battery Storage      Inv.</text>
+  <text x="1115" y="550" fill="#546e7a" font-size="8">   5kWh lithium bank</text>
+  <text x="1115" y="565" fill="#546e7a" font-size="8">─ EV Charger Point     32A</text>
+  <text x="1115" y="580" fill="#546e7a" font-size="8">   Mode 3 / 7.4kW</text>
+  <text x="1115" y="595" fill="#546e7a" font-size="8">─ Critical load UPS    10A</text>
+  <text x="1115" y="615" fill="#26c6da" font-size="7.5" stroke-dasharray="none">Provision: cable containment</text>
+  <text x="1115" y="630" fill="#26c6da" font-size="7.5">routed from MDB. ATS sized</text>
+  <text x="1115" y="645" fill="#26c6da" font-size="7.5">for future 100A changeover.</text>
+
+  <!-- ══════════════════════════════════════════════
+       MEP NOTES PANEL — Right side
+  ══════════════════════════════════════════════ -->
+  <!-- Remove generator box since it's wide — let's add notes below the main diagram instead -->
+
+  <!-- ══════════════════════════════════════════════
+       EARTH & BONDING SCHEMATIC — bottom strip
+  ══════════════════════════════════════════════ -->
+  <rect x="12" y="730" width="860" height="110" rx="5" fill="#141e14" stroke="#4caf50" stroke-width="1.5"/>
+  <text x="442" y="748" text-anchor="middle" fill="#4caf50" font-size="10" font-weight="bold">EARTHING &amp; BONDING SCHEDULE</text>
+  <!-- Earth symbol -->
+  <line x1="40" y1="755" x2="40" y2="780" stroke="#4caf50" stroke-width="2"/>
+  <line x1="30" y1="780" x2="50" y2="780" stroke="#4caf50" stroke-width="2"/>
+  <line x1="33" y1="785" x2="47" y2="785" stroke="#4caf50" stroke-width="1.5"/>
+  <line x1="36" y1="790" x2="44" y2="790" stroke="#4caf50" stroke-width="1"/>
+  <text x="25" y="800" fill="#78909c" font-size="7.5">EARTH ROD</text>
+
+  <text x="60" y="765" fill="#78909c" font-size="8">Main Earth:         16mm² Cu CPC — MDB to 2× earth rods (min 1200mm depth)</text>
+  <text x="60" y="779" fill="#78909c" font-size="8">Main Bonding:       10mm² to incoming water/gas/oil service + structural steel</text>
+  <text x="60" y="793" fill="#78909c" font-size="8">Pool Equipotential: 4mm² Cu ring — all pool metalwork bonded to MET</text>
+  <text x="60" y="807" fill="#78909c" font-size="8">Sauna Bonding:      6mm² to metal frame + benches + door frame</text>
+  <text x="60" y="821" fill="#78909c" font-size="8">Gate Bonding:       6mm² to gate frame + motor case + fence sections</text>
+  <text x="60" y="832" fill="#78909c" font-size="8">System: TN-S throughout  |  PME earth not used at pool/sauna  |  Zs: &lt;1.0Ω at all points</text>
+
+  <!-- ══════════════════════════════════════════════
+       LOAD SCHEDULE SUMMARY — bottom right
+  ══════════════════════════════════════════════ -->
+  <rect x="882" y="730" width="506" height="110" rx="5" fill="#141420" stroke="#7e57c2" stroke-width="1.5"/>
+  <text x="1135" y="748" text-anchor="middle" fill="#7e57c2" font-size="10" font-weight="bold">LOAD SCHEDULE SUMMARY</text>
+  <text x="895" y="763" fill="#607d8b" font-size="8">Circuit                    Incomer    kW      A</text>
+  <line x1="895" y1="767" x2="1380" y2="767" stroke="#263238" stroke-width="0.8"/>
+  <text x="895" y="779" fill="#90caf9" font-size="8">Main House DB              63A RCBO   38.0   158  (div. 40A)</text>
+  <text x="895" y="791" fill="#90caf9" font-size="8">Electric Sauna             32A RCBO    9.5    40</text>
+  <text x="895" y="803" fill="#90caf9" font-size="8">Swimming Pool              40A RCBO   11.0    46</text>
+  <text x="895" y="815" fill="#90caf9" font-size="8">Auto Electric Gate         20A RCBO    1.5     7</text>
+  <text x="895" y="827" fill="#90caf9" font-size="8">External Services          20A RCBO    4.0    17</text>
+  <line x1="895" y1="830" x2="1380" y2="830" stroke="#263238" stroke-width="0.8"/>
+  <text x="895" y="840" fill="#f9a825" font-size="8" font-weight="bold">TOTAL INSTALLED            100A MCCB  64.0kW  max demand ~90A after diversity</text>
+
+  <!-- ══════════════════════════════════════════════
+       LEGEND
+  ══════════════════════════════════════════════ -->
+  <rect x="12" y="848" width="1376" height="100" rx="5" fill="#141820" stroke="#455a64" stroke-width="1"/>
+  <text x="700" y="864" text-anchor="middle" fill="#607d8b" font-size="9" font-weight="bold">LEGEND &amp; NOTES</text>
+
+  <!-- Legend items -->
+  <rect x="25" y="873" width="16" height="10" fill="#1a2a3a" stroke="#66bb6a" stroke-width="1.5"/>
+  <text x="46" y="882" fill="#90caf9" font-size="8">House DB</text>
+  <rect x="115" y="873" width="16" height="10" fill="#1a2a3a" stroke="#ff7043" stroke-width="1.5"/>
+  <text x="136" y="882" fill="#90caf9" font-size="8">Sauna DB</text>
+  <rect x="205" y="873" width="16" height="10" fill="#1a2a3a" stroke="#29b6f6" stroke-width="1.5"/>
+  <text x="226" y="882" fill="#90caf9" font-size="8">Pool DB</text>
+  <rect x="285" y="873" width="16" height="10" fill="#1a2a3a" stroke="#ab47bc" stroke-width="1.5"/>
+  <text x="306" y="882" fill="#90caf9" font-size="8">Gate DB</text>
+  <rect x="365" y="873" width="16" height="10" fill="#1a2a3a" stroke="#ffd54f" stroke-width="1.5"/>
+  <text x="386" y="882" fill="#90caf9" font-size="8">External</text>
+  <line x1="450" y1="875" x2="470" y2="883" stroke="#ef5350" stroke-width="1.5"/>
+  <circle cx="460" cy="879" r="3" fill="none" stroke="#ef5350" stroke-width="1.2"/>
+  <text x="476" y="882" fill="#90caf9" font-size="8">Isolator/Switch</text>
+
+  <!-- Notes -->
+  <text x="25" y="900" fill="#546e7a" font-size="7.5">① All circuits comply with BS 7671:2018+A2:2022 (IET Wiring Regulations 18th Ed.)  ② All cable sizes are minimum — verify by voltage drop calculation for final cable runs</text>
+  <text x="25" y="912" fill="#546e7a" font-size="7.5">③ Pool and sauna circuits require special location inspection per IEC 60364-7  ④ RCBO type B specified for motor/inductive loads (pool pump, gate motor, sauna)  ⑤ All outdoor equipment minimum IP44</text>
+  <text x="25" y="924" fill="#546e7a" font-size="7.5">⑥ This is a GENERAL SCHEMATIC — exact cable routes, containment, and circuit details are shown on installation drawings  ⑦ Verify utility supply capacity with UMEME before commissioning</text>
+  <text x="25" y="936" fill="#546e7a" font-size="7.5">⑧ Earth fault loop impedance to be tested at all final circuits  ⑨ Sauna: IEC 60364-7-703 | Pool: IEC 60364-7-702 | Gate: BS EN 12453  ⑩ As-built drawing to be issued after final inspection</text>
+
+  <!-- Stamp area -->
+  <rect x="1220" y="848" width="168" height="100" rx="3" fill="#192838" stroke="#3a8fc4" stroke-width="1"/>
+  <text x="1304" y="865" text-anchor="middle" fill="#4fc3f7" font-size="9" font-weight="bold">STING MEP ENGINEERING</text>
+  <text x="1304" y="880" text-anchor="middle" fill="#78909c" font-size="8">Drawn: MEP Engineer</text>
+  <text x="1304" y="893" text-anchor="middle" fill="#78909c" font-size="8">Client: Kakuba Roderic</text>
+  <text x="1304" y="906" text-anchor="middle" fill="#78909c" font-size="8">Dwg: SLD-ELEC-001</text>
+  <text x="1304" y="919" text-anchor="middle" fill="#78909c" font-size="8">Rev: P01 | Scale: NTS</text>
+  <text x="1304" y="934" text-anchor="middle" fill="#f9a825" font-size="8" font-weight="bold">FOR APPROVAL</text>
+  <text x="1304" y="945" text-anchor="middle" fill="#78909c" font-size="7">Date: June 2026</text>
+
+</svg>
