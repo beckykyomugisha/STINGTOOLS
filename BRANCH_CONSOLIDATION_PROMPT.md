@@ -87,6 +87,61 @@ proceed with after the plan is acknowledged.
 
 ---
 
+## Phase 1.5 — Dry run (READ-ONLY triage report; mutate nothing; STOP for authorization)
+
+Before any merge or delete, produce the full picture **without changing a
+single ref, commit, or working-tree file.** Everything here is read-only —
+no `merge`, no `commit`, no `push`, no `branch -d`, no `tag` (the backup tags
+in Phase 0 are the only writes, and they're additive/recoverable). Use
+`git merge-tree` for conflict prediction — it computes the merge result in
+memory and never touches the index or working tree.
+
+For each remote branch `<b>` (except `main`):
+
+```
+# 1. already-merged? (bucket A)
+git merge-base --is-ancestor origin/<b> origin/main && echo "A: already merged"
+
+# 2. unique-commit count
+git rev-list --count origin/main..origin/<b>
+
+# 3. one-line summary (subjects of its unique commits)
+git log --oneline origin/main..origin/<b> | head -5
+
+# 4. files it uniquely changes (for overlap/competing-pair detection)
+git diff --name-only origin/main...origin/<b>
+
+# 5. conflict prediction vs main — READ-ONLY, no working-tree change:
+git merge-tree --write-tree origin/main origin/<b> >/dev/null 2>&1 ; echo "exit=$?"
+#    (non-zero / "CONFLICT" lines = would conflict against main today)
+```
+
+Then compute the **overlap matrix**: any two bucket-B/C branches whose
+unique changed-file sets intersect are *candidate* conflicts even if each
+merges cleanly against `main` alone (they'll collide once both are in the
+integration branch). Flag those pairs.
+
+**Write the result to `branch-triage-report.md`** (do not commit it unless the
+user asks) with, per branch:
+
+| branch | bucket (A/B/C) | unique commits | conflicts vs main? | changed-file overlap with | one-line summary |
+
+Plus three roll-ups:
+- **Bucket A (already merged)** — the immediately-deletable list (count).
+- **Bucket B (clean unique work)** — merge-and-keep, no decisions needed.
+- **Bucket C (needs a human call)** — every conflicting branch + every
+  competing pair, each with the specific files in contention and a
+  recommendation (keep both / union / supersede), so the user can answer fast.
+
+**Then STOP.** Present the report and wait for the user to:
+1. Confirm the bucket-A deletions are OK.
+2. Decide each bucket-C item (keep both / pick one / union).
+Only after that authorization do you proceed to Phase 2. Nothing destructive
+has happened yet — at this point the repo is byte-for-byte unchanged except
+the Phase-0 backup tags.
+
+---
+
 ## Phase 2 — Build the integration branch (build-gated merges)
 
 ```
