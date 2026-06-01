@@ -247,6 +247,29 @@ TagSync `UniqueId`-as-key choice (Drift 3 / cross-host server work): the
 mapping column and the lookup must agree on the IFC GlobalId, not the
 Revit UniqueId.
 
+**DONE (Prompt 7, session 14, commit `8486cf056`) — the keystone fix.**
+`IfcGlobalId` added to `TagElementPayload` (plugin) + `TagElementDto`
+(server); the plugin populates it from `IFC_GLOBAL_ID_TXT`;
+`TagSyncController` now keys `ExternalElementMapping` on `dto.IfcGlobalId`,
+not `UniqueId` (which keeps its correct role as the host-side id). The BCC
+read path (`ResolveCrossHostSummary`) reads `IFC_GLOBAL_ID_TXT` for the
+`/ifc/mappings` lookup; un-stabilised elements are skipped with a "run
+Stabilize IFC GUIDs first" hint instead of a wrong-key query; the BCC
+tooltip names Stabilize as the prerequisite. No EF migration
+(`ExternalElementMapping.IfcGlobalId` already existed; `IfcGlobalId` is a
+wire field). Builds clean. **Correctness is "equal by construction"** —
+both hosts write the IFC file's GlobalId (Revit via
+`IFC_GLOBAL_ID_TXT = IfcGloballyUniqueId = export GlobalId`, Bonsai via
+`el.GlobalId`) — **with one monitored operational dependency**:
+`IFC_GLOBAL_ID_TXT` is a *snapshot* at stabilize time; it equals the
+exported file's GlobalId only while the model stays stable through export
+(re-run Stabilize after restructure; `IfcAlignmentValidator` flags
+`GLOBALID_DRIFT` >5%). **Recommended follow-up** (flagged, not done):
+add an explicit `TaggedElement.IfcGlobalId` column (migration + backfill +
+dual-write both ingest paths + index) so the `UniqueId` overload is
+retired; not required for cross-host resolution, which routes through
+`ExternalElementMapping`.
+
 ---
 
 ## Drift 5 — StingBridge (ArchiCAD / IFC watcher) bypasses the cross-host contract
@@ -462,20 +485,45 @@ This work does **not** touch Drift 1 (Bonsai snake_case) or Drift 2
 
 ## Recommended order of operations
 
-**Status (executed on `upbeat-noether-tg4pn`):** Prompts 1, 2, 3, 4, 5, 6,
-8, 9 are DONE. Remaining: **Prompt 7 (Drift 4) — now the *only* host still
-using the wrong cross-host key**, Prompt 10 (systemic), and two baseline
-blockers (mobile `tsc`, test project) + the EF-migration backlog.
+**Status (executed on `upbeat-noether-tg4pn`):** Prompts 1–9 are DONE.
+**All six drifts are fixed.** Remaining is *prevention + hygiene*, not
+correctness: Prompt 10 (systemic codegen — see decision below), two
+baseline blockers (mobile `tsc`, test project), the EF-migration backlog,
+the `TaggedElement.IfcGlobalId` follow-up, and one live multi-host
+round-trip to confirm the derivation assumptions.
 
-**Cross-host key is now consistent on every host except Revit.** After
-Prompt 9 (session 11), the key is the true IFC GlobalId everywhere:
-Bonsai (real GlobalId), ArchiCAD/IFC-watcher (real GlobalId),
-ArchiCAD/engine (`ifcopenshell.guid.compress(GUID)` = derived GlobalId).
-**Revit alone still keys on raw `Element.UniqueId`** (Drift 4). The
-derivation ArchiCAD's engine path uses is the same one Prompt 7 needs for
-Revit — `StabilizeIfcGuidsCommand` already computes Revit's
-`IfcGloballyUniqueId`. So Prompt 7 is the single remaining place in the
-whole system where the cross-host key is wrong.
+**Cross-host key is now the true IFC GlobalId on ALL hosts** (Prompt 7,
+session 14 fixed the last holdout): Bonsai (`el.GlobalId`),
+ArchiCAD/IFC-watcher (`el.GlobalId`), ArchiCAD/engine
+(`ifcopenshell.guid.compress(GUID)`), Revit (`IFC_GLOBAL_ID_TXT =
+IfcGloballyUniqueId = export GlobalId`). The cross-host identity feature is
+now logically complete: consistent key everywhere + hardened mapping
+(Prompt 6: observability + reconciliation) + de-duplicated clients
+(Prompt 9).
+
+**One consolidated live round-trip validates the whole story.** Two
+host-side derivations are "equal by construction" but unconfirmed against
+a real export: Revit's `IFC_GLOBAL_ID_TXT == exported IFC GlobalId`
+(Prompt 7) and ArchiCAD engine's `compress(GUID) == exported IFC GlobalId`
+(Prompt 9). A single test — model in Revit + ArchiCAD → export IFC →
+ingest in Bonsai → confirm `/ifc/mappings?ifcGuid=` resolves all rows —
+confirms both. This is the only unverified link left in cross-host
+correctness.
+
+**Prompt 10 decision (session 13, recommended):** **Option 1 — scoped
+guardrail.** Verified blast radius is ~5x the prompt's estimate (~227
+anonymous `Ok(new {…})` across 96 of 119 controllers; only 55
+`ProducesResponseType`); full codegen (Option 2) is multi-week and its CI
+gate is blocked by the two baselines anyway, while most protective value is
+already shipped (the Prompt-1 Python DTO-drift test, the Prompt-2 mobile
+conformance test, the Prompt-5 cross-host doc). Option 1 = response DTOs
+for the ~7 client-consumed endpoints where drift actually occurred
+(tagsync search, healthcare/penetrations dashboards, compliance,
+transmittals, `/ifc/*`; meetings is lowest-priority — essentially clean) +
+a real `ValidationErrors` DTO + a **server-build + conformance-test** CI
+gate (NOT a mobile-`tsc`/test-suite gate — those can't go green until the
+baselines are cleared). Days, not weeks. Defer Option 2 unless drift
+recurs despite the guardrail.
 
 0. ~~**Prompt 5 — fix the pre-existing `Planscape.API` build breakage.**~~
    **DONE (session 9).** The audit's "6 errors" was an *underestimate* —
