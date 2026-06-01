@@ -187,7 +187,22 @@ abbreviated/verbose split exists and leaks into Drift 2.
 
 **BCC/Revit needs no change** — it is already aligned to TagSync. Worth a
 one-line doc note that `/tagsync/sync` and `/ifc/data` are siblings
-writing the same projection.
+writing the same projection. (Done — session 7 added
+`Planscape.Server/docs/element-ingest-paths.md` + cross-referencing
+XML-docs.)
+
+**The real coexistence invariant** (verified `PlanscapeDbContext.cs:605-609`):
+the two paths are **not** wire-compatible and never were — what holds them
+together is (1) both mappers writing the **shared `TaggedElement` columns**,
+and (2) a **filtered-unique key-space**:
+`(ProjectId, RevitElementId) WHERE RevitElementId > 0` for Revit, and
+`(ProjectId, UniqueId)` for non-Revit. The `:609` comment is also the
+**server-side confirmation of Drift 4**: *"for Revit `UniqueId` is the
+Revit `Element.UniqueId`; for non-Revit hosts `UniqueId` carries the IFC
+GlobalId."* The same column means two different things by host — which is
+exactly why a cross-host join on it fails. (Note: Prompt 7 re-keys the
+`ExternalElementMapping.IfcGlobalId`, a *different* key from this
+`TaggedElement` index, so it does not disturb this invariant.)
 
 ---
 
@@ -232,6 +247,29 @@ TagSync `UniqueId`-as-key choice (Drift 3 / cross-host server work): the
 mapping column and the lookup must agree on the IFC GlobalId, not the
 Revit UniqueId.
 
+**DONE (Prompt 7, session 14, commit `8486cf056`) — the keystone fix.**
+`IfcGlobalId` added to `TagElementPayload` (plugin) + `TagElementDto`
+(server); the plugin populates it from `IFC_GLOBAL_ID_TXT`;
+`TagSyncController` now keys `ExternalElementMapping` on `dto.IfcGlobalId`,
+not `UniqueId` (which keeps its correct role as the host-side id). The BCC
+read path (`ResolveCrossHostSummary`) reads `IFC_GLOBAL_ID_TXT` for the
+`/ifc/mappings` lookup; un-stabilised elements are skipped with a "run
+Stabilize IFC GUIDs first" hint instead of a wrong-key query; the BCC
+tooltip names Stabilize as the prerequisite. No EF migration
+(`ExternalElementMapping.IfcGlobalId` already existed; `IfcGlobalId` is a
+wire field). Builds clean. **Correctness is "equal by construction"** —
+both hosts write the IFC file's GlobalId (Revit via
+`IFC_GLOBAL_ID_TXT = IfcGloballyUniqueId = export GlobalId`, Bonsai via
+`el.GlobalId`) — **with one monitored operational dependency**:
+`IFC_GLOBAL_ID_TXT` is a *snapshot* at stabilize time; it equals the
+exported file's GlobalId only while the model stays stable through export
+(re-run Stabilize after restructure; `IfcAlignmentValidator` flags
+`GLOBALID_DRIFT` >5%). **Recommended follow-up** (flagged, not done):
+add an explicit `TaggedElement.IfcGlobalId` column (migration + backfill +
+dual-write both ingest paths + index) so the `UniqueId` overload is
+retired; not required for cross-host resolution, which routes through
+`ExternalElementMapping`.
+
 ---
 
 ## Drift 5 — StingBridge (ArchiCAD / IFC watcher) bypasses the cross-host contract
@@ -257,6 +295,22 @@ the ArchiCAD element GUID as `HostElementId`; (b) **there should not be two
 Python clients** — `StingBridge` and `stingtools-core` should share one
 `PlanscapeClient`, or one should be retired.
 
+**DONE (Prompt 9, session 11) — with a correction to this audit.** There are
+**two** StingBridge sync paths, not one: `watch/ifc_watcher.py` (IFC export
+→ `el.GlobalId` is the only id, so `ifcGlobalId = hostElementId = GlobalId`)
+and `sync/engine.py` (live ArchiCAD JSON API → holds the ArchiCAD element
+GUID as `hostElementId` but no IFC GlobalId, so it **derives** the GlobalId
+via `ifcopenshell.guid.compress(GUID)`, raw-GUID fallback). Both now POST
+`/ifc/data` with `Host="archicad"`, no fabricated Revit id. `_element_to_wire`
+is single-sourced from `stingtools-core` (import + `sys.path` fallback), with
+a test asserting it's the *same* function, not a clone; legacy
+`/tagsync/sync` kept as a deprecated shim (safe transition). Deferred (with
+rationale): the full client merge — the two clients use different HTTP stacks
+and the bridge has 3 methods core lacks; only the *wire contract* mattered
+and it's unified. **Open assumption:** the engine's `compress(GUID)` must
+equal what ArchiCAD's IFC export writes — confirm against a live ArchiCAD
+IFC round-trip before relying on engine-path cross-host matching.
+
 ---
 
 ## Drift 6 — Revit client ↔ server endpoint mismatches (404 / 405 class)
@@ -278,6 +332,16 @@ are pure path/verb fixes (rename the path / change POST→PUT / add the
 server route), not contract redesigns. The `FullSyncAsync` one is already
 `[Obsolete]` — confirm it has no live caller, then delete it rather than
 re-add the route.
+
+**DONE (Prompt 8, session 12).** All four resolved + the inventory
+re-verified independently (~15 other literals confirmed clean): transmittal
+`send` switched to PUT (new `PutJsonAsync` helper); warnings repointed to
+`/warnings/report` (no caller, body shape documented); `boq/snapshot` —
+investigation showed the route was **intended but never added** (`BoqSnapshot`
+entity + DbSet exist; `IfcBoqSeedJob.cs:166` cites `BoqController.PushSnapshot`),
+so the server `[HttpPost("snapshot")]` route was added (persists + broadcasts,
+no migration — entity pre-existed); `FullSyncAsync` confirmed obsolete +
+zero callers → deleted. Both plugin and server build clean.
 
 ---
 
@@ -317,26 +381,35 @@ selection dialog. Verified what's checkable on this branch:
 
 ---
 
-## Execution status / branch divergence (READ BEFORE RUNNING PROMPTS)
+## Execution status / branch state (UPDATED — consolidation has occurred)
 
-The fixes for these drifts are **accumulating on a different branch than
-this audit.** As of this writing:
+**`claude/upbeat-noether-tg4pn` is now the integration branch.** As of
+merge `50f10555f` (*"Merge branch 'claude/magical-mayer-hLnIk' … into
+claude/upbeat-noether-tg4pn"*) it carries **both** all the implementation
+work **and** a copy of this audit:
 
-- `claude/upbeat-noether-tg4pn` (Windows env, `C:\Dev\STINGTOOLS`) has:
-  the Bonsai client fix (`ff2c46564`, Drift 1) + its DTO-driven test +
-  the `?ifcGuid` comment fix; the cross-host server work; and the BCC
-  consumer work (`cedcf3aba`). **`ff2c46564` is not even reachable from
-  this clone.**
-- `claude/magical-mayer-hLnIk` (this branch) has: only these audit docs.
-  Drift 1 is genuinely **not done here** — `client.py` still sends raw
-  snake_case, no `_element_to_wire`, no test, stale `IfcController.cs:195`
-  comment.
+- Implementation (all verified present there): Bonsai client fix
+  (`ff2c46564`, Drift 1) + DTO-driven test + `?ifcGuid` comment fix; the
+  full Bonsai integration set (sync op, `host_element_id`, `prefs.py`,
+  COORD panel); cross-host server work; BCC consumer (`cedcf3aba`);
+  validation-warnings + raise-issue + ArchiCAD event log; the Prompt 2
+  mobile `TaggedElement` fix; the Prompt 3 ingest-paths docs (`d056e2c5e`).
+- This audit + prompts (merged in via `50f10555f`).
 
-**Consequence:** prompts run against `upbeat-noether-tg4pn` keep returning
-"already done"; the same prompts against this branch are still real work.
-**Consolidate the two branches (or move this audit to where the code is)
-before executing more prompts** — otherwise the docs keep describing a
-world the sibling branch has already changed.
+**`claude/magical-mayer-hLnIk` (this branch) is now behind and impl-less.**
+`ff2c46564` is still unreachable here; `client.py` still has no
+`_element_to_wire`; no bonsai impl files. It holds **only** these audit
+docs. The session-5→8 review updates (Drifts 4–6, Prompts 5–10, the
+corrections) were committed here **after** `50f10555f`, so they are **not
+yet on the integration branch** — re-merge `magical-mayer → upbeat-noether`
+to capture them, or author future audit edits directly on
+`upbeat-noether`.
+
+**Consequence for the remaining prompts:** run them against
+`upbeat-noether-tg4pn` (where the code is). Prompts 1–4 there are
+"already done" no-ops; the open work is Prompt 5 (API build), the mobile
+`tsc` baseline, Prompt 7 (Revit IFC-GlobalId re-key), and Prompts 6/8/9/10.
+Do **not** run them against this stale branch.
 
 ---
 
@@ -412,28 +485,97 @@ This work does **not** touch Drift 1 (Bonsai snake_case) or Drift 2
 
 ## Recommended order of operations
 
-0. **Prompt 5 — fix the pre-existing `Planscape.API` build breakage.**
-   Highest leverage, lowest risk; unblocks every other server change.
-1. **Drift 1 (Bonsai)** — highest impact, smallest change, already
-   solved on `ff2c46564`. Port the `_element_to_wire` map + query-param
-   fix into this branch's `client.py`.
-2. **Drift 4 (Prompt 7) — Revit cross-host key.** CRITICAL: until Revit
-   keys on the true IFC GlobalId (`IFC_GLOBAL_ID_TXT`) instead of
-   `Element.UniqueId`, the entire cross-host identity investment is a
+**Status (executed on `upbeat-noether-tg4pn`):** Prompts 1–9 are DONE.
+**All six drifts are fixed.** Remaining is *prevention + hygiene*, not
+correctness: Prompt 10 (systemic codegen — see decision below), two
+baseline blockers (mobile `tsc`, test project), the EF-migration backlog,
+the `TaggedElement.IfcGlobalId` follow-up, and one live multi-host
+round-trip to confirm the derivation assumptions.
+
+**Cross-host key is now the true IFC GlobalId on ALL hosts** (Prompt 7,
+session 14 fixed the last holdout): Bonsai (`el.GlobalId`),
+ArchiCAD/IFC-watcher (`el.GlobalId`), ArchiCAD/engine
+(`ifcopenshell.guid.compress(GUID)`), Revit (`IFC_GLOBAL_ID_TXT =
+IfcGloballyUniqueId = export GlobalId`). The cross-host identity feature is
+now logically complete: consistent key everywhere + hardened mapping
+(Prompt 6: observability + reconciliation) + de-duplicated clients
+(Prompt 9).
+
+**One consolidated live round-trip validates the whole story.** Two
+host-side derivations are "equal by construction" but unconfirmed against
+a real export: Revit's `IFC_GLOBAL_ID_TXT == exported IFC GlobalId`
+(Prompt 7) and ArchiCAD engine's `compress(GUID) == exported IFC GlobalId`
+(Prompt 9). A single test — model in Revit + ArchiCAD → export IFC →
+ingest in Bonsai → confirm `/ifc/mappings?ifcGuid=` resolves all rows —
+confirms both. This is the only unverified link left in cross-host
+correctness.
+
+**Prompt 10 decision (session 13, recommended):** **Option 1 — scoped
+guardrail.** Verified blast radius is ~5x the prompt's estimate (~227
+anonymous `Ok(new {…})` across 96 of 119 controllers; only 55
+`ProducesResponseType`); full codegen (Option 2) is multi-week and its CI
+gate is blocked by the two baselines anyway, while most protective value is
+already shipped (the Prompt-1 Python DTO-drift test, the Prompt-2 mobile
+conformance test, the Prompt-5 cross-host doc). Option 1 = response DTOs
+for the ~7 client-consumed endpoints where drift actually occurred
+(tagsync search, healthcare/penetrations dashboards, compliance,
+transmittals, `/ifc/*`; meetings is lowest-priority — essentially clean) +
+a real `ValidationErrors` DTO + a **server-build + conformance-test** CI
+gate (NOT a mobile-`tsc`/test-suite gate — those can't go green until the
+baselines are cleared). Days, not weeks. Defer Option 2 unless drift
+recurs despite the guardrail.
+
+0. ~~**Prompt 5 — fix the pre-existing `Planscape.API` build breakage.**~~
+   **DONE (session 9).** The audit's "6 errors" was an *underestimate* —
+   CS0101/CS0111 duplicate-type errors halt semantic analysis and **masked
+   a true set of 51 errors**; fixing the dups unmasked the rest. Real scope
+   was broader than the prompt listed (IssuesController CS0128,
+   IssueAudioNotesController CS0103, SeedData, 5 missing Photo DbSets).
+   Driven to **0 errors** across 8 files + DbContext (de-dup + dead-ref
+   repair, 21 ins / 157 del); Photo DbSets were **restored not deleted**
+   (entities exist + controllers routed = half-added — correct call); dup
+   types renamed identifier-only (no wire change). The "trust the compiler,
+   not the prompt" instruction paid off literally. **EF migration for the
+   restored Photo DbSets is still a pending runtime step.**
+1. ~~**Drift 1 (Bonsai)**~~ — **DONE** (`ff2c46564` + test/comment residue).
+2. **Drift 4 (Prompt 7) — Revit cross-host key.** CRITICAL and still open:
+   until Revit keys on the true IFC GlobalId (`IFC_GLOBAL_ID_TXT`) instead
+   of `Element.UniqueId`, the entire cross-host identity investment is a
    no-op for Revit↔Blender. Highest *feature* value of everything here.
-3. **Drift 2 (Mobile)** — one interface rename or one adapter function;
-   resolve the `lvl`/`level` collision while there.
-4. **Drift 3** — documentation only (largely subsumed by the cross-host
-   work, which made TagSync populate the mapping table).
-5. **Cross-host hardening** (Prompt 6) — `AuditLog` + reconciliation for
-   the fire-and-forget mapping upsert; document mapping-table vs.
-   `*IfcGlobalId`-column authority.
+3. ~~**Drift 2 (Mobile)**~~ — **DONE (session 6)**, approach A (rename +
+   2 consumers in `Planscape/app`). ComplianceSnapshot/Transmittal field
+   drifts (extended Drift 2) **still open**.
+4. ~~**Drift 3**~~ — **DONE (session 7)** — `element-ingest-paths.md` +
+   XML-docs; real invariant captured.
+5. ~~**Cross-host hardening (Prompt 6)**~~ — **DONE (session 10).**
+   Fire-and-forget **kept** and gap-closed (deliberate, documented):
+   `CrossHostMappingAudit.RecordUpsertFailureAsync` → `AuditLog` + ILogger
+   on failure; `MappingReconciliationJob` (Hangfire hourly) backfills
+   Revit-keyed mappings from committed `TaggedElement` rows; `MappingHosts`
+   guard so a mis-attributed host fails the audit rather than poisoning the
+   table; authority documented (`ExternalElementMapping` = GlobalId↔host;
+   `*IfcGlobalId` columns = "this record is about element X"; `by-ifc`
+   endpoint made resilient to one surface being populated without the other).
+
+**Baseline blockers (gate any CI conformance/test gate, incl. Prompt 10):**
+- `Planscape.API` build — **FIXED (Prompt 5).** EF migrations are now
+  generatable (the API builds), so the pending migrations (restored Photo
+  DbSets, `ArchiCADEventLogPersistence`, cross-host columns) can be
+  produced — do this next on the schema side.
+- **Mobile `tsc`** — `Planscape/app/` still carries ~111 pre-existing
+  errors; not yet cleared.
+- **Test project** — `Planscape.Server/tests/Planscape.Tests` has ~7
+  pre-existing errors (duplicate `WebApplicationFactory` definitions +
+  Program accessibility), surfaced by session 10. The test project does
+  **not build**, so there is no runnable test suite / test CI gate until
+  this is cleared. Sibling to the other two; agent-reported (no .NET build
+  in this audit env), structure corroborated.
 
 **Systemic option (Prompt 10):** Drifts 1/2/4/5/6 share one root cause —
 each client hand-writes the wire shape. Generating the client types from
 the server's OpenAPI (with explicit response DTOs) + a CI drift gate stops
 recurrence. Justified only if drift keeps happening; otherwise the manual
-prompts suffice. Prompt 5 is its prerequisite (needs a building API).
+prompts suffice. Its CI gate needs all three baseline blockers green.
 
 **Two facts from the session-5 review:**
 - `dotnet ef migrations add` builds the **startup (API) project**, which

@@ -216,8 +216,14 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 > abbreviated/verbose vocabulary split. Add a short doc note — in the
 > XML-doc summary of both controllers and/or
 > `Planscape.Server/docs/` — stating that the two endpoints are siblings
-> writing the same `TaggedElement` table, when to use which, and that
-> they must stay field-compatible. **No behavioural change. No new
+> writing the same `TaggedElement` table, when to use which, and the real
+> invariant (session-7 correction): the DTOs are **not** wire-compatible
+> (they already diverge — `Disc/Loc/Lvl/…` vs `Discipline/Location/Level/…`);
+> what must be preserved is (1) both mappers targeting the **shared
+> `TaggedElement` columns**, and (2) the **filtered-unique key-space**
+> (`(ProjectId, RevitElementId) WHERE RevitElementId>0` for Revit;
+> `(ProjectId, UniqueId)` for non-Revit — `PlanscapeDbContext.cs:605-609`).
+> **No behavioural change. No new
 > endpoint. BCC/Revit needs no code change** — it is already aligned to
 > TagSync.
 >
@@ -526,6 +532,12 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 > single shared Python client (or a clearly-retired one). Smoke tests green.
 >
 > **Verify / challenge before you build:**
+> - **There are two sync paths, not one** (session-11 finding): the IFC
+>   watcher (`watch/ifc_watcher.py`, only has `el.GlobalId`) *and* the live
+>   ArchiCAD engine (`sync/engine.py`, has the ArchiCAD GUID but no IFC
+>   GlobalId → derive via `ifcopenshell.guid.compress(GUID)`). Handle both.
+>   Confirm the engine's `compress(GUID)` equals what ArchiCAD's IFC export
+>   writes (live round-trip) before relying on engine-path matching.
 > - Confirm the IFC watcher can actually recover the ArchiCAD element GUID
 >   (not just the IFC GlobalId) to populate `HostElementId`; if it only has
 >   the IFC GlobalId, decide what `HostElementId` should be and say so.
@@ -633,3 +645,153 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 >   Prompts 5 (API build), 7 (Revit key), 8 (endpoint paths/verbs) are
 >   server/Revit behavioural fixes codegen does **not** do. Sequence:
 >   5 → (7, 8 can parallel) → 10 → then 1/2/9 collapse into "regenerate."
+
+---
+
+# Remaining work (Prompts 11–14)
+
+All six drifts are fixed (Prompts 1–9 done). These four close out the
+*prevention + verification + hygiene* backlog. Same stance as above: each
+is a hypothesis — verify against live code, challenge it, stop and report
+if it's wrong.
+
+## Prompt 11 — Live cross-host round-trip (the one thing no sandbox could do) — HIGHEST VALUE
+
+> Cross-host correctness is "equal by construction" but **never confirmed
+> against a real IFC export**. Two host-side derivations of the cross-host
+> key are assumed equal to what the IFC file actually carries:
+> - **Revit:** `IFC_GLOBAL_ID_TXT` (snapshot of `IfcGloballyUniqueId` from
+>   `StabilizeIfcGuidsCommand`) == the `GlobalId` in the exported IFC.
+> - **ArchiCAD engine:** `ifcopenshell.guid.compress(elementGUID)` == the
+>   `GlobalId` ArchiCAD writes to its IFC export.
+>
+> Run **one** live integration test that validates both (needs a real
+> Revit + ArchiCAD + a running Planscape server + Bonsai — out of reach in
+> any sandbox; this is a human/lab task):
+> 1. Model the *same* physical elements in Revit and in ArchiCAD.
+> 2. Revit: run **Stabilize IFC GUIDs**, sync to the server (TagSync), then
+>    export IFC. ArchiCAD: sync via the bridge (engine path), export IFC.
+> 3. Open both IFCs in Bonsai; run the STING sync op (`/ifc/data`).
+> 4. For a sample of elements, call
+>    `GET /api/projects/{id}/ifc/mappings?ifcGuid=<GlobalId>` and confirm
+>    the row set includes **all** hosts that contain that element (revit +
+>    archicad + blender), i.e. the GlobalIds joined.
+> 5. Cross-check: the `IFC_GLOBAL_ID_TXT` Revit *sent* == the `GlobalId` in
+>    Revit's *exported* IFC for the same element (this is the snapshot-vs-
+>    export equality); same for ArchiCAD's `compress(GUID)` vs its export.
+>
+> **Acceptance:** a documented test run (or an automated integration test
+> if the lab has the hosts) showing `/ifc/mappings` resolves cross-host for
+> stabilised elements, and the two derivation equalities hold on a real
+> export. Capture any element where they *don't* match — that's the real
+> drift the construction proof can't see.
+>
+> **Verify / challenge before you run:**
+> - This is a **test/verification task, not a code change.** If it passes,
+>   the deliverable is the evidence; if it fails, file the mismatch as a new
+>   drift with the element + both GUID values — do not patch blindly.
+> - Confirm the Revit IFC export setting actually uses the stabilised
+>   `IfcGloballyUniqueId` (export options can re-map GUIDs). If export
+>   re-derives, the snapshot equality breaks and Prompt 7's assumption needs
+>   revisiting — this test is exactly how you'd find that.
+> - Confirm ArchiCAD's `compress(GUID)` matches its export across element
+>   types (some categories may derive GUIDs differently).
+
+## Prompt 12 — Surface "Stabilize IFC GUIDs before export" in the workflow
+
+> Prompt 7's correctness depends on a monitored operational condition:
+> `IFC_GLOBAL_ID_TXT` is a *snapshot* and only equals the exported file's
+> GlobalId while the model stays stable through export. Today this is
+> documented in `StabilizeIfcGuidsCommand`'s comment and detected by
+> `IfcAlignmentValidator` (`GLOBALID_DRIFT >5%`), but it is not *surfaced*
+> in the user's normal flow. Make the prerequisite visible:
+> 1. In the BCC / IFC-push and IFC-export entry points, if any synced
+>    element lacks `IFC_GLOBAL_ID_TXT` (or it post-dates the last geometry
+>    change), prompt "Run Stabilize IFC GUIDs first" before proceeding
+>    (non-blocking warning, with a one-click run).
+> 2. Surface the server's `GLOBALID_DRIFT` result back in the plugin/BCC
+>    (it's computed server-side by `IfcAlignmentValidator` — show it where
+>    the user pushes), so drift is visible, not buried in a validator log.
+>
+> **Acceptance:** a user pushing/exporting an unstabilised or drifted model
+> sees the prompt; a clean model doesn't. No change to the key logic from
+> Prompt 7 — this is UX surfacing only.
+>
+> **Verify / challenge before you build:**
+> - Check whether a prompt/gate already exists (the BCC tooltip from
+>   Prompt 7 may be enough for some flows). Don't add a second nag if one
+>   covers it.
+> - "post-dates the last geometry change" needs a cheap staleness signal —
+>   check if `STING_STALE_BOOL` or the existing stale-marker IUpdater
+>   already provides it before inventing one.
+
+## Prompt 13 — Prompt 10, scoped to Option 1 (the chosen guardrail)
+
+> This is Prompt 10 narrowed to the maintainer's chosen Option 1 (session
+> 13). Do **not** do the full codegen pipeline. Concretely:
+> 1. Add explicit response DTOs (or `[ProducesResponseType(typeof(XDto),200)]`)
+>    to ONLY the client-consumed endpoints where drift actually occurred:
+>    `tagsync/elements/search`, healthcare `dashboard`, penetrations
+>    `dashboard`, compliance snapshot, transmittals list, `/ifc/data` +
+>    `/ifc/mappings`. (Meetings is lowest-priority — essentially clean;
+>    include only if cheap.)
+> 2. Declare a real `ValidationErrors` DTO (`[{ code, message, severity }]`)
+>    and use it where `TaggedElement.ValidationErrors` is read/written, so
+>    the last unschematized blob becomes part of the contract.
+> 3. Add a CI gate (hook into the existing `ifc-substrate.yml` drift-gate
+>    pattern + `planscape-server.yml`) that runs **server build + the
+>    existing DTO-conformance tests** (the Prompt-1 Python `_element_to_wire`
+>    test, the Prompt-2 mobile `TaggedElement` conformance test). Keep the
+>    Prompt-2 conformance-test pattern; do **not** add `openapi-typescript`
+>    or regenerate the TS types (that's Option 2).
+>
+> **Acceptance:** the ~7 drift-prone endpoints return typed DTOs; a server
+> DTO rename breaks the conformance tests in CI; `ValidationErrors` has a
+> declared shape; the gate is green on the current tree.
+>
+> **Verify / challenge before you build:**
+> - The CI gate must be **server-only** (server build + conformance tests).
+>   Do **not** wire in a mobile `tsc` gate or a test-suite gate — both are
+>   red on pre-existing baselines (Prompt 14) and would make CI permanently
+>   fail. Add those to the gate only after Prompt 14 clears them.
+> - Re-confirm which endpoints the clients actually consume before adding
+>   DTOs — the list above is from the audit; the live code may differ.
+> - Adding a response DTO must not change the wire shape (it should encode
+>   the *current* JSON exactly). If the current anonymous object and your
+>   DTO disagree, the DTO is wrong — match the wire, don't "fix" it here.
+
+## Prompt 14 — Hygiene backlog (four independent, pickable tasks)
+
+> Four unrelated clean-ups, each self-contained — do any subset.
+> 1. **Mobile `tsc` baseline** — `Planscape/app/` carries ~111 pre-existing
+>    `tsc` errors (WIP tree). Drive to 0 so `tsc --noEmit` can become a CI
+>    gate. Pure type hygiene; touch only what the compiler flags; don't
+>    change runtime behaviour.
+> 2. **Test project baseline** — `Planscape.Server/tests/Planscape.Tests`
+>    has ~7 pre-existing errors (duplicate `WebApplicationFactory`
+>    definitions + Program accessibility). Resolve so the test project
+>    builds and the suite runs. (Likely a dedupe like Prompt 5's, in the
+>    test project.)
+> 3. **EF-migration backlog** — now generatable (the API builds since
+>    Prompt 5). Run `dotnet ef migrations add` for: the restored Photo
+>    DbSets (Prompt 5), `ArchiCADEventLogPersistence` (session 5), and any
+>    cross-host column not yet migrated. One migration per logical change;
+>    review the generated SQL before committing.
+> 4. **`TaggedElement.IfcGlobalId` column** — retire the `UniqueId`
+>    overload (it means Revit-UniqueId for Revit, IFC-GlobalId for
+>    non-Revit). Add an explicit `IfcGlobalId` column + migration +
+>    backfill + dual-write both ingest paths + index. Optional — cross-host
+>    resolution already routes through `ExternalElementMapping`, so this is
+>    cleanliness, not correctness.
+>
+> **Acceptance (per task):** (1) mobile `tsc` clean; (2) test project builds
+> + suite runs; (3) migrations generated, reviewed, applied to a scratch DB;
+> (4) `IfcGlobalId` column dual-written and indexed, `UniqueId` no longer
+> overloaded for non-Revit hosts.
+>
+> **Verify / challenge before you build:**
+> - Tasks 1 and 2 unblock the *stronger* CI gates (mobile `tsc`, test
+>   suite) — do them before extending Prompt 13's gate, not after.
+> - For task 4, this is the one that touches the shipped schema and both
+>   ingest paths — highest risk in this list. Confirm it's wanted (it's
+>   optional) and sequence it last.
