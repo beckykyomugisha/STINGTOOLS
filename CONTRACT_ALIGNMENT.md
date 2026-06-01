@@ -263,10 +263,18 @@ both hosts write the IFC file's GlobalId (Revit via
 `el.GlobalId`) — **with one operational dependency that is currently NOT
 server-monitored** (corrected, session 15): `IFC_GLOBAL_ID_TXT` is a
 *snapshot* at stabilize time and equals the exported file's GlobalId only
-while the model stays stable through export **and the IFC export honours
-the `IfcGUID` param** — but the in-repo exporters use plain
-`IFCExportOptions` and don't pin a GUID source (Prompt 11 finding R1), and
-the server `GLOBALID_DRIFT` detector is a **deferred no-op**
+while the model stays stable through export. **R1 refined (code-verified):**
+the pin is the **`IfcGUID` instance parameter**, not an `IFCExportOptions`
+setting — Revit populates it on an element's first IFC export and honours
+it as `IfcRoot.GlobalId` thereafter, and `StabilizeIfcGuidsCommand` reads
+`IFC_GLOBAL_ID_TXT` **from that same param** (`ReadRevitIfcGuid` lines
+163-185; it skips elements whose `IfcGUID` is empty = never exported). So
+the cross-host key and the exported GlobalId share **one source** and are
+equal by construction **once an element has been exported at least once**;
+the residual risk narrows to the `IfcGUID` param being regenerated between
+the stabilize snapshot and the ingested export (hence the export → stabilize
+→ export-again ordering, R2). The server `GLOBALID_DRIFT` detector is still
+a **deferred no-op**
 (`IfcAlignmentValidator.cs:306` — Gap 9 needs a
 `FederatedElement.ProjectModelId` column that doesn't exist). The earlier
 "monitored" claim was wrong. The **only active guards** are now Prompt 12's
