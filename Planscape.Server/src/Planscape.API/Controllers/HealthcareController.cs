@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 
@@ -23,6 +24,7 @@ public class HealthcareController : ControllerBase
 
     // ── Dashboard aggregator ─────────────────────────────────────────
     [HttpGet("dashboard")]
+    [ProducesResponseType(typeof(HealthcareDashboardDto), 200)]
     public async Task<IActionResult> Dashboard(Guid projectId)
     {
         var since = DateTime.UtcNow.AddDays(-7);
@@ -57,17 +59,16 @@ public class HealthcareController : ControllerBase
         var pressureFail = pressureCounts?.Fail ?? 0;
         var ligTotal = ligCounts?.Total ?? 0;
         var ligFail  = ligCounts?.Fail ?? 0;
-        return Ok(new {
-            pressure = new { totalLast7d = pressure, breachLast7d = pressureFail,
-                              rag = pressureFail > 0 ? "R" : "G" },
-            mgas = mgasLatest == null
-                ? new { latest = (DateTime?)null, pass = false, rag = "A" }
-                : new { latest = (DateTime?)mgasLatest.CapturedAt, pass = mgasLatest.OverallPass,
-                        rag = mgasLatest.OverallPass ? "G" : "R" },
-            antiLigature = new { totalAudits = ligTotal, failed = ligFail,
-                                  rag = ligFail > 0 ? "A" : "G" },
-            rdsCount
-        });
+        // Typed projection of the identical wire shape (Prompt 13 — pins the
+        // contract for OpenAPI/codegen; field names + casing unchanged).
+        return Ok(new HealthcareDashboardDto(
+            new HealthcarePressureRagDto(pressure, pressureFail, pressureFail > 0 ? "R" : "G"),
+            mgasLatest == null
+                ? new HealthcareMgasRagDto(null, false, "A")
+                : new HealthcareMgasRagDto(mgasLatest.CapturedAt, mgasLatest.OverallPass,
+                                           mgasLatest.OverallPass ? "G" : "R"),
+            new HealthcareAntiLigatureRagDto(ligTotal, ligFail, ligFail > 0 ? "A" : "G"),
+            rdsCount));
     }
 
     // ── Pressure log ─────────────────────────────────────────────────

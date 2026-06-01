@@ -1,26 +1,41 @@
 name: Wire-Contract Drift Gate
 
 # Stops the per-client wire-shape drift that produced Drifts 1/2/4/5 from
-# recurring. The clients (Bonsai/StingBridge Python, mobile TS) each shape the
-# server's element DTOs themselves; these tests pin that shaping to the server
-# DTO so a server-side rename breaks CI HERE — not silently in production.
+# recurring. Two jobs make up the gate:
 #
-# The Python contract test (stingtools-core test_smoke
-# `test_ifc_element_to_wire_keys_match_dto`) parses the C# DTO source
-# (Planscape.Server/.../DTOs/IfcIngestDtos.cs) directly and asserts the
-# client's `_element_to_wire` output is a subset of the real DTO members — so
-# it needs neither a running server nor a generated OpenAPI doc to detect a
-# renamed/removed DTO member.
+#   1. server-build — `dotnet build` of Planscape.sln. A server DTO rename that
+#      breaks a controller (or any compile error in the new contract DTOs) fails
+#      CI here. NB: we deliberately do NOT run `dotnet test` — the server test
+#      suite is red on a pre-existing baseline (see planscape-server.yml, which
+#      runs it with continue-on-error), so a test-suite gate would make CI
+#      permanently fail. Add `dotnet test` here only once that baseline is green.
 #
-# CRUCIAL: this workflow triggers on the SERVER DTO paths as well as the client
-# paths — that is what makes a server-only DTO rename fail CI (the existing
-# ifc-substrate.yml runs the same smoke tests but only triggers on shared/ifc).
+#   2. contract — client↔server DTO-conformance tests (Python). They each shape
+#      the server's element DTOs themselves and pin that shaping to the server
+#      DTO so a server-side rename breaks CI HERE — not silently in production.
+#      The stingtools-core test `test_ifc_element_to_wire_keys_match_dto` parses
+#      the C# DTO source (Planscape.Server/.../DTOs/IfcIngestDtos.cs) directly and
+#      asserts the client's `_element_to_wire` output is a subset of the real DTO
+#      members — so it needs neither a running server nor a generated OpenAPI doc.
+#
+# The mobile `TaggedElement` conformance test (Planscape/src/api/__typetests__/
+# taggedElement.typetest.ts) is intentionally NOT wired in yet: it runs via
+# `tsc --noEmit` over the whole mobile project, which is red on a pre-existing
+# baseline (tracked by Prompt 14). Add a mobile typecheck step to this gate only
+# after that baseline is cleared — otherwise the gate can never go green.
+#
+# CRUCIAL: this workflow triggers on the SERVER DTO + controller paths as well as
+# the client paths — that is what makes a server-only DTO rename fail CI (the
+# existing ifc-substrate.yml runs the same Python tests but only triggers on
+# shared/ifc). planscape-server.yml owns the full build+test+deploy pipeline on
+# Planscape.Server/**; this gate is the focused, fast contract check.
 
 on:
   push:
     paths:
       - 'Planscape.Server/src/Planscape.Core/DTOs/**'
       - 'Planscape.Server/src/Planscape.Core/Entities/**'
+      - 'Planscape.Server/src/Planscape.API/Controllers/**'
       - 'stingtools-core/python/**'
       - 'StingBridge/**'
       - '.github/workflows/contract-drift.yml'
@@ -28,12 +43,38 @@ on:
     paths:
       - 'Planscape.Server/src/Planscape.Core/DTOs/**'
       - 'Planscape.Server/src/Planscape.Core/Entities/**'
+      - 'Planscape.Server/src/Planscape.API/Controllers/**'
       - 'stingtools-core/python/**'
       - 'StingBridge/**'
       - '.github/workflows/contract-drift.yml'
   workflow_dispatch:
 
 jobs:
+  server-build:
+    name: Server build (DTOs compile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: Planscape.Server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore Planscape.sln
+
+      - name: Build (Release, no test)
+        # Build only — the test suite is a separate, currently-red baseline
+        # (planscape-server.yml runs it with continue-on-error). A DTO rename
+        # that breaks a controller still fails the build here.
+        run: dotnet build Planscape.sln --no-restore --configuration Release
+
   contract:
     name: Client ↔ server wire-contract tests
     runs-on: ubuntu-latest

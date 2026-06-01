@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
@@ -108,6 +109,7 @@ public class ComplianceController : ControllerBase
     /// Get the latest compliance snapshot (bare route for mobile compatibility).
     /// </summary>
     [HttpGet]
+    [ProducesResponseType(typeof(ComplianceSnapshotDto), 200)]
     public async Task<ActionResult> GetCompliance(Guid projectId)
     {
         var tenantId = GetTenantId();
@@ -117,13 +119,14 @@ public class ComplianceController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (snapshot == null) return NotFound("No compliance data yet");
-        return Ok(snapshot);
+        return Ok(ComplianceSnapshotDto.From(snapshot));
     }
 
     /// <summary>
     /// Get the latest compliance snapshot.
     /// </summary>
     [HttpGet("latest")]
+    [ProducesResponseType(typeof(ComplianceSnapshotDto), 200)]
     public async Task<ActionResult> GetLatest(Guid projectId)
     {
         var tenantId = GetTenantId();
@@ -133,7 +136,7 @@ public class ComplianceController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (snapshot == null) return NotFound("No compliance data yet");
-        return Ok(snapshot);
+        return Ok(ComplianceSnapshotDto.From(snapshot));
     }
 
     /// <summary>

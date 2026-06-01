@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Services;
+using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -77,6 +78,7 @@ public class TransmittalsController : ControllerBase
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(TransmittalsPageDto), 200)]
     public async Task<ActionResult> GetTransmittals(Guid projectId,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
@@ -90,7 +92,11 @@ public class TransmittalsController : ControllerBase
             .Skip((page - 1) * pageSize).Take(pageSize)
             .ToListAsync();
 
-        return Ok(new { transmittals, total, page, pageSize });
+        // Typed projection of the identical envelope shape (Prompt 13). The
+        // per-row Project/Documents navigations were never populated here, so
+        // dropping them from the wire is invisible to consumers.
+        return Ok(new TransmittalsPageDto(
+            transmittals.Select(TransmittalDto.From).ToList(), total, page, pageSize));
     }
 
     [HttpPost]

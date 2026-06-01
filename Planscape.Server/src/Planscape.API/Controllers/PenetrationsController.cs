@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 
@@ -121,6 +122,7 @@ public class PenetrationsController : ControllerBase
     }
 
     [HttpGet("dashboard")]
+    [ProducesResponseType(typeof(PenetrationDashboardDto), 200)]
     public async Task<IActionResult> Dashboard(Guid projectId)
     {
         var rows = await _db.PenetrationSignoffs
@@ -133,7 +135,11 @@ public class PenetrationsController : ControllerBase
             .GroupBy(p => p.HostType)
             .Select(g => new { HostType = g.Key, Count = g.Count() })
             .ToListAsync();
-        return Ok(new { byStatus = rows, byHost });
+        // Typed projection of the identical wire shape (Prompt 13). The EF
+        // GroupBy still runs in SQL; mapping to the DTO happens in memory.
+        return Ok(new PenetrationDashboardDto(
+            rows.Select(r => new PenetrationStatusCountDto(r.Status, r.Count)).ToList(),
+            byHost.Select(r => new PenetrationHostCountDto(r.HostType, r.Count)).ToList()));
     }
 
     private Guid ResolveTenantId()

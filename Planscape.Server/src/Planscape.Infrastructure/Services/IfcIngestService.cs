@@ -52,6 +52,7 @@ public sealed class IfcIngestService : IIfcIngestService
         var warnings = new List<string>();
         int newMappings = 0, updMappings = 0;
         int newElements = 0, updElements = 0, skipped = 0;
+        int nonCanonicalVe = 0;   // elements whose ValidationErrors blob isn't the canonical ValidationErrorDto[] shape
         var nowUtc = DateTime.UtcNow;
 
         foreach (var batch in Chunk(request.Elements, IngestBatchSize))
@@ -98,6 +99,13 @@ public sealed class IfcIngestService : IIfcIngestService
             {
                 if (string.IsNullOrWhiteSpace(el.IfcGlobalId)) continue;
 
+                // Validate the inbound ValidationErrors blob against the canonical
+                // contract shape (ValidationErrorDto[]) without rewriting it — the
+                // raw string is still stored verbatim below (full retype of the
+                // wire field is the deferred breaking cutover). This is the
+                // read/write site where the contract type is exercised.
+                if (!ValidationErrorDto.TryParse(el.ValidationErrors, out _)) nonCanonicalVe++;
+
                 if (existingTagged.TryGetValue(el.IfcGlobalId, out var t))
                 {
                     // Stale-write protection
@@ -142,6 +150,11 @@ public sealed class IfcIngestService : IIfcIngestService
 
             await _db.SaveChangesAsync(ct);
         }
+
+        if (nonCanonicalVe > 0)
+            warnings.Add($"{nonCanonicalVe} element(s) carried a ValidationErrors blob that does not " +
+                         "parse as the canonical ValidationErrorDto[] shape ([{code,message,severity}]); " +
+                         "stored verbatim — producers should converge on that shape.");
 
         return new IfcIngestResponse
         {

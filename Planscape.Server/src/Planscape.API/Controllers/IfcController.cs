@@ -58,6 +58,7 @@ public class IfcController : ControllerBase
     /// Returns counts of new vs updated mappings + elements.
     /// </summary>
     [HttpPost("data")]
+    [ProducesResponseType(typeof(IfcIngestResponse), 200)]
     public async Task<ActionResult<IfcIngestResponse>> IngestData(
         Guid projectId,
         [FromBody] IfcIngestRequest request)
@@ -90,6 +91,7 @@ public class IfcController : ControllerBase
     /// (issue raised in Blender → find Revit ElementId).
     /// </summary>
     [HttpGet("mappings")]
+    [ProducesResponseType(typeof(MappingsPage), 200)]
     public async Task<ActionResult<MappingsPage>> GetMappings(
         Guid projectId,
         [FromQuery] string? ifcGuid = null,

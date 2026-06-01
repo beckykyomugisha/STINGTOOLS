@@ -46,7 +46,13 @@ public class TaggedElement : ITenantScoped
     public bool IsStale { get; set; }
     public bool IsComplete { get; set; }
     public bool IsFullyResolved { get; set; }
-    public string? ValidationErrors { get; set; } // JSON array of errors
+    /// <summary>
+    /// JSON-encoded array of <see cref="Planscape.Core.DTOs.ValidationErrorDto"/>
+    /// (<c>[{code,message,severity}]</c>). Transported as a string on the wire;
+    /// the canonical element shape is declared by that DTO so the blob is part
+    /// of the contract even though full retype of the field is deferred.
+    /// </summary>
+    public string? ValidationErrors { get; set; }
 
     // Audit
     public string? PreviousTag { get; set; }
