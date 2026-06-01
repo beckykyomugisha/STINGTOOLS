@@ -2484,6 +2484,8 @@ Generic Models,ELC_LPS_SEPARATION_DISTANCE_MM,441346ff-828f-5298-9fbb-96f27feb22
 Generic Models,ELC_LPS_SURGE_PROTECTION_LVL_TXT,c1605d30-bdcb-560e-9d97-bae3303a078e,TEXT,ELC_PWR,Type,Surge protection device level (Type 1 / Type 2 / Type 3),False,,,MULTI,1,0
 Generic Models,ELC_LPS_TEST_DATE_TXT,d654df13-0913-5e8f-8dfe-98b3971beb86,TEXT,ELC_PWR,Type,ISO 8601 date of last LPS test / inspection,False,,,MULTI,1,0
 Generic Models,ELC_LPS_ZONE_TXT,a01025f4-6155-524e-8514-72507f5e04ef,TEXT,ELC_PWR,Type,Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3),False,,,MULTI,1,0
+Generic Models,ELC_LPS_FROM_LPZ_TXT,e1c5f9d4-1010-5111-9111-100000000010,TEXT,ELC_PWR,Type,LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 6.1],False,,,MULTI,1,0
+Generic Models,ELC_LPS_TO_LPZ_TXT,e1c5f9d4-1011-5111-9111-100000000011,TEXT,ELC_PWR,Type,LPZ on the downstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 6.1],False,,,MULTI,1,0
 Generic Models,ELC_PANEL_SCHEDULE_REF_TXT,b04373ec-3a97-5c0e-a13b-b72450d52eff,TEXT,ELC_PWR,Type,Electrical panel schedule document reference [BS 7671:2018+A2:2022],False,,,MULTI,1,0
 Generic Models,HEALTH_SCORE_DATE_TXT,5753b5aa-0009-4000-8000-000000000010,TEXT,HEALTH_METRICS,Type,ISO 8601 timestamp of last health score evaluation,False,,,MULTI,1,0
 Generic Models,HEALTH_SCORE_LAST_NR,5753b5aa-0009-4000-8000-000000000003,NUMBER,HEALTH_METRICS,Type,Last model health score 0 to 100,False,,,MULTI,1,0
