@@ -963,3 +963,98 @@ if it's wrong.
 > - Confirm the prior 9-line import fix is present before you start (if
 >   you're on a branch that predates it, those ~18 will reappear — re-apply
 >   or rebase first).
+
+---
+
+## Prompt 18 — Drive mobile `tsc` to 0 via reconcile-and-defer (the last 12 WIP errors)
+
+> Prompt 17 took `Planscape/` from 111 → **12** `tsc --noEmit` errors. The
+> remaining 12 are **genuine WIP blockers in 3 files** — mobile code written
+> ahead of its backend/engine. Drive them to **0** so the mobile job can be
+> added to `contract-drift.yml`. **You do NOT need to build 3 features to do
+> this** — most of the 12 are mobile calling an *imagined* API when a real one
+> exists; align to reality, and *cleanly defer* the genuinely-unbuilt parts.
+>
+> For each blocker, choose one of three honest routes (never `any`-loosen,
+> never fabricate a server method/endpoint):
+> 1. **Align** — repoint the mobile call to the API/signature that already
+>    exists (cheapest; preferred).
+> 2. **Build** — implement the missing endpoint/method (real feature work;
+>    only if it's wanted now).
+> 3. **Defer** — feature-flag the screen off / remove the dead call, with a
+>    `// TODO(<feature>)` and a backlog entry (unblocks the typecheck honestly;
+>    build later).
+>
+> **HARD RULE — flag product-visible gating, don't silently drop.** Routes 1
+> and 2 are invisible. Route 3 changes behaviour a user can see (an action no
+> longer replays offline, a button disappears, a live screen is flagged off).
+> For every route-3 choice, **STOP and confirm with the user** that losing
+> that behaviour-until-the-feature-lands is acceptable — it's a product call,
+> not yours. Removing a queued action that ships in today's UI means it won't
+> work offline anymore; hiding the 3D-zoom button or flagging off
+> healthcare-live are visible regressions. Surface them.
+>
+> **The 12, with the recommended route per item:**
+>
+> **A — `src/utils/offlineQueue.ts` (9 errors)** — the queue replays actions
+> ahead of their endpoints:
+> - `postIssueComment` → **align** to the real `addIssueComment(p,i,body)`.
+> - `upsertDiaryEntry` → **align** to `createSiteDiary` / `updateSiteDiary`.
+> - `signOffStageCriterion` ({decision,comment}) → **align** to the endpoint's
+>   `(…, met: boolean)` (map the object at the call site).
+> - `idempotencyKey` (not accepted by `createIssue`/`updateIssue`/
+>   `addMeetingAction`) → **build** (optional `idempotencyKey` on those client
+>   args *and* server endpoints, server-side dedupe) if you want safe replay;
+>   else **defer** (drop the key; accept at-least-once replay).
+> - `placeIssuePin` / `deleteIssuePin` (no endpoint anywhere, client or server)
+>   → **build** pin CRUD end-to-end, or **defer** (remove pin actions from the
+>   queue's `offlineAction` union).
+> - `FULFIL_CHECKLIST_ITEM` (not in the action union) → add it + a handler if
+>   wanted, else **defer** (remove it).
+>   *Fastest green for A: align the 3 that exist, defer (trim the union) the
+>   rest with TODOs → clears all 9 with no feature build.*
+>
+> **B — `app/(tabs)/issue-detail.tsx:328` (1 error)** —
+> `ModelViewerHandle.selectAndZoom` unimplemented. **Build** it in
+> `ModelViewer.tsx` (find mesh by element GUID → frame the Three.js camera on
+> its bbox → highlight; the viewer already has the GUIDs + loaded scene), or
+> **defer** (hide the "zoom to element" button / no-op the optional method).
+>
+> **C — `app/healthcare/pressure-live.tsx:41,58` (2 errors)** — healthcare
+> SignalR client written against a non-existent API
+> (`connect('/hubs/healthcare')→{stop}` vs the real
+> `RealtimeClient.connect(projectId): Promise<void>`). **Align** the screen to
+> the existing `RealtimeClient` if it can carry healthcare pressure events;
+> else **build** the `/hubs/healthcare` hub or **defer** (flag the screen off).
+> Either way, **fix the create payload** to include the required
+> `roomClass` / `designRegime` / `source` (values exist on the room/context —
+> wire them through; this part is free regardless of route).
+>
+> **Then turn on the gate:** once `npx tsc --noEmit` is **0** in `Planscape/`,
+> add a mobile job to `contract-drift.yml` (it's `module: esnext`-ready). After
+> that the mobile baseline can never silently regress.
+>
+> **Acceptance:** `Planscape/` `tsc --noEmit` = **0 errors**; every fix is
+> route-1 (align), route-2 (real feature), or route-3 (defer with a TODO +
+> backlog entry + user-confirmed); no `any`-loosening, no fabricated
+> server/engine methods; the mobile CI job is added and green. A short
+> "deferred features" backlog lists each route-3 item + what's needed to build
+> it.
+>
+> **Verify / challenge before you build:**
+> - **Decide intent per feature first** (offline-replay-v2, 3D select-zoom,
+>   healthcare-live): wanted-soon → build; speculative → defer. That single
+>   call picks route 2 vs 3 for each blocker — don't default to building.
+> - **Route 3 is product-visible — confirm with the user, every time.** This
+>   is the one hard rule; a silently-removed offline action or hidden button
+>   is a regression you don't have authority to make.
+> - **Don't loosen to make it compile.** If a type error reflects a real
+>   server/store contract (e.g. the `WarningRecord`/`GET /warnings` gap Prompt
+>   17 found — the screen is client-ahead-of-server), fix the mobile side to
+>   match the authority and document it; don't widen the type to swallow it.
+> - **Confirm the existing API before "aligning."** For A's repoints and C's
+>   `RealtimeClient`, read the real signature/hub first — align to what's
+>   actually there, not to what you assume is there.
+> - **The mobile gate goes on ONLY at 0.** Adding it while any error remains
+>   makes CI permanently red — exactly what `contract-drift.yml`'s own comment
+>   warns against.
