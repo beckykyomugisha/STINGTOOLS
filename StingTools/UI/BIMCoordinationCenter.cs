@@ -95,6 +95,10 @@ namespace StingTools.UI
         // Slice 4a — Site Photos review surface (14th tab). See UI/SitePhotosTab.cs.
         private const string TabSitePhotos     = "SITE PHOTOS";
 
+        // Penetrations — fire/acoustic sealing commissioning + cross-host
+        // sign-off dashboard. Always present (fire compartmentation is universal).
+        private const string TabPenetrations   = "PENETRATIONS";
+
         // Phase 183 — HVAC project status mirror (read-only). See UI/HvacTab.cs.
         // Gated on PRJ_ORG_DISCIPLINES_TXT containing "Mechanical" so non-MEP
         // projects don't get a dead tab.
@@ -1367,7 +1371,8 @@ namespace StingTools.UI
             var tabsList = new System.Collections.Generic.List<string> {
                 TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions,
                 TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables,
-                TabMeetings, TabProjectMembers, TabCoordLog, TabSitePhotos
+                TabMeetings, TabProjectMembers, TabCoordLog, TabSitePhotos,
+                TabPenetrations
             };
             if (isHealthcare) tabsList.Add(TabHealthcare);
 
@@ -1401,14 +1406,18 @@ namespace StingTools.UI
                 "", // MEETINGS
                 memberCount > 0 ? memberCount.ToString() : "", // PROJECT MEMBERS
                 _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : "",
-                ""  // SITE PHOTOS — pending count is loaded async, no static badge
+                "",  // SITE PHOTOS — pending count is loaded async, no static badge
+                ""   // PENETRATIONS — sign-off counts loaded async, no static badge
             };
             if (isHealthcare) badgesList.Add(GetHealthcareFacilityType()); // HEALTHCARE
             string[] badges = badgesList.ToArray();
 
             for (int i = 0; i < tabs.Length; i++)
             {
-                var btn = MakeNavButton(tabs[i], badges[i]);
+                // Defensive: optional tabs (HVAC) are appended to tabsList after
+                // badgesList is built, so guard the badge index rather than risk
+                // an IndexOutOfRange when tabs outnumber badges.
+                var btn = MakeNavButton(tabs[i], i < badges.Length ? badges[i] : "");
                 nav.Children.Add(btn);
             }
 
@@ -1525,6 +1534,7 @@ namespace StingTools.UI
                     TabProjectMembers => BuildProjectMembersTab(),
                     TabCoordLog       => BuildCoordLogTab(),
                     TabSitePhotos     => BuildSitePhotosTab(),
+                    TabPenetrations   => BuildPenetrationsTab(),
                     TabHealthcare     => BuildHealthcareTab(),
                     TabHvac           => HvacTab.BuildTab(this),
                     _               => new TextBlock { Text = $"Unknown tab: {tabName}" }
@@ -8476,6 +8486,17 @@ namespace StingTools.UI
             stack.Children.Add(intro);
             stack.Children.Add(new Border { Height = 12 });
 
+            // Live commissioning dashboard (server) — renders whatever
+            // GET /api/projects/{id}/healthcare/dashboard returns. Loaded
+            // async after the tab renders; degrades to an inline note when
+            // not signed in (same pattern as the issue activity timeline).
+            stack.Children.Add(MakeSectionHeader("LIVE DASHBOARD (Planscape Server)"));
+            var hcDashHost = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+            hcDashHost.Children.Add(new TextBlock { Text = "Loading commissioning dashboard…", FontSize = 11, Foreground = Brushes.Gray });
+            stack.Children.Add(hcDashHost);
+            _ = LoadHealthcareDashboardIntoAsync(hcDashHost);
+            stack.Children.Add(new Border { Height = 8 });
+
             // Validation chain
             stack.Children.Add(MakeSectionHeader("VALIDATION CHAIN"));
             var valWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
@@ -8552,6 +8573,206 @@ namespace StingTools.UI
 
             scroll.Content = stack;
             return scroll;
+        }
+
+        /// <summary>Maps the server's single-letter RAG ("G"/"A"/"R") to the
+        /// BCC RagBrush vocabulary ("GREEN"/"AMBER"/anything-else→red).</summary>
+        private static string RagFromLetter(string letter) =>
+            string.Equals(letter, "G", StringComparison.OrdinalIgnoreCase) ? "GREEN"
+            : string.Equals(letter, "A", StringComparison.OrdinalIgnoreCase) ? "AMBER"
+            : "RED";
+
+        // Fetches GET /api/projects/{id}/healthcare/dashboard and renders the
+        // pressure / mgas / antiLigature RAG chips + RDS count into `host`.
+        // Non-fatal: not-signed-in / no-project / error all render an inline
+        // note and leave the rest of the tab intact. Mirrors
+        // LoadIssueActivityIntoAsync.
+        private async System.Threading.Tasks.Task LoadHealthcareDashboardIntoAsync(StackPanel host)
+        {
+            try
+            {
+                var client = StingTools.BIMManager.PlanscapeServerClient.Instance;
+                if (client == null || !client.IsConnected || client.CurrentProjectId == Guid.Empty)
+                {
+                    host.Children.Clear();
+                    host.Children.Add(new TextBlock {
+                        Text = "Sign in to Planscape Server (BIM tab → Connect) with a cloud project to load the live commissioning dashboard.",
+                        FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap });
+                    return;
+                }
+
+                var data = await client.GetHealthcareDashboardAsync(client.CurrentProjectId).ConfigureAwait(true);
+                host.Children.Clear();
+                if (data == null)
+                {
+                    host.Children.Add(new TextBlock {
+                        Text = "No commissioning data returned (" + (client.LastError ?? "empty response") + ").",
+                        FontSize = 11, FontStyle = FontStyles.Italic, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap });
+                    return;
+                }
+
+                var chips = new WrapPanel();
+
+                var pressure = data["pressure"] as Newtonsoft.Json.Linq.JObject;
+                if (pressure != null)
+                    chips.Children.Add(MakeMetricChip(
+                        $"Pressure 7d: {(int?)pressure["totalLast7d"] ?? 0} logs / {(int?)pressure["breachLast7d"] ?? 0} breach",
+                        RagBrush(RagFromLetter((string)pressure["rag"] ?? "A"))));
+
+                var mgas = data["mgas"] as Newtonsoft.Json.Linq.JObject;
+                if (mgas != null)
+                {
+                    string latest = (string)mgas["latest"];
+                    string mgasTxt = string.IsNullOrEmpty(latest)
+                        ? "MGPS: no verification yet"
+                        : $"MGPS: {((bool?)mgas["pass"] == true ? "PASS" : "FAIL")} @ {latest.Split('T')[0]}";
+                    chips.Children.Add(MakeMetricChip(mgasTxt, RagBrush(RagFromLetter((string)mgas["rag"] ?? "A"))));
+                }
+
+                var lig = data["antiLigature"] as Newtonsoft.Json.Linq.JObject;
+                if (lig != null)
+                    chips.Children.Add(MakeMetricChip(
+                        $"Anti-Ligature: {(int?)lig["totalAudits"] ?? 0} audits / {(int?)lig["failed"] ?? 0} failed",
+                        RagBrush(RagFromLetter((string)lig["rag"] ?? "A"))));
+
+                chips.Children.Add(MakeMetricChip($"RDS snapshots: {(int?)data["rdsCount"] ?? 0}", Br(CHeaderBg)));
+
+                host.Children.Add(chips);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BCC healthcare dashboard load failed: {ex.Message}");
+                host.Children.Clear();
+                host.Children.Add(new TextBlock { Text = "Failed to load healthcare dashboard: " + ex.Message,
+                    FontSize = 11, Foreground = Br(CRed), TextWrapping = TextWrapping.Wrap });
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  PENETRATIONS TAB — fire-stopping commissioning (BS 9999 /
+        //  Building Safety Act golden thread). Renders
+        //  GET /api/projects/{id}/penetrations/dashboard + the existing
+        //  detect / coverage / sleeve commands. Always present (fire
+        //  compartmentation applies to every building type).
+        // ════════════════════════════════════════════════════════════════
+
+        private UIElement BuildPenetrationsTab()
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
+            var stack = new StackPanel();
+
+            // Intro card
+            var intro = MakeCard();
+            var introStack = new StackPanel { Margin = new Thickness(14) };
+            introStack.Children.Add(new TextBlock {
+                Text = "Penetrations — Fire / Acoustic Sealing & Sign-off",
+                FontSize = 14, FontWeight = FontWeights.Bold,
+                Foreground = Br(Color.FromRgb(0xC6, 0x28, 0x28)),
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+            introStack.Children.Add(new TextBlock {
+                Text = "Detect MEP penetrations, place FRP / fire-damper / acoustic seals, validate coverage, and track on-site commissioning sign-off (installer / inspector + photo + GPS). The dashboard below reflects sign-off rows pushed from the mobile app.",
+                TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Brushes.Gray
+            });
+            intro.Child = introStack;
+            stack.Children.Add(intro);
+            stack.Children.Add(new Border { Height = 12 });
+
+            // Live sign-off dashboard (server)
+            stack.Children.Add(MakeSectionHeader("LIVE SIGN-OFF DASHBOARD (Planscape Server)"));
+            var penDashHost = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+            penDashHost.Children.Add(new TextBlock { Text = "Loading sign-off dashboard…", FontSize = 11, Foreground = Brushes.Gray });
+            stack.Children.Add(penDashHost);
+            _ = LoadPenetrationsDashboardIntoAsync(penDashHost);
+            stack.Children.Add(new Border { Height = 8 });
+
+            // Model-side actions (wired to existing commands)
+            stack.Children.Add(MakeSectionHeader("MODEL ACTIONS"));
+            var actWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            actWrap.Children.Add(MakeActionButton("Detect & Place",   "Penetrations_DetectAndPlace",   Br(Color.FromRgb(0xC6, 0x28, 0x28)), "Detect MEP-vs-host penetrations and place FRP / damper / seal instances."));
+            actWrap.Children.Add(MakeActionButton("Coverage Audit",   "Validation_PenetrationCoverage", Br(Color.FromRgb(0xF4, 0x51, 0x1E)), "Validate every penetration has a placed + certified seal."));
+            actWrap.Children.Add(MakeActionButton("Place Sleeves",    "Mep_PlaceSleeves",               Br(Color.FromRgb(0x15, 0x65, 0xC0)), "Place sleeves at MEP wall/floor crossings."));
+            actWrap.Children.Add(MakeActionButton("Export Sleeve BCF", "Mep_ExportSleeveBcf",           Br(Color.FromRgb(0x45, 0x50, 0x6E)), "Export sleeve coordination issues to BCF 2.1."));
+            stack.Children.Add(actWrap);
+
+            stack.Children.Add(new Border { Height = 12 });
+            stack.Children.Add(new TextBlock {
+                Text = "Sign-off rows are captured on-site by the mobile app (control number + PFV UUID + installer / inspector + photo + GPS) and feed the golden-thread record.",
+                FontSize = 10, FontStyle = FontStyles.Italic, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap });
+
+            scroll.Content = stack;
+            return scroll;
+        }
+
+        // Fetches GET /api/projects/{id}/penetrations/dashboard and renders the
+        // byStatus + byHost group counts into `host`. Same non-fatal contract
+        // as the healthcare dashboard loader.
+        private async System.Threading.Tasks.Task LoadPenetrationsDashboardIntoAsync(StackPanel host)
+        {
+            try
+            {
+                var client = StingTools.BIMManager.PlanscapeServerClient.Instance;
+                if (client == null || !client.IsConnected || client.CurrentProjectId == Guid.Empty)
+                {
+                    host.Children.Clear();
+                    host.Children.Add(new TextBlock {
+                        Text = "Sign in to Planscape Server (BIM tab → Connect) with a cloud project to load the sign-off dashboard.",
+                        FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap });
+                    return;
+                }
+
+                var data = await client.GetPenetrationsDashboardAsync(client.CurrentProjectId).ConfigureAwait(true);
+                host.Children.Clear();
+                if (data == null)
+                {
+                    host.Children.Add(new TextBlock {
+                        Text = "No sign-off data returned (" + (client.LastError ?? "empty response") + ").",
+                        FontSize = 11, FontStyle = FontStyles.Italic, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap });
+                    return;
+                }
+
+                // byStatus — colour SIGNED-OFF/INSPECTED green, REWORK red, else header blue.
+                var byStatus = data["byStatus"] as Newtonsoft.Json.Linq.JArray;
+                if (byStatus != null && byStatus.Count > 0)
+                {
+                    host.Children.Add(new TextBlock { Text = "By status", FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+                    var statusChips = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+                    foreach (var row in byStatus)
+                    {
+                        string st = (string)row["status"] ?? "(none)";
+                        int ct = (int?)row["count"] ?? 0;
+                        var brush = (st == "SIGNED-OFF" || st == "INSPECTED") ? RagBrush("GREEN")
+                                  : st == "REWORK" ? RagBrush("RED")
+                                  : Br(CHeaderBg);
+                        statusChips.Children.Add(MakeMetricChip($"{st}: {ct}", brush));
+                    }
+                    host.Children.Add(statusChips);
+                }
+
+                // byHost
+                var byHost = data["byHost"] as Newtonsoft.Json.Linq.JArray;
+                if (byHost != null && byHost.Count > 0)
+                {
+                    host.Children.Add(new TextBlock { Text = "By host element", FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+                    var hostChips = new WrapPanel();
+                    foreach (var row in byHost)
+                        hostChips.Children.Add(MakeMetricChip(
+                            $"{(string)row["hostType"] ?? "(none)"}: {(int?)row["count"] ?? 0}",
+                            Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+                    host.Children.Add(hostChips);
+                }
+
+                if ((byStatus == null || byStatus.Count == 0) && (byHost == null || byHost.Count == 0))
+                    host.Children.Add(new TextBlock { Text = "No penetration sign-offs recorded yet.",
+                        FontSize = 11, FontStyle = FontStyles.Italic, Foreground = Brushes.Gray });
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BCC penetrations dashboard load failed: {ex.Message}");
+                host.Children.Clear();
+                host.Children.Add(new TextBlock { Text = "Failed to load penetrations dashboard: " + ex.Message,
+                    FontSize = 11, Foreground = Br(CRed), TextWrapping = TextWrapping.Wrap });
+            }
         }
 
         // ════════════════════════════════════════════════════════════════
