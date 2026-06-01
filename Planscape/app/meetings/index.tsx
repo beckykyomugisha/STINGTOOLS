@@ -12,7 +12,7 @@ import {
   exportMeetingMinutesDoc, getMeetingIcsUrl,
   type MeetingActionItem, type MeetingAttendee, type MeetingAgendaItem,
 } from "@/api/endpoints";
-import { MemberPicker } from "@/src/components/MemberPicker";
+import { MemberPicker } from "@/components/MemberPicker";
 import { useProjectStore } from "@/stores/projectStore";
 import type { Meeting, ProjectMember } from "@/types/api";
 

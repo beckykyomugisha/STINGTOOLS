@@ -781,7 +781,15 @@ if it's wrong.
 > 1. **Mobile `tsc` baseline** — `Planscape/app/` carries ~111 pre-existing
 >    `tsc` errors (WIP tree). Drive to 0 so `tsc --noEmit` can become a CI
 >    gate. Pure type hygiene; touch only what the compiler flags; don't
->    change runtime behaviour.
+>    change runtime behaviour. **CORRECTION (investigated):** the ~18 errors
+>    a prior run dismissed as "structural WIP / fabrication" are actually
+>    **2 typo'd import paths to files that already exist** — fix these first,
+>    they're trivial: `@/stores/auth` → `@/stores/authStore` (8 files:
+>    payment-certs, boq, variations, model-checks) and
+>    `@/src/components/MemberPicker` → `@/components/MemberPicker` (doubled
+>    `src/`; `app/meetings/index.tsx`). That clears ~18 of the 111. The
+>    remaining ~93 are unenumerated — triage those before assuming any are
+>    real WIP.
 > 2. **Test project baseline** — `Planscape.Server/tests/Planscape.Tests`
 >    has ~7 pre-existing errors (duplicate `WebApplicationFactory`
 >    definitions + Program accessibility). Resolve so the test project
@@ -905,3 +913,53 @@ if it's wrong.
 > - Items 2 and 3 both touch the EF model/schema — sequence the snapshot
 >   regen (3) before any new migration including Gap 9's (2), or you'll bake
 >   the stale-snapshot diff into the new migration.
+
+---
+
+## Prompt 17 — Clear the remaining mobile `tsc` errors (the unenumerated ~93)
+
+> The mobile app (`Planscape/`) has ~111 pre-existing `tsc --noEmit` errors.
+> The ~18 "structural" ones (2 typo'd import paths across 9 files) are
+> **already fixed** (`@/stores/auth`→`@/stores/authStore`,
+> `@/src/components/MemberPicker`→`@/components/MemberPicker`). This prompt
+> clears the **remaining ~93**, which nobody has enumerated or categorised —
+> a prior run hand-waved them as "mechanical" without listing them. Drive
+> the baseline to **0** so `tsc --noEmit` can become a CI gate (and the
+> Prompt-13 guardrail can finally add a mobile job).
+>
+> 1. **Enumerate first.** Run `npx tsc --noEmit` in `Planscape/`, capture the
+>    full error list, and **bucket by root cause** (e.g. wrong import path /
+>    missing named export / type mismatch on an API field / implicit-any /
+>    missing dependency type / genuinely-absent module). Report the buckets
+>    with counts before fixing — the "93" is an estimate; trust the compiler.
+> 2. **Fix only what's a real, safe correction:** wrong paths, missing
+>    `import type`, obvious type mismatches against the *server's actual*
+>    shape (cross-check the generated/typed DTOs from Prompt 13 — don't
+>    invent fields), implicit-anys that want an annotation. Touch only what
+>    the compiler flags; **no runtime-behaviour changes.**
+> 3. **For anything that is genuinely a missing module / unbuilt feature /
+>    undefined symbol with no existing target — STOP and list it, don't
+>    fabricate it.** That's the one real "WIP" category; a stub or a faked
+>    component is worse than a documented red. Separate "fixed" from
+>    "blocked-on-WIP (here's the list)".
+>
+> **Acceptance:** either `tsc --noEmit` is **0 errors** (baseline cleared →
+> add the mobile job to `contract-drift.yml`), or it's `0 except N
+> explicitly-listed WIP blockers` with each blocker named + why it can't be
+> fixed without building a feature. No fabricated modules; no behaviour
+> change; the 9 already-fixed import lines stay fixed.
+>
+> **Verify / challenge before you build:**
+> - **Don't trust "~93" or "mechanical."** Enumerate and bucket first; the
+>   real number and the real mix are unknown until you run `tsc`.
+> - This is the mobile tree only (`Planscape/`) — parallel-safe with
+>   server/plugin work, but **don't** touch `Planscape.Server` or
+>   `StingTools`.
+> - If a type error reflects a **real server contract mismatch** (not a
+>   mobile typo) — e.g. another Drift-2-class field-name divergence the
+>   audit didn't catch — flag it as a *finding*, fix the mobile side to
+>   match the server (the authority), and note it; don't "fix" it by
+>   loosening the type to `any`.
+> - Confirm the prior 9-line import fix is present before you start (if
+>   you're on a branch that predates it, those ~18 will reappear — re-apply
+>   or rebase first).

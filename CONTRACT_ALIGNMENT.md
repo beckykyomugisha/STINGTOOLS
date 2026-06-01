@@ -263,10 +263,18 @@ both hosts write the IFC file's GlobalId (Revit via
 `el.GlobalId`) — **with one operational dependency that is currently NOT
 server-monitored** (corrected, session 15): `IFC_GLOBAL_ID_TXT` is a
 *snapshot* at stabilize time and equals the exported file's GlobalId only
-while the model stays stable through export **and the IFC export honours
-the `IfcGUID` param** — but the in-repo exporters use plain
-`IFCExportOptions` and don't pin a GUID source (Prompt 11 finding R1), and
-the server `GLOBALID_DRIFT` detector is a **deferred no-op**
+while the model stays stable through export. **R1 refined (code-verified):**
+the pin is the **`IfcGUID` instance parameter**, not an `IFCExportOptions`
+setting — Revit populates it on an element's first IFC export and honours
+it as `IfcRoot.GlobalId` thereafter, and `StabilizeIfcGuidsCommand` reads
+`IFC_GLOBAL_ID_TXT` **from that same param** (`ReadRevitIfcGuid` lines
+163-185; it skips elements whose `IfcGUID` is empty = never exported). So
+the cross-host key and the exported GlobalId share **one source** and are
+equal by construction **once an element has been exported at least once**;
+the residual risk narrows to the `IfcGUID` param being regenerated between
+the stabilize snapshot and the ingested export (hence the export → stabilize
+→ export-again ordering, R2). The server `GLOBALID_DRIFT` detector is still
+a **deferred no-op**
 (`IfcAlignmentValidator.cs:306` — Gap 9 needs a
 `FederatedElement.ProjectModelId` column that doesn't exist). The earlier
 "monitored" claim was wrong. The **only active guards** are now Prompt 12's
@@ -525,9 +533,13 @@ the corrections they surfaced:
   `{code,message,severity}` declared + a tolerant `TryParse` now exercised at
   the IFC-ingest write site (surfaces one summary warning on non-conforming
   blobs). Gate is deliberately **server-only** (no mobile `tsc` / `dotnet
-  test` job — both red on the baselines). *Note: two agents touched the
-  server tree; the second built on `0a9e95de5` rather than conflicting but
-  left its extension **uncommitted** — decide whether to keep it.*
+  test` job — both red on the baselines). *Duplicate RESOLVED (Prompt 15,
+  commit `8610ce5bc`): the second agent's fuller guardrail was confirmed a
+  clean superset of `0a9e95de5` (`git merge-base --is-ancestor` holds;
+  additive-only diffs, no contested hunks), committed as 9 explicitly-staged
+  files with the two cross-host WIP files left untracked; gate re-proven
+  red-on-rename / green-on-revert; whole-solution build 0 errors. Not yet
+  pushed.*
 - **Prompt 12 (Stabilize prereq) — #1 DONE (`5bd85fe2d`), #2 not deliverable.**
   Non-blocking "Run Stabilize IFC GUIDs first" precheck fires at the two
   user-initiated entry points (IFC export, BCC Sync Now) only when Missing
@@ -556,8 +568,12 @@ the corrections they surfaced:
   the EF-migration premise** (Task 3): the Photo DbSets + cross-host columns
   are **already migrated**; the only real issues are a *stale model snapshot*
   and the `ArchiCADEventLogPersistence` migration (which lives in the
-  uncommitted ArchiCAD WIP). Task 1 (mobile `tsc`) deferred — ~18 of the 111
-  errors are missing-module structural WIP, can't reach 0. Task 4 skipped
+  uncommitted ArchiCAD WIP). Task 1 (mobile `tsc`) deferred —
+  *but the ~18 it called "structural WIP / fabrication" are actually 2
+  typo'd import paths to existing files (corrected): `@/stores/auth` →
+  `@/stores/authStore` (8 files), `@/src/components/MemberPicker` →
+  `@/components/MemberPicker` (doubled `src/`, 1 file) — trivially fixable,
+  clears ~18 of 111; the other ~93 are the unenumerated remainder.* Task 4 skipped
   (optional, highest risk).
 
 **New latent bug (Prompt 11 R4):** `IfcGuidEncoder.FromGuid`

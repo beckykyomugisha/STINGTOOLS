@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { apiFetch } from "@/api/client";
-import { useAuthStore } from "@/stores/auth";
+import { useAuthStore } from "@/stores/authStore";
 
 interface BoqSection {
   id: string;
