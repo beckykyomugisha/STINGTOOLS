@@ -16720,3 +16720,98 @@ ELC_LPS_BOND_TAG_TXT,Generic Models,Instance,Yes
 ELC_LPS_SPD_TAG_TXT,Electrical Equipment,Instance,Yes
 ELC_LPS_TESTCLAMP_TAG_TXT,Electrical Equipment,Instance,Yes
 ELC_LPS_TESTCLAMP_TAG_TXT,Generic Models,Instance,Yes
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Air Terminals,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Cable Trays,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Casework,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Conduits,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Electrical Equipment,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Electrical Fixtures,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Furniture,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Generic Models,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Lighting Fixtures,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Mechanical Equipment,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Plumbing Equipment,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Plumbing Fixtures,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Specialty Equipment,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Sprinklers,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Communication Devices,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Telephone Devices,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Data Devices,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Security Devices,Type,True
+ASS_CST_FX_TO_BASE_NR_DISP_TXT,Nurse Call Devices,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Air Terminals,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Cable Trays,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Casework,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Conduits,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Electrical Equipment,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Electrical Fixtures,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Furniture,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Generic Models,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Lighting Fixtures,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Mechanical Equipment,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Plumbing Equipment,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Plumbing Fixtures,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Specialty Equipment,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Sprinklers,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Communication Devices,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Telephone Devices,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Data Devices,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Security Devices,Type,True
+ASS_CST_UNIT_RATE_NR_DISP_TXT,Nurse Call Devices,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Air Terminals,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Cable Trays,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Casework,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Conduits,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Electrical Equipment,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Electrical Fixtures,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Furniture,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Generic Models,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Lighting Fixtures,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Mechanical Equipment,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Plumbing Equipment,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Plumbing Fixtures,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Specialty Equipment,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Sprinklers,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Communication Devices,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Telephone Devices,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Data Devices,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Security Devices,Type,True
+ASS_PMT_CERT_NO_NR_DISP_TXT,Nurse Call Devices,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Air Terminals,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Cable Trays,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Casework,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Conduits,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Electrical Equipment,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Electrical Fixtures,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Furniture,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Generic Models,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Lighting Fixtures,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Mechanical Equipment,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Plumbing Equipment,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Plumbing Fixtures,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Specialty Equipment,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Sprinklers,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Communication Devices,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Telephone Devices,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Data Devices,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Security Devices,Type,True
+ASS_PMT_PCT_COMPLETE_NR_DISP_TXT,Nurse Call Devices,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Air Terminals,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Cable Trays,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Casework,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Conduits,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Electrical Equipment,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Electrical Fixtures,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Furniture,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Generic Models,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Lighting Fixtures,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Mechanical Equipment,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Plumbing Equipment,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Plumbing Fixtures,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Specialty Equipment,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Sprinklers,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Communication Devices,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Telephone Devices,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Data Devices,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Security Devices,Type,True
+ASS_VAR_VALUATION_NR_DISP_TXT,Nurse Call Devices,Type,True
