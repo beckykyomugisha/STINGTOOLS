@@ -525,9 +525,13 @@ the corrections they surfaced:
   `{code,message,severity}` declared + a tolerant `TryParse` now exercised at
   the IFC-ingest write site (surfaces one summary warning on non-conforming
   blobs). Gate is deliberately **server-only** (no mobile `tsc` / `dotnet
-  test` job — both red on the baselines). *Note: two agents touched the
-  server tree; the second built on `0a9e95de5` rather than conflicting but
-  left its extension **uncommitted** — decide whether to keep it.*
+  test` job — both red on the baselines). *Duplicate RESOLVED (Prompt 15,
+  commit `8610ce5bc`): the second agent's fuller guardrail was confirmed a
+  clean superset of `0a9e95de5` (`git merge-base --is-ancestor` holds;
+  additive-only diffs, no contested hunks), committed as 9 explicitly-staged
+  files with the two cross-host WIP files left untracked; gate re-proven
+  red-on-rename / green-on-revert; whole-solution build 0 errors. Not yet
+  pushed.*
 - **Prompt 12 (Stabilize prereq) — #1 DONE (`5bd85fe2d`), #2 not deliverable.**
   Non-blocking "Run Stabilize IFC GUIDs first" precheck fires at the two
   user-initiated entry points (IFC export, BCC Sync Now) only when Missing
