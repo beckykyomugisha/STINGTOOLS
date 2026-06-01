@@ -100,6 +100,8 @@ public class PlanscapeDbContext : DbContext
     public DbSet<TaggedElement> TaggedElements => Set<TaggedElement>();
     public DbSet<ExternalElementMapping> ExternalElementMappings => Set<ExternalElementMapping>();
     public DbSet<PlatformEvent> PlatformEvents => Set<PlatformEvent>();
+    // MIGRATION REQUIRED: dotnet ef migrations add ArchiCADEventLogPersistence
+    public DbSet<ArchiCADEventLog> ArchiCADEventLogs => Set<ArchiCADEventLog>();
     public DbSet<MeetingSession> MeetingSessions => Set<MeetingSession>();
     public DbSet<MeetingViewerParticipant> MeetingViewerParticipants => Set<MeetingViewerParticipant>();
     public DbSet<MeetingSnapshot> MeetingSnapshots => Set<MeetingSnapshot>();
@@ -635,6 +637,21 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(m => new { m.ProjectId, m.IfcGlobalId, m.Host, m.HostDocumentGuid }).IsUnique();
             e.HasIndex(m => new { m.ProjectId, m.IfcGlobalId });  // cross-host lookup
             e.HasIndex(m => new { m.ProjectId, m.Host, m.HostElementId });  // reverse lookup
+        });
+
+        // ── ArchiCADEventLog ──
+        // Durable backing store for the in-memory ArchiCAD ring buffer; the
+        // recent-events endpoint falls back to this after a cold start.
+        // MIGRATION REQUIRED: dotnet ef migrations add ArchiCADEventLogPersistence
+        modelBuilder.Entity<ArchiCADEventLog>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Kind).HasMaxLength(20);
+            e.Property(x => x.ElementId).HasMaxLength(200);
+            e.Property(x => x.ElementType).HasMaxLength(80);
+            e.Property(x => x.IfcGlobalId).HasMaxLength(22);
+            // Newest-first per-project scan for GET /events/recent fallback.
+            e.HasIndex(x => new { x.ProjectId, x.CreatedAt });
         });
 
         // ── PlatformEvent (K2 — cross-surface event spine) ──

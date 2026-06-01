@@ -14,12 +14,14 @@ from .about import StingAboutOperator
 from .reload_substrate import StingReloadSubstrateOperator
 from .bonsai_probe import StingBonsaiProbeOperator
 from .sync_planscape import StingSyncPlanscapeOperator
+from .raise_issue import StingRaiseIssueOperator
 
 CLASSES = (
     StingAboutOperator,
     StingReloadSubstrateOperator,
     StingBonsaiProbeOperator,
     StingSyncPlanscapeOperator,
+    StingRaiseIssueOperator,
 )
 
 

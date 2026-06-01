@@ -226,6 +226,31 @@ class BonsaiBridge:
         except Exception:  # noqa: BLE001
             return ""
 
+    def element_for_object(self, obj: Any) -> Optional[Any]:
+        """Reverse of :meth:`host_element_id` — resolve the IFC element linked
+        to a Blender object via Bonsai's ``tool.Ifc.get_entity(obj)``.
+
+        Returns the ifcopenshell entity (carrying ``.GlobalId``), or None when
+        the object isn't IFC-linked or Bonsai is absent. Defensive against the
+        same blenderbim → bonsai → bonsai_bim module renames host_element_id
+        guards against.
+        """
+        if obj is None:
+            return None
+        for tool_path in ("bonsai.tool", "bonsai_bim.tool", "blenderbim.tool"):
+            try:
+                mod = __import__(tool_path, fromlist=["Ifc"])
+                ifc_tool = getattr(mod, "Ifc", None)
+                getter = getattr(ifc_tool, "get_entity", None) if ifc_tool else None
+                if getter is None:
+                    continue
+                el = getter(obj)
+                if el is not None:
+                    return el
+            except Exception:  # noqa: BLE001 — Bonsai API drift must not raise
+                continue
+        return None
+
     # ------------------------------------------------------------------
     # IFC mutation — delegate through Bonsai when available
     # ------------------------------------------------------------------

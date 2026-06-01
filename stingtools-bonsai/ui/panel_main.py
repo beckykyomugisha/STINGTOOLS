@@ -64,6 +64,9 @@ class StingMainPanel(bpy.types.Panel):
         row = box.row()
         row.enabled = configured
         row.operator("sting.sync_planscape", icon="EXPORT")
+        row2 = box.row()
+        row2.enabled = configured
+        row2.operator("sting.raise_issue", icon="ERROR")
 
         # ─── Placeholder for the remaining MVP sections ─────────
         layout.separator()
@@ -73,7 +76,7 @@ class StingMainPanel(bpy.types.Panel):
             "SELECT   — Untagged / Stale / By Discipline",
             "TAGS     — Auto Tag / Tag Selected / Token writers",
             "VALIDATE — IDS pipeline + dashboard",
-            "COORD    — Raise issue + SignalR live coordination",
+            "COORD    — SignalR live coordination",
         ):
             row = col.row()
             row.enabled = False

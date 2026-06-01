@@ -93,11 +93,14 @@ class StingSyncPlanscapeOperator(bpy.types.Operator):
         checker = SpatialChecker(model, stage=DEFAULT_STAGE, enum_registry=enum_registry)
 
         # Group spatial mismatches by element GlobalId (one model-wide pass).
-        errors_by_gid: dict[str, list[dict]] = {}
+        # SpatialChecker emits SpatialMismatch (rule_id / ifc_global_id /
+        # segment / element_value / expected_values / message); every mismatch
+        # is an error. Tag-grammar warnings are folded in per-element below.
+        findings_by_gid: dict[str, list[dict]] = {}
         try:
             for m in checker.check_all_elements():
-                errors_by_gid.setdefault(m.ifc_global_id, []).append(
-                    {"rule": m.rule_id, "segment": m.segment, "message": m.message}
+                findings_by_gid.setdefault(m.ifc_global_id, []).append(
+                    {"severity": "error", "rule": m.rule_id, "segment": m.segment, "message": m.message}
                 )
         except Exception as e:  # noqa: BLE001
             print(f"[STING] spatial check failed, continuing without it: {e}")
@@ -113,15 +116,24 @@ class StingSyncPlanscapeOperator(bpy.types.Operator):
             gid = getattr(el, "GlobalId", "") or ""
             tag = Tag.from_pset(tags)
 
-            el_errors = list(errors_by_gid.get(gid, []))
+            # Per-element findings = spatial mismatches (errors) + tag-grammar
+            # result. TagValidationResult exposes BOTH .errors and .warnings
+            # (warnings carry deprecated-code + skipped-enum notices); we
+            # serialise both, tagged by severity, so the server/dashboard can
+            # distinguish a hard failure from an advisory. is_fully_resolved
+            # is keyed on errors only — warnings never block resolution.
+            el_findings = list(findings_by_gid.get(gid, []))
             if grammar is not None:
                 try:
                     res = grammar.validate(tag, stage=DEFAULT_STAGE)
                     for msg in res.errors:
-                        el_errors.append({"rule": "TAG_GRAMMAR", "segment": "", "message": msg})
+                        el_findings.append({"severity": "error", "rule": "TAG_GRAMMAR", "segment": "", "message": msg})
+                    for msg in res.warnings:
+                        el_findings.append({"severity": "warning", "rule": "TAG_GRAMMAR", "segment": "", "message": msg})
                 except Exception as e:  # noqa: BLE001
                     print(f"[STING] tag validation failed for {gid}: {e}")
 
+            has_errors = any(f.get("severity") == "error" for f in el_findings)
             is_complete = tag.is_complete()
             elements.append({
                 "ifc_global_id": gid,
@@ -138,9 +150,9 @@ class StingSyncPlanscapeOperator(bpy.types.Operator):
                 "full_tag": tags.get("FullTag") or tag.to_full_tag(),
                 "ifc_class": el.is_a(),
                 "is_complete": is_complete,
-                "is_fully_resolved": is_complete and not el_errors,
+                "is_fully_resolved": is_complete and not has_errors,
                 "is_stale": False,
-                "validation_errors": json.dumps(el_errors) if el_errors else None,
+                "validation_errors": json.dumps(el_findings) if el_findings else None,
             })
 
         if not elements:
@@ -172,7 +184,7 @@ class StingSyncPlanscapeOperator(bpy.types.Operator):
         summary = (
             f"Synced {len(elements)} element(s): {new_m} mapping(s), {new_e} element(s)"
             f"{f', {skipped} skipped' if skipped else ''}"
-            f"{f' · {flagged} flagged with validation errors' if flagged else ''}"
+            f"{f' · {flagged} with validation findings' if flagged else ''}"
         )
         self.report({"INFO"}, summary)
         print(f"[STING] {summary}")

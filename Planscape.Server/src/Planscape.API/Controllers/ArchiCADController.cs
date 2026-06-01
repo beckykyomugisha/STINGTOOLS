@@ -118,6 +118,17 @@ namespace Planscape.API.Controllers
             return null;
         }
 
+        /// <summary>
+        /// Rebuild an event's property dict from the persisted JSON. Best-effort:
+        /// malformed / null JSON yields null rather than throwing the GET.
+        /// </summary>
+        private static Dictionary<string, object>? DeserialiseProps(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try { return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(json); }
+            catch { return null; }
+        }
+
         // ── POST /api/archicad/{projectId}/push ──────────────────────────────
 
         [HttpPost("{projectId:guid}/push")]
@@ -137,6 +148,45 @@ namespace Planscape.API.Controllers
 
             // Persist events in ring buffer for late-join clients.
             ArchiCADEventBuffer.Add(projectId, payload.Events);
+
+            // Durable persistence — the ring buffer above is in-memory only and
+            // is lost on restart. Snapshot the events into ArchiCADEventLog rows
+            // and insert fire-and-forget in a fresh DI scope so the recent-events
+            // endpoint can fall back to the DB after a cold start. Tenant comes
+            // from the bridge-authenticated project (no JWT claim on this path),
+            // so TenantId is stamped explicitly.
+            // MIGRATION REQUIRED: dotnet ef migrations add ArchiCADEventLogPersistence
+            var logTenantId = project.TenantId;
+            var nowUtc = DateTime.UtcNow;
+            var logRows = payload.Events.Select(ev => new Planscape.Core.Entities.ArchiCADEventLog
+            {
+                TenantId          = logTenantId,
+                ProjectId         = projectId,
+                Kind              = ev.Kind ?? "Changed",
+                ElementId         = ev.ElementId ?? "",
+                ElementType       = ev.ElementType ?? "",
+                IfcGlobalId       = ExtractIfcGlobalId(ev),
+                PropertiesJson    = (ev.Properties != null && ev.Properties.Count > 0)
+                                        ? System.Text.Json.JsonSerializer.Serialize(ev.Properties)
+                                        : null,
+                EventTimestampUtc = ev.TimestampUtc == default
+                                        ? nowUtc
+                                        : (ev.TimestampUtc.Kind == DateTimeKind.Utc
+                                            ? ev.TimestampUtc
+                                            : DateTime.SpecifyKind(ev.TimestampUtc, DateTimeKind.Utc)),
+                CreatedAt         = nowUtc,
+            }).ToList();
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+                    db.ArchiCADEventLogs.AddRange(logRows);
+                    await db.SaveChangesAsync();
+                }
+                catch { /* event persistence is best-effort; never fails the push */ }
+            });
 
             // Gap M — register the ArchiCAD author in the presence tracker so the
             // BCC "N people viewing" chip includes ArchiCAD authors alongside web/mobile
@@ -269,15 +319,43 @@ namespace Planscape.API.Controllers
             int safeCount = Math.Clamp(count, 1, 200);
             var events = ArchiCADEventBuffer.Get(projectId, safeCount);
 
+            // Cold-start fallback: the in-memory ring buffer is empty after a
+            // restart, so read the most recent persisted rows and rebuild the
+            // ArchiCADEvent shape. Tenant scoping is automatic (ITenantScoped
+            // query filter); order oldest→newest to match the ring buffer.
+            bool fromDb = false;
+            if (events.Count == 0)
+            {
+                var rows = await _db.ArchiCADEventLogs
+                    .Where(x => x.ProjectId == projectId)
+                    .OrderByDescending(x => x.CreatedAt)
+                    .Take(safeCount)
+                    .ToListAsync(ct);
+                rows.Reverse();
+                events = rows.Select(r => new ArchiCADEvent
+                {
+                    Kind         = r.Kind,
+                    ElementId    = r.ElementId,
+                    ElementType  = r.ElementType,
+                    IfcGlobalId  = r.IfcGlobalId,
+                    Properties   = DeserialiseProps(r.PropertiesJson),
+                    TimestampUtc = r.EventTimestampUtc,
+                }).ToList();
+                fromDb = events.Count > 0;
+            }
+
             return Ok(new
             {
                 projectId,
                 eventCount  = events.Count,
                 events,
                 bufferCap   = 200,
+                source      = fromDb ? "db" : "memory",
                 note        = events.Count == 0
                     ? "No recent events. StingBridge has not pushed any changes yet."
-                    : $"Last {events.Count} events (in-memory, reset on server restart).",
+                    : fromDb
+                        ? $"Last {events.Count} events (restored from durable log after a server restart)."
+                        : $"Last {events.Count} events (in-memory ring buffer).",
             });
         }
 
