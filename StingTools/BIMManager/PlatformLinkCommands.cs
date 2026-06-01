@@ -2158,10 +2158,18 @@ namespace StingTools.BIMManager
                     int paraDepth   = StingTools.Core.TagConfig.ReadActiveParagraphDepth(typeEl, el);
                     string pattern  = StingTools.Core.TagConfig.ResolveActivePatternMode(typeEl, el);
 
+                    // Drift 4 — the cross-host key is the TRUE IFC GlobalId
+                    // (IFC_GLOBAL_ID_TXT, written by StabilizeIfcGuidsCommand from
+                    // Revit's IfcGloballyUniqueId), NOT Element.UniqueId. Empty
+                    // until the element is stabilised + IFC-exported; sent null so
+                    // the server skips the mapping rather than keying on the wrong id.
+                    string ifcGid = ParameterHelpers.GetString(el, "IFC_GLOBAL_ID_TXT");
+
                     elements.Add(new TagElementPayload
                     {
                         RevitElementId  = el.Id.Value,
                         UniqueId        = el.UniqueId,
+                        IfcGlobalId     = string.IsNullOrWhiteSpace(ifcGid) ? null : ifcGid,
                         Disc            = disc, Loc = loc, Zone = zone, Lvl = lvl,
                         Sys = sys, Func = func, Prod = prod, Seq = seq,
                         Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,

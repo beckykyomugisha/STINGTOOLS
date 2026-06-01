@@ -6215,10 +6215,11 @@ namespace StingTools.BIMManager
             {
                 uidoc.Selection.SetElementIds(validIds);
                 // Cross-host resolution: after selecting in Revit, look up the
-                // same elements' canonical IFC GlobalId (= Revit UniqueId) in the
-                // server's cross-host identity table and surface any non-Revit
-                // hosts (Blender / ArchiCAD / IoT) that also reference them.
-                // Graceful no-op when not signed in / no project / empty.
+                // same elements' canonical IFC GlobalId (the IFC_GLOBAL_ID_TXT
+                // param — NOT Revit's UniqueId) in the server's cross-host
+                // identity table and surface any non-Revit hosts (Blender /
+                // ArchiCAD / IoT) that also reference them. Graceful no-op when
+                // not signed in / no project / un-stabilised.
                 string crossHost = ResolveCrossHostSummary(doc, validIds);
                 TaskDialog.Show("STING Issue Tracker",
                     $"Selected {validIds.Count} elements from {openWithElements.Count} open issues." + crossHost);
@@ -6229,11 +6230,13 @@ namespace StingTools.BIMManager
         }
 
         /// <summary>
-        /// Queries GET /api/projects/{id}/ifc/mappings?ifcGuid={UniqueId} for the
-        /// selected elements (capped) and returns a one-line summary of the
-        /// non-Revit hosts that also map to them, or "" when nothing to show.
-        /// Every failure mode (not signed in, endpoint absent, empty, network)
-        /// is a silent no-op — cross-host info is an enrichment, never a blocker.
+        /// Queries GET /api/projects/{id}/ifc/mappings?ifcGuid={IFC_GLOBAL_ID_TXT}
+        /// (the true 22-char IFC GlobalId, NOT Revit's UniqueId) for the selected
+        /// elements (capped) and returns a one-line summary of the non-Revit hosts
+        /// that also map to them. Elements without a stabilised IFC GlobalId yield
+        /// a "run Stabilize IFC GUIDs first" hint instead of a wrong-key query.
+        /// Every failure mode (not signed in, endpoint absent, empty, network) is
+        /// a silent no-op — cross-host info is an enrichment, never a blocker.
         /// TODO: a server-side batch mappings endpoint would replace the per-
         /// element loop + cap with a single round-trip.
         /// </summary>
@@ -6247,19 +6250,28 @@ namespace StingTools.BIMManager
 
                 const int cap = 25; // bound the synchronous per-element round-trips
                 int elementsWithMappings = 0;
+                int skippedNoIfcGuid = 0;
                 var hostCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var id in ids.Take(cap))
                 {
-                    string uid = doc.GetElement(id)?.UniqueId;
-                    if (string.IsNullOrEmpty(uid)) continue;
+                    var el = doc.GetElement(id);
+                    if (el == null) continue;
+
+                    // Drift 4 — the cross-host key is the TRUE IFC GlobalId
+                    // (IFC_GLOBAL_ID_TXT, written by StabilizeIfcGuidsCommand from
+                    // Revit's IfcGloballyUniqueId), NOT Element.UniqueId. Querying
+                    // /ifc/mappings with the 45-char UniqueId never matched a
+                    // Bonsai/ArchiCAD row keyed on the 22-char IFC GlobalId.
+                    string ifcGuid = ParameterHelpers.GetString(el, "IFC_GLOBAL_ID_TXT");
+                    if (string.IsNullOrWhiteSpace(ifcGuid)) { skippedNoIfcGuid++; continue; }
 
                     JObject page;
                     // Task.Run bridge: avoids the SynchronizationContext deadlock a
                     // bare .GetAwaiter().GetResult() hits on Revit's main thread
                     // (same pattern as PublishModelCommand / HvacPushSnapshotCommand).
-                    try { page = Task.Run(() => client.GetIfcMappingsAsync(client.CurrentProjectId, uid)).GetAwaiter().GetResult(); }
-                    catch (Exception ex) { StingLog.Warn($"Cross-host map ({uid}): {ex.Message}"); continue; }
+                    try { page = Task.Run(() => client.GetIfcMappingsAsync(client.CurrentProjectId, ifcGuid)).GetAwaiter().GetResult(); }
+                    catch (Exception ex) { StingLog.Warn($"Cross-host map ({ifcGuid}): {ex.Message}"); continue; }
 
                     if (!(page?["items"] is JArray items) || items.Count == 0) continue;
 
@@ -6275,10 +6287,18 @@ namespace StingTools.BIMManager
                     if (anyNonRevit) elementsWithMappings++;
                 }
 
-                if (hostCounts.Count == 0) return "";
+                // Graceful fallback: when elements lack a stabilised IFC GlobalId
+                // we cannot resolve cross-host — surface the prerequisite rather
+                // than silently querying with the wrong key.
+                string stabiliseHint = skippedNoIfcGuid > 0
+                    ? $"\n\n{skippedNoIfcGuid} selected element(s) have no IFC GlobalId yet — run "
+                      + "'Stabilize IFC GUIDs' (then IFC-export) before cross-host resolution works."
+                    : "";
+
+                if (hostCounts.Count == 0) return stabiliseHint;
                 string hosts = string.Join(", ", hostCounts.Select(kv => $"{kv.Key} ({kv.Value})"));
                 string capNote = ids.Count > cap ? $" (checked first {cap} of {ids.Count})" : "";
-                return $"\n\nCross-host: {elementsWithMappings} element(s) also resolve in {hosts}.{capNote}";
+                return $"\n\nCross-host: {elementsWithMappings} element(s) also resolve in {hosts}.{capNote}{stabiliseHint}";
             }
             catch (Exception ex) { StingLog.Warn($"Cross-host resolve: {ex.Message}"); return ""; }
         }

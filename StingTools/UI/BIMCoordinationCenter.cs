@@ -2686,7 +2686,7 @@ namespace StingTools.UI
                 ("Raise Issue",       "RaiseIssue",              Color.FromRgb(0xC6, 0x28, 0x28), "Create new RFI/NCR/SI/Clash issue with element linking and BCF integration", true),
                 ("Update Status",     "UpdateIssue",             Color.FromRgb(0xE8, 0x91, 0x2D), "Update issue status, priority, or assignees", true),
                 ("Bulk Close",        "IssuesBulkClose",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Close multiple resolved issues at once", true),
-                ("Select Elements",   "SelectIssueElements",     Color.FromRgb(0x1A, 0x23, 0x7E), "Select model elements linked to the selected issue", false),
+                ("Select Elements",   "SelectIssueElements",     Color.FromRgb(0x1A, 0x23, 0x7E), "Select model elements linked to the selected issue. Cross-host resolution (showing the same element in Blender/ArchiCAD) requires the true IFC GlobalId — run TEMP → 'Stabilize IFC GUIDs' and IFC-export first.", false),
                 ("BCF Export",        "BCFExport",               Color.FromRgb(0x00, 0x69, 0x7C), "Export issues as BCF 2.1 for ACC/Navisworks/BIMcollab", true),
                 ("BCF Import",        "BCFImport",               Color.FromRgb(0x00, 0x69, 0x7C), "Import BCF issues from external clash/coordination tools", false),
                 ("Export Excel",      "ExportIssues",            Color.FromRgb(0x45, 0x50, 0x6E), "Export full issue register (all fields) to Excel", false),

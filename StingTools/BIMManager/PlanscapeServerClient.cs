@@ -2067,6 +2067,15 @@ public sealed class TagElementPayload
 {
     [JsonProperty("revitElementId")] public long   RevitElementId  { get; set; }
     [JsonProperty("uniqueId")]       public string UniqueId        { get; set; } = "";
+    /// <summary>
+    /// True IFC GlobalId (22-char) from the element's IFC_GLOBAL_ID_TXT shared
+    /// param (Revit IfcGloballyUniqueId, stabilised by StabilizeIfcGuidsCommand).
+    /// This — NOT <see cref="UniqueId"/> (Revit's 45-char UniqueId) — is the
+    /// cross-host key the server writes into ExternalElementMapping so a Revit
+    /// element resolves to the matching Bonsai/ArchiCAD row. Null until the
+    /// element has been stabilised + IFC-exported.
+    /// </summary>
+    [JsonProperty("ifcGlobalId")]    public string? IfcGlobalId    { get; set; }
     [JsonProperty("disc")]           public string Disc            { get; set; } = "";
     [JsonProperty("loc")]            public string Loc             { get; set; } = "";
     [JsonProperty("zone")]           public string Zone            { get; set; } = "";

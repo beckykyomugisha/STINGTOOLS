@@ -33,6 +33,19 @@ public record TagElementDto
 {
     public long RevitElementId { get; init; }
     public string UniqueId { get; init; } = "";
+
+    /// <summary>
+    /// True IFC GlobalId (22-char) of the element, from its IFC_GLOBAL_ID_TXT
+    /// shared parameter (Revit's IfcGloballyUniqueId, stabilised by the plugin's
+    /// StabilizeIfcGuidsCommand). This — NOT <see cref="UniqueId"/> (Revit's
+    /// 45-char UniqueId) — is the canonical cross-host key, equal to the
+    /// IfcGlobalId Bonsai/ArchiCAD send for the same element. The TagSync mapping
+    /// upsert keys <see cref="Planscape.Core.Entities.ExternalElementMapping"/> on
+    /// this. Nullable: empty until the element is stabilised + exported, in which
+    /// case no mapping row is written.
+    /// </summary>
+    public string? IfcGlobalId { get; init; }
+
     public string Disc { get; init; } = "";
     public string Loc { get; init; } = "";
     public string Zone { get; init; } = "";

@@ -192,12 +192,14 @@ public class TagSyncController : ControllerBase
             catch { /* SignalR broadcast is best-effort */ }
         });
 
-        // Feed the cross-host identity table. The Revit UniqueId carries the
-        // canonical key here — the same convention IfcController uses
-        // (TaggedElement.UniqueId == IfcGlobalId for non-Revit hosts). Each
-        // (UniqueId, RevitElementId) pair becomes an ExternalElementMapping row
-        // so an issue raised on this element in Blender/ArchiCAD resolves back
-        // to its Revit ElementId.
+        // Feed the cross-host identity table. Drift 4 fix: the cross-host key is
+        // the TRUE IFC GlobalId (dto.IfcGlobalId, from the element's
+        // IFC_GLOBAL_ID_TXT param), NOT the Revit UniqueId — only the IFC
+        // GlobalId is a value every host can produce, so a Revit row now matches
+        // the Bonsai/ArchiCAD row for the same element. UniqueId stays the Revit
+        // host-side id; here host_element_id = RevitElementId. Elements without a
+        // stabilised IfcGlobalId are skipped (the user must run Stabilize IFC
+        // GUIDs first) rather than poisoning the table with the wrong key.
         //
         // Fire-and-forget in a FRESH DI scope: the request-scoped _db is
         // disposed once we return, and the ingest service takes an explicit
@@ -216,10 +218,10 @@ public class TagSyncController : ControllerBase
         var mappingHost = request.Host;
         var mappingDocGuid = request.HostDocumentGuid;
         var mappings = request.Elements
-            .Where(e => !string.IsNullOrWhiteSpace(e.UniqueId))
+            .Where(e => !string.IsNullOrWhiteSpace(e.IfcGlobalId))   // true IFC GlobalId only
             .Select(e => new ElementMappingDto(
-                e.UniqueId,
-                e.RevitElementId.ToString(),
+                e.IfcGlobalId!,                       // cross-host key — NOT UniqueId
+                e.RevitElementId.ToString(),          // host_element_id = Revit ElementId
                 string.IsNullOrWhiteSpace(e.Tag1) ? e.CategoryName : e.Tag1))
             .ToList();
         var ingestProjectId = project.Id;
