@@ -526,3 +526,100 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 > - Don't break the legacy `/tagsync/sync` path if anything still depends on
 >   it — check before switching wholesale; a dual-write transition may be
 >   safer than a hard cutover.
+
+---
+
+## Prompt 10 — Generate the client contracts from the server (systemic fix for all drifts)
+
+> **Why this exists.** Drifts 1, 2, 4, 5, and 6 are all the same root cause:
+> every client (Bonsai Python, mobile TypeScript, Revit C#, StingBridge,
+> ArchiCAD) **hand-writes its own copy** of the server's wire shape, so they
+> drift independently — snake_case vs camelCase, `assTag1` vs `tag1`,
+> `compliancePercent` vs `tagPercent`, `transmittalNumber` vs
+> `transmittalCode`, Revit `UniqueId` vs true IFC GlobalId, wrong paths/verbs.
+> Patching each by hand (Prompts 1–9) fixes today's drift; it doesn't stop
+> tomorrow's. This prompt makes the **server the single generated source of
+> truth** so the clients can't drift silently.
+>
+> **Prerequisite:** Prompt 5 must land first. The generator pivots on the
+> API's OpenAPI document, which requires the API project to **build and
+> run** — and it currently doesn't (pre-existing CS0101s). Same blocker also
+> stops `dotnet ef migrations add`, so Prompt 5 is the universal unblock.
+>
+> **Build the contract pipeline:**
+> 1. **Make the server emit a precise OpenAPI doc.** ASP.NET can already
+>    produce Swagger/OpenAPI, but several endpoints return **anonymous
+>    objects** (`Ok(new { byStatus, byHost })`) or **raw entities**
+>    (`TagSyncController.SearchElements` → `Ok(elements)`), which OpenAPI
+>    types as untyped `object` — useless for generation. Introduce explicit
+>    **response DTOs** (or `[ProducesResponseType(typeof(XDto), 200)]`) for
+>    every endpoint a client consumes, starting with the ones the audit
+>    flagged: tagsync element search, healthcare/penetrations dashboards,
+>    compliance snapshot, transmittals, meetings, `/ifc/mappings`,
+>    `/ifc/data`. **This is the bulk of the work** — generation is cheap
+>    once the schema is precise.
+> 2. **Generate the TypeScript types** for `Planscape/` from that OpenAPI
+>    (e.g. `openapi-typescript`) into a single generated module, and replace
+>    the hand-written interfaces in `Planscape/src/types/api.ts` that the
+>    audit found drifted (`TaggedElement`, `ComplianceSnapshot`,
+>    `Transmittal`) with the generated ones. Keep a thin hand-written
+>    adapter layer only where the UI genuinely wants different names — but
+>    make the *wire* type generated.
+> 3. **Generate (or assert) the Python wire shapes** for
+>    `stingtools-core/python/.../planscape/client.py`. At minimum, generate a
+>    test fixture of valid DTO member names from the OpenAPI and assert the
+>    client's `_element_to_wire` output (Prompt 1) is a subset — so a server
+>    DTO change breaks the Python test, not production. Do the same for
+>    StingBridge once it's de-duplicated (Prompt 9).
+> 4. **Encode the canonical cross-host key.** The schema and generated
+>    types must name the cross-host element key `ifcGlobalId` (the true
+>    22-char IFC GlobalId) everywhere, and there should be a single
+>    documented place that says: host-side ids (`Element.UniqueId`,
+>    ArchiCAD GUID, Blender object name) are `hostElementId`, never the
+>    cross-host key. This is the contract-level statement of the Drift 4/5
+>    fix; Prompts 7 and 9 are its client-side implementations.
+> 5. **Schematize the opaque blobs.** `TaggedElement.ValidationErrors` is
+>    currently an unschematized JSON string whose shape already diverges by
+>    host (Bonsai writes severity-tagged objects; Revit writes plain
+>    strings). Declare a real DTO for it (`[{ code, message, severity }]`)
+>    so it's part of the generated contract rather than convention.
+> 6. **Wire drift-detection into CI.** Add a CI step that regenerates the
+>    TS types + Python fixture from the current server and fails if they
+>    differ from what's committed (the same pattern as the existing
+>    `tools/enums/compute_checksums.py` drift gate for the IFC substrate).
+>    That is what actually stops recurrence.
+>
+> **Acceptance:** the drifted mobile/Python types are generated from the
+> server (not hand-written); a deliberate rename of a server DTO member
+> fails CI until the clients regenerate; the cross-host key is `ifcGlobalId`
+> in the generated schema; `ValidationErrors` has a declared shape. No
+> behavioural change to endpoints beyond adding response DTOs.
+>
+> **Verify / challenge before you build:**
+> - **Confirm the scope is worth it.** Six surfaces drift, but if the team's
+>   real intent is "ship the per-drift fixes (1–9) and move on," a full
+>   codegen pipeline may be over-engineering. Read the room: this is the
+>   *systemic* fix, justified only if drift keeps recurring. Say so and let
+>   the maintainer choose codegen vs. the manual prompts.
+> - **OpenAPI precision is the crux, not the generator.** Most endpoints
+>   return entities/anonymous objects; without response DTOs the generated
+>   types are `any`/`object` and you've gained nothing. If introducing
+>   response DTOs across ~20 controllers is too big a blast radius, scope
+>   this to the handful of client-consumed endpoints the audit named and
+>   leave the rest — but be explicit about the partial coverage.
+> - **Don't regenerate the clean types into churn.** `BimIssue`,
+>   `IssueAttachment`, `Project`, `UserProfile`, `LoginResponse`,
+>   `NotificationPreferences` already match — generation should reproduce
+>   them, not rename them. If the generator's naming disagrees with the
+>   existing clean types, that's a sign the generator config is wrong, not
+>   the types.
+> - **Pick the pivot deliberately.** OpenAPI-from-ASP.NET is the obvious
+>   choice, but check whether the repo already has a contract artifact
+>   (the IFC substrate under `shared/ifc/`, `Pset_*` XML, IDS files) that
+>   should be the source for the *tag* fields instead — the 8-segment tag
+>   names (`Discipline`/`System`/`FullTag`) are already canonicalised there.
+>   Reconcile the two so you don't create a *seventh* vocabulary.
+> - **This supersedes the manual client edits, not the server fixes.**
+>   Prompts 5 (API build), 7 (Revit key), 8 (endpoint paths/verbs) are
+>   server/Revit behavioural fixes codegen does **not** do. Sequence:
+>   5 → (7, 8 can parallel) → 10 → then 1/2/9 collapse into "regenerate."

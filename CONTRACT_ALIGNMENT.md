@@ -399,6 +399,27 @@ This work does **not** touch Drift 1 (Bonsai snake_case) or Drift 2
    the fire-and-forget mapping upsert; document mapping-table vs.
    `*IfcGlobalId`-column authority.
 
+**Systemic option (Prompt 10):** Drifts 1/2/4/5/6 share one root cause —
+each client hand-writes the wire shape. Generating the client types from
+the server's OpenAPI (with explicit response DTOs) + a CI drift gate stops
+recurrence. Justified only if drift keeps happening; otherwise the manual
+prompts suffice. Prompt 5 is its prerequisite (needs a building API).
+
+**Two facts from the session-5 review:**
+- `dotnet ef migrations add` builds the **startup (API) project**, which
+  does not compile (Prompt 5). So the pending migrations
+  (`20260601000000_CrossHostIdentityFields`, `ArchiCADEventLogPersistence`)
+  **cannot be generated until Prompt 5 lands** — it's a hard prerequisite
+  for schema work, not just testing.
+- `TaggedElement.ValidationErrors` is an **unschematized JSON string** whose
+  shape already diverges by host (Bonsai now writes severity-tagged
+  objects; Revit writes plain strings). Harmless today (no typed consumer)
+  but a Drift-in-waiting — Prompt 10 step 5 declares a shape for it.
+- The Bonsai raise-issue operator correctly anchors `modelElementGuid` on
+  the **true IFC GlobalId**, which makes Drift 4 (Revit keys on
+  `Element.UniqueId`) the definitive blocker for Blender→Revit issue
+  resolution — Prompt 7 is what makes raise-issue work cross-host.
+
 **Before any of the above: consolidate branches** (see Execution status).
 Drift 1 is already fixed on `claude/upbeat-noether-tg4pn`; running its
 prompt here would redo it. Land that branch (or move this audit onto it)
