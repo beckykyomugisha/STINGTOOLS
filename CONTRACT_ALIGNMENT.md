@@ -141,6 +141,35 @@ the server never emits (`meetingType` only) — drop the fallback or alias
 it. Fix these the same way as `TaggedElement` (rename or adapter); the
 ComplianceSnapshot + Transmittal ones are user-visible bugs.
 
+**Drift 2 — execution + corrections (session 6, on `upbeat-noether-tg4pn`).**
+Prompt 2 was executed and confirmed Drift 2 **live, not latent**: the
+scanner / element-search screen rendered blank DISC/SYS/PROD/SEQ/tag and an
+empty TAG7 because every renamed token deserialised to `undefined`. Three
+corrections to this audit:
+- **Consumers live in `Planscape/app/` (Expo Router screens), not
+  `Planscape/src/`.** `Planscape/src` is the data/types layer; the actual
+  `TaggedElement` consumers are `app/(tabs)/scanner.tsx` and
+  `app/ifc/index.tsx` (2 files). The rename (approach A) surfaced them via
+  `tsc`, so no runtime adapter was needed. Earlier "grep `Planscape/src` →
+  zero consumers" was a false negative.
+- The `lvl`/`level` collision was concrete: the scanner's "LVL" cell read
+  `element.level` (level *name*) instead of the level *code* — fixed to
+  `element.lvl`.
+- A **compile-time conformance test** was added
+  (`src/api/__typetests__/taggedElement.typetest.ts`) — captured server
+  JSON checked assignable, `@ts-expect-error` guards block the verbose
+  aliases from returning. This is the right micro-pattern; Prompt 10
+  generalises it.
+
+**Mobile baseline blocker (sibling to Prompt 5):** `Planscape/app/` carries
+**111 pre-existing `tsc` errors** (WIP tree, unrelated to these types). Like
+the non-building `Planscape.API`, the mobile app does not typecheck clean,
+so "`tsc --noEmit` passes" can never be a CI gate — and Prompt 10's drift
+gate can't assert it — until that baseline is fixed. The session-6 fix
+proved its change is **byte-identical** to the 111-error baseline (zero new
+errors), which is the correct discipline, but the baseline itself needs its
+own clean-up task.
+
 ---
 
 ## Drift 3 — Two ingest paths, divergent keys (design seam, not a bug)
@@ -241,6 +270,7 @@ paths that will fail at runtime (most of the ~60 calls are clean):
 | `PushWarningsAsync` @ `:955` | `POST .../warnings` | only `[HttpPost("report")]` `WarningsController.cs:33` | **404** wrong path |
 | `PushBoqSnapshotAsync` @ `:1001` | `POST .../boq/snapshot` | no `snapshot` route in `BoqController` | **404** no route |
 | `FullSyncAsync` @ `:382` | `POST /api/tagsync/fullsync` | no route | **404** (but `[Obsolete]`) |
+| `listIfcElements()` (mobile) @ `endpoints.ts:270` | `GET .../tagged-elements` | no route in any controller | **404** latent (feature unwired) |
 
 Field-name drift on the Revit client is otherwise **clean** — bodies
 serialize camelCase via `[JsonProperty]`, matching the server DTOs. These
@@ -398,6 +428,27 @@ This work does **not** touch Drift 1 (Bonsai snake_case) or Drift 2
 5. **Cross-host hardening** (Prompt 6) — `AuditLog` + reconciliation for
    the fire-and-forget mapping upsert; document mapping-table vs.
    `*IfcGlobalId`-column authority.
+
+**Systemic option (Prompt 10):** Drifts 1/2/4/5/6 share one root cause —
+each client hand-writes the wire shape. Generating the client types from
+the server's OpenAPI (with explicit response DTOs) + a CI drift gate stops
+recurrence. Justified only if drift keeps happening; otherwise the manual
+prompts suffice. Prompt 5 is its prerequisite (needs a building API).
+
+**Two facts from the session-5 review:**
+- `dotnet ef migrations add` builds the **startup (API) project**, which
+  does not compile (Prompt 5). So the pending migrations
+  (`20260601000000_CrossHostIdentityFields`, `ArchiCADEventLogPersistence`)
+  **cannot be generated until Prompt 5 lands** — it's a hard prerequisite
+  for schema work, not just testing.
+- `TaggedElement.ValidationErrors` is an **unschematized JSON string** whose
+  shape already diverges by host (Bonsai now writes severity-tagged
+  objects; Revit writes plain strings). Harmless today (no typed consumer)
+  but a Drift-in-waiting — Prompt 10 step 5 declares a shape for it.
+- The Bonsai raise-issue operator correctly anchors `modelElementGuid` on
+  the **true IFC GlobalId**, which makes Drift 4 (Revit keys on
+  `Element.UniqueId`) the definitive blocker for Blender→Revit issue
+  resolution — Prompt 7 is what makes raise-issue work cross-host.
 
 **Before any of the above: consolidate branches** (see Execution status).
 Drift 1 is already fixed on `claude/upbeat-noether-tg4pn`; running its
