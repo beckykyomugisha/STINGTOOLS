@@ -4,6 +4,32 @@ Self-contained task prompts for the findings in
 [`CONTRACT_ALIGNMENT.md`](CONTRACT_ALIGNMENT.md). Each is independent and
 hand-off-ready: copy one into a fresh session as the task.
 
+## How to use these prompts (read first)
+
+**Each prompt is a hypothesis from a prior audit, not ground truth.** The
+audit was done by inspection on a specific commit; code may have moved,
+the field maps may be incomplete, and the framing may be wrong. Before you
+implement:
+
+1. **Re-verify the claim against the live code.** Open the cited files and
+   line numbers and confirm they still say what the prompt says. Line
+   numbers drift — trust the symbol names over the line numbers.
+2. **Challenge the fix.** Is the stated direction actually correct? Is
+   there a simpler or safer one? Does it miss a case (other call sites,
+   other endpoints, other fields)? Each prompt ends with a
+   **"Verify / challenge before you build"** list — treat those as the
+   *known* unknowns, not the complete set, and add any you find.
+3. **Stop and report instead of guessing.** If the prompt is wrong,
+   internally contradictory, or the real code has already diverged from
+   the audit, say so and propose the corrected task — do **not** force the
+   stated change through. A prompt that turns out to be a no-op (already
+   fixed) is a valid finding; report it as such.
+4. **Scope honestly.** If verifying reveals the change is bigger than the
+   prompt implies (e.g. many UI consumers, a migration needed), surface
+   that and ask before expanding scope.
+
+The acceptance criteria in each prompt are a floor, not a ceiling.
+
 **Shared context (applies to every prompt below):**
 
 - Authority is the **server camelCase JSON** (ASP.NET Core default; no
@@ -64,6 +90,29 @@ hand-off-ready: copy one into a fresh session as the task.
 > valid `IfcElementDto` member (cross-check against `IfcIngestDtos.cs`);
 > assert `compliance_pct` is absent and the bool triplet is present.
 > `py_compile` clean. Existing smoke tests still pass.
+>
+> **Verify / challenge before you build:**
+> - Diff the field map above against the **current** `IfcElementDto` —
+>   members may have been added/removed since the audit. The map must be
+>   driven by the DTO, not by this list.
+> - Confirm what shape the *caller* actually passes in. The sync operator
+>   that feeds `ingest_ifc_data` does **not exist in this branch** (it's
+>   part of Prompt 4 / `ff2c46564`), so the snake_case input contract is
+>   assumed. If you build the caller too, you may not need a snake→camel
+>   map at all — you could emit camelCase at the source. Decide which is
+>   cleaner and say why.
+> - `compliance_pct` → bools: is there a canonical threshold anywhere
+>   (server, `SpatialChecker`, tag validator)? If not, prefer dropping it
+>   and letting the validator-produced `is_*` bools flow, rather than
+>   inventing a cutoff.
+> - Check the **other** client methods (`sync_tags`, `raise_issue`,
+>   `push_compliance`) for the same snake_case-body bug. `sync_tags`
+>   already sends `projectId` (camel) — is its element shape also camel?
+>   Fix or flag consistently; don't fix one method and leave siblings
+>   broken.
+> - Confirm System.Text.Json on the server is case-*insensitive* on read
+>   (it is by default) so a camelCase body binds — but verify no
+>   `[JsonPropertyName]` attributes on the DTO override the member names.
 
 ---
 
@@ -105,6 +154,29 @@ hand-off-ready: copy one into a fresh session as the task.
 > test of the mapper/interface against a captured server JSON sample). The
 > `lvl` vs `level` ambiguity is resolved explicitly in code, not left to
 > chance.
+>
+> **Verify / challenge before you build:**
+> - Confirm `SearchElements` still returns the **raw entity** (not a DTO)
+>   on the current server — re-read `TagSyncController.cs` around the
+>   `elements/search` route. If a projection DTO was added since the audit,
+>   the mobile interface may already be correct and this is a no-op:
+>   report that.
+> - Find **every** producer of `TaggedElement`, not just search. There's
+>   at least `endpoints.ts:257` (search), `:273` (recent?), and
+>   `apiClient.ts:39` (`/tagsync/elements/{id}`). A mapper must wrap all of
+>   them or you'll fix one screen and leave others broken.
+> - Find every **consumer** (grep the `TaggedElement` type across
+>   `Planscape/src`) to size approach (A) vs (B) honestly before choosing.
+> - `tag7Summary` vs the server's `tag7` (+ `tag7A..tag7F` sub-segments):
+>   decide whether `tag7Summary` should map to `tag7`, and whether the
+>   mobile type should surface the sub-segments at all.
+> - The mobile interface **drops** server fields that may matter
+>   (`isComplete`, `isFullyResolved`, `isStale`, `previousTag`,
+>   `lastModifiedUtc`). If any screen needs compliance state, add them
+>   rather than silently leaving them off.
+> - Is `TaggedElement` actually rendered anywhere today, or is this dead
+>   code? If unused, the cheapest correct fix may be to align the type and
+>   move on — but confirm, don't assume.
 
 ---
 
@@ -128,6 +200,17 @@ hand-off-ready: copy one into a fresh session as the task.
 > they must stay field-compatible. **No behavioural change. No new
 > endpoint. BCC/Revit needs no code change** — it is already aligned to
 > TagSync.
+>
+> **Verify / challenge before you build:**
+> - Before claiming the two paths "must stay field-compatible," actually
+>   diff `TagSyncRequest`/`TagSyncElementDto` against `IfcElementDto`. They
+>   likely **already diverge** (e.g. IFC has `IfcClass`/`IfcGlobalId`;
+>   TagSync has `Tag7A..F` + `RevitElementId`). Document the real
+>   divergence and which fields are the shared core — don't assert a
+>   compatibility that isn't there.
+> - Confirm BCC/Revit (`PlanscapeServerClient`) really uses only
+>   `/tagsync/*` and never `/ifc/data`. If a code path does call `/ifc/data`
+>   from Revit, the "no change" claim is wrong — flag it.
 
 ---
 
@@ -159,3 +242,23 @@ hand-off-ready: copy one into a fresh session as the task.
 >
 > Do Prompt 1 first (or as part of this); this prompt supersedes it if you
 > take the whole set.
+>
+> **Verify / challenge before you build:**
+> - **First confirm `ff2c46564` is reachable** from this repo
+>   (`git cat-file -t ff2c46564`, `git log ff2c46564`). It was authored on
+>   `claude/upbeat-noether-tg4pn` and may not be in the local graph. If
+>   it's not fetchable, reconstruct from the description + the screenshot
+>   in the session history rather than cherry-picking — and say so.
+> - Re-verify the API signatures the sync op depends on:
+>   `SpatialChecker.check_all_elements()`, `validate_tag()`, and the
+>   `Pset_StingTags` property names in `shared/ifc/psets/Pset_StingTags.xml`.
+>   The audit found these are `Discipline/Location/Zone/Level/System/
+>   Function/Product/Sequence/FullTag` — confirm before wiring.
+> - The `from __future__ import annotations` / `bpy.props` trap is the one
+>   landmine here. Don't just delete the import blindly — understand *why*
+>   PEP-563 breaks `StringProperty` registration so you don't reintroduce
+>   it elsewhere (handlers/ops that declare props).
+> - This set was integration-tested against ifcopenshell 0.8.5 only, never
+>   in live Blender. Treat the panel/operator/prefs registration as
+>   **unverified** and call that out — ideally load it in Blender before
+>   claiming done.
