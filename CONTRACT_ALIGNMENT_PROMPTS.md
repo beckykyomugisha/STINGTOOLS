@@ -816,3 +816,92 @@ if it's wrong.
 > - For task 4, this is the one that touches the shipped schema and both
 >   ingest paths — highest risk in this list. Confirm it's wanted (it's
 >   optional) and sequence it last.
+
+---
+
+## Prompt 15 — Reconcile + commit the fuller server guardrail (resolve the duplicate)
+
+> Two agents worked the server tree for the Option-1 guardrail. The first
+> committed `0a9e95de5` (first slice: `tagsync/elements/search` DTO +
+> initial `ContractDtos.cs` + the Python-only CI gate + `ValidationErrorDto`
+> declared + the cross-host doc). The second **built on `0a9e95de5`** and
+> went further — dashboard/compliance/transmittal response DTOs, the
+> `ValidationErrorDto.TryParse` wired into the IFC-ingest write site,
+> broadened `contract-drift.yml` triggers to `Controllers/**` — but it
+> **did not commit** (it wasn't asked to). The second agent's tree is the
+> more complete Option 1.
+>
+> Land it cleanly:
+> 1. **Confirm it's a clean superset of `0a9e95de5`** — diff the uncommitted
+>    changes; every `0a9e95de5` edit should still be present (built on top,
+>    not reverted). If anything regressed, stop and report.
+> 2. **Commit ONLY the guardrail files** — the working tree also holds
+>    *other agents'* uncommitted parallel WIP (ArchiCAD/Healthcare/cross-host
+>    work, etc.). Stage explicitly (the new/changed DTO files,
+>    `contract-drift.yml`, the touched controllers, `element-ingest-paths.md`);
+>    do **not** `git add -A`. Leave the parallel WIP untouched.
+> 3. **Re-prove the gate** after committing: a deliberate DTO-member rename
+>    must turn `contract-drift.yml` red (the Python conformance test exits 1);
+>    revert → green. Whole-solution `dotnet build` = 0 errors.
+>
+> **Acceptance:** the fuller Option-1 guardrail is a single clean commit
+> scoped to its own files; `0a9e95de5`'s work is preserved (not duplicated
+> or reverted); the gate is green and proven to fail on a DTO rename; no
+> other agent's WIP was swept in.
+>
+> **Verify / challenge before you build:**
+> - This is a **git-hygiene + verification task on `upbeat-noether-tg4pn`**,
+>   not new feature code. The risk is entanglement, not logic — the single
+>   most important thing is **not** committing the co-resident parallel WIP.
+>   List exactly which files you'll stage before staging them.
+> - If the second agent's tree is *not* a clean superset (e.g. it reverted
+>   part of `0a9e95de5`, or the two edited the same lines differently),
+>   **stop and surface the conflict** rather than force a merge — a human
+>   should adjudicate which version of a contested hunk wins.
+> - Confirm the two CI jobs are still **server-only** (no mobile `tsc` /
+>   `dotnet test` job snuck in) — those are red on the baselines.
+
+---
+
+## Prompt 16 — Low-priority cleanups (independent, all optional)
+
+> Four small, unrelated items surfaced across the review. Each is optional
+> and self-contained — do any subset; none blocks anything.
+> 1. **`IfcGuidEncoder.FromGuid` mislabel (R4)** —
+>    `StingTools/IfcResults/IfcGuidEncoder.cs` packs bytes `1/6/7/4/8/16`,
+>    which is **not** canonical IFC GUID compression
+>    (`1/3/3/3/3/3-2/4/4/4/4/4`), yet a docstring claims parity. It's used
+>    only by DIALux + Clash export (which match their own output), **never
+>    the cross-host key** — so it's safe today. Fix: correct the docstring
+>    (cheap, honest) and/or implement true canonical compression *only if*
+>    any consumer needs interop. Do **not** silently change the byte order
+>    if DIALux/Clash round-trips depend on the current packing — verify their
+>    consumers first.
+> 2. **Implement Gap 9 to unlock Prompt 12 #2** —
+>    `IfcAlignmentValidator.cs:306` `GLOBALID_DRIFT` is a deferred no-op
+>    pending a `FederatedElement.ProjectModelId` column. Adding the column +
+>    migration + the commented-out query makes server-side GlobalId-drift
+>    detection real, which is the prerequisite for surfacing drift to a push
+>    (Prompt 12 #2). Medium effort (schema change); only worth it if you want
+>    server-side drift monitoring beyond Prompt 12's client-side precheck.
+> 3. **Regenerate the stale EF model snapshot** —
+>    `PlanscapeDbContextModelSnapshot.cs` has 0 refs to the already-migrated
+>    Photo tables, so a naive `dotnet ef migrations add` emits a "monster"
+>    re-create diff. Regenerate the snapshot deliberately (so it matches the
+>    real schema) before the next real migration, or that migration will be
+>    wrong. See `Planscape.Server/docs/migration-backlog.md`.
+> 4. **`TaggedElement.IfcGlobalId` column** — see Prompt 14 task 4 (retire
+>    the `UniqueId` overload). Highest-risk of this list; optional;
+>    cross-host resolution already routes through `ExternalElementMapping`.
+>
+> **Acceptance (per item):** (1) docstring matches behaviour / consumers
+> verified; (2) `GLOBALID_DRIFT` produces a real result; (3) snapshot
+> matches schema, next `migrations add` is a clean no-op diff; (4) per
+> Prompt 14.4.
+>
+> **Verify / challenge before you build:**
+> - None of these is on the critical path — if the lab round-trip (Prompt 11)
+>   or the mobile WIP (Prompt 14.1) is waiting, do those first.
+> - Items 2 and 3 both touch the EF model/schema — sequence the snapshot
+>   regen (3) before any new migration including Gap 9's (2), or you'll bake
+>   the stale-snapshot diff into the new migration.
