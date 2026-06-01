@@ -361,6 +361,7 @@ public class TagSyncController : ControllerBase
     /// Uses PostgreSQL ILIKE for case-insensitive search.
     /// </summary>
     [HttpGet("elements/search")]
+    [ProducesResponseType(typeof(List<TaggedElementDto>), 200)]
     public async Task<ActionResult> SearchElements(
         [FromQuery] Guid projectId,
         [FromQuery] string q,
@@ -395,7 +396,11 @@ public class TagSyncController : ControllerBase
             .Take(limit)
             .ToListAsync();
 
-        return Ok(elements);
+        // Project the raw EF entity to the wire DTO so OpenAPI gets a precise,
+        // generation-friendly schema (and the Project navigation / internal
+        // columns stay off the wire). Every serialized scalar is preserved, so
+        // the JSON is unchanged for existing consumers (Drift 2 surface).
+        return Ok(elements.Select(TaggedElementDto.From).ToList());
     }
 
     /// <summary>

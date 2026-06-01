@@ -1,0 +1,65 @@
+name: Wire-Contract Drift Gate
+
+# Stops the per-client wire-shape drift that produced Drifts 1/2/4/5 from
+# recurring. The clients (Bonsai/StingBridge Python, mobile TS) each shape the
+# server's element DTOs themselves; these tests pin that shaping to the server
+# DTO so a server-side rename breaks CI HERE — not silently in production.
+#
+# The Python contract test (stingtools-core test_smoke
+# `test_ifc_element_to_wire_keys_match_dto`) parses the C# DTO source
+# (Planscape.Server/.../DTOs/IfcIngestDtos.cs) directly and asserts the
+# client's `_element_to_wire` output is a subset of the real DTO members — so
+# it needs neither a running server nor a generated OpenAPI doc to detect a
+# renamed/removed DTO member.
+#
+# CRUCIAL: this workflow triggers on the SERVER DTO paths as well as the client
+# paths — that is what makes a server-only DTO rename fail CI (the existing
+# ifc-substrate.yml runs the same smoke tests but only triggers on shared/ifc).
+
+on:
+  push:
+    paths:
+      - 'Planscape.Server/src/Planscape.Core/DTOs/**'
+      - 'Planscape.Server/src/Planscape.Core/Entities/**'
+      - 'stingtools-core/python/**'
+      - 'StingBridge/**'
+      - '.github/workflows/contract-drift.yml'
+  pull_request:
+    paths:
+      - 'Planscape.Server/src/Planscape.Core/DTOs/**'
+      - 'Planscape.Server/src/Planscape.Core/Entities/**'
+      - 'stingtools-core/python/**'
+      - 'StingBridge/**'
+      - '.github/workflows/contract-drift.yml'
+  workflow_dispatch:
+
+jobs:
+  contract:
+    name: Client ↔ server wire-contract tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install client test deps
+        # `requests` is needed by the StingBridge client; stingtools-core has no
+        # required deps and is imported from source via the in-repo sys.path
+        # fallback (see StingBridge/planscape/client.py + the test harnesses).
+        run: python -m pip install --upgrade pip requests
+
+      - name: stingtools-core contract + smoke tests
+        # Includes test_ifc_element_to_wire_keys_match_dto — fails if a member
+        # of IfcElementDto is renamed/removed without updating _element_to_wire.
+        run: python stingtools-core/python/tests/test_smoke.py
+
+      - name: StingBridge → /ifc/data contract tests
+        # Asserts the ArchiCAD bridge posts the cross-host contract (no fabricated
+        # revitElementId; ifcGlobalId/hostElementId on the wire) via the SHARED
+        # _element_to_wire, not a local copy.
+        run: python StingBridge/tests/test_ifc_ingest.py

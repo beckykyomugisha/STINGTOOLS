@@ -82,3 +82,37 @@ Not field names — those diverge by design. Two things must hold:
   `ExternalElementMapping` table.
 
 No behavioural change accompanies this note; it is documentation only.
+
+## Cross-host element key — the one rule (Drift 4/5 contract)
+
+There is exactly **one** cross-host element key: the true **22-character IFC
+GlobalId**, named **`ifcGlobalId`** on every wire surface (`IfcElementDto`,
+`ExternalElementMapping.IfcGlobalId`, `GET /ifc/mappings?ifcGuid=`,
+`GET /ifc/resolve?guid=`). It is stable for the same physical element across
+Revit, ArchiCAD, Bonsai and Tekla.
+
+Every host-side identifier is a **`hostElementId`** and is **never** the
+cross-host key:
+
+| Host | `hostElementId` is… | NOT the cross-host key because… |
+|---|---|---|
+| Revit | `Element.UniqueId` (or `ElementId`) | per-document, not portable across hosts |
+| ArchiCAD | the element GUID | encoded differently from its exported IfcGuid |
+| Bonsai/Blender | the object name | host-local |
+| IFC-file watcher | the IFC GlobalId itself | it has no separate host id, so host id == key |
+
+Consequences encoded elsewhere in the codebase:
+
+- A host that has only a native id (ArchiCAD GUID) derives the `ifcGlobalId`
+  by IfcGuid-compressing it — ArchiCAD's own IFC-export derivation
+  (`StingBridge/sync/engine.py:_ifc_global_id_from_acguid`). The native id is
+  carried verbatim as `hostElementId`.
+- Clients MUST NOT reuse a host id (Revit `UniqueId`, ArchiCAD GUID) as the
+  cross-host key, and MUST NOT fabricate a synthetic Revit id from a hash of
+  the GlobalId (the old StingBridge `md5(ifc_guid)` bug — now removed).
+- The `TaggedElementDto.UniqueId` exposed by the read endpoints is the
+  Revit-side `hostElementId`, *not* the cross-host key — see the XML doc on
+  `TaggedElementDto`.
+
+Prompts 7 (Revit) and 9 (StingBridge) are the client-side implementations of
+this rule; this section is its contract-level statement.
