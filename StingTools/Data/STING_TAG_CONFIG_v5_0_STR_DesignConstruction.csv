@@ -264,7 +264,7 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Structural Columns
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -277,7 +277,7 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Structural Columns
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS,Fire rating < 1.0 hr,Building Regs Part B / BS 9999 Table 10,Common,Text,⚠ Warning: Column Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS, """")"
@@ -324,7 +324,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -337,7 +337,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS,Fire rating < 1.0 hr,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Beam Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS, """")"
@@ -383,7 +383,7 @@ TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -396,7 +396,7 @@ TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_FDN_BEARING_KN_M2,Bearing pressure exceeds soil capacity,BS EN 1997-1 / EC7,Common,Text,⚠ Warning: Foundation Bearing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_BEARING_KN_M2, """")"
@@ -438,7 +438,7 @@ TAG7: STR_TAG_7_PARA_SLAB_TXT  •  Category: Floors (Structural)
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -451,7 +451,7 @@ TAG7: STR_TAG_7_PARA_SLAB_TXT  •  Category: Floors (Structural)
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_SLABS,Fire rating < 1.0 hr,Building Regs Part B / BS EN 1992-1-2,Common,Text,⚠ Warning: Slab Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_SLABS, """")"
@@ -488,7 +488,7 @@ TAG7: STR_TAG_7_PARA_WALL_TXT  •  Category: Walls (Structural/Load-bearing)
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -501,7 +501,7 @@ TAG7: STR_TAG_7_PARA_WALL_TXT  •  Category: Walls (Structural/Load-bearing)
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_WALLS,Fire rating < 2.0 hr (loadbearing),Building Regs Part B / BS EN 1996-1-2,Common,Text,⚠ Warning: Struct Wall Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_WALLS, """")"
@@ -535,7 +535,7 @@ TAG7: STR_TAG_7_PARA_BRACE_TXT  •  Category: Structural Framing (Bracing)
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -548,7 +548,7 @@ TAG7: STR_TAG_7_PARA_BRACE_TXT  •  Category: Structural Framing (Bracing)
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_BRACE_SLENDERNESS,Slenderness ratio exceeds 200,BS EN 1993-1-1 / EC3 6.3.1.2,Common,Text,⚠ Warning: Brace Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BRACE_SLENDERNESS, """")"
@@ -584,7 +584,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -597,7 +597,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_RBR_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, """")"
@@ -633,7 +633,7 @@ TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Structural Connections
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -646,7 +646,7 @@ TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Structural Connections
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_CONN_CAPACITY_KN,Capacity < applied load,BS EN 1993-1-8 / EC3,Common,Text,⚠ Warning: Connection Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_CAPACITY_KN, """")"
@@ -678,7 +678,7 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Columns (Architectural)
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -691,7 +691,7 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Columns (Architectural)
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS,Fire rating < 1.0 hr,Building Regs Part B,Common,Text,⚠ Warning: Column Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS, """")"
@@ -727,7 +727,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Trusses
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -740,7 +740,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Trusses
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_STR_TRUSSES,Fire rating < 1.0 hr,Building Regs Part B,Common,Text,⚠ Warning: Truss Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_STR_TRUSSES, """")"
@@ -769,7 +769,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Stiffeners
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -782,7 +782,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Stiffeners
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_GRADE_STIFFENERS,Stiffener grade not compatible with parent section,BS EN 1993-1-1 / EC3,Common,Text,⚠ Warning: Stiffener Grade,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_GRADE_STIFFENERS, """")"
@@ -813,7 +813,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Beam Systems
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -826,7 +826,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Beam Systems
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_UDL_KN_M_BEAM_SYS,UDL exceeds beam system capacity,BS EN 1993-1-1 / EC3,Common,Text,⚠ Warning: Beam System UDL,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_UDL_KN_M_BEAM_SYS, """")"
@@ -853,7 +853,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar Couplers
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -866,7 +866,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar Couplers
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_GRADE_COUPLERS,Coupler grade incompatible with rebar grade,BS 8539 / BS EN 1992-1-1,Common,Text,⚠ Warning: Coupler Grade,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_GRADE_COUPLERS, """")"
@@ -894,7 +894,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Fabric Reinforcement
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -907,7 +907,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Fabric Reinforcement
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_COVER_MM_FABRIC,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Fabric Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_FABRIC, """")"
@@ -935,7 +935,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -948,7 +948,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_COVER_MM_AREA,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Area Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_AREA, """")"
@@ -980,7 +980,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Path Reinforcement
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
 10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
 13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
 14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
@@ -993,7 +993,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Path Reinforcement
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_COVER_MM_PATH,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Path Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_PATH, """")"
@@ -1029,7 +1029,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Point Loads
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_PT,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_PT, """")"
@@ -1064,7 +1064,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Line Loads
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_LN,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_LN, """")"
@@ -1099,7 +1099,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Area Loads
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_AR,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1991-1-1 / EC1,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_AR, """")"
@@ -1135,7 +1135,7 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Members
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_ANLYT_NO_HOST,Analytical member has no physical host element,BS EN 1992-1-1 / BS EN 1993-1-1,Common,Text,⚠ Warning: No Physical Host,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_NO_HOST, """")"
@@ -1154,7 +1154,7 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Structural discipline
 3,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
 4,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 5,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-6,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+6,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SHT_NAMING_STR,Sheet name does not match ISO 19650 naming convention for structural drawings,ISO 19650-2 / BS EN ISO 7200,Common,Text,⚠ Warning: Sheet Naming Convention,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_NAMING_STR, """")"

@@ -161,7 +161,13 @@ namespace StingTools.Temp
                                 if (result != null && targetParam.StorageType == StorageType.String)
                                 {
                                     string current = targetParam.AsString() ?? "";
-                                    if (string.IsNullOrEmpty(current))
+                                    // Display mirrors (<source>_DISP_TXT) auto-refresh: they re-write
+                                    // whenever the numeric source changes so the tag text stays in
+                                    // sync. Every other text formula stays write-once (fill only when
+                                    // empty) so it never clobbers a user's manual edit.
+                                    bool isMirror = formula.ParameterName != null &&
+                                        formula.ParameterName.EndsWith("_DISP_TXT", StringComparison.OrdinalIgnoreCase);
+                                    if ((string.IsNullOrEmpty(current) || isMirror) && current != result)
                                     {
                                         targetParam.Set(result);
                                         totalWritten++;
@@ -730,6 +736,16 @@ namespace StingTools.Temp
                         // Quoted literal string
                         sb.Append(trimmed.Substring(1, trimmed.Length - 2));
                     }
+                    else if (trimmed.StartsWith("format(", StringComparison.OrdinalIgnoreCase)
+                             && trimmed.EndsWith(")"))
+                    {
+                        // format(PARAM) — thousands separators; N0 for whole values,
+                        // N2 for fractional. Used by the <source>_DISP_TXT mirror formulas
+                        // so numeric values read nicely in tag labels.
+                        string inner = trimmed.Substring(7, trimmed.Length - 8).Trim();
+                        if (context.TryGetValue(inner, out object fval))
+                            sb.Append(FormatNumberForDisplay(fval));
+                    }
                     else if (context.TryGetValue(trimmed, out object val))
                     {
                         sb.Append(val?.ToString() ?? "");
@@ -741,6 +757,25 @@ namespace StingTools.Temp
                 return string.IsNullOrEmpty(result) ? null : result;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+        }
+
+        /// <summary>
+        /// Renders a numeric value for display in a tag: thousands separators, no
+        /// decimals when whole (250000 → "250,000"), two decimals when fractional
+        /// (1234.5 → "1,234.50"). Accepts a double in the context, or a numeric
+        /// string (dual-type params); falls back to the raw ToString otherwise.
+        /// </summary>
+        private static string FormatNumberForDisplay(object value)
+        {
+            double d;
+            if (value is double dd) d = dd;
+            else if (value is int ii) d = ii;
+            else if (!double.TryParse(value?.ToString() ?? "", NumberStyles.Any,
+                         CultureInfo.InvariantCulture, out d))
+                return value?.ToString() ?? "";
+
+            bool whole = Math.Abs(d - Math.Round(d)) < 1e-9;
+            return d.ToString(whole ? "N0" : "N2", CultureInfo.InvariantCulture);
         }
 
         /// <summary>Split text expression on + operator, respecting quoted strings.</summary>

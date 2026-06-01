@@ -2542,36 +2542,36 @@ PARAM	d654df13-0913-5e8f-8dfe-98b3971beb86	ELC_LPS_TEST_DATE_TXT	TEXT		4	1	ISO 8
 PARAM	0a8dbcfb-6f73-5c8c-94eb-b72606feae87	ELC_LPS_CERT_REF_TXT	TEXT		4	1	Certificate reference for the LPS inspection / commissioning	1
 PARAM	b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e	ELC_LPS_COMPLIANCE_STATUS_TXT	TEXT		4	1	Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL)	1
 PARAM	c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a	ELC_LPS_CONDUCTOR_MATERIAL_TXT	TEXT		4	1	Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor	1
-PARAM	d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321	ELC_LPS_PROJECT_NG_OVERRIDE_NR	TEXT		4	1	Project ground flash density Ng (flashes/km2/year) override from lightning location service	1
+PARAM	d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321	ELC_LPS_PROJECT_NG_OVERRIDE_NR	NUMBER		4	1	Project ground flash density Ng (flashes/km2/year) override from lightning location service	1
 PARAM	b1332559-0830-5d8f-8ac7-5f77a963cd94	ELC_LPS_KC_FACTOR_NR	NUMBER		4	1	Current-distribution factor kc per BS EN 62305-3 _6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc)	1
 PARAM	75cd5268-c764-551b-872d-00b0b31308a6	ELC_LPS_ELEMENT_TYPE_TXT	TEXT		4	1	LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily	1
-PARAM	c40720fa-3e80-5880-86c3-a82f43055fbf	CST_INTL_PRICE_USD	TEXT		2	1	International supplier unit price in USD	1
-PARAM	694fcd57-d0c2-5ed3-afca-f225781b3bc8	CST_UG_PRICE_UGX	TEXT		2	1	Local Uganda unit price in UGX	1
+PARAM	c40720fa-3e80-5880-86c3-a82f43055fbf	CST_INTL_PRICE_USD	NUMBER		2	1	International supplier unit price in USD	1
+PARAM	694fcd57-d0c2-5ed3-afca-f225781b3bc8	CST_UG_PRICE_UGX	NUMBER		2	1	Local Uganda unit price in UGX	1
 PARAM	d4e003e1-1f43-5d22-93c1-d9e91d672c52	CST_FX_RATE_USD_UGX	NUMBER		2	1	USD to UGX exchange rate snapshot used on quote date	1
 PARAM	cb945ed3-ff4d-531c-89fa-c06f503ab46c	CST_LABOUR_HOURS	NUMBER		2	1	Estimated labour hours per element for install takeoff	1
 PARAM	3d736d48-cba0-570b-a521-844539bd998c	CST_LABOUR_RATE_UGX	NUMBER		2	1	Labour rate in UGX per hour	1
 PARAM	5758facf-7a3f-5900-b3ea-abf487990b25	CST_SHIPPING_UGX	NUMBER		2	1	Shipping cost component in UGX	1
 PARAM	c26d2b96-a012-50d6-bcb9-6a32f24212e0	CST_DUTY_PCT	NUMBER		2	1	Import duty percentage applied to USD price	1
 PARAM	4de58d8f-38e2-584f-b8aa-5a5744a80fcd	CST_QUOTE_REF_TXT	TEXT		2	1	Supplier quote reference number	1
-PARAM	5753b5aa-0005-4000-8000-000000000010	CST_INSTALL_HRS	TEXT		2	1	Install time in hours per element for labour takeoff	1
-PARAM	5753b5aa-0006-4000-8000-000000000001	CBN_A1_A3_KG_CO2E	TEXT		9	1	Embodied carbon A1-A3 product stage (manufacturing) kgCO2e	1
-PARAM	5753b5aa-0006-4000-8000-000000000002	CBN_A4_KG_CO2E	TEXT		9	1	Embodied carbon A4 transport to site kgCO2e	1
+PARAM	5753b5aa-0005-4000-8000-000000000010	CST_INSTALL_HRS	NUMBER		2	1	Install time in hours per element for labour takeoff	1
+PARAM	5753b5aa-0006-4000-8000-000000000001	CBN_A1_A3_KG_CO2E	NUMBER		9	1	Embodied carbon A1-A3 product stage (manufacturing) kgCO2e	1
+PARAM	5753b5aa-0006-4000-8000-000000000002	CBN_A4_KG_CO2E	NUMBER		9	1	Embodied carbon A4 transport to site kgCO2e	1
 PARAM	5753b5aa-0006-4000-8000-000000000010	CBN_A5_KG_CO2E	NUMBER		9	1	Embodied carbon A5 construction-install kgCO2e	1
-PARAM	5753b5aa-0006-4000-8000-000000000003	CBN_B6_KG_CO2E_YR	TEXT		9	1	Operational carbon B6 energy annual kgCO2e/yr	1
+PARAM	5753b5aa-0006-4000-8000-000000000003	CBN_B6_KG_CO2E_YR	NUMBER		9	1	Operational carbon B6 energy annual kgCO2e/yr	1
 PARAM	5753b5aa-0006-4000-8000-000000000011	CBN_C1_KG_CO2E	NUMBER		9	1	End-of-life C1 deconstruction kgCO2e	1
 PARAM	5753b5aa-0006-4000-8000-000000000012	CBN_C2_KG_CO2E	NUMBER		9	1	End-of-life C2 transport to disposal kgCO2e	1
 PARAM	5753b5aa-0006-4000-8000-000000000013	CBN_C3_C4_KG_CO2E	NUMBER		9	1	End-of-life C3-C4 waste processing and disposal kgCO2e	1
-PARAM	5753b5aa-0008-4000-8000-000000000001	CLASH_TRIAGE_SEVERITY_NR	TEXT		20	1	Clash triage severity 1 (lowest) to 5 (highest)	1
+PARAM	5753b5aa-0008-4000-8000-000000000001	CLASH_TRIAGE_SEVERITY_NR	INTEGER		20	1	Clash triage severity 1 (lowest) to 5 (highest)	1
 PARAM	5753b5aa-0008-4000-8000-000000000010	CLASH_TRIAGE_SCORE	NUMBER		20	1	Clash triage weighted score 0 to 100	1
 PARAM	5753b5aa-0008-4000-8000-000000000002	CLASH_TRIAGE_CATEGORY_TXT	TEXT		20	1	Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL)	1
 PARAM	5753b5aa-0008-4000-8000-000000000003	CLASH_RESOLUTION_STATUS_TXT	TEXT		20	1	Clash resolution status (PENDING / APPLIED / ACCEPTED)	1
 PARAM	5753b5aa-0008-4000-8000-000000000011	CLASH_RESOLUTION_ACTION_TXT	TEXT		20	1	Chosen resolution action (MOVE / REROUTE / ACCEPT)	1
-PARAM	5753b5aa-0009-4000-8000-000000000001	ASBUILT_DEVIATION_MM	TEXT		24	1	As-built vs as-designed deviation in millimetres	1
+PARAM	5753b5aa-0009-4000-8000-000000000001	ASBUILT_DEVIATION_MM	NUMBER		24	1	As-built vs as-designed deviation in millimetres	1
 PARAM	5753b5aa-0009-4000-8000-000000000002	ASBUILT_CAPTURE_DATE_TXT	TEXT		24	1	ISO 8601 date when as-built data captured from Planscape mobile	1
 PARAM	5753b5aa-000a-4000-8000-000000000002	ACC_ISSUE_ID_TXT	TEXT		21	1	Autodesk Construction Cloud Issue GUID for bidirectional sync	1
 PARAM	5753b5aa-000a-4000-8000-000000000003	ACC_SYNC_STATUS_TXT	TEXT		21	1	ACC sync status (SYNCED / PENDING / ERROR)	1
 PARAM	5753b5aa-000a-4000-8000-000000000001	IFC_PSET_OVERRIDE_TXT	TEXT		22	1	Manual IFC property set override pipe-delimited (Pset_Name=Value)	1
-PARAM	5753b5aa-0009-4000-8000-000000000003	HEALTH_SCORE_LAST_NR	TEXT		23	1	Last model health score 0 to 100	1
+PARAM	5753b5aa-0009-4000-8000-000000000003	HEALTH_SCORE_LAST_NR	NUMBER		23	1	Last model health score 0 to 100	1
 PARAM	5753b5aa-0009-4000-8000-000000000010	HEALTH_SCORE_DATE_TXT	TEXT		23	1	ISO 8601 timestamp of last health score evaluation	1
 PARAM	5753b5aa-0005-4000-8000-000000000011	CST_LABOUR_CREW_TXT	TEXT		2	1	Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff	1
 PARAM	5753b5aa-0005-4000-8000-000000000012	CST_LABOUR_RATE_GBP	NUMBER		2	1	Labour rate in GBP per hour (override for UK projects)	1
@@ -2619,8 +2619,8 @@ PARAM	cbd94272-6db5-557c-8e6d-2f254888afc6	STR_BAR_MARK_TXT	TEXT		16	1	Rebar bar
 PARAM	6dfe3811-0d82-500a-a10a-ac51225576c6	STR_BEND_SCHEDULE_REF_TXT	TEXT		16	1	Rebar bending schedule document reference [BS 8666:2020]	1
 PARAM	dbc0b581-2741-5a76-82bc-7956cef3af86	STR_CUTTING_LIST_REF_TXT	TEXT		16	1	Rebar cutting list drawing reference [BS 8666:2020]	1
 PARAM	e182a84b-a159-567f-a62d-fd0c3765f618	STR_WELD_PROCEDURE_REF_TXT	TEXT		16	1	Welding procedure specification reference [BS EN ISO 15609-1:2019]	1
-PARAM	87cca4d2-1a8c-57a0-a31b-ab78a308fbe5	STR_BOLT_TORQUE_NM_NR	TEXT		16	1	Bolt installation tightening torque in Nm [BS EN 1090-2:2018]	1
-PARAM	aff8756c-b7b5-5c7a-aaab-65efe622a7d4	HVC_REFRIGERANT_CHARGE_KG_NR	TEXT		5	1	Equipment refrigerant charge mass in kg [BS EN 378-2:2016]	1
+PARAM	87cca4d2-1a8c-57a0-a31b-ab78a308fbe5	STR_BOLT_TORQUE_NM_NR	NUMBER		16	1	Bolt installation tightening torque in Nm [BS EN 1090-2:2018]	1
+PARAM	aff8756c-b7b5-5c7a-aaab-65efe622a7d4	HVC_REFRIGERANT_CHARGE_KG_NR	NUMBER		5	1	Equipment refrigerant charge mass in kg [BS EN 378-2:2016]	1
 PARAM	74d83fbc-1edc-5aa9-8edd-de412bfdf921	HVC_FACTORY_FLASH_TEST_DATE_TXT	TEXT		5	1	Factory flash test date for refrigerant equipment [BS EN 378-2:2016]	1
 PARAM	5ebe500d-983b-5a41-97ba-312b62882f28	HVC_FACTORY_QR_TXT	TEXT		5	1	Mechanical factory QR code label reference [ISO 19650-3:2020]	1
 PARAM	b04373ec-3a97-5c0e-a13b-b72450d52eff	ELC_PANEL_SCHEDULE_REF_TXT	TEXT		4	1	Electrical panel schedule document reference [BS 7671:2018+A2:2022]	1
@@ -2630,9 +2630,9 @@ PARAM	477afe7a-6b97-5de8-90c9-2786042dd5e9	PLM_PRESSURE_TEST_REF_TXT	TEXT		6	1	H
 PARAM	daff6888-aead-51d4-b7ea-fa004def0eb5	PLM_WELD_MAP_REF_TXT	TEXT		6	1	Pipe weld map drawing reference [BS EN ISO 15609-1:2019]	1
 PARAM	273b9909-16b4-5c49-8c96-ff59f2e5ea40	ARC_FACTORY_ORDER_REF_TXT	TEXT		10	1	Joinery factory order reference [BS 8000-5:1990]	1
 PARAM	18208fa9-2926-51ec-b44c-96ebd6c2e6c7	ARC_GLAZING_SPEC_TXT	TEXT		10	1	Glazing specification reference [BS 6262-1:2022]	1
-PARAM	65a3cf4e-6dc8-5095-9664-575a96101272	CBN_RUNTIME_HRS_YR_NR	TEXT		9	1	Equivalent annual operating hours for operational carbon calc [BS EN 16798-1:2019]	1
-PARAM	84428fa6-2f50-5b11-a1ea-db12a58c45e9	CBN_REFRIGERANT_GWP_KG_CO2E	TEXT		9	1	Refrigerant global warming potential contribution in kgCO2e [BS EN 378-2:2016]	1
-PARAM	973e1eb4-6aac-53e4-85ea-a35f4e8d8aec	ASBUILT_COVER_DEVIATION_MM	TEXT		24	1	As-built concrete cover deviation from design in mm [BS EN 13670:2009]	1
+PARAM	65a3cf4e-6dc8-5095-9664-575a96101272	CBN_RUNTIME_HRS_YR_NR	NUMBER		9	1	Equivalent annual operating hours for operational carbon calc [BS EN 16798-1:2019]	1
+PARAM	84428fa6-2f50-5b11-a1ea-db12a58c45e9	CBN_REFRIGERANT_GWP_KG_CO2E	NUMBER		9	1	Refrigerant global warming potential contribution in kgCO2e [BS EN 378-2:2016]	1
+PARAM	973e1eb4-6aac-53e4-85ea-a35f4e8d8aec	ASBUILT_COVER_DEVIATION_MM	NUMBER		24	1	As-built concrete cover deviation from design in mm [BS EN 13670:2009]	1
 PARAM	e1130859-e394-5287-9b12-87f81e4f3a62	TB_DRAWZONE_X_MM	NUMBER		26	1	Drawable zone origin X from sheet origin in mm [STING TB v1]	1
 PARAM	75f1c4b1-022c-5822-a725-1e9aa4533685	TB_DRAWZONE_Y_MM	NUMBER		26	1	Drawable zone origin Y from sheet origin in mm [STING TB v1]	1
 PARAM	3fd4a9b3-2aee-52ff-84e5-a8b8647d5e7a	TB_DRAWZONE_W_MM	NUMBER		26	1	Drawable zone width in mm [STING TB v1]	1
@@ -3124,12 +3124,12 @@ PARAM	d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a	ASS_ITEM_CODE_TXT	TEXT		1	1	Procureme
 PARAM	e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b	ASS_SYSTEMS_TXT	TEXT		1	1	Pipe/duct systems this element connects to (pipe-delimited)	1
 PARAM	f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c	ASS_TERM_CAPPED_BOOL	TEXT		1	1	Terminal point is capped (stub-end or blanked off)	1
 PARAM	a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d	ASS_TERM_REASON_TXT	TEXT		1	1	Reason terminal is capped: FUTURE / DECOMMISSIONED / DESIGN-RESERVE	1
-PARAM	b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e	ASS_TRACE_SEQ_NR	TEXT		1	1	Sequential trace number for multi-element commissioning sequences	1
+PARAM	b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e	ASS_TRACE_SEQ_NR	INTEGER		1	1	Sequential trace number for multi-element commissioning sequences	1
 PARAM	b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2	MEC_SYS_TXT	TEXT		5	1	Mechanical system code	1
-PARAM	c9e0f1a2-b3c4-4d5e-f6a7-b8c9d0e1f2a3	HVC_DCT_INSULATION_THK_MM	TEXT		5	1	Duct insulation thickness mm	1
+PARAM	c9e0f1a2-b3c4-4d5e-f6a7-b8c9d0e1f2a3	HVC_DCT_INSULATION_THK_MM	NUMBER		5	1	Duct insulation thickness mm	1
 PARAM	c9d0e1f2-a3b4-4c5d-e6f7-a8b9c0d1e2f3	PLM_SYS_TXT	TEXT		6	1	Plumbing system code	1
-PARAM	a3c1d2e4-5f67-4b89-9a0b-1c2d3e4f5a6b	BLE_CBL_TRAY_WIDTH_MM	TEXT		10	1	Cable tray internal width mm	1
-PARAM	b4d2e3f5-6a78-5c9a-ab1c-2d3e4f5a6b7c	BLE_CBL_TRAY_DEPTH_MM	TEXT		10	1	Cable tray internal depth mm	1
+PARAM	a3c1d2e4-5f67-4b89-9a0b-1c2d3e4f5a6b	BLE_CBL_TRAY_WIDTH_MM	NUMBER		10	1	Cable tray internal width mm	1
+PARAM	b4d2e3f5-6a78-5c9a-ab1c-2d3e4f5a6b7c	BLE_CBL_TRAY_DEPTH_MM	NUMBER		10	1	Cable tray internal depth mm	1
 PARAM	b6c7d8e9-f0a1-4b2c-d3e4-f5a6b7c8d9e0	TAG_CLUSTER_KEY_TXT	TEXT		17	1	Cluster group key for tag clustering	1
 PARAM	c7d8e9f0-a1b2-4c3d-e4f5-a6b7c8d9e0f1	TAG_FAMILY_HINT_TXT	TEXT		17	1	Tag family name hint for placement	1
 PARAM	d4e5f6a7-b8c9-4d0e-af12-345678901bcd	TAG_STYLE_CODE_TXT	TEXT		17	1	Single consolidated tag style code (replaces 128 BOOL params)	1
@@ -3223,9 +3223,9 @@ PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b70	HVC_SELECTED_IDU_LABEL_TXT	TEXT		5	1	
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b71	HVC_IDU_MOUNTING_TXT	TEXT		5	1	Per-space IDU mounting override (Ducted / CeilingCassette / WallMounted / FourWay) [Phase 187h]	1
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b72	PRJ_REFRIG_IDU_MOUNTING_TXT	TEXT		13	1	Default IDU mounting for the project, used when HVC_IDU_MOUNTING_TXT is unset on a Space [Phase 187h]	1
 PARAM	8b3bfdcf-aab3-5944-a451-e4766bfaf8ce	PRJ_ORG_PRESSURE_PROFILE_TXT	TEXT		13	1	Active pressure-regime profile id for GeneralPressureRegimeValidator (healthcare-htm03-01 / gmp-annex1 / iso-14644-cleanroom / bs-en-12128-lab) [Phase 183]	1
-PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41	ASS_CST_UNIT_RATE_NR	TEXT		2	1	Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184]	1
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41	ASS_CST_UNIT_RATE_NR	NUMBER		2	1	Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42	ASS_CST_CURRENCY_TXT	TEXT		2	1	ISO 4217 currency code (GBP / UGX / USD / EUR) of ASS_CST_UNIT_RATE_NR [Phase 184]	1
-PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43	ASS_CST_FX_TO_BASE_NR	TEXT		2	1	FX rate to project base currency at write time [Phase 184]	1
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43	ASS_CST_FX_TO_BASE_NR	NUMBER		2	1	FX rate to project base currency at write time [Phase 184]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44	ASS_CST_FX_DATE_DT	TEXT		2	1	ISO 8601 date the FX rate was fixed (yyyy-MM-dd) [Phase 184]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45	ASS_CST_AS_OF_DT	TEXT		2	1	Pricing reference date for inflation indexing [Phase 184]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46	ASS_CST_STALE_BOOL	TEXT		2	1	Set when geometry/material/type change invalidates the last-costed line [Phase 184]	1
@@ -3295,13 +3295,13 @@ PARAM	f787a2bc-04cf-5f98-e322-418604468d23	Pset_StingCost.TotalCost	NUMBER		2	1	
 PARAM	a2384fa5-ffad-538e-bb92-9e4b30821ee4	Pset_StingCost.ProvisionalSum	YESNO		2	1	STING IFC4 cost-data property set -> ProvisionalSum [Phase 184k / P8]	1
 PARAM	e8223222-58c4-5f3a-0dd5-4f8fe77271ce	Pset_StingCost.RateSource	TEXT		2	1	STING IFC4 cost-data property set -> RateSource [Phase 184k / P8]	1
 PARAM	6160717f-4a9f-5991-247a-ef111e10f201	Pset_StingCost.NRM2Section	TEXT		2	1	STING IFC4 cost-data property set -> NRM2Section [Phase 184k / P8]	1
-PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50	ASS_PMT_PCT_COMPLETE_NR	TEXT		2	1	Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5]	1
-PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51	ASS_PMT_CERT_NO_NR	TEXT		2	1	Payment certificate number this line item was last valued in [Phase 184g / P5]	1
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50	ASS_PMT_PCT_COMPLETE_NR	NUMBER		2	1	Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5]	1
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51	ASS_PMT_CERT_NO_NR	INTEGER		2	1	Payment certificate number this line item was last valued in [Phase 184g / P5]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52	ASS_PMT_CERT_DATE_DT	TEXT		2	1	ISO 8601 date of the payment certificate valuation [Phase 184g / P5]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53	ASS_PMT_LAST_VALUED_DT	TEXT		2	1	ISO 8601 timestamp the line item was last valued by PaymentCertEngine [Phase 184g / P5]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60	ASS_VAR_NO_TXT	TEXT		2	1	Variation / change-order number this element was instructed under [Phase 184g / P5]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61	ASS_VAR_INSTRUCTION_DT	TEXT		2	1	ISO 8601 date the variation instruction was issued [Phase 184g / P5]	1
-PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62	ASS_VAR_VALUATION_NR	TEXT		2	1	Variation valuation amount in project base currency [Phase 184g / P5]	1
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62	ASS_VAR_VALUATION_NR	NUMBER		2	1	Variation valuation amount in project base currency [Phase 184g / P5]	1
 PARAM	3cfc47f5-93d5-5b0e-adaa-48d61fed97e4	WARN_CEQ_GMDN_MISSING	TEXT		31	1	Warning: Clinical asset missing GMDN classification code [MEDIUM] [COBie healthcare]	1
 PARAM	fd323310-5b49-5007-bc47-4061bad379ad	WARN_CEQ_IMAGING_STRUCT_LOAD	TEXT		31	1	Warning: Imaging equipment slab load not verified against structural capacity [HIGH] [AISC / BS EN 1991-1-1]	1
 PARAM	4a00bae5-4325-5829-a901-fd75849703ea	WARN_CLN_ACOUSTIC_STC_LOW	TEXT		28	1	Warning: Clinical room STC below minimum for use class [MEDIUM] [HTM / BB93]	1
@@ -3353,3 +3353,27 @@ PARAM	a1f2b3c4-d5e6-4f70-8123-456789abcd02	STING_TEMPLATE_LOCKED_BOOL	YESNO		11	
 PARAM	a1f2b3c4-d5e6-4f70-8123-456789abcd03	PRJ_CORPORATE_LIBRARY_PATH_TXT	TEXT		13	1	Path to corporate template library (network share / local seed) — overrides %APPDATA% global config [Template Manager v2]	1
 PARAM	a1f2b3c4-d5e6-4f70-8123-456789abcd04	PRJ_CORPORATE_LIBRARY_VERSION_TXT	TEXT		13	1	Stamped library version on this project — drift baseline vs corporate library [Template Manager v2]	1
 PARAM	a1f2b3c4-d5e6-4f70-8123-456789abcd05	PRJ_TEMPLATE_PROFILE_TXT	TEXT		13	1	Compliance weight profile (default / working / coordination / presentation / handover / healthcare) [Template Manager v2]	1
+PARAM	2f6725f9-94b3-58f6-8d85-0f542659fd8f	ASS_CST_FX_TO_BASE_NR_DISP_TXT	TEXT		2	1	FX rate to project base currency at write time — TEXT display mirror for tag labels	1
+PARAM	465171ad-d9b5-54c2-a002-86cbff6f15cf	ASS_CST_UNIT_RATE_NR_DISP_TXT	TEXT		2	1	Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT — TEXT display mirror for tag labels	1
+PARAM	1fee3b2b-7f2a-56a5-9d89-81d40113b725	ASS_PMT_CERT_NO_NR_DISP_TXT	TEXT		2	1	Payment certificate number this line item was last valued in — TEXT display mirror for tag labels	1
+PARAM	f27e6d2a-a647-5fd5-9c41-9ef2a54f22e3	ASS_PMT_PCT_COMPLETE_NR_DISP_TXT	TEXT		2	1	Per-element percent complete (0-100) driving payment certificate valuation — TEXT display mirror for tag labels	1
+PARAM	8854c07f-d664-545c-a5a3-89c0be61961a	ASS_VAR_VALUATION_NR_DISP_TXT	TEXT		2	1	Variation valuation amount in project base currency — TEXT display mirror for tag labels	1
+PARAM	84726a5b-ca7f-59a8-9d3b-7d9f5b8fe4f3	CST_INSTALL_HRS_DISP_TXT	TEXT		2	1	Install time in hours per element for labour takeoff — TEXT display mirror for tag labels	1
+PARAM	e1c19fcb-f0bf-552a-a795-9e28918bb81b	CST_INTL_PRICE_USD_DISP_TXT	TEXT		2	1	International supplier unit price in USD — TEXT display mirror for tag labels	1
+PARAM	1a55a7cb-fa8e-51bf-944b-e173d9026299	CST_UG_PRICE_UGX_DISP_TXT	TEXT		2	1	Local Uganda unit price in UGX — TEXT display mirror for tag labels	1
+PARAM	e72731ee-88d0-5341-b458-4ce288e5fbe4	CBN_A1_A3_KG_CO2E_DISP_TXT	TEXT		9	1	Embodied carbon A1-A3 product stage (manufacturing) kgCO2e — TEXT display mirror for tag labels	1
+PARAM	434c64bc-c14b-5c9e-8378-dece87752dca	CBN_A4_KG_CO2E_DISP_TXT	TEXT		9	1	Embodied carbon A4 transport to site kgCO2e — TEXT display mirror for tag labels	1
+PARAM	d45fbd40-963e-5e52-864f-e4964ef3b449	CBN_B6_KG_CO2E_YR_DISP_TXT	TEXT		9	1	Operational carbon B6 energy annual kgCO2e/yr — TEXT display mirror for tag labels	1
+PARAM	fa08ef1f-51b7-5c82-84fb-9e5f1e8ada50	CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT	TEXT		9	1	Refrigerant global warming potential contribution in kgCO2e — TEXT display mirror for tag labels	1
+PARAM	be0ee58d-72c5-5774-9e38-075cedf8332f	CBN_RUNTIME_HRS_YR_NR_DISP_TXT	TEXT		9	1	Equivalent annual operating hours for operational carbon calc — TEXT display mirror for tag labels	1
+PARAM	27c20c60-e59f-561f-8fbe-abaeb67bbefa	ASBUILT_COVER_DEVIATION_MM_DISP_TXT	TEXT		24	1	As-built concrete cover deviation from design in mm — TEXT display mirror for tag labels	1
+PARAM	5ad7dbaa-5744-5ecb-98c1-80a316640285	ASBUILT_DEVIATION_MM_DISP_TXT	TEXT		24	1	As-built vs as-designed deviation in millimetres — TEXT display mirror for tag labels	1
+PARAM	d66a235f-2250-590a-8a9f-b5bd78f330da	ASS_TRACE_SEQ_NR_DISP_TXT	TEXT		1	1	Sequential trace number for multi-element commissioning sequences — TEXT display mirror for tag labels	1
+PARAM	d35d7a52-5b70-5128-bdd6-6a265190b471	BLE_CBL_TRAY_DEPTH_MM_DISP_TXT	TEXT		10	1	Cable tray internal depth mm — TEXT display mirror for tag labels	1
+PARAM	d6ff6b02-0aca-5fdb-abf3-cdc24966d9a1	BLE_CBL_TRAY_WIDTH_MM_DISP_TXT	TEXT		10	1	Cable tray internal width mm — TEXT display mirror for tag labels	1
+PARAM	24b29d51-28da-59b4-a011-007d932651b7	CLASH_TRIAGE_SEVERITY_NR_DISP_TXT	TEXT		20	1	Clash triage severity 1 (lowest) to 5 (highest) — TEXT display mirror for tag labels	1
+PARAM	b6b94a07-509f-5c45-9660-eb1198a2db47	ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT	TEXT		4	1	Project ground flash density Ng (flashes/km2/year) override from lightning location service — TEXT display mirror for tag labels	1
+PARAM	7c4f149b-46cf-50d7-9c10-8fbd2bdd80f8	HEALTH_SCORE_LAST_NR_DISP_TXT	TEXT		23	1	Last model health score 0 to 100 — TEXT display mirror for tag labels	1
+PARAM	20cf7cbd-bedc-5889-9a10-d742250717c2	HVC_DCT_INSULATION_THK_MM_DISP_TXT	TEXT		5	1	Duct insulation thickness mm — TEXT display mirror for tag labels	1
+PARAM	76586c57-4c2c-5391-aecc-7e4e52182a3d	HVC_REFRIGERANT_CHARGE_KG_NR_DISP_TXT	TEXT		5	1	Equipment refrigerant charge mass in kg — TEXT display mirror for tag labels	1
+PARAM	1da0151c-391f-5abe-a3ff-b15574113003	STR_BOLT_TORQUE_NM_NR_DISP_TXT	TEXT		16	1	Bolt installation tightening torque in Nm — TEXT display mirror for tag labels	1
