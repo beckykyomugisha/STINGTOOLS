@@ -158,28 +158,76 @@ export interface DashboardData {
 
 export type CDEStatus = 'WIP' | 'SHARED' | 'PUBLISHED' | 'ARCHIVE';
 
+/**
+ * A tagged BIM element as serialized by the server — the raw
+ * `TaggedElement` entity
+ * (`Planscape.Server/src/Planscape.Core/Entities/TaggedElement.cs`).
+ * ASP.NET Core uses its default camelCase policy, so each field below
+ * mirrors the entity's PascalCase property with a lowercased first
+ * letter. This interface is the wire contract; do NOT invent verbose
+ * aliases (an earlier version declared `assTag1`/`discipline`/`systemType`
+ * /… which matched nothing on the wire, so every field deserialized as
+ * `undefined`).
+ *
+ * Producers:
+ *   - `lookupElement()` → GET /api/tagsync/elements/search (returns the
+ *     raw entity, verified in TagSyncController.SearchElements).
+ *   - `listIfcElements()` → GET /api/projects/{id}/tagged-elements
+ *     (NOTE: that route does not currently exist server-side — flagged
+ *     separately; the return type stays `TaggedElement[]` for whenever it
+ *     lands).
+ *
+ * `lvl` vs `level`: the server emits BOTH. `lvl` is the ISO 19650 level
+ * *code* (e.g. "L02"); `level` is the human-readable level *name*
+ * (e.g. "Level 2"). They are distinct fields — do not conflate them.
+ */
 export interface TaggedElement {
   id: string;
   projectId: string;
+  revitElementId: number;
   uniqueId: string;
-  assTag1: string;
-  discipline: string;
-  location: string;
+
+  // 8 ISO 19650 source tokens
+  disc: string;
+  loc: string;
   zone: string;
-  level: string;
-  systemType: string;
-  function: string;
-  productCode: string;
-  sequenceNumber: string;
-  status: string;
-  revision: string;
+  lvl: string; // level CODE — e.g. "L02"
+  sys: string;
+  func: string;
+  prod: string;
+  seq: string;
+
+  // Assembled tags
+  tag1: string; // full 8-segment tag, e.g. "M-BLD1-Z01-L02-HVAC-SUP-AHU-0042"
+  tag7?: string | null; // rich descriptive narrative
+  tag7A?: string | null; // Identity Header
+  tag7B?: string | null; // System & Function
+  tag7C?: string | null; // Spatial Context
+  tag7D?: string | null; // Lifecycle & Status
+  tag7E?: string | null; // Technical Specs
+  tag7F?: string | null; // Classification
+
+  // Context
   categoryName: string;
   familyName: string;
   typeName: string;
-  roomName: string;
-  gridRef: string;
-  tag7Summary: string;
+  status?: string | null; // NEW/EXISTING/DEMOLISHED/TEMPORARY
+  rev?: string | null;
+  gridRef?: string | null;
+  roomName?: string | null;
+  level?: string | null; // level NAME — distinct from `lvl` above
+
+  // Compliance state
+  isStale: boolean;
+  isComplete: boolean;
+  isFullyResolved: boolean;
+  validationErrors?: string | null; // JSON array of errors
+
+  // Audit / sync
+  previousTag?: string | null;
+  source?: string | null; // "archicad" | "ifc" | "revit" | null
   syncedAt: string;
+  lastModifiedUtc?: string | null;
 }
 
 export interface OfflineAction {

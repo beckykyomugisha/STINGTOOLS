@@ -298,9 +298,9 @@ export default function ScannerScreen() {
                 style={styles.resultRow}
                 onPress={() => setSelectedElement(el)}
               >
-                <View style={[styles.discDot, { backgroundColor: getDisciplineColor(el.discipline) }]} />
+                <View style={[styles.discDot, { backgroundColor: getDisciplineColor(el.disc) }]} />
                 <View style={styles.resultContent}>
-                  <Text style={styles.resultTag} numberOfLines={1}>{el.assTag1}</Text>
+                  <Text style={styles.resultTag} numberOfLines={1}>{el.tag1}</Text>
                   <Text style={styles.resultMeta}>
                     {el.categoryName} {el.familyName ? `\u00B7 ${el.familyName}` : ''}
                     {el.roomName ? ` \u00B7 ${el.roomName}` : ''}
@@ -365,7 +365,7 @@ export default function ScannerScreen() {
 function ElementDetail({
   element, project, onClose,
 }: { element: TaggedElement; project: Project; onClose: () => void }) {
-  const discLabel = DISCIPLINE_LABELS[element.discipline] || element.discipline;
+  const discLabel = DISCIPLINE_LABELS[element.disc] || element.disc;
 
   /**
    * Phase 96 — action handlers. These give BIM coordinators on site the three
@@ -381,7 +381,7 @@ function ElementDetail({
         pathname: '/(tabs)/issues',
         params: {
           createForElement: element.uniqueId || element.id,
-          elementTag: element.assTag1,
+          elementTag: element.tag1,
           projectId: project.id,
         },
       });
@@ -394,13 +394,13 @@ function ElementDetail({
     try {
       const all = await listIssues(project.id);
       const needle = (element.uniqueId || element.id || '').toLowerCase();
-      const tag = (element.assTag1 || '').toLowerCase();
+      const tag = (element.tag1 || '').toLowerCase();
       const linked = all.filter((i: BimIssue) => {
         const ids = (i.elementIds || '').toLowerCase();
         return (!!needle && ids.includes(needle)) || (!!tag && ids.includes(tag));
       });
       if (linked.length === 0) {
-        Alert.alert('No linked issues', `No issues are linked to ${element.assTag1}.`);
+        Alert.alert('No linked issues', `No issues are linked to ${element.tag1}.`);
         return;
       }
       // Push the first hit for quick triage; the list remains searchable by tag.
@@ -432,8 +432,8 @@ function ElementDetail({
     <View style={styles.detailCard}>
       <View style={styles.detailHeader}>
         <View style={styles.detailHeaderLeft}>
-          <View style={[styles.detailDiscBadge, { backgroundColor: getDisciplineColor(element.discipline) }]}>
-            <Text style={styles.detailDiscText}>{element.discipline}</Text>
+          <View style={[styles.detailDiscBadge, { backgroundColor: getDisciplineColor(element.disc) }]}>
+            <Text style={styles.detailDiscText}>{element.disc}</Text>
           </View>
           <Text style={styles.detailDiscLabel}>{discLabel}</Text>
         </View>
@@ -444,7 +444,7 @@ function ElementDetail({
 
       {/* Tag */}
       <View style={styles.tagBanner}>
-        <Text style={styles.tagBannerText}>{element.assTag1}</Text>
+        <Text style={styles.tagBannerText}>{element.tag1}</Text>
       </View>
 
       {/* Phase 96 — on-site action row. Primary actions surface BEFORE the
@@ -480,14 +480,14 @@ function ElementDetail({
       {/* Token breakdown */}
       <Text style={styles.detailSectionTitle}>Token Breakdown</Text>
       <View style={styles.tokenGrid}>
-        <TokenCell label="DISC" value={element.discipline} />
-        <TokenCell label="LOC" value={element.location} />
+        <TokenCell label="DISC" value={element.disc} />
+        <TokenCell label="LOC" value={element.loc} />
         <TokenCell label="ZONE" value={element.zone} />
-        <TokenCell label="LVL" value={element.level} />
-        <TokenCell label="SYS" value={element.systemType} />
-        <TokenCell label="FUNC" value={element.function} />
-        <TokenCell label="PROD" value={element.productCode} />
-        <TokenCell label="SEQ" value={element.sequenceNumber} />
+        <TokenCell label="LVL" value={element.lvl} />
+        <TokenCell label="SYS" value={element.sys} />
+        <TokenCell label="FUNC" value={element.func} />
+        <TokenCell label="PROD" value={element.prod} />
+        <TokenCell label="SEQ" value={element.seq} />
       </View>
 
       {/* Identity */}
@@ -495,8 +495,8 @@ function ElementDetail({
       <DetailField label="Category" value={element.categoryName} />
       <DetailField label="Family" value={element.familyName} />
       <DetailField label="Type" value={element.typeName} />
-      <DetailField label="Status" value={element.status} />
-      <DetailField label="Revision" value={element.revision} />
+      <DetailField label="Status" value={element.status ?? ''} />
+      <DetailField label="Revision" value={element.rev ?? ''} />
 
       {/* Spatial */}
       {(element.roomName || element.gridRef) && (
@@ -508,10 +508,10 @@ function ElementDetail({
       )}
 
       {/* TAG7 summary */}
-      {element.tag7Summary ? (
+      {element.tag7 ? (
         <>
           <Text style={styles.detailSectionTitle}>Description</Text>
-          <Text style={styles.tag7Text}>{element.tag7Summary}</Text>
+          <Text style={styles.tag7Text}>{element.tag7}</Text>
         </>
       ) : null}
 

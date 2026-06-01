@@ -65,7 +65,7 @@ function deriveIfcType(el: TaggedElement): string {
 // available fields so the screen works against the existing TaggedElement shape.
 function deriveSource(el: TaggedElement): SourceFilter {
   const fam = (el.familyName ?? '').toLowerCase();
-  const tag = (el.assTag1 ?? '').toLowerCase();
+  const tag = (el.tag1 ?? '').toLowerCase();
   if (fam.includes('archicad') || tag.includes('ac-')) return 'archicad';
   if (fam.includes('ifc'))                              return 'ifc';
   // Default assumption for elements synced from the Revit plugin
@@ -100,7 +100,7 @@ function ElementRow({ item }: ElementRowProps) {
       </View>
 
       <Text style={styles.elementName} numberOfLines={1}>
-        {item.familyName || item.typeName || item.assTag1 || 'Unnamed element'}
+        {item.familyName || item.typeName || item.tag1 || 'Unnamed element'}
       </Text>
 
       <Text style={styles.globalId} numberOfLines={1}>
