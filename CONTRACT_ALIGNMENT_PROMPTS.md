@@ -532,6 +532,12 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 > single shared Python client (or a clearly-retired one). Smoke tests green.
 >
 > **Verify / challenge before you build:**
+> - **There are two sync paths, not one** (session-11 finding): the IFC
+>   watcher (`watch/ifc_watcher.py`, only has `el.GlobalId`) *and* the live
+>   ArchiCAD engine (`sync/engine.py`, has the ArchiCAD GUID but no IFC
+>   GlobalId → derive via `ifcopenshell.guid.compress(GUID)`). Handle both.
+>   Confirm the engine's `compress(GUID)` equals what ArchiCAD's IFC export
+>   writes (live round-trip) before relying on engine-path matching.
 > - Confirm the IFC watcher can actually recover the ArchiCAD element GUID
 >   (not just the IFC GlobalId) to populate `HostElementId`; if it only has
 >   the IFC GlobalId, decide what `HostElementId` should be and say so.

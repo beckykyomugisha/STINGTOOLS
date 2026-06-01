@@ -272,6 +272,22 @@ the ArchiCAD element GUID as `HostElementId`; (b) **there should not be two
 Python clients** — `StingBridge` and `stingtools-core` should share one
 `PlanscapeClient`, or one should be retired.
 
+**DONE (Prompt 9, session 11) — with a correction to this audit.** There are
+**two** StingBridge sync paths, not one: `watch/ifc_watcher.py` (IFC export
+→ `el.GlobalId` is the only id, so `ifcGlobalId = hostElementId = GlobalId`)
+and `sync/engine.py` (live ArchiCAD JSON API → holds the ArchiCAD element
+GUID as `hostElementId` but no IFC GlobalId, so it **derives** the GlobalId
+via `ifcopenshell.guid.compress(GUID)`, raw-GUID fallback). Both now POST
+`/ifc/data` with `Host="archicad"`, no fabricated Revit id. `_element_to_wire`
+is single-sourced from `stingtools-core` (import + `sys.path` fallback), with
+a test asserting it's the *same* function, not a clone; legacy
+`/tagsync/sync` kept as a deprecated shim (safe transition). Deferred (with
+rationale): the full client merge — the two clients use different HTTP stacks
+and the bridge has 3 methods core lacks; only the *wire contract* mattered
+and it's unified. **Open assumption:** the engine's `compress(GUID)` must
+equal what ArchiCAD's IFC export writes — confirm against a live ArchiCAD
+IFC round-trip before relying on engine-path cross-host matching.
+
 ---
 
 ## Drift 6 — Revit client ↔ server endpoint mismatches (404 / 405 class)
@@ -293,6 +309,16 @@ are pure path/verb fixes (rename the path / change POST→PUT / add the
 server route), not contract redesigns. The `FullSyncAsync` one is already
 `[Obsolete]` — confirm it has no live caller, then delete it rather than
 re-add the route.
+
+**DONE (Prompt 8, session 12).** All four resolved + the inventory
+re-verified independently (~15 other literals confirmed clean): transmittal
+`send` switched to PUT (new `PutJsonAsync` helper); warnings repointed to
+`/warnings/report` (no caller, body shape documented); `boq/snapshot` —
+investigation showed the route was **intended but never added** (`BoqSnapshot`
+entity + DbSet exist; `IfcBoqSeedJob.cs:166` cites `BoqController.PushSnapshot`),
+so the server `[HttpPost("snapshot")]` route was added (persists + broadcasts,
+no migration — entity pre-existed); `FullSyncAsync` confirmed obsolete +
+zero callers → deleted. Both plugin and server build clean.
 
 ---
 
@@ -436,9 +462,20 @@ This work does **not** touch Drift 1 (Bonsai snake_case) or Drift 2
 
 ## Recommended order of operations
 
-**Status (executed on `upbeat-noether-tg4pn`):** Prompts 1, 2, 3, 4, 5, 6
-are DONE. Remaining: Prompt 7 (Drift 4, critical), Prompts 8, 9, 10, and
-two baseline blockers (mobile `tsc`, test project).
+**Status (executed on `upbeat-noether-tg4pn`):** Prompts 1, 2, 3, 4, 5, 6,
+8, 9 are DONE. Remaining: **Prompt 7 (Drift 4) — now the *only* host still
+using the wrong cross-host key**, Prompt 10 (systemic), and two baseline
+blockers (mobile `tsc`, test project) + the EF-migration backlog.
+
+**Cross-host key is now consistent on every host except Revit.** After
+Prompt 9 (session 11), the key is the true IFC GlobalId everywhere:
+Bonsai (real GlobalId), ArchiCAD/IFC-watcher (real GlobalId),
+ArchiCAD/engine (`ifcopenshell.guid.compress(GUID)` = derived GlobalId).
+**Revit alone still keys on raw `Element.UniqueId`** (Drift 4). The
+derivation ArchiCAD's engine path uses is the same one Prompt 7 needs for
+Revit — `StabilizeIfcGuidsCommand` already computes Revit's
+`IfcGloballyUniqueId`. So Prompt 7 is the single remaining place in the
+whole system where the cross-host key is wrong.
 
 0. ~~**Prompt 5 — fix the pre-existing `Planscape.API` build breakage.**~~
    **DONE (session 9).** The audit's "6 errors" was an *underestimate* —
