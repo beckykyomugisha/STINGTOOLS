@@ -266,7 +266,7 @@ TAG7: HVC_TAG_7_PARA_AT_TXT  •  Category: Air Terminals
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,MEC_SYS_TXT,MSys:,,0,✓,Common,Text,"Show T2-Ph179 - Mec System","if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -308,9 +308,9 @@ TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Accessories
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,MEC_SYS_TXT,MSys:,,0,✓,Common,Text,"Show T2-Ph179 - Mec System","if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, """")",NOM,BLACK,2.0,None,None
-26,T2,HVC_DCT_INSULATION_THK_MM,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM, """")",NOM,BLACK,2.0,None,None
+26,T2,HVC_DCT_INSULATION_THK_MM_DISP_TXT,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
 27,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 28,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
@@ -352,9 +352,9 @@ TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Fittings
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,MEC_SYS_TXT,MSys:,,0,✓,Common,Text,"Show T2-Ph179 - Mec System","if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, """")",NOM,BLACK,2.0,None,None
-26,T2,HVC_DCT_INSULATION_THK_MM,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM, """")",NOM,BLACK,2.0,None,None
+26,T2,HVC_DCT_INSULATION_THK_MM_DISP_TXT,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
 27,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 28,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
@@ -416,9 +416,9 @@ TAG7: HVC_TAG_7_PARA_DUCT_TXT  •  Category: Ducts
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,MEC_SYS_TXT,MSys:,,0,✓,Common,Text,"Show T2-Ph179 - Mec System","if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, """")",NOM,BLACK,2.0,None,None
-26,T2,HVC_DCT_INSULATION_THK_MM,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM, """")",NOM,BLACK,2.0,None,None
+26,T2,HVC_DCT_INSULATION_THK_MM_DISP_TXT,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
 27,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 28,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
@@ -572,7 +572,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Flex Pipes
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 26,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 27,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
@@ -613,7 +613,7 @@ TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Accessories
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 26,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 27,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
@@ -656,7 +656,7 @@ TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Fittings
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 26,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 27,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
@@ -718,7 +718,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Pipes
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 26,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 27,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
@@ -778,7 +778,7 @@ TAG7: PLM_TAG_7_PARA_FIXTURE_TXT  •  Category: Plumbing Fixtures
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -924,9 +924,9 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Tray Fittings
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
-25,T2,BLE_CBL_TRAY_WIDTH_MM,W:,mm,0,,Common,Text,"Show T2-Ph179 - Cable Tray Width","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_WIDTH_MM, """")",NOM,BLACK,2.0,None,None
-26,T2,BLE_CBL_TRAY_DEPTH_MM,D:,mm,0,✓,Common,Text,"Show T2-Ph179 - Cable Tray Depth","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_DEPTH_MM, """")",NOM,BLACK,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+25,T2,BLE_CBL_TRAY_WIDTH_MM_DISP_TXT,W:,mm,0,,Common,Text,"Show T2-Ph179 - Cable Tray Width","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_WIDTH_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
+26,T2,BLE_CBL_TRAY_DEPTH_MM_DISP_TXT,D:,mm,0,✓,Common,Text,"Show T2-Ph179 - Cable Tray Depth","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_DEPTH_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS,Fitting material incompatible with tray,IEC 61537 / BS EN 61537,Common,Text,⚠ Warning: Cable Tray Fitting,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS, """")"
@@ -974,9 +974,9 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Trays
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
-25,T2,BLE_CBL_TRAY_WIDTH_MM,W:,mm,0,,Common,Text,"Show T2-Ph179 - Cable Tray Width","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_WIDTH_MM, """")",NOM,BLACK,2.0,None,None
-26,T2,BLE_CBL_TRAY_DEPTH_MM,D:,mm,0,✓,Common,Text,"Show T2-Ph179 - Cable Tray Depth","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_DEPTH_MM, """")",NOM,BLACK,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+25,T2,BLE_CBL_TRAY_WIDTH_MM_DISP_TXT,W:,mm,0,,Common,Text,"Show T2-Ph179 - Cable Tray Width","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_WIDTH_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
+26,T2,BLE_CBL_TRAY_DEPTH_MM_DISP_TXT,D:,mm,0,✓,Common,Text,"Show T2-Ph179 - Cable Tray Depth","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_DEPTH_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS,Cable tray fill ratio > 50%,BS EN 61537 / IEC 61537,Common,Text,⚠ Warning: Cable Tray Fill,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS, """")"
@@ -1017,7 +1017,7 @@ TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduit Fittings
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 26,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
@@ -1073,7 +1073,7 @@ TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduits
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 26,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
@@ -1230,7 +1230,7 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Devices
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_LTG_CTRL_TYPE_LIGHTING_DEVICES,Control type unassigned,CIBSE LG7 / BS EN 15232,Common,Text,⚠ Warning: Lighting Control Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_CTRL_TYPE_LIGHTING_DEVICES, """")"
@@ -1286,7 +1286,7 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Fixtures
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_LTG_EFFICACY_LM_W_LIGHTING,Efficacy < 80 lm/W below Part L minimum,Building Regs Part L / CIBSE LG7 / ASHRAE 90.1,Common,Text,⚠ Warning: Lighting Efficacy,"if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_EFFICACY_LM_W_LIGHTING, """")"
@@ -1338,7 +1338,7 @@ TAG7: COM_TAG_7_PARA_BMS_TXT  •  Category: Communication Devices
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_COM_C_PROTOCOL_COMM_DEVICES,Protocol mismatch with BMS,BACnet / Modbus / ASHRAE 135,Common,Text,⚠ Warning: Comms Protocol Mismatch,"if(TAG_WARN_VISIBLE_BOOL, WARN_COM_C_PROTOCOL_COMM_DEVICES, """")"
@@ -1379,7 +1379,7 @@ TAG7: ICT_TAG_7_PARA_DATA_TXT  •  Category: Data Devices
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ICT_OUTLET_TYPE_DATA_DEVICES,Outlet category unassigned,TIA-568 / BS EN 50173,Common,Text,⚠ Warning: Data Outlet Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_ICT_OUTLET_TYPE_DATA_DEVICES, """")"
@@ -1419,7 +1419,7 @@ TAG7: NCL_TAG_7_PARA_NURSECALL_TXT  •  Category: Nurse Call Devices
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_NCL_ZONE_NURSE_CALL,Zone coverage gap,HTM 08-03 / BS 6839-1,Common,Text,⚠ Warning: Nurse Call Zone Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_NCL_ZONE_NURSE_CALL, """")"
@@ -1459,7 +1459,7 @@ TAG7: SEC_TAG_7_PARA_SECURITY_TXT  •  Category: Security Devices
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_SEC_DEV_ZONE_SECURITY,Security zone unassigned,BS EN 50131 / BS 7671,Common,Text,⚠ Warning: Security Zone Unassigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_SEC_DEV_ZONE_SECURITY, """")"
@@ -1503,7 +1503,7 @@ TAG7: ICT_TAG_7_PARA_TEL_TXT  •  Category: Telephone Devices
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ICT_OUTLET_TYPE_TELEPHONE,Port type unassigned,TIA-568 / BS EN 50173,Common,Text,⚠ Warning: Telephone Port Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_ICT_OUTLET_TYPE_TELEPHONE, """")"
@@ -1554,7 +1554,7 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Generic Models
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ASS_DESCRIPTION_GENERIC_MODEL,Description missing,ISO 19650 / COBie,Common,Text,⚠ Warning: Generic Model Description,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_DESCRIPTION_GENERIC_MODEL, """")"
@@ -1608,7 +1608,7 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ASS_CRITICALITY_SPECIALTY_EQUIP,Criticality rating > 3 without commissioning plan,ISO 55000 / PAS 1192-3,Common,Text,⚠ Warning: Specialty Equipment Criticality,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_CRITICALITY_SPECIALTY_EQUIP, """")"
@@ -1682,9 +1682,9 @@ TAG7: HVC_TAG_7_PARA_DUCT_LINING_TXT  •  Category: Duct Lining
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,MEC_SYS_TXT,MSys:,,0,✓,Common,Text,"Show T2-Ph179 - Mec System","if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, """")",NOM,BLACK,2.0,None,None
-26,T2,HVC_DCT_INSULATION_THK_MM,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM, """")",NOM,BLACK,2.0,None,None
+26,T2,HVC_DCT_INSULATION_THK_MM_DISP_TXT,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
 27,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 28,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
@@ -1724,7 +1724,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_INSULATION_TXT  •  Category: Pipe Insulation
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 26,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 27,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
@@ -1816,7 +1816,7 @@ TAG7: HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT  •  Category: Mechanical Control Device
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,MEC_SYS_TXT,MSys:,,0,✓,Common,Text,"Show T2-Ph179 - Mec System","if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -1853,7 +1853,7 @@ TAG7: HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT  •  Category: Mechanical Equipment Se
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,MEC_SYS_TXT,MSys:,,0,✓,Common,Text,"Show T2-Ph179 - Mec System","if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -1891,7 +1891,7 @@ TAG7: ELC_TAG_7_PARA_ELC_CONNECTORS_TXT  •  Category: Electrical Connectors
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ELC_CONN_RATING_CONNECTORS,Rating exceeded,IEC 60309 / BS EN 60309,Common,Text,⚠ Warning: Connector Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CONN_RATING_CONNECTORS, """")"
@@ -1969,9 +1969,9 @@ TAG7: ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT  •  Category: MEP Fabrication Contain
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
-25,T2,BLE_CBL_TRAY_WIDTH_MM,W:,mm,0,,Common,Text,"Show T2-Ph179 - Cable Tray Width","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_WIDTH_MM, """")",NOM,BLACK,2.0,None,None
-26,T2,BLE_CBL_TRAY_DEPTH_MM,D:,mm,0,✓,Common,Text,"Show T2-Ph179 - Cable Tray Depth","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_DEPTH_MM, """")",NOM,BLACK,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+25,T2,BLE_CBL_TRAY_WIDTH_MM_DISP_TXT,W:,mm,0,,Common,Text,"Show T2-Ph179 - Cable Tray Width","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_WIDTH_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
+26,T2,BLE_CBL_TRAY_DEPTH_MM_DISP_TXT,D:,mm,0,✓,Common,Text,"Show T2-Ph179 - Cable Tray Depth","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_DEPTH_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_FAB_CONTAINMENT_DIMENSIONS,Containment size mismatch,IEC 61537,Common,Text,⚠ Warning: Containment Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_CONTAINMENT_DIMENSIONS, """")"
@@ -2009,9 +2009,9 @@ TAG7: HVC_TAG_7_PARA_FAB_DUCTWORK_TXT  •  Category: MEP Fabrication Ductwork
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,MEC_SYS_TXT,MSys:,,0,✓,Common,Text,"Show T2-Ph179 - Mec System","if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, """")",NOM,BLACK,2.0,None,None
-26,T2,HVC_DCT_INSULATION_THK_MM,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM, """")",NOM,BLACK,2.0,None,None
+26,T2,HVC_DCT_INSULATION_THK_MM_DISP_TXT,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
 27,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 28,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
@@ -2052,9 +2052,9 @@ TAG7: HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT  •  Category: MEP Fabrication Duct
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,MEC_SYS_TXT,MSys:,,0,✓,Common,Text,"Show T2-Ph179 - Mec System","if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, """")",NOM,BLACK,2.0,None,None
-26,T2,HVC_DCT_INSULATION_THK_MM,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM, """")",NOM,BLACK,2.0,None,None
+26,T2,HVC_DCT_INSULATION_THK_MM_DISP_TXT,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
 27,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 28,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
@@ -2127,7 +2127,7 @@ TAG7: PLM_TAG_7_PARA_FAB_PIPEWORK_TXT  •  Category: MEP Fabrication Pipework
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 26,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 27,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
@@ -2181,7 +2181,7 @@ TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_PROP_FIRE_RATING_MATERIALS,PROP_FIRE_RATING empty — fire rating not specified,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Material Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_FIRE_RATING_MATERIALS, """")"
@@ -2225,7 +2225,7 @@ TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_RGL_STD_AV_DEVICES,AV device lacks electromagnetic compatibility (EMC) certification,BS EN 55032 / CE marking,Common,Text,⚠ Warning: AV Device EMC,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_STD_AV_DEVICES, """")"
@@ -2264,7 +2264,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_ROOM_VENTILATION_SPACES,Ventilation rate < 10 L/s/person,Building Regs Part F / CIBSE Guide A,Common,Text,⚠ Warning: Space Ventilation Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_VENTILATION_SPACES, """")"
@@ -2301,7 +2301,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
 15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+18,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_CONTROL_TYPE_ZONES,Zone has no BMS control type assigned,CIBSE Guide H / BS EN ISO 16484,Common,Text,⚠ Warning: Zone Control,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_CONTROL_TYPE_ZONES, """")"
@@ -2405,7 +2405,7 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 26,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 27,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
@@ -2456,9 +2456,9 @@ TAG7: HVC_TAG_7_PARA_TIEIN_TXT  •  Category: Ducts
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,MEC_SYS_TXT,MSys:,,0,✓,Common,Text,"Show T2-Ph179 - Mec System","if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, """")",NOM,BLACK,2.0,None,None
-26,T2,HVC_DCT_INSULATION_THK_MM,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM, """")",NOM,BLACK,2.0,None,None
+26,T2,HVC_DCT_INSULATION_THK_MM_DISP_TXT,Ins:,mm,0,✓,Common,Text,"Show T2-Ph179 - Duct Insulation Thk","if(TAG_PARA_STATE_2_BOOL, HVC_DCT_INSULATION_THK_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
 27,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 28,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
@@ -2505,7 +2505,7 @@ TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Conduits
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 26,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
@@ -2551,9 +2551,9 @@ TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Cable Trays
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
-25,T2,BLE_CBL_TRAY_WIDTH_MM,W:,mm,0,,Common,Text,"Show T2-Ph179 - Cable Tray Width","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_WIDTH_MM, """")",NOM,BLACK,2.0,None,None
-26,T2,BLE_CBL_TRAY_DEPTH_MM,D:,mm,0,✓,Common,Text,"Show T2-Ph179 - Cable Tray Depth","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_DEPTH_MM, """")",NOM,BLACK,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+25,T2,BLE_CBL_TRAY_WIDTH_MM_DISP_TXT,W:,mm,0,,Common,Text,"Show T2-Ph179 - Cable Tray Width","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_WIDTH_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
+26,T2,BLE_CBL_TRAY_DEPTH_MM_DISP_TXT,D:,mm,0,✓,Common,Text,"Show T2-Ph179 - Cable Tray Depth","if(TAG_PARA_STATE_2_BOOL, BLE_CBL_TRAY_DEPTH_MM_DISP_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ASS_TIEIN_OPEN_CABLETRAY,Tie-in status = OPEN (tray dead-end unresolved),IEC 61537 / BS EN 61537,Common,Text,⚠ Warning: Open Cable Tray Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_CABLETRAY, """")"
@@ -2598,7 +2598,7 @@ TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System)
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 26,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 27,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
@@ -2648,7 +2648,7 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 26,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 27,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
@@ -2672,7 +2672,7 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
 3,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
 4,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 5,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-6,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+6,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_SHT_MULTI_DISC_MEP,Multiple MEP disciplines on same sheet — coordination risk,ISO 19650-2 / PAS 1192-2,Common,Text,⚠ Warning: Multi-Discipline Sheet,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_MULTI_DISC_MEP, """")"
@@ -2725,7 +2725,7 @@ Tag Family #53: STING - MEP Sleeve Tag
 21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_SLV_NO_FIRE_RATING,SLV_FIRE_RATING_TXT empty — penetration seal cannot be validated,BS EN 1366-3:2009,Common,Text,⚠ Warning: No Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_FIRE_RATING, """")"
@@ -2762,7 +2762,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
 3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
 4,T5,ELC_LPS_AIR_TERMINAL_COUNT_NR,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - Air Terminal Count,"if(TAG_PARA_STATE_5_BOOL, ELC_LPS_AIR_TERMINAL_COUNT_NR, """")",NOM,PURPLE,2.0,None,None
-5,T5,ELC_LPS_PROJECT_NG_OVERRIDE_NR,Ng:,/km²/yr,0,✓,Common,Text,Show T5 - Performance & capacity - Ground Flash Density,"if(TAG_PARA_STATE_5_BOOL, ELC_LPS_PROJECT_NG_OVERRIDE_NR, """")",NOM,PURPLE,2.0,None,None
+5,T5,ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT,Ng:,/km²/yr,0,✓,Common,Text,Show T5 - Performance & capacity - Ground Flash Density,"if(TAG_PARA_STATE_5_BOOL, ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT, """")",NOM,PURPLE,2.0,None,None
 6,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
 7,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 8,T6,ELC_LPS_CONDUCTOR_MATERIAL_TXT,Mat:,,0,✓,Common,Text,Show T6 - Material & finish - Conductor Material,"if(TAG_PARA_STATE_6_BOOL, ELC_LPS_CONDUCTOR_MATERIAL_TXT, """")",ITALIC,GREEN,2.0,None,None

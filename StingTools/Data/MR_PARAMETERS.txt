@@ -2542,7 +2542,7 @@ PARAM	d654df13-0913-5e8f-8dfe-98b3971beb86	ELC_LPS_TEST_DATE_TXT	TEXT		4	1	ISO 8
 PARAM	0a8dbcfb-6f73-5c8c-94eb-b72606feae87	ELC_LPS_CERT_REF_TXT	TEXT		4	1	Certificate reference for the LPS inspection / commissioning	1
 PARAM	b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e	ELC_LPS_COMPLIANCE_STATUS_TXT	TEXT		4	1	Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL)	1
 PARAM	c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a	ELC_LPS_CONDUCTOR_MATERIAL_TXT	TEXT		4	1	Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor	1
-PARAM	d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321	ELC_LPS_PROJECT_NG_OVERRIDE_NR	TEXT		4	1	Project ground flash density Ng (flashes/km2/year) override from lightning location service	1
+PARAM	d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321	ELC_LPS_PROJECT_NG_OVERRIDE_NR	NUMBER		4	1	Project ground flash density Ng (flashes/km2/year) override from lightning location service	1
 PARAM	b1332559-0830-5d8f-8ac7-5f77a963cd94	ELC_LPS_KC_FACTOR_NR	NUMBER		4	1	Current-distribution factor kc per BS EN 62305-3 _6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc)	1
 PARAM	75cd5268-c764-551b-872d-00b0b31308a6	ELC_LPS_ELEMENT_TYPE_TXT	TEXT		4	1	LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily	1
 PARAM	c40720fa-3e80-5880-86c3-a82f43055fbf	CST_INTL_PRICE_USD	NUMBER		2	1	International supplier unit price in USD	1
@@ -2561,17 +2561,17 @@ PARAM	5753b5aa-0006-4000-8000-000000000003	CBN_B6_KG_CO2E_YR	NUMBER		9	1	Operati
 PARAM	5753b5aa-0006-4000-8000-000000000011	CBN_C1_KG_CO2E	NUMBER		9	1	End-of-life C1 deconstruction kgCO2e	1
 PARAM	5753b5aa-0006-4000-8000-000000000012	CBN_C2_KG_CO2E	NUMBER		9	1	End-of-life C2 transport to disposal kgCO2e	1
 PARAM	5753b5aa-0006-4000-8000-000000000013	CBN_C3_C4_KG_CO2E	NUMBER		9	1	End-of-life C3-C4 waste processing and disposal kgCO2e	1
-PARAM	5753b5aa-0008-4000-8000-000000000001	CLASH_TRIAGE_SEVERITY_NR	TEXT		20	1	Clash triage severity 1 (lowest) to 5 (highest)	1
+PARAM	5753b5aa-0008-4000-8000-000000000001	CLASH_TRIAGE_SEVERITY_NR	INTEGER		20	1	Clash triage severity 1 (lowest) to 5 (highest)	1
 PARAM	5753b5aa-0008-4000-8000-000000000010	CLASH_TRIAGE_SCORE	NUMBER		20	1	Clash triage weighted score 0 to 100	1
 PARAM	5753b5aa-0008-4000-8000-000000000002	CLASH_TRIAGE_CATEGORY_TXT	TEXT		20	1	Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL)	1
 PARAM	5753b5aa-0008-4000-8000-000000000003	CLASH_RESOLUTION_STATUS_TXT	TEXT		20	1	Clash resolution status (PENDING / APPLIED / ACCEPTED)	1
 PARAM	5753b5aa-0008-4000-8000-000000000011	CLASH_RESOLUTION_ACTION_TXT	TEXT		20	1	Chosen resolution action (MOVE / REROUTE / ACCEPT)	1
-PARAM	5753b5aa-0009-4000-8000-000000000001	ASBUILT_DEVIATION_MM	TEXT		24	1	As-built vs as-designed deviation in millimetres	1
+PARAM	5753b5aa-0009-4000-8000-000000000001	ASBUILT_DEVIATION_MM	NUMBER		24	1	As-built vs as-designed deviation in millimetres	1
 PARAM	5753b5aa-0009-4000-8000-000000000002	ASBUILT_CAPTURE_DATE_TXT	TEXT		24	1	ISO 8601 date when as-built data captured from Planscape mobile	1
 PARAM	5753b5aa-000a-4000-8000-000000000002	ACC_ISSUE_ID_TXT	TEXT		21	1	Autodesk Construction Cloud Issue GUID for bidirectional sync	1
 PARAM	5753b5aa-000a-4000-8000-000000000003	ACC_SYNC_STATUS_TXT	TEXT		21	1	ACC sync status (SYNCED / PENDING / ERROR)	1
 PARAM	5753b5aa-000a-4000-8000-000000000001	IFC_PSET_OVERRIDE_TXT	TEXT		22	1	Manual IFC property set override pipe-delimited (Pset_Name=Value)	1
-PARAM	5753b5aa-0009-4000-8000-000000000003	HEALTH_SCORE_LAST_NR	TEXT		23	1	Last model health score 0 to 100	1
+PARAM	5753b5aa-0009-4000-8000-000000000003	HEALTH_SCORE_LAST_NR	NUMBER		23	1	Last model health score 0 to 100	1
 PARAM	5753b5aa-0009-4000-8000-000000000010	HEALTH_SCORE_DATE_TXT	TEXT		23	1	ISO 8601 timestamp of last health score evaluation	1
 PARAM	5753b5aa-0005-4000-8000-000000000011	CST_LABOUR_CREW_TXT	TEXT		2	1	Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff	1
 PARAM	5753b5aa-0005-4000-8000-000000000012	CST_LABOUR_RATE_GBP	NUMBER		2	1	Labour rate in GBP per hour (override for UK projects)	1
@@ -2619,8 +2619,8 @@ PARAM	cbd94272-6db5-557c-8e6d-2f254888afc6	STR_BAR_MARK_TXT	TEXT		16	1	Rebar bar
 PARAM	6dfe3811-0d82-500a-a10a-ac51225576c6	STR_BEND_SCHEDULE_REF_TXT	TEXT		16	1	Rebar bending schedule document reference [BS 8666:2020]	1
 PARAM	dbc0b581-2741-5a76-82bc-7956cef3af86	STR_CUTTING_LIST_REF_TXT	TEXT		16	1	Rebar cutting list drawing reference [BS 8666:2020]	1
 PARAM	e182a84b-a159-567f-a62d-fd0c3765f618	STR_WELD_PROCEDURE_REF_TXT	TEXT		16	1	Welding procedure specification reference [BS EN ISO 15609-1:2019]	1
-PARAM	87cca4d2-1a8c-57a0-a31b-ab78a308fbe5	STR_BOLT_TORQUE_NM_NR	TEXT		16	1	Bolt installation tightening torque in Nm [BS EN 1090-2:2018]	1
-PARAM	aff8756c-b7b5-5c7a-aaab-65efe622a7d4	HVC_REFRIGERANT_CHARGE_KG_NR	TEXT		5	1	Equipment refrigerant charge mass in kg [BS EN 378-2:2016]	1
+PARAM	87cca4d2-1a8c-57a0-a31b-ab78a308fbe5	STR_BOLT_TORQUE_NM_NR	NUMBER		16	1	Bolt installation tightening torque in Nm [BS EN 1090-2:2018]	1
+PARAM	aff8756c-b7b5-5c7a-aaab-65efe622a7d4	HVC_REFRIGERANT_CHARGE_KG_NR	NUMBER		5	1	Equipment refrigerant charge mass in kg [BS EN 378-2:2016]	1
 PARAM	74d83fbc-1edc-5aa9-8edd-de412bfdf921	HVC_FACTORY_FLASH_TEST_DATE_TXT	TEXT		5	1	Factory flash test date for refrigerant equipment [BS EN 378-2:2016]	1
 PARAM	5ebe500d-983b-5a41-97ba-312b62882f28	HVC_FACTORY_QR_TXT	TEXT		5	1	Mechanical factory QR code label reference [ISO 19650-3:2020]	1
 PARAM	b04373ec-3a97-5c0e-a13b-b72450d52eff	ELC_PANEL_SCHEDULE_REF_TXT	TEXT		4	1	Electrical panel schedule document reference [BS 7671:2018+A2:2022]	1
@@ -2632,7 +2632,7 @@ PARAM	273b9909-16b4-5c49-8c96-ff59f2e5ea40	ARC_FACTORY_ORDER_REF_TXT	TEXT		10	1	
 PARAM	18208fa9-2926-51ec-b44c-96ebd6c2e6c7	ARC_GLAZING_SPEC_TXT	TEXT		10	1	Glazing specification reference [BS 6262-1:2022]	1
 PARAM	65a3cf4e-6dc8-5095-9664-575a96101272	CBN_RUNTIME_HRS_YR_NR	NUMBER		9	1	Equivalent annual operating hours for operational carbon calc [BS EN 16798-1:2019]	1
 PARAM	84428fa6-2f50-5b11-a1ea-db12a58c45e9	CBN_REFRIGERANT_GWP_KG_CO2E	NUMBER		9	1	Refrigerant global warming potential contribution in kgCO2e [BS EN 378-2:2016]	1
-PARAM	973e1eb4-6aac-53e4-85ea-a35f4e8d8aec	ASBUILT_COVER_DEVIATION_MM	TEXT		24	1	As-built concrete cover deviation from design in mm [BS EN 13670:2009]	1
+PARAM	973e1eb4-6aac-53e4-85ea-a35f4e8d8aec	ASBUILT_COVER_DEVIATION_MM	NUMBER		24	1	As-built concrete cover deviation from design in mm [BS EN 13670:2009]	1
 PARAM	e1130859-e394-5287-9b12-87f81e4f3a62	TB_DRAWZONE_X_MM	NUMBER		26	1	Drawable zone origin X from sheet origin in mm [STING TB v1]	1
 PARAM	75f1c4b1-022c-5822-a725-1e9aa4533685	TB_DRAWZONE_Y_MM	NUMBER		26	1	Drawable zone origin Y from sheet origin in mm [STING TB v1]	1
 PARAM	3fd4a9b3-2aee-52ff-84e5-a8b8647d5e7a	TB_DRAWZONE_W_MM	NUMBER		26	1	Drawable zone width in mm [STING TB v1]	1
@@ -3124,12 +3124,12 @@ PARAM	d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a	ASS_ITEM_CODE_TXT	TEXT		1	1	Procureme
 PARAM	e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b	ASS_SYSTEMS_TXT	TEXT		1	1	Pipe/duct systems this element connects to (pipe-delimited)	1
 PARAM	f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c	ASS_TERM_CAPPED_BOOL	TEXT		1	1	Terminal point is capped (stub-end or blanked off)	1
 PARAM	a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d	ASS_TERM_REASON_TXT	TEXT		1	1	Reason terminal is capped: FUTURE / DECOMMISSIONED / DESIGN-RESERVE	1
-PARAM	b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e	ASS_TRACE_SEQ_NR	TEXT		1	1	Sequential trace number for multi-element commissioning sequences	1
+PARAM	b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e	ASS_TRACE_SEQ_NR	INTEGER		1	1	Sequential trace number for multi-element commissioning sequences	1
 PARAM	b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2	MEC_SYS_TXT	TEXT		5	1	Mechanical system code	1
-PARAM	c9e0f1a2-b3c4-4d5e-f6a7-b8c9d0e1f2a3	HVC_DCT_INSULATION_THK_MM	TEXT		5	1	Duct insulation thickness mm	1
+PARAM	c9e0f1a2-b3c4-4d5e-f6a7-b8c9d0e1f2a3	HVC_DCT_INSULATION_THK_MM	NUMBER		5	1	Duct insulation thickness mm	1
 PARAM	c9d0e1f2-a3b4-4c5d-e6f7-a8b9c0d1e2f3	PLM_SYS_TXT	TEXT		6	1	Plumbing system code	1
-PARAM	a3c1d2e4-5f67-4b89-9a0b-1c2d3e4f5a6b	BLE_CBL_TRAY_WIDTH_MM	TEXT		10	1	Cable tray internal width mm	1
-PARAM	b4d2e3f5-6a78-5c9a-ab1c-2d3e4f5a6b7c	BLE_CBL_TRAY_DEPTH_MM	TEXT		10	1	Cable tray internal depth mm	1
+PARAM	a3c1d2e4-5f67-4b89-9a0b-1c2d3e4f5a6b	BLE_CBL_TRAY_WIDTH_MM	NUMBER		10	1	Cable tray internal width mm	1
+PARAM	b4d2e3f5-6a78-5c9a-ab1c-2d3e4f5a6b7c	BLE_CBL_TRAY_DEPTH_MM	NUMBER		10	1	Cable tray internal depth mm	1
 PARAM	b6c7d8e9-f0a1-4b2c-d3e4-f5a6b7c8d9e0	TAG_CLUSTER_KEY_TXT	TEXT		17	1	Cluster group key for tag clustering	1
 PARAM	c7d8e9f0-a1b2-4c3d-e4f5-a6b7c8d9e0f1	TAG_FAMILY_HINT_TXT	TEXT		17	1	Tag family name hint for placement	1
 PARAM	d4e5f6a7-b8c9-4d0e-af12-345678901bcd	TAG_STYLE_CODE_TXT	TEXT		17	1	Single consolidated tag style code (replaces 128 BOOL params)	1
@@ -3366,3 +3366,14 @@ PARAM	434c64bc-c14b-5c9e-8378-dece87752dca	CBN_A4_KG_CO2E_DISP_TXT	TEXT		9	1	Emb
 PARAM	d45fbd40-963e-5e52-864f-e4964ef3b449	CBN_B6_KG_CO2E_YR_DISP_TXT	TEXT		9	1	Operational carbon B6 energy annual kgCO2e/yr — TEXT display mirror for tag labels	1
 PARAM	fa08ef1f-51b7-5c82-84fb-9e5f1e8ada50	CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT	TEXT		9	1	Refrigerant global warming potential contribution in kgCO2e — TEXT display mirror for tag labels	1
 PARAM	be0ee58d-72c5-5774-9e38-075cedf8332f	CBN_RUNTIME_HRS_YR_NR_DISP_TXT	TEXT		9	1	Equivalent annual operating hours for operational carbon calc — TEXT display mirror for tag labels	1
+PARAM	27c20c60-e59f-561f-8fbe-abaeb67bbefa	ASBUILT_COVER_DEVIATION_MM_DISP_TXT	TEXT		24	1	As-built concrete cover deviation from design in mm — TEXT display mirror for tag labels	1
+PARAM	5ad7dbaa-5744-5ecb-98c1-80a316640285	ASBUILT_DEVIATION_MM_DISP_TXT	TEXT		24	1	As-built vs as-designed deviation in millimetres — TEXT display mirror for tag labels	1
+PARAM	d66a235f-2250-590a-8a9f-b5bd78f330da	ASS_TRACE_SEQ_NR_DISP_TXT	TEXT		1	1	Sequential trace number for multi-element commissioning sequences — TEXT display mirror for tag labels	1
+PARAM	d35d7a52-5b70-5128-bdd6-6a265190b471	BLE_CBL_TRAY_DEPTH_MM_DISP_TXT	TEXT		10	1	Cable tray internal depth mm — TEXT display mirror for tag labels	1
+PARAM	d6ff6b02-0aca-5fdb-abf3-cdc24966d9a1	BLE_CBL_TRAY_WIDTH_MM_DISP_TXT	TEXT		10	1	Cable tray internal width mm — TEXT display mirror for tag labels	1
+PARAM	24b29d51-28da-59b4-a011-007d932651b7	CLASH_TRIAGE_SEVERITY_NR_DISP_TXT	TEXT		20	1	Clash triage severity 1 (lowest) to 5 (highest) — TEXT display mirror for tag labels	1
+PARAM	b6b94a07-509f-5c45-9660-eb1198a2db47	ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT	TEXT		4	1	Project ground flash density Ng (flashes/km2/year) override from lightning location service — TEXT display mirror for tag labels	1
+PARAM	7c4f149b-46cf-50d7-9c10-8fbd2bdd80f8	HEALTH_SCORE_LAST_NR_DISP_TXT	TEXT		23	1	Last model health score 0 to 100 — TEXT display mirror for tag labels	1
+PARAM	20cf7cbd-bedc-5889-9a10-d742250717c2	HVC_DCT_INSULATION_THK_MM_DISP_TXT	TEXT		5	1	Duct insulation thickness mm — TEXT display mirror for tag labels	1
+PARAM	76586c57-4c2c-5391-aecc-7e4e52182a3d	HVC_REFRIGERANT_CHARGE_KG_NR_DISP_TXT	TEXT		5	1	Equipment refrigerant charge mass in kg — TEXT display mirror for tag labels	1
+PARAM	1da0151c-391f-5abe-a3ff-b15574113003	STR_BOLT_TORQUE_NM_NR_DISP_TXT	TEXT		16	1	Bolt installation tightening torque in Nm — TEXT display mirror for tag labels	1

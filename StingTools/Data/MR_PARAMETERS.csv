@@ -2386,8 +2386,8 @@ Generic Models,ACC_SYNC_STATUS_TXT,5753b5aa-000a-4000-8000-000000000003,TEXT,ACC
 Generic Models,ARC_FACTORY_ORDER_REF_TXT,273b9909-16b4-5c49-8c96-ff59f2e5ea40,TEXT,BLE_ELES,Type,Joinery factory order reference [BS 8000-5:1990],False,,,MULTI,1,0
 Generic Models,ARC_GLAZING_SPEC_TXT,18208fa9-2926-51ec-b44c-96ebd6c2e6c7,TEXT,BLE_ELES,Type,Glazing specification reference [BS 6262-1:2022],False,,,MULTI,1,0
 Generic Models,ASBUILT_CAPTURE_DATE_TXT,5753b5aa-0009-4000-8000-000000000002,TEXT,ASBUILT,Type,ISO 8601 date when as-built data captured from Planscape mobile,False,,,MULTI,1,0
-Generic Models,ASBUILT_COVER_DEVIATION_MM,973e1eb4-6aac-53e4-85ea-a35f4e8d8aec,TEXT,ASBUILT,Type,As-built concrete cover deviation from design in mm [BS EN 13670:2009],False,,,MULTI,1,0
-Generic Models,ASBUILT_DEVIATION_MM,5753b5aa-0009-4000-8000-000000000001,TEXT,ASBUILT,Type,As-built vs as-designed deviation in millimetres,False,,,MULTI,1,0
+Generic Models,ASBUILT_COVER_DEVIATION_MM,973e1eb4-6aac-53e4-85ea-a35f4e8d8aec,NUMBER,ASBUILT,Type,As-built concrete cover deviation from design in mm [BS EN 13670:2009],False,,,MULTI,1,0
+Generic Models,ASBUILT_DEVIATION_MM,5753b5aa-0009-4000-8000-000000000001,NUMBER,ASBUILT,Type,As-built vs as-designed deviation in millimetres,False,,,MULTI,1,0
 Generic Models,ASS_BOLT_COUNT_NR,77c9f963-0164-5c71-879d-ee7308091866,INTEGER,ASS_MNG,Type,Total number of bolted connections in the assembly,False,,,MULTI,1,0
 Generic Models,ASS_BOM_REV_TXT,0293f487-2ca9-5514-9b18-ac98b1a20b27,TEXT,ASS_MNG,Type,"Bill of materials revision code (e.g. P01, C01)",False,,,MULTI,1,0
 Generic Models,ASS_BOQ_LINE_REF,eb8aa554-1c95-4d89-9170-0e83e0a3d6d7,TEXT,ASS_MNG,Type,BOQ line reference e.g. 14.3.2 — Excel roundtrip join key [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -2430,7 +2430,7 @@ Generic Models,CLASH_RESOLUTION_ACTION_TXT,5753b5aa-0008-4000-8000-000000000011,
 Generic Models,CLASH_RESOLUTION_STATUS_TXT,5753b5aa-0008-4000-8000-000000000003,TEXT,CLASH_COORDINATION,Type,Clash resolution status (PENDING / APPLIED / ACCEPTED),False,,,MULTI,1,0
 Generic Models,CLASH_TRIAGE_CATEGORY_TXT,5753b5aa-0008-4000-8000-000000000002,TEXT,CLASH_COORDINATION,Type,Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL),False,,,MULTI,1,0
 Generic Models,CLASH_TRIAGE_SCORE,5753b5aa-0008-4000-8000-000000000010,NUMBER,CLASH_COORDINATION,Type,Clash triage weighted score 0 to 100,False,,,MULTI,1,0
-Generic Models,CLASH_TRIAGE_SEVERITY_NR,5753b5aa-0008-4000-8000-000000000001,TEXT,CLASH_COORDINATION,Type,Clash triage severity 1 (lowest) to 5 (highest),False,,,MULTI,1,0
+Generic Models,CLASH_TRIAGE_SEVERITY_NR,5753b5aa-0008-4000-8000-000000000001,INTEGER,CLASH_COORDINATION,Type,Clash triage severity 1 (lowest) to 5 (highest),False,,,MULTI,1,0
 Generic Models,COMM_DATE_TXT,5753b5aa-0004-4000-8000-000000000002,TEXT,COMMISSIONING,Type,ISO 8601 date of commissioning state change,False,,,MULTI,1,0
 Generic Models,COMM_NOTES_TXT,5753b5aa-0004-4000-8000-000000000011,TEXT,COMMISSIONING,Type,Free-text commissioning notes captured from the QR workflow,False,,,MULTI,1,0
 Generic Models,COMM_OPERATIVE_TXT,5753b5aa-0004-4000-8000-000000000003,TEXT,COMMISSIONING,Type,Commissioning operative name or ID who performed the test,False,,,MULTI,1,0
@@ -2488,10 +2488,10 @@ Generic Models,ELC_LPS_TEST_DATE_TXT,d654df13-0913-5e8f-8dfe-98b3971beb86,TEXT,E
 Generic Models,ELC_LPS_ZONE_TXT,a01025f4-6155-524e-8514-72507f5e04ef,TEXT,ELC_PWR,Type,Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3),False,,,MULTI,1,0
 Generic Models,ELC_PANEL_SCHEDULE_REF_TXT,b04373ec-3a97-5c0e-a13b-b72450d52eff,TEXT,ELC_PWR,Type,Electrical panel schedule document reference [BS 7671:2018+A2:2022],False,,,MULTI,1,0
 Generic Models,HEALTH_SCORE_DATE_TXT,5753b5aa-0009-4000-8000-000000000010,TEXT,HEALTH_METRICS,Type,ISO 8601 timestamp of last health score evaluation,False,,,MULTI,1,0
-Generic Models,HEALTH_SCORE_LAST_NR,5753b5aa-0009-4000-8000-000000000003,TEXT,HEALTH_METRICS,Type,Last model health score 0 to 100,False,,,MULTI,1,0
+Generic Models,HEALTH_SCORE_LAST_NR,5753b5aa-0009-4000-8000-000000000003,NUMBER,HEALTH_METRICS,Type,Last model health score 0 to 100,False,,,MULTI,1,0
 Generic Models,HVC_FACTORY_FLASH_TEST_DATE_TXT,74d83fbc-1edc-5aa9-8edd-de412bfdf921,TEXT,HVC_SYSTEMS,Type,Factory flash test date for refrigerant equipment [BS EN 378-2:2016],False,,,MULTI,1,0
 Generic Models,HVC_FACTORY_QR_TXT,5ebe500d-983b-5a41-97ba-312b62882f28,TEXT,HVC_SYSTEMS,Type,Mechanical factory QR code label reference [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,HVC_REFRIGERANT_CHARGE_KG_NR,aff8756c-b7b5-5c7a-aaab-65efe622a7d4,TEXT,HVC_SYSTEMS,Type,Equipment refrigerant charge mass in kg [BS EN 378-2:2016],False,,,MULTI,1,0
+Generic Models,HVC_REFRIGERANT_CHARGE_KG_NR,aff8756c-b7b5-5c7a-aaab-65efe622a7d4,NUMBER,HVC_SYSTEMS,Type,Equipment refrigerant charge mass in kg [BS EN 378-2:2016],False,,,MULTI,1,0
 Generic Models,IFC_PSET_OVERRIDE_TXT,5753b5aa-000a-4000-8000-000000000001,TEXT,IFC_EXCH,Type,Manual IFC property set override pipe-delimited (Pset_Name=Value),False,,,MULTI,1,0
 Generic Models,MAT_CARBON_FACTOR,320d2951-41d8-46a4-9765-2a34ed56d407,NUMBER,MAT_INFO,Type,Embodied carbon factor kgCO2e per kg for this material [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_MEASURED_AREA_M2,c2a11911-0292-41b1-b9ed-3e0e632f133e,NUMBER,MAT_INFO,Type,Authoritative measured area m2 — single source for BOQ + COBie [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -2537,7 +2537,7 @@ Generic Models,PRJ_VOLUME_CODE,1a77c2d8-5e9e-4b21-9ec3-90be2f108cd1,TEXT,PRJ_INF
 Generic Models,PROJECT_BUDGET_UGX,c126b293-0f21-45f6-8433-f0907cd716ef,NUMBER,PRJ_INFORMATION,Type,Project budget set by cost consultant in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,STR_BAR_MARK_TXT,cbd94272-6db5-557c-8e6d-2f254888afc6,TEXT,BLE_STRUCTURE,Type,Rebar bar mark from bending schedule [BS 8666:2020],False,,,MULTI,1,0
 Generic Models,STR_BEND_SCHEDULE_REF_TXT,6dfe3811-0d82-500a-a10a-ac51225576c6,TEXT,BLE_STRUCTURE,Type,Rebar bending schedule document reference [BS 8666:2020],False,,,MULTI,1,0
-Generic Models,STR_BOLT_TORQUE_NM_NR,87cca4d2-1a8c-57a0-a31b-ab78a308fbe5,TEXT,BLE_STRUCTURE,Type,Bolt installation tightening torque in Nm [BS EN 1090-2:2018],False,,,MULTI,1,0
+Generic Models,STR_BOLT_TORQUE_NM_NR,87cca4d2-1a8c-57a0-a31b-ab78a308fbe5,NUMBER,BLE_STRUCTURE,Type,Bolt installation tightening torque in Nm [BS EN 1090-2:2018],False,,,MULTI,1,0
 Generic Models,STR_CUTTING_LIST_REF_TXT,dbc0b581-2741-5a76-82bc-7956cef3af86,TEXT,BLE_STRUCTURE,Type,Rebar cutting list drawing reference [BS 8666:2020],False,,,MULTI,1,0
 Generic Models,STR_WELD_PROCEDURE_REF_TXT,e182a84b-a159-567f-a62d-fd0c3765f618,TEXT,BLE_STRUCTURE,Type,Welding procedure specification reference [BS EN ISO 15609-1:2019],False,,,MULTI,1,0
 Generic Models,TAG_DEPTH_TIER_INT,b7f3e2a1-0002-4a01-b001-000000090002,INTEGER,STINGTags_ISO19650,Type,Active paragraph depth tier cached on tag family type (1-10),False,,,MULTI,1,0
@@ -2711,7 +2711,7 @@ Generic Models,ELC_IPS_BOOL,c8d4f6e2-f003-4d27-8c61-0e7a3f9b5003,YESNO,ELC_PWR,T
 Generic Models,ELC_IT_CARDIAC_BOOL,c8d4f6e2-f004-4d27-8c61-0e7a3f9b5004,YESNO,ELC_PWR,Type,Cardiac-protected outlet (IT-network NEC 517.19),False,,,ELECTRICAL,1,0
 Generic Models,ELC_LPS_COMPLIANCE_STATUS_TXT,b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e,TEXT,ELC_PWR,Type,Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL),False,,,ELECTRICAL,1,0
 Generic Models,ELC_LPS_CONDUCTOR_MATERIAL_TXT,c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a,TEXT,ELC_PWR,Type,Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor,False,,,ELECTRICAL,1,0
-Generic Models,ELC_LPS_PROJECT_NG_OVERRIDE_NR,d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321,TEXT,ELC_PWR,Type,Project ground flash density Ng (flashes/km2/year) override from lightning location service,False,,,ELECTRICAL,1,0
+Generic Models,ELC_LPS_PROJECT_NG_OVERRIDE_NR,d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321,NUMBER,ELC_PWR,Type,Project ground flash density Ng (flashes/km2/year) override from lightning location service,False,,,ELECTRICAL,1,0
 Generic Models,ELC_LSC_TIER_TXT,c8d4f6e2-f007-4d27-8c61-0e7a3f9b5007,TEXT,ELC_PWR,Type,NEC 517 / NFPA 99 Tier: 1 / 2 / 3,False,,,ELECTRICAL,1,0
 Generic Models,ELC_RECEPT_TYPE_TXT,c8d4f6e2-f005-4d27-8c61-0e7a3f9b5005,TEXT,ELC_PWR,Type,Receptacle type: HOSP-GR / TR / ISO / EMG-RED,False,,,ELECTRICAL,1,0
 Generic Models,ELC_UPS_REPLACE_DT,c8d4f6e2-2303-4d27-8c61-0e7a3f9be003,TEXT,ELC_PWR,Type,UPS battery replacement date ISO 8601 [H-27],False,,,ELECTRICAL,1,0
@@ -2850,12 +2850,12 @@ Generic Models,ASS_ITEM_CODE_TXT,d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a,TEXT,ASS_M
 Generic Models,ASS_SYSTEMS_TXT,e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b,TEXT,ASS_MNG,Instance,Pipe/duct systems this element connects to (pipe-delimited),False,,,MULTI,1,0
 Generic Models,ASS_TERM_CAPPED_BOOL,f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c,TEXT,ASS_MNG,Instance,Terminal point is capped (stub-end or blanked off),False,,,MULTI,1,0
 Generic Models,ASS_TERM_REASON_TXT,a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d,TEXT,ASS_MNG,Instance,Reason terminal is capped: FUTURE / DECOMMISSIONED / DESIGN-RESERVE,False,,,MULTI,1,0
-Generic Models,ASS_TRACE_SEQ_NR,b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e,TEXT,ASS_MNG,Instance,Sequential trace number for multi-element commissioning sequences,False,,,MULTI,1,0
+Generic Models,ASS_TRACE_SEQ_NR,b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e,INTEGER,ASS_MNG,Instance,Sequential trace number for multi-element commissioning sequences,False,,,MULTI,1,0
 Mechanical Equipment,MEC_SYS_TXT,b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2,TEXT,HVC_SYSTEMS,Instance,Mechanical system code,False,,,MECHANICAL,1,0
-Ducts,HVC_DCT_INSULATION_THK_MM,c9e0f1a2-b3c4-4d5e-f6a7-b8c9d0e1f2a3,TEXT,HVC_SYSTEMS,Instance,Duct insulation thickness mm,False,,,MECHANICAL,1,0
+Ducts,HVC_DCT_INSULATION_THK_MM,c9e0f1a2-b3c4-4d5e-f6a7-b8c9d0e1f2a3,NUMBER,HVC_SYSTEMS,Instance,Duct insulation thickness mm,False,,,MECHANICAL,1,0
 Plumbing Fixtures,PLM_SYS_TXT,c9d0e1f2-a3b4-4c5d-e6f7-a8b9c0d1e2f3,TEXT,PLM_DRN,Instance,Plumbing system code,False,,,PIPING,1,0
-Cable Trays,BLE_CBL_TRAY_WIDTH_MM,a3c1d2e4-5f67-4b89-9a0b-1c2d3e4f5a6b,TEXT,BLE_ELES,Instance,Cable tray internal width mm,False,,,ELECTRICAL,1,0
-Cable Trays,BLE_CBL_TRAY_DEPTH_MM,b4d2e3f5-6a78-5c9a-ab1c-2d3e4f5a6b7c,TEXT,BLE_ELES,Instance,Cable tray internal depth mm,False,,,ELECTRICAL,1,0
+Cable Trays,BLE_CBL_TRAY_WIDTH_MM,a3c1d2e4-5f67-4b89-9a0b-1c2d3e4f5a6b,NUMBER,BLE_ELES,Instance,Cable tray internal width mm,False,,,ELECTRICAL,1,0
+Cable Trays,BLE_CBL_TRAY_DEPTH_MM,b4d2e3f5-6a78-5c9a-ab1c-2d3e4f5a6b7c,NUMBER,BLE_ELES,Instance,Cable tray internal depth mm,False,,,ELECTRICAL,1,0
 Generic Models,TAG_CLUSTER_KEY_TXT,b6c7d8e9-f0a1-4b2c-d3e4-f5a6b7c8d9e0,TEXT,STINGTags_ISO19650,Instance,Cluster group key for tag clustering,False,,,MULTI,1,0
 Generic Models,TAG_FAMILY_HINT_TXT,c7d8e9f0-a1b2-4c3d-e4f5-a6b7c8d9e0f1,TEXT,STINGTags_ISO19650,Instance,Tag family name hint for placement,False,,,MULTI,1,0
 Views,STING_DRAWING_TYPE_ID_TXT,c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5,TEXT,STING_DRAWING,Instance,DrawingType registry id stamped on views/sheets [Phase 113],False,,,MULTI,1,0
@@ -3280,3 +3280,14 @@ Generic Models,CBN_A4_KG_CO2E_DISP_TXT,434c64bc-c14b-5c9e-8378-dece87752dca,TEXT
 Generic Models,CBN_B6_KG_CO2E_YR_DISP_TXT,d45fbd40-963e-5e52-864f-e4964ef3b449,TEXT,PER_SUST,Type,Operational carbon B6 energy annual kgCO2e/yr — TEXT display mirror for tag labels,False,,,MULTI,1,0
 Generic Models,CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT,fa08ef1f-51b7-5c82-84fb-9e5f1e8ada50,TEXT,PER_SUST,Type,Refrigerant global warming potential contribution in kgCO2e [BS EN 378-2:2016] — TEXT display mirror for tag labels,False,,,MULTI,1,0
 Generic Models,CBN_RUNTIME_HRS_YR_NR_DISP_TXT,be0ee58d-72c5-5774-9e38-075cedf8332f,TEXT,PER_SUST,Type,Equivalent annual operating hours for operational carbon calc [BS EN 16798-1:2019] — TEXT display mirror for tag labels,False,,,MULTI,1,0
+Generic Models,ASBUILT_COVER_DEVIATION_MM_DISP_TXT,27c20c60-e59f-561f-8fbe-abaeb67bbefa,TEXT,ASBUILT,Type,As-built concrete cover deviation from design in mm [BS EN 13670:2009] — TEXT display mirror for tag labels,False,,,MULTI,1,0
+Generic Models,ASBUILT_DEVIATION_MM_DISP_TXT,5ad7dbaa-5744-5ecb-98c1-80a316640285,TEXT,ASBUILT,Type,As-built vs as-designed deviation in millimetres — TEXT display mirror for tag labels,False,,,MULTI,1,0
+Generic Models,ASS_TRACE_SEQ_NR_DISP_TXT,d66a235f-2250-590a-8a9f-b5bd78f330da,TEXT,ASS_MNG,Instance,Sequential trace number for multi-element commissioning sequences — TEXT display mirror for tag labels,False,,,MULTI,1,0
+Cable Trays,BLE_CBL_TRAY_DEPTH_MM_DISP_TXT,d35d7a52-5b70-5128-bdd6-6a265190b471,TEXT,BLE_ELES,Instance,Cable tray internal depth mm — TEXT display mirror for tag labels,False,,,ELECTRICAL,1,0
+Cable Trays,BLE_CBL_TRAY_WIDTH_MM_DISP_TXT,d6ff6b02-0aca-5fdb-abf3-cdc24966d9a1,TEXT,BLE_ELES,Instance,Cable tray internal width mm — TEXT display mirror for tag labels,False,,,ELECTRICAL,1,0
+Generic Models,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,24b29d51-28da-59b4-a011-007d932651b7,TEXT,CLASH_COORDINATION,Type,Clash triage severity 1 (lowest) to 5 (highest) — TEXT display mirror for tag labels,False,,,MULTI,1,0
+Generic Models,ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT,b6b94a07-509f-5c45-9660-eb1198a2db47,TEXT,ELC_PWR,Type,Project ground flash density Ng (flashes/km2/year) override from lightning location service — TEXT display mirror for tag labels,False,,,ELECTRICAL,1,0
+Generic Models,HEALTH_SCORE_LAST_NR_DISP_TXT,7c4f149b-46cf-50d7-9c10-8fbd2bdd80f8,TEXT,HEALTH_METRICS,Type,Last model health score 0 to 100 — TEXT display mirror for tag labels,False,,,MULTI,1,0
+Ducts,HVC_DCT_INSULATION_THK_MM_DISP_TXT,20cf7cbd-bedc-5889-9a10-d742250717c2,TEXT,HVC_SYSTEMS,Instance,Duct insulation thickness mm — TEXT display mirror for tag labels,False,,,MECHANICAL,1,0
+Generic Models,HVC_REFRIGERANT_CHARGE_KG_NR_DISP_TXT,76586c57-4c2c-5391-aecc-7e4e52182a3d,TEXT,HVC_SYSTEMS,Type,Equipment refrigerant charge mass in kg [BS EN 378-2:2016] — TEXT display mirror for tag labels,False,,,MULTI,1,0
+Generic Models,STR_BOLT_TORQUE_NM_NR_DISP_TXT,1da0151c-391f-5abe-a3ff-b15574113003,TEXT,BLE_STRUCTURE,Type,Bolt installation tightening torque in Nm [BS EN 1090-2:2018] — TEXT display mirror for tag labels,False,,,MULTI,1,0

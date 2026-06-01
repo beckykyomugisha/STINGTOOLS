@@ -280,12 +280,12 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Structural Columns
 24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -352,12 +352,12 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
 24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -429,12 +429,12 @@ TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
 24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -495,12 +495,12 @@ TAG7: STR_TAG_7_PARA_SLAB_TXT  •  Category: Floors (Structural)
 24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -557,12 +557,12 @@ TAG7: STR_TAG_7_PARA_WALL_TXT  •  Category: Walls (Structural/Load-bearing)
 24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -616,12 +616,12 @@ TAG7: STR_TAG_7_PARA_BRACE_TXT  •  Category: Structural Framing (Bracing)
 24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -677,12 +677,12 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar
 24,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_COVER_DEVIATION_MM_DISP_TXT,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -736,14 +736,14 @@ TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Structural Connections
 22,T6,CBN_A4_KG_CO2E_DISP_TXT,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
 23,T6,CBN_B6_KG_CO2E_YR_DISP_TXT,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
 24,T7,STR_WELD_PROCEDURE_REF_TXT,WPS:,,0,,Common,Text,Show T7 - Connection - WPS,"if(TAG_PARA_STATE_7_BOOL, STR_WELD_PROCEDURE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-25,T7,STR_BOLT_TORQUE_NM_NR,Tq:,Nm,1,,Common,Text,Show T7 - Connection - Bolt Torque,"if(TAG_PARA_STATE_7_BOOL, STR_BOLT_TORQUE_NM_NR, """")",BOLD,ORANGE,2.0,None,None
+25,T7,STR_BOLT_TORQUE_NM_NR_DISP_TXT,Tq:,Nm,1,,Common,Text,Show T7 - Connection - Bolt Torque,"if(TAG_PARA_STATE_7_BOOL, STR_BOLT_TORQUE_NM_NR_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Connection - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -795,12 +795,12 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Columns (Architectural)
 24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -856,12 +856,12 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Trusses
 24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -910,12 +910,12 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Stiffeners
 24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -966,12 +966,12 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Beam Systems
 24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -1018,12 +1018,12 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar Couplers
 24,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_COVER_DEVIATION_MM_DISP_TXT,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -1071,12 +1071,12 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Fabric Reinforcement
 24,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_COVER_DEVIATION_MM_DISP_TXT,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -1124,12 +1124,12 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
 24,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_COVER_DEVIATION_MM_DISP_TXT,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -1181,12 +1181,12 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Path Reinforcement
 24,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_COVER_DEVIATION_MM_DISP_TXT,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
@@ -1232,7 +1232,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Point Loads
 21,T6,CBN_A1_A3_KG_CO2E_DISP_TXT,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
 22,T6,CBN_A4_KG_CO2E_DISP_TXT,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
 23,T6,CBN_B6_KG_CO2E_YR_DISP_TXT,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
-24,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+24,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 25,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 26,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
 27,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
@@ -1279,7 +1279,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Line Loads
 21,T6,CBN_A1_A3_KG_CO2E_DISP_TXT,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
 22,T6,CBN_A4_KG_CO2E_DISP_TXT,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
 23,T6,CBN_B6_KG_CO2E_YR_DISP_TXT,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
-24,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+24,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 25,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 26,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
 27,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
@@ -1326,7 +1326,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Area Loads
 21,T6,CBN_A1_A3_KG_CO2E_DISP_TXT,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
 22,T6,CBN_A4_KG_CO2E_DISP_TXT,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
 23,T6,CBN_B6_KG_CO2E_YR_DISP_TXT,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
-24,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+24,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 25,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 26,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
 27,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
@@ -1374,7 +1374,7 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Members
 21,T6,CBN_A1_A3_KG_CO2E_DISP_TXT,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
 22,T6,CBN_A4_KG_CO2E_DISP_TXT,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
 23,T6,CBN_B6_KG_CO2E_YR_DISP_TXT,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR_DISP_TXT, """")",ITALIC,GREEN,2.0,None,None
-24,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+24,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 25,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 26,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
 27,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
@@ -1464,12 +1464,12 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Structural Foundations / Rebar
 24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
 25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
 26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",BOLD,RED,2.0,None,None
 28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
 29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM_DISP_TXT,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR_DISP_TXT,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",ITALIC,GREY,2.0,None,None
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
