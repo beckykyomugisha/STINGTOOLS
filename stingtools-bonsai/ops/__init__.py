@@ -1,10 +1,4 @@
-"""STING operator registrations.
-
-Diagnostics (about / reload_substrate / bonsai_probe) confirm the
-substrate loads and Bonsai integration is working. The COORD operator
-(sync_planscape) is the first real federation op: it validates
-Pset_StingTags-bearing elements and ingests them into Planscape Server.
-"""
+"""STING operator registrations — Day-1 diagnostics + 16 MVP operators."""
 
 from __future__ import annotations
 
@@ -13,15 +7,20 @@ import bpy
 from .about import StingAboutOperator
 from .reload_substrate import StingReloadSubstrateOperator
 from .bonsai_probe import StingBonsaiProbeOperator
-from .sync_planscape import StingSyncPlanscapeOperator
-from .raise_issue import StingRaiseIssueOperator
+
+from .select_ops import CLASSES as SELECT_CLASSES
+from .tagging_ops import CLASSES as TAGGING_CLASSES
+from .validation_ops import CLASSES as VALIDATION_CLASSES
+from .coord_ops import CLASSES as COORD_CLASSES
 
 CLASSES = (
     StingAboutOperator,
     StingReloadSubstrateOperator,
     StingBonsaiProbeOperator,
-    StingSyncPlanscapeOperator,
-    StingRaiseIssueOperator,
+    *SELECT_CLASSES,
+    *TAGGING_CLASSES,
+    *VALIDATION_CLASSES,
+    *COORD_CLASSES,
 )
 
 
