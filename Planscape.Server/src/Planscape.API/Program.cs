@@ -521,6 +521,7 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.ComplianceCheckJob>
 builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaEscalationJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.StaleWarningCleanupJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DatabaseBackupJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.MappingReconciliationJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>();
@@ -1370,6 +1371,12 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaEscalationJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.StaleWarningCleanupJob>(
     "stale-warning-cleanup", "default", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Daily);
+// Backfills cross-host ExternalElementMapping rows dropped by a fire-and-forget
+// upsert (TagSync/ArchiCAD) from the committed TaggedElement rows. Hourly so a
+// dropped mapping recovers well within an issue-resolution session.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.MappingReconciliationJob>(
+    "cross-host-mapping-reconcile", "default", j => j.ExecuteAsync(CancellationToken.None),
+    Cron.Hourly);
 // Phase 175 audit P1-15 — every 30s, scan presigned-URL uploads.
 // Cron precision is 1 minute; for sub-minute polling Hangfire's
 // MinutelyCron is the floor. 30s would require a custom scheduler,

@@ -4,10 +4,12 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Planscape.Core.Constants;
 using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
 
 namespace Planscape.API.Controllers;
@@ -200,6 +202,17 @@ public class TagSyncController : ControllerBase
         // Fire-and-forget in a FRESH DI scope: the request-scoped _db is
         // disposed once we return, and the ingest service takes an explicit
         // tenantId (the HTTP-derived tenant context is absent off-request).
+        //
+        // DESIGN: deliberately NOT folded into the sync transaction. The mapping
+        // upsert must never fail or slow the user's sync (large models batch to
+        // 50k elements). Its durability gap is closed elsewhere instead — drops
+        // are observable (CrossHostMappingAudit → AuditLog) and recoverable
+        // (MappingReconciliationJob backfills from the committed TaggedElement
+        // rows). See CrossHostMappingReconciliation.cs.
+        //
+        // HOST GUARD: TagSync defaults Host to "revit" (its only real caller is
+        // the Revit plugin). Validate it so a mis-attributed / unknown host
+        // value can't poison the mapping table — skip + audit instead.
         var mappingHost = request.Host;
         var mappingDocGuid = request.HostDocumentGuid;
         var mappings = request.Elements
@@ -210,16 +223,33 @@ public class TagSyncController : ControllerBase
                 string.IsNullOrWhiteSpace(e.Tag1) ? e.CategoryName : e.Tag1))
             .ToList();
         var ingestProjectId = project.Id;
-        _ = Task.Run(async () =>
+        if (mappings.Count > 0 && !MappingHosts.IsValid(mappingHost))
         {
-            try
+            // Unknown host — don't write rows with bad attribution.
+            _ = CrossHostMappingAudit.RecordUpsertFailureAsync(
+                _scopeFactory, tenantId, ingestProjectId, mappingHost ?? "(null)", mappings.Count,
+                new InvalidOperationException(
+                    $"TagSync received unknown Host '{mappingHost}'. Non-Revit hosts must POST /ifc/data, not /tagsync/sync. Mapping upsert skipped."));
+        }
+        else if (mappings.Count > 0)
+        {
+            _ = Task.Run(async () =>
             {
-                using var scope = _scopeFactory.CreateScope();
-                var ingest = scope.ServiceProvider.GetRequiredService<IIfcIngestService>();
-                await ingest.UpsertMappingsAsync(tenantId, ingestProjectId, mappingHost, mappingDocGuid, mappings);
-            }
-            catch { /* identity ingest is best-effort; never fails the sync */ }
-        });
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var ingest = scope.ServiceProvider.GetRequiredService<IIfcIngestService>();
+                    await ingest.UpsertMappingsAsync(tenantId, ingestProjectId, mappingHost, mappingDocGuid, mappings);
+                }
+                catch (Exception ex)
+                {
+                    // Best-effort: never fails the sync. But no longer silent —
+                    // record the drop so it's observable + reconcilable.
+                    await CrossHostMappingAudit.RecordUpsertFailureAsync(
+                        _scopeFactory, tenantId, ingestProjectId, mappingHost, mappings.Count, ex);
+                }
+            });
+        }
 
         return Ok(new TagSyncResponse
         {

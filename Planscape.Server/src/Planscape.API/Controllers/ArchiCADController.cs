@@ -261,7 +261,18 @@ namespace Planscape.API.Controllers
                             tenantId, projectId, Planscape.Core.Constants.MappingHosts.ArchiCad,
                             hostDocumentGuid: null, mappings);
                     }
-                    catch { /* identity ingest is best-effort; never fails the push */ }
+                    catch (Exception ex)
+                    {
+                        // Best-effort: never fails the push. No longer silent —
+                        // record the drop so it's observable. NB: unlike TagSync,
+                        // ArchiCAD writes no TaggedElement projection, so the
+                        // reconciliation job cannot backfill these; the audit
+                        // trail is the recovery signal here.
+                        await Planscape.Infrastructure.Services.CrossHostMappingAudit
+                            .RecordUpsertFailureAsync(
+                                _scopeFactory, tenantId, projectId,
+                                Planscape.Core.Constants.MappingHosts.ArchiCad, mappings.Count, ex);
+                    }
                 });
             }
 

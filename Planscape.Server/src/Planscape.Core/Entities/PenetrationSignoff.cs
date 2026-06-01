@@ -27,6 +27,12 @@ public class PenetrationSignoff : ITenantScoped
     /// Nullable: the mobile sign-off flow keys off the control number and
     /// may not carry the IFC GlobalId. When present it lets the
     /// golden-thread record resolve across Revit / ArchiCAD / Blender.
+    ///
+    /// AUTHORITY: authoritative statement that "this sign-off is about IFC
+    /// element X" — a denormalised capture-time copy, NOT derived from nor kept
+    /// in sync with <see cref="ExternalElementMapping"/> (which is authoritative
+    /// for the separate "GlobalId ↔ host element" resolution). Either surface
+    /// may be populated without the other.
     /// </summary>
     public string? ElementIfcGlobalId { get; set; }
 

@@ -19,6 +19,14 @@ public class HealthcarePressureLog : ITenantScoped
     /// id) omit it. When present, the
     /// <c>GET .../healthcare/by-ifc/{ifcGlobalId}</c> cross-reference joins
     /// this room's healthcare data to every host viewing the element.
+    ///
+    /// AUTHORITY: this is the authoritative statement that "this reading is
+    /// about IFC room X" — a denormalised capture-time copy, NOT derived from
+    /// (and not kept in sync with) <see cref="ExternalElementMapping"/>. The
+    /// mapping table is authoritative for the separate "GlobalId ↔ host element"
+    /// resolution. Either can exist without the other (this column may be set
+    /// for a room never ingested cross-host; the mapping may know a GlobalId no
+    /// pressure log references). by-ifc tolerates both cases.
     /// </summary>
     public string? RoomIfcGlobalId { get; set; }
 

@@ -168,6 +168,20 @@ public class HealthcareController : ControllerBase
     /// resolved through the room's BIM id(s) discovered on those logs, so a
     /// caller holding only the IFC GlobalId (e.g. a Blender/ArchiCAD viewer)
     /// gets the full room picture without knowing the STING RoomBimId.
+    ///
+    /// RESILIENCE: the two identity surfaces (the denormalised
+    /// <c>RoomIfcGlobalId</c> column vs the authoritative
+    /// <see cref="ExternalElementMapping"/> index) can be populated
+    /// independently, so this endpoint queries BOTH and never assumes one
+    /// implies the other:
+    ///   • healthcare records are found via <c>RoomIfcGlobalId</c> (works even
+    ///     when the GlobalId was never ingested cross-host);
+    ///   • <c>crossHostMappings</c> is read from ExternalElementMapping (works
+    ///     even when no capture row carries the GlobalId), so a caller passing a
+    ///     known-but-unreferenced GlobalId gets a meaningful "element is known,
+    ///     no healthcare data" answer rather than a bare empty set.
+    /// <c>elementKnownCrossHost</c> + <c>hasHealthcareData</c> let the caller
+    /// tell the cases apart.
     /// </summary>
     [HttpGet("by-ifc/{ifcGlobalId}")]
     public async Task<IActionResult> GetByIfcGlobalId(Guid projectId, string ifcGlobalId)
@@ -202,18 +216,32 @@ public class HealthcareController : ControllerBase
                 .OrderByDescending(x => x.CapturedAt)
                 .ToListAsync();
 
+        // Authoritative cross-host resolution, independent of the capture-row
+        // column above. Lets the response stay useful when RoomIfcGlobalId was
+        // never populated (the mapping still knows the element) and vice versa.
+        var crossHostMappings = await _db.Set<ExternalElementMapping>()
+            .Where(m => m.ProjectId == projectId && m.IfcGlobalId == ifcGlobalId)
+            .Select(m => new { m.Host, m.HostElementId, m.HostDocumentGuid, m.HostDisplayLabel })
+            .ToListAsync();
+
+        bool hasHealthcareData = pressureLogs.Count > 0 || rds.Count > 0 || antiLigature.Count > 0;
+
         return Ok(new
         {
             ifcGlobalId,
+            elementKnownCrossHost = crossHostMappings.Count > 0,
+            hasHealthcareData,
             roomBimIds,
             pressureLogs,
             rds,
             antiLigature,
+            crossHostMappings,
             counts = new
             {
                 pressureLogs = pressureLogs.Count,
                 rds = rds.Count,
                 antiLigature = antiLigature.Count,
+                crossHostMappings = crossHostMappings.Count,
             },
         });
     }

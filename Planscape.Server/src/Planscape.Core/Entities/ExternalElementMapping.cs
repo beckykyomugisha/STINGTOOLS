@@ -14,6 +14,22 @@ namespace Planscape.Core.Entities;
 /// Rationale: the same IFC GlobalId may appear in multiple linked
 /// documents (federated models), and each pairing has its own
 /// host_element_id.
+///
+/// AUTHORITY: this table is the single source of truth for
+/// <b>"IFC GlobalId ↔ host element id" resolution</b> (which Revit/Blender/
+/// ArchiCAD/IoT element a given GlobalId is). The denormalised
+/// <c>*IfcGlobalId</c> columns on capture entities
+/// (<see cref="HealthcarePressureLog.RoomIfcGlobalId"/>,
+/// <see cref="PenetrationSignoff.ElementIfcGlobalId"/>) answer a DIFFERENT
+/// question — "which IFC element is this record about" — and are authoritative
+/// for THAT statement only. The two surfaces are written by independent paths
+/// and may legitimately diverge: a GlobalId can be mapped here with no capture
+/// row referencing it, and a capture row can carry a GlobalId that was never
+/// ingested cross-host. Neither is derived from the other; consumers needing
+/// both (e.g. <c>healthcare/by-ifc</c>) must tolerate either side being absent.
+/// Rows are written best-effort/fire-and-forget from TagSync + ArchiCAD, so can
+/// also be transiently missing after a dropped background write — recovered by
+/// <c>MappingReconciliationJob</c> and observable via AuditLog.
 /// </summary>
 public class ExternalElementMapping : ITenantScoped
 {
