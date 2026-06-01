@@ -216,8 +216,14 @@ The acceptance criteria in each prompt are a floor, not a ceiling.
 > abbreviated/verbose vocabulary split. Add a short doc note — in the
 > XML-doc summary of both controllers and/or
 > `Planscape.Server/docs/` — stating that the two endpoints are siblings
-> writing the same `TaggedElement` table, when to use which, and that
-> they must stay field-compatible. **No behavioural change. No new
+> writing the same `TaggedElement` table, when to use which, and the real
+> invariant (session-7 correction): the DTOs are **not** wire-compatible
+> (they already diverge — `Disc/Loc/Lvl/…` vs `Discipline/Location/Level/…`);
+> what must be preserved is (1) both mappers targeting the **shared
+> `TaggedElement` columns**, and (2) the **filtered-unique key-space**
+> (`(ProjectId, RevitElementId) WHERE RevitElementId>0` for Revit;
+> `(ProjectId, UniqueId)` for non-Revit — `PlanscapeDbContext.cs:605-609`).
+> **No behavioural change. No new
 > endpoint. BCC/Revit needs no code change** — it is already aligned to
 > TagSync.
 >

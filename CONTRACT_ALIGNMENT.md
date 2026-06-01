@@ -187,7 +187,22 @@ abbreviated/verbose split exists and leaks into Drift 2.
 
 **BCC/Revit needs no change** — it is already aligned to TagSync. Worth a
 one-line doc note that `/tagsync/sync` and `/ifc/data` are siblings
-writing the same projection.
+writing the same projection. (Done — session 7 added
+`Planscape.Server/docs/element-ingest-paths.md` + cross-referencing
+XML-docs.)
+
+**The real coexistence invariant** (verified `PlanscapeDbContext.cs:605-609`):
+the two paths are **not** wire-compatible and never were — what holds them
+together is (1) both mappers writing the **shared `TaggedElement` columns**,
+and (2) a **filtered-unique key-space**:
+`(ProjectId, RevitElementId) WHERE RevitElementId > 0` for Revit, and
+`(ProjectId, UniqueId)` for non-Revit. The `:609` comment is also the
+**server-side confirmation of Drift 4**: *"for Revit `UniqueId` is the
+Revit `Element.UniqueId`; for non-Revit hosts `UniqueId` carries the IFC
+GlobalId."* The same column means two different things by host — which is
+exactly why a cross-host join on it fails. (Note: Prompt 7 re-keys the
+`ExternalElementMapping.IfcGlobalId`, a *different* key from this
+`TaggedElement` index, so it does not disturb this invariant.)
 
 ---
 
