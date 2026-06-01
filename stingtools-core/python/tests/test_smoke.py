@@ -694,6 +694,86 @@ def test_storey_lvl_unique_within_building():
     assert len(lvl_mm) == 2, f"expected 2 STOREY_LVL_UNIQUE_WITHIN_BUILDING (one per dupe), got {len(lvl_mm)}"
 
 
+# ----------------------------------------------------------------------
+# Planscape client — IFC ingest wire-shape alignment (Drift 1)
+# ----------------------------------------------------------------------
+
+def _ifc_element_dto_wire_members() -> set[str]:
+    """Parse IfcElementDto's property names out of the C# DTO source and
+    return them as camelCase wire keys. Drives the test from the DTO
+    itself so an added/removed member is caught rather than a stale
+    hardcoded list."""
+    import re
+
+    repo_root = Path(__file__).resolve().parents[3]
+    dto = repo_root / "Planscape.Server" / "src" / "Planscape.Core" / "DTOs" / "IfcIngestDtos.cs"
+    if not dto.exists():
+        return set()  # repo layout changed; caller skips
+
+    src = dto.read_text(encoding="utf-8")
+    # Slice the IfcElementDto record body (up to the next `public record`).
+    start = src.index("public record IfcElementDto")
+    nxt = src.find("public record", start + 1)
+    body = src[start:nxt if nxt != -1 else len(src)]
+
+    members = re.findall(r"public\s+[\w?<>\[\]]+\s+(\w+)\s*\{\s*get;\s*init;", body)
+    return {m[:1].lower() + m[1:] for m in members}
+
+
+def test_ifc_element_to_wire_keys_match_dto():
+    """Every key produced by _element_to_wire must be a real IfcElementDto
+    member; compliance_pct must be dropped; the bool triplet must survive."""
+    from stingtools_core.planscape import PlanscapeClient
+
+    dto_members = _ifc_element_dto_wire_members()
+    if not dto_members:
+        return  # DTO source not found in this checkout — skip
+    assert "ifcGlobalId" in dto_members, "DTO parse produced no recognisable members"
+
+    # Representative snake_case element (what the Bonsai sync operator emits),
+    # plus a compliance_pct that the server has no field for.
+    el = {
+        "ifc_global_id": "1Abc234Def567Ghi890Jkl",
+        "host_element_id": "IfcWall/42",
+        "host_display_label": "Basic Wall",
+        "discipline": "M", "location": "BLD1", "zone": "Z01", "level": "L02",
+        "system": "HVAC", "function": "SUP", "product": "AHU", "sequence": "0042",
+        "full_tag": "M-BLD1-Z01-L02-HVAC-SUP-AHU-0042",
+        "ifc_class": "IfcWall",
+        "category_name": "Walls", "family_name": "Basic Wall", "type_name": "Generic - 200mm",
+        "status": "NEW", "rev": "P01",
+        "room_name": "Plant Room", "level_name": "Level 2",
+        "is_complete": True, "is_fully_resolved": False, "is_stale": False,
+        "validation_errors": '[{"rule": "X"}]',
+        "last_modified_utc": "2026-06-01T12:00:00Z",
+        "compliance_pct": 87.5,  # no server field — must be dropped
+    }
+
+    wire = PlanscapeClient._element_to_wire(el)
+
+    unknown = set(wire) - dto_members
+    assert not unknown, f"_element_to_wire produced non-DTO key(s): {sorted(unknown)}"
+    assert "compliance_pct" not in wire and "compliancePct" not in wire, \
+        "compliance_pct must not reach the wire — server has no such field"
+    for b in ("isComplete", "isFullyResolved", "isStale"):
+        assert b in wire, f"bool triplet member {b!r} missing from wire payload"
+    # spot-check the rename actually happened
+    assert wire["ifcGlobalId"] == el["ifc_global_id"]
+    assert wire["fullTag"] == el["full_tag"]
+
+
+def test_ifc_element_to_wire_passthrough_camelcase():
+    """A caller that already hand-builds the camelCase wire shape isn't
+    double-mangled — verbatim camelCase keys pass through unchanged."""
+    from stingtools_core.planscape import PlanscapeClient
+
+    el = {"ifcGlobalId": "G1", "fullTag": "M-BLD1", "isComplete": True}
+    wire = PlanscapeClient._element_to_wire(el)
+    assert wire["ifcGlobalId"] == "G1"
+    assert wire["fullTag"] == "M-BLD1"
+    assert wire["isComplete"] is True
+
+
 if __name__ == "__main__":
     # Allow `python tests/test_smoke.py` for quick local runs
     import traceback
@@ -732,6 +812,9 @@ if __name__ == "__main__":
         test_projectorg_phase_valid,
         test_building_loc_unique,
         test_storey_lvl_unique_within_building,
+        # Planscape client — IFC ingest wire-shape (Drift 1)
+        test_ifc_element_to_wire_keys_match_dto,
+        test_ifc_element_to_wire_passthrough_camelcase,
     ]
     # tmp_path-needing tests skipped in __main__; use pytest for those:
     #   test_audit_log_chain, test_audit_log_detects_tampering,

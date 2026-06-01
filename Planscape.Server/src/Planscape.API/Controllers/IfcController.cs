@@ -71,7 +71,7 @@ public class IfcController : ControllerBase
     }
 
     /// <summary>
-    /// GET /api/projects/{projectId}/ifc/mappings?ifc_guid=...
+    /// GET /api/projects/{projectId}/ifc/mappings?ifcGuid=...
     /// Look up the host-element-id for a given IFC GlobalId across all
     /// hosts in this project. Used by cross-host issue resolution
     /// (issue raised in Blender → find Revit ElementId).
