@@ -290,6 +290,11 @@ public class PlanscapeDbContext : DbContext
     public DbSet<PhotoChecklist>        PhotoChecklists        => Set<PhotoChecklist>();
     public DbSet<PhotoChecklistItem>    PhotoChecklistItems    => Set<PhotoChecklistItem>();
     public DbSet<PhotoPolicy>           PhotoPolicies          => Set<PhotoPolicy>();
+    public DbSet<PhotoShareLink>        PhotoShareLinks        => Set<PhotoShareLink>();
+    public DbSet<PhotoApprovalSignoff>  PhotoApprovalSignoffs  => Set<PhotoApprovalSignoff>();
+    public DbSet<PhotoVoiceNote>        PhotoVoiceNotes        => Set<PhotoVoiceNote>();
+    public DbSet<PhotoAccessRule>       PhotoAccessRules       => Set<PhotoAccessRule>();
+    public DbSet<PhotoNdaAcceptance>    PhotoNdaAcceptances    => Set<PhotoNdaAcceptance>();
     public DbSet<DistributionGroup>       DistributionGroups       => Set<DistributionGroup>();
     public DbSet<DistributionGroupMember> DistributionGroupMembers => Set<DistributionGroupMember>();
 

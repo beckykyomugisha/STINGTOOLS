@@ -153,7 +153,7 @@ public class DistributionGroupsController : ControllerBase
     [HttpPost("{groupId:guid}/members")]
     public async Task<ActionResult> AddMember(
         Guid projectId, Guid groupId,
-        [FromBody] AddMemberRequest req,
+        [FromBody] AddDistributionMemberRequest req,
         CancellationToken ct = default)
     {
         if (!await IsCuratorAsync(projectId, ct)) return Forbid();
@@ -226,7 +226,7 @@ public record UpdateDistributionGroupRequest(
     bool?   IncludeInDailyDigest,
     bool?   ForceRedacted);
 
-public record AddMemberRequest(
+public record AddDistributionMemberRequest(
     Guid?   UserId,
     string? ExternalEmail,
     string? DisplayName,

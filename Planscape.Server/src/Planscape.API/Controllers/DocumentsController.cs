@@ -1263,27 +1263,6 @@ public class DocumentsController : ControllerBase
         });
     }
 
-    /// <summary>
-    /// Phase 143 — dry-run validate a candidate file name against the ISO
-    /// 19650 / UK 2021 NA naming pattern. Lets the office dashboard + the
-    /// mobile uploader give the user inline feedback before they upload.
-    /// Always returns 200 with a structured payload (no body validation
-    /// errors result in <c>isValid: true</c>).
-    /// </summary>
-    [HttpGet("validate-name")]
-    public ActionResult ValidateName([FromQuery] string fileName)
-    {
-        var result = Planscape.Infrastructure.Validation.Iso19650NamingValidator
-            .Validate(fileName ?? "");
-        return Ok(new
-        {
-            fileName = fileName ?? "",
-            isValid = result.IsValid,
-            pattern = result.Pattern,
-            issues = result.Errors,
-        });
-    }
-
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 

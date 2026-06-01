@@ -132,7 +132,7 @@ public class IssueCustomFieldsController : ControllerBase
     /// <summary>Reorder multiple fields in one call.</summary>
     [HttpPost("reorder")]
     [Authorize(Roles = "Admin,Owner")]
-    public async Task<IActionResult> Reorder(Guid projectId, [FromBody] ReorderRequest req, CancellationToken ct)
+    public async Task<IActionResult> Reorder(Guid projectId, [FromBody] ReorderCustomFieldsRequest req, CancellationToken ct)
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
         var rows = await _db.IssueCustomFieldSchemas
@@ -213,5 +213,5 @@ public record SchemaDto(
     bool Required,
     int SortOrder);
 
-public record ReorderRequest(ReorderItem[] Items);
+public record ReorderCustomFieldsRequest(ReorderItem[] Items);
 public record ReorderItem(Guid Id, int SortOrder);
