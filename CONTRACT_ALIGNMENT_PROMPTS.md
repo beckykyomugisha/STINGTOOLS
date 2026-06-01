@@ -674,8 +674,18 @@ if it's wrong.
 > 3. Open both IFCs in Bonsai; run the STING sync op (`/ifc/data`).
 > 4. For a sample of elements, call
 >    `GET /api/projects/{id}/ifc/mappings?ifcGuid=<GlobalId>` and confirm
->    the row set includes **all** hosts that contain that element (revit +
->    archicad + blender), i.e. the GlobalIds joined.
+>    the row set joins the hosts that share that GlobalId. **CORRECTION
+>    (session-15 finding):** independently modelling the "same" element in
+>    Revit and ArchiCAD yields *two different* GlobalIds (different native
+>    GUIDs), and `/ifc/mappings` joins on a *shared* GlobalId — so the
+>    runnable acceptance is **per-lineage** (`{revit,blender}` on the Revit
+>    GlobalId, `{archicad,blender}` on the ArchiCAD GlobalId), not a tri-host
+>    unification. For a true 3-host join, use a *single authoritative IFC*
+>    that all hosts ingest. Also: run order must be **export → stabilize →
+>    export-again** (Stabilize skips never-exported elements, R2), and the
+>    Revit IFC export must pin the `IfcGUID` source — the in-repo exporters
+>    use plain `IFCExportOptions` and don't (R1), which is exactly the
+>    re-map this test exists to catch.
 > 5. Cross-check: the `IFC_GLOBAL_ID_TXT` Revit *sent* == the `GlobalId` in
 >    Revit's *exported* IFC for the same element (this is the snapshot-vs-
 >    export equality); same for ArchiCAD's `compress(GUID)` vs its export.
@@ -709,9 +719,14 @@ if it's wrong.
 >    element lacks `IFC_GLOBAL_ID_TXT` (or it post-dates the last geometry
 >    change), prompt "Run Stabilize IFC GUIDs first" before proceeding
 >    (non-blocking warning, with a one-click run).
-> 2. Surface the server's `GLOBALID_DRIFT` result back in the plugin/BCC
->    (it's computed server-side by `IfcAlignmentValidator` — show it where
->    the user pushes), so drift is visible, not buried in a validator log.
+> 2. ~~Surface the server's `GLOBALID_DRIFT` result back in the plugin/BCC.~~
+>    **NOT DELIVERABLE (session-15 finding):** `IfcAlignmentValidator`'s
+>    Gap-9 `GLOBALID_DRIFT` check is a **deferred no-op**
+>    (`IfcAlignmentValidator.cs:306` — needs a `FederatedElement.ProjectModelId`
+>    column that doesn't exist), so it produces no drift result to surface.
+>    Item 1's client-side precheck is the available equivalent until that
+>    server work lands. If you want #2, the prerequisite is implementing the
+>    deferred Gap 9 (column + migration + the commented-out query).
 >
 > **Acceptance:** a user pushing/exporting an unstabilised or drifted model
 > sees the prompt; a clean model doesn't. No change to the key logic from
@@ -772,11 +787,17 @@ if it's wrong.
 >    definitions + Program accessibility). Resolve so the test project
 >    builds and the suite runs. (Likely a dedupe like Prompt 5's, in the
 >    test project.)
-> 3. **EF-migration backlog** — now generatable (the API builds since
->    Prompt 5). Run `dotnet ef migrations add` for: the restored Photo
->    DbSets (Prompt 5), `ArchiCADEventLogPersistence` (session 5), and any
->    cross-host column not yet migrated. One migration per logical change;
->    review the generated SQL before committing.
+> 3. **EF-migration backlog** — **premise corrected (session 15):** the Photo
+>    DbSets and the cross-host columns are **already migrated** — Prompt 5
+>    only restored the DbContext *properties*, and Prompt 14 Task 2 re-aligned
+>    the model to the existing schema (no new migration expected). The real
+>    issues are (a) a **stale model snapshot** (0 refs to the already-migrated
+>    Photo tables — a naive `migrations add` emits a "monster" re-create diff;
+>    regenerate the snapshot deliberately) and (b) the one genuinely-pending
+>    `ArchiCADEventLogPersistence` migration, which belongs to the
+>    **uncommitted ArchiCAD WIP** (it carries its own inline MIGRATION REQUIRED
+>    marker). See `Planscape.Server/docs/migration-backlog.md` (committed
+>    `cd2dc716f`). Review the generated SQL before committing.
 > 4. **`TaggedElement.IfcGlobalId` column** — retire the `UniqueId`
 >    overload (it means Revit-UniqueId for Revit, IFC-GlobalId for
 >    non-Revit). Add an explicit `IfcGlobalId` column + migration +

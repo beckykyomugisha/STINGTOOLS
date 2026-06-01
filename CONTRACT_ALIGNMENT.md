@@ -260,11 +260,19 @@ tooltip names Stabilize as the prerequisite. No EF migration
 wire field). Builds clean. **Correctness is "equal by construction"** —
 both hosts write the IFC file's GlobalId (Revit via
 `IFC_GLOBAL_ID_TXT = IfcGloballyUniqueId = export GlobalId`, Bonsai via
-`el.GlobalId`) — **with one monitored operational dependency**:
-`IFC_GLOBAL_ID_TXT` is a *snapshot* at stabilize time; it equals the
-exported file's GlobalId only while the model stays stable through export
-(re-run Stabilize after restructure; `IfcAlignmentValidator` flags
-`GLOBALID_DRIFT` >5%). **Recommended follow-up** (flagged, not done):
+`el.GlobalId`) — **with one operational dependency that is currently NOT
+server-monitored** (corrected, session 15): `IFC_GLOBAL_ID_TXT` is a
+*snapshot* at stabilize time and equals the exported file's GlobalId only
+while the model stays stable through export **and the IFC export honours
+the `IfcGUID` param** — but the in-repo exporters use plain
+`IFCExportOptions` and don't pin a GUID source (Prompt 11 finding R1), and
+the server `GLOBALID_DRIFT` detector is a **deferred no-op**
+(`IfcAlignmentValidator.cs:306` — Gap 9 needs a
+`FederatedElement.ProjectModelId` column that doesn't exist). The earlier
+"monitored" claim was wrong. The **only active guards** are now Prompt 12's
+client-side precheck (counts Missing + Stale before push/export) and
+Prompt 11's live round-trip (the only thing that actually confirms
+snapshot == export). **Recommended follow-up** (flagged, not done):
 add an explicit `TaggedElement.IfcGlobalId` column (migration + backfill +
 dual-write both ingest paths + index) so the `UniqueId` overload is
 retired; not required for cross-host resolution, which routes through
@@ -500,6 +508,71 @@ IfcGloballyUniqueId = export GlobalId`). The cross-host identity feature is
 now logically complete: consistent key everywhere + hardened mapping
 (Prompt 6: observability + reconciliation) + de-duplicated clients
 (Prompt 9).
+
+## Parallel batch (session 15) — Prompts 10/13, 11, 12, 14 + corrections
+
+Five sessions run in parallel (one per project tree, as advised). Status +
+the corrections they surfaced:
+
+- **Prompt 10/13 (server guardrail, Option 1) — DONE, committed `0a9e95de5`.**
+  New `contract-drift.yml` CI gate (server-build + the Python conformance
+  tests; parses the C# DTO *source*, no running server needed) — **proven
+  live**: renaming `IfcElementDto.FullTag`/`IfcGlobalId` turns CI red,
+  revert turns it green. `TaggedElementDto` + `[ProducesResponseType]` on
+  `tagsync/elements/search`, healthcare/penetrations dashboards, compliance,
+  transmittals list (all wire-identical — only EF nav artifacts dropped);
+  `/ifc/data` + `/ifc/mappings` get explicit response types. `ValidationErrorDto`
+  `{code,message,severity}` declared + a tolerant `TryParse` now exercised at
+  the IFC-ingest write site (surfaces one summary warning on non-conforming
+  blobs). Gate is deliberately **server-only** (no mobile `tsc` / `dotnet
+  test` job — both red on the baselines). *Note: two agents touched the
+  server tree; the second built on `0a9e95de5` rather than conflicting but
+  left its extension **uncommitted** — decide whether to keep it.*
+- **Prompt 12 (Stabilize prereq) — #1 DONE (`5bd85fe2d`), #2 not deliverable.**
+  Non-blocking "Run Stabilize IFC GUIDs first" precheck fires at the two
+  user-initiated entry points (IFC export, BCC Sync Now) only when Missing
+  or Stale > 0 (reuses the existing `StingStaleMarker`; opt-in
+  `promptStabilise` param so auto/scheduled callers don't nag). **#2 (surface
+  server `GLOBALID_DRIFT`) is impossible today** — the validator is a
+  deferred no-op (see Drift 4 correction above); #1 is the available
+  equivalent.
+- **Prompt 11 (live round-trip) — harness + runbook DONE, live run pending lab.**
+  `tools/tests/cross_host_round_trip.py` (3 guarded tests, skip-clean in CI,
+  self-validated against a synthetic IFC) + `docs/CROSS_HOST_ROUND_TRIP_RUNBOOK.md`.
+  **Corrected my step 4:** independently modelling the "same" element in
+  Revit and ArchiCAD yields *two different* GlobalIds (different native
+  GUIDs); `/ifc/mappings` joins rows that **share one** GlobalId, so the
+  runnable acceptance is per-lineage (`{revit,blender}` on G_R,
+  `{archicad,blender}` on G_A), not a tri-host unification — or use a single
+  authoritative IFC. Also surfaced **R1** (in-repo exporters don't pin the
+  GUID source — the real risk to Prompt 7's equality), **R2** (Stabilize
+  skips never-exported elements → order export→stabilize→export-again), and
+  **R4** (new latent bug, off-path).
+- **Prompt 14 (hygiene) — Task 2 DONE (`367932207`), 1/3/4 deferred with facts.**
+  Test project now builds; `dotnet test` runs 380 / 253 pass (was: didn't
+  compile). Fixing it **unmasked two latent EF-model bugs that would crash
+  the production DbContext**: `PhotoAlbumPhoto` + `PhotoNdaAcceptance` are
+  composite-key join entities with no key config — now configured. **Corrected
+  the EF-migration premise** (Task 3): the Photo DbSets + cross-host columns
+  are **already migrated**; the only real issues are a *stale model snapshot*
+  and the `ArchiCADEventLogPersistence` migration (which lives in the
+  uncommitted ArchiCAD WIP). Task 1 (mobile `tsc`) deferred — ~18 of the 111
+  errors are missing-module structural WIP, can't reach 0. Task 4 skipped
+  (optional, highest risk).
+
+**New latent bug (Prompt 11 R4):** `IfcGuidEncoder.FromGuid`
+(`StingTools/IfcResults/IfcGuidEncoder.cs`) packs bytes `1/6/7/4/8/16`,
+which is **not** canonical IFC compression (`1/3/3/3/3/3-2/4/4/4/4/4`)
+despite a docstring claiming parity. Used only by DIALux + Clash export
+(which match their own output), **never the cross-host key** — so it's
+off-path and was not patched (per "don't fix blindly"), but it's a real
+mislabelled encoder to fix separately.
+
+**New production bug found + fixed (Prompt 14):** `PhotoAlbumPhoto` /
+`PhotoNdaAcceptance` had no EF key configuration — EF validates the model on
+every provider, so this would have **crashed the production DbContext at
+runtime**, not just the tests. Surfaced only because the test project was
+made to build. Fixed in `367932207`.
 
 **One consolidated live round-trip validates the whole story.** Two
 host-side derivations are "equal by construction" but unconfirmed against
