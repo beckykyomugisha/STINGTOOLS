@@ -1957,7 +1957,7 @@ namespace StingTools.BIMManager
         /// Called when the "Sync Now" button is pressed on the Planscape platform panel.
         /// Requires prior authentication via PlanscapeConnectCommand.
         /// </summary>
-        internal static void SyncToPlanscapeServer(UIApplication app)
+        internal static void SyncToPlanscapeServer(UIApplication app, bool promptStabilise = false)
         {
             var client = PlanscapeServerClient.Instance;
             if (!client.IsConnected)
@@ -1968,6 +1968,19 @@ namespace StingTools.BIMManager
 
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) { TaskDialog.Show("Planscape", "No document open."); return; }
+
+            // Prompt 12 — interactive "Sync Now" only: surface the "Stabilize IFC
+            // GUIDs first" prerequisite. The cross-host mapping upsert keys on the
+            // true IFC GlobalId (IFC_GLOBAL_ID_TXT); elements lacking it are
+            // silently skipped server-side, so warn (with one-click Stabilize)
+            // before pushing. Auto/scheduled callers leave promptStabilise=false
+            // so the 5-min tick never nags.
+            if (promptStabilise)
+            {
+                var ifcGuidReport = StingTools.Commands.Interop.IfcGuidStabilityCheck.Evaluate(doc, taggedOnly: true);
+                if (!StingTools.Commands.Interop.IfcGuidStabilityCheck.ConfirmStabilised(doc, ifcGuidReport, "syncing to Planscape"))
+                    return;
+            }
 
             // D-2: warn the user when this sync would push from a non-central
             // or unsynced local copy. We block only on user choice — once

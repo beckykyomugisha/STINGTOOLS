@@ -2881,6 +2881,15 @@ namespace StingTools.Temp
                 return Result.Cancelled;
             }
 
+            // Prompt 12 — surface the "Stabilize IFC GUIDs first" prerequisite.
+            // The exported file's GlobalIds must match the IFC_GLOBAL_ID_TXT
+            // snapshot that cross-host identity keys on; a non-blocking prompt
+            // (with one-click Stabilize) fires only when elements are unstabilised
+            // or geometry-stale. A clean model exports without interruption.
+            var ifcGuidReport = Commands.Interop.IfcGuidStabilityCheck.Evaluate(doc, taggedOnly: false);
+            if (!Commands.Interop.IfcGuidStabilityCheck.ConfirmStabilised(doc, ifcGuidReport, "IFC export", commandData))
+                return Result.Cancelled;
+
             // Choose IFC version
             var versionDlg = new TaskDialog("IFC Export");
             versionDlg.MainInstruction = "Select IFC export version";

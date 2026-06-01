@@ -2736,7 +2736,7 @@ namespace StingTools.UI
                     case "PlatformSync":
                         // Route to Planscape server sync if connected; otherwise local delta sync
                         if (BIMManager.PlanscapeServerClient.Instance.IsConnected)
-                            BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app);
+                            BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app, promptStabilise: true);
                         else
                             RunCommand<BIMManager.PlatformSyncCommand>(app);
                         break;
@@ -3845,7 +3845,7 @@ namespace StingTools.UI
                     case "PlanscapeConnect":        RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
                     case "PlanscapeDisconnect":     BIMManager.PlanscapeServerClient.Instance.Disconnect();
                                                    TaskDialog.Show("Planscape", "Disconnected from Planscape server."); break;
-                    case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
+                    case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app, promptStabilise: true); break;
                     case "PublishModelToPlanscape": RunCommand<BIMManager.PublishModelCommand>(app); break;
                     case "PlanscapeCreateProject":  RunCommand<BIMManager.PlanscapeCreateProjectCommand>(app); break;
                     case "LoadFamilyLibrary":       RunCommand<Temp.FamilyLibraryLoaderCommand>(app); break;
