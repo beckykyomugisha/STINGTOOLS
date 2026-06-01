@@ -2,7 +2,7 @@
 Maps ArchiCAD element property bags to STING ISO 19650 tokens.
 
 Input:  raw property dict from ArchiCadClient.get_property_values()
-Output: token dict ready for PlanscapeClient.build_element_sync()
+Output: token dict ready for PlanscapeClient.build_ifc_element()
 """
 from __future__ import annotations
 

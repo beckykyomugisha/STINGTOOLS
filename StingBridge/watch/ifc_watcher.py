@@ -163,8 +163,12 @@ class IFCDropHandler:
                 tokens.get("sys") and tokens.get("prod")
             )
             from ..planscape.client import PlanscapeClient
-            sync_el = PlanscapeClient.build_element_sync(
-                guid=el["guid"],
+            # The watcher parses an exported IFC, so el["guid"] is the true IFC
+            # GlobalId and is also the only host-side id available — it serves
+            # as both the cross-host key and HostElementId.
+            sync_el = PlanscapeClient.build_ifc_element(
+                ifc_global_id=el["guid"],
+                host_element_id=el["guid"],
                 disc=tokens.get("disc", ""),
                 loc=tokens.get("loc", ""),
                 zone=tokens.get("zone", ""),
@@ -188,7 +192,7 @@ class IFCDropHandler:
         for i in range(0, len(sync_payloads), batch_size):
             batch = sync_payloads[i: i + batch_size]
             try:
-                self._ps.sync_elements(batch, source="archicad-ifc")
+                self._ps.ingest_ifc_data(batch, host="archicad")
                 result["synced"] += len(batch)
             except (PlanscapeError, Exception) as exc:
                 msg = f"Planscape sync batch {i // batch_size} failed: {exc}"

@@ -7,7 +7,8 @@ Flow:
   3. Fetch element details (story, bounding box) and property values
   4. Conflict detection: compare AC vs Planscape lastModifiedUtc — winner writes
   5. Map tokens via token_mapper
-  6. Post mapped elements to Planscape via /api/tagsync/sync
+  6. Post mapped elements to Planscape via /api/projects/{id}/ifc/data
+     (Host="archicad", IFC GlobalId key, ArchiCAD GUID as HostElementId)
   7. Write STING tokens back to ArchiCAD as User-Defined properties
   8. Verify write-back: re-read AC properties and compare — mismatches → sync_errors.json
 """
@@ -28,6 +29,32 @@ from .token_mapper import map_element_to_tokens
 from .property_writer import PropertyWriter
 
 log = logging.getLogger(__name__)
+
+
+def _ifc_global_id_from_acguid(ac_guid: str) -> str:
+    """Convert an ArchiCAD element GUID to the IFC GlobalId ArchiCAD assigns
+    on IFC export (compressed IfcGuid), so engine-path mappings share the same
+    cross-host key as the IFC-watcher path for the same element. The exact
+    ArchiCAD GUID is always carried separately as ``host_element_id``; this is
+    only the canonical IfcGlobalId. Falls back to the raw GUID if ifcopenshell
+    is unavailable or the GUID is malformed.
+
+    NOTE (assumption): this presumes ArchiCAD derives the IFC GlobalId from the
+    same element GUID exposed by its JSON API. That is ArchiCAD's documented
+    behaviour, but is unverified against a live round-trip in this environment.
+    Even if the derivation diverged, this is strictly better than the previous
+    fabricated md5-of-guid Revit id, and host_element_id is exact regardless.
+    """
+    cleaned = ac_guid.strip().strip("{}").replace("-", "")
+    if len(cleaned) != 32:
+        return ac_guid
+    try:
+        import ifcopenshell.guid as _g
+        return _g.compress(cleaned.lower())
+    except Exception as e:  # noqa: BLE001 — ifcopenshell optional / bad input
+        log.debug("IfcGuid compression failed for %s (%s); using raw GUID", ac_guid, e)
+        return ac_guid
+
 
 # Properties to fetch from ArchiCAD for each element
 _PROPS_TO_READ = [
@@ -157,7 +184,7 @@ class SyncEngine:
         if all_sync_elements:
             try:
                 ps_timestamps = self._ps.get_element_timestamps(
-                    [e["uniqueId"] for e in all_sync_elements]
+                    [e["host_element_id"] for e in all_sync_elements]
                 )
             except Exception as e:
                 log.debug("Could not fetch Planscape timestamps (non-fatal): %s", e)
@@ -175,7 +202,7 @@ class SyncEngine:
             for i in range(0, len(all_sync_elements), self._batch_size):
                 batch = all_sync_elements[i : i + self._batch_size]
                 try:
-                    self._ps.sync_elements(batch, source="archicad")
+                    self._ps.ingest_ifc_data(batch, host="archicad")
                     result.planscape_synced += len(batch)
                 except (PlanscapeError, Exception) as e:
                     msg = f"Planscape sync failed for batch {i//self._batch_size}: {e}"
@@ -288,8 +315,11 @@ class SyncEngine:
                 tokens.get("disc") and tokens.get("lvl") and
                 tokens.get("sys") and tokens.get("prod")
             )
-            sync_el = PlanscapeClient.build_element_sync(
-                guid=guid,
+            # Live ArchiCAD path: `guid` is the ArchiCAD element GUID (the
+            # host id); the cross-host key is its compressed IFC GlobalId.
+            sync_el = PlanscapeClient.build_ifc_element(
+                ifc_global_id=_ifc_global_id_from_acguid(guid),
+                host_element_id=guid,
                 disc=tokens.get("disc", ""),
                 loc=tokens.get("loc", ""),
                 zone=tokens.get("zone", ""),
@@ -407,7 +437,7 @@ def _apply_conflict_resolution(
     token_by_guid = {guid: tokens for guid, tokens in write_pairs}
 
     for el in sync_elements:
-        guid = el.get("uniqueId", "")
+        guid = el.get("host_element_id", "")
         ps_ts = ps_timestamps.get(guid)
         if not ps_ts:
             continue  # not in Planscape yet — AC wins by default
@@ -419,15 +449,18 @@ def _apply_conflict_resolution(
         if age_s < 60:
             # Planscape is newer — overwrite the tokens we're about to write
             # back to AC with the Planscape values
+            # NB: source keys are the ingest element-dict's (snake_case
+            # IfcElementDto field names); the OUTPUT keys stay the short token
+            # names the ArchiCAD property-writer expects.
             ps_tokens = {
-                "disc": el.get("disc", ""),
-                "loc":  el.get("loc", ""),
+                "disc": el.get("discipline", ""),
+                "loc":  el.get("location", ""),
                 "zone": el.get("zone", ""),
-                "lvl":  el.get("lvl", ""),
-                "sys":  el.get("sys", ""),
-                "func": el.get("func", ""),
-                "prod": el.get("prod", ""),
-                "seq":  el.get("seq", ""),
+                "lvl":  el.get("level", ""),
+                "sys":  el.get("system", ""),
+                "func": el.get("function", ""),
+                "prod": el.get("product", ""),
+                "seq":  el.get("sequence", ""),
             }
             if guid in token_by_guid:
                 token_by_guid[guid].update(ps_tokens)

@@ -1,3 +1,10 @@
 requests>=2.31.0
 watchdog>=4.0.0
 ifcopenshell>=0.7.0
+
+# Shared STING core — single source of the Planscape /ifc/data wire contract
+# (_element_to_wire). In the monorepo dev checkout the bridge imports it from
+# ../stingtools-core/python via a sys.path fallback (see planscape/client.py),
+# so a pip install is only needed for a standalone bridge deployment:
+#   pip install -e ../stingtools-core/python
+# stingtools-core @ file:../stingtools-core/python
