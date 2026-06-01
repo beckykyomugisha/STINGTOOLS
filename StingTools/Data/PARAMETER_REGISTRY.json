@@ -30379,7 +30379,7 @@
         "categories": [
           "Casework"
         ],
-        "param_type": "YESNO"
+        "param_type": "TEXT"
       },
       {
         "key": "CASEWORK_COUNTERTOP",
@@ -30479,7 +30479,7 @@
         "categories": [
           "Parking"
         ],
-        "param_type": "YESNO"
+        "param_type": "TEXT"
       },
       {
         "key": "PARK_EV_CHARGING",
@@ -30489,7 +30489,7 @@
         "categories": [
           "Parking"
         ],
-        "param_type": "YESNO"
+        "param_type": "TEXT"
       },
       {
         "key": "PARK_TYPE",
@@ -30562,7 +30562,7 @@
         "categories": [
           "Signage"
         ],
-        "param_type": "YESNO"
+        "param_type": "TEXT"
       },
       {
         "key": "SIGN_TYPE",

@@ -25,7 +25,7 @@ Generic Models,ASS_SYSTEM_TYPE_TXT,2b3658d9-bfc6-56db-9df5-901337fde0f5,TEXT,ASS
 Generic Models,ASS_TAG_1_TXT,1eeb577d-342d-5039-97f1-f1dd8d80c8c4,TEXT,ASS_MNG,Type,Ass Tag 1 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TAG_2_TXT,bf6cb687-478f-459a-8c5d-ece073c24831,TEXT,ASS_MNG,Type,Ass Tag 2 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TAG_3_TXT,068abd3b-650e-4a7c-ac07-82e556160de0,TEXT,ASS_MNG,Type,Ass Tag 3 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,BLE_CASEWORK_ACCESSIBLE_BOOL,8c2b44a9-cc06-408d-af91-0f14499042c4,YESNO,CST_PROC,Type,Accessible casework compliance [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_CASEWORK_ACCESSIBLE_BOOL,8c2b44a9-cc06-408d-af91-0f14499042c4,TEXT,CST_PROC,Type,Accessible casework compliance [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CASEWORK_COUNTERTOP_TXT,3592eb3b-308a-42b5-a14c-0b18f19b8d6b,TEXT,CST_PROC,Type,Casework countertop material [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CASEWORK_HARDWARE_TXT,fe571646-cbb4-496f-95b7-dbff007a5d53,TEXT,CST_PROC,Type,Casework hardware specification [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CASEWORK_MATERIAL_TXT,222b02d7-63ab-487b-8d92-2e2f6962dd48,TEXT,CST_PROC,Type,Casework primary material [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -71,10 +71,10 @@ Generic Models,BLE_MULLION_MATERIAL_TXT,eff23acf-6055-424a-a824-682a18cdfb45,TEX
 Generic Models,BLE_PANEL_GLASS_TYPE_TXT,13c8d3d5-989d-43b4-bcdd-eacaaaa33bf1,TEXT,CST_PROC,Type,Curtain wall panel glass type [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_PANEL_HEIGHT_MM,be1a1d83-5ab3-4637-977a-cfe1bf297dd3,TEXT,CST_PROC,Type,Curtain wall panel height in mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_PANEL_WIDTH_MM,85f6f562-2570-4cdc-8823-dd780014efca,TEXT,CST_PROC,Type,Curtain wall panel width in mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_PARK_ACCESSIBLE_BOOL,b5ac9b94-b39d-468d-847e-b49d346b3633,YESNO,CST_PROC,Type,Parking bay meets accessibility standards [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_PARK_ACCESSIBLE_BOOL,b5ac9b94-b39d-468d-847e-b49d346b3633,TEXT,CST_PROC,Type,Parking bay meets accessibility standards [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_PARK_BAY_LENGTH_MM,421958ca-f53b-4f18-999c-282ba0d8dcc7,TEXT,CST_PROC,Type,Parking bay length in mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_PARK_BAY_WIDTH_MM,eb9182d4-8c20-4d84-a53b-70bf9c771757,TEXT,CST_PROC,Type,Parking bay width in mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_PARK_EV_CHARGING_BOOL,b09617b0-e85e-4079-9c0f-6b490e32daf4,YESNO,CST_PROC,Type,EV charging point provided [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_PARK_EV_CHARGING_BOOL,b09617b0-e85e-4079-9c0f-6b490e32daf4,TEXT,CST_PROC,Type,EV charging point provided [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_PARK_TYPE_TXT,6d2b0bdf-0c70-4acc-bc6f-cd0bd8cc7d0e,TEXT,CST_PROC,Type,Parking bay type classification [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_RAILING_BALUSTER_SPACING_MM,e5a30e5b-eefa-402a-9a72-7d441f93a300,TEXT,CST_PROC,Type,Railing baluster spacing in mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_RAILING_HEIGHT_MM,59f58f53-84f9-482f-9b1d-59fc2336b2b1,TEXT,CST_PROC,Type,Railing height in mm [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -95,7 +95,7 @@ Generic Models,BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR,df9197f1-d5c9-4ef0-bec7-05265667
 Generic Models,BLE_ROOM_NAME_TXT,0bf56335-3e98-58cb-81eb-a998c017d657,TEXT,CST_PROC,Type,Ble Room Name Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOM_NUM_TXT,08c45bc2-6903-5a41-b295-9c3111de6882,TEXT,CST_PROC,Type,Ble Room Num Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOM_VENTILATION_RATE_LPS,aaa7d06b-881d-447c-b28d-ec2764597319,TEXT,CST_PROC,Type,Room design ventilation rate in l/s [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_SIGN_ILLUMINATED_BOOL,908be268-188c-405a-9d0b-d8717999da94,YESNO,CST_PROC,Type,Signage is internally illuminated [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_SIGN_ILLUMINATED_BOOL,908be268-188c-405a-9d0b-d8717999da94,TEXT,CST_PROC,Type,Signage is internally illuminated [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_SIGN_TYPE_TXT,c1e98355-30ee-4f2c-ba3d-861bcb840d82,TEXT,CST_PROC,Type,Signage type classification [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STAIR_HEADROOM_MM,d1228a5a-c2ca-4018-b02c-1c29a6ffd5bf,TEXT,CST_PROC,Type,Stair headroom clearance in mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_BEAM_SZ_TXT,7cead505-38f5-57a5-9425-b349170a9ee7,TEXT,CST_PROC,Type,Ble Struct Beam Sz Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -651,7 +651,7 @@ Generic Models,RGL_QA_TST_REPORT_REF_TXT,9e404386-90b2-5c9c-a035-e16d3250b657,TE
 Generic Models,CP_HEX_CODE_TXT,507d4787-323a-4e10-b4fe-810f8aca3f48,TEXT,TPL_TRACKING,Type,Color hex code [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_INFO_SPARE_02_TXT,66ead487-2258-4c7b-9a9d-015d06c25cae,TEXT,MAT_INFO,Type,Spare parameter 2 for MAT_INFO group,False,,,MULTI,1,0
 Generic Models,COLOR_R_INT,32c5ea87-b947-4e06-9565-2910f0c00acc,INTEGER,TPL_TRACKING,Type,Palette color red [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,RGL_OCCUPANCY_CERT_REQ_BOOL,11a35489-5285-5344-bdd2-16608bfb080c,YESNO,RGL_CMPL,Type,Rgl Occupancy Cert Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RGL_OCCUPANCY_CERT_REQ_BOOL,11a35489-5285-5344-bdd2-16608bfb080c,TEXT,RGL_CMPL,Type,Rgl Occupancy Cert Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_EAR_HARDCORE_VOLUME_CU_M,645c088a-a602-58b9-a7f8-b59984dba6b4,TEXT,COM_DAT,Type,Cst S Ear Hardcore Volume Cu M [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,CST_UNIT_PRICE_ADHESIVE_UGX,f3ba3b8a-1950-4f08-9a31-63b759e2dc60,TEXT,COM_DAT,Type,Unit price per kilogram adhesive in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_CBL_NR_TXT,6f0de18a-a61d-5928-9cd9-449eb8d7361a,TEXT,ELC_PWR,Type,Elc Cbl Nr Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -685,7 +685,7 @@ Generic Models,FLT_TRANSPARENCY_INT,63533f99-ac82-4f54-8e4c-720fad914924,INTEGER
 Generic Models,CST_S_REI_GRADE_TXT,92058a99-7743-5431-b77f-ee6a3d13a813,TEXT,COM_DAT,Type,Cst S Rei Grade Txt [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,MAT_LAYER_3_FUNCTION,12dc3e9a-4e10-5d90-8238-f03a7e719ada,TEXT,MAT_INFO,Type,Mat Layer 3 Function [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_EAR_SOIL_TYPE_TXT,c014f69a-2afa-50f8-a6bf-65ea88c87ea7,TEXT,COM_DAT,Type,Cst S Ear Soil Type Txt [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,RGL_UMEME_APPROVAL_BOOL,c357089b-c15d-52d5-bdaf-5fc20fd4a2fc,YESNO,RGL_CMPL,Type,Rgl Umeme Approval Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RGL_UMEME_APPROVAL_BOOL,c357089b-c15d-52d5-bdaf-5fc20fd4a2fc,TEXT,RGL_CMPL,Type,Rgl Umeme Approval Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PROP_SOUND_RED_DB,0e0af49b-5fd9-51bb-8273-cb04161067de,TEXT,PROP_PHYSICAL,Type,Prop Sound Red Db [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_DRN_FITTING_CONNECTION_TYPE_TXT,79ac469c-1c30-5b5d-b46e-c85d9d11dbfb,TEXT,PLM_DRN,Type,Plm Drn Fitting Connection Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,USAGE_TXT,c7aa8b9c-53be-4b40-9dc8-3ca723a4a720,TEXT,TPL_TRACKING,Type,Dimension style usage [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -722,7 +722,7 @@ Generic Models,PLM_STRAINER_END_CONNECTION_TXT,2b5ed3a7-d217-524c-b92d-878ba524c
 Generic Models,FLS_SFTY_DEV_ADDRESS_TXT,524bd6a7-15d0-5c44-9b0b-8f7ea4968d1b,TEXT,FLS_LIFE_SFTY,Type,Fls Sfty Dev Address Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PROP_THERMAL_COND_W_MK,7a67eea7-6c74-56ea-bf6e-2cb506aef2b6,TEXT,PROP_PHYSICAL,Type,Prop Thermal Cond W Mk [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_FRM_BEAM_LENGTH_M,d4e5f6a7-b8c9-0123-defa-4567890123d4,TEXT,CST_PROC,Type,Formwork beam length in meters [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,RGL_NWSC_APPROVAL_BOOL,7f7752a8-e1cc-5259-b73d-1141327ad1e6,YESNO,RGL_CMPL,Type,Rgl Nwsc Approval Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RGL_NWSC_APPROVAL_BOOL,7f7752a8-e1cc-5259-b73d-1141327ad1e6,TEXT,RGL_CMPL,Type,Rgl Nwsc Approval Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,SPARE_PARAM_05_INT,4dfa5da8-b92f-42a2-89b2-240dc1676ec2,INTEGER,TPL_TRACKING,Type,Spare parameter 05 for future use [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_TOTAL_ROOFING_COST,a0302da9-fe50-4b97-a199-21fc7b12defe,TEXT,COM_DAT,Type,Total roofing cost in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PRJ_TB_DRAWN_BY_TXT,760330a9-462f-5f6f-b8e4-866262084c1d,TEXT,PRJ_INFORMATION,Type,Name or initials of drafter who produced this drawing [ISO 19650-1:2018],False,,,MULTI,1,0
