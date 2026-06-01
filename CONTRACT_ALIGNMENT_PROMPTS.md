@@ -1058,3 +1058,158 @@ if it's wrong.
 > - **The mobile gate goes on ONLY at 0.** Adding it while any error remains
 >   makes CI permanently red — exactly what `contract-drift.yml`'s own comment
 >   warns against.
+
+---
+
+# Build backlog (Prompts 19–22) — AUTONOMOUS mode
+
+These build the deferred WIP features. **Different stance from the prompts
+above: do NOT stop and ask at every decision — decide and ship.**
+
+## Operating stance (applies to Prompts 19–22)
+
+- **Imagine the whole team and adjudicate yourself.** For each feature, reason
+  as the product owner, the AEC/BIM domain expert (think Navisworks/BCF/HTM
+  workflows), the backend engineer, the mobile engineer, UX, QA, and security.
+  Where those roles would disagree, **make the call yourself, pick the most
+  sensible AEC/FM product behaviour, and record the decision** in the PR body —
+  don't halt for a human.
+- **Decide all product/scope/UX questions** (how it behaves, what's in scope,
+  defaults, edge-case handling) by recommending the obvious-best option and
+  building it. Reasonable defaults beat questions.
+- **Only halt for genuinely irreversible/dangerous things** — data loss,
+  a security hole, or breaking a *shipped* contract another live client
+  depends on. Even then, prefer a safe default + a feature flag over stopping.
+- **Record, don't ask.** Every significant decision goes in the PR body so a
+  human reviews *after*, not before. "Built X this way because role Y needs Z;
+  considered W, rejected because…"
+
+### Non-negotiable engineering gates (these are correctness, not "asking")
+
+These still apply — they're how you build without creating the next drift:
+1. **Contract-first.** Define the server response/request as a typed DTO with
+   `[ProducesResponseType]`, wire it into the `contract-drift.yml` guardrail,
+   *then* point mobile at it. Never let mobile invent the shape.
+2. **Real behaviour + tests.** No faked test passes, no stubbed "success" that
+   doesn't do the thing. Each feature ships a test proving the behaviour.
+3. **Migrations: regenerate the stale EF model snapshot FIRST** (Prompt 16
+   item 3) before adding any new migration, or it bakes in the monster diff.
+   One migration per logical change; review the SQL.
+4. **Don't loosen types to compile; don't create new field-name drift** —
+   reuse the canonical names (`ifcGlobalId` cross-host key, camelCase wire).
+5. **Build-gate** (both C# builds 0 errors + contract tests) per PR.
+6. **One feature = one PR**, behind the now-green mobile gate (run Prompt 18
+   first so the gate exists before you re-add these callers).
+
+---
+
+## Prompt 19 — 3D element select-and-zoom (`ModelViewer.selectAndZoom`)
+
+> Build `ModelViewerHandle.selectAndZoom(ifcGlobalId: string)` in
+> `Planscape/src/components/ModelViewer.tsx` and wire the call at
+> `app/(tabs)/issue-detail.tsx:328` ("zoom to the issue's 3D element").
+> Reason as a BIM coordinator (this is the standard BCF/Navisworks "jump from
+> an issue to its element" move) + a Three.js engineer + mobile UX.
+>
+> Build: resolve the mesh by the issue's **cross-host key** (the issue's
+> `modelElementGuid` *is* the IFC GlobalId — reuse it, don't invent a new id);
+> frame the camera on the element's bounding box with a smooth animation;
+> highlight it (outline/emissive); expose a deselect. Client/engine only — no
+> server, no migration.
+>
+> **Decide yourself + record:** highlight style; camera framing distance/easing;
+> behaviour when the GUID isn't in the loaded model (graceful no-op + a toast
+> "element not in this model" — don't throw); whether selection persists across
+> re-renders. Pick the smooth, obvious-best UX and ship it.
+>
+> **Acceptance:** tapping an issue with a model element zooms+highlights it in
+> 3D; missing GUID degrades gracefully; the `issue-detail.tsx:328` tsc error is
+> gone; a test (or documented manual run) covers hit + miss. No server changes.
+
+## Prompt 20 — Complete the offline-replay layer (reconcile + idempotency)
+
+> Make `Planscape/src/utils/offlineQueue.ts` correct end-to-end. Reason as the
+> site team (offline is real on a construction site — replay must be
+> **exactly-once**, never duplicate issues/comments) + backend + QA.
+>
+> Build:
+> 1. **Reconcile** the queue to the real endpoints: `postIssueComment` →
+>    `addIssueComment(p,i,body)`; `upsertDiaryEntry` →
+>    `createSiteDiary`/`updateSiteDiary`; `signOffStageCriterion` → the real
+>    `(…, met: boolean)` signature.
+> 2. **Idempotent replay (the real value):** add an optional `idempotencyKey`
+>    to `createIssue` / `updateIssue` / `addMeetingAction` on **both** the
+>    mobile client args and the server endpoints (typed DTOs + guardrail), with
+>    a **server-side dedupe** keyed on `(projectId, idempotencyKey)` that
+>    returns the prior result on replay (table or unique index + migration —
+>    regenerate the EF snapshot first).
+> 3. **`FULFIL_CHECKLIST_ITEM`:** add it to the `offlineAction` union + a
+>    handler + the endpoint if one doesn't exist.
+>
+> **Decide yourself + record:** idempotency-key retention window; dedupe key
+> shape; replay ordering guarantees; what happens on a permanently-failing
+> replay (dead-letter + surface, don't silently drop). Scope **excludes**
+> issue-pins (that's Prompt 21).
+>
+> **Acceptance:** every offline action maps to a real endpoint; replaying the
+> same `idempotencyKey` twice produces **one** server row (a test proves it);
+> the offlineQueue tsc errors are 0; new server endpoints are typed + under the
+> guardrail; migration reviewed.
+
+## Prompt 21 — Issue-pins: pin an issue to a 3D location (full feature)
+
+> Build the issue-pin feature end-to-end (the BCF-viewpoint analogue: a
+> coordinator pins an issue to a spot/element in the model, others see + delete
+> it). Reason as a BIM coordinator (this is core coordination UX), backend,
+> mobile/Three.js engineer, QA. This is the largest item — build it as its own
+> PR; if mid-build you find it's genuinely contradictory or has no product
+> entry point, build the **minimal coherent end-to-end slice** and flag it in
+> the PR — don't abandon it and don't stop to ask.
+>
+> Build: `IssuePin` entity (`id, projectId, issueId, ifcGlobalId?, x/y/z?,
+> createdBy, createdAt`) + migration (snapshot regen first) + CRUD controller +
+> typed DTOs under the guardrail + mobile client (`placeIssuePin` /
+> `deleteIssuePin` matching the offline-queue signatures) + the 3D
+> tap-to-place/select UI in `ModelViewer.tsx` + the offline actions.
+>
+> **Decide yourself + record:** anchor model (recommend: pin to the element's
+> **`ifcGlobalId`** when tapped on an element, fall back to free world-XYZ on
+> empty space — so pins survive geometry edits where possible); pin visual +
+> max count + clustering; who can delete (creator + coordinator role); offline
+> behaviour. Pick the BCF-style sensible design and ship.
+>
+> **Acceptance:** place/view/delete a pin tied to an element GlobalId (or XYZ),
+> persisted server-side, visible cross-session, offline-queueable with
+> idempotency (Prompt 20); endpoints typed + guarded; migration reviewed;
+> the offlineQueue pin tsc errors are 0.
+
+## Prompt 22 — Healthcare live pressure (`pressure-live.tsx`)
+
+> Make the healthcare live-pressure screen real. Reason as a healthcare
+> estates/BIM lead (HTM 03-01 ventilation pressure-cascade monitoring — this is
+> clinical-safety-adjacent), backend SignalR engineer, mobile.
+>
+> Build:
+> 1. **Payload (free, do regardless):** add the required `roomClass` /
+>    `designRegime` / `source` to the create payload — values exist on the
+>    room/clinical context; wire them through.
+> 2. **Realtime:** investigate the existing `RealtimeClient.connect(projectId)`
+>    + project hub first. **Recommend + build the simplest real design:** when a
+>    `HealthcarePressureLog` is written server-side, **broadcast it to
+>    project-subscribed clients** over the existing hub (add a typed
+>    `HealthcarePressureEvent` DTO under the guardrail); rewrite the mobile
+>    screen to consume that via the real `RealtimeClient`, replacing the
+>    imagined `connect('/hubs/healthcare')→{stop}`. Only build a dedicated
+>    `/hubs/healthcare` if the existing hub genuinely can't carry it — and
+>    record why.
+>
+> **Decide yourself + record:** "live" = broadcast-on-write of the latest
+> pressure-log (the sensible MVP — don't block on building an IoT telemetry
+> pipeline; if `TwinReadback` exists, note it as the future real-time source);
+> hub auth scoping (tenant + project); event shape; reconnect behaviour.
+>
+> **Acceptance:** the screen connects via the real `RealtimeClient` and renders
+> pressure updates pushed on pressure-log writes; payload includes the required
+> fields; the event is a typed DTO under the guardrail; hub access is
+> tenant/project-scoped; the `pressure-live.tsx` tsc errors are 0; a test
+> proves a written pressure-log reaches a subscribed client.
