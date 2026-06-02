@@ -499,3 +499,27 @@ tr:hover td { background: #fafafa; }
 }
 @keyframes toastIn  { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes toastOut { to   { transform: translateY(20px); opacity: 0; } }
+
+/* Site photos gallery (dashboard "Site photos" view) */
+.photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
+.photo-card { padding:0; overflow:hidden; }
+.photo-thumb { aspect-ratio:4/3; background:#eef0f4; display:flex; align-items:center; justify-content:center; }
+.photo-thumb img { width:100%; height:100%; object-fit:cover; cursor:zoom-in; display:block; }
+.photo-spinner, .photo-err { color:#8a8f99; font-size:12px; }
+.photo-meta { padding:8px 10px; }
+.photo-cap { font-weight:600; font-size:13px; }
+.photo-sub { color:#6b7280; font-size:11px; margin-top:2px; }
+.photo-sub a { color:#3a7de8; text-decoration:none; }
+.photo-meta .badge { background:#eceff5; border-radius:8px; padding:1px 6px; font-size:10px; }
+
+/* Site photos — toolbar + capture form */
+.photo-toolbar { display:flex; gap:14px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.photo-toolbar label { font-size:12px; color:#555; display:flex; gap:6px; align-items:center; }
+.photo-toolbar select { padding:4px 6px; }
+.photo-capture { padding:14px; max-width:440px; margin-bottom:14px; display:flex; flex-direction:column; gap:8px; }
+.photo-capture .field { display:flex; flex-direction:column; gap:3px; }
+.photo-capture .field label { font-size:12px; color:#555; }
+.photo-capture input[type=text], .photo-capture select { padding:5px 7px; }
+.photo-capture .capture-row { display:flex; gap:10px; flex-wrap:wrap; }
+.photo-capture .capture-row label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:#555; }
+.photo-capture .capture-gps { font-size:12px; color:#555; display:flex; gap:6px; align-items:center; }

@@ -59,7 +59,9 @@
         res = await fetch(path, Object.assign({}, options, { headers }));
       } else {
         showLogin();
-        throw new Error("unauthenticated");
+        const e = new Error("unauthenticated");
+        e.unauthenticated = true;
+        throw e;
       }
     }
     if (!res.ok) throw new Error("HTTP " + res.status + " " + await res.text());
@@ -84,6 +86,8 @@
 
   function showLogin() {
     document.getElementById("loginOverlay").classList.remove("hidden");
+    const chip = document.getElementById("userChip");
+    if (chip) chip.textContent = "Not signed in";
   }
   function hideLogin() {
     document.getElementById("loginOverlay").classList.add("hidden");
@@ -271,25 +275,52 @@
 
   // ── Boot + router ─────────────────────────────────────────────────────
 
-  async function boot() {
-    document.getElementById("userChip").textContent = localStorage.getItem(USER_KEY) || "";
-    // Phase 169 — pull public runtime config (Mapbox token) before any
-    // view tries to render the map.
-    await loadPublicConfig();
-    try {
-      state.projects = await api("/api/projects");
-    } catch { return; /* showLogin already invoked */ }
-    const picker = document.getElementById("projectPicker");
-    picker.innerHTML = state.projects
-      .map(p => `<option value="${p.id}">${esc(p.name)} (${esc(p.code)})</option>`)
-      .join("");
-    state.projectId = state.projects[0]?.id || null;
-    picker.addEventListener("change", () => { state.projectId = picker.value; Hub.join(state.projectId); render(); });
+  // Wire the persistent chrome (chip, nav links) exactly once. This MUST run
+  // before any network call so the sidebar buttons are always live — even
+  // when the API is unreachable. Previously these handlers were attached
+  // only *after* a successful /api/projects fetch, so a server that was down
+  // (or returned 5xx) left every nav link dead and the chip frozen on
+  // "Signing in…".
+  // Views that can appear in the URL hash. project-dashboard is reachable by
+  // deep-link only (no nav button).
+  const KNOWN_VIEWS = new Set([
+    "overview", "issues", "documents", "transmittals", "meetings", "workflows",
+    "warnings", "models", "photos", "schedule", "cost", "tenant-keywords",
+    "tenant-bim-manager-roles", "project-dashboard",
+  ]);
 
-    // P1-C — open the realtime connection once we have a project context.
-    // Fire-and-forget: rendering must not wait on the SignalR CDN load.
-    Hub.start();
+  // Parse a hash like "#models?project=GUID" into { view, project }.
+  function parseHash() {
+    const h = (location.hash || "").replace(/^#/, "");
+    const [viewPart, queryPart] = h.split("?");
+    const params = new URLSearchParams(queryPart || "");
+    return { view: viewPart || "", project: params.get("project") };
+  }
 
+  // Sync state + active nav link from the URL hash. Called on boot and on
+  // every hashchange so deep-links (incl. the Revit BCC "Open Web Dashboard"
+  // button) land on the right view/project instead of always Overview.
+  function applyHashRoute() {
+    const { view, project } = parseHash();
+    if (project && state.projects.some(p => String(p.id) === String(project))) {
+      state.projectId = project;
+      const picker = document.getElementById("projectPicker");
+      if (picker) picker.value = project;
+    }
+    if (view && KNOWN_VIEWS.has(view)) {
+      state.view = view;
+      document.querySelectorAll(".nav-link").forEach(l => {
+        l.classList.toggle("active", l.dataset.view === view);
+      });
+    }
+  }
+
+  let chromeWired = false;
+  function wireChrome() {
+    if (chromeWired) return;
+    chromeWired = true;
+    const chip = document.getElementById("userChip");
+    if (chip) chip.textContent = localStorage.getItem(USER_KEY) || "Signed in";
     document.querySelectorAll(".nav-link").forEach(link => {
       link.addEventListener("click", (ev) => {
         ev.preventDefault();
@@ -299,6 +330,65 @@
         render();
       });
     });
+    window.addEventListener("hashchange", () => { applyHashRoute(); render(); });
+  }
+
+  // Shown when the API can't be reached (server down, wrong port, CORS,
+  // 5xx). Keeps the chrome alive and gives the user a way back in instead
+  // of a silent freeze.
+  function renderServerUnreachable(err) {
+    const chip = document.getElementById("userChip");
+    if (chip) chip.textContent = "Offline";
+    const main = document.getElementById("main");
+    if (!main) return;
+    main.innerHTML = `
+      <div class="greeting-strip">
+        <div>
+          <h2>Can't reach the Planscape server</h2>
+          <div class="summary">The dashboard loaded, but the API at
+            <code>${esc(location.origin)}/api</code> didn't respond. Make sure the
+            Planscape server is running (e.g. <code>docker compose up -d</code> in
+            <code>Planscape.Server/docker</code>), then retry.</div>
+          <div class="summary" style="margin-top:6px;opacity:.7">${esc(String(err && err.message || err || ""))}</div>
+        </div>
+        <div class="actions">
+          <button id="btnRetryBoot" class="btn-primary">↻ Retry</button>
+          <button id="btnReLogin" class="ghost">Sign in again</button>
+        </div>
+      </div>`;
+    const retry = document.getElementById("btnRetryBoot");
+    if (retry) retry.onclick = () => { state.projectId = null; boot().catch(() => {}); };
+    const relog = document.getElementById("btnReLogin");
+    if (relog) relog.onclick = () => { clearTokens(); showLogin(); };
+  }
+
+  async function boot() {
+    wireChrome();
+    // Phase 169 — pull public runtime config (Mapbox token) before any
+    // view tries to render the map. Non-fatal on its own.
+    await loadPublicConfig();
+    try {
+      state.projects = await api("/api/projects");
+    } catch (e) {
+      // 401 path already invoked showLogin() inside api(); anything else is a
+      // server-reachability problem — show it instead of freezing.
+      if (!(e && e.unauthenticated)) renderServerUnreachable(e);
+      return;
+    }
+    const picker = document.getElementById("projectPicker");
+    picker.innerHTML = state.projects
+      .map(p => `<option value="${p.id}">${esc(p.name)} (${esc(p.code)})</option>`)
+      .join("");
+    state.projectId = state.projects[0]?.id || null;
+    picker.onchange = () => { state.projectId = picker.value; Hub.join(state.projectId); render(); };
+
+    // Honour any deep-link in the URL hash (view + project) before first paint.
+    applyHashRoute();
+
+    // P1-C — open the realtime connection once we have a project context.
+    // Fire-and-forget: rendering must not wait on the SignalR CDN load.
+    Hub.start();
+
     render();
   }
 
@@ -338,6 +428,7 @@
         case "workflows":    await renderList(main, `Workflow runs`, `/api/projects/${state.projectId}/workflows/history`, workflowColumns); break;
         case "warnings":     await renderList(main, `Warnings`, `/api/projects/${state.projectId}/warnings/trend`, warningColumns); break;
         case "models":       await renderModels(main); break;
+        case "photos":       await renderPhotos(main); break;
         case "schedule":     await renderList(main, `Schedule`, `/api/projects/${state.projectId}/schedule`, scheduleColumns); break;
         case "cost":         await renderCost(main); break;
         // Phase 152 — admin: tenant keyword extensions for the
@@ -1219,7 +1310,7 @@
   }
 
   async function renderModels(main) {
-    const rows = await api(`/api/projects/${state.projectId}/models`);
+    const rows = (await api(`/api/projects/${state.projectId}/models`)) || [];
     main.innerHTML = `
       <h1>3D models</h1>
       ${rows.length === 0 ? `<div class="empty">No models published yet. Use the Revit plugin's "Publish Model to Planscape" command.</div>` : ""}
@@ -1247,6 +1338,181 @@
     main.querySelectorAll('[data-action="delete"]').forEach(b => {
       b.onclick = () => openDeleteModelModal(main, { id: b.dataset.id, name: b.dataset.name });
     });
+  }
+
+  // Site photos — gallery over the existing /photos API. Photo bytes are
+  // auth-gated, so a bare <img src> can't carry the Bearer token; each tile
+  // lazy-fetches the file as a blob on scroll-into-view and swaps in an
+  // object URL (the same pattern the coordination viewer uses for models).
+  const PHOTO_REASONS = ["Reference", "Progress", "Defect", "Safety", "QA", "Handover"];
+
+  async function renderPhotos(main) {
+    main.innerHTML = `
+      <h1>Site photos</h1>
+      <div class="photo-toolbar">
+        <label>Album
+          <select id="photoAlbum"><option value="">All photos</option></select>
+        </label>
+        <button id="photoUploadBtn" class="btn-primary">＋ Upload photo</button>
+      </div>
+      <div id="photoUploadMount"></div>
+      <div id="photoGrid"><div class="empty">Loading…</div></div>`;
+
+    // Album dropdown (non-blocking).
+    api(`/api/projects/${state.projectId}/photo-albums`).then(albums => {
+      const list = Array.isArray(albums) ? albums : (albums && albums.items) || [];
+      const sel = document.getElementById("photoAlbum");
+      if (!sel) return;
+      list.forEach(a => {
+        const o = document.createElement("option");
+        o.value = a.id;
+        o.textContent = `${a.name}${a.photoCount != null ? " (" + a.photoCount + ")" : ""}`;
+        sel.appendChild(o);
+      });
+      sel.onchange = () => loadPhotoGrid(sel.value);
+    }).catch(() => {});
+
+    document.getElementById("photoUploadBtn").onclick = () => openCaptureForm();
+    await loadPhotoGrid("");
+  }
+
+  // Render the grid for "all photos" (albumId empty) or a single album.
+  async function loadPhotoGrid(albumId) {
+    const grid = document.getElementById("photoGrid");
+    if (!grid) return;
+    grid.innerHTML = `<div class="empty">Loading…</div>`;
+    try {
+      let items;
+      if (albumId) {
+        const a = await api(`/api/projects/${state.projectId}/photo-albums/${albumId}`);
+        items = (a && a.photos) || [];
+      } else {
+        const data = await api(`/api/projects/${state.projectId}/photos?pageSize=60`);
+        items = (data && data.items) || [];
+      }
+      grid.innerHTML = items.length === 0
+        ? `<div class="empty">No photos here yet. Capture from the mobile app or use “Upload photo”.</div>`
+        : `<div class="photo-grid">${items.map(photoCard).join("")}</div>`;
+      lazyLoadPhotos(grid);
+    } catch (e) {
+      grid.innerHTML = `<div class="empty">Could not load photos: ${esc(String(e))}</div>`;
+    }
+  }
+
+  // Capture-from-web: multipart POST to /photos/capture (the same endpoint
+  // the mobile app uses). Best-effort browser geolocation tags lat/long.
+  function openCaptureForm() {
+    const mount = document.getElementById("photoUploadMount");
+    if (!mount) return;
+    mount.innerHTML = `
+      <div class="card photo-capture">
+        <div class="field"><label>Photo</label><input type="file" id="capFile" accept="image/*" capture="environment" /></div>
+        <div class="field"><label>Caption</label><input type="text" id="capCaption" placeholder="What does this show?" /></div>
+        <div class="capture-row">
+          <label>Reason<select id="capReason">${PHOTO_REASONS.map(r => `<option>${r}</option>`).join("")}</select></label>
+          <label>Level<input type="text" id="capLevel" placeholder="L02" /></label>
+          <label>Zone<input type="text" id="capZone" placeholder="Z01" /></label>
+        </div>
+        <label class="capture-gps"><input type="checkbox" id="capGps" checked /> Tag GPS location</label>
+        <div class="actions">
+          <button class="btn-cancel" id="capCancel">Cancel</button>
+          <button class="btn-primary" id="capSubmit">Upload</button>
+        </div>
+        <p id="capStatus" class="error"></p>
+      </div>`;
+    document.getElementById("capCancel").onclick = () => { mount.innerHTML = ""; };
+    document.getElementById("capSubmit").onclick = submitCapture;
+  }
+
+  async function submitCapture() {
+    const fileEl = document.getElementById("capFile");
+    const status = document.getElementById("capStatus");
+    const btn = document.getElementById("capSubmit");
+    status.textContent = "";
+    const file = fileEl && fileEl.files && fileEl.files[0];
+    if (!file) { status.textContent = "Pick an image first."; return; }
+    btn.disabled = true; btn.textContent = "Uploading…";
+    try {
+      const fd = new FormData();
+      fd.append("File", file, file.name);
+      fd.append("Reason", document.getElementById("capReason").value || "Reference");
+      const cap = document.getElementById("capCaption").value.trim(); if (cap) fd.append("Caption", cap);
+      const lvl = document.getElementById("capLevel").value.trim();   if (lvl) fd.append("LevelCode", lvl);
+      const zone = document.getElementById("capZone").value.trim();   if (zone) fd.append("ZoneCode", zone);
+      fd.append("Source", "web");
+      if (document.getElementById("capGps").checked) {
+        const pos = await getGeo().catch(() => null);
+        if (pos) { fd.append("Latitude", String(pos.lat)); fd.append("Longitude", String(pos.lng)); if (pos.acc) fd.append("AccuracyM", String(pos.acc)); }
+      }
+      const res = await fetch(`/api/projects/${state.projectId}/photos/capture`, {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + getToken() }, // no Content-Type — browser sets the multipart boundary
+        body: fd,
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status + " " + await res.text());
+      document.getElementById("photoUploadMount").innerHTML = "";
+      const sel = document.getElementById("photoAlbum");
+      await loadPhotoGrid(sel ? sel.value : "");
+    } catch (e) {
+      btn.disabled = false; btn.textContent = "Upload";
+      status.textContent = "Upload failed — check permissions and try again.";
+    }
+  }
+
+  function getGeo() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject();
+      navigator.geolocation.getCurrentPosition(
+        p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }),
+        reject, { enableHighAccuracy: true, timeout: 8000 });
+    });
+  }
+
+  function photoCard(p) {
+    const when = fmtDate(p.capturedAt);
+    const where = [p.levelCode, p.zoneCode].filter(Boolean).join(" · ");
+    const gps = (p.latitude != null && p.longitude != null)
+      ? `<a href="https://maps.google.com/?q=${p.latitude},${p.longitude}" target="_blank" rel="noopener">📍 ${Number(p.latitude).toFixed(5)}, ${Number(p.longitude).toFixed(5)}</a>`
+      : "";
+    const aud = p.audience ? `<span class="badge">${esc(p.audience)}</span>` : "";
+    return `
+      <div class="card photo-card">
+        <div class="photo-thumb" data-photo-id="${esc(p.id)}"><div class="photo-spinner">Loading…</div></div>
+        <div class="photo-meta">
+          <div class="photo-cap">${esc(p.caption || "(no caption)")}</div>
+          <div class="photo-sub">${esc(when)}${where ? " · " + esc(where) : ""} ${aud}</div>
+          ${gps ? `<div class="photo-sub">${gps}</div>` : ""}
+        </div>
+      </div>`;
+  }
+
+  function lazyLoadPhotos(main) {
+    const tiles = Array.from(main.querySelectorAll(".photo-thumb[data-photo-id]"));
+    if (tiles.length === 0) return;
+    const load = async (tile) => {
+      const id = tile.getAttribute("data-photo-id");
+      if (!id) return;
+      tile.removeAttribute("data-photo-id"); // handled once
+      try {
+        const res = await fetch(`/api/projects/${state.projectId}/photos/${id}/file`,
+          { headers: { Authorization: "Bearer " + getToken() } });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const obj = URL.createObjectURL(await res.blob());
+        const img = document.createElement("img");
+        img.src = obj; img.alt = ""; img.onclick = () => window.open(obj, "_blank");
+        tile.innerHTML = ""; tile.appendChild(img);
+      } catch (e) {
+        tile.innerHTML = `<div class="photo-err">⚠ unavailable</div>`;
+      }
+    };
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(en => { if (en.isIntersecting) { io.unobserve(en.target); load(en.target); } });
+      }, { rootMargin: "200px" });
+      tiles.forEach(t => io.observe(t));
+    } else {
+      tiles.forEach(load);
+    }
   }
 
   // Wrong-model rescue: the Revit plugin SHA-256-dedups uploads, so a
