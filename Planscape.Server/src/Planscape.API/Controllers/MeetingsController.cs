@@ -557,6 +557,21 @@ public class MeetingsController : ControllerBase
         if (meeting == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
+        // Offline-replay dedupe (Prompt 18) — a replayed add for the same
+        // X-Idempotency-Key returns the original action item, not a duplicate.
+        var idemKey = Planscape.API.Services.IdempotencyGuard.KeyFrom(Request);
+        if (idemKey != null)
+        {
+            var priorId = await Planscape.API.Services.IdempotencyGuard
+                .SeenResultAsync(_db, tenantId, "meeting.action", idemKey);
+            if (priorId is Guid pid)
+            {
+                var prior = await _db.MeetingActionItems
+                    .FirstOrDefaultAsync(a => a.Id == pid && a.MeetingId == meetingId);
+                if (prior != null) return Ok(prior);
+            }
+        }
+
         // Resolve assignee by UserId or email
         AppUser? assigneeUser = null;
         if (req.AssigneeUserId.HasValue)
@@ -582,6 +597,10 @@ public class MeetingsController : ControllerBase
 
         _db.MeetingActionItems.Add(item);
         await _db.SaveChangesAsync();
+
+        if (idemKey != null)
+            await Planscape.API.Services.IdempotencyGuard
+                .RecordAsync(_db, tenantId, "meeting.action", idemKey, item.Id);
 
         // Push assignment notification to resolved user
         if (assigneeUser != null)

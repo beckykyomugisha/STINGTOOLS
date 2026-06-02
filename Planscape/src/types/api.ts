@@ -26,6 +26,8 @@ export interface UserProfile {
   tier: string;
   mimEnabled?: boolean;
   lastLoginAt?: string;
+  // Sent by the server profile endpoint (AuthController: `tenantName = u.Tenant!.Name`).
+  tenantName?: string;
 }
 
 export interface Project {
@@ -239,14 +241,16 @@ export interface OfflineAction {
    *
    *   CREATE_ISSUE / UPDATE_ISSUE / TRANSITION_CDE / ATTACH_PHOTO
    *   POST_COMMENT       — issue comments
-   *   PIN_PLACE          — 3D issue pins
-   *   PIN_DELETE
    *   ADD_MEETING_ACTION — meeting action items
    *   UPDATE_MEETING_ACTION
    *   DIARY_ENTRY        — daily site diary entries
    *   STAGE_SIGNOFF      — stage-gate criterion sign-off
    *   ATTACH_AUDIO       — voice notes (S6.1)
    *   ATTACH_MARKUP      — 3D markup polylines (S6.2)
+   *
+   * DEFERRED (see docs/MOBILE_DEFERRED_FEATURES.md): PIN_PLACE / PIN_DELETE
+   * (3D issue pins) were removed — no pin CRUD endpoint exists yet, and no
+   * screen enqueued them. Re-add when the pin endpoints land.
    */
   type:
     | 'CREATE_ISSUE'
@@ -254,8 +258,6 @@ export interface OfflineAction {
     | 'TRANSITION_CDE'
     | 'ATTACH_PHOTO'
     | 'POST_COMMENT'
-    | 'PIN_PLACE'
-    | 'PIN_DELETE'
     | 'ADD_MEETING_ACTION'
     | 'UPDATE_MEETING_ACTION'
     | 'DIARY_ENTRY'
@@ -344,6 +346,16 @@ export interface WarningRecord {
   description: string;
   elementId?: string;
   createdAt: string;
+  // Per-warning detail fields read by app/warnings/index.tsx. These are
+  // optional + guarded at the call site: the current server `GET /warnings`
+  // route returns a compliance-snapshot TREND, not per-warning records, so
+  // none of the detail fields are emitted yet (see FINDINGS — warnings
+  // contract gap). Typed here to match what the screen consumes without
+  // asserting the server sends them.
+  elementCount?: number;
+  autoFixStrategy?: string;
+  firstSeen?: string;
+  discipline?: string;
 }
 
 export interface ProjectSettings {

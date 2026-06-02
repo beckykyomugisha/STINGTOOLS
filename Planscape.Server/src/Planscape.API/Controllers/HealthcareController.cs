@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 
 namespace Planscape.API.Controllers;
 
@@ -20,7 +22,12 @@ namespace Planscape.API.Controllers;
 public class HealthcareController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
-    public HealthcareController(PlanscapeDbContext db) { _db = db; }
+    private readonly IHubContext<HealthcareHub> _hub;
+    public HealthcareController(PlanscapeDbContext db, IHubContext<HealthcareHub> hub)
+    {
+        _db = db;
+        _hub = hub;
+    }
 
     // ── Dashboard aggregator ─────────────────────────────────────────
     [HttpGet("dashboard")]
@@ -79,6 +86,24 @@ public class HealthcareController : ControllerBase
         body.ProjectId = projectId;
         _db.Set<HealthcarePressureLog>().Add(body);
         await _db.SaveChangesAsync();
+
+        // HC-22 — push the reading live to mobile clients subscribed to this
+        // project's /hubs/healthcare group (pressure-live.tsx). The hub +
+        // broadcast helper already existed; this is the missing call site.
+        await HealthcareHub.BroadcastPressureReading(_hub, projectId.ToString(), new PressureReadingDto
+        {
+            ProjectId = projectId.ToString(),
+            RoomId = body.RoomBimId,
+            RoomName = body.RoomName,
+            RoomClass = body.RoomClass,
+            DesignRegime = body.DesignRegime,
+            DesignDeltaPa = (int)body.DesignDeltaPa,
+            LiveDeltaPa = body.LiveDeltaPa,
+            InBand = body.InBand,
+            Source = "MANUAL",
+            CapturedAt = body.CapturedAt.ToString("O"),
+        });
+
         return Created($"api/projects/{projectId}/healthcare/pressure-log/{body.Id}", body);
     }
 

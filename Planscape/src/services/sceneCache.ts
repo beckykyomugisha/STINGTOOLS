@@ -14,7 +14,9 @@
 // time the app sees a network connection so morning-of-site visit is
 // instant. Triggered from the dashboard tile.
 
-import * as FileSystem from 'expo-file-system';
+// SDK 54 moved the classic FS API (cacheDirectory, getInfoAsync, downloadAsync,
+// …) to the /legacy entrypoint — same pattern as src/utils/offlineQueue.ts.
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const META_KEY  = 'planscape_scene_cache';

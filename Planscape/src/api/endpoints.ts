@@ -199,22 +199,28 @@ export function _resetXktCache(): void {
 
 export function createIssue(
   projectId: string,
-  issue: Partial<BimIssue>
+  issue: Partial<BimIssue> & { idempotencyKey?: string }
 ): Promise<BimIssue> {
+  // idempotencyKey (offline-replay dedupe) travels as a header, not a body
+  // field — the server dedupes on X-Idempotency-Key per (tenant, endpoint).
+  const { idempotencyKey, ...body } = issue;
   return apiFetch(`/api/projects/${projectId}/issues`, {
     method: 'POST',
-    body: JSON.stringify(issue),
+    body: JSON.stringify(body),
+    headers: idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : undefined,
   });
 }
 
 export function updateIssue(
   projectId: string,
   issueId: string,
-  updates: Partial<BimIssue>
+  updates: Partial<BimIssue> & { idempotencyKey?: string }
 ): Promise<BimIssue> {
+  const { idempotencyKey, ...body } = updates;
   return apiFetch(`/api/projects/${projectId}/issues/${issueId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
+    body: JSON.stringify(body),
+    headers: idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : undefined,
   });
 }
 
@@ -728,12 +734,15 @@ export function deleteMeetingAgendaItem(projectId: string, meetingId: string, it
 
 // ── Action Items ─────────────────────────────────────────────────────────────
 
-export function addMeetingAction(projectId: string, meetingId: string, body: {
+export function addMeetingAction(projectId: string, meetingId: string, arg: {
   description: string; assignee?: string; assigneeEmail?: string;
   assigneeUserId?: string; dueDate?: string; priority?: string; notes?: string;
+  idempotencyKey?: string;
 }): Promise<MeetingActionItem> {
+  const { idempotencyKey, ...body } = arg;
   return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/actions`, {
     method: 'POST', body: JSON.stringify(body),
+    headers: idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : undefined,
   });
 }
 

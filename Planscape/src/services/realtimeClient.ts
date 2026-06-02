@@ -172,3 +172,40 @@ export class RealtimeClient {
 }
 
 export const realtime = new RealtimeClient();
+
+// ── Per-hub connector ────────────────────────────────────────────────────
+// Lightweight wrapper for screens that need a raw connection to a SPECIFIC
+// hub (e.g. healthcare live-pressure → /hubs/healthcare), distinct from the
+// app-wide coordination `realtime` singleton above. Returns a minimal
+// {on,invoke,stop} surface so callers don't depend on the signalR types.
+
+/** Server origin (HUB_URL minus its hub path) so sibling hubs can be reached. */
+function hubOrigin(): string {
+  return HUB_URL.replace(/\/hubs\/.*$/, '');
+}
+
+export interface HubConnectionLike {
+  on(event: string, handler: (...args: any[]) => void): void;
+  invoke(method: string, ...args: any[]): Promise<unknown>;
+  stop(): void;
+}
+
+export const realtimeClient = {
+  /** Connect to a hub by path (e.g. '/hubs/healthcare') and start it. */
+  async connect(hubPath: string): Promise<HubConnectionLike> {
+    const token = await secureStorage.getToken();
+    const url = `${hubOrigin()}${hubPath}` +
+      (token ? `?access_token=${encodeURIComponent(token)}` : '');
+    const conn = new signalR.HubConnectionBuilder()
+      .withUrl(url)
+      .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
+    await conn.start();
+    return {
+      on: (event, handler) => conn.on(event, handler),
+      invoke: (method, ...args) => conn.invoke(method, ...args),
+      stop: () => { conn.stop().catch(() => {}); },
+    };
+  },
+};

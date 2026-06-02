@@ -124,6 +124,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<MeetingAgendaItem> MeetingAgendaItems => Set<MeetingAgendaItem>();
     public DbSet<MeetingActionItem> MeetingActionItems => Set<MeetingActionItem>();
     public DbSet<Transmittal> Transmittals => Set<Transmittal>();
+    public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
     public DbSet<AccessProfile> AccessProfiles => Set<AccessProfile>();
@@ -301,6 +302,14 @@ public class PlanscapeDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // ── IdempotencyRecord — offline-replay dedupe (Prompt 18).
+        //    Unique on (TenantId, Scope, Key) so a replayed write resolves to
+        //    its original ResultId instead of creating a duplicate.
+        modelBuilder.Entity<IdempotencyRecord>(e =>
+        {
+            e.HasIndex(x => new { x.TenantId, x.Scope, x.Key }).IsUnique();
+        });
 
         // ── PhotoAlbumPhoto (album↔photo join) — composite key, no surrogate Id.
         //    EF convention can't infer a key for a keyless join entity, so

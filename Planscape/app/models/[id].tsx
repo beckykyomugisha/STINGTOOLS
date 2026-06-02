@@ -41,6 +41,7 @@ export default function ModelViewerScreen() {
   const [walkActive, setWalkActive] = useState(false);
   const [sectionEnabled, setSectionEnabled] = useState(false);
   const [heatmapActive, setHeatmapActive] = useState(false);
+  const [viewerReady, setViewerReady] = useState(false);
 
   useEffect(() => {
     if (!projectId || !id) return;

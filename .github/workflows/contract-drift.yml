@@ -1,7 +1,7 @@
 name: Wire-Contract Drift Gate
 
 # Stops the per-client wire-shape drift that produced Drifts 1/2/4/5 from
-# recurring. Two jobs make up the gate:
+# recurring. Three jobs make up the gate:
 #
 #   1. server-build — `dotnet build` of Planscape.sln. A server DTO rename that
 #      breaks a controller (or any compile error in the new contract DTOs) fails
@@ -18,11 +18,12 @@ name: Wire-Contract Drift Gate
 #      asserts the client's `_element_to_wire` output is a subset of the real DTO
 #      members — so it needs neither a running server nor a generated OpenAPI doc.
 #
-# The mobile `TaggedElement` conformance test (Planscape/src/api/__typetests__/
-# taggedElement.typetest.ts) is intentionally NOT wired in yet: it runs via
-# `tsc --noEmit` over the whole mobile project, which is red on a pre-existing
-# baseline (tracked by Prompt 14). Add a mobile typecheck step to this gate only
-# after that baseline is cleared — otherwise the gate can never go green.
+#   3. mobile-typecheck — `tsc --noEmit` over the whole Planscape/ app. The mobile
+#      api/types are hand-maintained against the server wire shape, so a TS error
+#      here catches client-ahead-of-server drift (e.g. reading a field the server
+#      doesn't send). The pre-existing 111-error baseline was driven to 0 across
+#      Prompts 17–18, so this gate can finally go green and stay green; it triggers
+#      on Planscape/** (the mobile tree only — Planscape.Server/** does not match).
 #
 # CRUCIAL: this workflow triggers on the SERVER DTO + controller paths as well as
 # the client paths — that is what makes a server-only DTO rename fail CI (the
@@ -38,6 +39,7 @@ on:
       - 'Planscape.Server/src/Planscape.API/Controllers/**'
       - 'stingtools-core/python/**'
       - 'StingBridge/**'
+      - 'Planscape/**'
       - '.github/workflows/contract-drift.yml'
   pull_request:
     paths:
@@ -46,6 +48,7 @@ on:
       - 'Planscape.Server/src/Planscape.API/Controllers/**'
       - 'stingtools-core/python/**'
       - 'StingBridge/**'
+      - 'Planscape/**'
       - '.github/workflows/contract-drift.yml'
   workflow_dispatch:
 
@@ -104,3 +107,30 @@ jobs:
         # revitElementId; ifcGlobalId/hostElementId on the wire) via the SHARED
         # _element_to_wire, not a local copy.
         run: python StingBridge/tests/test_ifc_ingest.py
+
+  mobile-typecheck:
+    name: Mobile typecheck (tsc --noEmit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: Planscape
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Planscape/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Typecheck
+        # tsc --noEmit over the whole mobile app. Baseline cleared to 0 in
+        # Prompts 17–18; keeps mobile api/types from silently drifting off the
+        # server wire shape.
+        run: npm run typecheck

@@ -37,7 +37,7 @@ import {
   reasonAutoCreatesIssue,
   type ClassifierContext,
 } from '@/components/site-photos/classifier';
-import { captureSitePhoto, getSpatialStructure, type SpatialStructure } from '@/api/endpoints';
+import { captureSitePhoto, getSpatialStructure, fulfilChecklistItem, type SpatialStructure } from '@/api/endpoints';
 import { enqueue, persistPhotoForQueue, queuedPhotoStats } from '@/utils/offlineQueue';
 import { computePairKey } from '@/services/imageService';
 import { AudioRecorder } from '@/components/AudioRecorder';
@@ -92,6 +92,7 @@ export default function CaptureSitePhotoScreen() {
   const [saving, setSaving] = useState(false);
   const [queuedHint, setQueuedHint] = useState<string | null>(null);
   const [pairKey, setPairKey] = useState<string | null>(null);
+  const [spatialData, setSpatialData] = useState<SpatialStructure | null>(null);
 
   const cameraRef = useRef<CameraView | null>(null);
 
@@ -264,8 +265,9 @@ export default function CaptureSitePhotoScreen() {
           uri: shot.uri,
           fileName: `site-photo-${Date.now()}.jpg`,
           contentType: 'image/jpeg',
-          meta: { ...meta, queuedClient: false },
-          pairKey: pairKey ?? undefined,
+          // pairKey belongs inside meta — captureSitePhoto reads args.meta.pairKey
+          // (it was previously a top-level prop the endpoint ignored).
+          meta: { ...meta, queuedClient: false, pairKey: pairKey ?? undefined },
         });
         // Phase 179.2 — auto-link to the originating checklist item.
         let fulfilNote = '';

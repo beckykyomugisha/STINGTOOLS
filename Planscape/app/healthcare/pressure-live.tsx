@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useProjectStore } from '@/stores/projectStore';
 import { enqueue } from '@/utils/offlineQueue';
+import type { HealthcarePressureLog } from '@/api/endpoints';
 
 type RoomPressure = {
   roomId: string;
@@ -22,13 +23,17 @@ async function logPressureReading(
   projectId: string,
   roomId: string,
   roomName: string,
+  roomClass: string,
+  designRegime: RoomPressure['designRegime'],
   liveDeltaPa: number,
   designDeltaPa: number,
   inBand: boolean,
 ): Promise<void> {
-  const payload = {
+  const payload: HealthcarePressureLog = {
     roomBimId: roomId,
     roomName,
+    roomClass,
+    designRegime,
     designDeltaPa,
     liveDeltaPa,
     inBand,

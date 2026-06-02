@@ -12,9 +12,8 @@
 //   await client.disconnect();
 
 import * as signalR from '@microsoft/signalr';
-import { getBaseUrl } from '../api/client';
+import { getBaseUrl, apiFetch } from '../api/client';
 import { secureStorage } from './secureStorage';
-import { apiClient } from './apiClient';
 
 export interface ArchiCADElement {
   kind:         'Added' | 'Changed' | 'Deleted';
@@ -90,7 +89,7 @@ export class ArchiCADLiveClient {
   /** Fetch and replay the server-side ArchiCAD event ring buffer. */
   private async _fetchRecentEvents(projectId: string): Promise<void> {
     try {
-      const data = await apiClient.get<{ events: ArchiCADElement[] }>(
+      const data = await apiFetch<{ events: ArchiCADElement[] }>(
         `/api/archicad/${projectId}/events/recent?count=200`
       );
       if (data?.events?.length) {

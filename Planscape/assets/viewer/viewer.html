@@ -991,6 +991,22 @@
     highlightedMesh = null; originalMat = null;
   }
 
+  // Find the mesh stamped with this element GUID (assignElementIds writes
+  // userData.elementGuid on every mesh), highlight it, and frame the camera
+  // on its bounding box. Backs ModelViewerHandle.selectAndZoom — used to jump
+  // an issue's linked element into view when the issue opens.
+  function selectAndZoomByGuid(guid) {
+    if (!guid) return;
+    var found = null;
+    scene.traverse(function (obj) {
+      if (!found && obj.isMesh && obj.userData && obj.userData.elementGuid === guid) found = obj;
+    });
+    if (!found) return;
+    highlight(found);
+    var box = new THREE.Box3().setFromObject(found);
+    if (!box.isEmpty()) fitCamera(box);
+  }
+
   function addMeasurePoint(hit) {
     const p = hit.point.clone();
     measurePoints.push(p);
@@ -1049,6 +1065,7 @@
       case 'fit':              fitCamera(); break;
       case 'clearMeasure':     clearMeasure(); break;
       case 'clearHighlight':   clearHighlight(); break;
+      case 'selectAndZoom':    selectAndZoomByGuid(cmd.payload && cmd.payload.guid); break;
       case 'addPin':           addPin(cmd.payload); break;
       case 'setPins':          clearPins(); (cmd.payload || []).forEach(addPin); break;
       case 'clearPins':        clearPins(); break;

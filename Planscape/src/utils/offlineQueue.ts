@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { createIssue, updateIssue, transitionCDE, uploadIssueAttachment, captureSitePhoto } from '@/api/endpoints';
-import type { DeliverableUpsertArgs } from '@/api/endpoints';
+import type { DeliverableUpsertArgs, CreateSiteDiaryRequest } from '@/api/endpoints';
 import type { OfflineAction, SitePhotoCaptureMeta } from '@/types/api';
 
 const QUEUE_KEY = 'planscape_offline_queue';
@@ -154,7 +154,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
     case 'CREATE_ISSUE':
       await createIssue(
         p.projectId as string,
-        { ...(p.issue as Record<string, unknown>), idempotencyKey: p.idempotencyKey }
+        { ...(p.issue as Record<string, unknown>), idempotencyKey: p.idempotencyKey as string | undefined }
       );
       break;
 
@@ -162,7 +162,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
       await updateIssue(
         p.projectId as string,
         p.issueId as string,
-        { ...(p.updates as Record<string, unknown>), idempotencyKey: p.idempotencyKey }
+        { ...(p.updates as Record<string, unknown>), idempotencyKey: p.idempotencyKey as string | undefined }
       );
       break;
 
@@ -194,34 +194,28 @@ async function replayAction(action: OfflineAction): Promise<void> {
     // module; the modules add the `idempotencyKey` header on every call so
     // a retried action can't double-apply.
     case 'POST_COMMENT': {
-      const { postIssueComment } = await import('@/api/endpoints');
-      await postIssueComment(
+      // Aligned to the real endpoint addIssueComment(projectId, issueId, body,
+      // mentionedUserId?) — the imagined postIssueComment({body,idempotencyKey})
+      // never existed. Comment replay is at-least-once (idempotency for comments
+      // is out of the current build scope).
+      const { addIssueComment } = await import('@/api/endpoints');
+      await addIssueComment(
         p.projectId as string,
         p.issueId as string,
-        { body: p.body as string, idempotencyKey: p.idempotencyKey as string },
+        p.body as string,
+        p.mentionedUserId as string | undefined,
       );
       break;
     }
-    case 'PIN_PLACE': {
-      const { placeIssuePin } = await import('@/api/endpoints');
-      await placeIssuePin(p.projectId as string, p.issueId as string, {
-        modelId: p.modelId as string,
-        x: p.x as number, y: p.y as number, z: p.z as number,
-        elementGuid: p.elementGuid as string | undefined,
-        idempotencyKey: p.idempotencyKey as string,
-      });
-      break;
-    }
-    case 'PIN_DELETE': {
-      const { deleteIssuePin } = await import('@/api/endpoints');
-      await deleteIssuePin(p.projectId as string, p.issueId as string, p.pinId as string);
-      break;
-    }
+    // TODO(offline-pins): PIN_PLACE / PIN_DELETE offline replay is deferred —
+    // there is no issue-pin CRUD endpoint anywhere (client or server). The pin
+    // actions were removed from the OfflineAction union; re-add the cases here
+    // once pin endpoints land. See docs/MOBILE_DEFERRED_FEATURES.md.
     case 'ADD_MEETING_ACTION': {
       const { addMeetingAction } = await import('@/api/endpoints');
       await addMeetingAction(p.projectId as string, p.meetingId as string, {
-        ...(p.action as Record<string, unknown>),
-        idempotencyKey: p.idempotencyKey as string,
+        ...(p.action as Parameters<typeof addMeetingAction>[2]),
+        idempotencyKey: p.idempotencyKey as string | undefined,
       });
       break;
     }
@@ -234,18 +228,26 @@ async function replayAction(action: OfflineAction): Promise<void> {
       break;
     }
     case 'DIARY_ENTRY': {
-      const { upsertDiaryEntry } = await import('@/api/endpoints');
-      await upsertDiaryEntry(p.projectId as string, {
-        ...(p.entry as Record<string, unknown>),
-        idempotencyKey: p.idempotencyKey as string,
-      });
+      // Aligned to the real site-diary endpoints — the imagined
+      // upsertDiaryEntry() never existed. Route to update when the queued
+      // payload carries a diaryId, else create.
+      const { createSiteDiary, updateSiteDiary } = await import('@/api/endpoints');
+      const entry = p.entry as CreateSiteDiaryRequest;
+      const diaryId = p.diaryId as string | undefined;
+      if (diaryId) await updateSiteDiary(p.projectId as string, diaryId, entry);
+      else await createSiteDiary(p.projectId as string, entry);
       break;
     }
     case 'STAGE_SIGNOFF': {
+      // Aligned to the real signature signOffStageCriterion(..., met: boolean,
+      // { comment }) — the queue previously passed an unsupported {decision,…}
+      // object. Map the decision string to the met boolean.
       const { signOffStageCriterion } = await import('@/api/endpoints');
+      const met = p.decision === true || p.decision === 'MET' || p.decision === 'met'
+        || p.decision === 'PASS' || p.decision === 'pass';
       await signOffStageCriterion(
         p.projectId as string, p.gateId as string, p.criterionId as string,
-        { decision: p.decision as string, comment: p.comment as string | undefined },
+        met, { comment: p.comment as string | undefined },
       );
       break;
     }
@@ -307,16 +309,13 @@ async function replayAction(action: OfflineAction): Promise<void> {
       try { await FileSystem.deleteAsync(localUri, { idempotent: true }); } catch { /* ignore */ }
       break;
     }
-    case 'FULFIL_CHECKLIST_ITEM': {
-      const { fulfilChecklistItem } = await import('@/api/endpoints');
-      await fulfilChecklistItem(
-        p.projectId as string,
-        p.checklistId as string,
-        p.itemId as string,
-        p.photoId as string,
-      );
-      break;
-    }
+    // TODO(offline-checklist): standalone FULFIL_CHECKLIST_ITEM offline replay
+    // is deferred — it was never a member of the OfflineAction union and no
+    // screen enqueues it. (Checklist fulfilment still happens inline after a
+    // queued CAPTURE_SITE_PHOTO lands — see the CAPTURE_SITE_PHOTO case above —
+    // which is the only path that ships today.) Re-add a dedicated case +
+    // union member here if standalone offline fulfilment is needed.
+    // See docs/MOBILE_DEFERRED_FEATURES.md.
 
     // T3-17 — deliverable CRUD + transition.
     case 'CREATE_DELIVERABLE': {

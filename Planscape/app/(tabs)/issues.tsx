@@ -1021,7 +1021,7 @@ export default function IssuesScreen() {
         <MemberPicker
           visible={bulkAssignVisible}
           projectId={activeProject.id}
-          onSelect={bulkReassign}
+          onSelect={(member) => { if (member) bulkReassign(member); }}
           onClose={() => setBulkAssignVisible(false)}
         />
       )}
@@ -1032,9 +1032,11 @@ export default function IssuesScreen() {
           visible={showWatcherPicker}
           projectId={activeProject.id}
           onSelect={(member) => {
-            setNewWatchers(prev =>
-              prev.some(w => w.userId === member.userId) ? prev : [...prev, member]
-            );
+            if (member) {
+              setNewWatchers(prev =>
+                prev.some(w => w.userId === member.userId) ? prev : [...prev, member]
+              );
+            }
             setShowWatcherPicker(false);
           }}
           onClose={() => setShowWatcherPicker(false)}
@@ -1047,9 +1049,11 @@ export default function IssuesScreen() {
           visible={showCoAssigneePicker}
           projectId={activeProject.id}
           onSelect={(member) => {
-            setNewCoAssignees(prev =>
-              prev.some(c => c.userId === member.userId) ? prev : [...prev, member]
-            );
+            if (member) {
+              setNewCoAssignees(prev =>
+                prev.some(c => c.userId === member.userId) ? prev : [...prev, member]
+              );
+            }
             setShowCoAssigneePicker(false);
           }}
           onClose={() => setShowCoAssigneePicker(false)}

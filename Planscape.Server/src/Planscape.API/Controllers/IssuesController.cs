@@ -127,6 +127,21 @@ public class IssuesController : ControllerBase
         if (project == null) return NotFound("Project not found");
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
+        // Offline-replay dedupe (Prompt 18) — if this exact create was already
+        // processed (same X-Idempotency-Key), return the original issue instead
+        // of minting a duplicate.
+        var idemKey = Planscape.API.Services.IdempotencyGuard.KeyFrom(Request);
+        if (idemKey != null)
+        {
+            var priorId = await Planscape.API.Services.IdempotencyGuard
+                .SeenResultAsync(_db, tenantId, "issue.create", idemKey);
+            if (priorId is Guid pid)
+            {
+                var prior = await _db.Issues.FirstOrDefaultAsync(i => i.Id == pid && i.ProjectId == projectId);
+                if (prior != null) return Ok(prior);
+            }
+        }
+
         // NEW-LOGIC-02 — Sanitise Type. Only 2-6 uppercase letters allowed to prevent
         // injection of "-" that would break IssueCode parsing elsewhere.
         if (string.IsNullOrWhiteSpace(req.Type) ||
@@ -341,6 +356,12 @@ public class IssuesController : ControllerBase
                 _db.Issues.Add(issue);
             }
         }
+
+        // Record the idempotency key → issue id so a replay resolves to this issue.
+        if (idemKey != null)
+            await Planscape.API.Services.IdempotencyGuard
+                .RecordAsync(_db, tenantId, "issue.create", idemKey, issue.Id);
+
         await _audit.LogAsync("CREATE", "Issue", issue.Id.ToString());
 
         // NEW-INT-05 — Broadcast IssueCreated to mobile + web clients subscribed to the project.
@@ -451,6 +472,17 @@ public class IssuesController : ControllerBase
             .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
         if (issue == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        // Offline-replay dedupe (Prompt 18) — a replayed update for the same
+        // X-Idempotency-Key is a no-op (the fields were already applied);
+        // return the current issue without re-running the diff/push fanout.
+        var idemKey = Planscape.API.Services.IdempotencyGuard.KeyFrom(Request);
+        if (idemKey != null)
+        {
+            var priorId = await Planscape.API.Services.IdempotencyGuard
+                .SeenResultAsync(_db, tenantId, "issue.update", idemKey);
+            if (priorId is Guid pid && pid == issueId) return Ok(issue);
+        }
 
         // NEW-INFO-07 — Capture before/after for the audit log so the activity
         // timeline can show who changed what.
@@ -573,6 +605,10 @@ public class IssuesController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
+
+        if (idemKey != null)
+            await Planscape.API.Services.IdempotencyGuard
+                .RecordAsync(_db, tenantId, "issue.update", idemKey, issue.Id);
 
         // Push to newly assigned user.
         if (assigneeChanged && newAssignee != null)

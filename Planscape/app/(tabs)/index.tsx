@@ -50,6 +50,7 @@ export default function DashboardScreen() {
   const [projectViewMode, setProjectViewMode] = useState<'chip' | 'list'>('chip');
 
   const loadData = useCallback(async (projectId?: string) => {
+    if (!activeProject) return;
     try {
       setError(null);
       const data = await getProjectDashboard(activeProject.id);
@@ -500,6 +501,24 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
     marginTop: 2,
+  },
+
+  breadcrumb: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  breadcrumbChevron: {
+    fontSize: theme.fontSize.xl,
+    color: theme.colors.accent,
+    marginRight: theme.spacing.xs,
+    lineHeight: 22,
+  },
+  breadcrumbProject: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.accent,
+    fontWeight: '600',
   },
 
   // Compliance gauge

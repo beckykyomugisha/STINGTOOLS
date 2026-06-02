@@ -28,6 +28,8 @@ export interface ModelViewerHandle {
   fit: () => void;
   clearMeasure: () => void;
   clearHighlight: () => void;
+  // Highlight the element with this GUID and frame the camera on its bbox.
+  selectAndZoom: (guid: string) => void;
   setDisciplineVisible: (discipline: string, visible: boolean) => void;
   setPins: (pins: ModelPin[]) => void;
   addPin: (pin: ModelPin) => void;
@@ -183,6 +185,7 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
       fit: () => send({ type: "fit" }),
       clearMeasure: () => send({ type: "clearMeasure" }),
       clearHighlight: () => send({ type: "clearHighlight" }),
+      selectAndZoom: (guid) => send({ type: "selectAndZoom", payload: { guid } }),
       setDisciplineVisible: (discipline, visible) =>
         send({ type: "setDiscipline", payload: { discipline, visible } }),
       setPins: (pins) => send({ type: "setPins", payload: pins }),

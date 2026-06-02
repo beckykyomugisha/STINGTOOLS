@@ -44,7 +44,7 @@ export function startConnectivityListener(): Unsubscribe {
   }
 
   let wasOffline = false;
-  _unsubscribe = NetInfo.default.addEventListener((state: NetInfoState) => {
+  const unsub = NetInfo.default.addEventListener((state: NetInfoState) => {
     const online = !!state.isConnected && state.isInternetReachable !== false;
     if (!online) { wasOffline = true; return; }
     if (!wasOffline) return;
@@ -55,7 +55,8 @@ export function startConnectivityListener(): Unsubscribe {
     // Fire-and-forget — the syncQueue broadcast will update any subscribed UI.
     syncQueue().catch((err) => { console.warn('[OfflineQueue] Drain failed:', err); });
   });
-  return _unsubscribe;
+  _unsubscribe = unsub;
+  return unsub;
 }
 
 export function stopConnectivityListener(): void {

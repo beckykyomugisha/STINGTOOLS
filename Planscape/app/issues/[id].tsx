@@ -110,7 +110,7 @@ export default function IssueDetailScreen() {
             <View style={[styles.priorityChip, { backgroundColor: getPriorityColor(issue.priority) }]}>
               <Text style={styles.chipText}>{issue.priority}</Text>
             </View>
-            <View style={[styles.statusChip, styles["status_" + issue.status.toLowerCase()]]}>
+            <View style={[styles.statusChip, styles[("status_" + issue.status.toLowerCase()) as keyof typeof styles] as typeof styles.statusChip]}>
               <Text style={styles.chipText}>{issue.status}</Text>
             </View>
             <Text style={styles.meta}>{issue.type}</Text>

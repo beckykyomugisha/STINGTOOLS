@@ -25,7 +25,12 @@ import type { OfflineAction } from '@/types/api';
 
 export type ConflictPolicy = 'server-wins' | 'client-wins' | 'merge-fields';
 
-export const DEFAULT_POLICIES: Record<OfflineAction['type'], ConflictPolicy> = {
+// Partial: only the op-types with an explicit override are listed; every other
+// OfflineAction['type'] intentionally falls through to the 'server-wins' default
+// at the lookup site (`?? DEFAULT_POLICIES[type] ?? 'server-wins'`). The literal
+// has only ever carried these four keys at runtime, so this matches the actual
+// shape (was previously mistyped as a total Record).
+export const DEFAULT_POLICIES: Partial<Record<OfflineAction['type'], ConflictPolicy>> = {
   CREATE_ISSUE:    'client-wins',    // Idempotency handles duplicate-create.
   UPDATE_ISSUE:    'merge-fields',   // Coordinators often race on notes/status.
   TRANSITION_CDE:  'server-wins',    // CDE state machine is authoritative.

@@ -21,7 +21,10 @@ export function openHelpDocs(): Promise<unknown> {
 
 /** Compose a support email pre-filled with tenant + device info. */
 export async function openSupportEmail(subject: string = 'Planscape support request'): Promise<unknown> {
-  const tenant = useTenantStore.getState().activeTenant;
+  const ts = useTenantStore.getState();
+  const m = ts.memberships.find((x) => x.tenantId === ts.currentTenantId)
+    ?? ts.memberships.find((x) => x.isActiveTenant);
+  const tenant = m ? { name: m.tenantName, slug: m.tenantSlug } : null;
   const body = [
     'Hi Planscape team,',
     '',
