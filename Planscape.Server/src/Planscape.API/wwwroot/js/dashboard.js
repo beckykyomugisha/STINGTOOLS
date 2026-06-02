@@ -285,7 +285,7 @@
   // deep-link only (no nav button).
   const KNOWN_VIEWS = new Set([
     "overview", "issues", "documents", "transmittals", "meetings", "workflows",
-    "warnings", "models", "schedule", "cost", "tenant-keywords",
+    "warnings", "models", "photos", "schedule", "cost", "tenant-keywords",
     "tenant-bim-manager-roles", "project-dashboard",
   ]);
 
@@ -428,6 +428,7 @@
         case "workflows":    await renderList(main, `Workflow runs`, `/api/projects/${state.projectId}/workflows/history`, workflowColumns); break;
         case "warnings":     await renderList(main, `Warnings`, `/api/projects/${state.projectId}/warnings/trend`, warningColumns); break;
         case "models":       await renderModels(main); break;
+        case "photos":       await renderPhotos(main); break;
         case "schedule":     await renderList(main, `Schedule`, `/api/projects/${state.projectId}/schedule`, scheduleColumns); break;
         case "cost":         await renderCost(main); break;
         // Phase 152 — admin: tenant keyword extensions for the
@@ -1337,6 +1338,68 @@
     main.querySelectorAll('[data-action="delete"]').forEach(b => {
       b.onclick = () => openDeleteModelModal(main, { id: b.dataset.id, name: b.dataset.name });
     });
+  }
+
+  // Site photos — gallery over the existing /photos API. Photo bytes are
+  // auth-gated, so a bare <img src> can't carry the Bearer token; each tile
+  // lazy-fetches the file as a blob on scroll-into-view and swaps in an
+  // object URL (the same pattern the coordination viewer uses for models).
+  async function renderPhotos(main) {
+    const data = await api(`/api/projects/${state.projectId}/photos?pageSize=60`);
+    const items = (data && data.items) || [];
+    main.innerHTML = `
+      <h1>Site photos</h1>
+      ${items.length === 0
+        ? `<div class="empty">No photos yet. Capture site photos from the Planscape mobile app.</div>`
+        : `<div class="photo-grid">${items.map(photoCard).join("")}</div>`}`;
+    lazyLoadPhotos(main);
+  }
+
+  function photoCard(p) {
+    const when = fmtDate(p.capturedAt);
+    const where = [p.levelCode, p.zoneCode].filter(Boolean).join(" · ");
+    const gps = (p.latitude != null && p.longitude != null)
+      ? `<a href="https://maps.google.com/?q=${p.latitude},${p.longitude}" target="_blank" rel="noopener">📍 ${Number(p.latitude).toFixed(5)}, ${Number(p.longitude).toFixed(5)}</a>`
+      : "";
+    const aud = p.audience ? `<span class="badge">${esc(p.audience)}</span>` : "";
+    return `
+      <div class="card photo-card">
+        <div class="photo-thumb" data-photo-id="${esc(p.id)}"><div class="photo-spinner">Loading…</div></div>
+        <div class="photo-meta">
+          <div class="photo-cap">${esc(p.caption || "(no caption)")}</div>
+          <div class="photo-sub">${esc(when)}${where ? " · " + esc(where) : ""} ${aud}</div>
+          ${gps ? `<div class="photo-sub">${gps}</div>` : ""}
+        </div>
+      </div>`;
+  }
+
+  function lazyLoadPhotos(main) {
+    const tiles = Array.from(main.querySelectorAll(".photo-thumb[data-photo-id]"));
+    if (tiles.length === 0) return;
+    const load = async (tile) => {
+      const id = tile.getAttribute("data-photo-id");
+      if (!id) return;
+      tile.removeAttribute("data-photo-id"); // handled once
+      try {
+        const res = await fetch(`/api/projects/${state.projectId}/photos/${id}/file`,
+          { headers: { Authorization: "Bearer " + getToken() } });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const obj = URL.createObjectURL(await res.blob());
+        const img = document.createElement("img");
+        img.src = obj; img.alt = ""; img.onclick = () => window.open(obj, "_blank");
+        tile.innerHTML = ""; tile.appendChild(img);
+      } catch (e) {
+        tile.innerHTML = `<div class="photo-err">⚠ unavailable</div>`;
+      }
+    };
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(en => { if (en.isIntersecting) { io.unobserve(en.target); load(en.target); } });
+      }, { rootMargin: "200px" });
+      tiles.forEach(t => io.observe(t));
+    } else {
+      tiles.forEach(load);
+    }
   }
 
   // Wrong-model rescue: the Revit plugin SHA-256-dedups uploads, so a
