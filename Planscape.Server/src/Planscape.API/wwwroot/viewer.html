@@ -625,15 +625,60 @@
   <button id="toolMeasure"></button><button id="toolSection"></button><button id="toolPin"></button>
 </div>
 
-<!-- ─────────────────────── three.js dependencies ─────────────────────── -->
-<script src="./three.min.js"></script>
-<script src="./GLTFLoader.js"></script>
-<script src="./OrbitControls.js"></script>
-<script src="./DRACOLoader.js" onerror="window.__noDraco=1"></script>
-<script src="./MeshoptDecoder.js" onerror="window.__noMeshopt=1"></script>
+<!-- ─────────────────────── three.js dependencies (vendored, local) ───────────────────────
+  Modernised to Three.js r169 via ESM importmap (was the r123 global-`THREE`
+  examples/js bundle). All files are vendored under ./vendor/three/ — NO CDN
+  dependency, preserving the deliberate offline posture of the old local
+  bundle. See PR feat/viewer-esm-modern (supersedes archive/fix/viewer-esm-importmap). -->
+<!-- es-module-shims polyfills importmap + ESM on older WebViews (iOS <16.4,
+  Android System WebView <89) so the RN-WebView surface doesn't regress versus
+  the old global-script r123 bundle (which ran everywhere). On evergreen
+  browsers with native support it stays out of the way. Vendored, no CDN. -->
+<script async src="./vendor/es-module-shims.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+  }
+}
+</script>
 
 <!-- ─────────────────────── Original viewer engine (RN bridge + Three.js core) ─────────────────────── -->
-<script>
+<script type="module">
+import * as THREE         from 'three';
+import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader }     from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader }    from 'three/addons/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+
+// ── Compatibility bridge ─────────────────────────────────────────────────
+// viewer-extras.js + coordination-viewer.js are classic (non-module) scripts
+// that pre-date this ESM migration: they read `window.THREE` and call
+// `new THREE.GLTFLoader()`. Re-expose the imported symbols as globals so they
+// keep working verbatim. Those <script> tags are `defer`red below so they run
+// AFTER this module (a module is deferred; matching defer on them preserves
+// document order: engine → extras → signalr → coordination).
+// `THREE` is a frozen ES-module namespace, so addon classes can't be attached
+// to it directly. Expose a mutable shallow copy as window.THREE (with the addon
+// classes attached) for the classic downstream scripts. The engine below keeps
+// using the real `THREE` namespace for its own `new THREE.*` calls.
+const THREEGlobal = Object.assign({}, THREE);
+THREEGlobal.OrbitControls = OrbitControls;
+THREEGlobal.GLTFLoader    = GLTFLoader;
+THREEGlobal.DRACOLoader   = DRACOLoader;
+window.THREE          = THREEGlobal;
+window.MeshoptDecoder = MeshoptDecoder;
+
+// ── Colour management — match the legacy r123 look ───────────────────────
+// The old viewer set no outputEncoding/colorSpace, so it rendered with r123's
+// legacy LinearEncoding output and non-colour-managed materials. r152+ defaults
+// to SRGBColorSpace + ColorManagement.enabled=true, which would brighten and
+// over-saturate the identical model. Disable colour management and force linear
+// output (renderer.outputColorSpace set below) so colours match the viewer the
+// team already uses — verified pixel-sampled against the old r123 viewer.
+THREE.ColorManagement.enabled = false;
+
 (() => {
   'use strict';
 
@@ -664,10 +709,15 @@
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x111318);
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x404060, 0.9));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+  // Light intensities ×π vs the old r123 values (0.9 / 0.7 / 0.15). r155+ made
+  // lights physically-based (useLegacyLights removed in r165), which darkens
+  // non-punctual lights by ~π relative to the legacy model. Scaling by Math.PI
+  // is the documented legacy→physical conversion and restores the old viewer's
+  // brightness (verified pixel-sampled — see PR feat/viewer-esm-modern).
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x404060, 0.9 * Math.PI));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.7 * Math.PI);
   dir.position.set(5, 10, 3); scene.add(dir);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.15 * Math.PI));
 
   // Near/far set conservatively here; fitCamera() recomputes them
   // from the model bounds so survey-coordinated buildings (Revit's
@@ -683,6 +733,9 @@
     preserveDrawingBuffer: true
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // Linear output to mirror r123's default LinearEncoding (see colour note
+  // above). With ColorManagement disabled this reproduces the legacy look.
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   renderer.localClippingEnabled = true;
   // The renderer canvas lives inside the new viewport-wrap, NOT directly on body.
   const host = document.getElementById('viewerCanvas') || document.body;
@@ -696,7 +749,7 @@
   }
   sizeRenderer();
 
-  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   // ACC / Navisworks parity — wheel zooms toward the cursor (not the
@@ -726,7 +779,7 @@
   let pressTimer = null;
 
   function loadModel(url) {
-    const loader = new THREE.GLTFLoader();
+    const loader = new GLTFLoader();
     try {
       const v = window.STING_VIEWER;
       if (v && v.dracoLoader && loader.setDRACOLoader) loader.setDRACOLoader(v.dracoLoader);
@@ -1296,15 +1349,18 @@
     pinGroup, pinMeta,
     dracoLoader: null, meshoptDecoder: null
   };
+  // DRACO + Meshopt decoders — statically imported (r169). Construction is
+  // guarded so a missing/edge-case decoder degrades gracefully to
+  // uncompressed-only loading — the same intent as the old onerror=__noDraco /
+  // __noMeshopt fallback (which keyed off <script> 404s that no longer exist).
   try {
-    if (THREE.DRACOLoader && !window.__noDraco) {
-      const dl = new THREE.DRACOLoader(); if (dl.setDecoderPath) dl.setDecoderPath('./');
-      window.STING_VIEWER.dracoLoader = dl;
-    }
-    if (typeof MeshoptDecoder !== 'undefined' && !window.__noMeshopt) {
-      window.STING_VIEWER.meshoptDecoder = MeshoptDecoder;
-    }
-  } catch (_) {}
+    const dl = new DRACOLoader();
+    dl.setDecoderPath('./vendor/three/addons/libs/draco/gltf/');
+    window.STING_VIEWER.dracoLoader = dl;
+  } catch (e) { window.__noDraco = 1; console.warn('[viewer] DRACO unavailable:', e); }
+  try {
+    if (MeshoptDecoder) window.STING_VIEWER.meshoptDecoder = MeshoptDecoder;
+  } catch (e) { window.__noMeshopt = 1; console.warn('[viewer] Meshopt unavailable:', e); }
 
   // Forward extras commands.
   const _origHandle = handleCommand;
@@ -1371,7 +1427,7 @@
   bridge.send('ready', { platform: 'webview' });
 })();
 </script>
-<script src="./viewer-extras.js"></script>
+<script defer src="./viewer-extras.js"></script>
 <script>
   setInterval(() => {
     const x = window.STING_VIEWER_EXTRAS;
@@ -1383,9 +1439,9 @@
      and exposes window.__planscapeHub BEFORE the coordination layer
      calls setupPhotoRealtime(). Skipped automatically inside the React
      Native WebView (mobile owns its own RealtimeClient). -->
-<script src="./signalr-shim.js"></script>
+<script defer src="./signalr-shim.js"></script>
 
 <!-- Coordination layer — panels, API, clash + issue management. -->
-<script src="./coordination-viewer.js"></script>
+<script defer src="./coordination-viewer.js"></script>
 </body>
 </html>
