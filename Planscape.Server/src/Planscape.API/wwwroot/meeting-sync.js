@@ -36,8 +36,10 @@
 
   var state = {
     conn: null,
-    following: true,        // followers track the presenter's camera
-    applyingRemote: false,  // feedback-loop guard
+    following: true,         // followers track the presenter's camera
+    applyingRemote: false,   // camera feedback-loop guard
+    applyingRemoteHi: false, // highlight feedback-loop guard
+    applyingRemoteSec: false,// section feedback-loop guard
     lastSentAt: 0,
     participants: new Map(), // connectionId → { displayName }
   };
@@ -96,16 +98,21 @@
     conn.on("OverlayChanged", function (profile) {
       try { window.STING_VIEWER.applyOverlay && window.STING_VIEWER.applyOverlay(profile); } catch (e) {}
     });
-    // Received-but-not-yet-applied hooks (fast-follow): expose for later wiring.
-    conn.on("SectionChanged", function (msg) { window.dispatchEvent(new CustomEvent("sting:remoteSection", { detail: msg && msg.section })); });
-    conn.on("HighlightChanged", function (msg) { window.dispatchEvent(new CustomEvent("sting:remoteHighlight", { detail: msg && msg.guids })); });
+    conn.on("SectionChanged", function (msg) {
+      applyRemoteSection(msg && msg.section);
+      window.dispatchEvent(new CustomEvent("sting:remoteSection", { detail: msg && msg.section }));
+    });
+    conn.on("HighlightChanged", function (msg) {
+      applyRemoteHighlight(msg && msg.guids);
+      window.dispatchEvent(new CustomEvent("sting:remoteHighlight", { detail: msg && msg.guids }));
+    });
     conn.on("RoomChanged", function (st) { window.dispatchEvent(new CustomEvent("sting:roomChanged", { detail: st })); });
 
     conn.onreconnected(function () { conn.invoke("JoinSession", sessionId, displayName).catch(noop); });
 
     conn.start()
       .then(function () { return conn.invoke("JoinSession", sessionId, displayName); })
-      .then(function () { wireCameraBroadcast(); setStatus("live"); })
+      .then(function () { wireCameraBroadcast(); wireSelectionAndSection(); setStatus("live"); })
       .catch(function (e) { console.warn("[meeting] connect failed", e); setStatus("offline"); });
 
     window.addEventListener("beforeunload", function () {
@@ -154,6 +161,68 @@
     // Release the guard after the controls 'end'/'change' has flushed.
     setTimeout(function () { state.applyingRemote = false; }, 0);
   }
+
+  // ── outbound: selection (highlight) + section plane ───────────────────
+  // Non-invasive: we wrap the viewer's existing outbound event bus
+  // (bridge.send) and the one section setter, rather than editing the
+  // 4k-line coordination viewer. coordination-viewer.js also wraps
+  // bridge.send; we chain on top of whatever's there.
+  function wireSelectionAndSection() {
+    var V = window.STING_VIEWER;
+    try {
+      if (V && V.bridge && typeof V.bridge.send === "function" && !V.bridge.__meetingWrapped) {
+        var orig = V.bridge.send.bind(V.bridge);
+        V.bridge.send = function (type, payload) {
+          try {
+            if (!state.applyingRemoteHi && state.conn && (type === "pick" || type === "pinTap")) {
+              var guid = payload && (payload.guid || (payload.meta && payload.meta.guid));
+              if (guid) state.conn.invoke("BroadcastHighlight", sessionId, [guid]).catch(noop);
+            }
+          } catch (e) {}
+          return orig(type, payload);
+        };
+        V.bridge.__meetingWrapped = true;
+      }
+    } catch (e) {}
+    try {
+      var ext = window.STING_VIEWER_EXTRAS;
+      if (ext && typeof ext.setSectionPlane === "function" && !ext.__meetingWrapped) {
+        var origSec = ext.setSectionPlane.bind(ext);
+        ext.setSectionPlane = function (plane) {
+          var r = origSec(plane);
+          try {
+            if (!state.applyingRemoteSec && state.conn)
+              state.conn.invoke("BroadcastSection", sessionId, { plane: plane }).catch(noop);
+          } catch (e) {}
+          return r;
+        };
+        ext.__meetingWrapped = true;
+      }
+    } catch (e) {}
+  }
+
+  function applyRemoteHighlight(guids) {
+    state.applyingRemoteHi = true;
+    try {
+      if (guids && guids.length) postCmd({ type: "selectAndZoom", payload: { guid: guids[0] } });
+      else postCmd({ type: "clearHighlight" });
+    } catch (e) {}
+    setTimeout(function () { state.applyingRemoteHi = false; }, 60);
+  }
+
+  function applyRemoteSection(section) {
+    var ext = window.STING_VIEWER_EXTRAS;
+    if (!ext || typeof ext.setSectionPlane !== "function") return;
+    var plane = section && (section.plane || section);
+    if (!plane) return;
+    state.applyingRemoteSec = true;
+    try { ext.setSectionPlane(plane); } catch (e) {}
+    setTimeout(function () { state.applyingRemoteSec = false; }, 0);
+  }
+
+  // Drive the viewer engine via its window 'message' command channel
+  // (viewer.html: window.addEventListener('message', e => handleCommand(JSON.parse(e.data)))).
+  function postCmd(cmd) { try { window.postMessage(JSON.stringify(cmd), "*"); } catch (e) {} }
 
   // ── presence UI (small corner panel) ──────────────────────────────────
   function buildPresenceUI() {
@@ -234,6 +303,10 @@
     set following(v) { state.following = !!v; var f = document.getElementById("meetingFollow"); if (f) f.checked = !!v; },
     serializeCamera: serializeCamera,
     applyRemoteCamera: applyRemoteCamera,
+    applyRemoteHighlight: applyRemoteHighlight,
+    applyRemoteSection: applyRemoteSection,
+    broadcastHighlight: function (guids) { if (state.conn) state.conn.invoke("BroadcastHighlight", sessionId, guids || []).catch(noop); },
+    broadcastSection: function (section) { if (state.conn) state.conn.invoke("BroadcastSection", sessionId, section || {}).catch(noop); },
     sessionId: sessionId,
   };
 })();
