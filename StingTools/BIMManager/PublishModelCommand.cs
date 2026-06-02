@@ -367,8 +367,10 @@ namespace StingTools.BIMManager
                 "Export current 3D view to GLB",
                 "Uses the built-in STING glTF exporter. Active view must be a 3D view.");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Pick an existing file (.glb / .gltf / .ifc / .obj / .fbx)",
-                "Use a file produced by APS, SimLab, rvt2gltf, Dynamo, etc.");
+                "Pick an existing GLB / glTF file",
+                "Use a GLB produced by APS, SimLab, rvt2gltf, Dynamo, etc. The web "
+                + "viewer is glTF-only and the server rejects other formats at publish "
+                + "(convert IFC/RVT/OBJ/FBX to GLB first).");
             var r = dlg.Show();
             if (r == TaskDialogResult.CommandLink1) return ExportActiveView(doc);
             if (r == TaskDialogResult.CommandLink2) return PromptForModelFile();
@@ -411,7 +413,10 @@ namespace StingTools.BIMManager
             var dlg = new OpenFileDialog
             {
                 Title = "Select 3D model to publish",
-                Filter = "3D models (*.glb;*.gltf;*.ifc;*.obj;*.fbx)|*.glb;*.gltf;*.ifc;*.obj;*.fbx|All files (*.*)|*.*",
+                // #1 — viewer is GLTFLoader-only and the server rejects non-glTF
+                // at publish (ModelsController.Upload → unsupported_viewer_format),
+                // so only offer GLB/glTF here. Convert IFC/RVT/OBJ/FBX to GLB first.
+                Filter = "glTF models (*.glb;*.gltf)|*.glb;*.gltf|All files (*.*)|*.*",
                 CheckFileExists = true,
                 CheckPathExists = true,
             };
