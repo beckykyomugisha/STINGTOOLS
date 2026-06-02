@@ -1443,5 +1443,10 @@ THREE.ColorManagement.enabled = false;
 
 <!-- Coordination layer — panels, API, clash + issue management. -->
 <script defer src="./coordination-viewer.js"></script>
+
+<!-- Live synced meetings — opt-in via ?meeting=<sessionId>. Connects to
+     /hubs/meeting for camera-follow + participant presence + overlay sync.
+     Complete no-op when the meeting param is absent. -->
+<script defer src="./meeting-sync.js"></script>
 </body>
 </html>
