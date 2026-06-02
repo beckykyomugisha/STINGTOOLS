@@ -1,3 +1,4 @@
+#nullable enable
 // PlanscapeServerClient — read-only dashboard + cross-host identity getters.
 //
 // Three thin GETs the BIM Coordination Center renders:
