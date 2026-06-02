@@ -39,16 +39,24 @@ public class TagSyncController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly IHubContext<TagSyncHub> _tagHub;
     private readonly IHubContext<ComplianceHub> _complianceHub;
+    // #8 — the web dashboard subscribes to TagsUpdated/ComplianceUpdated on
+    // NotificationHub (/hubs/notifications), group `project-{id}`
+    // (dashboard.js:163, NotificationHub.cs:67). The legacy emits below go to
+    // TagSyncHub/ComplianceHub with a bare-GUID group that no client joins, so
+    // the dashboard never refreshed. Emit via NotificationHub too.
+    private readonly IHubContext<NotificationHub> _notificationHub;
     private readonly IServiceScopeFactory _scopeFactory;
 
     private const int SyncBatchSize = 500;
 
     public TagSyncController(PlanscapeDbContext db, IHubContext<TagSyncHub> tagHub,
-        IHubContext<ComplianceHub> complianceHub, IServiceScopeFactory scopeFactory)
+        IHubContext<ComplianceHub> complianceHub, IServiceScopeFactory scopeFactory,
+        IHubContext<NotificationHub> notificationHub)
     {
         _db = db;
         _tagHub = tagHub;
         _complianceHub = complianceHub;
+        _notificationHub = notificationHub;
         _scopeFactory = scopeFactory;
     }
 
@@ -187,6 +195,16 @@ public class TagSyncController : ControllerBase
                 await _tagHub.Clients.Group(group)
                     .SendAsync("TagsUpdated", new { created, updated, total = request.Elements.Count });
                 await _complianceHub.Clients.Group(group)
+                    .SendAsync("ComplianceUpdated", metrics);
+
+                // #8 — also emit on NotificationHub to the `project-{id}` group
+                // the dashboard actually joins, so TagsUpdated/ComplianceUpdated
+                // reach it (and any /hubs/notifications consumer: web, mobile,
+                // plugin). The legacy emits above are kept for backward compat.
+                var notifyGroup = $"project-{project.Id}";
+                await _notificationHub.Clients.Group(notifyGroup)
+                    .SendAsync("TagsUpdated", new { created, updated, total = request.Elements.Count });
+                await _notificationHub.Clients.Group(notifyGroup)
                     .SendAsync("ComplianceUpdated", metrics);
             }
             catch { /* SignalR broadcast is best-effort */ }

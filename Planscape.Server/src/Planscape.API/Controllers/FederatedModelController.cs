@@ -34,15 +34,18 @@ public class FederatedModelController : ControllerBase
 {
     private readonly PlanscapeDbContext                    _db;
     private readonly IHubContext<FederatedModelHub>        _hub;
+    private readonly IHubContext<NotificationHub>          _notificationHub;
     private readonly Planscape.Core.Interfaces.IFileStorageService _storage;
 
     public FederatedModelController(
         PlanscapeDbContext db,
         IHubContext<FederatedModelHub> hub,
+        IHubContext<NotificationHub> notificationHub,
         Planscape.Core.Interfaces.IFileStorageService storage)
     {
         _db      = db;
         _hub     = hub;
+        _notificationHub = notificationHub;
         _storage = storage;
     }
 
@@ -145,7 +148,8 @@ public class FederatedModelController : ControllerBase
             _hub,
             projectId.ToString(),
             updatedUniqueIds,
-            deletedList);
+            deletedList,
+            notificationHub: _notificationHub);
 
         return Ok(new
         {

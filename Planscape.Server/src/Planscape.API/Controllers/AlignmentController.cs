@@ -2,11 +2,13 @@ namespace Planscape.API.Controllers;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.Services;
+using Planscape.Infrastructure.SignalR;
 
 [ApiController]
 [Route("api/projects/{projectId:guid}/alignment")]
@@ -66,11 +68,16 @@ public class AlignmentController : ControllerBase
         Guid projectId,
         Guid modelId,
         [FromServices] IAutoAlignService autoAlign,
+        [FromServices] IHubContext<FederatedModelHub> modelHub,
+        [FromServices] IHubContext<NotificationHub> notificationHub,
         CancellationToken ct)
     {
-        // ComputeAsync's 4th parameter is the optional IHubContext for broadcasting
-        // progress events; AutoAlign from this endpoint doesn't broadcast, so pass null.
-        var result = await autoAlign.ComputeAsync(projectId, _tenant.TenantId, modelId, null, ct);
+        // #12 — pass both hubs so a successful auto-align broadcasts ModelUpdated:
+        // FederatedModelHub for any /hubs/model client + NotificationHub
+        // (project-{id}) which is where the dashboard + Revit plugin actually
+        // listen. Previously null was passed, so no client ever refreshed.
+        var result = await autoAlign.ComputeAsync(
+            projectId, _tenant.TenantId, modelId, modelHub, ct, notificationHub);
         return result.Success ? Ok(result) : BadRequest(new { result.Message });
     }
 }

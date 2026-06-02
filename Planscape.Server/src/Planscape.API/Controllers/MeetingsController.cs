@@ -48,6 +48,10 @@ public class MeetingsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult> GetMeetings(Guid projectId,
         [FromQuery] string? status = null,
+        // #10 — the Revit plugin (PlanscapeServerClient.GetMeetingsAsync) sends
+        // ?upcoming=true; the param was unbound so it was silently ignored and
+        // all meetings (most-recent-past first) came back. Bind + honour it.
+        [FromQuery] bool upcoming = false,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
@@ -60,10 +64,13 @@ public class MeetingsController : ControllerBase
 
         var q = _db.Meetings.Where(m => m.ProjectId == projectId && m.Project!.TenantId == tenantId);
         if (!string.IsNullOrEmpty(status)) q = q.Where(m => m.Status == status);
+        if (upcoming) q = q.Where(m => m.ScheduledAt >= DateTime.UtcNow);
 
         var total = await q.CountAsync();
-        var meetings = await q
-            .OrderByDescending(m => m.ScheduledAt)
+        // Upcoming → soonest-first (ascending) matches the "next meetings" intent;
+        // the default listing stays most-recent-first.
+        var ordered = upcoming ? q.OrderBy(m => m.ScheduledAt) : q.OrderByDescending(m => m.ScheduledAt);
+        var meetings = await ordered
             .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(m => new
             {

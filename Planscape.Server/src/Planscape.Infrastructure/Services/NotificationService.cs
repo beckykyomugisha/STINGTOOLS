@@ -287,6 +287,18 @@ public class NotificationService : INotificationService
         }
     }
 
+    /// <summary>
+    /// #7 — Fire a named SignalR event to `project-{projectId}` with no push /
+    /// preference / persistence overhead. Used for typed client-refresh signals
+    /// (e.g. BoqSnapshotUpdated) that subscribers bind to by exact name.
+    /// </summary>
+    public async Task NotifyProjectEventAsync(Guid projectId, string eventName, object? payload = null, CancellationToken ct = default)
+    {
+        _logger.LogDebug("Project event [{Event}] → project {ProjectId}", eventName, projectId);
+        await _hub.Clients.Group($"project-{projectId}")
+            .SendAsync(eventName, payload ?? new { projectId }, ct);
+    }
+
     /// <summary>In-memory registration for legacy tests. Prefer <see cref="DevicePushToken"/> table.</summary>
     public static void RegisterPushToken(Guid userId, string token)
     {

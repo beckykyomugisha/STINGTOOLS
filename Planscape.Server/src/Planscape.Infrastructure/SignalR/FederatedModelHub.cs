@@ -43,18 +43,36 @@ public class FederatedModelHub : Hub
         string projectId,
         IEnumerable<string> updatedUniqueIds,
         IEnumerable<long> deletedElementIds,
-        string source = "unknown")
+        string source = "unknown",
+        IHubContext<NotificationHub>? notificationHub = null)
     {
+        // Materialise once — the same payload is fanned to two hubs.
+        var updated = updatedUniqueIds as ICollection<string> ?? updatedUniqueIds.ToList();
+        var deleted = deletedElementIds as ICollection<long> ?? deletedElementIds.ToList();
+        var payload = new
+        {
+            projectId,
+            updatedIds  = updated,
+            deletedIds  = deleted,
+            source,
+            timestamp   = DateTime.UtcNow
+        };
+
         await hubContext.Clients
             .Group(ModelGroup(projectId))
-            .SendAsync("ModelUpdated", new
-            {
-                projectId,
-                updatedIds  = updatedUniqueIds,
-                deletedIds  = deletedElementIds,
-                source,
-                timestamp   = DateTime.UtcNow
-            });
+            .SendAsync("ModelUpdated", payload);
+
+        // #12 — the only ModelUpdated consumers (dashboard.js:167, the plugin's
+        // PlanscapeRealtimeClient.cs:207) subscribe on NotificationHub
+        // (/hubs/notifications), group `project-{id}` — NOT on /hubs/model's
+        // `model:{id}` group, which no client joins. Re-emit there so the event
+        // actually reaches them.
+        if (notificationHub != null)
+        {
+            await notificationHub.Clients
+                .Group($"project-{projectId}")
+                .SendAsync("ModelUpdated", payload);
+        }
     }
 
     private static string ModelGroup(string projectId) => $"model:{projectId}";
