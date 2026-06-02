@@ -4732,12 +4732,21 @@ namespace StingTools.Core
                     {
                         try
                         {
-                            string url = BIMManager.PlanscapeServerClient.Instance.ServerUrl;
-                            if (string.IsNullOrEmpty(url))
+                            var client = BIMManager.PlanscapeServerClient.Instance;
+                            string baseUrl = client.ServerUrl;
+                            if (string.IsNullOrEmpty(baseUrl))
                             {
                                 TaskDialog.Show("STING — Planscape", "Connect to the Planscape server first.");
                                 return;
                             }
+                            // Open the real coordinator SPA at /app/ — the full
+                            // sidebar dashboard (Issues / Documents / Transmittals /
+                            // Warnings / 3D models) — not the marketing landing page
+                            // served at the server root. Deep-link straight to the
+                            // active project's models when one is connected.
+                            string url = baseUrl.TrimEnd('/') + "/app/";
+                            if (client.IsConnected && client.CurrentProjectId != Guid.Empty)
+                                url += $"#models?project={client.CurrentProjectId}";
                             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                                 { FileName = url, UseShellExecute = true })?.Dispose();
                         }
