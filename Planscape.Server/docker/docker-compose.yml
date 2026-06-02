@@ -3,6 +3,12 @@ services:
     build:
       context: ../..
       dockerfile: Planscape.Server/docker/Dockerfile
+      args:
+        # IFC→GLB viewer derivatives: set IFCCONVERT_URL in .env to an
+        # IfcOpenShell IfcConvert linux64 zip URL to bake the binary in,
+        # then set MODEL_CONVERTER_PROVIDER=ifcconvert. Default "skip"
+        # leaves the converter off (uploads must already be GLB/glTF).
+        IFCCONVERT_URL: ${IFCCONVERT_URL:-skip}
     ports:
       - "5000:8080"
     environment:
@@ -157,6 +163,10 @@ services:
     build:
       context: ../..
       dockerfile: Planscape.Server/docker/Dockerfile
+      args:
+        # The worker runs Hangfire jobs incl. ModelDerivativeJob (IFC→GLB),
+        # so it needs the same IfcConvert binary as the api. See api.build.
+        IFCCONVERT_URL: ${IFCCONVERT_URL:-skip}
     environment:
       # Worker shares the same Program.cs as the api, so it needs the same
       # env to wire DI / DbContext / Redis. Without Redis__Connection the
