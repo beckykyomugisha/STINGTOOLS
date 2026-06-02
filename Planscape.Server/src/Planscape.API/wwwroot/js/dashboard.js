@@ -1344,15 +1344,128 @@
   // auth-gated, so a bare <img src> can't carry the Bearer token; each tile
   // lazy-fetches the file as a blob on scroll-into-view and swaps in an
   // object URL (the same pattern the coordination viewer uses for models).
+  const PHOTO_REASONS = ["Reference", "Progress", "Defect", "Safety", "QA", "Handover"];
+
   async function renderPhotos(main) {
-    const data = await api(`/api/projects/${state.projectId}/photos?pageSize=60`);
-    const items = (data && data.items) || [];
     main.innerHTML = `
       <h1>Site photos</h1>
-      ${items.length === 0
-        ? `<div class="empty">No photos yet. Capture site photos from the Planscape mobile app.</div>`
-        : `<div class="photo-grid">${items.map(photoCard).join("")}</div>`}`;
-    lazyLoadPhotos(main);
+      <div class="photo-toolbar">
+        <label>Album
+          <select id="photoAlbum"><option value="">All photos</option></select>
+        </label>
+        <button id="photoUploadBtn" class="btn-primary">＋ Upload photo</button>
+      </div>
+      <div id="photoUploadMount"></div>
+      <div id="photoGrid"><div class="empty">Loading…</div></div>`;
+
+    // Album dropdown (non-blocking).
+    api(`/api/projects/${state.projectId}/photo-albums`).then(albums => {
+      const list = Array.isArray(albums) ? albums : (albums && albums.items) || [];
+      const sel = document.getElementById("photoAlbum");
+      if (!sel) return;
+      list.forEach(a => {
+        const o = document.createElement("option");
+        o.value = a.id;
+        o.textContent = `${a.name}${a.photoCount != null ? " (" + a.photoCount + ")" : ""}`;
+        sel.appendChild(o);
+      });
+      sel.onchange = () => loadPhotoGrid(sel.value);
+    }).catch(() => {});
+
+    document.getElementById("photoUploadBtn").onclick = () => openCaptureForm();
+    await loadPhotoGrid("");
+  }
+
+  // Render the grid for "all photos" (albumId empty) or a single album.
+  async function loadPhotoGrid(albumId) {
+    const grid = document.getElementById("photoGrid");
+    if (!grid) return;
+    grid.innerHTML = `<div class="empty">Loading…</div>`;
+    try {
+      let items;
+      if (albumId) {
+        const a = await api(`/api/projects/${state.projectId}/photo-albums/${albumId}`);
+        items = (a && a.photos) || [];
+      } else {
+        const data = await api(`/api/projects/${state.projectId}/photos?pageSize=60`);
+        items = (data && data.items) || [];
+      }
+      grid.innerHTML = items.length === 0
+        ? `<div class="empty">No photos here yet. Capture from the mobile app or use “Upload photo”.</div>`
+        : `<div class="photo-grid">${items.map(photoCard).join("")}</div>`;
+      lazyLoadPhotos(grid);
+    } catch (e) {
+      grid.innerHTML = `<div class="empty">Could not load photos: ${esc(String(e))}</div>`;
+    }
+  }
+
+  // Capture-from-web: multipart POST to /photos/capture (the same endpoint
+  // the mobile app uses). Best-effort browser geolocation tags lat/long.
+  function openCaptureForm() {
+    const mount = document.getElementById("photoUploadMount");
+    if (!mount) return;
+    mount.innerHTML = `
+      <div class="card photo-capture">
+        <div class="field"><label>Photo</label><input type="file" id="capFile" accept="image/*" capture="environment" /></div>
+        <div class="field"><label>Caption</label><input type="text" id="capCaption" placeholder="What does this show?" /></div>
+        <div class="capture-row">
+          <label>Reason<select id="capReason">${PHOTO_REASONS.map(r => `<option>${r}</option>`).join("")}</select></label>
+          <label>Level<input type="text" id="capLevel" placeholder="L02" /></label>
+          <label>Zone<input type="text" id="capZone" placeholder="Z01" /></label>
+        </div>
+        <label class="capture-gps"><input type="checkbox" id="capGps" checked /> Tag GPS location</label>
+        <div class="actions">
+          <button class="btn-cancel" id="capCancel">Cancel</button>
+          <button class="btn-primary" id="capSubmit">Upload</button>
+        </div>
+        <p id="capStatus" class="error"></p>
+      </div>`;
+    document.getElementById("capCancel").onclick = () => { mount.innerHTML = ""; };
+    document.getElementById("capSubmit").onclick = submitCapture;
+  }
+
+  async function submitCapture() {
+    const fileEl = document.getElementById("capFile");
+    const status = document.getElementById("capStatus");
+    const btn = document.getElementById("capSubmit");
+    status.textContent = "";
+    const file = fileEl && fileEl.files && fileEl.files[0];
+    if (!file) { status.textContent = "Pick an image first."; return; }
+    btn.disabled = true; btn.textContent = "Uploading…";
+    try {
+      const fd = new FormData();
+      fd.append("File", file, file.name);
+      fd.append("Reason", document.getElementById("capReason").value || "Reference");
+      const cap = document.getElementById("capCaption").value.trim(); if (cap) fd.append("Caption", cap);
+      const lvl = document.getElementById("capLevel").value.trim();   if (lvl) fd.append("LevelCode", lvl);
+      const zone = document.getElementById("capZone").value.trim();   if (zone) fd.append("ZoneCode", zone);
+      fd.append("Source", "web");
+      if (document.getElementById("capGps").checked) {
+        const pos = await getGeo().catch(() => null);
+        if (pos) { fd.append("Latitude", String(pos.lat)); fd.append("Longitude", String(pos.lng)); if (pos.acc) fd.append("AccuracyM", String(pos.acc)); }
+      }
+      const res = await fetch(`/api/projects/${state.projectId}/photos/capture`, {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + getToken() }, // no Content-Type — browser sets the multipart boundary
+        body: fd,
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status + " " + await res.text());
+      document.getElementById("photoUploadMount").innerHTML = "";
+      const sel = document.getElementById("photoAlbum");
+      await loadPhotoGrid(sel ? sel.value : "");
+    } catch (e) {
+      btn.disabled = false; btn.textContent = "Upload";
+      status.textContent = "Upload failed — check permissions and try again.";
+    }
+  }
+
+  function getGeo() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject();
+      navigator.geolocation.getCurrentPosition(
+        p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }),
+        reject, { enableHighAccuracy: true, timeout: 8000 });
+    });
   }
 
   function photoCard(p) {
