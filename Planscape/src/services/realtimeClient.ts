@@ -1,7 +1,29 @@
 import * as signalR from '@microsoft/signalr';
 import { secureStorage } from './secureStorage';
 
-const HUB_URL = process.env.EXPO_PUBLIC_HUB_URL ?? 'https://planscape.example/hubs/project';
+// Resolution order mirrors api/client.ts so the realtime hub follows the same
+// host the REST calls use:
+//   1. EXPO_PUBLIC_HUB_URL — explicit full hub URL (wins, lets ops point the
+//      socket at a different host/path than the API if they ever split them).
+//   2. EXPO_PUBLIC_API_BASE / EXPO_PUBLIC_PLANSCAPE_API + '/hubs/notifications'
+//      — the API host baked at build time, with the real hub path appended.
+//   3. localhost fallback for a fresh same-machine dev run.
+// The previous fallback ('…/hubs/project') pointed at a hub route the server
+// never maps (Program.cs only registers /hubs/notifications et al.) AND a dead
+// placeholder host, so realtime silently failed unless EXPO_PUBLIC_HUB_URL was
+// set. The events this client subscribes to (IssueCreated, Notification,
+// MemberRevoked, …) and the methods it invokes (JoinProject, RegisterUser,
+// BroadcastCameraState) all live on NotificationHub → /hubs/notifications.
+const ENV_API_BASE =
+  (typeof process !== 'undefined' && (
+    process.env?.EXPO_PUBLIC_API_BASE
+    || process.env?.EXPO_PUBLIC_PLANSCAPE_API
+  )) || '';
+const HUB_URL =
+  process.env.EXPO_PUBLIC_HUB_URL
+  ?? (ENV_API_BASE
+        ? `${ENV_API_BASE.replace(/\/$/, '')}/hubs/notifications`
+        : 'http://localhost:5000/hubs/notifications');
 
 export type RealtimeEvent =
   | { type: 'ISSUE_CREATED'; payload: unknown }
@@ -66,6 +88,11 @@ export class RealtimeClient {
       // changes; the client re-issues JoinProject below to rebuild
       // the per-CDE-state subgroup memberships against the new slice.
       'AclChanged',
+      // MemberRevoked / AclChanged are emitted by ProjectMembershipNotifier to
+      // the user's personal group `user_{userId}`. NotificationHub.OnConnectedAsync
+      // auto-adds every connection to its own `user_{userId}` group from the JWT
+      // `user_id` claim, so once HUB_URL points at /hubs/notifications (see top
+      // of file) this client receives both without an explicit RegisterUser call.
       'MemberRevoked',
       // 3D presence — co-viewers' camera positions stream in here. Server
       // is expected to fan out `BroadcastCameraState` calls as `CameraState`
