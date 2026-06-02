@@ -511,3 +511,15 @@ tr:hover td { background: #fafafa; }
 .photo-sub { color:#6b7280; font-size:11px; margin-top:2px; }
 .photo-sub a { color:#3a7de8; text-decoration:none; }
 .photo-meta .badge { background:#eceff5; border-radius:8px; padding:1px 6px; font-size:10px; }
+
+/* Site photos — toolbar + capture form */
+.photo-toolbar { display:flex; gap:14px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.photo-toolbar label { font-size:12px; color:#555; display:flex; gap:6px; align-items:center; }
+.photo-toolbar select { padding:4px 6px; }
+.photo-capture { padding:14px; max-width:440px; margin-bottom:14px; display:flex; flex-direction:column; gap:8px; }
+.photo-capture .field { display:flex; flex-direction:column; gap:3px; }
+.photo-capture .field label { font-size:12px; color:#555; }
+.photo-capture input[type=text], .photo-capture select { padding:5px 7px; }
+.photo-capture .capture-row { display:flex; gap:10px; flex-wrap:wrap; }
+.photo-capture .capture-row label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:#555; }
+.photo-capture .capture-gps { font-size:12px; color:#555; display:flex; gap:6px; align-items:center; }
