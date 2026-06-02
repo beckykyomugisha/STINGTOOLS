@@ -19,6 +19,28 @@
   const TOKEN_KEY   = "planscape_token";
   const REFRESH_KEY = "planscape_refresh";
   const USER_KEY    = "planscape_user";
+  // coordination-viewer.js reads this to send the X-Tenant header on the
+  // dashboard→viewer hop (coordination-viewer.js:301). The JWT already carries
+  // tenant_id, so seed it from the token rather than waiting for the user to
+  // fill in Settings (belt-and-braces — the server resolves tenant from the
+  // JWT regardless, but the explicit header avoids any middleware that prefers
+  // it).
+  const TENANT_KEY  = "planscape_tenant";
+
+  // Decode the `tenant_id` claim from a JWT (base64url middle segment) and
+  // persist it as planscape_tenant. No verification — purely to populate the
+  // client-side header; the server still validates the signed token.
+  function seedTenantFromToken(token) {
+    try {
+      if (!token) return;
+      const part = token.split(".")[1];
+      if (!part) return;
+      const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
+      const claims = JSON.parse(json);
+      const tenant = claims.tenant_id || claims.tid || "";
+      if (tenant) localStorage.setItem(TENANT_KEY, tenant);
+    } catch (_) { /* malformed token — leave tenant unset */ }
+  }
 
   const state = {
     projects: [],
@@ -39,11 +61,13 @@
   function setTokens(t, r) {
     localStorage.setItem(TOKEN_KEY, t);
     localStorage.setItem(REFRESH_KEY, r);
+    seedTenantFromToken(t);
   }
   function clearTokens() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TENANT_KEY);
   }
 
   async function api(path, options = {}) {
@@ -1867,5 +1891,17 @@
 
   // ── Start ─────────────────────────────────────────────────────────────
 
-  if (!getToken()) { showLogin(); } else { boot().catch(() => showLogin()); }
+  // Mirror boot()'s own 401-vs-unreachable split (see :370-377). A bare
+  // `.catch(() => showLogin())` bounced the user to the login screen on ANY
+  // uncaught boot rejection — including transient render/config errors — even
+  // though their session was valid. The api() helper tags genuine auth
+  // failures with `.unauthenticated`; everything else is a server-reachability
+  // problem and should surface the retry panel, not a spurious logout.
+  if (!getToken()) { showLogin(); }
+  else {
+    // Re-seed the tenant header for a session restored from a prior visit
+    // (setTokens only ran on the original login).
+    seedTenantFromToken(getToken());
+    boot().catch(e => (e && e.unauthenticated) ? showLogin() : renderServerUnreachable(e));
+  }
 })();

@@ -104,7 +104,11 @@
       'IssueCreated', 'IssueUpdated',
       'CommentAdded',
       'SitePhotoCaptured', 'SitePhotoApproved',
-      'NotificationCreated',
+      // Server emits the in-app notification under the event name Notification
+      // (NotificationService.cs:62,246 SendAsync). The previous literal here
+      // did not match that name, so viewer in-app notifications never fired.
+      // Keep this list in lockstep with what NotificationHub emits.
+      'Notification',
     ].forEach(name => conn.on(name, payload => emit(name, payload)));
 
     conn.onreconnected(() => {
