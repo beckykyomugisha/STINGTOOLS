@@ -1213,3 +1213,77 @@ These still apply — they're how you build without creating the next drift:
 > fields; the event is a typed DTO under the guardrail; hub access is
 > tenant/project-scoped; the `pressure-live.tsx` tsc errors are 0; a test
 > proves a written pressure-log reaches a subscribed client.
+
+---
+
+## Prompt 23 — Land the viewer ESM-importmap upgrade into `main` (reconcile, don't regress) — AUTONOMOUS
+
+> Bring `main`'s web model viewer onto modern Three.js via the ESM importmap
+> approach. Reason as the whole team (BIM/coordination user, web/Three.js
+> engineer, QA) and decide+ship per the autonomous stance — but the browser
+> verification gate below is non-negotiable.
+>
+> **Critical context — do NOT cherry-pick the retired fix.**
+> `main:Planscape.Server/src/Planscape.API/wwwroot/viewer.html` currently loads
+> Three.js the **r123-era global-`THREE` `examples/js` way**: local
+> `./three.min.js` + `./OrbitControls.js` + `./GLTFLoader.js` +
+> `./DRACOLoader.js` attaching to a **global `THREE`** (used as
+> `new THREE.OrbitControls`, `new THREE.GLTFLoader`, etc.). It works, but is
+> pinned to old Three.js. The retired fix `archive/fix/viewer-esm-importmap`
+> (`0d5e270a8`) converts the loader to ESM importmap — **but it was authored
+> ~1360 lines behind `main` and LACKS main's current features** (orbit-pivot
+> camera, issue pins, measure, colorize/RAG, the RN-bridge `STING_VIEWER`
+> postMessage API, `signalr-shim.js`, `coordination-viewer.js`). Copying its
+> `viewer.html` would **regress all of that.**
+>
+> **So: start from `main`'s current `viewer.html`** and port the loader, using
+> `0d5e270a8` only as a **reference** for the importmap + import wiring.
+>
+> Build:
+> 1. Replace the global-`THREE` `<script>` block (~lines 628-633) with an **ESM
+>    importmap**: pin a specific modern Three.js, import `OrbitControls`,
+>    `GLTFLoader`, `DRACOLoader`, `MeshoptDecoder` from `three/addons/…`. **Keep
+>    main's deliberate "local, not CDN" posture** — vendor the files locally /
+>    point the importmap at local paths, don't introduce a CDN dependency.
+> 2. Convert **every** global usage to ESM: `import * as THREE from 'three'`
+>    (or named imports); `new THREE.OrbitControls` → imported `OrbitControls`;
+>    `THREE.GLTFLoader`/`DRACOLoader` likewise. Don't leave any `THREE.<addon>`
+>    global-attach references.
+> 3. **Handle the r123 → modern API drift** the upgrade surfaces — especially
+>    the **color-management/encoding change (r152+)**: `outputEncoding`/
+>    `sRGBEncoding` → `outputColorSpace`/`SRGBColorSpace`, `useLegacyLights`
+>    default flip, light intensity changes. Models looking washed-out/too-dark
+>    is the classic silent regression — get colors matching the old viewer.
+> 4. **Preserve ALL of main's viewer features** verbatim in behaviour: orbit +
+>    orbit-pivot, pins (place/select), measure, colorize/RAG modes, the
+>    `STING_VIEWER` RN bridge, `signalr-shim.js`, `coordination-viewer.js`.
+>
+> **Hard gate — BROWSER, not `dotnet`.** The viewer is HTML/JS; `dotnet`/`tsc`
+> will not catch breakage. You MUST **load `viewer.html` in a real browser,
+> load a GLTF model, and verify every feature works** (orbit, zoom, pins,
+> measure, colorize, correct colors, DRACO/Meshopt + their `onerror`
+> fallbacks) with **0 console errors**. A green `dotnet` build is necessary
+> but NOT sufficient. If any feature can't be made to work on the new version,
+> **STOP and report which** — don't ship a viewer that orbits but can't
+> measure.
+>
+> **Decide yourself + record** (autonomous): target Three.js version; vendored-
+> local-files vs importmap-to-pinned-local-paths; color-management migration
+> specifics; DRACO/Meshopt decoder paths. Record each in the PR body.
+>
+> **Land:** branch off `main` (e.g. `feat/viewer-esm-modern`), PR, **never
+> force to `main`**, delete the branch on merge. Note in the PR that this
+> supersedes/closes `archive/fix/viewer-esm-importmap`.
+>
+> **Verify / challenge before you build:**
+> - The retired fix is a **reference for the loader wiring only** — its feature
+>   set is 1360 lines stale. Port onto main's richer file; don't import its file.
+> - **Confirm every feature in a browser** — the entire point is "modernise the
+>   loader without regressing the working viewer." A `dotnet`-green PR that
+>   breaks orbit/measure/colour in the browser is a failure, not a success.
+> - **Color management is the trap.** After the upgrade, eyeball a model
+>   against the old viewer — if it's washed-out or dark, fix the colorspace/
+>   lights before calling it done.
+> - This is an **upgrade, not a bug fix** — the r123 local bundle works today
+>   (code-verified). The user has explicitly asked for the modern ESM path, so
+>   proceed; just don't let it regress what already works.
