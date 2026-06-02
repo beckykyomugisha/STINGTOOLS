@@ -8954,10 +8954,16 @@ namespace StingTools.UI
             {
                 baseUrl = "http://localhost:5000";
             }
-            string url = baseUrl.TrimEnd('/') + "/index.html";
+            // Open the real coordinator SPA (/app/) — the full sidebar
+            // dashboard with Issues / Documents / Transmittals / Warnings /
+            // 3D models — rather than the marketing landing page at
+            // /index.html. The SPA reads location.hash to pick the active
+            // view, so deep-link straight to a project's models when a
+            // project is active on the client.
+            string url = baseUrl.TrimEnd('/') + "/app/";
             if (client.IsConnected && client.CurrentProjectId != Guid.Empty)
             {
-                url += $"#project-dashboard?project={client.CurrentProjectId}";
+                url += $"#models?project={client.CurrentProjectId}";
             }
             try
             {
