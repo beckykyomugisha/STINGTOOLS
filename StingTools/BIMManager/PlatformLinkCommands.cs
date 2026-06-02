@@ -2819,7 +2819,13 @@ namespace StingTools.BIMManager
                 if (string.IsNullOrWhiteSpace(url))
                     url = "https://planscape-api.onrender.com";
 
-                string dashboardUrl = url.TrimEnd('/') + "/dashboard";
+                // /app/ is the real coordinator SPA; deep-link to the active
+                // project's models when one is connected. (The old "/dashboard"
+                // path is not a served route.)
+                string dashboardUrl = url.TrimEnd('/') + "/app/";
+                var client = PlanscapeServerClient.Instance;
+                if (client != null && client.IsConnected && client.CurrentProjectId != Guid.Empty)
+                    dashboardUrl += $"#models?project={client.CurrentProjectId}";
                 Process.Start(new ProcessStartInfo(dashboardUrl) { UseShellExecute = true })?.Dispose();
                 StingLog.Info($"Planscape: opened dashboard {dashboardUrl}");
                 return Result.Succeeded;
