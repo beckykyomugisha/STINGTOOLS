@@ -47,27 +47,82 @@ jobs:
       - name: Check for duplicate parameter GUIDs
         run: |
           python3 - <<'EOF'
-          import re, sys, collections
+          import re, sys, csv, collections
 
-          seen = collections.defaultdict(list)
-          guid_re = re.compile(r'\b([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\b')
+          # MR_PARAMETERS.csv is an INTENTIONAL MIRROR of MR_PARAMETERS.txt — both
+          # carry the same GUIDs by design. Pooling GUIDs across the two files would
+          # flag the entire mirror as "duplicates". A REAL collision is a single GUID
+          # mapping to two DIFFERENT parameter names WITHIN one file. We also assert
+          # the txt<->csv mirror agrees on the name for every shared GUID.
+          GUID_RE = re.compile(
+              r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
 
-          for path in ['StingTools/Data/MR_PARAMETERS.txt', 'StingTools/Data/MR_PARAMETERS.csv']:
+          def parse_txt(path):
+              # TXT format: PARAM<TAB><guid><TAB><name><TAB>...
+              out = []
+              for line in open(path, encoding='utf-8'):
+                  if not line.startswith('PARAM'):
+                      continue
+                  parts = line.rstrip('\n').split('\t')
+                  if len(parts) < 3:
+                      continue
+                  guid, name = parts[1].strip(), parts[2].strip()
+                  if GUID_RE.match(guid):
+                      out.append((guid.lower(), name))
+              return out
+
+          def parse_csv(path):
+              # CSV format: Revit_Category,<name>,<guid>,...
+              out = []
+              with open(path, encoding='utf-8') as f:
+                  for row in csv.reader(f):
+                      if not row or row[0].startswith('#') or row[0] == 'Revit_Category':
+                          continue
+                      if len(row) < 3:
+                          continue
+                      name, guid = row[1].strip(), row[2].strip()
+                      if GUID_RE.match(guid):
+                          out.append((guid.lower(), name))
+              return out
+
+          FAIL = 0
+          file_maps = {}
+          for path, parser in [('StingTools/Data/MR_PARAMETERS.txt', parse_txt),
+                               ('StingTools/Data/MR_PARAMETERS.csv', parse_csv)]:
               try:
-                  for i, line in enumerate(open(path), 1):
-                      for guid in guid_re.findall(line):
-                          seen[guid.lower()].append(f'{path}:{i}')
+                  entries = parser(path)
               except FileNotFoundError:
-                  pass
+                  continue
+              gmap = collections.defaultdict(set)
+              for guid, name in entries:
+                  gmap[guid].add(name)
+              file_maps[path] = gmap
+              collisions = {g: names for g, names in gmap.items() if len(names) > 1}
+              if collisions:
+                  FAIL = 1
+                  for g, names in collisions.items():
+                      print(f'❌ GUID collision in {path}: {g} -> {sorted(names)}')
+              else:
+                  print(f'✓ {path}: {len(entries)} params, {len(gmap)} unique GUIDs, no within-file collisions')
 
-          dupes = {g: locs for g, locs in seen.items() if len(locs) > 1}
-          if dupes:
-              for guid, locs in dupes.items():
-                  print(f'❌ Duplicate GUID {guid}:')
-                  for loc in locs:
-                      print(f'   {loc}')
-              sys.exit(1)
-          print(f'✓ No duplicate GUIDs ({len(seen)} unique)')
+          # Mirror agreement: every GUID present in both files must name the same param
+          # (compared case-insensitively to tolerate benign casing differences).
+          txt = file_maps.get('StingTools/Data/MR_PARAMETERS.txt', {})
+          csvm = file_maps.get('StingTools/Data/MR_PARAMETERS.csv', {})
+          common = set(txt) & set(csvm)
+          mismatches = 0
+          for g in common:
+              if {n.upper() for n in txt[g]} != {n.upper() for n in csvm[g]}:
+                  mismatches += 1
+                  if mismatches <= 10:
+                      print(f'❌ txt/csv mirror disagrees for {g}: '
+                            f'txt={sorted(txt[g])} csv={sorted(csvm[g])}')
+          if mismatches:
+              FAIL = 1
+          else:
+              print(f'✓ txt/csv mirror agrees on all {len(common)} shared GUIDs')
+
+          sys.exit(FAIL)
           EOF
 
       - name: Validate CSV structure (required columns)
