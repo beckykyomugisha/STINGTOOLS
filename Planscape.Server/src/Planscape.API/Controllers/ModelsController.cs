@@ -113,7 +113,7 @@ public class ModelsController : ControllerBase
             hash = await ComputeHashAsync(hashStream, ct);
         }
         var existing = await _db.ProjectModels
-            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
+            .FirstOrDefaultAsync(m => m.TenantId == project.TenantId && m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
         if (existing != null)
         {
             // Geometry hash is identical, so the GLB itself is normally
@@ -210,6 +210,9 @@ public class ModelsController : ControllerBase
         var row = new ProjectModel
         {
             ProjectId = projectId,
+            // H-4 — ProjectModel is ITenantScoped; the insert previously left
+            // TenantId = Guid.Empty, breaking tenant-scoped filtering/RLS.
+            TenantId = project.TenantId,
             Name = string.IsNullOrWhiteSpace(req.Name) ? Path.GetFileNameWithoutExtension(req.File.FileName) : req.Name!,
             Description = req.Description,
             Discipline = req.Discipline,
@@ -234,7 +237,24 @@ public class ModelsController : ControllerBase
             UploadedAt = DateTime.UtcNow,
         };
         _db.ProjectModels.Add(row);
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // H-3 — two concurrent uploads of the same geometry both passed the
+            // app-level dedup check above and raced to INSERT. The unique
+            // filtered index (TenantId, ProjectId, ContentHash) WHERE DeletedAt
+            // IS NULL rejects the loser; recover by returning the row that won.
+            _db.Entry(row).State = EntityState.Detached;
+            var winner = await _db.ProjectModels.AsNoTracking()
+                .FirstOrDefaultAsync(m => m.TenantId == project.TenantId && m.ProjectId == projectId
+                                          && m.ContentHash == hash && m.DeletedAt == null, ct);
+            if (winner != null)
+                return Ok(new { id = winner.Id, duplicate = true, message = "Geometry already published (concurrent upload)." });
+            throw;
+        }
         _logger.LogInformation("Model uploaded — {ModelId} {Format} {Size} bytes for project {ProjectId}",
             row.Id, row.Format, row.FileSizeBytes, projectId);
 

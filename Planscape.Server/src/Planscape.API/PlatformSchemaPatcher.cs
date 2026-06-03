@@ -174,6 +174,109 @@ internal static class PlatformSchemaPatcher
             ""CompletionNotes"" text)",
         @"CREATE INDEX IF NOT EXISTS ""IX_WorkOrders_Project_Status"" ON ""WorkOrders"" (""ProjectId"", ""Status"")",
         @"CREATE INDEX IF NOT EXISTS ""IX_WorkOrders_Project_Device"" ON ""WorkOrders"" (""ProjectId"", ""DeviceTwinId"")",
+
+        // ── BLK-4 — tables configured in OnModelCreating but with NO migration
+        //    AND previously absent from this patcher, so on a pre-existing prod
+        //    DB (where EnsureCreated short-circuits) the first write threw
+        //    'relation does not exist'. HVAC engine snapshots, ArchiCAD event
+        //    log, and the cross-host GlobalId registry (written by the ArchiCAD
+        //    IFC ingest path) are now materialised here too.
+        @"CREATE TABLE IF NOT EXISTS ""HvacLoadSnapshot""(
+            ""Id"" uuid PRIMARY KEY,
+            ""TenantId"" uuid NOT NULL,
+            ""ProjectId"" uuid NOT NULL,
+            ""SystemId"" text NOT NULL DEFAULT '',
+            ""ClimateSiteId"" text NOT NULL DEFAULT '',
+            ""ClimateSiteLabel"" text NOT NULL DEFAULT '',
+            ""ConstructionProfile"" text NOT NULL DEFAULT '',
+            ""RtsClass"" text NOT NULL DEFAULT 'Reactive',
+            ""Cooling"" boolean NOT NULL DEFAULT true,
+            ""BlockSensibleW"" double precision NOT NULL DEFAULT 0,
+            ""BlockLatentW"" double precision NOT NULL DEFAULT 0,
+            ""BlockHour"" integer NOT NULL DEFAULT 0,
+            ""SumOfPeaksSensibleW"" double precision NOT NULL DEFAULT 0,
+            ""DiversityFactor"" double precision NOT NULL DEFAULT 0,
+            ""ZoneCount"" integer NOT NULL DEFAULT 0,
+            ""ZonesJson"" text NOT NULL DEFAULT '',
+            ""CapturedAt"" timestamp with time zone NOT NULL DEFAULT now(),
+            ""CapturedBy"" text NOT NULL DEFAULT '',
+            ""Source"" text NOT NULL DEFAULT 'PLUGIN')",
+        @"CREATE INDEX IF NOT EXISTS ""IX_HvacLoadSnapshots_Project_CapturedAt"" ON ""HvacLoadSnapshot""(""ProjectId"", ""CapturedAt"")",
+        @"CREATE INDEX IF NOT EXISTS ""IX_HvacLoadSnapshots_Project_System"" ON ""HvacLoadSnapshot""(""ProjectId"", ""SystemId"")",
+        @"CREATE TABLE IF NOT EXISTS ""HvacNcSnapshot""(
+            ""Id"" uuid PRIMARY KEY,
+            ""TenantId"" uuid NOT NULL,
+            ""ProjectId"" uuid NOT NULL,
+            ""PathLabel"" text NOT NULL DEFAULT '',
+            ""ReceiverRoom"" text NOT NULL DEFAULT '',
+            ""PredictedNc"" integer NOT NULL DEFAULT 0,
+            ""TargetNc"" integer NOT NULL DEFAULT 0,
+            ""PathFlowLs"" double precision NOT NULL DEFAULT 0,
+            ""PathPressureDropPa"" double precision NOT NULL DEFAULT 0,
+            ""OctaveLpJson"" text NOT NULL DEFAULT '',
+            ""ElementBreakdownJson"" text NOT NULL DEFAULT '',
+            ""CapturedAt"" timestamp with time zone NOT NULL DEFAULT now(),
+            ""CapturedBy"" text NOT NULL DEFAULT '')",
+        @"CREATE INDEX IF NOT EXISTS ""IX_HvacNcSnapshots_Project_PredictedNc"" ON ""HvacNcSnapshot""(""ProjectId"", ""PredictedNc"")",
+        @"CREATE TABLE IF NOT EXISTS ""HvacRefrigerantSizing""(
+            ""Id"" uuid PRIMARY KEY,
+            ""TenantId"" uuid NOT NULL,
+            ""ProjectId"" uuid NOT NULL,
+            ""RefrigerantId"" text NOT NULL DEFAULT '',
+            ""Leg"" text NOT NULL DEFAULT '',
+            ""CapacityKw"" double precision NOT NULL DEFAULT 0,
+            ""EquivLengthM"" double precision NOT NULL DEFAULT 0,
+            ""LiftM"" double precision NOT NULL DEFAULT 0,
+            ""HasVerticalRiser"" boolean NOT NULL DEFAULT false,
+            ""MaxPressureDropKpa"" double precision NOT NULL DEFAULT 0,
+            ""SubcoolingReserveK"" double precision NOT NULL DEFAULT 0,
+            ""Ok"" boolean NOT NULL DEFAULT false,
+            ""SelectedBoreMm"" double precision NOT NULL DEFAULT 0,
+            ""VelocityMs"" double precision NOT NULL DEFAULT 0,
+            ""PressureDropKpa"" double precision NOT NULL DEFAULT 0,
+            ""LiftPenaltyKpa"" double precision NOT NULL DEFAULT 0,
+            ""SatTempDropK"" double precision NOT NULL DEFAULT 0,
+            ""WarningsJson"" text NOT NULL DEFAULT '',
+            ""CapturedAt"" timestamp with time zone NOT NULL DEFAULT now(),
+            ""CapturedBy"" text NOT NULL DEFAULT '')",
+        @"CREATE INDEX IF NOT EXISTS ""IX_HvacRefrigerantSizings_Project_Refrigerant"" ON ""HvacRefrigerantSizing""(""ProjectId"", ""RefrigerantId"")",
+        @"CREATE TABLE IF NOT EXISTS ""ArchiCADEventLogs"" (
+            ""Id"" uuid PRIMARY KEY,
+            ""TenantId"" uuid NOT NULL,
+            ""ProjectId"" uuid NOT NULL,
+            ""Kind"" text NOT NULL DEFAULT 'Changed',
+            ""ElementId"" text NOT NULL DEFAULT '',
+            ""ElementType"" text NOT NULL DEFAULT '',
+            ""IfcGlobalId"" text,
+            ""PropertiesJson"" text,
+            ""EventTimestampUtc"" timestamp with time zone NOT NULL DEFAULT now(),
+            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT now())",
+        @"CREATE INDEX IF NOT EXISTS ""IX_ArchiCADEventLogs_Project_Created"" ON ""ArchiCADEventLogs"" (""ProjectId"", ""CreatedAt"")",
+        @"CREATE TABLE IF NOT EXISTS ""GlobalIdRegistry"" (
+            ""Id"" uuid PRIMARY KEY,
+            ""TenantId"" uuid NOT NULL,
+            ""ProjectId"" uuid NOT NULL,
+            ""IfcGlobalId"" text,
+            ""ArchiCadGuid"" text,
+            ""RevitUniqueId"" text,
+            ""TeklaGuid"" text,
+            ""Discipline"" text,
+            ""IfcType"" text,
+            ""ElementName"" text,
+            ""NormalizedLevelName"" text,
+            ""MappingStatus"" text NOT NULL DEFAULT 'AutoMatched',
+            ""MappedBy"" text,
+            ""Notes"" text,
+            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT now(),
+            ""UpdatedAt"" timestamp with time zone)",
+        @"CREATE INDEX IF NOT EXISTS ""IX_GlobalIdRegistry_Project_Ifc"" ON ""GlobalIdRegistry"" (""ProjectId"", ""IfcGlobalId"")",
+
+        // ── H-3 — duplicate model rows: unique filtered index so the DB rejects
+        //    concurrent same-geometry uploads on pre-existing prod DBs too.
+        //    Wrapped non-fatally in ApplyAsync (a DB with pre-existing dupes
+        //    can't build the unique index until they're merged).
+        @"CREATE UNIQUE INDEX IF NOT EXISTS ""IX_ProjectModels_Tenant_Project_Hash""
+            ON ""ProjectModels"" (""TenantId"", ""ProjectId"", ""ContentHash"") WHERE ""DeletedAt"" IS NULL",
     };
 
     public static async Task ApplyAsync(DbConnection conn)

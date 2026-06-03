@@ -142,10 +142,19 @@ namespace StingTools.Commands.IFC
 
                 if (verts.Count == 0) return null;
 
-                // IFC GUID: ExportUtils is in RevitAPIIFC.dll (not referenced).
-                // UniqueId is the same base string Revit uses to derive IFC GUIDs —
-                // consistent with ClashExportContext.TryGetIfcGuid pattern.
-                string ifcGuid = el.UniqueId;
+                // BLK-1 — cross-host identity: the ExternalElementMapping
+                // composite key is the 22-char IFC GlobalId, NOT the 45-char
+                // Revit UniqueId. Sending UniqueId here meant geometry never
+                // joined the tag-sync / ArchiCAD / Bonsai mappings, so the
+                // viewer couldn't resolve a Revit mesh to a cross-host issue.
+                // Read the same BuiltInParameter.IFC_GUID the tag-sync path and
+                // ParamStampEventHandler use (RevitAPI.dll — no RevitAPIIFC
+                // reference needed); it is written by Revit's IFC export and
+                // stabilised by StabilizeIfcGuidsCommand. Fall back to UniqueId
+                // only when absent (un-stabilised model → degraded; run
+                // "Stabilize IFC GUIDs" first for cross-host resolution).
+                string ifcGuid = el.get_Parameter(BuiltInParameter.IFC_GUID)?.AsString();
+                if (string.IsNullOrWhiteSpace(ifcGuid)) ifcGuid = el.UniqueId;
 
                 var key = new ClashElementKey(docGuid, -1, (int)el.Id.Value, el.UniqueId, ifcGuid);
                 return new ClashMeshBuffer(key, el.Category.Name, verts.ToArray(), indices.ToArray());

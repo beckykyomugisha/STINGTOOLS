@@ -11,7 +11,7 @@ import { autoUpdater } from 'electron-updater'
 import Store from 'electron-store'
 import { setupTray } from './tray'
 import { registerIpcHandlers } from './ipc'
-import { FileWatcher } from './watcher'
+import { FileWatcher, type WatchedFile } from './watcher'
 import { UploadQueue } from './uploader'
 
 // ── Global state ──────────────────────────────────────────────────────────────
@@ -108,6 +108,16 @@ app.whenReady().then(async () => {
 
   // Start upload worker
   uploadQueue.start()
+
+  // H-6 — detection ⊥ upload: the FileWatcher emitted 'file' events but
+  // nothing enqueued an upload, so watching a folder produced renderer events
+  // and NO actual sync. Bridge the two here: every add/change on a syncable
+  // file is queued for upload (deletes are not uploaded). The UploadQueue
+  // de-dupes pending jobs per path, so a flurry of saves collapses to one.
+  fileWatcher.on('file', (file: WatchedFile) => {
+    if (file.event === 'unlink') return
+    uploadQueue.enqueue(file.absolutePath, file.projectId, file.cdeState, file.category)
+  })
 
   createWindow()
   setupTray(store, mainWindow)
