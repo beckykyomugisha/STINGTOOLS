@@ -48,6 +48,13 @@
     const params = new URLSearchParams(location.search);
     const projectId = params.get('project') || '';
     const modelId   = params.get('model')   || '';
+    // Finding #15 — shared cross-surface deep-link grammar
+    // ?project&model&element&camera. The mobile xeokit viewer already honours
+    // element/camera; honour the same params here so a deep-link from any
+    // surface (mobile issue, plugin, dashboard) lands on the same element.
+    // No-op when absent.
+    const deepLinkElement = params.get('element') || '';
+    const deepLinkCamera  = params.get('camera')  || '';
     // U10 — resolve the API base from (in order): explicit window override
     // for embedders, user-saved Settings popover value (LAN/staging/on-prem),
     // build-time injected EXPO_PUBLIC_API_BASE, the URL ?api= param for
@@ -295,6 +302,21 @@
       // the api() helper uses, with a longer 60s timeout because GLBs
       // can be 50-200 MB.
       if (projectId && modelId) {
+        // Finding #1 — the viewer is GLTFLoader-only (viewer.html:782). The
+        // server stores whatever format was published verbatim and /file
+        // returns it untranscoded, so feeding a non-glTF blob to GLTFLoader
+        // throws and the canvas stays empty behind a generic load-fail toast.
+        // Surface a clear, actionable message for non-GLB models instead of
+        // attempting (and failing) the load. `activeModel.format` is the
+        // ModelFormat enum the server emits (Glb/Gltf/Ifc/Rvt/Obj/Fbx).
+        const fmt = (activeModel && activeModel.format ? String(activeModel.format) : '').toLowerCase();
+        if (fmt && fmt !== 'glb' && fmt !== 'gltf') {
+          // Not a fatal error — keep the rest of the viewer chrome (breadcrumb,
+          // settings) wired so the user can navigate away. Just don't attempt
+          // the doomed GLTFLoader load.
+          toast(`This model is ${activeModel.format} — the viewer needs GLB/glTF. Re-publish as GLB.`, 'error');
+          $('#bootLoader')?.style.setProperty('display', 'none');
+        } else {
         const fileUrl = `${apiBase}/api/projects/${projectId}/models/${modelId}/file`;
         const headers = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -323,6 +345,12 @@
           const blobUrl = URL.createObjectURL(blob);
           state.lastBlobUrl = blobUrl;
           handleHostCommand({ type: 'load', payload: { url: blobUrl } });
+          // Finding #15 — once geometry is in the scene, honour the
+          // ?element=<guid> deep-link by selecting/focusing it. The GLB loads
+          // asynchronously inside the viewer, so poll for the mesh to appear
+          // (≤10s) then select it once. Guarded — a no-op when ?element is
+          // absent or the guid never resolves.
+          if (deepLinkElement) applyElementDeepLink(deepLinkElement);
         } catch (err) {
           const aborted = err && err.name === 'AbortError';
           console.warn('[coord] GLB fetch failed', aborted ? 'timeout' : err.message);
@@ -330,6 +358,7 @@
           $('#bootLoader')?.style.setProperty('display', 'none');
         } finally {
           clearTimeout(t);
+        }
         }
       }
 
@@ -376,6 +405,33 @@
         const ev = new MessageEvent('message', { data: JSON.stringify(cmd) });
         window.dispatchEvent(ev);
       } catch (e) { console.warn('host cmd', e); }
+    }
+
+    // Finding #15 — deep-link select. GLB geometry streams in after the load
+    // command is dispatched, so poll for the element's mesh (≤10s) then select
+    // it once. selectElementByGuid('replace') also fits the camera to the
+    // selection, satisfying the ?camera focus intent of the shared grammar.
+    function applyElementDeepLink(guid) {
+      if (!guid) return;
+      let tries = 0;
+      const maxTries = 40; // ~10s @ 250ms
+      const tick = () => {
+        try {
+          if (typeof findMeshByGuid === 'function' && findMeshByGuid(guid)) {
+            selectElementByGuid(guid, 'replace');
+            if (deepLinkCamera) {
+              // Camera grammar is honoured implicitly: selecting the element
+              // flies the camera to it. An explicit camera-state restore can
+              // layer on here when the viewer exposes a setCamera(state) API.
+              console.info('[coord] deep-link camera hint:', deepLinkCamera);
+            }
+            return;
+          }
+        } catch (e) { /* viewer not ready yet — retry */ }
+        if (++tries < maxTries) setTimeout(tick, 250);
+        else console.warn('[coord] deep-link element not found:', guid);
+      };
+      setTimeout(tick, 250);
     }
 
     // ── Header ──────────────────────────────────────────────────────────
@@ -446,9 +502,11 @@
       const brand = $('#brandHome');
       if (brand) brand.addEventListener('click', (e) => {
         e.preventDefault();
-        // Prefer the API host's /app/projects route, else the current
-        // origin's /app/projects, else just /index.html.
-        const target = (apiBase ? `${apiBase}/app/projects` : '/app/projects');
+        // The SPA at /app/ is hash-routed (index.html reads location.hash to
+        // pick the view — #overview/#issues/#models/…) and there is no server
+        // MapFallback, so a path like /app/projects 404s. Route to the SPA
+        // landing view instead, matching the form the Revit BCC + dashboard use.
+        const target = `${apiBase || ''}/app/#overview`;
         if (window.ReactNativeWebView) {
           // Inside the mobile WebView, post a "navigate home" message and
           // let the React Native host pop the navigation stack.
@@ -461,7 +519,10 @@
       if (crumb) crumb.addEventListener('click', (e) => {
         e.preventDefault();
         if (!projectId) return;
-        const target = (apiBase ? `${apiBase}/app/projects/${projectId}` : `/app/projects/${projectId}`);
+        // Deep-link into the project's 3D models view via the SPA hash route
+        // (same form as the Revit BCC "Open Web Dashboard" button), not the
+        // non-existent /app/projects/{id} path.
+        const target = `${apiBase || ''}/app/#models?project=${projectId}`;
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'navigateProject', projectId }));
         } else {
@@ -4605,7 +4666,9 @@
         </div>`;
       wrap.appendChild(cta);
       $('#ctaBackToProjects', cta).addEventListener('click', () => {
-        location.href = (apiBase || '') + '/projects';
+        // /projects is not a served route; the SPA is hash-routed. Land on the
+        // dashboard overview (project list) instead of a 404.
+        location.href = (apiBase || '') + '/app/#overview';
       });
       // Hide the boot loader behind it so it doesn't double-spin.
       const bl = $('#bootLoader'); if (bl) bl.style.display = 'none';
