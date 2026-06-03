@@ -387,3 +387,113 @@ Run `dotnet build` on `Planscape.Server` + a Postgres smoke test to validate the
 C# changes (H-3/H-4/BLK-4/H-7/M-2), then a Revit session to validate BLK-1 and
 the BLK-3 round-trip. After that, H-1 (Revit producer) + BLK-2 bake-at-ingest are
 the highest-value remaining edges.
+
+---
+---
+
+# PART III — RECONCILIATION WITH ORIGIN + BUILD/VERIFY (this session)
+
+The Part-II fixes were initially committed local-only (`5edee1487`) on a clone
+that was behind origin. This part records syncing them to origin, removing the
+duplication against work already merged there, and turning "written but not
+compiled" into compiled + (where possible) DB-verified.
+
+## 11. What overlapped with origin, and how it was reconciled
+
+`origin/claude/upbeat-cori-vdOPA` already contained three commits that overlap
+the audit work — all confirmed **ancestors** of the local commit (so the rebase
+itself was clean; only BOQ commits `7af9b9509`+`8370dbeed` were genuinely ahead):
+
+| Origin commit | Overlap | Reconciliation |
+|---|---|---|
+| `8486cf0` "key Revit cross-host identity on the true IFC GlobalId" | Same problem as BLK-1, but fixed the **tag-sync** path (`PlatformLinkCommands.cs:2179` reads `IFC_GLOBAL_ID_TXT`; `TagSyncController` keys `ExternalElementMapping` on it). My BLK-1 fixed a **different** file (`GeometrySyncHandler`, the geometry/GLB path) but used a **different** source (`BuiltInParameter.IFC_GUID`). | **Unified onto origin's source** (commit `4c344a2e0`): `GeometrySyncHandler` now reads `ParameterHelpers.GetString(el, "IFC_GLOBAL_ID_TXT")`, skip-don't-mis-key on empty. One canonical source. |
+| `982a61b` "route StingBridge through /ifc/data" | Overlaps my ArchiCAD work. Verified `982a61b:StingBridge/watch/ifc_watcher.py` does **not** pass `host_document_guid`. | My `host_document_guid` change is **additive on top** — no duplication. Kept. |
+| `86369ce` (#286 r169-ESM viewer) | The merged viewer is r169-ESM; my reconcile folded the deployed r169 `viewer.html` + `meeting-sync.js` into `assets/viewer`. | Verified my reconcile sits **on top of** #286: both `assets/` and `wwwroot/` carry the r169 importmap + `vendor/three` + my streaming loader, byte-identical. **No regression.** |
+
+Rebase: `git rebase origin/...` replayed the single audit commit over the 2 BOQ
+commits with **zero conflicts** (audit files don't overlap BOQ). Backup of the
+pre-rebase state kept as branch `backup/5edee1487-local` + tag
+`backup-5edee1487-local`.
+
+## 12. Single canonical GlobalId source — decision
+
+**Decision: `IFC_GLOBAL_ID_TXT` is the one cross-host key, for all hosts.**
+- Revit tag-sync: `IFC_GLOBAL_ID_TXT` (origin `8486cf0`).
+- Revit geometry: `IFC_GLOBAL_ID_TXT` (`GeometrySyncHandler.cs` — now unified).
+- Revit `/ifc/data` producer (H-1): documented to read `IFC_GLOBAL_ID_TXT`.
+- ArchiCAD/Bonsai: the IFC export `GlobalId` (= the same value by construction).
+- Server: `ExternalElementMapping.IfcGlobalId`.
+**Why not `BuiltInParameter.IFC_GUID`** (my first BLK-1 attempt): it is the
+*live* value Revit can re-map on export — the exact reason
+`StabilizeIfcGuidsCommand` snapshots it into `IFC_GLOBAL_ID_TXT`. Reading the
+live param would reintroduce the round-trip-drift risk (runbook R1). The
+stabilised snapshot is the value that equals the exported IFC GlobalId and what
+other hosts read. The `BuiltInParameter.IFC_GUID` path was deleted.
+**Assert:** `StabilizeIfcGuidsCommand` writes `IFC_GLOBAL_ID_TXT` = the element's
+`IfcGUID` built-in = the exported IFC GlobalId; the BLK-3 round-trip (needs a
+real Revit + ArchiCAD) is the end-to-end proof and remains pending.
+
+## 13. Build + migration + smoke results (turned ❌ → ✅)
+
+- **`dotnet build Planscape.API`** (and the full test project): **Build succeeded, 0 errors** (7 pre-existing warnings only — OpenTelemetry NU1603 + Hangfire CS0618, none mine). All Part-II C# (`ModelsController`, `PlanscapeDbContext`, `PlatformSchemaPatcher`, `MeetingHub`, `ClashesController`) + the new `ModelTransformMath`/controller refactor compile.
+- **`dotnet test --filter ModelTransformMathTests`**: **5/5 passed** — including `TwoModelsInDifferentWorldSpaces_OverlayAfterTransform` (the BLK-2 federation proof).
+- **Postgres smoke test** (`docker compose up postgres redis` + API in Development → `CreateTables()` + patchers): schema applied **clean** — `[schema-patch] done — 6 ok, 0 failed`, `[platform-schema] done — 38 ok, 0 failed`, 129 tables. Verified by direct SQL:
+  - `IX_ProjectModels_Tenant_Project_Hash` exists: `UNIQUE … ("TenantId","ProjectId","ContentHash") WHERE ("DeletedAt" IS NULL)` ✅ (H-3).
+  - HVAC tables created by the live model are **`HvacLoadSnapshot` / `HvacNcSnapshot` / `HvacRefrigerantSizing` (singular)** — exactly the patcher's names → **the patcher was a clean no-op, no duplicate plural tables** ✅ (BLK-4 naming assumption now *verified*, not assumed).
+  - `ArchiCADEventLogs`, `GlobalIdRegistry`, `ExternalElementMappings`, `ProjectModels` all present ✅.
+
+- **EF migration — deliberate decision NOT to ship the generated one.**
+  `dotnet ef migrations list` reports **no migrations**: the legacy migration
+  `.cs` files have **no `[Migration]` attribute and no `.Designer.cs`** (0 of
+  each), so EF never registered them — the app runs on `CreateTables()` (dev) +
+  `PatchDevSchemaAsync`/`PlatformSchemaPatcher` (prod), not `Migrate()`.
+  Generating `CrossHostCoordination` against the stale snapshot produced a
+  **6,960-line whole-model "catch-up"** with index DROPs and data-loss
+  operations — **not** a clean delta, and unsafe to apply. It was removed
+  (`ef migrations remove` + snapshot restored to HEAD). **Reasonable decision:**
+  keep the schema in `OnModelCreating` (unique index) + the patcher (tables) —
+  the mechanism the app actually uses and which the smoke test proves applies
+  clean. The patcher's HVAC names were **kept** (verified correct above), not
+  neutralized, because no migration now covers them. **The real cure** —
+  regenerating the entire migration set from scratch so prod can use `Migrate()`
+  — is a large, separate, high-risk effort logged here as the standing migration
+  debt; it is NOT something to land blind in this pass.
+
+## 14. Final: verified locally vs still needs a real machine
+
+**Verified locally this session:**
+- Server C# compiles (dotnet build, 0 errors).
+- BLK-2 transform math — 5/5 unit tests incl. two-model overlay.
+- H-3 unique index, BLK-4 tables (incl. singular HVAC naming), full schema —
+  applied clean on real Postgres 16; verified by SQL.
+- Viewer JS (`node --check`), Python bridge (`py_compile`), viewer.html engine
+  module extraction — all clean. Viewer reconcile on top of #286, byte-identical
+  source↔wwwroot, SyncCoordinationViewer target runs on build.
+
+**Still needs a real Revit/ArchiCAD/Tekla machine (or a full app boot):**
+- **BLK-1 / H-1** — `GeometrySyncHandler` reading `IFC_GLOBAL_ID_TXT` and the
+  `PushIfcDataAsync` producer are in the Revit plugin (not built here, no Revit
+  API). Needs a Revit session; **run "Stabilize IFC GUIDs" first** so the param
+  is populated. H-1's element-builder + save-trigger wiring is the remaining
+  Revit step.
+- **BLK-3** — the cross-host round-trip (`CROSS_HOST_ROUND_TRIP_RUNBOOK.md`)
+  proving Revit's exported GlobalId == the ArchiCAD/Bonsai key for one physical
+  element. Untested; this is the proof behind the §12 assertion.
+- **BLK-2 axis on real geometry** — the Z-up assumption + mm→m is unit-tested,
+  but a real two-model federation (one Y-up GLB) should confirm the viewer
+  re-bases correctly. (Math is proven; the GLB up-axis handling is the unknown.)
+- **HTTP-level server smoke** — the local API boot hits a **pre-existing**
+  startup crash unrelated to this work: duplicate rate-limiter policy
+  `per-tenant` at `Program.cs:894` (`AddPolicy` called twice). Schema bootstrap
+  completes *before* it, so the DB verification above is unaffected, but hitting
+  `/ifc/data` end-to-end locally is blocked until that pre-existing bug is fixed
+  (logged as a separate issue — not in this branch's scope).
+
+## 15. Still open (ranked, deliberately not landed to protect the green push)
+
+`M-1` (ArchiCAD conflict heuristic), `M-3` (meeting project-membership check on
+the hub), `M-5` (element-level deltas), `M-6` (CancellationToken + BimIssue
+tenant query filter), `H-5` (BCF/federated pagination + N+1), `M-2` job-side
+(`ClashDetectionJob.ElementAGuid`→IfcGuid), `H-2` (ArchiCAD C++), and the
+migration-set regeneration (§13). Each is a clean follow-up on this now-green,
+reconciled base.
