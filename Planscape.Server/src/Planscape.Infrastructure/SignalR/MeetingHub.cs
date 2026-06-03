@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Planscape.Infrastructure.Data;
@@ -60,6 +61,26 @@ public class MeetingHub : Hub
             connectionId = Context.ConnectionId,
             userId = Context.UserIdentifier,
         });
+    }
+
+    /// <summary>
+    /// H-7 — emit ParticipantLeft on any disconnect (tab crash, network drop,
+    /// mobile backgrounding). Previously only the explicit best-effort
+    /// LeaveSession (beforeunload) cleared a participant, so dropped clients
+    /// lingered as ghosts in every peer's presence panel. SignalR removes the
+    /// connection from its groups automatically but does NOT notify the group.
+    /// </summary>
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        foreach (var sessionId in Authorized.ToArray())
+        {
+            await Clients.OthersInGroup(Group(sessionId)).SendAsync("ParticipantLeft", new
+            {
+                connectionId = Context.ConnectionId,
+                userId = Context.UserIdentifier,
+            });
+        }
+        await base.OnDisconnectedAsync(exception);
     }
 
     /// <summary>Host camera move → followers track it (sent to others only).</summary>

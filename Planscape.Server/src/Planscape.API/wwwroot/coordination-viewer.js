@@ -294,43 +294,152 @@
       // R3 — wrap in the same AbortController + 401-redirect contract
       // the api() helper uses, with a longer 60s timeout because GLBs
       // can be 50-200 MB.
-      if (projectId && modelId) {
+      // E-fix (0%-loading bug): the GLB is now STREAMED so the percentage
+      // reflects real bytes downloaded. The old `await res.blob()` blocked
+      // here for the whole download with no progress, then handed GLTFLoader
+      // a blob: URL whose onProgress reports Content-Length 0 — so "0%" never
+      // moved and a stalled/failed download just left a frozen overlay.
+      // Failures are now surfaced ON the boot overlay (not a transient toast)
+      // with a Retry affordance. The boot overlay lives in viewer.html; this
+      // script runs in the same document so it drives #bootLoader directly.
+
+      function bootLoaderEl() { return document.getElementById('bootLoader'); }
+      function setBootProgress(pct, label) {
+        const elp = document.getElementById('loadingProgress');
+        if (elp) elp.textContent = (label != null) ? label : (pct != null ? pct + '%' : '');
+      }
+      function setBootMessage(msg) {
+        const bl = bootLoaderEl();
+        const m = bl && bl.querySelector('.msg');
+        if (m) m.textContent = msg;
+      }
+      function resetBootLoader() {
+        const bl = bootLoaderEl();
+        if (!bl) return;
+        bl.style.display = '';
+        const sp = bl.querySelector('.spinner'); if (sp) sp.style.display = '';
+        const retry = bl.querySelector('#bootRetryBtn'); if (retry) retry.style.display = 'none';
+        setBootMessage('Loading model');
+        setBootProgress(0, null);
+      }
+      function showBootError(msg, canRetry) {
+        const bl = bootLoaderEl();
+        toast(msg, 'error');                       // keep the toast too
+        if (!bl) return;
+        bl.style.display = '';                      // E.3 — keep the overlay up
+        const sp = bl.querySelector('.spinner'); if (sp) sp.style.display = 'none';
+        setBootMessage(msg);
+        setBootProgress(null, '');
+        let retry = bl.querySelector('#bootRetryBtn');
+        if (canRetry) {
+          if (!retry) {
+            retry = document.createElement('button');
+            retry.id = 'bootRetryBtn';
+            retry.textContent = 'Retry';
+            retry.style.cssText = 'margin-top:14px;padding:7px 20px;cursor:pointer;border-radius:6px;border:1px solid #2a6fd0;background:#1d6fd0;color:#fff;font:inherit;';
+            retry.addEventListener('click', () => { resetBootLoader(); loadModelGlb(); });
+            bl.appendChild(retry);
+          }
+          retry.style.display = '';
+        } else if (retry) {
+          retry.style.display = 'none';
+        }
+        // Terminal (non-retryable) failure: unblock meeting co-presence so the
+        // session still connects even though this user's model didn't load.
+        if (!canRetry) {
+          try { window.STING_VIEWER && window.STING_VIEWER.markModelReady && window.STING_VIEWER.markModelReady(); } catch (_) {}
+        }
+      }
+
+      // Stream the response body so the overlay shows real download progress.
+      async function streamGlbWithProgress(res) {
+        const total = Number(res.headers.get('Content-Length') || 0);
+        // Older WebViews without a streaming body reader fall back to blob().
+        if (!res.body || typeof res.body.getReader !== 'function') {
+          setBootMessage('Downloading model');
+          return await res.blob();
+        }
+        const reader = res.body.getReader();
+        const chunks = [];
+        let received = 0;
+        setBootMessage('Downloading model');
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          if (total > 0) setBootProgress(Math.round(received / total * 100), null);
+          else setBootProgress(null, (received / 1048576).toFixed(1) + ' MB');
+        }
+        setBootMessage('Preparing model');
+        const type = res.headers.get('Content-Type') || 'model/gltf-binary';
+        return new Blob(chunks, { type });
+      }
+
+      async function loadModelGlb() {
         const fileUrl = `${apiBase}/api/projects/${projectId}/models/${modelId}/file`;
         const headers = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
         const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
         if (tenantId) headers['X-Tenant'] = tenantId;
+        // E.5 — a missing token is the "Not signed in" case: say so on the
+        // overlay instead of letting it hang or 401-loop.
+        if (!token && !embedMode) {
+          showBootError('Not signed in — open this model from the dashboard.', false);
+          return;
+        }
         const ctl = new AbortController();
         const t = setTimeout(() => ctl.abort(), 60000);
         try {
           const res = await fetch(fileUrl, { headers, cache: 'no-store', signal: ctl.signal });
-          if (res.status === 401 && !authChallenged) {
-            authChallenged = true;
-            toast('Sign-in expired — redirecting to login…', 'error');
-            try { localStorage.removeItem('planscape_token'); } catch (_) {}
-            if (!embedMode) {
-              // Same target as the api() helper above: dashboard's login
-              // overlay at /index.html (the bare /login path is a SPA hash,
-              // not a static page).
-              const next = location.pathname + location.search;
-              try { sessionStorage.setItem('planscape_post_login_next', next); } catch (_) {}
-              setTimeout(() => { location.href = `${apiBase}/index.html`; }, 1500);
+          if (res.status === 401) {
+            if (!authChallenged) {
+              authChallenged = true;
+              showBootError('Sign-in expired — redirecting to login…', false);
+              try { localStorage.removeItem('planscape_token'); } catch (_) {}
+              if (!embedMode) {
+                // Same target as the api() helper above: dashboard's login
+                // overlay at /index.html (the bare /login path is a SPA hash).
+                const next = location.pathname + location.search;
+                try { sessionStorage.setItem('planscape_post_login_next', next); } catch (_) {}
+                setTimeout(() => { location.href = `${apiBase}/index.html`; }, 1500);
+              }
             }
             return;
           }
-          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-          const blob = await res.blob();
+          if (res.status === 404) {
+            // ModelsController returns 404 {error:"storage_missing"} for a
+            // fileless / stale model row (see audit C). Don't hang on it.
+            showBootError('Model file not found — it may need re-publishing from the authoring tool.', false);
+            return;
+          }
+          if (!res.ok) { showBootError(`Failed to load model (${res.status} ${res.statusText}).`, true); return; }
+          const blob = await streamGlbWithProgress(res);
           const blobUrl = URL.createObjectURL(blob);
+          if (state.lastBlobUrl) { try { URL.revokeObjectURL(state.lastBlobUrl); } catch (_) {} }
           state.lastBlobUrl = blobUrl;
-          handleHostCommand({ type: 'load', payload: { url: blobUrl } });
+          // BLK-2 — fetch the model's federation transform (best-effort) so the
+          // engine places it in shared world space. Absent / identity → no-op.
+          let transform = null;
+          try { transform = await api(`/api/projects/${projectId}/models/${modelId}/transform`); } catch (_) {}
+          handleHostCommand({ type: 'load', payload: { url: blobUrl, transform } });
         } catch (err) {
           const aborted = err && err.name === 'AbortError';
           console.warn('[coord] GLB fetch failed', aborted ? 'timeout' : err.message);
-          toast(aborted ? 'Model download timed out — retry?' : 'Failed to load model file', 'error');
-          $('#bootLoader')?.style.setProperty('display', 'none');
+          showBootError(aborted
+            ? 'Model download timed out after 60s.'
+            : 'Failed to download model file — check your connection.', true);
         } finally {
           clearTimeout(t);
         }
+      }
+
+      if (projectId && modelId) {
+        await loadModelGlb();
+      } else {
+        // No model to load on this view — unblock meeting co-presence (BLK-5)
+        // so a model-less coordination session still connects.
+        try { window.STING_VIEWER && window.STING_VIEWER.markModelReady && window.STING_VIEWER.markModelReady(); } catch (_) {}
       }
 
       // Project members — populates assignee + watcher pickers with the
