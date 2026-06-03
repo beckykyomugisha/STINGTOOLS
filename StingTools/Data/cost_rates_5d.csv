@@ -4,7 +4,7 @@ Floors,FLR,A,120.00,444000,m2,Suspended floor slab per square metre
 Roofs,ROF,A,150.00,555000,m2,Roof covering per square metre
 Doors,DOR,A,450.00,1665000,each,Standard internal door leaf and frame
 Windows,WIN,A,600.00,2220000,each,Standard double-glazed window unit
-Columns,COL,S,350.00,1295000,each,Structural column per unit
+Columns,COL,S,520.00,1924000,m3,RC structural column per cubic metre (concrete + 160kg/m3 rebar + formwork) per NRM2
 Structural Framing,BEM,S,280.00,1036000,m,Steel beam per linear metre
 Ceilings,CLG,A,45.00,166500,m2,Suspended ceiling tile per square metre
 Furniture,FUR,A,200.00,740000,each,Standard furniture item
@@ -37,3 +37,8 @@ SPD Type 1+2,LSP12,E,580.00,2146000,each,Combined Type 1+2 SPD per IEC 61643-11
 SPD Type 3,LSP3,E,140.00,518000,each,Type 3 SPD final-circuit class per IEC 61643-11
 Test Clamps,LTC,E,38.00,140600,each,Test clamp / inspection point per BS EN 62305-3 §7.2
 Bonding Conductor,LBC,E,8.50,31450,m,Equipotential bonding Cu 16mm² per BS EN 62305-3 §6.2
+Structural Foundations,FND,S,180.00,666000,m3,RC foundation per cubic metre (excavation + concrete + rebar)
+Structural Foundation,FDN,S,180.00,666000,m3,RC foundation per cubic metre (alias)
+Stairs,STR,A,2200.00,8140000,each,Stair flight (RC / steel) per flight
+Railings,RAL,A,95.00,351500,m,Balustrade / handrail per linear metre
+Generic Models,GEN,A,150.00,555000,each,Generic model item (uncosted placeholder rate)

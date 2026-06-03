@@ -53,6 +53,21 @@ namespace StingTools.UI
                 if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
                     cache.TryGetValue(name.Substring(prefix.Length), out var stripped))
                     return stripped;
+
+            // BOQ-accuracy review V1 — concrete-grade normalisation.
+            // Real Revit material names ("CONCRETE CAST IN SITU 200MM",
+            // "Concrete - Cast-in-Place - C30/37", "RC C32/40") never equal the
+            // CSV TypeKeys ("C30") and the bare grade key is not globally unique
+            // (it lives under both CONCRETE and REBAR_LAP), so it is not registered
+            // standalone. Without this, the per-grade DENSITY_KG_M3 + CARBON rows
+            // were unreachable for structural concrete (audit F3/F4 inert) and
+            // carbon/density fell back to the keyword 0.13 kg/kg × 2400.
+            // Parse an EN 206 (or legacy Cn) grade out of the name and retry as the
+            // composite "CONCRETE Cnn" key the parser registers.
+            string concreteKey = MaterialLookupParser.ResolveConcreteGradeKey(name);
+            if (concreteKey != null && cache.TryGetValue(concreteKey, out var grade))
+                return grade;
+
             return null;
         }
 

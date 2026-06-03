@@ -690,9 +690,14 @@ namespace StingTools.BOQ
             catch (Exception ex) { StingLog.WarnRateLimited("EstimateDensity.Lookup", $"EstimateDensity lookup: {ex.Message}"); }
 
             string lower = material.ToLowerInvariant();
+            // BOQ-accuracy audit F4/F5: reinforced concrete ≈ 2450 kg/m³; softwood
+            // density aligned to the MATERIAL_LOOKUP corrected value (480, CIBSE
+            // 420–550) so the cost-mass and carbon-mass paths use one density.
+            if (lower.Contains("reinforced") && lower.Contains("concrete")) return 2450;
             if (lower.Contains("concrete")) return 2400;
             if (lower.Contains("steel")) return 7850;
-            if (lower.Contains("timber") || lower.Contains("wood")) return 550;
+            if (lower.Contains("hardwood")) return 700;
+            if (lower.Contains("timber") || lower.Contains("wood") || lower.Contains("softwood")) return 480;
             if (lower.Contains("alumin")) return 2700;
             if (lower.Contains("glass")) return 2500;
             if (lower.Contains("brick")) return 1920;

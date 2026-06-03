@@ -65,23 +65,28 @@ namespace StingTools.Core.DesignOptions
         }
 
         /// <summary>Default embodied-carbon factors by Revit category.
-        /// Sourced from the ICE Database v3.0 cradle-to-gate values used
-        /// elsewhere in SustainabilityEngine. Values in kgCO₂e per kg of
-        /// element mass — but here keyed by category so we can apply a
-        /// flat per-element factor without traversing the material take-
-        /// off (which the production SustainabilityEngine handles in a
-        /// separate, slower path).</summary>
+        /// BOQ-accuracy audit F1 (BLOCK fix): these factors are kgCO₂e
+        /// per CUBIC METRE of element volume (ICE v3.0 cradle-to-gate ×
+        /// typical material density), NOT per kg. The previous code
+        /// multiplied these by volume × a hardcoded 2300 kg/m³ density,
+        /// which inflated every option's embodied carbon by ~2000×
+        /// (575 000 kgCO₂e/m³ for a wall vs the real ~250). They are now
+        /// applied directly to volume in m³ — see BuildRow.</summary>
         public static Dictionary<string, double> LoadCarbonFactors()
         {
             if (_carbonFactors != null) return _carbonFactors;
+            // kgCO₂e per m³ (volumetric). Concrete-block wall ≈ density 2000 ×
+            // 0.12 kg/kg ≈ 250; RC floor ≈ 2400 × 0.12 ≈ 290; steel/RC framing
+            // is mass-dominated so a representative 700/m³ (≈ 2300 kg/m³ × 0.30
+            // blended RC+rebar) is kept. ICE v3.0 cradle-to-gate basis.
             _carbonFactors = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
             {
-                ["Walls"]                = 250,   // concrete-block average
-                ["Floors"]               = 280,
+                ["Walls"]                = 250,   // concrete-block average, kgCO₂e/m³
+                ["Floors"]               = 290,   // RC C25/30 ≈ 0.12 × 2400
                 ["Roofs"]                = 220,
-                ["Structural Columns"]   = 700,   // steel/RC weighted
+                ["Structural Columns"]   = 700,   // RC + rebar blended, kgCO₂e/m³
                 ["Structural Framing"]   = 700,
-                ["Structural Foundation"] = 350,
+                ["Structural Foundation"] = 320,
                 ["Doors"]                = 80,
                 ["Windows"]              = 90,
                 ["Curtain Wall Panels"]  = 110,
@@ -173,8 +178,12 @@ namespace StingTools.Core.DesignOptions
                         row.CostByCategory[cat] = accC + cost;
                     }
 
+                    // BOQ-accuracy audit F1 (BLOCK): factors are kgCO₂e per m³,
+                    // so multiply by volume in m³ directly. The previous extra
+                    // "× 2300" density term double-counted mass and inflated
+                    // carbon by ~2000×.
                     double cf = carb != null && carb.TryGetValue(cat, out double f) ? f : 0.0;
-                    double kg = cf * Math.Max(vol * 0.0283168, 0) * 2300; // density approx kg/m³
+                    double kg = cf * Math.Max(vol * 0.0283168, 0); // kgCO₂e/m³ × m³
                     if (kg <= 0 && cf > 0) kg = cf;
                     row.TotalCarbonKg += kg;
                     if (kg > 0)

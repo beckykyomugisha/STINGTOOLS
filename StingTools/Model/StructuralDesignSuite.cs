@@ -771,6 +771,32 @@ namespace StingTools.Model
             { BuiltInCategory.OST_Walls, (40, 60, 80) },
         };
 
+        // BOQ-accuracy review V7 — wire the F8 REBAR_ELEMENT lookup rows in as the
+        // primary driver of the reinforcement ratio. Maps the structural category to
+        // the CSV TypeKey and reads STEEL_KG_PER_M3 from MATERIAL_LOOKUP.csv; falls
+        // back to the hardcoded AvgRatio when the row/property is absent.
+        private static double ResolveAvgRatio(BuiltInCategory cat, double fallback)
+        {
+            string typeKey = cat switch
+            {
+                BuiltInCategory.OST_StructuralColumns    => "COLUMN",
+                BuiltInCategory.OST_StructuralFraming    => "BEAM",
+                BuiltInCategory.OST_Floors               => "SLAB",
+                BuiltInCategory.OST_StructuralFoundation => "FOOTING",
+                BuiltInCategory.OST_Walls                => "WALL",
+                _ => null,
+            };
+            if (typeKey == null) return fallback;
+            try
+            {
+                double v = StingTools.UI.MaterialLookupCsv.GetProperty(
+                    $"REBAR_ELEMENT {typeKey}", "STEEL_KG_PER_M3");
+                if (v > 0) return v;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("Rebar.LookupRatio", $"ResolveAvgRatio: {ex.Message}"); }
+            return fallback;
+        }
+
         /// <summary>
         /// Estimates total rebar quantities for all RC elements in the model.
         /// Excludes steel elements (detected by family name).
@@ -802,7 +828,13 @@ namespace StingTools.Model
                     catConcreteM3 += vol;
                 }
 
-                double catRebarKg = catConcreteM3 * ratios.AvgRatio;
+                // BOQ-accuracy review V7 — the reinforcement ratio is driven by
+                // ELEMENT TYPE (audit F8). Prefer the single-source MATERIAL_LOOKUP
+                // REBAR_ELEMENT row (slab 80 / beam 120 / column 160 / footing 40 /
+                // wall 70 — civilsir / kairalitmt / OneClickLCA bands) over the
+                // hardcoded fallback so the CSV the audit added is actually consumed.
+                double avgRatio = ResolveAvgRatio(cat, ratios.AvgRatio);
+                double catRebarKg = catConcreteM3 * avgRatio;
                 string catName = cat switch
                 {
                     BuiltInCategory.OST_StructuralColumns => "Columns",
