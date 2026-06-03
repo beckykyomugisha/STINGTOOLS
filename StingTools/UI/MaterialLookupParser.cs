@@ -163,6 +163,48 @@ namespace StingTools.UI
             return 0;
         }
 
+        // BOQ-accuracy review V1 — map a Revit material name onto the concrete-grade
+        // key the long-format CSV registers ("CONCRETE Cnn"). Recognises:
+        //   • EN 206 / BS 8500 dual notation  C25/30, C32/40, C40/50 …  (cube = 2nd number)
+        //   • legacy single-number cube strength  C30, C40 …
+        //   • prose forms  "Concrete, Cast-in-Place - C32/40", "RC C30"
+        // The CSV uses the legacy cube number as its TypeKey (C30 row == EN C25/30 per the
+        // audit table), so the EN dual-notation is mapped onto the matching cube key.
+        // Returns null when no grade is present (caller then falls through to keyword
+        // density/carbon). Public + Revit-free so it is unit-testable.
+        public static string ResolveConcreteGradeKey(string materialName)
+        {
+            if (string.IsNullOrWhiteSpace(materialName)) return null;
+            string n = materialName.ToUpperInvariant();
+            if (!(n.Contains("CONCRETE") || System.Text.RegularExpressions.Regex.IsMatch(n, @"\bRC\b")))
+                return null;
+
+            // EN dual notation Ccyl/Ccube → use the cube number (the CSV TypeKey basis).
+            var en = System.Text.RegularExpressions.Regex.Match(n, @"C\s*(\d{2})\s*/\s*(\d{2})");
+            int cube = 0;
+            if (en.Success) cube = int.Parse(en.Groups[2].Value);
+            else
+            {
+                // Legacy single-number cube strength, e.g. "C30", "C 40".
+                var single = System.Text.RegularExpressions.Regex.Match(n, @"\bC\s*(\d{2})\b");
+                if (single.Success) cube = int.Parse(single.Groups[1].Value);
+            }
+            // Concrete material with no parseable grade → the per-category DEFAULT row
+            // (registered under the bare "CONCRETE" Category key) so density/carbon
+            // resolve to the C25/30 RC default instead of the grade-blind keyword path.
+            if (cube <= 0) return "CONCRETE";
+
+            // Snap the cube strength to the nearest catalogued grade (15/20/25/30/35/40/45).
+            int[] grades = { 15, 20, 25, 30, 35, 40, 45 };
+            int best = grades[0]; int bestDelta = Math.Abs(cube - best);
+            foreach (int g in grades)
+            {
+                int d = Math.Abs(cube - g);
+                if (d < bestDelta) { best = g; bestDelta = d; }
+            }
+            return $"CONCRETE C{best}";
+        }
+
         private static string At(string[] f, int i) => i >= 0 && i < f.Length ? f[i] : "";
 
         private static double ParseDouble(string s)

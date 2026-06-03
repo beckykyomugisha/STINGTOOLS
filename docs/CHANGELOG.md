@@ -3,6 +3,36 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ accuracy audit — verification + hardening pass)
+
+Independent re-verification of the 10 BOQ-audit fixes against the live
+files, then correction of the ones found inert/wrong. Report appended as
+the "Review pass" section of
+[`BOQ_ACCURACY_AUDIT.md`](BOQ_ACCURACY_AUDIT.md). Key finding: the
+per-grade concrete carbon/density (F3/F4) and the `REBAR_ELEMENT` rebar
+map (F8) were correct *data* but **unreachable at runtime** — the carbon
+and density resolvers key on the Revit material NAME while the CSV is
+keyed by TypeKey (`C30`), and nothing read `REBAR_ELEMENT`.
+
+- **V1** Added `MaterialLookupParser.ResolveConcreteGradeKey` + a retry in
+  `MaterialLookupCsv.Get` so a Revit concrete name (`C25/30`, `C32/40`,
+  legacy `Cnn`, or un-graded "Concrete") maps onto the per-grade /
+  DEFAULT lookup row. F3/F4 now reach the BOQ.
+- **V2** Reconciled the 8 BLE `CONCRETE CAST IN SITU/PRECAST` rows to the
+  lookup DEFAULT (2450 kg/m³, 300 kgCO₂/m³) so BLE ↔ MATERIAL_LOOKUP agree.
+- **V6** F6 had blanket-set 41 timber rows to −661; 39 are density-720
+  hardwood/plywood whose own fossil+biogenic = −992. Restored those 39 to
+  −992; the 2 genuine softwood rows stay −661.
+- **V7** Wired the `REBAR_ELEMENT` lookup into `AutoRebarEstimator` via
+  `ResolveAvgRatio` so the F8 element-type ratios are actually consumed.
+- **V8** Changed the `Columns` rate from `each` to `m³` (1 924 000 UGX/m³)
+  so structural columns cost volumetrically per NRM2.
+- **V3** Relabelled Worked Example 1 (C30 = EN C25/30). **V4/V5**
+  confirmed good as shipped (no change).
+
+No quantities reduced; no correct fix regressed. Built without
+`dotnet build` verification (Linux sandbox) — verify in Revit before merge.
+
 #### Completed (BOQ numerical-accuracy audit + fixes)
 
 Audited the Bill-of-Quantities engine, material quantities, concrete
