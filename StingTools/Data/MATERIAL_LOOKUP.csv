@@ -8,54 +8,65 @@
 # CONCRETE GRADES (BS 8500 / UNBS)
 # TypeKey sourced from: BLE_STRUCT_CONCRETE_GRADE_TXT
 Category,TypeKey,Property,Value,Unit,Description
-CONCRETE,C15,CEMENT_BAGS_PER_M3,4.5,bags/m³,Cement bags per cubic metre (1:3:6 mix)
+# BOQ-accuracy audit F2/F3/F4: cement content raised to BS 8500 mid-range
+# (bags @ 50 kg), CARBON_KG_PER_M3 re-set to ICE v3.0 RC cradle-to-gate per
+# grade, DENSITY_KG_M3 added (plain→reinforced 2350-2500). bag = 50 kg.
+CONCRETE,C15,CEMENT_BAGS_PER_M3,4.8,bags/m³,Cement 240 kg/m³ (1:3:6 mass-batch BS 8500)
 CONCRETE,C15,AGGREGATE_RATIO,0.92,,Coarse aggregate volume fraction
 CONCRETE,C15,SAND_RATIO,0.46,,Fine aggregate (sand) volume fraction
-CONCRETE,C15,WATER_PER_BAG,28,L,Water per 50kg bag (W/C 0.56)
+CONCRETE,C15,WATER_PER_BAG,29,L,Water per 50kg bag (W/C 0.58)
 CONCRETE,C15,STEEL_KG_PER_M3,50,kg/m³,Typical reinforcement (lightly reinforced)
-CONCRETE,C15,CARBON_KG_PER_M3,280,kgCO₂/m³,Embodied carbon
-CONCRETE,C20,CEMENT_BAGS_PER_M3,5.0,bags/m³,Cement bags per cubic metre (1:2:4 mix lean)
+CONCRETE,C15,CARBON_KG_PER_M3,250,kgCO₂/m³,ICE v3.0 RC ~0.106 kg/kg × 2350
+CONCRETE,C15,DENSITY_KG_M3,2350,kg/m³,Lightly reinforced concrete
+CONCRETE,C20,CEMENT_BAGS_PER_M3,6.2,bags/m³,Cement 310 kg/m³ (C16-20 BS 8500)
 CONCRETE,C20,AGGREGATE_RATIO,0.90,,Coarse aggregate volume fraction
 CONCRETE,C20,SAND_RATIO,0.45,,Fine aggregate volume fraction
 CONCRETE,C20,WATER_PER_BAG,27,L,Water per 50kg bag (W/C 0.54)
 CONCRETE,C20,STEEL_KG_PER_M3,75,kg/m³,Typical reinforcement (moderate)
-CONCRETE,C20,CARBON_KG_PER_M3,310,kgCO₂/m³,Embodied carbon
-CONCRETE,C25,CEMENT_BAGS_PER_M3,5.8,bags/m³,Cement bags per cubic metre (1:2:4 standard)
+CONCRETE,C20,CARBON_KG_PER_M3,270,kgCO₂/m³,ICE v3.0 RC ~0.113 kg/kg × 2400
+CONCRETE,C20,DENSITY_KG_M3,2400,kg/m³,Reinforced concrete
+CONCRETE,C25,CEMENT_BAGS_PER_M3,7.0,bags/m³,Cement 350 kg/m³ (C20-25 BS 8500)
 CONCRETE,C25,AGGREGATE_RATIO,0.88,,Coarse aggregate volume fraction
 CONCRETE,C25,SAND_RATIO,0.44,,Fine aggregate volume fraction
 CONCRETE,C25,WATER_PER_BAG,25,L,Water per 50kg bag (W/C 0.50)
 CONCRETE,C25,STEEL_KG_PER_M3,90,kg/m³,Typical reinforcement (standard)
-CONCRETE,C25,CARBON_KG_PER_M3,330,kgCO₂/m³,Embodied carbon
-CONCRETE,C30,CEMENT_BAGS_PER_M3,6.5,bags/m³,Cement bags per cubic metre (1:1.5:3 mix)
+CONCRETE,C25,CARBON_KG_PER_M3,290,kgCO₂/m³,ICE v3.0 C20/25 RC 0.12 kg/kg × 2400
+CONCRETE,C25,DENSITY_KG_M3,2400,kg/m³,Reinforced concrete
+CONCRETE,C30,CEMENT_BAGS_PER_M3,7.2,bags/m³,Cement 360 kg/m³ (C25-30 BS 8500)
 CONCRETE,C30,AGGREGATE_RATIO,0.85,,Coarse aggregate volume fraction
 CONCRETE,C30,SAND_RATIO,0.42,,Fine aggregate volume fraction
 CONCRETE,C30,WATER_PER_BAG,23,L,Water per 50kg bag (W/C 0.46)
 CONCRETE,C30,STEEL_KG_PER_M3,110,kg/m³,Typical reinforcement (moderate-heavy)
-CONCRETE,C30,CARBON_KG_PER_M3,345,kgCO₂/m³,Embodied carbon
-CONCRETE,C35,CEMENT_BAGS_PER_M3,7.0,bags/m³,Cement bags per cubic metre (1:1.5:3 rich)
+CONCRETE,C30,CARBON_KG_PER_M3,300,kgCO₂/m³,ICE v3.0 C25/30 RC 0.122 kg/kg × 2450
+CONCRETE,C30,DENSITY_KG_M3,2450,kg/m³,Reinforced concrete
+CONCRETE,C35,CEMENT_BAGS_PER_M3,7.6,bags/m³,Cement 380 kg/m³ (C28-35 BS 8500)
 CONCRETE,C35,AGGREGATE_RATIO,0.83,,Coarse aggregate volume fraction
 CONCRETE,C35,SAND_RATIO,0.41,,Fine aggregate volume fraction
 CONCRETE,C35,WATER_PER_BAG,22,L,Water per 50kg bag (W/C 0.44)
 CONCRETE,C35,STEEL_KG_PER_M3,130,kg/m³,Typical reinforcement (heavy)
-CONCRETE,C35,CARBON_KG_PER_M3,365,kgCO₂/m³,Embodied carbon
-CONCRETE,C40,CEMENT_BAGS_PER_M3,7.5,bags/m³,Cement bags per cubic metre (1:1:2 mix)
+CONCRETE,C35,CARBON_KG_PER_M3,340,kgCO₂/m³,ICE v3.0 C28/35 RC 0.139 kg/kg × 2450
+CONCRETE,C35,DENSITY_KG_M3,2450,kg/m³,Reinforced concrete
+CONCRETE,C40,CEMENT_BAGS_PER_M3,8.2,bags/m³,Cement 410 kg/m³ (C32-40 BS 8500)
 CONCRETE,C40,AGGREGATE_RATIO,0.80,,Coarse aggregate volume fraction
 CONCRETE,C40,SAND_RATIO,0.40,,Fine aggregate volume fraction
 CONCRETE,C40,WATER_PER_BAG,20,L,Water per 50kg bag (W/C 0.40)
 CONCRETE,C40,STEEL_KG_PER_M3,150,kg/m³,Typical reinforcement (very heavy)
-CONCRETE,C40,CARBON_KG_PER_M3,380,kgCO₂/m³,Embodied carbon
-CONCRETE,C45,CEMENT_BAGS_PER_M3,8.0,bags/m³,Cement bags per cubic metre
+CONCRETE,C40,CARBON_KG_PER_M3,392,kgCO₂/m³,ICE v3.0 C32/40 RC 0.16 kg/kg × 2450
+CONCRETE,C40,DENSITY_KG_M3,2450,kg/m³,Reinforced concrete
+CONCRETE,C45,CEMENT_BAGS_PER_M3,8.8,bags/m³,Cement 440 kg/m³ (C40-50 BS 8500)
 CONCRETE,C45,AGGREGATE_RATIO,0.78,,Coarse aggregate volume fraction
 CONCRETE,C45,SAND_RATIO,0.39,,Fine aggregate volume fraction
 CONCRETE,C45,WATER_PER_BAG,19,L,Water per 50kg bag (W/C 0.38)
 CONCRETE,C45,STEEL_KG_PER_M3,170,kg/m³,Typical reinforcement (very heavy)
-CONCRETE,C45,CARBON_KG_PER_M3,400,kgCO₂/m³,Embodied carbon
-CONCRETE,DEFAULT,CEMENT_BAGS_PER_M3,6.5,bags/m³,Default: C25/30 mix
+CONCRETE,C45,CARBON_KG_PER_M3,420,kgCO₂/m³,ICE v3.0 C40/50 RC 0.168 kg/kg × 2500
+CONCRETE,C45,DENSITY_KG_M3,2500,kg/m³,Heavily reinforced concrete
+CONCRETE,DEFAULT,CEMENT_BAGS_PER_M3,7.2,bags/m³,Default C25-30 mix (360 kg per m3 BS 8500)
 CONCRETE,DEFAULT,AGGREGATE_RATIO,0.88,,Default coarse aggregate
 CONCRETE,DEFAULT,SAND_RATIO,0.44,,Default fine aggregate
 CONCRETE,DEFAULT,WATER_PER_BAG,25,L,Default W/C 0.50
 CONCRETE,DEFAULT,STEEL_KG_PER_M3,90,kg/m³,Default reinforcement
-CONCRETE,DEFAULT,CARBON_KG_PER_M3,350,kgCO₂/m³,Default embodied carbon
+CONCRETE,DEFAULT,CARBON_KG_PER_M3,300,kgCO₂/m³,ICE v3.0 C25/30 RC default
+CONCRETE,DEFAULT,DENSITY_KG_M3,2450,kg/m³,Reinforced concrete default
 #
 # REINFORCEMENT LAP LENGTHS (BS 8666)
 # TypeKey sourced from: BLE_STRUCT_CONCRETE_GRADE_TXT
@@ -72,6 +83,19 @@ REBAR_LAP,C30,COMPRESSION_LAP_FACTOR,26,,Bar diameters for compression lap (C30)
 REBAR_LAP,C35,COMPRESSION_LAP_FACTOR,25,,Bar diameters for compression lap (C35)
 REBAR_LAP,C40,COMPRESSION_LAP_FACTOR,23,,Bar diameters for compression lap (C40)
 REBAR_LAP,DEFAULT,COMPRESSION_LAP_FACTOR,26,,Default compression lap
+# BOQ-accuracy audit F8: reinforcement density is driven by ELEMENT TYPE, not
+# concrete grade. These are the accepted kg-steel/m³-concrete bands (civilsir /
+# kairalitmt / OneClickLCA). TypeKey sourced from element category / structural
+# usage. The grade-keyed CONCRETE STEEL_KG_PER_M3 rows above remain a fallback
+# proxy for when element type is unknown.
+REBAR_ELEMENT,SLAB,STEEL_KG_PER_M3,80,kg/m³,Suspended slab reinforcement (60-120 ~80)
+REBAR_ELEMENT,BEAM,STEEL_KG_PER_M3,120,kg/m³,Beam reinforcement (100-160 ~120)
+REBAR_ELEMENT,COLUMN,STEEL_KG_PER_M3,160,kg/m³,Column reinforcement (120-220 ~160)
+REBAR_ELEMENT,FOOTING,STEEL_KG_PER_M3,40,kg/m³,Pad/strip footing reinforcement (40-80 ~40)
+REBAR_ELEMENT,RAFT,STEEL_KG_PER_M3,90,kg/m³,Raft foundation reinforcement
+REBAR_ELEMENT,WALL,STEEL_KG_PER_M3,70,kg/m³,RC wall / retaining wall reinforcement
+REBAR_ELEMENT,STAIR,STEEL_KG_PER_M3,100,kg/m³,RC stair reinforcement
+REBAR_ELEMENT,DEFAULT,STEEL_KG_PER_M3,90,kg/m³,Default when element type unknown (~C25/30 proxy)
 #
 # BRICK BOND TYPES
 # TypeKey sourced from: BLE_BRICK_BOND_TYPE_TXT

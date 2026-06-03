@@ -3,6 +3,65 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ numerical-accuracy audit + fixes)
+
+Audited the Bill-of-Quantities engine, material quantities, concrete
+classes, densities, embodied-carbon factors, reinforcement ratios and
+unit costs for numerical accuracy against EN 206 / BS 8500, ICE v3.0,
+NRM2 / RICS and standard reinforcement tables. Full report in
+[`BOQ_ACCURACY_AUDIT.md`](BOQ_ACCURACY_AUDIT.md) — **3 BLOCK, 5 WARN,
+5 INFO findings; 10 fixed**.
+
+Fixes applied:
+
+- **F1 (BLOCK)** `OptionCostCarbonCalculator` carbon was
+  `factor × volume_m³ × 2300`, inflating per-option embodied carbon by
+  ~2000× (575 000 kgCO₂e/m³ for a wall vs the real ~250). Factors are
+  now documented as kgCO₂e per m³ and applied directly to volume; the
+  spurious `× 2300` density term removed.
+- **F2 (WARN/BLOCK)** Concrete cement content in `MATERIAL_LOOKUP.csv`
+  was 9–19 % below BS 8500 mid-range across all grades. Raised C15–C45
+  cement bags (@ 50 kg) and re-derived W/C: C20 250→310, C25 290→350,
+  C30 325→360, C40 375→410 kg/m³.
+- **F3 (WARN)** Concrete embodied carbon re-set to ICE v3.0 RC
+  cradle-to-gate per grade (C25 330→290, C30 345→300, C40 380→392
+  kgCO₂/m³).
+- **F4 (WARN)** Added per-grade `DENSITY_KG_M3` rows to
+  `MATERIAL_LOOKUP.csv` (2350 plain → 2500 heavily reinforced) so
+  density is grade-aware, and made `BOQCostManager.EstimateDensityKgPerM3`
+  return 2450 for reinforced concrete instead of the grade-blind 2400.
+- **F5 (WARN)** Timber density fallback in `BOQCostManager` aligned
+  550→480 kg/m³ to match the corrected `MATERIAL_LOOKUP` softwood value
+  so cost-mass and carbon-mass paths agree; hardwood split to 700.
+- **F6 (BLOCK)** Replaced the `-992` timber carbon sentinel in 39
+  `BLE_MATERIALS.csv` rows with the correct net A1-A3 value −661
+  kgCO₂/m³ (480 × (0.263 − 1.64)).
+- **F7 (BLOCK)** Populated empty density (2400) + carbon (300 kgCO₂/m³,
+  ~C30 RC) on 8 `CONCRETE CAST IN SITU/PRECAST` rows in
+  `BLE_MATERIALS.csv` that previously fed 0 carbon into the BOQ.
+- **F8 (WARN)** Added a `REBAR_ELEMENT` element-type reinforcement map
+  (slab 80 / beam 120 / column 160 / footing 40 / raft 90 / wall 70 /
+  stair 100 kg/m³) — the correct driver of rebar density — keeping the
+  grade-keyed rows as a fallback proxy.
+- **F10 (INFO)** Added 4 missing high-impact rate rows to
+  `cost_rates_5d.csv` (Structural Foundations, Stairs, Railings, Generic
+  Models), all at the consistent 3700 UGX/USD FX.
+
+Documented, no number change: F9 (`Columns` rate is genuinely per-unit;
+`UnitsAlign` guards the takeoff path so no dimensional crossover), F11
+(aluminium 8500 kgCO₂/m³ is within recycled-content range), F12 (FX 3700
+is project-overridable via `UGX_PER_USD` — stale-FX risk noted), F13
+(tender total is VAT-exclusive by NRM2 convention). FX was verified
+internally consistent across all rate rows (≤0.2 % of 3700).
+
+Waste vs measured-addition double-apply re-verified safe: `WasteFactor`
+excludes counted items and `MeasuredAddition.GrossUp` sums waste +
+addition once. Unit conversions (ft→m ×0.3048, ft²→m² ×0.092903,
+ft³→m³ ×0.0283168) verified correct.
+
+Built without `dotnet build` verification (Linux sandbox) — verify in
+Revit before merge.
+
 #### Completed (Template Manager v2 — Phases 1-20)
 
 Full rebuild of the Template Manager Dashboard from a passive tab-of-cards

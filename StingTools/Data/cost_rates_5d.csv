@@ -37,3 +37,8 @@ SPD Type 1+2,LSP12,E,580.00,2146000,each,Combined Type 1+2 SPD per IEC 61643-11
 SPD Type 3,LSP3,E,140.00,518000,each,Type 3 SPD final-circuit class per IEC 61643-11
 Test Clamps,LTC,E,38.00,140600,each,Test clamp / inspection point per BS EN 62305-3 §7.2
 Bonding Conductor,LBC,E,8.50,31450,m,Equipotential bonding Cu 16mm² per BS EN 62305-3 §6.2
+Structural Foundations,FND,S,180.00,666000,m3,RC foundation per cubic metre (excavation + concrete + rebar)
+Structural Foundation,FDN,S,180.00,666000,m3,RC foundation per cubic metre (alias)
+Stairs,STR,A,2200.00,8140000,each,Stair flight (RC / steel) per flight
+Railings,RAL,A,95.00,351500,m,Balustrade / handrail per linear metre
+Generic Models,GEN,A,150.00,555000,each,Generic model item (uncosted placeholder rate)
