@@ -173,6 +173,15 @@ public class IfcBoqSeedJob
                 $"IFC BOQ extraction complete — {items.Count} items, estimated {totalEstimated:F2}.",
                 new { projectId, source = "ifc_import", snapshotId = snapshot.Id },
                 CancellationToken.None);
+
+            // #7 — typed event for the mobile cost dashboard (realtimeClient.ts:64),
+            // kept in lockstep with BoqController.PushSnapshot.
+            _ = _notifications.NotifyProjectEventAsync(
+                projectId,
+                "BoqSnapshotUpdated",
+                new { projectId, source = "ifc_import", snapshotId = snapshot.Id,
+                      totalEstimated, createdAt = snapshot.CreatedAt },
+                CancellationToken.None);
         }
     }
 

@@ -4654,8 +4654,7 @@ namespace StingTools.Core
                     case "PlanscapeCopyLink":
                     {
                         string projectName = doc?.Title ?? "BIMProject";
-                        string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
-                        string link = $"planscape://dashboard/{projectName}/{timestamp}";
+                        string link = BIMManager.PlanscapeServerClient.BuildDashboardShareLink(projectName);
                         try { System.Windows.Clipboard.SetText(link); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         TaskDialog.Show("STING — Planscape",
                             $"Dashboard link copied to clipboard:\n{link}\n\nShare with your team or embed in a QR code.");
@@ -4732,21 +4731,15 @@ namespace StingTools.Core
                     {
                         try
                         {
-                            var client = BIMManager.PlanscapeServerClient.Instance;
-                            string baseUrl = client.ServerUrl;
-                            if (string.IsNullOrEmpty(baseUrl))
-                            {
-                                TaskDialog.Show("STING — Planscape", "Connect to the Planscape server first.");
-                                return;
-                            }
-                            // Open the real coordinator SPA at /app/ — the full
-                            // sidebar dashboard (Issues / Documents / Transmittals /
-                            // Warnings / 3D models) — not the marketing landing page
-                            // served at the server root. Deep-link straight to the
-                            // active project's models when one is connected.
-                            string url = baseUrl.TrimEnd('/') + "/app/";
-                            if (client.IsConnected && client.CurrentProjectId != Guid.Empty)
-                                url += $"#models?project={client.CurrentProjectId}";
+                            // #9 — shared BuildAppUrl resolves the base URL
+                            // consistently (ServerUrl → saved json → one const).
+                            // Previously this path alone aborted with a "connect
+                            // first" dialog while the other two copies fell back
+                            // to localhost / onrender — now all three agree and
+                            // the dashboard opens against the canonical local
+                            // default when disconnected. Opens the coordinator
+                            // SPA at /app/, deep-linking the active project.
+                            string url = BIMManager.PlanscapeServerClient.BuildAppUrlForActiveProject();
                             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                                 { FileName = url, UseShellExecute = true })?.Dispose();
                         }

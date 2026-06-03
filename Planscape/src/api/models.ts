@@ -36,8 +36,13 @@ export async function deleteModel(projectId: string, modelId: string): Promise<v
 }
 
 /**
- * Upload a glTF / GLB / IFC file. Element map + thumbnail are optional sidecars.
+ * Upload a GLB / glTF model. Element map + thumbnail are optional sidecars.
  * Uses `fetch` directly (not `apiFetch`) because we send multipart, not JSON.
+ *
+ * NOTE (#1): the viewer is glTF-only and the server rejects non-glTF at the
+ * publish boundary (ModelsController.Upload → 400 unsupported_viewer_format),
+ * so convert IFC/RVT/OBJ/FBX to GLB before calling this. The thrown Error
+ * surfaces the server's message verbatim.
  */
 export async function uploadModel(
   projectId: string,

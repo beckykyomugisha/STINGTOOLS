@@ -8933,8 +8933,7 @@ namespace StingTools.UI
         {
             var doc = app.ActiveUIDocument?.Document;
             string projectName = doc?.Title ?? "BIMProject";
-            string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
-            string link = $"planscape://dashboard/{projectName}/{timestamp}";
+            string link = BIMManager.PlanscapeServerClient.BuildDashboardShareLink(projectName);
             System.Windows.Clipboard.SetText(link);
             TaskDialog.Show("STING — Planscape", $"Dashboard link copied to clipboard:\n{link}\n\nShare this link with your team or embed it in a QR code.");
         }
@@ -8948,23 +8947,12 @@ namespace StingTools.UI
         // client we deep-link straight into its dashboard view.
         private static void PlanscapeOpenWebDashboard(UIApplication app)
         {
-            var client = BIMManager.PlanscapeServerClient.Instance;
-            string baseUrl = client.ServerUrl;
-            if (string.IsNullOrWhiteSpace(baseUrl))
-            {
-                baseUrl = "http://localhost:5000";
-            }
-            // Open the real coordinator SPA (/app/) — the full sidebar
-            // dashboard with Issues / Documents / Transmittals / Warnings /
-            // 3D models — rather than the marketing landing page at
-            // /index.html. The SPA reads location.hash to pick the active
-            // view, so deep-link straight to a project's models when a
-            // project is active on the client.
-            string url = baseUrl.TrimEnd('/') + "/app/";
-            if (client.IsConnected && client.CurrentProjectId != Guid.Empty)
-            {
-                url += $"#models?project={client.CurrentProjectId}";
-            }
+            // #9 — route through the shared BuildAppUrl so all three "Open Web
+            // Dashboard" call sites resolve the base URL identically
+            // (ServerUrl → saved json → one const) and deep-link the active
+            // project's 3D models view. Opens the coordinator SPA (/app/), not
+            // the marketing landing page.
+            string url = BIMManager.PlanscapeServerClient.BuildAppUrlForActiveProject();
             try
             {
                 System.Diagnostics.Process.Start(

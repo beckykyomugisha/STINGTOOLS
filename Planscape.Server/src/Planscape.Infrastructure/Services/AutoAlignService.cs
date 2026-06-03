@@ -24,7 +24,11 @@ public interface IAutoAlignService
     Task<AutoAlignResult> ComputeAsync(
         Guid projectId, Guid tenantId, Guid targetModelId,
         IHubContext<FederatedModelHub>? modelHub = null,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        // #12 — re-emit ModelUpdated on NotificationHub (project-{id}) so the
+        // dashboard + plugin (both on /hubs/notifications) refresh after an
+        // auto-align transform; /hubs/model has no client.
+        IHubContext<NotificationHub>? notificationHub = null);
 }
 
 public sealed record AutoAlignResult(
@@ -53,7 +57,8 @@ public sealed class AutoAlignService : IAutoAlignService
     public async Task<AutoAlignResult> ComputeAsync(
         Guid projectId, Guid tenantId, Guid targetModelId,
         IHubContext<FederatedModelHub>? modelHub = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        IHubContext<NotificationHub>? notificationHub = null)
     {
         // ── 1. Load the target model's latest IfcAlignmentReport ──────────────
         var targetReport = await _db.IfcAlignmentReports.AsNoTracking()
@@ -223,7 +228,8 @@ public sealed class AutoAlignService : IAutoAlignService
                     projectId.ToString(),
                     new[] { targetModelId.ToString() },
                     Array.Empty<long>(),
-                    "auto-align");
+                    "auto-align",
+                    notificationHub: notificationHub);
             }
             catch (Exception hubEx)
             {

@@ -33,6 +33,7 @@ public class ModelsController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly IFileStorageService _storage;
     private readonly ILogger<ModelsController> _logger;
+    private readonly Planscape.Core.Interfaces.IModelConverter _converter;
 
     // Upload cap — glTF can be large but anything over this is almost certainly
     // an uncompressed IFC or a federated model that should be split.
@@ -41,11 +42,13 @@ public class ModelsController : ControllerBase
     public ModelsController(
         PlanscapeDbContext db,
         IFileStorageService storage,
-        ILogger<ModelsController> logger)
+        ILogger<ModelsController> logger,
+        Planscape.Core.Interfaces.IModelConverter converter)
     {
         _db = db;
         _storage = storage;
         _logger = logger;
+        _converter = converter;
     }
 
     // ── List / metadata ────────────────────────────────────────────────
@@ -96,6 +99,29 @@ public class ModelsController : ControllerBase
             return BadRequest(new { error = "file_too_large", maxMb = MaxModelSizeBytes / 1024 / 1024 });
 
         var format = InferFormat(req.File.FileName);
+        // #1 (Empty 3D viewer) + IFC path — the web viewer is GLTFLoader-only
+        // (viewer.html:782), so a publish only renders if it ends up as GLB.
+        //   • GLB/glTF       → render directly (always accepted)
+        //   • IFC/RVT        → accepted ONLY when a converter is configured
+        //                      (MODEL_CONVERTER_PROVIDER != "null"); ModelDerivativeJob
+        //                      then emits a GLB derivative + flips Format=Glb.
+        //   • OBJ/FBX, or IFC/RVT with no converter → rejected at the boundary.
+        // Net: "successful publish ⇒ viewable" still holds, but the IFC-first
+        // workflow works whenever the operator has enabled the converter.
+        bool converterEnabled = _converter != null &&
+            !string.Equals(_converter.ProviderName, "null", StringComparison.OrdinalIgnoreCase);
+        bool renderable  = format is ModelFormat.Glb or ModelFormat.Gltf;
+        bool convertible = converterEnabled && format is ModelFormat.Ifc or ModelFormat.Rvt;
+        if (!renderable && !convertible)
+            return BadRequest(new
+            {
+                error = "unsupported_viewer_format",
+                format = format.ToString(),
+                converterEnabled,
+                message = converterEnabled
+                    ? "Publish GLB/glTF (rendered directly) or IFC/RVT (auto-converted). Convert OBJ/FBX to GLB first."
+                    : "The viewer renders GLB/glTF only and no IFC converter is enabled. Export to GLB (plugin: ‘Export 3D view to GLB’) or set MODEL_CONVERTER_PROVIDER=ifcconvert."
+            });
         var project = await _db.Projects.AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == projectId, ct);
         if (project == null) return NotFound(new { error = "project_not_found" });

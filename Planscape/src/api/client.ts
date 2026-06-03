@@ -83,9 +83,13 @@ async function refreshAccessToken(): Promise<string | null> {
 
       if (!res.ok) return null;
 
+      // Server (AuthController.Refresh) returns { accessToken, refreshToken,
+      // expiresAt } — NOT { token }. Reading data.token stored `undefined`,
+      // which was falsy → force-logout on every 30-min expiry despite valid
+      // server tokens. Read the field the server actually emits.
       const data = await res.json();
-      await setTokens(data.token, data.refreshToken);
-      return data.token;
+      await setTokens(data.accessToken, data.refreshToken);
+      return data.accessToken;
     } finally {
       // Drop the cached promise once complete so the next 401 can trigger a
       // fresh refresh later. Clear synchronously so the slot is available

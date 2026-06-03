@@ -13,9 +13,7 @@ services:
       - "5000:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};Include Error Detail=true
-      - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};Include Error Detail=true
-      # Phase 175 — JWT_KEY MUST be supplied via .env or shell env.
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};Include Error Detail=true      # Phase 175 — JWT_KEY MUST be supplied via .env or shell env.
       # ${JWT_KEY:?...} fails the compose run with a clear message if
       # the operator forgot to set it (instead of silently falling back
       # to a known-bad literal that bannedKeys would then reject at
@@ -41,6 +39,12 @@ services:
       - ClamAv__Enabled=${CLAMAV_ENABLED:-false}
       - ClamAv__Host=${CLAMAV_HOST:-clamav}
       - ClamAv__Port=${CLAMAV_PORT:-3310}
+      # Shared secret the converter sidecar presents on POST /scene-nodes/ingest.
+      # SceneNodesController.cs:108 reads Converter__ApiBearer and 401s when it's
+      # empty/mismatched; the converter container sends CONVERTER_API_BEARER as
+      # its API_BEARER (:149), so the api must read the SAME value here or the
+      # converter→API derivative ingest is always rejected.
+      - Converter__ApiBearer=${CONVERTER_API_BEARER:-}
     depends_on:
       # NB: pgbouncer is intentionally NOT listed here. It lives behind the
       # optional `pool` profile (see below), and Compose rejects the whole
@@ -176,9 +180,7 @@ services:
       # Phase 178 — PLANSCAPE_ROLE=worker activates the heavy Hangfire queues
       # (photo-redaction, IFC conversion, DB backup) without exposing HTTP.
       - PLANSCAPE_ROLE=worker
-      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};Include Error Detail=true
-      - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};Include Error Detail=true
-      # Phase 175 — JWT_KEY MUST be supplied via .env or shell env.
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};Include Error Detail=true      # Phase 175 — JWT_KEY MUST be supplied via .env or shell env.
       # ${JWT_KEY:?...} fails the compose run with a clear message if
       # the operator forgot to set it (instead of silently falling back
       # to a known-bad literal that bannedKeys would then reject at

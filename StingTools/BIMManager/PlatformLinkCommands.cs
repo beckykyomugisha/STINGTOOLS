@@ -2802,30 +2802,17 @@ namespace StingTools.BIMManager
         {
             try
             {
-                string url = PlanscapeServerClient.Instance.ServerUrl;
-
-                if (string.IsNullOrWhiteSpace(url))
-                {
-                    var doc = commandData.Application.ActiveUIDocument?.Document;
-                    if (doc != null)
-                    {
-                        string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
-                        string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
-                        var (savedUrl, _, _) = PlanscapeServerClient.LoadConnectionSettings(cfgPath);
-                        if (!string.IsNullOrWhiteSpace(savedUrl)) url = savedUrl;
-                    }
-                }
-
-                if (string.IsNullOrWhiteSpace(url))
-                    url = "https://planscape-api.onrender.com";
-
-                // /app/ is the real coordinator SPA; deep-link to the active
-                // project's models when one is connected. (The old "/dashboard"
-                // path is not a served route.)
-                string dashboardUrl = url.TrimEnd('/') + "/app/";
-                var client = PlanscapeServerClient.Instance;
-                if (client != null && client.IsConnected && client.CurrentProjectId != Guid.Empty)
-                    dashboardUrl += $"#models?project={client.CurrentProjectId}";
+                // #9 — route through the shared BuildAppUrl. It resolves
+                // ServerUrl → saved planscape_connection.json → the single
+                // canonical const (http://localhost:5000). This replaces the
+                // old onrender.com fallback (a retired host LoadConnectionSettings
+                // already drops) so all three "Open Web Dashboard" call sites
+                // agree on the base URL and deep-link the active project's models.
+                string? cfgPath = null;
+                var doc = commandData.Application.ActiveUIDocument?.Document;
+                if (doc != null)
+                    cfgPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "planscape_connection.json");
+                string dashboardUrl = PlanscapeServerClient.BuildAppUrlForActiveProject(cfgPath);
                 Process.Start(new ProcessStartInfo(dashboardUrl) { UseShellExecute = true })?.Dispose();
                 StingLog.Info($"Planscape: opened dashboard {dashboardUrl}");
                 return Result.Succeeded;

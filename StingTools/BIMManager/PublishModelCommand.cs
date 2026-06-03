@@ -369,9 +369,10 @@ namespace StingTools.BIMManager
                 "Produces a file the web/mobile viewer renders directly — no server conversion needed.");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 "Pick an existing file (.glb / .gltf / .ifc)",
-                "GLB/glTF render directly. IFC is auto-converted to GLB on the server " +
-                "(requires the Planscape converter to be enabled). OBJ/FBX are NOT supported — " +
-                "the viewer can't render them and there is no converter, so they're excluded.");
+                "GLB/glTF render directly in the web/mobile viewer. IFC is auto-converted "
+                + "to GLB server-side when the Planscape converter is enabled "
+                + "(MODEL_CONVERTER_PROVIDER=ifcconvert); without it the server rejects IFC "
+                + "at publish. OBJ/FBX are not supported — convert to GLB first.");
             var r = dlg.Show();
             if (r == TaskDialogResult.CommandLink1) return ExportActiveView(doc);
             if (r == TaskDialogResult.CommandLink2) return PromptForModelFile();
@@ -414,11 +415,10 @@ namespace StingTools.BIMManager
             var dlg = new OpenFileDialog
             {
                 Title = "Select 3D model to publish",
-                // Only formats the platform can actually display: GLB/glTF render
-                // directly in the web/mobile viewer; IFC is auto-converted to GLB
-                // server-side by ModelDerivativeJob. OBJ/FBX are intentionally
-                // excluded — there is no converter for them, so publishing one
-                // produces a model that opens to an empty viewer.
+                // GLB/glTF render directly; IFC is auto-converted to GLB server-side by
+                // ModelDerivativeJob when the converter is enabled. OBJ/FBX are excluded —
+                // no converter, and the server rejects non-convertible formats at publish
+                // (ModelsController.Upload → unsupported_viewer_format).
                 Filter = "Viewable 3D models (*.glb;*.gltf;*.ifc)|*.glb;*.gltf;*.ifc|All files (*.*)|*.*",
                 CheckFileExists = true,
                 CheckPathExists = true,
