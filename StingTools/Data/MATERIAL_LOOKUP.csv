@@ -1,9 +1,19 @@
-# MATERIAL_LOOKUP.csv v1.0
-# Material variation lookup tables for formula engine.
-# Used by FormulaEngine.Lookup(category, type_key, property) function.
+# MATERIAL_LOOKUP.csv v1.1
+# Material variation lookup tables.
 # Format: Category, TypeKey, Property, Value, Unit, Description
 # TypeKey matches element parameter values (e.g., BLE_BRICK_BOND_TYPE_TXT).
-# Property is the constant name used in formulas via lookup().
+#
+# CONSUMED vs REFERENCE-ONLY (R2-2):
+#   CONSUMED by the BOQ engine:
+#     - DENSITY_KG_M3 / CARBON_KG_PER_M3  → MaterialLookupCsv.GetDensity/GetCarbon
+#       (drive cost-mass + per-m³ embodied-carbon takeoff in BOQCostManager)
+#     - STEEL_KG_PER_M3 (rebar)           → AutoRebarEstimator via ResolveAvgRatio
+#   REFERENCE-ONLY (NOT auto-takeoff inputs — there is no FormulaEngine.Lookup in
+#   the codebase and no cement/sand/aggregate line-item takeoff):
+#     - CEMENT_BAGS_PER_M3, SAND_RATIO, AGGREGATE_RATIO, WATER_*  → manual QS use.
+#       Correcting these (e.g. cement content to BS 8500) improves the table's
+#       accuracy for a quantity surveyor reading it by hand, but changes NO
+#       delivered BOQ quantity. The main concrete m³ line is unaffected.
 #
 # CONCRETE GRADES (BS 8500 / UNBS)
 # TypeKey sourced from: BLE_STRUCT_CONCRETE_GRADE_TXT

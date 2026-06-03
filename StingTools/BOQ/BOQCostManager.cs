@@ -582,8 +582,36 @@ namespace StingTools.BOQ
                     return quantity * (areaMm2 / 1_000_000.0);
                 }
 
-                // kg → mass-only paths; carbon for these comes via the
-                // legacy mass-based factor in the other branch.
+                // R2-1 — "each" / point-instance / any other unit: recover a REAL
+                // element volume so a per-m³ carbon factor still yields non-zero
+                // embodied carbon. Previously this branch returned 0 unconditionally,
+                // which silently zeroed embodied carbon for every each-priced family
+                // (doors, windows, MEP equipment, fixtures, furniture, stairs,
+                // sprinklers, fire/comms devices). Resolution order:
+                //   (a) exposed volume parameter (same HOST_VOLUME_COMPUTED path the
+                //       m³ takeoff uses in DeriveQuantity), then a generic "Volume";
+                //   (b) actual solid geometry summed from get_Geometry;
+                //   (c) mass ÷ density (gives a volume so the per-m³ factor is honoured).
+                // Genuine kg-unit factors never reach here — they are mass-multiplied
+                // in ComputeElementCarbon's KgCo2ePerKg branch — so this is safe.
+
+                // (a) Exposed volume parameter — ft³ → m³.
+                double volM3 = ReadElementVolumeM3(el);
+                if (volM3 > 0) return quantity > 0 ? volM3 * quantity : volM3;
+
+                // (b) Actual solid geometry — ft³ → m³.
+                double geomM3 = ReadGeometryVolumeM3(el);
+                if (geomM3 > 0) return quantity > 0 ? geomM3 * quantity : geomM3;
+
+                // (c) Mass ÷ density fallback so the per-m³ factor is still applied.
+                double massKg = EstimateMassKg(el, quantity, unit);
+                if (massKg > 0)
+                {
+                    double density = EstimateDensityKgPerM3(material);
+                    if (density > 0) return massKg / density;
+                }
+
+                // True point family with no geometry / mass — nothing to estimate.
                 return 0;
             }
             catch (Exception ex) { StingLog.Warn($"EstimateVolumeM3 ({unit}): {ex.Message}"); return 0; }
@@ -627,6 +655,64 @@ namespace StingTools.BOQ
             }
             catch (Exception ex) { StingLog.WarnRateLimited("VolEst.Xs", $"ReadCrossSectionMm2: {ex.Message}"); }
             return 0;
+        }
+
+        /// <summary>
+        /// R2-1 — Reads an exposed element volume in m³. Prefers the built-in
+        /// HOST_VOLUME_COMPUTED (the same source DeriveQuantity uses for the m³
+        /// takeoff) then a generic "Volume" parameter. Internal ft³ → m³ (×0.0283168).
+        /// Returns 0 when no volume parameter is exposed.
+        /// </summary>
+        private static double ReadElementVolumeM3(Element el)
+        {
+            try
+            {
+                Parameter volP = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
+                if (volP == null || !volP.HasValue)
+                    volP = el.LookupParameter("Volume");
+                if (volP != null && volP.HasValue && volP.StorageType == StorageType.Double)
+                {
+                    double ft3 = volP.AsDouble();
+                    if (ft3 > 0) return ft3 * 0.0283168; // ft³ → m³
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("VolEst.Param", $"ReadElementVolumeM3: {ex.Message}"); }
+            return 0;
+        }
+
+        /// <summary>
+        /// R2-1 — Sums actual solid geometry volume for point-instance families
+        /// (doors, windows, MEP equipment, fixtures) that expose no volume
+        /// parameter. Recurses one level into GeometryInstances. Internal ft³ → m³.
+        /// Returns 0 when no solid geometry is available.
+        /// </summary>
+        private static double ReadGeometryVolumeM3(Element el)
+        {
+            try
+            {
+                var opt = new Options { ComputeReferences = false, IncludeNonVisibleObjects = false, DetailLevel = ViewDetailLevel.Coarse };
+                GeometryElement ge = el.get_Geometry(opt);
+                if (ge == null) return 0;
+                double ft3 = SumSolidVolumeFt3(ge);
+                if (ft3 > 0) return ft3 * 0.0283168; // ft³ → m³
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("VolEst.Geom", $"ReadGeometryVolumeM3: {ex.Message}"); }
+            return 0;
+        }
+
+        private static double SumSolidVolumeFt3(GeometryElement ge)
+        {
+            double total = 0;
+            foreach (GeometryObject go in ge)
+            {
+                if (go is Solid s && s.Volume > 0) total += s.Volume;
+                else if (go is GeometryInstance gi)
+                {
+                    GeometryElement inst = gi.GetInstanceGeometry();
+                    if (inst != null) total += SumSolidVolumeFt3(inst);
+                }
+            }
+            return total;
         }
 
         /// <summary>
