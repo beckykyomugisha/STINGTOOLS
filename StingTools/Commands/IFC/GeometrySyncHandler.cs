@@ -142,19 +142,19 @@ namespace StingTools.Commands.IFC
 
                 if (verts.Count == 0) return null;
 
-                // BLK-1 — cross-host identity: the ExternalElementMapping
-                // composite key is the 22-char IFC GlobalId, NOT the 45-char
-                // Revit UniqueId. Sending UniqueId here meant geometry never
-                // joined the tag-sync / ArchiCAD / Bonsai mappings, so the
-                // viewer couldn't resolve a Revit mesh to a cross-host issue.
-                // Read the same BuiltInParameter.IFC_GUID the tag-sync path and
-                // ParamStampEventHandler use (RevitAPI.dll — no RevitAPIIFC
-                // reference needed); it is written by Revit's IFC export and
-                // stabilised by StabilizeIfcGuidsCommand. Fall back to UniqueId
-                // only when absent (un-stabilised model → degraded; run
-                // "Stabilize IFC GUIDs" first for cross-host resolution).
-                string ifcGuid = el.get_Parameter(BuiltInParameter.IFC_GUID)?.AsString();
-                if (string.IsNullOrWhiteSpace(ifcGuid)) ifcGuid = el.UniqueId;
+                // BLK-1 / Drift 4 — ONE canonical cross-host key. The geometry
+                // GLB path now reads the SAME source the tag-sync path
+                // (PlatformLinkCommands.cs:2179) + the server ExternalElementMapping
+                // use: the stabilised IFC_GLOBAL_ID_TXT shared param, written by
+                // StabilizeIfcGuidsCommand from Revit's IfcGloballyUniqueId. This
+                // is deliberately NOT BuiltInParameter.IFC_GUID — the live value
+                // can re-map on export (the exact reason Stabilize snapshots it),
+                // and NOT Element.UniqueId (45-char, ≠ the 22-char IFC GlobalId).
+                // Empty until the model is stabilised; left empty here (the mesh
+                // still carries elementId + UniqueId for LOCAL clash) so geometry
+                // is never keyed on a wrong cross-host id — matching 8486cf0's
+                // skip-don't-mis-key rule. Run "Stabilize IFC GUIDs" for cross-host.
+                string ifcGuid = ParameterHelpers.GetString(el, "IFC_GLOBAL_ID_TXT");
 
                 var key = new ClashElementKey(docGuid, -1, (int)el.Id.Value, el.UniqueId, ifcGuid);
                 return new ClashMeshBuffer(key, el.Category.Name, verts.ToArray(), indices.ToArray());
