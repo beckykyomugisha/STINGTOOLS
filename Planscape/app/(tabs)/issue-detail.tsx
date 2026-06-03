@@ -527,7 +527,7 @@ export default function IssueDetailScreen() {
       // of waiting for Wi-Fi (queue) or proceeding anyway.
       const decision = await imageService.classifyUpload(compressed.fileSize);
 
-      async function queueForLater(): Promise<void> {
+      const queueForLater = async (): Promise<void> => {
         await enqueue('ATTACH_PHOTO', {
           projectId: project!.id,
           issueId: issue!.id,
@@ -537,9 +537,9 @@ export default function IssueDetailScreen() {
           latitude: loc?.latitude,
           longitude: loc?.longitude,
         });
-      }
+      };
 
-      async function uploadNow(): Promise<void> {
+      const uploadNow = async (): Promise<void> => {
         await uploadIssueAttachment({
           projectId: project!.id,
           issueId: issue!.id,
@@ -550,7 +550,7 @@ export default function IssueDetailScreen() {
           longitude: loc?.longitude,
         });
         await loadAttachments(project!.id, issue!.id);
-      }
+      };
 
       if (!net.isConnected) {
         await queueForLater();

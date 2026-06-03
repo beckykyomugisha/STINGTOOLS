@@ -116,7 +116,7 @@ export async function apiFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const base = await getBaseUrl();
-  let token = await getToken();
+  const token = await getToken();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

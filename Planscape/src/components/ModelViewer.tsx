@@ -120,6 +120,10 @@ export interface PlaceIssueEvent {
   meta?: ElementMap[string] | null;
 }
 
+// Metro bundles static assets (the viewer HTML) via require(); there is no
+// import form for an .html asset module, so this require is the idiomatic RN
+// pattern, not a CommonJS-vs-ESM smell.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const VIEWER_ASSET = require("../../assets/viewer/viewer.html");
 
 export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>(
