@@ -47,27 +47,72 @@ jobs:
       - name: Check for duplicate parameter GUIDs
         run: |
           python3 - <<'EOF'
-          import re, sys, collections
+          import re, sys, csv
 
-          seen = collections.defaultdict(list)
-          guid_re = re.compile(r'\b([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\b')
+          # MR_PARAMETERS.csv is the documented CSV *mirror* of MR_PARAMETERS.txt —
+          # the same shared-parameter set, same GUIDs, in two formats. A GUID present
+          # in BOTH files is therefore expected and correct, NOT a collision. The real
+          # Revit invariant is WITHIN-FILE uniqueness (a GUID identifies exactly one
+          # parameter inside a single shared-parameter file). We enforce that per file,
+          # plus a cross-file consistency check so the same GUID can't map to two
+          # DIFFERENT parameter names across the mirror — which WOULD be a genuine
+          # collision the old cross-file count could never distinguish from the mirror.
+          guid_re = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+          fail = False
 
-          for path in ['StingTools/Data/MR_PARAMETERS.txt', 'StingTools/Data/MR_PARAMETERS.csv']:
-              try:
-                  for i, line in enumerate(open(path), 1):
-                      for guid in guid_re.findall(line):
-                          seen[guid.lower()].append(f'{path}:{i}')
-              except FileNotFoundError:
-                  pass
+          def parse_txt(path):
+              m, dups = {}, []
+              for i, line in enumerate(open(path, encoding='utf-8'), 1):
+                  if not line.startswith('PARAM\t'):
+                      continue
+                  t = line.rstrip('\n').split('\t')          # PARAM, GUID, NAME, ...
+                  if len(t) < 3:
+                      continue
+                  g, name = t[1].lower(), t[2]
+                  if g in m:
+                      dups.append((g, m[g][1], name, i))
+                  m[g] = (i, name)
+              return m, dups
 
-          dupes = {g: locs for g, locs in seen.items() if len(locs) > 1}
-          if dupes:
-              for guid, locs in dupes.items():
-                  print(f'❌ Duplicate GUID {guid}:')
-                  for loc in locs:
-                      print(f'   {loc}')
+          def parse_csv(path):
+              m, dups = {}, []
+              with open(path, encoding='utf-8') as fh:
+                  hdr = gi = ni = None
+                  for i, row in enumerate(csv.reader(fh), 1):
+                      if not row or row[0].lstrip().startswith('#'):
+                          continue
+                      if hdr is None:                        # first non-comment row = header
+                          hdr = row
+                          gi, ni = hdr.index('Parameter_GUID'), hdr.index('Parameter_Name')
+                          continue
+                      if len(row) <= max(gi, ni):
+                          continue
+                      g, name = row[gi].lower(), row[ni]
+                      if not guid_re.match(g):
+                          continue
+                      if g in m:
+                          dups.append((g, m[g][1], name, i))
+                      m[g] = (i, name)
+              return m, dups
+
+          txt, txt_dups = parse_txt('StingTools/Data/MR_PARAMETERS.txt')
+          csvm, csv_dups = parse_csv('StingTools/Data/MR_PARAMETERS.csv')
+
+          for label, dups in (('MR_PARAMETERS.txt', txt_dups), ('MR_PARAMETERS.csv', csv_dups)):
+              for g, a, b, line in dups:
+                  print(f'❌ Within-file duplicate GUID {g} in {label}:{line} ({a!r} vs {b!r})')
+                  fail = True
+
+          for g in set(txt) & set(csvm):
+              if txt[g][1].strip() != csvm[g][1].strip():
+                  print(f'❌ GUID {g} maps to different params across the mirror: '
+                        f'txt={txt[g][1]!r} csv={csvm[g][1]!r}')
+                  fail = True
+
+          if fail:
               sys.exit(1)
-          print(f'✓ No duplicate GUIDs ({len(seen)} unique)')
+          print(f'✓ GUIDs unique within each file; txt↔csv mirror consistent '
+                f'(txt={len(txt)}, csv={len(csvm)})')
           EOF
 
       - name: Validate CSV structure (required columns)
@@ -75,10 +120,16 @@ jobs:
           python3 - <<'EOF'
           import csv, sys, os
 
+          # Required columns use the ACTUAL header names the data files ship and the
+          # plugin reads (the previous ScheduleName/StingCategory/COBieType names never
+          # existed in these files). The header is the first non-comment row — both
+          # files may start with '#'-prefixed version banners that the plugin skips.
           REQUIRED_COLS = {
-            'MR_SCHEDULES.csv': {'ScheduleName', 'Category', 'Discipline'},
-            'COBIE_TYPE_MAP.csv': {'StingCategory', 'COBieType'},
-            'TAG_STYLE_RULES.json': None,  # JSON, skip
+            # ScheduleCommands.cs reads cols Record_Type/Source_File/Discipline/
+            # Schedule_Name/Category (skipping '#' lines).
+            'MR_SCHEDULES.csv': {'Record_Type', 'Discipline', 'Schedule_Name', 'Category'},
+            # COBIE_TYPE_MAP.csv maps each equipment TypeCode → its STING product code.
+            'COBIE_TYPE_MAP.csv': {'TypeCode', 'Category', 'StingProdCode'},
           }
           FAIL = 0
           for fname, cols in REQUIRED_COLS.items():
@@ -88,12 +139,19 @@ jobs:
               if not os.path.exists(path):
                   continue
               try:
-                  with open(path) as f:
-                      header = next(csv.reader(f))
-                  missing = cols - set(header)
+                  header = None
+                  with open(path, encoding='utf-8') as f:
+                      for row in csv.reader(f):
+                          if not row or row[0].lstrip().startswith('#'):
+                              continue  # skip comment / blank lines to reach the header
+                          header = row
+                          break
+                  missing = cols - set(header or [])
                   if missing:
                       print(f'❌ {fname} missing columns: {missing}')
                       FAIL = 1
+                  else:
+                      print(f'✓ {fname} has required columns')
               except Exception as e:
                   print(f'❌ {fname}: {e}')
                   FAIL = 1
