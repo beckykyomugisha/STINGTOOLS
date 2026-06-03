@@ -51,8 +51,10 @@ namespace Autodesk.Revit.DB
         public ConnectorType ConnectorType { get; }
     }
 
-    // Geometry sub-namespace
-    public static class Geometry { }
+    // NB: no bare `Geometry` type here — a class named Geometry inside
+    // Autodesk.Revit.DB collides with the Autodesk.Revit.DB.Geometry namespace
+    // below (CS0101). Revit's geometry types are GeometryElement/GeometryObject
+    // etc., which live elsewhere in this stub set.
 }
 
 namespace Autodesk.Revit.DB.Geometry

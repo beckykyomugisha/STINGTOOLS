@@ -110,19 +110,18 @@ namespace Autodesk.Revit.DB
         public LocationPoint LocationPoint { get; }
         public Location Location { get; }
         public MEPModel MEPModel { get; }
-        public FacingOrientation_FamilyInstance FacingOrientation { get; }
         public XYZ FacingOrientation => throw new NotImplementedException();
         public XYZ HandOrientation => throw new NotImplementedException();
         public Element Host { get; }
         public ElementId LevelId { get; }
         public bool CanRotate { get; }
         public void rotate(Line axis, double angle) => throw new NotImplementedException();
-        public ConnectorManager MEPModel_ConnectorManager => throw new NotImplementedException();
-        public StructuralType StructuralType { get; }
+        public Autodesk.Revit.DB.Structure.StructuralType StructuralType { get; }
     }
 
-    // just a placeholder to prevent error
-    public class FacingOrientation_FamilyInstance { }
+    // Minimal MEPModel — FamilyInstance.MEPModel exposes the connector manager
+    // (plugin reads fi.MEPModel.ConnectorManager.Connectors).
+    public class MEPModel { public ConnectorManager ConnectorManager { get; } }
 
     public class Family : Element
     {
@@ -464,7 +463,7 @@ namespace Autodesk.Revit.DB
         public SpatialElementGeometryResults CalculateSpatialElementGeometry(SpatialElement elem) => throw new NotImplementedException();
         public void Dispose() { }
     }
-    public class SpatialElementGeometryResults { public Geometry.Solid GetGeometry() => throw new NotImplementedException(); }
+    public class SpatialElementGeometryResults { public Solid GetGeometry() => throw new NotImplementedException(); }
 
     // ── Grid ─────────────────────────────────────────────────────────────────
     public class Grid : Element
@@ -546,7 +545,7 @@ namespace Autodesk.Revit.DB
     public class PanelScheduleView : View
     {
         public ElementId GetParentView() => throw new NotImplementedException();
-        public ElectricalSystem GetCircuitByCell(int row, int column) => throw new NotImplementedException();
+        public Autodesk.Revit.DB.Electrical.ElectricalSystem GetCircuitByCell(int row, int column) => throw new NotImplementedException();
         public void AddSpare(int row, int column) => throw new NotImplementedException();
         public void AddSpace(int row, int column) => throw new NotImplementedException();
         public void RemoveSpace(int row, int column) => throw new NotImplementedException();
