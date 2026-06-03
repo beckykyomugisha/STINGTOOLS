@@ -50,15 +50,6 @@ namespace Autodesk.Revit.DB
         public Domain Domain { get; }
         public ConnectorType ConnectorType { get; }
     }
-
-    // Geometry sub-namespace
-    public static class Geometry { }
-}
-
-namespace Autodesk.Revit.DB.Geometry
-{
-    // these are stub placeholders — Revit's geometry types live in DB but
-    // the compiler sometimes sees them via the nested-namespace path.
 }
 
 // The actual geometry classes live in Autodesk.Revit.DB

@@ -66,7 +66,6 @@ namespace Autodesk.Revit.DB
         OST_Levels = -2000016,
         OST_Views = -2000279 + 1,
         OST_Sheets = -2000278 + 2,
-        OST_Rooms = -2000160,
         OST_Spaces = -2000161,
         OST_Areas = -2000162,
         OST_Tags = -2000441,

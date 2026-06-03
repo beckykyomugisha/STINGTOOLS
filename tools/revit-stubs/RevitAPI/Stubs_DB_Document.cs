@@ -128,7 +128,6 @@ namespace Autodesk.Revit.DB
     public class PhaseArray : IEnumerable<Phase>
     {
         public IEnumerator<Phase> GetEnumerator() => throw new NotImplementedException();
-        System.Collections.IEnumerable.GetEnumerator GetEnumerator2() => throw new NotImplementedException();
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => throw new NotImplementedException();
         public int Size { get; }
         public Phase get_Item(int index) => throw new NotImplementedException();

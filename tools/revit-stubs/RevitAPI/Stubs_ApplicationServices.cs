@@ -19,9 +19,8 @@ namespace Autodesk.Revit.ApplicationServices
         public string Username { get; }
         public string RecordingJournalFilename { get; }
         public bool IsWorksharing { get; }
-        public SharedParameterFile OpenSharedParameterFile() => throw new NotImplementedException();
+        public DefinitionFile OpenSharedParameterFile() => throw new NotImplementedException();
         public string SharedParametersFilename { get; set; }
-        public DefinitionFile OpenSharedParameterFile(string filename) => throw new NotImplementedException();
         public FormatOptions GetUnits(UnitType unitType) => throw new NotImplementedException();
         public event EventHandler<DocumentOpenedEventArgs> DocumentOpened;
         public event EventHandler<DocumentClosingEventArgs> DocumentClosing;
@@ -34,9 +33,9 @@ namespace Autodesk.Revit.ApplicationServices
         public string VersionName { get; }
         public string VersionNumber { get; }
         public LanguageType Language { get; }
-        public void CreateRibbonTab(string tabName) => throw new NotImplementedException();
-        public Autodesk.Revit.UI.RibbonPanel CreateRibbonPanel(string tabName, string panelName) => throw new NotImplementedException();
-        public Autodesk.Revit.UI.RibbonPanel CreateRibbonPanel(string panelName) => throw new NotImplementedException();
+        // Ribbon creation lives on UIControlledApplication (RevitAPIUI); the real
+        // ControlledApplication has no CreateRibbon* members and RevitAPI cannot
+        // reference Autodesk.Revit.UI types (RevitAPIUI depends on RevitAPI).
         public event EventHandler<DocumentOpenedEventArgs> DocumentOpened;
         public event EventHandler<DocumentClosingEventArgs> DocumentClosing;
     }
