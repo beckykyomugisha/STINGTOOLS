@@ -122,13 +122,17 @@ public static class SeedData
             Status = ProjectStatus.Active,
             LastSyncAt = DateTime.UtcNow.AddHours(-2),
             // SEED-01 — approx 300m × 300m demo boundary polygon around central London.
-            // GeoJSON-style [lat, lon] pairs (closing coordinate repeated).
+            // GeoJSON ring order is [lon, lat] (X, Y) — GeofenceValidationService
+            // reads point[0]=lon, point[1]=lat — so the longitude (-0.12xx) comes
+            // FIRST. The earlier [lat, lon] order made the box land in the ocean
+            // off West Africa, so no real London coordinate was ever "inside" and
+            // every geofenced issue/photo create 403'd.
             BoundaryPolygon = @"[
-                [51.5075, -0.1280],
-                [51.5075, -0.1240],
-                [51.5045, -0.1240],
-                [51.5045, -0.1280],
-                [51.5075, -0.1280]
+                [-0.1280, 51.5075],
+                [-0.1240, 51.5075],
+                [-0.1240, 51.5045],
+                [-0.1280, 51.5045],
+                [-0.1280, 51.5075]
             ]"
         };
         db.Projects.Add(project);
