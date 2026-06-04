@@ -128,6 +128,35 @@
 
   let walkUp = new THREE.Vector3(0, 1, 0);
 
+  // M5 — "Human eye" view: drop the camera to eye height (reusing eyeFromBounds +
+  // the localStorage override) and look horizontally, KEEPING the current heading.
+  // Works in orbit mode — does NOT engage walkthrough. Y-up aware; up stays (0,1,0).
+  ext.humanEyeView = function () {
+    const h = host(); if (!h || !h.modelBounds || h.modelBounds.isEmpty()) return;
+    const cam = h.camera;
+    const eye = eyeFromBounds(h.modelBounds);
+    const floor = h.modelBounds.min.y;
+    const fwd = new THREE.Vector3(); cam.getWorldDirection(fwd);
+    fwd.y = 0; if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1); fwd.normalize();
+    cam.up.set(0, 1, 0);
+    cam.position.y = floor + eye;
+    const span = h.modelBounds.getSize(new THREE.Vector3()).length();
+    const tgt = cam.position.clone().addScaledVector(fwd, Math.max(2, span * 0.05));
+    tgt.y = cam.position.y;                 // horizontal gaze
+    h.controls.target.copy(tgt);
+    h.controls.update();
+  };
+
+  // M5 — raise/lower the eye along rendered +Y, keeping heading + pitch (move BOTH
+  // camera.position and controls.target by the same delta). Step scales with model size.
+  ext.elevateCamera = function (dir) {
+    const h = host(); if (!h || !h.modelBounds || h.modelBounds.isEmpty()) return;
+    const step = (h.modelBounds.getSize(new THREE.Vector3()).y || 10) * 0.04 * (dir < 0 ? -1 : 1);
+    h.camera.position.y += step;
+    h.controls.target.y += step;
+    h.controls.update();
+  };
+
   function pickUpAxis(sz) {
     // ORBIT FIX — the model is now rendered Y-up (the host rotates Z-up → Y-up),
     // so first-person walk is always level against world-Y. No more bbox guess.

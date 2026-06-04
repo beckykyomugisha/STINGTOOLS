@@ -3119,6 +3119,7 @@
         b.addEventListener('click', () => {
           const v = b.dataset.snap;
           if (v === 'home') { if (V.fitCamera) V.fitCamera(); return; }
+          if (v === 'eye') { const x = window.STING_VIEWER_EXTRAS; if (x && x.humanEyeView) { x.humanEyeView(); toast('Human eye view'); } return; }
           if (V.snapView) V.snapView(v);
         });
       });
@@ -5773,6 +5774,7 @@
     function setupKeyNav() {
       const held = new Set();
       let shiftDown = false;
+      let ctrlDown = false;     // M5 — Ctrl+Arrow raises/lowers the eye (elevation)
       const NAV_KEYS = new Set([
         'ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown'
       ]);
@@ -5780,19 +5782,22 @@
         if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
         if ($('#issueModal')?.classList.contains('open')) return;
         if (e.key === 'Shift') { shiftDown = true; return; }
+        if (e.key === 'Control' || e.key === 'Meta') { ctrlDown = true; return; }
         if (e.key === 'Home')  { handleHostCommand({ type: 'fit' }); e.preventDefault(); return; }
         if (NAV_KEYS.has(e.key)) {
           held.add(e.key);
+          // Ctrl+Arrow is our elevation gesture — don't let the browser hijack it.
           e.preventDefault();          // stop the page scrolling under us
         }
       });
       window.addEventListener('keyup', (e) => {
         if (e.key === 'Shift') { shiftDown = false; return; }
+        if (e.key === 'Control' || e.key === 'Meta') { ctrlDown = false; return; }
         held.delete(e.key);
       });
       // Clear held keys if the user alt-tabs away — otherwise the camera
       // drifts forever in the direction last pressed.
-      window.addEventListener('blur', () => { held.clear(); shiftDown = false; });
+      window.addEventListener('blur', () => { held.clear(); shiftDown = false; ctrlDown = false; });
 
       function tick() {
         if (held.size) {
@@ -5809,14 +5814,17 @@
           const right = new THREE_.Vector3().crossVectors(forward, cam.up).normalize();
           const up    = new THREE_.Vector3().crossVectors(right, forward).normalize();
 
-          let panX = 0, panY = 0, dolly = 0, orbX = 0, orbY = 0;
+          const elevStep = dist * 0.02;        // M5 — eye-elevation per frame
+          let panX = 0, panY = 0, dolly = 0, orbX = 0, orbY = 0, elevY = 0;
           if (held.has('ArrowLeft'))  { if (shiftDown) orbX -= orbitStep; else panX -= panStep; }
           if (held.has('ArrowRight')) { if (shiftDown) orbX += orbitStep; else panX += panStep; }
-          if (held.has('ArrowUp'))    { if (shiftDown) orbY -= orbitStep; else panY += panStep; }
-          if (held.has('ArrowDown'))  { if (shiftDown) orbY += orbitStep; else panY -= panStep; }
+          // Ctrl+Up/Down → raise/lower the eye along rendered +Y (heading + pitch kept).
+          if (held.has('ArrowUp'))    { if (ctrlDown) elevY += elevStep; else if (shiftDown) orbY -= orbitStep; else panY += panStep; }
+          if (held.has('ArrowDown'))  { if (ctrlDown) elevY -= elevStep; else if (shiftDown) orbY += orbitStep; else panY -= panStep; }
           if (held.has('PageUp'))     dolly -= dollyStep;
           if (held.has('PageDown'))   dolly += dollyStep;
 
+          if (elevY) { cam.position.y += elevY; target.y += elevY; }
           if (panX || panY || dolly) {
             const offset = new THREE_.Vector3()
               .addScaledVector(right, panX)
@@ -5915,6 +5923,10 @@
           $('.nav-btn[data-mode=orbit]')?.click();
         } else if (k === 'm' || k === 'M') {
           setActiveTool('measure');
+        } else if (k === 'e' || k === 'E') {
+          // E = human eye view (drop to eye height, look horizontal, keep heading).
+          const x = window.STING_VIEWER_EXTRAS;
+          if (x && x.humanEyeView) { x.humanEyeView(); toast('Human eye view'); }
         } else if (k === ' ') {
           handleHostCommand({ type: 'fit' });
           e.preventDefault();
