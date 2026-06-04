@@ -53,6 +53,7 @@
     state.LK = window.LivekitClient;
     fetchToken().then(function (info) {
       if (!info) return;                          // 501 (unconfigured) / error — silent
+      state.isPresenter = !!info.isPresenter;     // needed by buildUI (screen button gate)
       buildUI();
       connect(info);
     });
@@ -80,7 +81,12 @@
 
     room
       .on(LK.RoomEvent.TrackSubscribed, function (track, pub, participant) { attachTrack(track, participant); })
-      .on(LK.RoomEvent.TrackUnsubscribed, function (track) { try { track.detach().forEach(function (el) { el.remove(); }); } catch (e) {} renderTiles(); })
+      .on(LK.RoomEvent.TrackUnsubscribed, function (track) {
+        try { track.detach().forEach(function (el) { el.remove(); }); } catch (e) {}
+        if (isScreenShare(track)) clearScreen();
+        renderTiles();
+      })
+      .on(LK.RoomEvent.LocalTrackUnpublished, function (pub) { if (pub && isScreenShare(pub.track)) { state.screenOn = false; clearScreen(); } })
       .on(LK.RoomEvent.ParticipantConnected, function () { renderTiles(); })
       .on(LK.RoomEvent.ParticipantDisconnected, function (p) { dropTile(p.sid); })
       .on(LK.RoomEvent.ActiveSpeakersChanged, function (speakers) { highlightSpeakers(speakers); })
@@ -100,11 +106,17 @@
       room: room,
       toggleMic: toggleMic,
       toggleCam: toggleCam,
+      toggleScreen: toggleScreen,
       get isPresenter() { return state.isPresenter; },
+      get screenOn() { return state.screenOn; },
     };
   }
 
   // ── media tiles ───────────────────────────────────────────────────────────
+  function isScreenShare(track) {
+    try { return track && track.source === state.LK.Track.Source.ScreenShare; } catch (e) { return false; }
+  }
+
   function attachTrack(track, participant) {
     if (!track) return;
     if (track.kind === "audio") {
@@ -112,6 +124,8 @@
       var a = track.attach(); a.style.display = "none"; document.body.appendChild(a); return;
     }
     if (track.kind !== "video") return;
+    // WS3c — a screen-share track goes to the big central pane, not a small tile.
+    if (isScreenShare(track)) { attachScreen(track, participant); return; }
     var tile = ensureTile(participant);
     // Clear any previous video element, attach the new track.
     if (tile.video) { try { tile.video.remove(); } catch (e) {} }
@@ -161,6 +175,48 @@
     });
   }
 
+  // ── WS3c — screen-share: a presenter's screen renders in a big central pane ──
+  function attachScreen(track, participant) {
+    var pane = ensureScreenPane();
+    if (pane._video) { try { pane._video.remove(); } catch (e) {} }
+    var v = track.attach();
+    v.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;background:#000";
+    pane.insertBefore(v, pane.firstChild);
+    pane._video = v;
+    pane.style.display = "flex";
+    var who = (participant && (participant.name || participant.identity)) || "Presenter";
+    var lbl = pane.querySelector(".lk-screen-label"); if (lbl) lbl.textContent = "🖥 " + who + " is sharing";
+    // WS3d hook — when a screen-share starts, surface should follow (presenter
+    // drives this through MeetingHub; followers just show the pane).
+    try { window.dispatchEvent(new CustomEvent("sting:screenShareStarted", { detail: { identity: participant && participant.identity } })); } catch (e) {}
+  }
+  function ensureScreenPane() {
+    var pane = document.getElementById("lkScreen");
+    if (pane) return pane;
+    pane = el("div", { id: "lkScreen", style:
+      "position:absolute;inset:0 0 120px 0;z-index:13;display:none;align-items:center;justify-content:center;" +
+      "background:rgba(8,10,14,0.92);padding:24px" });
+    var label = el("div", { class: "lk-screen-label", style:
+      "position:absolute;top:10px;left:12px;font:12px -apple-system,Segoe UI,sans-serif;color:#cfe3ff;" +
+      "background:rgba(0,0,0,0.5);padding:2px 8px;border-radius:4px" }, "🖥 sharing");
+    pane.appendChild(label);
+    document.body.appendChild(pane);
+    return pane;
+  }
+  function clearScreen() {
+    var pane = document.getElementById("lkScreen");
+    if (pane) { if (pane._video) { try { pane._video.remove(); } catch (e) {} pane._video = null; } pane.style.display = "none"; }
+    try { window.dispatchEvent(new CustomEvent("sting:screenShareStopped")); } catch (e) {}
+  }
+  function toggleScreen() {
+    if (!state.room) return;
+    if (!state.isPresenter) { return; }   // grant gating is also enforced server-side
+    state.screenOn = !state.screenOn;
+    state.room.localParticipant.setScreenShareEnabled(state.screenOn)
+      .then(function () { paintBtn("lkScreen2", state.screenOn, "🖥", "🖥"); var b = document.getElementById("lkScreen2"); if (b) b.style.background = state.screenOn ? "rgba(55,194,114,0.85)" : "rgba(255,255,255,0.14)"; })
+      .catch(function (e) { state.screenOn = !state.screenOn; console.warn("[livekit] screen-share", e); });
+  }
+
   // ── controls ───────────────────────────────────────────────────────────────
   function toggleMic() {
     if (!state.room) return;
@@ -193,6 +249,8 @@
       "padding:6px 10px;border-radius:24px;backdrop-filter:blur(4px)" });
     ctrls.appendChild(ctrlBtn("lkMic", "🎤", toggleMic, "Mute / unmute mic"));
     ctrls.appendChild(ctrlBtn("lkCam", "📹", toggleCam, "Camera on / off"));
+    // WS3c — screen-share is presenter/host only (also enforced by the LiveKit grant).
+    if (state.isPresenter) ctrls.appendChild(ctrlBtn("lkScreen2", "🖥", toggleScreen, "Share / stop sharing screen"));
     var dot = el("span", { id: "lkDot", style:
       "width:8px;height:8px;border-radius:50%;background:#e8a13a;align-self:center;margin:0 2px" });
     ctrls.appendChild(dot);
