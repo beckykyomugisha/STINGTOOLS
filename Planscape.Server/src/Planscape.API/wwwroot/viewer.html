@@ -1606,5 +1606,10 @@ THREE.ColorManagement.enabled = false;
      /hubs/meeting for camera-follow + participant presence + overlay sync.
      Complete no-op when the meeting param is absent. -->
 <script defer src="./meeting-sync.js"></script>
+
+<!-- WS3 — LiveKit A/V (camera / mic / screen-share). Opt-in via ?meeting=<id>,
+     complete no-op otherwise + inert inside the RN WebView. Loads livekit-client
+     from a pinned CDN at runtime (same pattern as signalr-shim). -->
+<script defer src="./livekit-av.js"></script>
 </body>
 </html>

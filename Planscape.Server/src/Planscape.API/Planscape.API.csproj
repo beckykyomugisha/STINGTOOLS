@@ -90,6 +90,7 @@
     <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\viewer-extras.js" />
     <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\signalr-shim.js" />
     <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\meeting-sync.js" />
+    <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\livekit-av.js" />
   </ItemGroup>
   <!-- Set PlanscapeServeDist=true to skip the source→wwwroot sync. The
        Docker build sets this so a prior `npm run build` stage can stage

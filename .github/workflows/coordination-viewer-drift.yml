@@ -43,7 +43,7 @@ jobs:
           src=Planscape/assets/viewer
           dst=Planscape.Server/src/Planscape.API/wwwroot
           fail=0
-          for f in viewer.html coordination-viewer.js coordination-viewer.css viewer-extras.js signalr-shim.js; do
+          for f in viewer.html coordination-viewer.js coordination-viewer.css viewer-extras.js signalr-shim.js meeting-sync.js livekit-av.js; do
             if ! diff -q "$src/$f" "$dst/$f" > /dev/null; then
               echo "::error file=$dst/$f::$f drifted from canonical source at $src/$f"
               echo "--- $src/$f"

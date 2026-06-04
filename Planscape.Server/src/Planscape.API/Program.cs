@@ -1054,6 +1054,7 @@ app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
          || name == "coordination-viewer.js"
          || name == "viewer-extras.js"
          || name == "meeting-sync.js"
+         || name == "livekit-av.js"
          || name == "signalr-shim.js"
          || name == "coordination-viewer.css")
         {
