@@ -363,4 +363,284 @@
 
   function countMeshes(o) { let n = 0; o.traverse(x => { if (x.isMesh) n++; }); return n; }
   function bbToArray(b) { return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z]; }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // 3D MARKUP — text · arrow · freehand draw · revision cloud · dimension ·
+  // callout. (Previously startMarkup/clearMarkup were referenced by the host
+  // but never defined, so the whole markup menu was a no-op.)
+  //
+  // While a markup tool is active we disable OrbitControls rotate so the
+  // left button is free for drawing; pan (right-drag) + zoom (wheel) still
+  // work. Esc, "Clear markups", or finishing exits and restores rotate.
+  // ════════════════════════════════════════════════════════════════════════
+  let markupGroup = null;
+  let markupMode = null;          // text|arrow|draw|cloud|dim|callout|null
+  let markupGesture = null;       // active drag/click gesture
+  let markupClicks = [];          // accumulated points for multi-click tools
+  let markupPreview = null;       // transient preview object during a drag
+  let rotatePrev = null;          // saved controls.enableRotate
+  const MARKUP_COLOR = 0xffcc33;
+  const markupRay = new THREE.Raycaster();
+
+  function ensureMarkupGroup(h) {
+    if (!markupGroup) { markupGroup = new THREE.Group(); markupGroup.name = 'sting-markup'; h.scene.add(markupGroup); }
+    return markupGroup;
+  }
+  function disposeObj(o) {
+    o.traverse && o.traverse(c => {
+      if (c.geometry && c.geometry.dispose) c.geometry.dispose();
+      if (c.material) {
+        const m = c.material; if (m.map && m.map.dispose) m.map.dispose();
+        if (m.dispose) m.dispose();
+      }
+    });
+  }
+  function markupSpan(h) {
+    return (h.modelBounds && !h.modelBounds.isEmpty())
+      ? h.modelBounds.getSize(new THREE.Vector3()).length() : 10;
+  }
+
+  // screen → 3D: raycast the model; fall back to a plane through the orbit
+  // target facing the camera so markup still lands on empty space.
+  function markupPoint(h, ev) {
+    const dom = h.renderer.domElement;
+    const rect = dom.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+      -((ev.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    markupRay.setFromCamera(ndc, h.camera);
+    if (h.modelRoot) {
+      const hits = markupRay.intersectObject(h.modelRoot, true);
+      if (hits && hits.length) return hits[0].point.clone();
+    }
+    const n = new THREE.Vector3(); h.camera.getWorldDirection(n);
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(n, h.controls.target);
+    const out = new THREE.Vector3();
+    return markupRay.ray.intersectPlane(plane, out) ? out : h.controls.target.clone();
+  }
+
+  function roundRect(ctx, x, y, w, hh, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + hh, r);
+    ctx.arcTo(x + w, y + hh, x, y + hh, r);
+    ctx.arcTo(x, y + hh, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function makeLabel(h, text, color) {
+    const fontSize = 30, pad = 10;
+    const c = document.createElement('canvas');
+    let ctx = c.getContext('2d');
+    ctx.font = fontSize + 'px sans-serif';
+    const w = Math.max(24, Math.ceil(ctx.measureText(text).width)) + pad * 2;
+    const hh = fontSize + pad * 2;
+    c.width = w; c.height = hh;
+    ctx = c.getContext('2d');
+    ctx.font = fontSize + 'px sans-serif';
+    ctx.fillStyle = 'rgba(18,18,26,0.86)'; roundRect(ctx, 0, 0, w, hh, 8); ctx.fill();
+    ctx.strokeStyle = color || '#ffcc33'; ctx.lineWidth = 2; roundRect(ctx, 1, 1, w - 2, hh - 2, 7); ctx.stroke();
+    ctx.fillStyle = color || '#ffcc33'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, pad, hh / 2 + 1);
+    const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    const s = markupSpan(h) * 0.022;
+    sprite.scale.set(s * (w / hh), s, 1);
+    sprite.renderOrder = 999;
+    return sprite;
+  }
+
+  function placeText(h, p, text) {
+    const sprite = makeLabel(h, text, '#ffe08a');
+    sprite.position.copy(p);
+    markupGroup.add(sprite);
+  }
+  function placeArrow(h, a, b) {
+    const g = ensureMarkupGroup(h);
+    const mat = new THREE.LineBasicMaterial({ color: MARKUP_COLOR });
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), mat));
+    // arrowhead cone at b, pointing a→b
+    const dir = new THREE.Vector3().subVectors(b, a); const len = dir.length() || 1; dir.normalize();
+    const headLen = Math.min(len * 0.25, markupSpan(h) * 0.03);
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(headLen * 0.5, headLen, 12),
+      new THREE.MeshBasicMaterial({ color: MARKUP_COLOR }));
+    cone.position.copy(b);
+    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    cone.translateY(-headLen / 2);
+    g.add(cone);
+  }
+  function placePolyline(h, pts, color, closed) {
+    if (pts.length < 2) return;
+    const arr = closed ? pts.concat([pts[0]]) : pts;
+    const g = ensureMarkupGroup(h);
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(arr),
+      new THREE.LineBasicMaterial({ color: color || MARKUP_COLOR })));
+  }
+  function placeDimension(h, a, b) {
+    const g = ensureMarkupGroup(h);
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]),
+      new THREE.LineBasicMaterial({ color: 0x4f9dff })));
+    addMarker(g, a, 0x4f9dff); addMarker(g, b, 0x4f9dff);
+    const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+    const label = makeLabel(h, a.distanceTo(b).toFixed(2) + ' m', '#7fbfff');
+    label.position.copy(mid);
+    g.add(label);
+    if (host() && host().bridge) host().bridge.send('markupDimension', { distance: a.distanceTo(b) });
+  }
+  function placeCallout(h, anchor, labelPos, text) {
+    const g = ensureMarkupGroup(h);
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([anchor, labelPos]),
+      new THREE.LineBasicMaterial({ color: MARKUP_COLOR })));
+    addMarker(g, anchor, MARKUP_COLOR);
+    const label = makeLabel(h, text, '#ffcc33');
+    label.position.copy(labelPos);
+    g.add(label);
+  }
+  // Revision cloud: a scalloped loop of arcs around the drag rectangle,
+  // built on the plane through the two drag points facing the camera.
+  function placeCloud(h, a, b) {
+    const g = ensureMarkupGroup(h);
+    const n = new THREE.Vector3(); h.camera.getWorldDirection(n); n.normalize();
+    let u = new THREE.Vector3(1, 0, 0).cross(n); if (u.lengthSq() < 1e-6) u = new THREE.Vector3(0, 1, 0).cross(n);
+    u.normalize();
+    const v = new THREE.Vector3().crossVectors(n, u).normalize();
+    // a,b projected onto (u,v) about a
+    const d = new THREE.Vector3().subVectors(b, a);
+    const w = d.dot(u), hgt = d.dot(v);
+    const corners = [a.clone(),
+      a.clone().addScaledVector(u, w),
+      a.clone().addScaledVector(u, w).addScaledVector(v, hgt),
+      a.clone().addScaledVector(v, hgt)];
+    const bump = Math.max(Math.hypot(w, hgt) * 0.06, markupSpan(h) * 0.01);
+    const pts = [];
+    for (let e = 0; e < 4; e++) {
+      const p0 = corners[e], p1 = corners[(e + 1) % 4];
+      const edge = new THREE.Vector3().subVectors(p1, p0); const elen = edge.length();
+      const segs = Math.max(2, Math.round(elen / (bump * 1.6)));
+      const outward = new THREE.Vector3().crossVectors(edge.clone().normalize(), n).normalize();
+      for (let i = 0; i < segs; i++) {
+        const t0 = i / segs, tm = (i + 0.5) / segs;
+        pts.push(p0.clone().addScaledVector(edge, t0));
+        pts.push(p0.clone().addScaledVector(edge, tm).addScaledVector(outward, bump));
+      }
+    }
+    placePolyline(h, pts, 0xff5a5a, true);
+  }
+
+  // ── pointer wiring ──
+  let _markupHandlers = null;
+  function attachMarkupInput(h) {
+    detachMarkupInput();
+    const dom = h.renderer.domElement;
+    const onDown = (ev) => {
+      if (ev.button !== 0 || !markupMode) return;
+      markupGesture = { start: markupPoint(h, ev), screen: { x: ev.clientX, y: ev.clientY }, points: [] };
+      if (markupMode === 'draw') markupGesture.points.push(markupGesture.start);
+    };
+    const onMove = (ev) => {
+      if (!markupGesture) return;
+      const p = markupPoint(h, ev);
+      if (markupMode === 'draw') { markupGesture.points.push(p); refreshPreview(h, markupGesture.points, false, 0xffcc33); }
+      else if (markupMode === 'arrow' || markupMode === 'dim' || markupMode === 'cloud') {
+        refreshPreview(h, [markupGesture.start, p], false, markupMode === 'dim' ? 0x4f9dff : 0xffcc33);
+      }
+    };
+    const onUp = (ev) => {
+      if (!markupGesture) return;
+      const end = markupPoint(h, ev);
+      const moved = Math.hypot(ev.clientX - markupGesture.screen.x, ev.clientY - markupGesture.screen.y);
+      clearPreview(h);
+      finishGesture(h, markupGesture.start, end, moved);
+      markupGesture = null;
+    };
+    dom.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    _markupHandlers = { dom, onDown, onMove, onUp };
+  }
+  function detachMarkupInput() {
+    if (!_markupHandlers) return;
+    const { dom, onDown, onMove, onUp } = _markupHandlers;
+    dom.removeEventListener('pointerdown', onDown);
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    _markupHandlers = null;
+  }
+  function refreshPreview(h, pts, closed, color) {
+    clearPreview(h);
+    if (pts.length < 2) return;
+    markupPreview = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(closed ? pts.concat([pts[0]]) : pts),
+      new THREE.LineBasicMaterial({ color: color || 0xffffff }));
+    ensureMarkupGroup(h).add(markupPreview);
+  }
+  function clearPreview(h) {
+    if (markupPreview && markupGroup) { markupGroup.remove(markupPreview); disposeObj(markupPreview); }
+    markupPreview = null;
+  }
+
+  const DRAG_THRESHOLD = 5; // px
+  function finishGesture(h, start, end, moved) {
+    const dragged = moved > DRAG_THRESHOLD;
+    switch (markupMode) {
+      case 'text': {
+        if (dragged) return;
+        const t = (window.prompt('Markup text:') || '').trim();
+        if (t) placeText(h, start, t);
+        break;
+      }
+      case 'arrow':
+        if (dragged) placeArrow(h, start, end);
+        break;
+      case 'draw':
+        if (markupGesture && markupGesture.points.length >= 2) placePolyline(h, markupGesture.points, 0xffcc33, false);
+        break;
+      case 'cloud':
+        if (dragged) placeCloud(h, start, end);
+        break;
+      case 'dim':
+        // two clicks
+        markupClicks.push(start);
+        if (markupClicks.length === 2) { placeDimension(h, markupClicks[0], markupClicks[1]); markupClicks = []; }
+        break;
+      case 'callout':
+        markupClicks.push(start);
+        if (markupClicks.length === 2) {
+          const t = (window.prompt('Callout text:') || '').trim() || 'Note';
+          placeCallout(h, markupClicks[0], markupClicks[1], t);
+          markupClicks = [];
+        }
+        break;
+    }
+  }
+
+  function markupKeydown(ev) { if (ev.key === 'Escape' && markupMode) ext.stopMarkup(); }
+
+  ext.startMarkup = function (mode) {
+    const h = host(); if (!h) return;
+    ensureMarkupGroup(h);
+    markupMode = mode || 'text';
+    markupClicks = [];
+    if (rotatePrev === null && h.controls) { rotatePrev = h.controls.enableRotate; h.controls.enableRotate = false; }
+    attachMarkupInput(h);
+    window.addEventListener('keydown', markupKeydown);
+    if (h.bridge) h.bridge.send('markupModeChanged', { mode: markupMode });
+  };
+  ext.stopMarkup = function () {
+    const h = host();
+    detachMarkupInput();
+    clearPreview(h);
+    window.removeEventListener('keydown', markupKeydown);
+    if (h && h.controls && rotatePrev !== null) { h.controls.enableRotate = rotatePrev; rotatePrev = null; }
+    markupMode = null; markupGesture = null; markupClicks = [];
+    if (h && h.bridge) h.bridge.send('markupModeChanged', { mode: null });
+  };
+  ext.clearMarkup = function () {
+    const h = host();
+    ext.stopMarkup();
+    if (markupGroup && h) { h.scene.remove(markupGroup); disposeObj(markupGroup); }
+    markupGroup = null;
+  };
 })();

@@ -72,6 +72,9 @@
       <div class="toolbar-group">
         <button class="tbtn" id="btnMarkup" title="Markup">✏ Markup <span class="caret">▾</span></button>
       </div>
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnMeet" title="Live meeting">🎥 Meet <span class="caret">▾</span></button>
+      </div>
 
       <div class="toolbar-group">
         <button class="tbtn" id="btnClashes" title="Open clash tray">⚠ <span id="clashBadge" class="badge muted">0</span></button>
@@ -463,8 +466,9 @@
       <input id="pcFileInput" type="file" accept="image/*" capture="environment" style="display:none" />
       <div id="pcDrop" class="attachment-drop" tabindex="0"
            role="button" aria-label="Tap to pick / take a photo, or drop a file here">
-        <button class="btn ghost" id="pcPickBtn" type="button">📷 Take photo / pick file</button>
-        <div class="hint">JPEG / PNG · max 25 MB · drop a file here or use the camera on mobile</div>
+        <button class="btn ghost" id="pcPickBtn" type="button">🗂 Pick file</button>
+        <button class="btn ghost" id="pcWebcamBtn" type="button">📸 Use webcam</button>
+        <div class="hint">JPEG / PNG · max 25 MB · drop a file here, use the webcam, or the camera on mobile</div>
       </div>
       <div id="pcPreview" class="photo-preview"></div>
 
@@ -563,12 +567,23 @@
   <div class="menu-item" id="iAll">📋 All issues</div>
 </div>
 <div class="menu" id="menuMarkup">
-  <div class="menu-item" id="mkDraw">✎ Draw</div>
+  <div class="menu-item" id="mkDraw">✎ Draw (freehand)</div>
   <div class="menu-item" id="mkArrow">→ Arrow</div>
   <div class="menu-item" id="mkText">T Text</div>
+  <div class="menu-item" id="mkCloud">☁ Revision cloud</div>
+  <div class="menu-item" id="mkDim">↔ Dimension note</div>
+  <div class="menu-item" id="mkCallout">▭ Callout</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item danger" id="mkClear">Clear markups</div>
   <div class="menu-sep"></div>
   <div class="menu-item" id="mkScreenshot">📷 Screenshot</div>
   <div class="menu-item" id="mkShare">🔗 Share view link</div>
+</div>
+<div class="menu" id="menuMeet">
+  <div class="menu-item" id="meetStart">▶ Start a live meeting</div>
+  <div class="menu-item" id="meetJoin">↳ Join by session ID</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item" id="meetCopy">🔗 Copy join link</div>
 </div>
 
 <!-- Settings popover (was a no-op TaskDialog) -->
