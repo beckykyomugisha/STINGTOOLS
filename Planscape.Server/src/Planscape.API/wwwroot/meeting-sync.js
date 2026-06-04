@@ -109,6 +109,12 @@
       applyRemoteCamera(msg && msg.camera);
     });
     conn.on("OverlayChanged", function (profile) {
+      // WS2 — a renderMode-tagged profile is the global x-ray/ghost + keep-solid
+      // exclusion, not a colour overlay; route it to the coordination layer.
+      if (profile && profile.source === "renderMode") {
+        try { window.dispatchEvent(new CustomEvent("sting:remoteRenderMode", { detail: profile })); } catch (e) {}
+        return;
+      }
       try { window.STING_VIEWER.applyOverlay && window.STING_VIEWER.applyOverlay(profile); } catch (e) {}
     });
     conn.on("SectionChanged", function (msg) {
@@ -320,6 +326,9 @@
     applyRemoteSection: applyRemoteSection,
     broadcastHighlight: function (guids) { if (state.conn) state.conn.invoke("BroadcastHighlight", sessionId, guids || []).catch(noop); },
     broadcastSection: function (section) { if (state.conn) state.conn.invoke("BroadcastSection", sessionId, section || {}).catch(noop); },
+    // WS2 — push an overlay profile (colour overlay OR a renderMode-tagged
+    // x-ray/ghost + keep-solid exclusion) to the group via the existing channel.
+    broadcastOverlay: function (profile) { if (state.conn) state.conn.invoke("BroadcastOverlay", sessionId, profile || {}).catch(noop); },
     sessionId: sessionId,
   };
 })();

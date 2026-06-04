@@ -134,6 +134,13 @@
       vizDiscMode: new Map(),   // DISCIPLINE → 'show' | 'ghost' | 'hide'
       vizCatMode:  new Map(),   // CATEGORY   → 'show' | 'ghost' | 'hide'
       vizPreset:   null,        // active discipline appearance preset name
+      // WS2 — disciplines/categories kept SOLID (original shaded material) when a
+      // global x-ray / ghost render mode is on. The rest go x-ray/ghost; hide still
+      // wins. Persisted alongside the viz maps.
+      vizKeepSolidDisc: new Set(),
+      vizKeepSolidCat:  new Set(),
+      renderMode: 'shaded',
+      applyingRemoteViz: false, // guard so a broadcast render-mode doesn't echo
       clashSection: { active: false, saved: null, onFocus: false }, // clip-plane section box
       apiBase, projectId, modelId, token
     };
@@ -901,9 +908,11 @@
     function applyVizModes() {
       if (!V.modelRoot) return;
       // Ghost/show/hide owns materials via state.elementMaterials; the engine
-      // colour overlay owns them via its own map. Keep them mutually exclusive
-      // so neither captures the other's material as "original".
+      // colour overlay + the global render mode own them via their own stores.
+      // Keep them mutually exclusive so none captures another's material as
+      // "original".
       if (V.activeOverlaySource && V.clearOverlay) { V.clearOverlay(); state.vizPreset = null; }
+      if (state.renderMode && state.renderMode !== 'shaded') clearRenderMode();
       V.modelRoot.traverse(o => {
         if (!o.isMesh) return;
         const meta = state.elementMap[o.userData.elementGuid];
@@ -1144,6 +1153,32 @@
         wrap.appendChild(byCat);
       }
 
+      // ── WS2 — Keep solid under x-ray / ghost ──
+      const keepBox = el('div', {});
+      keepBox.appendChild(sectionTitle('Keep solid under x-ray / ghost'));
+      keepBox.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2;margin-bottom:4px' },
+        'Selected disciplines/categories stay solid while View → X-ray / Ghost fades the rest.'));
+      const mkKeepChip = (label, isOn, toggle) =>
+        el('button', { class: 'btn sm' + (isOn ? '' : ' subtle'),
+          onclick: () => { toggle(); applyKeepSolidLive(); renderVisualizePanel(); } }, label);
+      const kdRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px' });
+      discs.forEach(d => kdRow.appendChild(mkKeepChip(d, state.vizKeepSolidDisc.has(d),
+        () => { state.vizKeepSolidDisc.has(d) ? state.vizKeepSolidDisc.delete(d) : state.vizKeepSolidDisc.add(d); })));
+      keepBox.appendChild(kdRow);
+      if (cats.length) {
+        const kcRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px' });
+        cats.forEach(c => kcRow.appendChild(mkKeepChip(c, state.vizKeepSolidCat.has(c),
+          () => { state.vizKeepSolidCat.has(c) ? state.vizKeepSolidCat.delete(c) : state.vizKeepSolidCat.add(c); })));
+        keepBox.appendChild(kcRow);
+      }
+      keepBox.appendChild(el('div', { style: 'display:flex;gap:6px;margin-top:6px' }, [
+        el('button', { class: 'btn sm subtle', onclick: () => {
+          state.vizKeepSolidDisc.clear(); state.vizKeepSolidCat.clear(); applyKeepSolidLive(); renderVisualizePanel();
+        } }, 'Clear keep-solid'),
+        el('button', { class: 'btn sm subtle', onclick: () => { clearRenderMode(); renderVisualizePanel(); } }, 'Reset view (shaded)'),
+      ]));
+      wrap.appendChild(keepBox);
+
       // ── Clash focus options ──
       const clashBox = el('div', {});
       clashBox.appendChild(sectionTitle('Clash focus'));
@@ -1157,6 +1192,12 @@
       wrap.appendChild(clashBox);
 
       pane.appendChild(wrap);
+    }
+
+    // WS2 — if a global x-ray/ghost/wire mode is active, re-apply it so a change
+    // to the keep-solid exclusion set takes effect immediately.
+    function applyKeepSolidLive() {
+      if (state.renderMode && state.renderMode !== 'shaded') setRenderMode(state.renderMode);
     }
 
     // Re-apply ghost styling to whatever is currently ghosted (tint/opacity live update).
@@ -4830,27 +4871,91 @@
 
     function setRenderMode(mode) {
       if (!V.modelRoot) return;
-      // B8 — dispose the previous replacement before swapping in a new
-      // one, otherwise toggling shaded → wire → xray → ghost a few times
-      // leaks N MeshStandardMaterial allocations on the GPU per cycle.
+      // WS2 — x-ray / ghost now honour the VISUALIZE maps: disciplines/categories
+      // in the keep-solid exclusion set stay in their ORIGINAL shaded material,
+      // and anything set to 'hide' is hidden (most-restrictive wins). Start from
+      // true originals so _origMat never captures a per-discipline ghost.
+      clearAllHighlights();
+      const em = state.elementMap || {};
+      let keptSolid = 0;
       V.modelRoot.traverse(o => {
         if (!o.isMesh) return;
+        // B8 — remember the true original once; dispose stale replacements below
+        // so toggling shaded → wire → xray → ghost doesn't leak GPU materials.
         if (!o.userData._origMat) o.userData._origMat = o.material;
         const orig = o.userData._origMat;
-        const prev = o.material;
+        const meta = em[o.userData.elementGuid];
+        const disc = discKey(meta);
+        const cat  = String(tokenValue(meta, 'CAT') || '');
+        const hidden    = state.vizDiscMode.get(disc) === 'hide' || state.vizCatMode.get(cat) === 'hide';
+        const keepSolid = state.vizKeepSolidDisc.has(disc) || state.vizKeepSolidCat.has(cat);
         let next;
-        if (mode === 'shaded') next = orig;
-        else if (mode === 'wire')  next = new THREE_.MeshBasicMaterial({ color: 0x60A5FA, wireframe: true });
-        else if (mode === 'xray')  next = new THREE_.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.25, depthWrite: false });
-        else if (mode === 'ghost') next = new THREE_.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false });
-        else next = orig;
+        if (mode === 'shaded')      next = orig;
+        else if (keepSolid)       { next = orig; if (mode === 'xray' || mode === 'ghost') keptSolid++; }
+        else if (mode === 'wire')   next = new THREE_.MeshBasicMaterial({ color: 0x60A5FA, wireframe: true });
+        else if (mode === 'xray')   next = new THREE_.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.25, depthWrite: false });
+        else if (mode === 'ghost')  next = new THREE_.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false });
+        else                        next = orig;
+        const prev = o.material;
         if (prev && prev !== orig && prev !== next && typeof prev.dispose === 'function') {
           try { prev.dispose(); } catch (_) {}
         }
         o.material = next;
+        o.visible = !hidden;
       });
       state.renderMode = mode;
-      toast('View: ' + mode);
+      broadcastVizRenderMode(mode);   // mirror to meeting followers (no-op when solo)
+      const extra = (keptSolid && (mode === 'xray' || mode === 'ghost')) ? ` · ${keptSolid} kept solid` : '';
+      toast('View: ' + mode + extra);
+    }
+
+    // Restore every mesh to its true original material + visibility (exits any
+    // render mode cleanly). Reuses the _origMat store setRenderMode populated.
+    function clearRenderMode() {
+      if (!V.modelRoot) return;
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        const orig = o.userData._origMat;
+        if (orig) {
+          const prev = o.material;
+          if (prev && prev !== orig && typeof prev.dispose === 'function') { try { prev.dispose(); } catch (_) {} }
+          o.material = orig;
+        }
+        o.visible = true;
+      });
+      state.renderMode = 'shaded';
+    }
+
+    // WS2 — mirror the global render mode + keep-solid exclusion to meeting
+    // followers through the existing overlay channel (a renderMode-tagged profile;
+    // meeting-sync routes it to sting:remoteRenderMode instead of applyOverlay).
+    function broadcastVizRenderMode(mode) {
+      if (state.applyingRemoteViz) return;
+      const m = (typeof window !== 'undefined') && window.STING_MEETING;
+      if (!m || typeof m.broadcastOverlay !== 'function') return;
+      try {
+        m.broadcastOverlay({
+          source: 'renderMode',
+          renderMode: mode,
+          keepSolidDisc: Array.from(state.vizKeepSolidDisc),
+          keepSolidCat:  Array.from(state.vizKeepSolidCat),
+        });
+      } catch (_) {}
+    }
+    // Apply a render mode + exclusion received from the meeting presenter.
+    function applyRemoteVizRenderMode(p) {
+      if (!p) return;
+      state.applyingRemoteViz = true;
+      try {
+        state.vizKeepSolidDisc = new Set(p.keepSolidDisc || []);
+        state.vizKeepSolidCat  = new Set(p.keepSolidCat || []);
+        setRenderMode(p.renderMode || 'shaded');
+        if (state.rightTab === 'visualize') renderVisualizePanel();
+      } catch (_) {}
+      state.applyingRemoteViz = false;
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('sting:remoteRenderMode', (e) => applyRemoteVizRenderMode(e.detail));
     }
 
     // Exploded view — requires a federated model. Toggles between 0 and 1.
