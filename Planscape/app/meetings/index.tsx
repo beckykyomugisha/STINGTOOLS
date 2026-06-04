@@ -9,7 +9,7 @@ import {
   logMeetingMinutes, addMeetingAction, updateMeetingAction, listOpenMeetingActions,
   listMeetingAttendees, addMeetingAttendee, updateMeetingAttendee, deleteMeetingAttendee,
   addMeetingAgendaItem, updateMeetingAgendaItem, deleteMeetingAgendaItem,
-  exportMeetingMinutesDoc, getMeetingIcsUrl,
+  exportMeetingMinutesDoc, getMeetingIcsUrl, createMeetingSession,
   type MeetingActionItem, type MeetingAttendee, type MeetingAgendaItem,
 } from "@/api/endpoints";
 import { MemberPicker } from "@/components/MemberPicker";
@@ -341,6 +341,22 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
   const [minutes, setMinutes] = useState(meeting.minutes ?? "");
   const [saving, setSaving] = useState(false);
   const [editStatus, setEditStatus] = useState(meeting.status);
+  const [joining, setJoining] = useState(false);
+
+  // WS3e — start/join a LIVE A/V session for this scheduled meeting, then open the
+  // live screen. Creating is idempotent enough for a demo: each tap opens a fresh
+  // session bound to this meeting; a follow-up can reuse an existing ACTIVE one.
+  async function joinLive() {
+    setJoining(true);
+    try {
+      const session = await createMeetingSession(projectId, { meetingId: meeting.id });
+      router.push({ pathname: "/meetings/live", params: { project: projectId, session: session.id } });
+    } catch (err) {
+      Alert.alert("Could not join", err instanceof Error ? err.message : String(err));
+    } finally {
+      setJoining(false);
+    }
+  }
 
   async function saveMinutes() {
     setSaving(true);
@@ -359,6 +375,19 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
 
   return (
     <View>
+      {/* WS3e — live A/V meeting (camera/mic/screen-share). Replaces the
+          "nothing to show yet" disconnect: scheduled meetings can go live. */}
+      <View style={styles.card}>
+        <Text style={styles.fieldLabel}>Live meeting</Text>
+        <TouchableOpacity onPress={joinLive} disabled={joining}
+          style={[styles.pillActive, { marginTop: 8, paddingVertical: 12, alignItems: "center", borderRadius: 8, opacity: joining ? 0.6 : 1 }]}>
+          <Text style={{ color: "#fff", fontWeight: "600" }}>{joining ? "Starting…" : "🎥 Join live A/V"}</Text>
+        </TouchableOpacity>
+        <Text style={[styles.fieldValue, { color: "#9aa3b2", fontSize: 12, marginTop: 6 }]}>
+          Camera, mic + screen-share over LiveKit. Needs a dev build on mobile (not Expo Go).
+        </Text>
+      </View>
+
       {/* Meeting URL */}
       {meeting.meetingUrl && (
         <View style={styles.card}>

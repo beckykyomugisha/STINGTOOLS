@@ -641,6 +641,56 @@ export function getMeeting(projectId: string, meetingId: string): Promise<Meetin
   return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}`);
 }
 
+// ── Live meeting sessions (WS3 — A/V media + model co-presence) ──────────────
+export interface MeetingSessionDto {
+  id: string;
+  projectId: string;
+  meetingId?: string | null;
+  hostUserId?: string | null;
+  modelId?: string | null;
+  status: string;
+  activeSurface?: string;
+  activeDocumentId?: string | null;
+}
+export interface LiveKitTokenDto {
+  token: string;
+  url: string;
+  identity: string;
+  room: string;
+  isPresenter: boolean;
+}
+/** Open a live session (creator becomes host + first participant). */
+export function createMeetingSession(
+  projectId: string,
+  body: { meetingId?: string; modelId?: string; displayName?: string; surface?: string } = {},
+): Promise<MeetingSessionDto> {
+  return apiFetch(`/api/projects/${projectId}/meeting-sessions`, { method: 'POST', body: JSON.stringify(body) });
+}
+/** Join (idempotent) an existing live session. */
+export function joinMeetingSession(
+  projectId: string,
+  sessionId: string,
+  body: { displayName?: string; surface?: string } = {},
+): Promise<MeetingSessionDto> {
+  return apiFetch(`/api/projects/${projectId}/meeting-sessions/${sessionId}/join`, { method: 'POST', body: JSON.stringify(body) });
+}
+/** Mint a LiveKit access token for this participant (501 when LiveKit unconfigured). */
+export function getLiveKitToken(
+  projectId: string,
+  sessionId: string,
+  body: { displayName?: string } = {},
+): Promise<LiveKitTokenDto> {
+  return apiFetch(`/api/projects/${projectId}/meeting-sessions/${sessionId}/livekit-token`, { method: 'POST', body: JSON.stringify(body) });
+}
+/** Presenter sets the active surface (model | document | screen) for the whole room. */
+export function setMeetingSurface(
+  projectId: string,
+  sessionId: string,
+  body: { surface: 'model' | 'document' | 'screen'; documentId?: string },
+): Promise<MeetingSessionDto> {
+  return apiFetch(`/api/projects/${projectId}/meeting-sessions/${sessionId}/surface`, { method: 'POST', body: JSON.stringify(body) });
+}
+
 export function createMeeting(projectId: string, body: {
   title: string;
   meetingType?: string;
