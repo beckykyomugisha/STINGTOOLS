@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - 'StingTools/**'
-      - 'tools/revit-stubs/**'
       - 'StingTools.Standards/**'
       - 'Planscape.Server/src/Planscape.Shared/**'
       - 'Planscape.Server/src/Planscape.PluginSync/**'
@@ -14,7 +13,6 @@ on:
     branches: [main]
     paths:
       - 'StingTools/**'
-      - 'tools/revit-stubs/**'
       - 'StingTools.Standards/**'
       - '.github/workflows/stingtools-plugin.yml'
 
@@ -184,7 +182,7 @@ jobs:
             echo "Total: $TOTAL (target < 200KB)" >> $GITHUB_STEP_SUMMARY
           fi
 
-  # ── 3. Plugin build (Windows, uses stubs from tools/revit-stubs/ if present) ─
+  # ── 3. Plugin build (Windows, real Revit 2025 reference assemblies from NuGet) ─
   build:
     name: Build StingTools Plugin
     # Windows required — UseWPF=true and UseWindowsForms=true need Windows SDK
@@ -198,31 +196,11 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      # ── Step 1: Build Revit API stubs ───────────────────────────────────────
-      # The real Revit API DLLs ship only with Autodesk Revit (not redistributable).
-      # We maintain a set of minimal type-only stubs in tools/revit-stubs/ so the
-      # plugin can be compiled for CI. The stubs are compile-time-only — at runtime
-      # Revit loads the real assemblies from its own installation directory.
-      - name: Build Revit API stubs
-        run: |
-          $stubsDir = "tools\revit-stubs"
-          $outDir   = "$stubsDir\bin"
-          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-
-          # Build RevitAPI stub
-          dotnet build "$stubsDir\RevitAPI\RevitAPI.csproj" `
-            --configuration Release `
-            --output $outDir `
-            --nologo `
-            -v minimal
-
-          # Build RevitAPIUI stub (depends on RevitAPI)
-          dotnet build "$stubsDir\RevitAPIUI\RevitAPIUI.csproj" `
-            --configuration Release `
-            --output $outDir `
-            --nologo `
-            -v minimal
-        shell: pwsh
+      # The plugin compiles against the REAL Revit 2025 reference assemblies
+      # (Nice3point.Revit.Api.RevitAPI / .RevitAPIUI 2025.x) restored from NuGet —
+      # see StingTools.csproj. No local Revit install + no $(RevitApiPath) here, so
+      # the csproj's UseRevitNuget path kicks in. The hand-written stubs under
+      # tools/revit-stubs/ are RETIRED (no longer built or referenced by CI).
 
       # ── Step 2: Restore NuGet packages for dependent projects ───────────────
       - name: Restore dependencies (Planscape.Shared)
@@ -238,18 +216,15 @@ jobs:
         shell: pwsh
 
       - name: Restore dependencies (StingTools plugin)
-        run: |
-          dotnet restore StingTools/StingTools.csproj `
-            -p:RevitApiStubsDir="${{ github.workspace }}\tools\revit-stubs\bin"
+        run: dotnet restore StingTools/StingTools.csproj
         shell: pwsh
 
       # ── Step 3: Build the plugin ────────────────────────────────────────────
-      - name: Build StingTools plugin (with stubs)
+      - name: Build StingTools plugin (real Revit reference assemblies)
         run: |
           dotnet build StingTools/StingTools.csproj `
             --configuration Release `
             --no-restore `
-            -p:RevitApiStubsDir="${{ github.workspace }}\tools\revit-stubs\bin" `
             --nologo `
             -v minimal
         shell: pwsh

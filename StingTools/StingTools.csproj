@@ -34,30 +34,52 @@
   </PropertyGroup>
 
   <!--
-    CI stub fallback: when RevitApiPath is still empty (Linux CI / no Revit install)
-    resolve stubs from the pre-built path under tools/revit-stubs/.
-    $(RevitApiStubsDir) can also be set explicitly on the command line.
+    Revit reference-assembly resolution — two paths, same API surface:
+
+      • Developer machine WITH Revit installed ($(RevitApiPath)\RevitAPI.dll
+        exists, auto-detected above or passed via -p:RevitApiPath) → reference the
+        REAL local DLLs by HintPath. Unchanged developer behaviour.
+
+      • CI / any machine WITHOUT a local Revit install → restore the Nice3point
+        REAL Revit 2025 reference assemblies from NuGet. These are reference-only
+        (ref/net8.0-windows7.0/*.dll) so they cover the full API the plugin uses —
+        replacing the hand-written stubs that only covered a fraction and could
+        never keep up with ~140 referenced types.
+
+    Both paths keep the Revit assemblies COMPILE-TIME ONLY (HintPath Private=false;
+    NuGet ExcludeAssets=runtime + PrivateAssets=all): the shipped StingTools.dll
+    never carries a Revit assembly — at runtime Revit loads its own from its
+    install directory.
+
+    UseRevitNuget is computed from whether a local RevitAPI.dll exists.
   -->
-  <PropertyGroup Condition="'$(RevitApiPath)' == ''">
-    <RevitApiStubsDir Condition="'$(RevitApiStubsDir)' == ''">$(MSBuildThisFileDirectory)..\tools\revit-stubs\bin</RevitApiStubsDir>
-    <RevitApiPath>$(RevitApiStubsDir)</RevitApiPath>
-    <UsingRevitApiStubs>true</UsingRevitApiStubs>
+  <PropertyGroup>
+    <UseRevitNuget Condition="'$(UseRevitNuget)' == '' And '$(RevitApiPath)' != '' And Exists('$(RevitApiPath)\RevitAPI.dll')">false</UseRevitNuget>
+    <UseRevitNuget Condition="'$(UseRevitNuget)' == ''">true</UseRevitNuget>
   </PropertyGroup>
 
-  <!-- Revit 2025/2026/2027 API assemblies (real Revit install or CI stubs) -->
-  <ItemGroup>
+  <!-- Local Revit install: real DLLs by HintPath, never copied to output. -->
+  <ItemGroup Condition="'$(UseRevitNuget)' != 'true'">
     <Reference Include="RevitAPI">
       <HintPath>$(RevitApiPath)\RevitAPI.dll</HintPath>
-      <!--
-        Private=false: don't copy to output — at runtime Revit loads the real
-        assembly from its own directory; stubs are compile-time-only.
-      -->
       <Private>false</Private>
     </Reference>
     <Reference Include="RevitAPIUI">
       <HintPath>$(RevitApiPath)\RevitAPIUI.dll</HintPath>
       <Private>false</Private>
     </Reference>
+  </ItemGroup>
+
+  <!-- CI / no local Revit: real Revit 2025 reference assemblies from NuGet. -->
+  <ItemGroup Condition="'$(UseRevitNuget)' == 'true'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.4.50">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2025.4.50">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
