@@ -29,8 +29,18 @@ internal static class Program
         Check(name, string.Equals(actual, expected, StringComparison.Ordinal),
               $"expected «{expected}» but was «{actual}»");
 
-    private static int Main()
+    private static int Main(string[] args)
     {
+        // --live <url> <email> <password> : exercise the ACTUAL plugin
+        // connectivity path (NormalizeServerUrl + a real /api/auth/login POST)
+        // against a running server and print the resolved tenant/tier. This is
+        // the live proof that the deployed connectivity fix logs in; the
+        // default (no args) runs the CI-safe pure-logic tests below.
+        if (args.Length >= 1 && args[0] == "--live")
+            return LiveLogin(args.Length > 1 ? args[1] : "localhost:5000",
+                             args.Length > 2 ? args[2] : "admin@planscape.demo",
+                             args.Length > 3 ? args[3] : "admin123").GetAwaiter().GetResult();
+
         Console.WriteLine("PlanscapeServerClient connectivity classification tests");
         Console.WriteLine("=======================================================");
 
@@ -114,5 +124,49 @@ internal static class Program
         Console.WriteLine("=======================================================");
         Console.WriteLine($"RESULT: {_pass} passed, {_fail} failed");
         return _fail == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// Live proof of the Planscape Connect path: normalise the URL exactly as
+    /// the plugin does (PlanscapeServerClient.NormalizeServerUrl — the FIX-2
+    /// code), then POST /api/auth/login and read the tenant/tier the BIM
+    /// Coordination Center shows on a successful connect.
+    /// </summary>
+    private static async System.Threading.Tasks.Task<int> LiveLogin(string url, string email, string password)
+    {
+        var normalized = PlanscapeServerClient.NormalizeServerUrl(url);
+        Console.WriteLine($"Planscape Connect — live login");
+        Console.WriteLine($"  input url      : {url}");
+        Console.WriteLine($"  normalized url : {normalized}   (scheme={PlanscapeServerClient.SchemeOf(normalized)})");
+        try
+        {
+            using var http = new HttpClient { BaseAddress = new Uri(normalized), Timeout = TimeSpan.FromSeconds(20) };
+            var body = new StringContent(
+                "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}",
+                System.Text.Encoding.UTF8, "application/json");
+            var resp = await http.PostAsync("/api/auth/login", body);
+            var json = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"  FAILED  HTTP {(int)resp.StatusCode}: {json}");
+                return 1;
+            }
+            string Pick(string key)
+            {
+                var i = json.IndexOf("\"" + key + "\"", StringComparison.OrdinalIgnoreCase);
+                if (i < 0) return "";
+                var c = json.IndexOf(':', i); var q1 = json.IndexOf('"', c + 1);
+                var q2 = json.IndexOf('"', q1 + 1);
+                return q1 < 0 || q2 < 0 ? "" : json.Substring(q1 + 1, q2 - q1 - 1);
+            }
+            var token = Pick("accessToken");
+            Console.WriteLine($"  CONNECTED  user={Pick("userName")}  role={Pick("role")}  tier={Pick("tier")}  tokenLen={token.Length}");
+            return string.IsNullOrEmpty(token) ? 1 : 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("  " + PlanscapeServerClient.BuildConnectivityHint(ex, normalized));
+            return 1;
+        }
     }
 }
