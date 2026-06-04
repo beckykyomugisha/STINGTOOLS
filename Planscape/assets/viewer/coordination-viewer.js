@@ -95,6 +95,8 @@
       issues: [],
       clashes: [],
       elementMap: {},
+      meshMeta: new Map(),     // mesh.uuid → meta (M0 resolver — verified at load)
+      guidMeshes: new Map(),   // guid → mesh[] (multi-mesh elements)
       members: [{ id: 'me', name: 'You', initials: 'YO' },
                 { id: 'sd', name: 'Sting Davis', initials: 'SD' },
                 { id: 'se', name: 'Sentongo E.', initials: 'SE' }],
@@ -801,7 +803,7 @@
       if (!V.modelRoot || !state.elementMap) return;
       V.modelRoot.traverse(obj => {
         if (!obj.isMesh) return;
-        const meta = state.elementMap[obj.userData.elementGuid];
+        const meta = metaForMesh(obj);
         const disc = meta?.discipline ? String(meta.discipline).toUpperCase().slice(0, 4) : null;
         if (filterAll) {
           obj.visible = true;
@@ -919,9 +921,9 @@
       if (state.renderMode && state.renderMode !== 'shaded') clearRenderMode();
       V.modelRoot.traverse(o => {
         if (!o.isMesh) return;
-        const meta = state.elementMap[o.userData.elementGuid];
+        const meta = metaForMesh(o);
         const m1 = state.vizDiscMode.get(discKey(meta));
-        const m2 = state.vizCatMode.get(String(tokenValue(meta, 'CAT') || ''));
+        const m2 = state.vizCatMode.get(catKey(meta));
         let mode = 'show';
         [m1, m2].forEach(m => {
           if (m === 'hide') mode = 'hide';
@@ -1150,7 +1152,7 @@
         const byCat = el('div', {});
         byCat.appendChild(sectionTitle('By category'));
         const catCounts = {};
-        Object.values(state.elementMap).forEach(m => { const c = String(tokenValue(m, 'CAT') || ''); if (c) catCounts[c] = (catCounts[c] || 0) + 1; });
+        Object.values(state.elementMap).forEach(m => { const c = catKey(m); if (c) catCounts[c] = (catCounts[c] || 0) + 1; });
         cats.forEach(c => byCat.appendChild(vizModeRow(c, catCounts[c],
           () => state.vizCatMode.get(c),
           (m) => state.vizCatMode.set(c, m))));
@@ -2325,15 +2327,58 @@
     // 12-clash × 4000-mesh placement cost from ~96k traversals to ~24
     // hash lookups.
     const guidIndex = new Map();
+    // M0 — VERIFIED mesh→meta resolver. Builds three maps in one traverse:
+    //   guidIndex      guid → first mesh   (legacy single-mesh lookups)
+    //   guidMeshes     guid → mesh[]       (multi-mesh Revit elements)
+    //   meshMeta       mesh.uuid → meta    (the appearance/properties hot path)
+    // Resolves a mesh's guid from its own userData, then ancestors, then name,
+    // accepting only a guid that exists in elementMap. Logs the hit-rate so a
+    // bad export (meshes with no resolvable guid) is visible immediately.
     function rebuildGuidIndex() {
       guidIndex.clear();
+      state.meshMeta = new Map();
+      state.guidMeshes = new Map();
       if (!V.modelRoot) return;
+      const map = state.elementMap || {};
+      let total = 0, hit = 0;
       V.modelRoot.traverse(obj => {
-        if (obj.isMesh && obj.userData.elementGuid) {
-          guidIndex.set(obj.userData.elementGuid, obj);
+        if (!obj.isMesh) return;
+        total++;
+        let guid = obj.userData && obj.userData.elementGuid;
+        if (!guid || !map[guid]) {
+          // walk ancestors for a guid present in the element map
+          let p = obj.parent;
+          while (p) {
+            const pg = p.userData && (p.userData.elementGuid || p.userData.guid || (p.userData.extras && p.userData.extras.guid));
+            if (pg && map[pg]) { guid = pg; break; }
+            p = p.parent;
+          }
         }
+        if ((!guid || !map[guid]) && obj.name && map[obj.name]) guid = obj.name;   // name fallback
+        if (guid) {
+          obj.userData.elementGuid = guid;                 // normalise back onto the mesh
+          if (!guidIndex.has(guid)) guidIndex.set(guid, obj);
+          if (!state.guidMeshes.has(guid)) state.guidMeshes.set(guid, []);
+          state.guidMeshes.get(guid).push(obj);
+        }
+        const meta = guid ? map[guid] : null;
+        if (meta) { state.meshMeta.set(obj.uuid, meta); hit++; }
       });
+      const pct = total ? Math.round(hit / total * 100) : 0;
+      console.log(`[viz] mesh→meta resolver: ${hit}/${total} meshes resolved (${pct}%)`);
+      if (total && pct < 50) console.warn('[viz] LOW resolver hit-rate — check the exporter writes per-mesh guids matching the element map');
     }
+    // Fast meta lookup for a mesh (resolver map first, then a guid fallback).
+    function metaForMesh(o) {
+      if (!o) return null;
+      const m = state.meshMeta && state.meshMeta.get(o.uuid);
+      if (m) return m;
+      const g = o.userData && o.userData.elementGuid;
+      return (g && state.elementMap) ? (state.elementMap[g] || null) : null;
+    }
+    // Normalised category key — trimmed, used identically on the UI-build AND
+    // lookup sides so a toggle key always equals its lookup key.
+    function catKey(meta) { return String(tokenValue(meta, 'CAT') || '').trim(); }
     function findMeshByGuid(guid) {
       if (!guid) return null;
       const cached = guidIndex.get(guid);
