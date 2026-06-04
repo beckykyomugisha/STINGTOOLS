@@ -2773,11 +2773,18 @@
       const bb = new THREE_.Box3();
       meshes.forEach(m => bb.expandByObject(m));
       if (bb.isEmpty()) return;
-      handleHostCommand({ type: 'setSectionBox', payload: {
-        min: [bb.min.x, bb.min.y, bb.min.z], max: [bb.max.x, bb.max.y, bb.max.z], enabled: true
-      } });
+      // Pad slightly so the selection isn't flush with the cut.
+      const pad = bb.getSize(new THREE_.Vector3()).length() * 0.06 || 0.5;
+      bb.min.addScalar(-pad); bb.max.addScalar(pad);
+      setActiveTool('section');
+      const x = window.STING_VIEWER_EXTRAS;
+      if (x && x.setSectionBox) {
+        x.setSectionBox({ min: [bb.min.x, bb.min.y, bb.min.z], max: [bb.max.x, bb.max.y, bb.max.z], enabled: true });
+        if (x.onSectionChange) x.onSectionChange(syncSectionBoxSliders);
+      }
+      $('#sectionCard').style.display = 'block';
+      renderSectionBoxPanel();
       toast('Section box from selection');
-      if (state.rightTab === 'visualize') renderVisualizePanel();
     }
 
     function openClashRowMenu(menu, c, x, y) {
@@ -5189,24 +5196,82 @@
 
     function openSectionPlane(axis) {
       $('#sectionCard').style.display = 'block';
+      if (axis === 'box') return enterSectionBox();
       addSectionPlane(axis);
     }
-    function addSectionPlane(axis) {
-      if (axis === 'box') {
-        // Section box: 6-plane AABB clip. Slight inset so edges are visible.
-        handleHostCommand({ type: 'setSectionBox', payload: { inset: 0 } });
-        toast('Section box active — drag faces in the Section card to adjust');
-        renderSectionCard();
-        return;
+    // Section BOX — 6-plane AABB clip with sliders + an optional draggable gizmo.
+    function enterSectionBox() {
+      setActiveTool('section');
+      const x = window.STING_VIEWER_EXTRAS;
+      if (x && x.setSectionBox) {
+        x.setSectionBox({});                       // default to whole-model bounds
+        if (x.onSectionChange) x.onSectionChange(syncSectionBoxSliders);  // gizmo → sliders
       }
+      $('#sectionCard').style.display = 'block';
+      renderSectionBoxPanel();
+      toast('Section box — drag the sliders, or enable the gizmo to drag faces');
+    }
+    function addSectionPlane(axis) {
       handleHostCommand({ type: 'addSectionPlaneAxis', payload: { axis, offset: 0.5 } });
       renderSectionCard();
     }
     function clearSection() {
+      exitSectionTool();
       handleHostCommand({ type: 'clearSectionPlanes' });
-      handleHostCommand({ type: 'clearSectionBox' });
       $('#sectionCard').style.display = 'none';
       state.sectionPlanes = [];
+    }
+    // Tear down the section box (clip + caps + gizmo) — also called by
+    // setActiveTool when switching away from 'section'.
+    function exitSectionTool() {
+      const x = window.STING_VIEWER_EXTRAS;
+      if (x && x.clearSectionBox) try { x.clearSectionBox(); } catch (_) {}
+      $('#sectionCard').style.display = 'none';
+    }
+    function renderSectionBoxPanel() {
+      const body = $('#sectionCard .body');
+      if (!body) return;
+      body.innerHTML = '';
+      const x = window.STING_VIEWER_EXTRAS;
+      const box = (x && x.getSectionBox) ? x.getSectionBox() : { active: false };
+      const fr = box.fractions || { minX: 0, maxX: 1, minY: 0, maxY: 1, minZ: 0, maxZ: 1 };
+      [['X', 'x', 'min', 'minX'], ['X', 'x', 'max', 'maxX'],
+       ['Y', 'y', 'min', 'minY'], ['Y', 'y', 'max', 'maxY'],
+       ['Z', 'z', 'min', 'minZ'], ['Z', 'z', 'max', 'maxZ']].forEach(([lbl, axis, end, key]) => {
+        const row = el('div', { style: 'display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);margin-top:3px' });
+        row.appendChild(el('span', { style: 'min-width:30px' }, (end === 'min' ? '−' : '+') + lbl));
+        const s = el('input', { type: 'range', min: '0', max: '100', value: String(Math.round((fr[key] || 0) * 100)),
+          'data-sbkey': key, style: 'flex:1;accent-color:var(--accent)' });
+        s.addEventListener('input', () => { if (x && x.setSectionBoxFace) x.setSectionBoxFace(axis, end, parseInt(s.value, 10) / 100); });
+        row.appendChild(s);
+        body.appendChild(row);
+      });
+      const mkChk = (label, checked, fn) => {
+        const c = el('input', { type: 'checkbox' }); c.checked = !!checked;
+        c.addEventListener('change', () => fn(c));
+        return el('label', { style: 'display:flex;gap:4px;align-items:center;font-size:11px;color:var(--text-muted)' }, [c, label]);
+      };
+      const toolRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px' }, [
+        mkChk('Caps', box.caps, (c) => { if (x && x.setSectionCaps) x.setSectionCaps(c.checked); }),
+        mkChk('Gizmo', false, (c) => {
+          if (!x) return;
+          if (c.checked) { if (!x.attachSectionGizmo || !x.attachSectionGizmo()) { c.checked = false; toast('Drag-gizmo unavailable — use sliders', 'warn'); } }
+          else if (x.detachSectionGizmo) x.detachSectionGizmo();
+        }),
+      ]);
+      body.appendChild(toolRow);
+      body.appendChild(el('div', { style: 'display:flex;gap:4px;margin-top:6px' }, [
+        el('button', { class: 'btn sm subtle', onclick: () => sectionBoxFromSelection() }, 'From selection'),
+        el('button', { class: 'btn sm danger', onclick: () => clearSection() }, 'Clear'),
+      ]));
+    }
+    // Engine → UI: when the gizmo drags a face, push the new fractions to the sliders.
+    function syncSectionBoxSliders(info) {
+      if (!info || !info.fractions) return;
+      $$('#sectionCard input[data-sbkey]').forEach(s => {
+        const k = s.dataset.sbkey;
+        if (info.fractions[k] != null) s.value = String(Math.round(info.fractions[k] * 100));
+      });
     }
 
     // Render the section card plane list with per-plane offset sliders.

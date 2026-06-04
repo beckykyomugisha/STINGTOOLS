@@ -683,4 +683,228 @@
     if (markupGroup && h) { h.scene.remove(markupGroup); disposeObj(markupGroup); }
     markupGroup = null; markupStamps = [];
   };
+
+  // ════════════════════════════════════════════════════════════════════════
+  // SECTION BOX — a 6-plane AABB clip (±X/±Y/±Z) over renderer.clippingPlanes,
+  // modelled on coordination-viewer's clash-box. Driven by sliders (fractions
+  // across the model bounds) AND a draggable per-face gizmo (TransformControls,
+  // see below). Cut faces are filled with cap quads so solids don't read hollow.
+  // ════════════════════════════════════════════════════════════════════════
+  const sb = {
+    active: false,
+    min: null, max: null,         // THREE.Vector3 in world (rendered) coords
+    caps: false,
+    capGroup: null,
+    savedClip: null,              // previous renderer.clippingPlanes (e.g. clash box)
+    onChange: null,               // host sync callback (sliders ↔ gizmo)
+  };
+  function sbModelBounds() {
+    const h = host();
+    if (h && h.modelBounds && !h.modelBounds.isEmpty()) return h.modelBounds;
+    return new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
+  }
+  function sbPlanes() {
+    return [
+      new THREE.Plane(new THREE.Vector3( 1, 0, 0), -sb.min.x),
+      new THREE.Plane(new THREE.Vector3(-1, 0, 0),  sb.max.x),
+      new THREE.Plane(new THREE.Vector3( 0, 1, 0), -sb.min.y),
+      new THREE.Plane(new THREE.Vector3( 0,-1, 0),  sb.max.y),
+      new THREE.Plane(new THREE.Vector3( 0, 0, 1), -sb.min.z),
+      new THREE.Plane(new THREE.Vector3( 0, 0,-1),  sb.max.z),
+    ];
+  }
+  function sbApply() {
+    const h = host(); if (!h || !h.renderer || !sb.min) return;
+    const planes = sbPlanes();
+    if (sb.savedClip === null) sb.savedClip = h.renderer.clippingPlanes;
+    h.renderer.clippingPlanes = planes;
+    h.renderer.localClippingEnabled = true;
+    sb.active = true;
+    rebuildCaps(planes);
+    if (sb.gizmo) refreshHandles();
+    if (typeof sb.onChange === 'function') { try { sb.onChange(ext.getSectionBox()); } catch (e) {} }
+  }
+  // Per-plane cap quad: a coplanar quad at each cut, clipped by the OTHER 5
+  // planes, so the cut reads as a filled surface instead of a hollow shell.
+  function rebuildCaps(planes) {
+    const h = host(); if (!h) return;
+    if (sb.capGroup) { h.scene.remove(sb.capGroup); disposeObj(sb.capGroup); sb.capGroup = null; }
+    if (!sb.caps || !sb.min) return;
+    sb.capGroup = new THREE.Group(); sb.capGroup.name = 'sting-section-caps';
+    const size = new THREE.Vector3().subVectors(sb.max, sb.min);
+    const c = new THREE.Vector3().addVectors(sb.min, sb.max).multiplyScalar(0.5);
+    const pad = size.length() * 0.001;
+    const faces = [
+      { n: new THREE.Vector3( 1, 0, 0), pos: new THREE.Vector3(sb.max.x, c.y, c.z), w: size.z, hh: size.y },
+      { n: new THREE.Vector3(-1, 0, 0), pos: new THREE.Vector3(sb.min.x, c.y, c.z), w: size.z, hh: size.y },
+      { n: new THREE.Vector3( 0, 1, 0), pos: new THREE.Vector3(c.x, sb.max.y, c.z), w: size.x, hh: size.z },
+      { n: new THREE.Vector3( 0,-1, 0), pos: new THREE.Vector3(c.x, sb.min.y, c.z), w: size.x, hh: size.z },
+      { n: new THREE.Vector3( 0, 0, 1), pos: new THREE.Vector3(c.x, c.y, sb.max.z), w: size.x, hh: size.y },
+      { n: new THREE.Vector3( 0, 0,-1), pos: new THREE.Vector3(c.x, c.y, sb.min.z), w: size.x, hh: size.y },
+    ];
+    faces.forEach((f, i) => {
+      const geo = new THREE.PlaneGeometry(Math.abs(f.w) + pad, Math.abs(f.hh) + pad);
+      // Cap clipped by the OTHER 5 planes so it only fills inside the box.
+      const others = planes.filter((_, j) => j !== i);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xbfd4ff, side: THREE.DoubleSide, transparent: true, opacity: 0.85,
+        clippingPlanes: others, clipShadows: false,
+      });
+      const q = new THREE.Mesh(geo, mat);
+      q.position.copy(f.pos);
+      q.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), f.n.clone().normalize());
+      q.renderOrder = 2;
+      sb.capGroup.add(q);
+    });
+    h.scene.add(sb.capGroup);
+  }
+
+  ext.setSectionBox = function (p) {
+    p = p || {};
+    const mb = sbModelBounds();
+    sb.min = (p.min && p.min.length === 3) ? new THREE.Vector3(p.min[0], p.min[1], p.min[2]) : mb.min.clone();
+    sb.max = (p.max && p.max.length === 3) ? new THREE.Vector3(p.max[0], p.max[1], p.max[2]) : mb.max.clone();
+    if (p.enabled === false) { ext.clearSectionBox(); return; }
+    sbApply();
+  };
+  // Move one face to a 0..1 fraction across the model bounds (slider/gizmo path).
+  ext.setSectionBoxFace = function (axis, end, frac) {
+    if (!sb.min) ext.setSectionBox({});
+    const mb = sbModelBounds();
+    const lo = mb.min[axis], hi = mb.max[axis];
+    let v = lo + (hi - lo) * Math.max(0, Math.min(1, frac));
+    const minEps = (hi - lo) * 0.01 || 1e-3;
+    if (end === 'min') { v = Math.min(v, sb.max[axis] - minEps); sb.min[axis] = v; }
+    else               { v = Math.max(v, sb.min[axis] + minEps); sb.max[axis] = v; }
+    sbApply();
+  };
+  // Set a face by ABSOLUTE world value (gizmo drag), clamped so faces can't cross.
+  function setSectionBoxFaceWorld(axis, end, world) {
+    const mb = sbModelBounds();
+    const minEps = (mb.max[axis] - mb.min[axis]) * 0.01 || 1e-3;
+    if (end === 'min') sb.min[axis] = Math.min(world, sb.max[axis] - minEps);
+    else               sb.max[axis] = Math.max(world, sb.min[axis] + minEps);
+    sbApply();
+  }
+  ext.getSectionBox = function () {
+    if (!sb.active || !sb.min) return { active: false };
+    const mb = sbModelBounds();
+    const frac = (axis, v) => { const lo = mb.min[axis], hi = mb.max[axis]; return hi > lo ? (v - lo) / (hi - lo) : 0; };
+    return {
+      active: true, caps: sb.caps,
+      fractions: {
+        minX: frac('x', sb.min.x), maxX: frac('x', sb.max.x),
+        minY: frac('y', sb.min.y), maxY: frac('y', sb.max.y),
+        minZ: frac('z', sb.min.z), maxZ: frac('z', sb.max.z),
+      },
+    };
+  };
+  ext.setSectionCaps = function (on) { sb.caps = !!on; rebuildCaps(sbPlanes()); };
+  ext.onSectionChange = function (cb) { sb.onChange = cb; };
+  ext.clearSectionBox = function () {
+    const h = host();
+    detachSectionGizmo();
+    if (sb.capGroup && h) { h.scene.remove(sb.capGroup); disposeObj(sb.capGroup); }
+    sb.capGroup = null;
+    if (h && h.renderer) h.renderer.clippingPlanes = (sb.savedClip !== null) ? sb.savedClip : [];
+    sb.savedClip = null; sb.active = false; sb.min = sb.max = null;
+    if (typeof sb.onChange === 'function') { try { sb.onChange({ active: false }); } catch (e) {} }
+  };
+  // The host routes both clearSectionPlanes + clearSectionBox here.
+  ext.clearSectionPlanes = function () { ext.clearSectionBox(); };
+
+  // ── Draggable per-face gizmo (TransformControls) ──────────────────────────
+  // Six tiny handle meshes at the face centres. A single re-attachable
+  // TransformControls (translate, axis-locked to the grabbed face's axis) resizes
+  // ONLY that face. dragging-changed disables OrbitControls so the drag is clean.
+  let TC = null;
+  function getTC() {
+    if (TC !== null) return TC;
+    TC = (typeof THREE !== 'undefined' && THREE.TransformControls) ? THREE.TransformControls : false;
+    return TC;
+  }
+  function makeHandle(axis, end) {
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0x3b82f6, depthTest: false }));
+    m.renderOrder = 999;
+    m.userData.sbFace = { axis, end };
+    return m;
+  }
+  function refreshHandles() {
+    if (!sb.gizmo || !sb.min) return;
+    const c = new THREE.Vector3().addVectors(sb.min, sb.max).multiplyScalar(0.5);
+    const span = new THREE.Vector3().subVectors(sb.max, sb.min).length();
+    const r = Math.max(span * 0.012, 1e-3);
+    const place = (h, axis, end) => {
+      h.position.set(c.x, c.y, c.z);
+      h.position[axis] = (end === 'min') ? sb.min[axis] : sb.max[axis];
+      h.scale.setScalar(r);
+    };
+    place(sb.handles.minX, 'x', 'min'); place(sb.handles.maxX, 'x', 'max');
+    place(sb.handles.minY, 'y', 'min'); place(sb.handles.maxY, 'y', 'max');
+    place(sb.handles.minZ, 'z', 'min'); place(sb.handles.maxZ, 'z', 'max');
+  }
+  ext.attachSectionGizmo = function () {
+    const h = host(); if (!h || !sb.active) return false;
+    const tc = getTC(); if (!tc) return false;          // TransformControls unavailable → sliders only
+    if (sb.gizmo) return true;
+    sb.handleGroup = new THREE.Group(); sb.handleGroup.name = 'sting-section-handles';
+    sb.handles = {
+      minX: makeHandle('x', 'min'), maxX: makeHandle('x', 'max'),
+      minY: makeHandle('y', 'min'), maxY: makeHandle('y', 'max'),
+      minZ: makeHandle('z', 'min'), maxZ: makeHandle('z', 'max'),
+    };
+    Object.values(sb.handles).forEach(m => sb.handleGroup.add(m));
+    h.scene.add(sb.handleGroup);
+    const gizmo = new tc(h.camera, h.renderer.domElement);
+    gizmo.setMode('translate');
+    sb.gizmo = gizmo;
+    // r169 — add the gizmo's HELPER object (not the controls) to the scene.
+    sb.gizmoHelper = (typeof gizmo.getHelper === 'function') ? gizmo.getHelper() : gizmo;
+    h.scene.add(sb.gizmoHelper);
+    gizmo.addEventListener('dragging-changed', (e) => { h.controls.enabled = !e.value; });
+    gizmo.addEventListener('objectChange', () => {
+      const o = gizmo.object; if (!o || !o.userData.sbFace) return;
+      const { axis, end } = o.userData.sbFace;
+      setSectionBoxFaceWorld(axis, end, o.position[axis]);  // also re-places handles via sbApply→refreshHandles
+    });
+    // Pointerdown on a handle attaches the gizmo to it, axis-locked to its face.
+    sb._onHandleDown = (ev) => {
+      if (ev.button !== 0) return;
+      const rect = h.renderer.domElement.getBoundingClientRect();
+      const ndc = new THREE.Vector2(
+        ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+        -((ev.clientY - rect.top) / rect.height) * 2 + 1);
+      const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, h.camera);
+      const hit = ray.intersectObjects(Object.values(sb.handles), false)[0];
+      if (!hit) return;
+      const f = hit.object.userData.sbFace;
+      gizmo.attach(hit.object);
+      gizmo.showX = f.axis === 'x'; gizmo.showY = f.axis === 'y'; gizmo.showZ = f.axis === 'z';
+    };
+    h.renderer.domElement.addEventListener('pointerdown', sb._onHandleDown);
+    refreshHandles();
+    return true;
+  };
+  function detachSectionGizmo() {
+    const h = host();
+    if (!sb.gizmo) return;
+    try { sb.gizmo.detach(); } catch (e) {}
+    if (h) {
+      if (sb._onHandleDown) h.renderer.domElement.removeEventListener('pointerdown', sb._onHandleDown);
+      if (sb.gizmoHelper) h.scene.remove(sb.gizmoHelper);
+      if (sb.handleGroup) { h.scene.remove(sb.handleGroup); disposeObj(sb.handleGroup); }
+      if (h.controls) h.controls.enabled = true;
+    }
+    if (sb.gizmo.dispose) { try { sb.gizmo.dispose(); } catch (e) {} }
+    sb.gizmo = null; sb.gizmoHelper = null; sb.handleGroup = null; sb.handles = null; sb._onHandleDown = null;
+  }
+  ext.detachSectionGizmo = detachSectionGizmo;
+  ext.setSectionGizmoMode = function (mode) {     // 'translate' (move box) | 'rotate' (oblique)
+    if (sb.gizmo) sb.gizmo.setMode(mode === 'rotate' ? 'rotate' : 'translate');
+  };
+  ext.setSectionSnap = function (step) {
+    if (sb.gizmo && sb.gizmo.setTranslationSnap) sb.gizmo.setTranslationSnap(step || null);
+  };
 })();

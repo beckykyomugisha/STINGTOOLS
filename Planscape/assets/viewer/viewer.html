@@ -665,6 +665,7 @@
 <script type="module">
 import * as THREE         from 'three';
 import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { GLTFLoader }     from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader }    from 'three/addons/loaders/DRACOLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -682,6 +683,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 // using the real `THREE` namespace for its own `new THREE.*` calls.
 const THREEGlobal = Object.assign({}, THREE);
 THREEGlobal.OrbitControls = OrbitControls;
+THREEGlobal.TransformControls = TransformControls;   // section-box gizmo (Commit 4)
 THREEGlobal.GLTFLoader    = GLTFLoader;
 THREEGlobal.DRACOLoader   = DRACOLoader;
 window.THREE          = THREEGlobal;
@@ -1430,7 +1432,10 @@ THREE.ColorManagement.enabled = false;
 
   function setTool(t) {
     activeTool = t;
-    enableSection(t === 'section');
+    // Section clipping is owned by the section-BOX system (viewer-extras
+    // setSectionBox + the coordination-viewer panel), not the old single-plane
+    // enableSection — so we don't toggle it here (it would clobber the box's
+    // 6 clip planes). enableSection remains for any legacy direct callers.
     if (t !== 'measure') clearMeasure();
     bridge.send('toolChanged', { tool: t });
   }
