@@ -727,6 +727,13 @@ THREE.ColorManagement.enabled = false;
 
   const renderer = new THREE.WebGLRenderer({
     antialias: true, alpha: false,
+    // BUG 1 — logarithmic depth buffer. The camera spans near≈diag/1000 to
+    // far≈diag*10 and IFC/Revit geometry can sit tens of km from the origin,
+    // so a linear depth buffer loses precision and coincident faces z-fight /
+    // flicker while orbiting. A log depth buffer keeps precision across the
+    // whole range; combined with the on-load recenter (modelOffset) below this
+    // removes the flicker.
+    logarithmicDepthBuffer: true,
     // C1 — required so coordination-viewer.js can call toDataURL() for the
     // issue-modal screenshot capture. Without this flag the back buffer is
     // cleared after every frame and toDataURL returns a blank image.
@@ -762,6 +769,11 @@ THREE.ColorManagement.enabled = false;
   controls.panSpeed    = 1.0;
   // Stop the user from rolling the camera under the model.
   controls.maxPolarAngle = Math.PI * 0.95;
+  // BUG 2 — explicit button mapping so right-drag PANS and left-drag ROTATES,
+  // and a pan never leaves the controls in a state that disrupts the next
+  // rotate. With camera.up locked to world-Z (see fitCamera), vertical drag =
+  // polar (tilt) and horizontal drag = azimuth (spin).
+  controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
 
   const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
   renderer.clippingPlanes = [];
@@ -772,6 +784,17 @@ THREE.ColorManagement.enabled = false;
   let modelRoot = null;
   let modelReady = false;   // BLK-5 — meeting co-presence waits on this
   let modelBounds = new THREE.Box3();
+  // BUG 1 — recenter offset. On load the model root is translated by
+  // -boundingBoxCentre so geometry sits near the origin (float depth
+  // precision). modelOffset stores that subtracted centre = the TRUE world
+  // position of the rendered origin. Every absolute coordinate that crosses
+  // the host bridge converts: rendered → true world is `+ modelOffset`
+  // (toWorld, for OUT readouts), true world → rendered is `- modelOffset`
+  // (toScene, for IN placements). The host therefore still works entirely in
+  // true world coordinates — the recenter is invisible to it.
+  const modelOffset = new THREE.Vector3(0, 0, 0);
+  const toWorld = (a) => [a[0] + modelOffset.x, a[1] + modelOffset.y, a[2] + modelOffset.z];
+  const toScene = (a) => [a[0] - modelOffset.x, a[1] - modelOffset.y, a[2] - modelOffset.z];
   let elementMap = null;
   let pinMeta = new Map();
   let measurePoints = [];
@@ -800,13 +823,25 @@ THREE.ColorManagement.enabled = false;
         applyModelTransform(modelRoot, transform);
         scene.add(modelRoot);
         modelBounds.setFromObject(modelRoot);
+        // BUG 1 — recenter the model to the origin. Survey-coordinated
+        // buildings can sit tens of km from 0,0,0 (e.g. X 6557m Y 10940m
+        // Z 6803m); at that distance float depth precision fails and faces
+        // flicker. Translate the root by -centre and remember the centre as
+        // modelOffset so true world coords are recovered at the host bridge.
+        const _centre = modelBounds.getCenter(new THREE.Vector3());
+        modelRoot.position.sub(_centre);
+        modelRoot.updateMatrixWorld(true);
+        modelOffset.copy(_centre);
+        modelBounds.setFromObject(modelRoot);   // recompute: now origin-centred
         fitCamera();
         const el = document.getElementById('bootLoader');
         if (el) el.style.display = 'none';
         markModelReady();
         bridge.send('loaded', {
           elementCount: countMeshes(modelRoot),
-          bounds: bbToArray(modelBounds)
+          // Report TRUE world bounds (add the offset back) so the host's
+          // extent display stays in survey coordinates.
+          bounds: bbToArray(modelBounds, modelOffset)
         });
       },
       (progress) => {
@@ -870,40 +905,30 @@ THREE.ColorManagement.enabled = false;
     const centre = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
     const dist = maxDim * 1.8;
-    // Sync camera.up to the model's dominant vertical axis so OrbitControls
-    // rotates correctly. Revit GLBs are often Z-up (the axis with the
-    // smallest horizontal span), while spec glTF/GLB is Y-up. Without this,
-    // dragging up on the canvas orbits sideways instead of overhead.
-    const ax = Math.abs(size.x), ay = Math.abs(size.y), az = Math.abs(size.z);
-    if (az <= ax && az <= ay) {
-      // Z-up model (Revit). Place camera perpendicular to the longest
-      // horizontal axis so that axis fills the screen width.
-      camera.up.set(0, 0, 1);
-      if (ax >= ay) {
-        // Long axis is X → view from south (Y-) so X reads left-right.
-        camera.position.copy(centre).add(new THREE.Vector3(0, -dist * 0.8, dist * 0.6));
-      } else {
-        // Long axis is Y → view from west (X-) so Y reads left-right.
-        camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, 0, dist * 0.6));
-      }
-    } else if (ay <= ax && ay <= az) {
-      // Y-up model. Same logic for horizontal axes X and Z.
-      camera.up.set(0, 1, 0);
-      if (ax >= az) {
-        camera.position.copy(centre).add(new THREE.Vector3(0, dist * 0.6, -dist * 0.8));
-      } else {
-        camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, dist * 0.6, 0));
-      }
+    // BUG 2 — IFC/Revit are Z-up. Lock camera.up to world-Z (no bbox guess) so
+    // OrbitControls maps vertical drag → polar (tilt) and horizontal → azimuth
+    // (spin). Frame from the south (Y-) and slightly above (Z+) so the longest
+    // horizontal axis reads left-to-right.
+    camera.up.set(0, 0, 1);
+    if (Math.abs(size.x) >= Math.abs(size.y)) {
+      camera.position.copy(centre).add(new THREE.Vector3(0, -dist * 0.8, dist * 0.6));
     } else {
-      // X-up model. Horizontal axes are Y and Z.
-      camera.up.set(1, 0, 0);
-      if (ay >= az) {
-        camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, 0, -dist * 0.8));
-      } else {
-        camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, -dist * 0.8, 0));
-      }
+      camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, 0, dist * 0.6));
     }
     controls.target.copy(centre);
+    // BUG 1 — tighten near/far from the WHOLE-model size (not the sub-target,
+    // which would clip the rest of the model when fitting one element). With
+    // the model recentred near the origin this keeps the usable depth range
+    // tight and, with the log depth buffer, eliminates z-fighting.
+    // near is derived from the box being framed (so a single-element fit never
+    // clips that element on a large site); far from the whole-model diagonal so
+    // the rest of the model stays visible behind it. For the default whole-model
+    // fit both diagonals are equal → near = diag/1000, far = diag*10.
+    const fitDiag = size.length() || maxDim;
+    const modelDiag = (modelBounds.isEmpty() ? size : modelBounds.getSize(new THREE.Vector3())).length() || fitDiag;
+    camera.near = Math.max(fitDiag / 1000, 1e-4);
+    camera.far  = Math.max(modelDiag, fitDiag) * 10;
+    camera.updateProjectionMatrix();
     controls.update();
   }
 
@@ -1026,7 +1051,7 @@ THREE.ColorManagement.enabled = false;
     const meta = elementMap && elementMap[guid] ? elementMap[guid] : null;
     const ifc = extractIfcUserData(hit.object);
     bridge.send('pick', {
-      guid, point: hit.point.toArray(), name: hit.object.name, meta, ifc,
+      guid, point: toWorld(hit.point.toArray()), name: hit.object.name, meta, ifc,
       // Pass snap mode along so the host UI can label the readout
       // ("vertex", "midpoint", "face center", or "surface").
       snap: pickSnap,
@@ -1063,7 +1088,7 @@ THREE.ColorManagement.enabled = false;
   function emitPlaceIssue(hit) {
     const guid = hit.object.userData.elementGuid;
     const meta = elementMap && elementMap[guid] ? elementMap[guid] : null;
-    bridge.send('placeIssue', { guid, meta, point: hit.point.toArray() });
+    bridge.send('placeIssue', { guid, meta, point: toWorld(hit.point.toArray()) });
   }
 
   let highlightedMesh = null, originalMat = null;
@@ -1109,7 +1134,7 @@ THREE.ColorManagement.enabled = false;
       const d = measurePoints[0].distanceTo(measurePoints[1]);
       const g = new THREE.BufferGeometry().setFromPoints(measurePoints);
       measureGroup.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x0078D4 })));
-      bridge.send('measure', { distance: d, points: measurePoints.map(v => v.toArray()) });
+      bridge.send('measure', { distance: d, points: measurePoints.map(v => toWorld(v.toArray())) });
       measurePoints = [];
     }
   }
@@ -1132,7 +1157,10 @@ THREE.ColorManagement.enabled = false;
     const PRIORITY = { CRITICAL: 0xEF4444, HIGH: 0xF97316, MEDIUM: 0xF59E0B, LOW: 0x60A5FA };
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: PRIORITY[priority] || 0x60A5FA, depthTest: false }));
     const scale = modelBounds.isEmpty() ? 1 : modelBounds.getSize(new THREE.Vector3()).length() * 0.012;
-    sprite.scale.set(scale, scale, scale); sprite.position.set(x, y, z);
+    // Pin coords arrive in TRUE world (issue anchors from the server) — shift
+    // into the recentred render space so the pin lands on the model.
+    sprite.scale.set(scale, scale, scale);
+    sprite.position.set(x - modelOffset.x, y - modelOffset.y, z - modelOffset.z);
     pinGroup.add(sprite); pinMeta.set(sprite.uuid, { issueId: id, priority });
   }
   function clearPins() { while (pinGroup.children.length) pinGroup.remove(pinGroup.children[0]); pinMeta.clear(); }
@@ -1340,19 +1368,17 @@ THREE.ColorManagement.enabled = false;
   })();
 
   function countMeshes(obj) { let n = 0; obj.traverse(o => { if (o.isMesh) n++; }); return n; }
-  function bbToArray(b) { return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z]; }
+  function bbToArray(b, off) {
+    const o = off || { x: 0, y: 0, z: 0 };
+    return [b.min.x + o.x, b.min.y + o.y, b.min.z + o.z, b.max.x + o.x, b.max.y + o.y, b.max.z + o.z];
+  }
 
   // Level the camera: keep current position and yaw, zero out pitch so the
   // view is perfectly horizontal. Works for Z-up (Revit) and Y-up models.
   function levelCamera() {
     if (modelBounds.isEmpty()) return;
-    const size = modelBounds.getSize(new THREE.Vector3());
-    const ax = Math.abs(size.x), ay = Math.abs(size.y), az = Math.abs(size.z);
-    // Determine the up vector (same logic as fitCamera / pickUpAxis).
-    let up;
-    if (az <= ax && az <= ay)      up = new THREE.Vector3(0, 0, 1);
-    else if (ay <= ax && ay <= az) up = new THREE.Vector3(0, 1, 0);
-    else                           up = new THREE.Vector3(1, 0, 0);
+    // BUG 2 — IFC/Revit are Z-up; lock it (no bbox guess) to match fitCamera.
+    const up = new THREE.Vector3(0, 0, 1);
     camera.up.copy(up);
     // Project the current look direction onto the horizontal plane.
     const fwd = new THREE.Vector3();
@@ -1380,6 +1406,10 @@ THREE.ColorManagement.enabled = false;
     markModelReady, applyModelTransform,
     get modelBounds()     { return modelBounds; },
     set modelBounds(v)     { modelBounds = v; },
+    // BUG 1 — recenter offset (true world position of the rendered origin), so
+    // downstream scripts (viewer-extras area measure) can convert rendered
+    // coords back to true world coords.
+    get modelOffset()     { return modelOffset; },
     get highlightedMesh() { return highlightedMesh; },
     // R13 — expose pinGroup + pinMeta so the coordination layer can add
     // its own pins to the same pipeline the engine raycasts. The engine
@@ -1423,7 +1453,7 @@ THREE.ColorManagement.enabled = false;
         case 'clearMarkup':            return x.clearMarkup();
         case 'setWalkthrough':         return x.setWalkthrough(!!p.enabled);
         case 'startArea':              return x.startArea();
-        case 'addAreaPoint':           return p.point ? x.addAreaPoint(p.point) : undefined;
+        case 'addAreaPoint':           return p.point ? x.addAreaPoint(toScene(p.point)) : undefined;
         case 'finishArea':             return x.finishArea();
         case 'measureVolume':          return x.measureSelectionVolume();
         case 'setModelOpacity':        return x.setModelOpacity(p.label, p.opacity);
@@ -1438,7 +1468,7 @@ THREE.ColorManagement.enabled = false;
         case 'setSectionCaps':         return x.setSectionCaps(!!p.enabled);
         case 'setCoordReadout':        return x.setCoordReadout(!!p.enabled);
         case 'startCumulativeMeasure': return x.startCumulativeMeasure();
-        case 'addCumulativePoint':     return p.point ? x.addCumulativePoint(p.point) : undefined;
+        case 'addCumulativePoint':     return p.point ? x.addCumulativePoint(toScene(p.point)) : undefined;
         case 'finishCumulativeMeasure':return x.finishCumulativeMeasure();
         case 'clearCumulativeMeasure': return x.clearCumulativeMeasure();
         case 'captureViewState': {
