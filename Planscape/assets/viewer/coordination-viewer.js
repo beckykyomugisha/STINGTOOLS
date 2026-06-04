@@ -2493,10 +2493,27 @@
     // the token; the previous animation sees the bump and bails on its
     // next frame.
     let flyToken = 0;
-    function flyTo(pos) {
+    // flyTo a POINT, preserving the current view direction and landing at a
+    // FRAMING distance (FOV-aware) — not a fixed offset. `radius` (optional) is the
+    // region to frame; default ~8% of the model sphere so a point-only call (photo,
+    // issue fallback, minimap) lands at a sensible zoom regardless of current zoom.
+    function flyTo(pos, radius) {
+      const cam = V.camera;
+      let r = radius;
+      if (r == null) {
+        const ms = (V.modelBounds && !V.modelBounds.isEmpty())
+          ? V.modelBounds.getBoundingSphere(new THREE_.Vector3()).radius : 0;
+        r = ms > 0 ? ms * 0.08 : V.controls.target.distanceTo(cam.position) * 0.3;
+      }
+      const vFov = (cam.fov || 50) * Math.PI / 180;
+      const hFov = 2 * Math.atan(Math.tan(vFov / 2) * (cam.aspect || 1));
+      const dist = (r / Math.sin(Math.min(vFov, hFov) / 2)) * 1.1;
+      let dir = new THREE_.Vector3().subVectors(cam.position, V.controls.target);
+      if (dir.lengthSq() < 1e-9) dir.set(0, 0.55, 0.85);
+      dir.normalize();
       const myToken = ++flyToken;
-      const start = V.camera.position.clone();
-      const targetCam = pos.clone().add(new THREE_.Vector3(8, 6, 8));
+      const start = cam.position.clone();
+      const targetCam = pos.clone().addScaledVector(dir, dist);
       const startTgt = V.controls.target.clone();
       const t0 = performance.now();
       const dur = 600;
@@ -2530,8 +2547,9 @@
       const bb = new THREE_.Box3();
       meshes.forEach(m => bb.expandByObject(m));
       if (bb.isEmpty()) return;
-      const c = bb.getCenter(new THREE_.Vector3());
-      flyTo(c);
+      // Frame the selection bbox edge-to-edge (FOV-aware), preserving view dir.
+      if (V.fitCamera) { try { V.fitCamera(bb); return; } catch (_) {} }
+      flyTo(bb.getCenter(new THREE_.Vector3()));
     }
 
     function isolateSelection() {
@@ -3178,11 +3196,22 @@
     function focusIssue(i) {
       state.selectedIssueId = i.id;
       clearAllHighlights();              // L6
-      if (i.position) flyTo(new THREE_.Vector3(i.position.x, i.position.y, i.position.z));
+      // Frame the issue's LINKED element(s) — build their bbox and fitCamera it
+      // (mirrors focusClash). Only fall back to a point fly-to when the issue has
+      // a bare GPS/model point and no resolvable element.
+      const bb = new THREE_.Box3();
+      let any = false;
       if (Array.isArray(i.elementGuids)) {
         i.elementGuids.forEach(g => {
-          const m = findMeshByGuid(g); if (m) emissive(m, 0xF97316);
+          const m = findMeshByGuid(g);
+          if (m) { emissive(m, 0xF97316); bb.expandByObject(m); any = true; }
         });
+      }
+      if (any && !bb.isEmpty() && V.fitCamera) {
+        try { V.fitCamera(bb); }
+        catch (_) { if (i.position) flyTo(new THREE_.Vector3(i.position.x, i.position.y, i.position.z)); }
+      } else if (i.position) {
+        flyTo(new THREE_.Vector3(i.position.x, i.position.y, i.position.z));
       }
       // switch right panel
       const tab = $('.tab-bar .tab[data-tab=issues]'); tab?.click();
@@ -4502,23 +4531,21 @@
         const hits = ray.intersectObject(V.modelRoot, true);
         if (hits.length) {
           lastClickPoint = hits[0].point.clone();
-          // Focus / Pivot mode — clicking the model sets the orbit pivot
-          // (ACC-style). Subsequent wheel-zoom + drag-rotate happen
-          // around that point. Plain pick-mode handlers keep their job
-          // (element selection, properties tab, etc.).
-          if (state.activeNav === 'focus') {
+          // Pivot mode — a single click sets the orbit centre (controls.target)
+          // WITHOUT zooming (ACC-style). Subsequent wheel-zoom + drag-rotate happen
+          // around that point. (Was checking the stale 'focus' mode name; the nav
+          // button now sets 'pivot'.) Plain pick-mode keeps selecting elements.
+          if (state.activeNav === 'pivot') {
             V.controls.target.copy(lastClickPoint);
             V.controls.update();
-            toast('Orbit pivot set', 'success');
+            toast('Orbit pivot set — click to move it', 'success');
           }
         }
       });
 
-      // Double-click anywhere on the model — set orbit pivot regardless
-      // of the active nav mode. Mirrors the Navisworks "F" / ACC dbl-tap
-      // pattern. Frame-fit on dblclick of an element bounding box is
-      // routed through the engine's existing fit() command for
-      // consistency with the keyboard 'F' shortcut.
+      // ACC-style: PLAIN double-click ZOOMS-TO-FIT the clicked element (and, via
+      // fitCamera, sets the orbit pivot to its centre). A double-click that misses
+      // the model is a no-op. (Single click only selects — see selectElementByGuid.)
       dom.addEventListener('dblclick', (e) => {
         if (!V.modelRoot) return;
         const r = dom.getBoundingClientRect();
@@ -4527,26 +4554,15 @@
         ray.setFromCamera(ptr, V.camera);
         const hits = ray.intersectObject(V.modelRoot, true);
         if (!hits.length) return;
-        // Shift+dblclick → fit camera to the clicked element's bounding
-        // box (instead of just setting pivot). Useful for jumping to
-        // small components inside a huge model.
-        if (e.shiftKey) {
-          const m = hits[0].object;
-          if (m && m.isMesh) {
-            const bb = new THREE_.Box3().setFromObject(m);
-            // Re-use the engine's fitCamera by calling it through the
-            // bridge with a synthetic 'fit' command — the engine reads
-            // modelBounds, so we temporarily widen it. Cleaner: call
-            // fitCamera(bb) directly via the exposed STING_VIEWER if
-            // available.
-            try { (window.STING_VIEWER && window.STING_VIEWER.fitCamera ? window.STING_VIEWER.fitCamera : null)?.(bb); }
-            catch (_) {}
-            return;
-          }
+        const m = hits[0].object;
+        if (m && m.isMesh) {
+          const bb = new THREE_.Box3().setFromObject(m);
+          try { window.STING_VIEWER && window.STING_VIEWER.fitCamera && window.STING_VIEWER.fitCamera(bb); } catch (_) {}
+          return;
         }
+        // Non-mesh hit — fall back to setting the pivot at the hit point.
         V.controls.target.copy(hits[0].point);
         V.controls.update();
-        toast('Orbit pivot set', 'success');
       });
       // R13 — drop the standalone pin-click raycaster. The engine already
       // raycasts pinGroup on every click and emits 'pinTap' via the
@@ -4666,21 +4682,13 @@
       // Re-paint highlights from scratch so removed elements lose their
       // emissive material.
       clearAllHighlights();
-      let lastCentre = null;
       state.selectedElementGuids.forEach(g => {
         const m = findMeshByGuid(g);
-        if (m) {
-          emissive(m, 0xF97316);
-          // R-R12 — only fly to the union centre when selection size
-          // changes via tree (mode != toggle). For toggle (incremental),
-          // skip the camera move so the user keeps spatial context.
-          if (g === state.selectedElementGuid) {
-            const bb = new THREE_.Box3().setFromObject(m);
-            lastCentre = bb.getCenter(new THREE_.Vector3());
-          }
-        }
+        if (m) emissive(m, 0xF97316);
       });
-      if (mode !== 'toggle' && lastCentre) flyTo(lastCentre);
+      // ACC-style interaction — a single click SELECTS ONLY; the camera does NOT
+      // move. Double-click frames the element (see the dblclick handler). This
+      // removes the previous "click flies to the element" behaviour.
       renderProperties(state.selectedElementGuid);
       updateRightTabCounts();
       renderSelectionToolbar();
@@ -4741,9 +4749,7 @@
         // One-shot actions: fire and return without changing active mode.
         if (m === 'fit') {
           if (state.selectedElementGuids.size) fitToSelection();
-          else if (V.modelBounds && !V.modelBounds.isEmpty()) {
-            flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
-          }
+          else if (V.fitCamera) V.fitCamera();   // whole-model edge-to-edge
           flashNavBtn(b);
           return;
         }
@@ -4777,11 +4783,17 @@
             V.controls.mouseButtons.RIGHT  = defaultButtons.RIGHT;
           }
         }
-        // Pivot = orbit camera around the selected element (or its centre).
-        // Was previously labelled "focus"; we keep the underlying behaviour
-        // and just expose a clearer label.
-        if (m === 'pivot' && state.selectedElementGuid) {
-          selectElementByGuid(state.selectedElementGuid, 'replace');
+        // Pivot mode — orbit around a point you click (handled in the pointerdown
+        // handler above). If something's already selected, seed the pivot at its
+        // centre immediately (no zoom). Then click anywhere to move the pivot.
+        if (m === 'pivot') {
+          const sel = findMeshByGuid(state.selectedElementGuid);
+          if (sel) {
+            const bb = new THREE_.Box3().setFromObject(sel);
+            V.controls.target.copy(bb.getCenter(new THREE_.Vector3()));
+            V.controls.update();
+          }
+          toast('Pivot mode — click to set the orbit centre', 'info');
         }
       }));
 
@@ -5190,10 +5202,14 @@
         if ($('#issueModal')?.classList.contains('open')) return;
         if ($('#photoCaptureModal')?.classList.contains('open')) return;
         if ($('#photoReviewModal')?.classList.contains('open')) return;
-        // P = open the photo capture modal — fast keyboard shortcut for
-        // coordinators who want to grab a screenshot/upload without
-        // reaching for the FAB.
-        if (k === 'p' || k === 'P') {
+        // p = toggle PIVOT nav mode (ACC/Navisworks parity) — then a single click
+        // sets the orbit centre without zooming. Shift+P keeps the photo-capture
+        // shortcut (it used to own plain P).
+        if (k === 'p') {
+          const piv = $('.nav-btn[data-mode=pivot]');
+          if (piv) { piv.click(); e.preventDefault(); return; }
+        }
+        if (k === 'P') {   // Shift+P — open the photo capture modal
           if (state.modelName || state.elementMap) {
             openPhotoCaptureModal();
             e.preventDefault();
@@ -5225,11 +5241,9 @@
           renderSelectionToolbar();
         } else if (k === 'f' || k === 'F') {
           // F = fit selection (multi-aware). With nothing selected, fit the
-          // whole model. Matches the new "Fit" button in nav-controls.
+          // whole model edge-to-edge. Matches the "Fit" button in nav-controls.
           if (state.selectedElementGuids.size) fitToSelection();
-          else if (V.modelBounds && !V.modelBounds.isEmpty()) {
-            flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
-          }
+          else if (V.fitCamera) V.fitCamera();
         } else if (k === 'h' || k === 'H') {
           // H = hide selected. Multi-aware: hides every mesh in the
           // selection set, not just the primary.

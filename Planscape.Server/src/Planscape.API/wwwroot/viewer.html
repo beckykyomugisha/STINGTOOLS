@@ -184,7 +184,7 @@
         <button class="nav-btn active" data-mode="orbit" title="Orbit mode (O) — drag to rotate" aria-label="Orbit mode">◯ Orbit</button>
         <button class="nav-btn" data-mode="pan"  title="Pan mode — drag to translate"             aria-label="Pan mode">↖ Pan</button>
         <button class="nav-btn" data-mode="walk" title="Walk mode (W) — first-person navigation"  aria-label="Walk mode">🚶 Walk</button>
-        <button class="nav-btn" data-mode="pivot" title="Pivot mode — orbit around selection"     aria-label="Pivot mode">⊕ Pivot</button>
+        <button class="nav-btn" data-mode="pivot" title="Pivot mode (P) — click to set the orbit centre (no zoom)" aria-label="Pivot mode">⊕ Pivot</button>
         <button class="nav-btn" data-mode="fit"  title="Fit selection or model (F)"               aria-label="Fit camera">⌖ Fit</button>
         <button class="nav-btn" data-mode="home"  title="Default eye view — reset to opening camera position"  aria-label="Default eye view">⌂ Home</button>
         <button class="nav-btn" data-mode="level" title="Level camera — make view horizontal (remove tilt)"     aria-label="Level camera">— Level</button>
@@ -960,32 +960,37 @@ THREE.ColorManagement.enabled = false;
     // element's bounding box). Defaults to the whole-model bounds.
     const box = target || modelBounds;
     if (!box || box.isEmpty()) return;
-    const size = box.getSize(new THREE.Vector3());
-    const centre = box.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z) || 1;
-    const dist = maxDim * 1.8;
-    // ORBIT FIX — the model is now rendered Y-up (vertical = world Y), so we do
-    // NOT touch camera.up; it stays at OrbitControls' rock-solid default (0,1,0).
-    // Frame from above (+Y) and in front (+Z), looking down the shorter horizontal
-    // axis so the longest horizontal axis reads left-to-right.
-    if (Math.abs(size.x) >= Math.abs(size.z)) {
-      camera.position.copy(centre).add(new THREE.Vector3(0, dist * 0.55, dist * 0.85));
+    // FOV-aware framing — fit the bounding SPHERE so the element fills the view
+    // edge-to-edge whatever the aspect ratio (ACC parity). Distance from the
+    // centre = radius / sin(half of the SMALLER fov) so it fits both axes.
+    const s = box.getBoundingSphere(new THREE.Vector3());
+    const centre = s.center;
+    const vFov = camera.fov * Math.PI / 180;
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+    const dist = (s.radius / Math.sin(Math.min(vFov, hFov) / 2)) * 1.1;
+    // For a passed sub-region target, PRESERVE the current view direction (don't
+    // snap back to the south view); for the whole-model fit use the default
+    // south-and-above framing. camera.up stays the OrbitControls default (0,1,0).
+    let dir;
+    if (target) {
+      dir = new THREE.Vector3().subVectors(camera.position, controls.target);
+      if (dir.lengthSq() < 1e-9) dir.set(0, 0.55, 0.85);
     } else {
-      camera.position.copy(centre).add(new THREE.Vector3(dist * 0.85, dist * 0.55, 0));
+      const size = box.getSize(new THREE.Vector3());
+      dir = (Math.abs(size.x) >= Math.abs(size.z))
+        ? new THREE.Vector3(0, 0.55, 0.85)
+        : new THREE.Vector3(0.85, 0.55, 0);
     }
+    dir.normalize();
+    camera.position.copy(centre).addScaledVector(dir, dist);
     controls.target.copy(centre);
-    // BUG 1 — tighten near/far from the WHOLE-model size (not the sub-target,
-    // which would clip the rest of the model when fitting one element). With
-    // the model recentred near the origin this keeps the usable depth range
-    // tight and, with the log depth buffer, eliminates z-fighting.
-    // near is derived from the box being framed (so a single-element fit never
-    // clips that element on a large site); far from the whole-model diagonal so
-    // the rest of the model stays visible behind it. For the default whole-model
-    // fit both diagonals are equal → near = diag/1000, far = diag*10.
-    const fitDiag = size.length() || maxDim;
-    const modelDiag = (modelBounds.isEmpty() ? size : modelBounds.getSize(new THREE.Vector3())).length() || fitDiag;
+    // near from the framed sphere, far from the whole-model diagonal (+ the camera
+    // distance) so the rest of the model stays visible behind a sub-region fit.
+    const fitDiag = s.radius * 2;
+    const modelDiag = (modelBounds.isEmpty() ? fitDiag : modelBounds.getBoundingSphere(new THREE.Vector3()).radius * 2) || fitDiag;
     camera.near = Math.max(fitDiag / 1000, 1e-4);
-    camera.far  = Math.max(modelDiag, fitDiag) * 10;
+    camera.far  = (Math.max(modelDiag, fitDiag) + dist) * 10;
+    if (camera.isOrthographicCamera && typeof updateOrthoFrustum === 'function') updateOrthoFrustum(s.radius);
     camera.updateProjectionMatrix();
     controls.update();
   }
