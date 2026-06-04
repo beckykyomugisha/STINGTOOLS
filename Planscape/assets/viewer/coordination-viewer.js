@@ -143,6 +143,7 @@
       vizKeepSolidDisc: new Set(),
       vizKeepSolidCat:  new Set(),
       vizColour:   null,        // M1/M4 colour descriptor (token | preset | param) or null
+      vizPalette:  'STING',     // M4 active palette set name
       colourMats:  new Map(),   // hex → shared coloured material (no per-mesh leak)
       renderMode: 'shaded',
       applyingRemoteViz: false, // guard so a broadcast render-mode doesn't echo
@@ -889,6 +890,30 @@
     const VIZ_PALETTE = ['#3B82F6','#22C55E','#F59E0B','#A855F7','#EC4899','#14B8A6',
                          '#F97316','#EF4444','#84CC16','#06B6D4','#8B5CF6','#F43F5E',
                          '#10B981','#EAB308','#6366F1','#D946EF','#0EA5E9','#65A30D'];
+    const NOVAL = '<No Value>';
+    // M4 — named palette sets. Categorical schemes cycle the list; numeric/gradient
+    // schemes interpolate across it. RAG + Viridis (colourblind-safe) + Spectral + Mono.
+    const PALETTE_SETS = {
+      'STING':      ['#3498db','#e67e22','#f1c40f','#2ecc71','#9b59b6','#e74c3c','#1abc9c','#95a5a6','#e84393','#00b894','#fdcb6e','#6c5ce7'],
+      'RAG':        ['#2ecc71','#f1c40f','#e74c3c'],
+      'Spectral':   ['#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#e6f598','#abdda4','#66c2a5','#3288bd','#5e4fa2'],
+      'Viridis':    ['#440154','#482878','#3e4a89','#31688e','#26828e','#1f9e89','#35b779','#6ece58','#b5de2b','#fde725'],
+      'Monochrome': ['#2b2b2b','#444','#5f5f5f','#7a7a7a','#969696','#b3b3b3','#d0d0d0','#ededed'],
+    };
+    function hexToRgb(h) { const n = parseInt(String(h).replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+    function rgbToHex(r, g, b) { return '#' + [r, g, b].map(x => ('0' + Math.round(x).toString(16)).slice(-2)).join(''); }
+    function lerpHex(a, b, f) { const pa = hexToRgb(a), pb = hexToRgb(b); return rgbToHex(pa[0] + (pb[0] - pa[0]) * f, pa[1] + (pb[1] - pa[1]) * f, pa[2] + (pb[2] - pa[2]) * f); }
+    function lerpRamp(stops, t) {
+      if (!stops || !stops.length) return '#888';
+      if (t <= 0) return stops[0];
+      if (t >= 1) return stops[stops.length - 1];
+      const seg = t * (stops.length - 1), i = Math.floor(seg);
+      return lerpHex(stops[i], stops[i + 1], seg - i);
+    }
+    function rampColour(col, v) {
+      const t = (col.max > col.min) ? Math.max(0, Math.min(1, (v - col.min) / (col.max - col.min))) : 0;
+      return lerpRamp(col.ramp || PALETTE_SETS.Viridis, t);
+    }
     // BUILD 5 — per-discipline appearance presets (GLB textures are limited, so
     // these give a clean discipline read). _other = everything not listed.
     const DISC_PRESETS = {
@@ -911,6 +936,17 @@
       }
     }
     function discKey(meta) { return String(tokenValue(meta, 'DISC') || '').toUpperCase().slice(0, 4); }
+    // M4 — distinct scalar meta keys (for "colour by parameter"). Skips objects +
+    // the keys already exposed as dedicated colour-by-tag buttons.
+    function paramKeys() {
+      const skip = new Set(['name', 'tag', 'STING_TAG', 'elementId', 'discipline', 'category', 'system', 'level', 'func', 'prod']);
+      const keys = new Set();
+      Object.values(state.elementMap || {}).forEach(m => {
+        if (!m || typeof m !== 'object') return;
+        Object.keys(m).forEach(k => { if (!skip.has(k) && m[k] != null && typeof m[k] !== 'object') keys.add(k); });
+      });
+      return Array.from(keys).sort();
+    }
     function distinctTokens(token) {
       const s = new Set();
       if (state.elementMap) Object.values(state.elementMap).forEach(m => {
@@ -941,7 +977,14 @@
         let mode;
         if (dm === 'hide' || cm === 'hide') mode = 'hide';
         else if (dm === 'ghost' || cm === 'ghost') mode = 'ghost';
-        else { const c = state.vizColour ? colourForMesh(state.vizColour, meta, o) : null; mode = c ? ('colour:' + c) : 'show'; }
+        else if (state.vizColour) {
+          const col = state.vizColour;
+          const v = colourValueOf(col, meta);
+          const key = colourKey(col, v);
+          if (col.hidden && col.hidden.has(key)) mode = 'hide';                 // legend shift-click
+          else if (col.isolate != null && key !== col.isolate) mode = 'ghost';  // legend isolate → ghost rest
+          else { const c = colourForValue(col, v); mode = c ? ('colour:' + c) : 'show'; }
+        } else mode = 'show';
         applyMeshState(o, mode);
       });
       broadcastAppearance();
@@ -972,21 +1015,27 @@
       }
       return m;
     }
-    // Resolve a mesh's override colour from the active colour descriptor (M1 token /
-    // preset; M4 adds numeric param + legend isolation). Returns a hex or null.
-    function colourForMesh(col, meta, o) {
-      if (!col) return null;
-      if (col.kind === 'preset') {
-        const d = discOf(meta);
-        return col.map[d] || col.map._other || null;
-      }
-      // token / param: normalise the value the same way the legend was built.
+    // The raw value a mesh contributes to the active colour scheme: a number for a
+    // numeric/gradient scheme, a discipline for a preset, else the (normalised) token.
+    function colourValueOf(col, meta) {
+      if (col.kind === 'preset') return discOf(meta);
+      if (col.numeric) { const raw = tokenValue(meta, col.token); const n = parseFloat(raw); return isFinite(n) ? n : null; }
       let v = String(tokenValue(meta, col.token) || '').trim();
       if (col.token === 'DISC') v = discOf(meta);
-      if (!v) return col.noValue || null;
-      // M4 legend isolation: when isolating, non-isolated values drop to null (→ ghost via caller).
-      if (col.isolate != null && v !== col.isolate) return null;
-      if (col.hidden && col.hidden.has(v)) return null;
+      return v;
+    }
+    // Stable legend KEY for a value (numeric → '<No Value>' or the raw number string;
+    // categorical → the value or '<No Value>').
+    function colourKey(col, v) {
+      if (col.numeric) return (v == null) ? NOVAL : String(v);
+      return (v === '' || v == null) ? NOVAL : v;
+    }
+    // Value → hex for the active scheme. Numeric uses the min→max ramp; categorical
+    // uses the per-value palette; missing values get the distinct <No Value> colour.
+    function colourForValue(col, v) {
+      if (col.kind === 'preset') return col.map[v] || col.map._other || null;
+      if (col.numeric) return (v == null) ? col.noValue : rampColour(col, v);
+      if (v === '' || v == null) return col.noValue || null;
       return col.valueColors ? (col.valueColors.get(v) || col.noValue || null) : null;
     }
     // Derive a discipline even when the DISC token is absent (as-built models):
@@ -1027,24 +1076,35 @@
       renderVisualizePanel();
       toast(disc ? `Shading ${disc}, ghosting the rest` : 'Show all');
     }
+    // M4 — isolate a category (shade only it, ghost the rest).
+    function shadeOnlyCategory(cat) {
+      state.vizCatMode.clear();
+      distinctTokens('CAT').forEach(c => state.vizCatMode.set(c, c === cat ? 'show' : 'ghost'));
+      applyAppearance();
+      renderVisualizePanel();
+      toast(`Shading ${cat}, ghosting the rest`);
+    }
 
     // Colour every element by ANY STING token (categorical) — sets a colour
     // descriptor and drives the ONE appearance engine (no separate overlay path).
+    function activePalette() { return PALETTE_SETS[state.vizPalette] || VIZ_PALETTE; }
     function colourByToken(token) {
       if (!V.modelRoot || !state.elementMap) return toast('No model / element map', 'warn');
       const values = new Map();  // value → colour
       const counts = new Map();
+      const pal = activePalette();
       let idx = 0;
       Object.values(state.elementMap).forEach(m => {
         let v = String(tokenValue(m, token) || '').trim();
         if (token === 'DISC') v = discOf(m);
         if (!v) return;
-        if (!values.has(v)) values.set(v, VIZ_PALETTE[idx++ % VIZ_PALETTE.length]);
+        if (!values.has(v)) values.set(v, pal[idx++ % pal.length]);
         counts.set(v, (counts.get(v) || 0) + 1);
       });
       if (!values.size) return toast(`No ${token} values on this model`, 'warn');
       state.vizColour = {
         kind: 'token', token, valueColors: values, counts, noValue: '#3a3f4a',
+        isolate: null, hidden: new Set(),
         legend: Array.from(values.entries())
           .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
           .map(([label, color]) => ({ label, color, count: counts.get(label) || 0 })),
@@ -1055,6 +1115,54 @@
       toast(`Coloured by ${token} — ${values.size} value${values.size === 1 ? '' : 's'}`);
     }
 
+    // M4 — colour by ANY meta parameter. ≥80% numeric values ⇒ a min→max gradient
+    // (with a value-range + unit legend); otherwise a categorical palette. Missing
+    // values get the distinct <No Value> colour for QA.
+    function colourByParam(key) {
+      if (!V.modelRoot || !state.elementMap) return toast('No model / element map', 'warn');
+      const raws = [];
+      Object.values(state.elementMap).forEach(m => { const r = m[key]; if (r != null && typeof r !== 'object') raws.push(r); });
+      if (!raws.length) return toast(`No "${key}" values`, 'warn');
+      const nums = raws.map(x => parseFloat(x)).filter(n => isFinite(n));
+      const numeric = nums.length >= raws.length * 0.8;
+      if (numeric) {
+        const min = Math.min(...nums), max = Math.max(...nums);
+        const ramp = (state.vizPalette === 'STING') ? PALETTE_SETS.Viridis : activePalette();
+        const unit = paramUnit(key);
+        state.vizColour = {
+          kind: 'param', token: key, numeric: true, min, max, ramp, unit, noValue: '#3a3f4a',
+          isolate: null, hidden: new Set(),
+          legend: [0, 0.25, 0.5, 0.75, 1].map(t => ({
+            label: fmtNum(min + (max - min) * t) + (unit ? ' ' + unit : ''),
+            color: lerpRamp(ramp, t),
+          })),
+        };
+      } else {
+        const values = new Map(), counts = new Map(); const pal = activePalette(); let idx = 0;
+        Object.values(state.elementMap).forEach(m => { const v = String(m[key] != null ? m[key] : '').trim(); if (!v) return; if (!values.has(v)) values.set(v, pal[idx++ % pal.length]); counts.set(v, (counts.get(v) || 0) + 1); });
+        if (!values.size) return toast(`No "${key}" values`, 'warn');
+        state.vizColour = { kind: 'param', token: key, valueColors: values, counts, noValue: '#3a3f4a', isolate: null, hidden: new Set(),
+          legend: Array.from(values.entries()).sort((a, b) => String(a[0]).localeCompare(String(b[0]))).map(([label, color]) => ({ label, color, count: counts.get(label) || 0 })) };
+      }
+      state.vizPreset = null;
+      applyAppearance();
+      renderVisualizePanel();
+      toast(`Coloured by ${key}`);
+    }
+    function fmtNum(n) { return Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : (Math.round(n * 100) / 100).toString(); }
+    function paramUnit(key) {
+      const k = String(key).toLowerCase();
+      if (/_mm$|width|height|depth|length|diameter|thickness/.test(k)) return 'mm';
+      if (/area/.test(k)) return 'm²';
+      if (/volume/.test(k)) return 'm³';
+      if (/cost|price|rate/.test(k)) return (state.currency || '');
+      if (/flow|lps/.test(k)) return 'L/s';
+      if (/pressure|pa$/.test(k)) return 'Pa';
+      if (/power|wattage|kw/.test(k)) return 'kW';
+      if (/voltage/.test(k)) return 'V';
+      return '';
+    }
+
     // Discipline appearance preset (solid colour per discipline) — same engine.
     function applyDisciplinePreset(name) {
       const preset = DISC_PRESETS[name];
@@ -1063,7 +1171,7 @@
       Object.values(state.elementMap || {}).forEach(m => { const d = discOf(m); if (preset[d]) used.add(d); });
       state.vizPreset = name;
       state.vizColour = {
-        kind: 'preset', map: preset, presetName: name,
+        kind: 'preset', map: preset, presetName: name, isolate: null, hidden: new Set(),
         legend: Array.from(used).sort().map(d => ({ label: d, color: preset[d] }))
           .concat(preset._other ? [{ label: 'Other', color: preset._other }] : []),
       };
@@ -1127,12 +1235,16 @@
     }
 
     // ── Visualize panel UI ───────────────────────────────────────────────────
-    function vizModeRow(label, count, getMode, setMode) {
+    function vizModeRow(label, count, getMode, setMode, onIsolate) {
       const row = el('div', { class: 'viz-row',
         style: 'display:flex;align-items:center;gap:6px;padding:3px 0' });
-      row.appendChild(el('span', {
+      const lbl = el('span', {
+        title: onIsolate ? 'Click to isolate (shade only, ghost rest)' : '',
         style: 'flex:1;font-size:12px;color:var(--text,#e6e6e6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
-      }, count != null ? `${label} (${count})` : label));
+          + (onIsolate ? ';cursor:pointer' : '')
+      }, count != null ? `${label} (${count})` : label);
+      if (onIsolate) lbl.addEventListener('click', () => onIsolate());   // M4 — label click isolates
+      row.appendChild(lbl);
       const group = el('div', { style: 'display:flex;gap:2px' });
       [['show', '◐'], ['ghost', '○'], ['hide', '∅']].forEach(([m, glyph]) => {
         const cur = getMode() || 'show';
@@ -1150,19 +1262,66 @@
       return row;
     }
 
-    // Colour legend (swatch · label · count). Interactivity added in M4.
+    // Colour legend (swatch · label · count) with M4 interactivity:
+    //   click       → isolate this value (ghost the rest)   [toggle]
+    //   shift-click → hide this value                        [toggle]
+    //   hover       → highlight matching meshes
+    // Numeric/gradient legends are read-only stops (no per-value isolation).
     function renderVizLegend(col) {
-      const box = el('div', { class: 'viz-legend', style: 'margin-top:6px;display:flex;flex-direction:column;gap:2px;max-height:180px;overflow:auto' });
+      const box = el('div', { class: 'viz-legend', style: 'margin-top:6px;display:flex;flex-direction:column;gap:2px;max-height:200px;overflow:auto' });
+      const interactive = !col.numeric;
       col.legend.forEach(it => {
+        const isIso = col.isolate === it.label;
+        const isHid = col.hidden && col.hidden.has(it.label);
         const row = el('div', { class: 'viz-legend-row', 'data-value': it.label, style:
-          'display:flex;align-items:center;gap:6px;font-size:11px;color:#cfd6e4;padding:1px 2px;border-radius:3px;cursor:pointer' }, [
+          'display:flex;align-items:center;gap:6px;font-size:11px;padding:2px 3px;border-radius:3px;' +
+          (interactive ? 'cursor:pointer;' : '') +
+          'color:' + (isHid ? '#6b7280' : '#cfd6e4') + ';' +
+          (isIso ? 'background:rgba(59,130,246,0.25);' : '') +
+          (isHid ? 'text-decoration:line-through;opacity:0.6;' : '') }, [
           el('span', { style: `width:12px;height:12px;border-radius:2px;background:${it.color};flex:0 0 auto` }),
           el('span', { style: 'flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' }, String(it.label)),
           el('span', { style: 'color:#9aa3b2' }, it.count != null ? String(it.count) : ''),
         ]);
+        if (interactive) {
+          row.addEventListener('click', (e) => {
+            if (e.shiftKey) {                              // shift-click → toggle hide
+              if (col.hidden.has(it.label)) col.hidden.delete(it.label); else col.hidden.add(it.label);
+              col.isolate = null;
+            } else {                                       // click → toggle isolate
+              col.isolate = (col.isolate === it.label) ? null : it.label;
+              col.hidden.clear();
+            }
+            applyAppearance(); renderVisualizePanel();
+          });
+          row.addEventListener('mouseenter', () => highlightByColourValue(col, it.label));
+          row.addEventListener('mouseleave', () => clearHoverHighlight());
+        }
         box.appendChild(row);
       });
       return box;
+    }
+    // Transient hover highlight — emissive boost on the (shared) materials of meshes
+    // matching a legend value. Track MATERIALS (not meshes) so a shared material is
+    // touched once; restore to black (these engine materials default to no emissive).
+    let _hoverMats = [];
+    function clearHoverHighlight() {
+      _hoverMats.forEach(mat => { if (mat && mat.emissive) mat.emissive.setHex(0x000000); });
+      _hoverMats = [];
+    }
+    function highlightByColourValue(col, label) {
+      clearHoverHighlight();
+      if (!V.modelRoot) return;
+      const seen = new Set();
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh || !o.visible || !o.material || !o.material.emissive) return;
+        const key = colourKey(col, colourValueOf(col, metaForMesh(o)));
+        if (key === label && !seen.has(o.material.uuid)) {
+          seen.add(o.material.uuid);
+          o.material.emissive.setHex(0x2244aa);
+          _hoverMats.push(o.material);
+        }
+      });
     }
 
     function renderVisualizePanel() {
@@ -1222,6 +1381,17 @@
         el('button', { class: 'btn sm', onclick: () => colourByToken(t) }, label)));
       tokRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => { clearColour(); renderVisualizePanel(); toast('Colour cleared'); } }, 'Clear colour'));
       colBox.appendChild(tokRow);
+      // M4 — palette set + colour-by-ANY-parameter (categorical or numeric gradient).
+      const palSel = el('select', { style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px;font-size:11px;flex:1' });
+      Object.keys(PALETTE_SETS).forEach(p => { const o = el('option', { value: p }, p); if (p === state.vizPalette) o.selected = true; palSel.appendChild(o); });
+      palSel.addEventListener('change', () => { state.vizPalette = palSel.value; if (state.vizColour) { if (state.vizColour.kind === 'param') colourByParam(state.vizColour.token); else if (state.vizColour.kind === 'token') colourByToken(state.vizColour.token); } });
+      const paramSel = el('select', { style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px;font-size:11px;flex:1' });
+      paramSel.appendChild(el('option', { value: '' }, 'Colour by parameter…'));
+      paramKeys().forEach(k => paramSel.appendChild(el('option', { value: k }, k)));
+      paramSel.addEventListener('change', () => { if (paramSel.value) colourByParam(paramSel.value); });
+      colBox.appendChild(el('div', { style: 'display:flex;gap:4px;margin-top:5px' }, [
+        el('span', { style: 'font-size:11px;color:#9aa3b2;align-self:center' }, 'Palette'), palSel, paramSel,
+      ]));
       // Legend — rendered by the M1 engine (was the overlay's). M4 makes the
       // swatches interactive (click = isolate, shift-click = hide, hover = highlight).
       if (state.vizColour && state.vizColour.legend && state.vizColour.legend.length) {
@@ -1246,7 +1416,8 @@
       if (!discs.length) byDisc.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2' }, 'No discipline data'));
       discs.forEach(d => byDisc.appendChild(vizModeRow(d, discCounts[d],
         () => state.vizDiscMode.get(d),
-        (m) => state.vizDiscMode.set(d, m))));
+        (m) => state.vizDiscMode.set(d, m),
+        () => shadeOnlyDiscipline(d))));     // M4 — label click isolates
       wrap.appendChild(byDisc);
 
       // ── BUILD 1 — By category ──
@@ -1258,7 +1429,8 @@
         Object.values(state.elementMap).forEach(m => { const c = catKey(m); if (c) catCounts[c] = (catCounts[c] || 0) + 1; });
         cats.forEach(c => byCat.appendChild(vizModeRow(c, catCounts[c],
           () => state.vizCatMode.get(c),
-          (m) => state.vizCatMode.set(c, m))));
+          (m) => state.vizCatMode.set(c, m),
+          () => shadeOnlyCategory(c))));      // M4 — label click isolates
         wrap.appendChild(byCat);
       }
 
