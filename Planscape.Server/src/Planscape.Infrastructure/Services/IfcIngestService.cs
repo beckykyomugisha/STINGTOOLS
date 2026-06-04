@@ -105,6 +105,16 @@ public sealed class IfcIngestService : IIfcIngestService
             {
                 if (string.IsNullOrWhiteSpace(el.IfcGlobalId)) continue;
 
+                // Coerce the client timestamp to UTC. A JSON value like
+                // "...+00:00" deserialises into a DateTime with Kind=Local (or
+                // Kind=Unspecified for a bare "...Z"-less string); writing
+                // either to a Postgres 'timestamp with time zone' column throws
+                // "Cannot write DateTime with Kind=Local". The field is named
+                // *Utc, so a schemeless value is treated as UTC and a local
+                // value is converted — making the endpoint robust to every host
+                // (ArchiCAD/StingBridge sends an offset-bearing ISO timestamp).
+                var elLastMod = ToUtc(el.LastModifiedUtc);
+
                 // Validate the inbound ValidationErrors blob against the canonical
                 // contract shape (ValidationErrorDto[]) without rewriting it — the
                 // raw string is still stored verbatim below (full retype of the
@@ -115,9 +125,9 @@ public sealed class IfcIngestService : IIfcIngestService
                 if (existingTagged.TryGetValue(el.IfcGlobalId, out var t))
                 {
                     // Stale-write protection
-                    if (el.LastModifiedUtc.HasValue
+                    if (elLastMod.HasValue
                         && t.LastModifiedUtc.HasValue
-                        && el.LastModifiedUtc.Value < t.LastModifiedUtc.Value)
+                        && elLastMod.Value < t.LastModifiedUtc.Value)
                     {
                         skipped++;
                         continue;
@@ -130,7 +140,7 @@ public sealed class IfcIngestService : IIfcIngestService
                     t.Status = el.Status; t.Rev = el.Rev; t.RoomName = el.RoomName; t.Level = el.LevelName;
                     t.IsComplete = el.IsComplete; t.IsFullyResolved = el.IsFullyResolved; t.IsStale = el.IsStale;
                     t.ValidationErrors = el.ValidationErrors;
-                    t.LastModifiedUtc = el.LastModifiedUtc ?? nowUtc;
+                    t.LastModifiedUtc = elLastMod ?? nowUtc;
                     updElements++;
                 }
                 else
@@ -148,7 +158,7 @@ public sealed class IfcIngestService : IIfcIngestService
                         Status = el.Status, Rev = el.Rev, RoomName = el.RoomName, Level = el.LevelName,
                         IsComplete = el.IsComplete, IsFullyResolved = el.IsFullyResolved, IsStale = el.IsStale,
                         ValidationErrors = el.ValidationErrors,
-                        LastModifiedUtc = el.LastModifiedUtc ?? nowUtc,
+                        LastModifiedUtc = elLastMod ?? nowUtc,
                     });
                     newElements++;
                 }
@@ -366,6 +376,18 @@ public sealed class IfcIngestService : IIfcIngestService
             "[ifc-ingest] GlobalIdRegistry upsert host={Host} project={ProjectId} guids={GuidCount} new={New}",
             host, projectId, guids.Count, written);
     }
+
+    // Normalise a client-supplied DateTime to UTC so it is safe to persist to a
+    // Postgres 'timestamp with time zone' column (which requires Kind=Utc).
+    // Unspecified is assumed UTC (the field is named *Utc); Local is converted.
+    private static DateTime? ToUtc(DateTime? dt) => dt is null ? null : ToUtc(dt.Value);
+
+    private static DateTime ToUtc(DateTime dt) => dt.Kind switch
+    {
+        DateTimeKind.Utc => dt,
+        DateTimeKind.Local => dt.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+    };
 
     private static IEnumerable<List<T>> Chunk<T>(IEnumerable<T> source, int size)
     {
