@@ -261,7 +261,14 @@
     const h = host(); if (!h || !areaGroup || areaPoints.length < 3) return;
     drawSegment(areaGroup, areaPoints[areaPoints.length - 1], areaPoints[0], 0x66bb6a);
     const a = polygonArea3D(areaPoints);
-    h.bridge.send('measureArea', { area: a, points: areaPoints.map(v => v.toArray()) });
+    // Area points are drawn in the recentred render space; report them back in
+    // TRUE world coords (add the host's recenter offset) so the host stays in
+    // survey coordinates. The area value itself is translation-invariant.
+    const off = (h.modelOffset) || { x: 0, y: 0, z: 0 };
+    h.bridge.send('measureArea', {
+      area: a,
+      points: areaPoints.map(v => [v.x + off.x, v.y + off.y, v.z + off.z])
+    });
     areaPoints = [];
   };
   function cancelArea() {
