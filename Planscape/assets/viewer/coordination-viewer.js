@@ -5217,36 +5217,85 @@
     function setupMinimap() {
       const wrap = $('#minimap');
       const canvas = $('#minimapCanvas');
-      if (!canvas) return;
-      const renderer = new THREE_.WebGLRenderer({ canvas, antialias: false });
-      renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-      const cam = new THREE_.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
-      cam.up.set(0, 0, 1);
+      if (!wrap) return;
+      // M6 — drop the second WebGL context (couldn't share the scene's GPU buffers →
+      // rendered empty). The minimap is now a scissored inset of the ONE main renderer,
+      // drawn behind this transparent frame.
+      if (canvas) canvas.style.display = 'none';
+      wrap.style.background = 'transparent';
+      const cam = new THREE_.OrthographicCamera(-1, 1, 1, -1, 0.1, 1e6);
+      cam.up.set(0, 0, -1);   // top-down looking down rendered -Y; +Z is "down" on the map
 
-      $('#minimapToggle').addEventListener('click', () => wrap.classList.toggle('collapsed'));
+      $('#minimapToggle')?.addEventListener('click', () => wrap.classList.toggle('collapsed'));
 
-      function updateMinimap() {
-        if (!V.modelRoot || V.modelBounds.isEmpty()) return;
+      // "You are here" marker (HTML overlay on the transparent frame).
+      const marker = el('div', { style:
+        'position:absolute;width:9px;height:9px;border-radius:50%;background:#3b82f6;' +
+        'border:1.5px solid #fff;transform:translate(-50%,-50%);pointer-events:none;z-index:3' });
+      wrap.appendChild(marker);
+
+      let curPad = 1, curCentre = new THREE_.Vector3();
+      // Render the inset every frame, after the main scene, via the shared renderer.
+      V.onAfterRender = () => {
+        if (!V.modelRoot || V.modelBounds.isEmpty() || wrap.classList.contains('collapsed')) { marker.style.display = 'none'; return; }
         const c = V.modelBounds.getCenter(new THREE_.Vector3());
         const s = V.modelBounds.getSize(new THREE_.Vector3());
-        const pad = Math.max(s.x, s.z) * 0.55;
+        const pad = Math.max(s.x, s.z) * 0.55 || 1;
+        curPad = pad; curCentre = c;
         cam.left = -pad; cam.right = pad; cam.top = pad; cam.bottom = -pad;
-        cam.position.set(c.x, c.y + s.y * 4 + 10, c.z);
+        cam.position.set(c.x, V.modelBounds.max.y + s.y + 10, c.z);   // above, looking down -Y
         cam.lookAt(c);
+        cam.near = 0.1; cam.far = s.y * 4 + 200;
         cam.updateProjectionMatrix();
-        try { renderer.render(V.scene, cam); } catch (_) {}
-      }
-      setInterval(updateMinimap, 250);
+        const host = V.renderer.domElement.getBoundingClientRect();
+        const mr = wrap.getBoundingClientRect();
+        V.renderInset(cam, mr.left - host.left, mr.top - host.top, mr.width, mr.height);
+        // place the marker at the main camera's ground position within the map
+        const camPos = V.camera.position;
+        const mx = (camPos.x - c.x) / pad;            // -1..1 → world X (screen-right)
+        const my = -((camPos.z - c.z) / pad);         // world Z maps to screen via -Z up
+        marker.style.display = '';
+        marker.style.left = ((mx + 1) / 2 * mr.width) + 'px';
+        marker.style.top  = ((1 - my) / 2 * mr.height) + 'px';
+      };
 
-      canvas.addEventListener('click', (e) => {
-        const r = canvas.getBoundingClientRect();
-        const nx = (e.clientX - r.left) / r.width * 2 - 1;
-        const ny = -((e.clientY - r.top) / r.height * 2 - 1);
-        const c = V.modelBounds.getCenter(new THREE_.Vector3());
-        const s = V.modelBounds.getSize(new THREE_.Vector3());
-        const tgt = new THREE_.Vector3(c.x + nx * s.x * 0.5, V.controls.target.y, c.z - ny * s.z * 0.5);
-        flyTo(tgt);
+      // Map a minimap pixel to a horizontal world point (inverse of the marker map).
+      function mapToWorld(clientX, clientY) {
+        const mr = wrap.getBoundingClientRect();
+        const nx = (clientX - mr.left) / mr.width * 2 - 1;
+        const ny = -((clientY - mr.top) / mr.height * 2 - 1);
+        return new THREE_.Vector3(curCentre.x + nx * curPad, V.controls.target.y, curCentre.z - ny * curPad);
+      }
+
+      // M6 — drag leak fix: capture pointer events on the frame + stopPropagation so a
+      // minimap drag never reaches the main OrbitControls. Drag = pan/recenter the main
+      // view; a click (< 4px) = flyTo.
+      let dragging = false, downX = 0, downY = 0, moved = 0;
+      wrap.addEventListener('pointerdown', (e) => {
+        if (e.target === $('#minimapToggle')) return;       // let the collapse button work
+        dragging = true; downX = e.clientX; downY = e.clientY; moved = 0;
+        try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
+        e.stopPropagation(); e.preventDefault();
       });
+      wrap.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        e.stopPropagation();
+        moved += Math.hypot(e.clientX - downX, e.clientY - downY);
+        downX = e.clientX; downY = e.clientY;
+        const w = mapToWorld(e.clientX, e.clientY);
+        const delta = w.clone().sub(V.controls.target); delta.y = 0;   // horizontal recenter
+        V.camera.position.add(delta); V.controls.target.add(delta); V.controls.update();
+      });
+      const endDrag = (e) => {
+        if (!dragging) return;
+        dragging = false; e.stopPropagation();
+        try { wrap.releasePointerCapture(e.pointerId); } catch (_) {}
+        if (moved < 4) flyTo(mapToWorld(e.clientX, e.clientY));   // treat as a click
+      };
+      wrap.addEventListener('pointerup', endDrag);
+      wrap.addEventListener('pointercancel', endDrag);
+      wrap.addEventListener('contextmenu', (e) => e.preventDefault());
+      wrap.addEventListener('wheel', (e) => e.stopPropagation());   // don't zoom the main view
     }
 
     function setupNavControls() {

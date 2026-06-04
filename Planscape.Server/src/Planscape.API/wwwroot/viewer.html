@@ -1534,11 +1534,31 @@ THREE.ColorManagement.enabled = false;
   window.addEventListener('resize', sizeRenderer);
   if (window.ResizeObserver) new ResizeObserver(sizeRenderer).observe(host);
 
+  // M6 — after the main render, run a registered overlay hook (the minimap renders
+  // itself as a scissored inset into THIS canvas, sharing the single GL context —
+  // a second WebGLRenderer can't share the scene's GPU buffers and rendered empty).
+  let _afterRenderCb = null;
   (function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
+    if (_afterRenderCb) { try { _afterRenderCb(renderer); } catch (_) {} }
   })();
+  // Render the scene through `cam` into a screen rectangle (CSS px from the canvas
+  // top-left) of the main canvas, then restore the full viewport. setViewport /
+  // setScissor take CSS pixels — three applies the pixel ratio internally.
+  function renderInset(cam, cssX, cssY, cssW, cssH) {
+    const size = renderer.getSize(new THREE.Vector2());   // CSS px
+    const y = size.y - (cssY + cssH);                     // GL bottom-left origin
+    const prevScissorTest = renderer.getScissorTest();
+    renderer.setScissorTest(true);
+    renderer.setScissor(cssX, y, cssW, cssH);
+    renderer.setViewport(cssX, y, cssW, cssH);
+    renderer.render(scene, cam);
+    renderer.setViewport(0, 0, size.x, size.y);
+    renderer.setScissor(0, 0, size.x, size.y);
+    renderer.setScissorTest(prevScissorTest);
+  }
 
   function countMeshes(obj) { let n = 0; obj.traverse(o => { if (o.isMesh) n++; }); return n; }
   function bbToArray(b, off) {
@@ -1587,6 +1607,10 @@ THREE.ColorManagement.enabled = false;
     get camera() { return camera; },
     fitCamera, levelCamera, assignElementIds,
     setCameraMode, snapView, sizeRenderer,
+    // M6 — minimap inset (single-renderer scissor) + an after-render hook.
+    renderInset,
+    set onAfterRender(fn) { _afterRenderCb = fn; },
+    get onAfterRender() { return _afterRenderCb; },
     get isOrtho() { return !!camera.isOrthographicCamera; },
     // K3 — one overlay path for every STING colour feed (twin/diff/cx/qa…)
     applyOverlay, clearOverlay,
