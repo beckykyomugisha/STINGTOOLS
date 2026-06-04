@@ -828,9 +828,9 @@
       }
     }
     // Materials the appearance engine SHARES across many meshes must never be
-    // disposed per-mesh. Colour materials are shared in M1; the ghost material
-    // becomes shared in M2 (which adds stingGhost here).
-    function isSharedMat(m) { return !!(m && m.userData && m.userData.stingColour); }
+    // disposed per-mesh: the single ghost material (M2) + the per-hex colour
+    // materials (M1). Disposing one would blank every other mesh using it.
+    function isSharedMat(m) { return !!(m && m.userData && (m.userData.stingGhost || m.userData.stingColour)); }
     function setReplacement(mesh, mat) {
       rememberOriginal(mesh);
       const slot = state.elementMaterials.get(mesh.uuid);
@@ -842,16 +842,21 @@
       slot.replacement = mat;
       mesh.material = mat;
     }
-    function ghostMaterial(mesh) {
-      // Tint + opacity are user-tunable via the Visualize panel.
-      const gs = state.ghostStyle || { tint: 0x888888, opacity: 0.12 };
-      const mat = new THREE_.MeshStandardMaterial({
-        color: gs.tint, transparent: true, opacity: gs.opacity,
-        depthWrite: false, side: THREE_.DoubleSide
-      });
-      mat.userData = { stingGhost: true };   // tag so live tint/opacity edits can find ghosts
-      setReplacement(mesh, mat);
+    // M2 — ONE shared ghost material for the whole scene. Tint/opacity edits mutate
+    // it in place (instant, no traverse, no per-mesh leak).
+    let ghostSharedMat = null;
+    function getGhostMaterial() {
+      if (!ghostSharedMat) {
+        const gs = state.ghostStyle || { tint: 0x888888, opacity: 0.12 };
+        ghostSharedMat = new THREE_.MeshStandardMaterial({
+          color: gs.tint, transparent: true, opacity: gs.opacity,
+          depthWrite: false, side: THREE_.DoubleSide,
+        });
+        ghostSharedMat.userData = { stingGhost: true };
+      }
+      return ghostSharedMat;
     }
+    function ghostMaterial(mesh) { setReplacement(mesh, getGhostMaterial()); }
     function restoreOriginalMaterial(mesh) {
       const slot = state.elementMaterials.get(mesh.uuid);
       if (!slot) return;
@@ -1305,16 +1310,15 @@
     }
 
     // Re-apply ghost styling to whatever is currently ghosted (tint/opacity live update).
+    // M2 — live tint/opacity: mutate the ONE shared ghost material. Instant; no
+    // traverse, no rebuild. Every ghosted mesh already points at this material.
     function reapplyGhosts() {
-      if (!V.modelRoot) return;
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        const slot = state.elementMaterials.get(o.uuid);
-        // Only re-tint meshes whose current replacement is a STING ghost.
-        if (slot && slot.replacement && slot.replacement.userData && slot.replacement.userData.stingGhost) {
-          ghostMaterial(o);
-        }
-      });
+      const gs = state.ghostStyle;
+      const mat = getGhostMaterial();
+      mat.color.set(gs.tint);
+      mat.opacity = gs.opacity;
+      mat.transparent = true;
+      mat.needsUpdate = true;
     }
 
     function renderModels() {
