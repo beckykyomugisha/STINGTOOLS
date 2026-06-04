@@ -1,0 +1,135 @@
+name: CI Gate
+
+# Single always-run aggregator that is the ONLY required status check on `main`.
+#
+# Why this exists: every real CI workflow (plugin, server, contract, mobile,
+# viewer) is path-filtered, so NO individual build job runs on every PR.
+# Requiring a path-filtered job directly would deadlock any PR that doesn't
+# touch that path (a required check that never runs blocks merge forever).
+#
+# This job runs on EVERY PR to main (no path filter), works out which areas
+# changed with dorny/paths-filter, and then waits ONLY for the checks that the
+# triggered workflows will actually produce for those areas — failing if any of
+# them fail, passing immediately when nothing build-relevant changed. That makes
+# it deadlock-proof while still gating real coverage.
+#
+# It deliberately never waits for "Docker Build & Push"/"Deploy to Render.com"
+# (push-to-main only) or "EAS build" (workflow_dispatch only) — those never run
+# on a PR.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  checks: read
+  statuses: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect changed areas
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          # Each filter mirrors the matching workflow's pull_request.paths EXACTLY
+          # (so we only ever wait for checks that will really be created). Note:
+          # planscape-server.yml and planscape-mobile.yml do NOT list their own
+          # workflow file under pull_request.paths, so we must not either.
+          filters: |
+            plugin:
+              - 'StingTools/**'
+              - 'StingTools.Standards/**'
+              - '.github/workflows/stingtools-plugin.yml'
+            server:
+              - 'Planscape.Server/**'
+            contract:
+              - 'Planscape.Server/src/Planscape.Core/DTOs/**'
+              - 'Planscape.Server/src/Planscape.Core/Entities/**'
+              - 'Planscape.Server/src/Planscape.API/Controllers/**'
+              - 'stingtools-core/python/**'
+              - 'StingBridge/**'
+              - 'Planscape/**'
+              - '.github/workflows/contract-drift.yml'
+            mobile:
+              - 'Planscape/**'
+            viewer:
+              - 'Planscape/assets/viewer/**'
+              - 'Planscape.Server/src/Planscape.API/wwwroot/**'
+              - '.github/workflows/coordination-viewer-drift.yml'
+
+      - name: Wait for required checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PLUGIN: ${{ steps.changes.outputs.plugin }}
+          SERVER: ${{ steps.changes.outputs.server }}
+          CONTRACT: ${{ steps.changes.outputs.contract }}
+          MOBILE: ${{ steps.changes.outputs.mobile }}
+          VIEWER: ${{ steps.changes.outputs.viewer }}
+        run: |
+          set -euo pipefail
+
+          # Build the list of required checks as ASCII substrings (unique enough
+          # to match each job's display name without depending on the "↔" glyph).
+          req=""
+          if [ "$PLUGIN" = "true" ];   then req="$req"$'\n'"Validate data files"$'\n'"Viewer JS syntax"$'\n'"Build StingTools Plugin"; fi
+          if [ "$SERVER" = "true" ];   then req="$req"$'\n'"Build & Test"; fi
+          if [ "$CONTRACT" = "true" ]; then req="$req"$'\n'"Server build (DTOs compile)"$'\n'"wire-contract tests"$'\n'"Mobile typecheck"; fi
+          if [ "$MOBILE" = "true" ];   then req="$req"$'\n'"Type-check + Lint"; fi
+          if [ "$VIEWER" = "true" ];   then req="$req"$'\n'"wwwroot byte-equal"; fi
+          mapfile -t REQUIRED < <(printf '%s\n' "$req" | sed '/^[[:space:]]*$/d' | sort -u)
+
+          if [ "${#REQUIRED[@]}" -eq 0 ]; then
+            echo "No build-relevant paths changed — nothing to gate. Pass."
+            exit 0
+          fi
+          echo "Gating on ${#REQUIRED[@]} check(s):"
+          printf '  - %s\n' "${REQUIRED[@]}"
+          echo "Head SHA: $HEAD_SHA"
+
+          deadline=$(( $(date +%s) + 1800 ))   # 30 min hard cap (real builds ~3 min)
+          while : ; do
+            runs="$(gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs" \
+              --jq '.check_runs[] | [.name, .status, (.conclusion // "")] | @tsv' 2>/dev/null || true)"
+
+            pending=(); failed=()
+            for needle in "${REQUIRED[@]}"; do
+              # Most-recent matching run wins (re-runs append).
+              line="$(printf '%s\n' "$runs" | grep -F "$needle" | tail -1 || true)"
+              if [ -z "$line" ]; then pending+=("$needle"); continue; fi
+              status="$(printf '%s' "$line" | cut -f2)"
+              concl="$(printf '%s' "$line" | cut -f3)"
+              if [ "$status" != "completed" ]; then
+                pending+=("$needle")
+              elif [ "$concl" = "success" ] || [ "$concl" = "neutral" ] || [ "$concl" = "skipped" ]; then
+                : # ok
+              else
+                failed+=("$needle [$concl]")
+              fi
+            done
+
+            if [ "${#failed[@]}" -gt 0 ]; then
+              printf '::error::Required check failed: %s\n' "${failed[@]}"
+              exit 1
+            fi
+            if [ "${#pending[@]}" -eq 0 ]; then
+              echo "All required checks passed."
+              exit 0
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              printf '::error::Timed out (30m) waiting for: %s\n' "${pending[@]}"
+              exit 1
+            fi
+            echo "waiting on: ${pending[*]}"
+            sleep 20
+          done
