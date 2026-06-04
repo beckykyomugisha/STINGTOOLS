@@ -45,6 +45,21 @@ services:
       # its API_BEARER (:149), so the api must read the SAME value here or the
       # converter→API derivative ingest is always rejected.
       - Converter__ApiBearer=${CONVERTER_API_BEARER:-}
+      # ── Outward URLs: single source of truth ──
+      # Set PUBLIC_BASE_URL in .env to the Cloudflare tunnel (or cloud) origin.
+      # EVERY outward link (invite/reset emails, share/QR) + CORS derives from it.
+      # Empty ⇒ falls back to the request host (fine for a bare localhost run).
+      - Planscape__PublicBaseUrl=${PUBLIC_BASE_URL:-}
+      # ── Real email via SMTP (Gmail app password is the pragmatic default) ──
+      # All blank ⇒ NullEmailService logs a LOUD warning and drops mail.
+      - Smtp__Host=${SMTP_HOST:-}
+      - Smtp__Port=${SMTP_PORT:-587}
+      - Smtp__Username=${SMTP_USERNAME:-}
+      - Smtp__Password=${SMTP_PASSWORD:-}
+      - Smtp__FromAddress=${SMTP_FROM_ADDRESS:-}
+      - Smtp__FromName=${SMTP_FROM_NAME:-Planscape}
+      # Gmail :587 uses STARTTLS ⇒ UseSsl=false. Gmail :465 ⇒ UseSsl=true.
+      - Smtp__UseSsl=${SMTP_USE_SSL:-false}
     depends_on:
       # NB: pgbouncer is intentionally NOT listed here. It lives behind the
       # optional `pool` profile (see below), and Compose rejects the whole
@@ -82,6 +97,19 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # Mailpit — local SMTP capture (dev/proof). Catches every outbound email so the
+  # full send path + link can be PROVEN without real creds. Web UI on :8025, SMTP
+  # on :1025 (no auth). To send REAL mail instead, point SMTP_HOST at smtp.gmail.com
+  # + a valid app password in .env and restart api (env-only swap — see DEPLOYMENT.md).
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"   # web UI / REST  → http://localhost:8025
+      - "1025:1025"   # SMTP
+    environment:
+      - MP_SMTP_AUTH_ALLOW_INSECURE=true
+    restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine

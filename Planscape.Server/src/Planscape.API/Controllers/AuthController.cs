@@ -845,8 +845,12 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
     {
-        // Always return success to prevent email enumeration
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive);
+        // Always return success to prevent email enumeration.
+        // IgnoreQueryFilters: this endpoint is anonymous, so the tenant global
+        // query filter (CurrentTenantId == Guid.Empty for an unauthenticated
+        // caller) would otherwise match NO users — exactly as Login does.
+        var user = await _db.Users.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive);
         if (user == null)
             return Ok(new { message = "If that email exists, a reset link has been sent." });
 
@@ -862,13 +866,15 @@ public class AuthController : ControllerBase
         user.RefreshTokenExpiresAt = DateTime.UtcNow.AddMinutes(expiryMinutes);
         await _db.SaveChangesAsync();
 
-        // Send reset email
+        // Send reset email — a real CLICKABLE link via PublicUrl (tunnel/cloud),
+        // not a developer "POST /api/…" instruction. SendPasswordResetEmailAsync
+        // builds {PublicBaseUrl}/reset-password?token=…&email=… which the
+        // reset-password.html page consumes.
         var emailService = HttpContext.RequestServices.GetService<Planscape.Core.Interfaces.IEmailService>();
         if (emailService != null)
         {
-            await emailService.SendNotificationAsync(user.Email, "Planscape Password Reset",
-                $"Use this token to reset your password (expires in 1 hour):\n\n{resetToken}\n\n" +
-                $"POST /api/auth/reset-password with {{ \"token\": \"{resetToken}\", \"newPassword\": \"...\" }}");
+            await emailService.SendPasswordResetEmailAsync(
+                user.Email, resetToken, Planscape.API.PublicUrl.Resolve(_config, Request));
         }
 
         return Ok(new { message = "If that email exists, a reset link has been sent." });
@@ -902,10 +908,13 @@ public class AuthController : ControllerBase
         // S6 — match against the hash, not the raw token. The token in
         // the email never appears in the DB.
         var hashed = $"RESET:{HashResetToken(req.Token)}";
-        var user = await _db.Users
+        // NB: do NOT require IsActive here — invited users start inactive and use
+        // this exact flow to set their first password. Setting the password
+        // ACTIVATES them (below), so the invite link is a complete onboarding step.
+        // IgnoreQueryFilters: anonymous endpoint, so bypass the tenant filter.
+        var user = await _db.Users.IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.RefreshToken == hashed
-                && u.RefreshTokenExpiresAt > DateTime.UtcNow
-                && u.IsActive);
+                && u.RefreshTokenExpiresAt > DateTime.UtcNow);
 
         if (user == null)
             return BadRequest(new { message = "Invalid or expired reset token" });
@@ -916,6 +925,7 @@ public class AuthController : ControllerBase
         user.PasswordHash = HashPassword(req.NewPassword);
         user.RefreshToken = null;
         user.RefreshTokenExpiresAt = null;
+        user.IsActive = true;   // activate invited users on first password set
         await _db.SaveChangesAsync();
 
         // S6 / S5 — bump the iat-floor so any access token issued before

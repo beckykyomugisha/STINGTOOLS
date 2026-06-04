@@ -44,9 +44,15 @@ public class SmtpEmailService : IEmailService
 
     public async Task SendInviteEmailAsync(
         string toEmail, string displayName, string inviterName,
-        string projectName, string serverUrl, CancellationToken ct = default)
+        string projectName, string serverUrl, string? resetToken = null, CancellationToken ct = default)
     {
-        var acceptUrl = $"{serverUrl.TrimEnd('/')}/reset-password?email={Uri.EscapeDataString(toEmail)}";
+        var baseUrl = serverUrl.TrimEnd('/');
+        // With a reset token the invitee can set their password straight from the
+        // email; without one the link only prefills the email and they must
+        // request a reset link.
+        var acceptUrl = string.IsNullOrWhiteSpace(resetToken)
+            ? $"{baseUrl}/reset-password.html?email={Uri.EscapeDataString(toEmail)}"
+            : $"{baseUrl}/reset-password.html?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(toEmail)}";
         var model = new Dictionary<string, string?>
         {
             ["DisplayName"]  = displayName,
@@ -62,7 +68,7 @@ public class SmtpEmailService : IEmailService
     public async Task SendPasswordResetEmailAsync(
         string toEmail, string resetToken, string serverUrl, CancellationToken ct = default)
     {
-        var resetUrl = $"{serverUrl.TrimEnd('/')}/reset-password?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(toEmail)}";
+        var resetUrl = $"{serverUrl.TrimEnd('/')}/reset-password.html?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(toEmail)}";
         var model = new Dictionary<string, string?>
         {
             ["ResetUrl"]  = resetUrl,
@@ -181,14 +187,18 @@ public class SmtpEmailService : IEmailService
         if (string.IsNullOrWhiteSpace(Host))
         {
             // No SMTP host configured — behave like NullEmailService to avoid a crash.
-            _logger.LogInformation("[Smtp:NoHost] to={ToEmail} subject={Subject}", toEmail, email.Subject);
+            _logger.LogWarning("[Smtp:NoHost] ⚠ EMAIL NOT SENT (Smtp:Host empty) to={ToEmail} subject={Subject}", toEmail, email.Subject);
             return;
         }
 
         using var client = new SmtpClient();
         try
         {
-            var secureOption = UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
+            // UseSsl=true ⇒ implicit TLS (Gmail :465). Otherwise StartTlsWhenAvailable:
+            // upgrades to TLS when the server advertises STARTTLS (Gmail :587) and stays
+            // plain when it doesn't (a local Mailpit/MailHog capture on :1025) — so the
+            // SAME service proves the path against a dev catcher and sends real mail to Gmail.
+            var secureOption = UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTlsWhenAvailable;
             await client.ConnectAsync(Host, Port, secureOption, ct);
             if (!string.IsNullOrEmpty(Username))
                 await client.AuthenticateAsync(Username, Password, ct);
@@ -253,23 +263,31 @@ public class NullEmailService : IEmailService
 {
     private readonly ILogger<NullEmailService> _logger;
 
-    public NullEmailService(ILogger<NullEmailService> logger) => _logger = logger;
+    public NullEmailService(ILogger<NullEmailService> logger)
+    {
+        _logger = logger;
+        // LOUD on startup so a misconfigured deploy never silently drops mail.
+        _logger.LogWarning(
+            "[NullEmail] ⚠ NO SMTP CONFIGURED — emails (invites, password resets, notifications) "
+          + "will NOT be delivered, only logged. Set Smtp__Host / Smtp__Port / Smtp__Username / "
+          + "Smtp__Password / Smtp__FromAddress (e.g. Gmail smtp.gmail.com:587 + app password) to send real mail.");
+    }
 
     public Task SendInviteEmailAsync(
         string toEmail, string displayName, string inviterName,
-        string projectName, string serverUrl, CancellationToken ct = default)
+        string projectName, string serverUrl, string? resetToken = null, CancellationToken ct = default)
     {
-        _logger.LogInformation(
-            "[NullEmail] Invite: to={ToEmail}, displayName={DisplayName}, inviter={Inviter}, project={Project}, url={Url}",
-            toEmail, displayName, inviterName, projectName, serverUrl);
+        _logger.LogWarning(
+            "[NullEmail] ⚠ INVITE NOT SENT (no SMTP) to={ToEmail}, displayName={DisplayName}, inviter={Inviter}, project={Project}, url={Url}, hasToken={HasToken}",
+            toEmail, displayName, inviterName, projectName, serverUrl, !string.IsNullOrWhiteSpace(resetToken));
         return Task.CompletedTask;
     }
 
     public Task SendPasswordResetEmailAsync(
         string toEmail, string resetToken, string serverUrl, CancellationToken ct = default)
     {
-        _logger.LogInformation(
-            "[NullEmail] PasswordReset: to={ToEmail}, token={Token}, url={Url}",
+        _logger.LogWarning(
+            "[NullEmail] ⚠ PASSWORD-RESET NOT SENT (no SMTP) to={ToEmail}, token={Token}, url={Url}",
             toEmail, resetToken, serverUrl);
         return Task.CompletedTask;
     }
@@ -277,8 +295,8 @@ public class NullEmailService : IEmailService
     public Task SendNotificationAsync(
         string toEmail, string subject, string htmlBody, CancellationToken ct = default)
     {
-        _logger.LogInformation(
-            "[NullEmail] Notification: to={ToEmail}, subject={Subject}",
+        _logger.LogWarning(
+            "[NullEmail] ⚠ NOTIFICATION NOT SENT (no SMTP) to={ToEmail}, subject={Subject}",
             toEmail, subject);
         return Task.CompletedTask;
     }

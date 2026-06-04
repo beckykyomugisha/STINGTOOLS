@@ -55,9 +55,16 @@
     // so a fresh git-clone still works on dev. The Settings menu writes
     // `planscape_api_base` and reloads.
     const storedApi = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_api_base')) || '';
+    // Same-origin fallback: when the viewer is SERVED by the API (the normal
+    // case — including over a Cloudflare tunnel), call the API at the serving
+    // origin so a remote guest never hits localhost. Only fall back to the
+    // localhost literal for file:// opens (origin === 'null'/empty).
+    const sameOrigin = (typeof window !== 'undefined' && window.location
+                        && /^https?:/.test(window.location.origin || '')) ? window.location.origin : '';
     const apiBase   = window.__PLANSCAPE_API__
                    || storedApi
                    || params.get('api')
+                   || sameOrigin
                    || 'http://localhost:5000';
     const token     = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_token')) || '';
     // Apply persisted theme on first paint so re-loads don't flash white.
@@ -4530,6 +4537,12 @@
               state.angleTool = false; state.anglePoints = [];
             }
           }
+          return origSend.call(V.bridge, type, payload);
+        }
+        // Empty-space click (engine raycast hit nothing) — clear the whole
+        // selection so the floating toolbar + multi-property pane disappear.
+        if (type === 'deselect') {
+          selectElementByGuid(null);
           return origSend.call(V.bridge, type, payload);
         }
         if (type === 'pick' && payload && payload.guid) {
