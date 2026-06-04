@@ -242,6 +242,7 @@
     setupHeartbeat();
     setupSelectionToolbar();
     setupRowContextMenu();
+    setupCanvasContextMenu();
     setupPhotoCaptureModal();
     setupPhotoReviewModal();
     setupPhotoFab();
@@ -2692,6 +2693,91 @@
       menu.style.top  = Math.min(y, H - h - 8) + 'px';
       menu.classList.add('open');
       activeRowMenu = menu;
+    }
+
+    // ── 3D viewport right-click context menu ──────────────────────────────────
+    // Reuses the #rowMenu framework. A right CLICK (movement < 4px) opens the menu;
+    // a right DRAG still PANS (OrbitControls RIGHT=PAN) — we only suppress the
+    // browser's native menu. Raycasts the element under the cursor.
+    function setupCanvasContextMenu() {
+      const dom = V && V.renderer && V.renderer.domElement;
+      if (!dom) return;
+      let menu = document.getElementById('rowMenu');
+      if (!menu) { menu = el('div', { class: 'row-menu', id: 'rowMenu' }); document.body.appendChild(menu); }
+      let rcDown = null;
+      dom.addEventListener('pointerdown', (e) => { if (e.button === 2) rcDown = { x: e.clientX, y: e.clientY }; });
+      dom.addEventListener('contextmenu', (e) => {
+        e.preventDefault();                  // always suppress the browser menu
+        const moved = rcDown ? Math.hypot(e.clientX - rcDown.x, e.clientY - rcDown.y) : 0;
+        rcDown = null;
+        if (moved > 4) return;               // that was a right-drag PAN
+        openCanvasContextMenu(menu, e.clientX, e.clientY);
+      });
+    }
+
+    function openCanvasContextMenu(menu, x, y) {
+      const dom = V.renderer.domElement;
+      const r = dom.getBoundingClientRect();
+      const ptr = new THREE_.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
+      const ray = new THREE_.Raycaster();
+      ray.setFromCamera(ptr, V.camera);
+      const hits = V.modelRoot ? ray.intersectObject(V.modelRoot, true) : [];
+      if (hits.length && hits[0].object && hits[0].object.isMesh) {
+        const mesh = hits[0].object;
+        const guid = mesh.userData && mesh.userData.elementGuid;
+        const bb = new THREE_.Box3().setFromObject(mesh);
+        const centre = bb.getCenter(new THREE_.Vector3());
+        // Select the right-clicked element (unless it's already in the selection)
+        // so Isolate / Hide / Properties / Create issue act on it.
+        if (guid && !state.selectedElementGuids.has(guid)) selectElementByGuid(guid, 'replace');
+        const meta = guid ? (state.elementMap[guid] || {}) : {};
+        const tag = meta.tag || meta.STING_TAG || meta.tag1 || '';
+        showRowMenuAt(menu, [
+          { glyph: '◎', label: 'Isolate',              run: () => isolateSelection() },
+          { glyph: '⊘', label: 'Hide',                 run: () => hideSelection() },
+          { glyph: '⊝', label: 'Hide others',          run: () => hideOthers() },
+          { glyph: '⊙', label: 'Show all',             run: () => showAllElements() },
+          '-',
+          { glyph: '⌖', label: 'Fit element',          run: () => { if (V.fitCamera) V.fitCamera(bb); } },
+          { glyph: '⊕', label: 'Set pivot here',       run: () => { V.controls.target.copy(centre); V.controls.update(); toast('Orbit pivot set'); } },
+          { glyph: '⊟', label: 'Section box from selection', run: () => sectionBoxFromSelection() },
+          '-',
+          { glyph: 'ℹ', label: 'Properties',           run: () => { $('.tab-bar .tab[data-tab=properties]')?.click(); renderProperties(state.selectedElementGuid); } },
+          { glyph: '🚩', label: 'Create issue',         run: () => openIssueModal({ guid, meta }) },
+          tag ? { glyph: '🏷', label: 'Copy STING tag', run: () => { copyToClipboard(String(tag)); toast('Tag copied'); } } : null,
+        ].filter(Boolean), x, y);
+      } else {
+        showRowMenuAt(menu, [
+          { glyph: '⊙', label: 'Show all',  run: () => showAllElements() },
+          { glyph: '⌖', label: 'Fit model', run: () => { if (V.fitCamera) V.fitCamera(); } },
+          '-',
+          { glyph: '✕', label: 'Exit markup / section', run: () => setActiveTool('orbit') },
+        ], x, y);
+      }
+    }
+
+    // Hide every mesh that is NOT in the current selection.
+    function hideOthers() {
+      if (!V.modelRoot) return;
+      const keep = state.selectedElementGuids;
+      if (!keep.size) return toast('Nothing selected', 'warn');
+      V.modelRoot.traverse(o => { if (o.isMesh) o.visible = keep.has(o.userData.elementGuid); });
+      toast(`Hid all but ${keep.size}`);
+    }
+
+    // Section box around the current selection's bbox (no-op clip until Commit 4
+    // wires setSectionBox in viewer-extras; the menu item is then fully live).
+    function sectionBoxFromSelection() {
+      const meshes = selectedMeshes();
+      if (!meshes.length) return toast('Select an element first', 'warn');
+      const bb = new THREE_.Box3();
+      meshes.forEach(m => bb.expandByObject(m));
+      if (bb.isEmpty()) return;
+      handleHostCommand({ type: 'setSectionBox', payload: {
+        min: [bb.min.x, bb.min.y, bb.min.z], max: [bb.max.x, bb.max.y, bb.max.z], enabled: true
+      } });
+      toast('Section box from selection');
+      if (state.rightTab === 'visualize') renderVisualizePanel();
     }
 
     function openClashRowMenu(menu, c, x, y) {
