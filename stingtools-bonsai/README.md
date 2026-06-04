@@ -38,12 +38,58 @@ STING falls back to direct API calls — degraded but functional.
 | `Probe Bonsai` reports Bonsai version + active IFC file | ✅ |
 | Auto Tag, Tag Selected, Token writers | ❌ MVP week 3 |
 | IDS validation pipeline | ❌ MVP week 4 |
-| Planscape sync + issue raise | ❌ MVP week 5 |
+| **Planscape login + cross-host IFC push (`host=bonsai`)** | ✅ WORKING — stdlib-only (urllib), verified in Blender 4.2.21 against a live server |
+| Raise issue | ✅ best-effort (offline JSON fallback) |
 | 16 production ops | ❌ MVP week 6-7 |
 
 This is the **Day-1 scaffold**. Full feature roadmap on branch
 `claude/stingtools-bim-research-8Kkwv` (the MVP scope doc lists every
 operator + module + week).
+
+## Install (packaged `.zip` — recommended)
+
+Build the extension zip (one-off), then install it through Blender's GUI.
+
+**Build the zip:**
+
+```bash
+blender --command extension build \
+  --source-dir stingtools-bonsai \
+  --output-dir stingtools-bonsai/dist
+# → stingtools-bonsai/dist/stingtools_bonsai-0.1.0.zip
+blender --command extension validate stingtools-bonsai/dist/stingtools_bonsai-0.1.0.zip
+```
+
+**Install in Blender 4.2+ (exact GUI steps):**
+
+1. Install **Bonsai** first (Blender's extension picker → "Bonsai") — it
+   provides the IFC layer (ifcopenshell) this add-on builds on.
+2. `Edit → Preferences → Get Extensions`.
+3. Click the **⌄** (chevron, top-right of the panel) → **Install from Disk…**.
+4. Pick `stingtools-bonsai/dist/stingtools_bonsai-0.1.0.zip`.
+5. **Enable** "StingTools for Bonsai" (tick the checkbox).
+6. Press **`N`** in the 3D viewport → open the **STING** tab.
+
+**Connect to Planscape + push (`host=bonsai`):**
+
+7. In `Edit → Preferences → Add-ons → StingTools for Bonsai`, set:
+   - **Server URL** (default `http://localhost:5000` — use `http`, not
+     `https`, for localhost),
+   - **Email** + **Password**, then click **Planscape Login** (this
+     calls `POST /api/auth/login`, stores the JWT in the add-on prefs,
+     and clears the password),
+   - **Project ID** (the project GUID — from the project URL or
+     `GET /api/projects`).
+8. Open an IFC: Bonsai `File → IFC → Open`.
+9. In the **STING → COORD** sub-panel, click **Push to Planscape (bonsai)**.
+   Every IFC element is sent to `POST /api/projects/{id}/ifc/data` keyed on
+   its 22-char IFC `GlobalId` with `host="bonsai"` (no `revitElementId`) —
+   so a Bonsai element resolves cross-host against the same Revit / ArchiCAD
+   `GlobalId` (`GET /ifc/mappings?ifcGuid=…` returns every host).
+
+The HTTP client is **Python-standard-library only** (`urllib`) — no
+`requests`, no `_vendor`, no `pip install` — so the push works on a stock
+Blender install.
 
 ## Install (dev)
 

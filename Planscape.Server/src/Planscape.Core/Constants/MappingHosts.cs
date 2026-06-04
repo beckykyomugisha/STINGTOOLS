@@ -11,6 +11,17 @@ public static class MappingHosts
 {
     public const string Revit    = "revit";
     public const string Blender  = "blender";
+
+    /// <summary>
+    /// Bonsai (formerly BlenderBIM) — the IFC layer inside Blender. The
+    /// StingTools-for-Bonsai extension pushes elements keyed on the IFC
+    /// GlobalId with Host="bonsai" so a Bonsai-originated element resolves
+    /// cross-host against the same Revit / ArchiCAD GlobalId. Kept distinct
+    /// from the generic "blender" host so the coordinator can tell a
+    /// Bonsai/IFC-authored push apart from a plain Blender export.
+    /// </summary>
+    public const string Bonsai   = "bonsai";
+
     public const string ArchiCad = "archicad";
     public const string Tekla    = "tekla";
     public const string Headless = "headless";
@@ -27,7 +38,7 @@ public static class MappingHosts
     public static readonly IReadOnlySet<string> All =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            Revit, Blender, ArchiCad, Tekla, Headless, Iot,
+            Revit, Blender, Bonsai, ArchiCad, Tekla, Headless, Iot,
         };
 
     public static string Normalize(string? host) => (host ?? "").Trim().ToLowerInvariant();

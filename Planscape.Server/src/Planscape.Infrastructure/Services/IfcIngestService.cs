@@ -157,6 +157,28 @@ public sealed class IfcIngestService : IIfcIngestService
             await _db.SaveChangesAsync(ct);
         }
 
+        // -------------------------------------------------------
+        // 3. Upsert the canonical cross-tool ElementGlobalIdRegistry.
+        //    ExternalElementMapping is the per-(host,doc) ingest ledger;
+        //    the registry is the one-row-per-GlobalId coordinator table
+        //    that clash/issue/BCF linking dereference. Populating it here
+        //    means EVERY /ifc/data host (bonsai, blender, revit, tekla…)
+        //    lands a registry row, not just the ArchiCAD /ifc/ingest path.
+        //    Host-aware: the tool's own id is parked in the matching column
+        //    (RevitUniqueId / ArchiCadGuid / TeklaGuid); bonsai/blender just
+        //    register the canonical identity + metadata.
+        // -------------------------------------------------------
+        try
+        {
+            await UpsertGlobalIdRegistryAsync(tenantId, projectId, host, request.Elements, nowUtc, ct);
+        }
+        catch (Exception ex)
+        {
+            // Never let the secondary registry write fail the primary ingest.
+            _logger?.LogWarning(ex, "[ifc-ingest] GlobalIdRegistry upsert failed (mappings + elements still committed)");
+            warnings.Add("GlobalIdRegistry upsert failed — cross-host mapping + tagged elements were still saved.");
+        }
+
         if (nonCanonicalVe > 0)
             warnings.Add($"{nonCanonicalVe} element(s) carried a ValidationErrors blob that does not " +
                          "parse as the canonical ValidationErrorDto[] shape ([{code,message,severity}]); " +
@@ -262,6 +284,87 @@ public sealed class IfcIngestService : IIfcIngestService
         }
 
         return (created, updated);
+    }
+
+    // ------------------------------------------------------------------
+    // Canonical cross-tool registry upsert. One row per (project, GlobalId).
+    // Host-aware: parks the host element id in the tool-specific column when
+    // there is one; bonsai/blender/headless register the canonical identity
+    // + metadata only. Idempotent — re-pushing the same GlobalId from a
+    // second host fills in that host's column on the existing row.
+    // ------------------------------------------------------------------
+    private async Task UpsertGlobalIdRegistryAsync(
+        Guid tenantId, Guid projectId, string host,
+        IReadOnlyList<IfcElementDto> elements, DateTime nowUtc, CancellationToken ct)
+    {
+        var guids = elements
+            .Select(e => e.IfcGlobalId)
+            .Where(g => !string.IsNullOrWhiteSpace(g))
+            .Distinct()
+            .ToList();
+        if (guids.Count == 0) return;
+
+        var existing = await _db.GlobalIdRegistry
+            .IgnoreQueryFilters()
+            .Where(r => r.TenantId == tenantId && r.ProjectId == projectId
+                        && r.IfcGlobalId != null && guids.Contains(r.IfcGlobalId))
+            .ToDictionaryAsync(r => r.IfcGlobalId ?? "", ct);
+
+        var addedThisCall = new Dictionary<string, ElementGlobalIdRegistry>();
+        int written = 0;
+
+        foreach (var el in elements)
+        {
+            if (string.IsNullOrWhiteSpace(el.IfcGlobalId)) continue;
+
+            if (!existing.TryGetValue(el.IfcGlobalId, out var reg)
+                && !addedThisCall.TryGetValue(el.IfcGlobalId, out reg))
+            {
+                reg = new ElementGlobalIdRegistry
+                {
+                    TenantId = tenantId,
+                    ProjectId = projectId,
+                    IfcGlobalId = el.IfcGlobalId,
+                    MappingStatus = "AutoMatched",
+                };
+                _db.GlobalIdRegistry.Add(reg);
+                addedThisCall[el.IfcGlobalId] = reg;
+                written++;
+            }
+            else
+            {
+                reg.UpdatedAt = nowUtc;
+            }
+
+            // Canonical metadata — fill when present, never blank an existing value.
+            if (!string.IsNullOrWhiteSpace(el.IfcClass)) reg.IfcType = el.IfcClass;
+            if (!string.IsNullOrWhiteSpace(el.HostDisplayLabel)) reg.ElementName = el.HostDisplayLabel;
+            if (!string.IsNullOrWhiteSpace(el.Discipline)) reg.Discipline = el.Discipline;
+            if (!string.IsNullOrWhiteSpace(el.LevelName)) reg.NormalizedLevelName = el.LevelName;
+
+            // Park the host element id in the matching tool column.
+            switch (host)
+            {
+                case MappingHosts.Revit:
+                    if (!string.IsNullOrWhiteSpace(el.HostElementId)) reg.RevitUniqueId = el.HostElementId;
+                    break;
+                case MappingHosts.ArchiCad:
+                    if (!string.IsNullOrWhiteSpace(el.HostElementId)) reg.ArchiCadGuid = el.HostElementId;
+                    break;
+                case MappingHosts.Tekla:
+                    if (!string.IsNullOrWhiteSpace(el.HostElementId)) reg.TeklaGuid = el.HostElementId;
+                    break;
+                // bonsai / blender / headless / iot — canonical identity only;
+                // no dedicated authoring-tool column on the registry.
+            }
+        }
+
+        if (written > 0 || addedThisCall.Count == 0)
+            await _db.SaveChangesAsync(ct);
+
+        _logger?.LogInformation(
+            "[ifc-ingest] GlobalIdRegistry upsert host={Host} project={ProjectId} guids={GuidCount} new={New}",
+            host, projectId, guids.Count, written);
     }
 
     private static IEnumerable<List<T>> Chunk<T>(IEnumerable<T> source, int size)
