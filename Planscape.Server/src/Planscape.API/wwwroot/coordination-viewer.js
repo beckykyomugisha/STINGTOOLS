@@ -243,6 +243,7 @@
     setupSelectionToolbar();
     setupRowContextMenu();
     setupCanvasContextMenu();
+    setupViewCube();
     setupPhotoCaptureModal();
     setupPhotoReviewModal();
     setupPhotoFab();
@@ -2753,6 +2754,28 @@
           '-',
           { glyph: '✕', label: 'Exit markup / section', run: () => setActiveTool('orbit') },
         ], x, y);
+      }
+    }
+
+    // ── ViewCube / orientation gizmo + perspective↔ortho toggle (Commit 5) ──
+    function setupViewCube() {
+      const cube = $('#viewCube'); if (!cube) return;
+      cube.querySelectorAll('.vc-btn[data-snap]').forEach(b => {
+        b.addEventListener('click', () => {
+          const v = b.dataset.snap;
+          if (v === 'home') { if (V.fitCamera) V.fitCamera(); return; }
+          if (V.snapView) V.snapView(v);
+        });
+      });
+      const ortho = $('#orthoToggle');
+      if (ortho) {
+        ortho.addEventListener('click', () => {
+          const toOrtho = !(V.isOrtho);
+          if (V.setCameraMode) V.setCameraMode(toOrtho ? 'ortho' : 'persp');
+          ortho.textContent = (V.isOrtho ? 'Ortho' : 'Persp');
+          ortho.classList.toggle('active', !!V.isOrtho);
+          toast(V.isOrtho ? 'Orthographic projection' : 'Perspective projection');
+        });
       }
     }
 

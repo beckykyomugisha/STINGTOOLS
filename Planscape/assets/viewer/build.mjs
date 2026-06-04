@@ -21,8 +21,9 @@ export {
   AmbientLight, Box3, BufferGeometry, Clock, Color, DirectionalLight,
   Euler, Group, HemisphereLight, Line, LineBasicMaterial, Mesh,
   MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
-  PerspectiveCamera, Plane, PlaneGeometry, Quaternion, Raycaster, Scene,
-  SphereGeometry, Sprite, SpriteMaterial, Vector2, Vector3, WebGLRenderer,
+  OrthographicCamera, PerspectiveCamera, Plane, PlaneGeometry, Quaternion,
+  Raycaster, Scene, SphereGeometry, Sprite, SpriteMaterial, Vector2, Vector3,
+  WebGLRenderer,
 } from 'three';
 export { GLTFLoader }    from 'three/examples/jsm/loaders/GLTFLoader.js';
 export { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';

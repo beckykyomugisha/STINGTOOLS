@@ -196,6 +196,21 @@
         </span>
       </div>
 
+      <!-- ViewCube / orientation gizmo — snap to standard views + Home + ortho toggle.
+           Top-right of the viewport. (Commit 5) -->
+      <div class="view-cube" id="viewCube" style="position:absolute;top:12px;right:12px;z-index:12;
+           display:grid;grid-template-columns:repeat(3,1fr);gap:3px;background:rgba(20,22,28,0.72);
+           padding:5px;border-radius:8px;backdrop-filter:blur(4px)">
+        <button class="vc-btn" data-snap="top"    title="Top view">Top</button>
+        <button class="vc-btn" data-snap="front"  title="Front view">Frnt</button>
+        <button class="vc-btn" data-snap="right"  title="Right view">Rght</button>
+        <button class="vc-btn" data-snap="left"   title="Left view">Left</button>
+        <button class="vc-btn" data-snap="iso"    title="Isometric view">Iso</button>
+        <button class="vc-btn" data-snap="home"   title="Fit whole model">⌂</button>
+        <button class="vc-btn" id="orthoToggle" title="Toggle perspective / orthographic projection"
+                style="grid-column:1 / span 3">Persp</button>
+      </div>
+
       <!-- Minimap -->
       <div class="minimap" id="minimap">
         <button class="minimap-toggle" id="minimapToggle" title="Collapse">▢</button>
@@ -741,8 +756,10 @@ THREE.ColorManagement.enabled = false;
   // Near/far set conservatively here; fitCamera() recomputes them
   // from the model bounds so survey-coordinated buildings (Revit's
   // huge true-north offsets) don't get clipped.
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1e7);
+  // `let` (not const) — Commit 5 swaps this between perspective + orthographic.
+  let camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1e7);
   camera.position.set(10, 10, 10);
+  let orthoHalfHeight = 10;   // current ortho vertical half-extent (world units)
 
   const renderer = new THREE.WebGLRenderer({
     antialias: true, alpha: false,
@@ -769,11 +786,79 @@ THREE.ColorManagement.enabled = false;
   function sizeRenderer() {
     const w = host.clientWidth || window.innerWidth;
     const h = host.clientHeight || window.innerHeight;
-    camera.aspect = w / Math.max(1, h);
+    const aspect = w / Math.max(1, h);
+    if (camera.isOrthographicCamera) {
+      camera.left = -orthoHalfHeight * aspect; camera.right = orthoHalfHeight * aspect;
+      camera.top  =  orthoHalfHeight;          camera.bottom = -orthoHalfHeight;
+    } else {
+      camera.aspect = aspect;
+    }
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
   }
   sizeRenderer();
+
+  // Recompute the ortho frustum to frame a sphere of `radius` (called by fitCamera
+  // when orthographic — perspective distance doesn't set ortho size, the frustum does).
+  function updateOrthoFrustum(radius) {
+    orthoHalfHeight = (radius || 1) * 1.1;
+    const w = host.clientWidth || window.innerWidth;
+    const h = host.clientHeight || window.innerHeight;
+    const aspect = w / Math.max(1, h);
+    if (camera.isOrthographicCamera) {
+      camera.left = -orthoHalfHeight * aspect; camera.right = orthoHalfHeight * aspect;
+      camera.top  =  orthoHalfHeight;          camera.bottom = -orthoHalfHeight;
+    }
+  }
+
+  // Perspective ↔ Orthographic. Preserves eye position, target + framing. Sections
+  // read cleanly in ortho, so this pairs with the section box (Commit 4).
+  function setCameraMode(mode) {
+    const toOrtho = (mode === 'ortho');
+    if (toOrtho === !!camera.isOrthographicCamera) return;
+    const w = host.clientWidth || window.innerWidth;
+    const h = host.clientHeight || window.innerHeight;
+    const aspect = w / Math.max(1, h);
+    const pos = camera.position.clone();
+    const tgt = controls.target.clone();
+    const up  = camera.up.clone();
+    const dist = pos.distanceTo(tgt) || 1;
+    const far = camera.far;
+    let cam;
+    if (toOrtho) {
+      // Half-height that matches the perspective image at the orbit distance.
+      orthoHalfHeight = dist * Math.tan((camera.fov * Math.PI / 180) / 2);
+      cam = new THREE.OrthographicCamera(-orthoHalfHeight * aspect, orthoHalfHeight * aspect,
+                                          orthoHalfHeight, -orthoHalfHeight, -far, far);
+    } else {
+      cam = new THREE.PerspectiveCamera(50, aspect, 0.01, far);
+    }
+    cam.position.copy(pos); cam.up.copy(up); cam.lookAt(tgt);
+    camera = cam;
+    controls.object = camera;        // re-point OrbitControls at the swapped camera
+    controls.update();
+    sizeRenderer();
+    bridge.send('cameraModeChanged', { ortho: toOrtho });
+  }
+
+  // ViewCube — snap to a standard orientation around the current target, keeping
+  // the distance + camera.up=(0,1,0) (so the orbit fix stays intact). Top/Bottom use
+  // a hair of tilt so up isn't degenerate.
+  function snapView(name) {
+    let dist = camera.position.distanceTo(controls.target);
+    if (!(dist > 1e-3)) dist = modelBounds.isEmpty() ? 10 : modelBounds.getBoundingSphere(new THREE.Vector3()).radius * 2;
+    const dirs = {
+      top:    new THREE.Vector3(0,  1, 0.0001), bottom: new THREE.Vector3(0, -1, 0.0001),
+      front:  new THREE.Vector3(0,  0, 1),      back:   new THREE.Vector3(0,  0, -1),
+      right:  new THREE.Vector3(1,  0, 0),      left:   new THREE.Vector3(-1, 0, 0),
+      iso:    new THREE.Vector3(1,  0.8, 1),
+    };
+    const d = (dirs[name] || dirs.iso).clone().normalize();
+    camera.up.set(0, 1, 0);
+    camera.position.copy(controls.target).addScaledVector(d, dist);
+    camera.lookAt(controls.target);
+    controls.update();
+  }
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -967,8 +1052,8 @@ THREE.ColorManagement.enabled = false;
     // centre = radius / sin(half of the SMALLER fov) so it fits both axes.
     const s = box.getBoundingSphere(new THREE.Vector3());
     const centre = s.center;
-    const vFov = camera.fov * Math.PI / 180;
-    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+    const vFov = (camera.fov || 50) * Math.PI / 180;   // ortho has no fov → 50° positions the eye
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * (camera.aspect || 1));
     const dist = (s.radius / Math.sin(Math.min(vFov, hFov) / 2)) * 1.1;
     // For a passed sub-region target, PRESERVE the current view direction (don't
     // snap back to the south view); for the whole-model fit use the default
@@ -1491,8 +1576,13 @@ THREE.ColorManagement.enabled = false;
   // STING_VIEWER export — exact same surface viewer-extras + coordination
   // viewer expect.
   window.STING_VIEWER = {
-    scene, camera, renderer, controls, bridge,
+    scene, renderer, controls, bridge,
+    // camera is swapped by setCameraMode (persp ↔ ortho), so expose it as a getter
+    // — downstream V.camera always reads the CURRENT camera.
+    get camera() { return camera; },
     fitCamera, levelCamera, assignElementIds,
+    setCameraMode, snapView,
+    get isOrtho() { return !!camera.isOrthographicCamera; },
     // K3 — one overlay path for every STING colour feed (twin/diff/cx/qa…)
     applyOverlay, clearOverlay,
     get activeOverlaySource() { return _activeOverlaySource; },

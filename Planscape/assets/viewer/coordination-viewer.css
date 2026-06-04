@@ -1742,3 +1742,11 @@ tr.row-selected td { color: var(--text-primary); }
 /* Reduce capture modal width — three reason columns x 6 chips fits in 480 px. */
 .photo-modal .modal { max-width: 560px; width: 92%; }
 
+
+/* ViewCube / orientation gizmo (Commit 5) */
+.view-cube .vc-btn{
+  font:600 10px/1 -apple-system,Segoe UI,sans-serif;color:#cfd6e4;background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.08);border-radius:5px;padding:5px 0;cursor:pointer;min-width:34px;
+}
+.view-cube .vc-btn:hover{background:rgba(59,130,246,0.55);color:#fff;}
+.view-cube .vc-btn.active{background:rgba(59,130,246,0.85);color:#fff;}
