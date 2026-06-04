@@ -10,6 +10,13 @@
     <AssemblyName>RevitAPIUI</AssemblyName>
     <RootNamespace>Autodesk.Revit</RootNamespace>
     <OutputType>Library</OutputType>
+    <!-- The UI stubs reference WPF types (System.Windows.Media,
+         FrameworkElement, System.Windows.Media.Imaging.BitmapImage) for ribbon
+         button images, so the project must enable WPF to pull in
+         PresentationFramework / PresentationCore / WindowsBase. The
+         "Build StingTools Plugin" CI job runs on windows-latest where the WPF
+         reference assemblies are available. -->
+    <UseWPF>true</UseWPF>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>

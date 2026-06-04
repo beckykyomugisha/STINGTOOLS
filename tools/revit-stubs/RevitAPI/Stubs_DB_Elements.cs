@@ -1,6 +1,12 @@
 // Revit API CI Stubs — Autodesk.Revit.DB element types
 using System;
 using System.Collections.Generic;
+// CS0246: ElectricalSystem lives in Autodesk.Revit.DB.Electrical and
+// StructuralType in Autodesk.Revit.DB.Structure (Stubs_DB_MEP.cs). Import them
+// so the unqualified references in this file (FamilyInstance.StructuralType,
+// PanelScheduleView.GetCircuitByCell) resolve.
+using Autodesk.Revit.DB.Electrical;
+using Autodesk.Revit.DB.Structure;
 
 namespace Autodesk.Revit.DB
 {
@@ -110,7 +116,8 @@ namespace Autodesk.Revit.DB
         public LocationPoint LocationPoint { get; }
         public Location Location { get; }
         public MEPModel MEPModel { get; }
-        public FacingOrientation_FamilyInstance FacingOrientation { get; }
+        // CS0102: 'FacingOrientation' was declared twice. The real API returns XYZ;
+        // the bogus FacingOrientation_FamilyInstance overload is removed.
         public XYZ FacingOrientation => throw new NotImplementedException();
         public XYZ HandOrientation => throw new NotImplementedException();
         public Element Host { get; }
@@ -121,8 +128,13 @@ namespace Autodesk.Revit.DB
         public StructuralType StructuralType { get; }
     }
 
-    // just a placeholder to prevent error
-    public class FacingOrientation_FamilyInstance { }
+    // CS0246: MEPModel — the MEP aspect of a FamilyInstance. Surface limited to
+    // what the plugin touches: ConnectorManager + GetElectricalSystems().
+    public class MEPModel
+    {
+        public ConnectorManager ConnectorManager { get; }
+        public ISet<Autodesk.Revit.DB.Electrical.ElectricalSystem> GetElectricalSystems() => throw new NotImplementedException();
+    }
 
     public class Family : Element
     {
@@ -464,7 +476,7 @@ namespace Autodesk.Revit.DB
         public SpatialElementGeometryResults CalculateSpatialElementGeometry(SpatialElement elem) => throw new NotImplementedException();
         public void Dispose() { }
     }
-    public class SpatialElementGeometryResults { public Geometry.Solid GetGeometry() => throw new NotImplementedException(); }
+    public class SpatialElementGeometryResults { public Solid GetGeometry() => throw new NotImplementedException(); }
 
     // ── Grid ─────────────────────────────────────────────────────────────────
     public class Grid : Element

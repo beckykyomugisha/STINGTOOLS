@@ -123,7 +123,7 @@ namespace Autodesk.Revit.DB
         public IList<Parameter> GetParameters(string name) => throw new NotImplementedException();
         public IList<Parameter> GetOrderedParameters() => throw new NotImplementedException();
         public BoundingBoxXYZ get_BoundingBox(View view) => throw new NotImplementedException();
-        public Geometry.GeometryElement get_Geometry(Options options) => throw new NotImplementedException();
+        public GeometryElement get_Geometry(Options options) => throw new NotImplementedException();
         public IList<ElementId> GetEntitySchemaGuids() => throw new NotImplementedException();
         public ExtensibleStorage.Entity GetEntity(ExtensibleStorage.Schema schema) => throw new NotImplementedException();
         public void SetEntity(ExtensibleStorage.Entity entity) => throw new NotImplementedException();

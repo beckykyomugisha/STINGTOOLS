@@ -19,7 +19,10 @@ namespace Autodesk.Revit.ApplicationServices
         public string Username { get; }
         public string RecordingJournalFilename { get; }
         public bool IsWorksharing { get; }
-        public SharedParameterFile OpenSharedParameterFile() => throw new NotImplementedException();
+        // CS0246: the real Application.OpenSharedParameterFile() returns
+        // DefinitionFile (there is no 'SharedParameterFile' type). The plugin
+        // calls the no-arg overload and assigns the result to a DefinitionFile.
+        public DefinitionFile OpenSharedParameterFile() => throw new NotImplementedException();
         public string SharedParametersFilename { get; set; }
         public DefinitionFile OpenSharedParameterFile(string filename) => throw new NotImplementedException();
         public FormatOptions GetUnits(UnitType unitType) => throw new NotImplementedException();
@@ -34,9 +37,10 @@ namespace Autodesk.Revit.ApplicationServices
         public string VersionName { get; }
         public string VersionNumber { get; }
         public LanguageType Language { get; }
-        public void CreateRibbonTab(string tabName) => throw new NotImplementedException();
-        public Autodesk.Revit.UI.RibbonPanel CreateRibbonPanel(string tabName, string panelName) => throw new NotImplementedException();
-        public Autodesk.Revit.UI.RibbonPanel CreateRibbonPanel(string panelName) => throw new NotImplementedException();
+        // CS0234: 'Autodesk.Revit.UI' is the RevitAPIUI assembly, which RevitAPI
+        // does NOT (and must not) reference. The real ControlledApplication has no
+        // ribbon API — ribbon creation is on UIControlledApplication (UI assembly,
+        // used by the plugin's EnsureRibbonTab). These bogus methods are removed.
         public event EventHandler<DocumentOpenedEventArgs> DocumentOpened;
         public event EventHandler<DocumentClosingEventArgs> DocumentClosing;
     }

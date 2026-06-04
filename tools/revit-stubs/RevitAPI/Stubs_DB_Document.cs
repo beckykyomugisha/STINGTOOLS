@@ -128,7 +128,9 @@ namespace Autodesk.Revit.DB
     public class PhaseArray : IEnumerable<Phase>
     {
         public IEnumerator<Phase> GetEnumerator() => throw new NotImplementedException();
-        System.Collections.IEnumerable.GetEnumerator GetEnumerator2() => throw new NotImplementedException();
+        // CS0426: removed a malformed member that used 'IEnumerable.GetEnumerator'
+        // as a return TYPE. The explicit-interface impl below is the correct
+        // non-generic IEnumerable.GetEnumerator.
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => throw new NotImplementedException();
         public int Size { get; }
         public Phase get_Item(int index) => throw new NotImplementedException();

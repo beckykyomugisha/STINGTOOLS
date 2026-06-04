@@ -51,8 +51,9 @@ namespace Autodesk.Revit.DB
         public ConnectorType ConnectorType { get; }
     }
 
-    // Geometry sub-namespace
-    public static class Geometry { }
+    // NOTE: 'Geometry' is the sub-NAMESPACE Autodesk.Revit.DB.Geometry (below),
+    // not a type. An empty `public static class Geometry {}` here collided with
+    // that namespace (CS0101). Removed — the namespace is the real surface.
 }
 
 namespace Autodesk.Revit.DB.Geometry
