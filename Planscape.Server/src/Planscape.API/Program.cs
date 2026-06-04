@@ -1330,10 +1330,21 @@ app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
         // EF model so that gap is caught loudly here, not as a prod 500.
         //   Database:SchemaDriftStrict=true (or PLANSCAPE_SCHEMA_DRIFT_STRICT=true)
         // turns drift into a boot failure — wire that flag into CI / canary.
-        var driftStrict = builder.Configuration.GetValue<bool>("Database:SchemaDriftStrict")
-            || string.Equals(
-                Environment.GetEnvironmentVariable("PLANSCAPE_SCHEMA_DRIFT_STRICT"),
-                "true", StringComparison.OrdinalIgnoreCase);
+        //
+        // BLK-4 — strict is the DEFAULT outside Development (Production / Staging
+        // / any non-dev env) so a wrong patcher table name can't silently 404 in
+        // prod: drift fails the boot loudly instead. Resolution order:
+        //   1. explicit config Database:SchemaDriftStrict (true/false) always wins
+        //      (lets an operator force-on in dev, or deliberately opt-out in prod);
+        //   2. env PLANSCAPE_SCHEMA_DRIFT_STRICT=true forces on (CI/canary);
+        //   3. otherwise default = ON for non-Development, OFF for Development
+        //      (keeps the dev convenience where the patcher only covers a subset).
+        var driftStrictCfg = builder.Configuration.GetValue<bool?>("Database:SchemaDriftStrict");
+        var driftStrictEnv = string.Equals(
+            Environment.GetEnvironmentVariable("PLANSCAPE_SCHEMA_DRIFT_STRICT"),
+            "true", StringComparison.OrdinalIgnoreCase);
+        var driftStrict = driftStrictCfg
+            ?? (driftStrictEnv || !app.Environment.IsDevelopment());
         await Planscape.API.SchemaDriftChecker.AssertAsync(db, patchConn, driftStrict);
     }
 

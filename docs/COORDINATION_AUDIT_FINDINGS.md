@@ -118,7 +118,7 @@ The migration set lacks `.Designer.cs` companions / current snapshot, so `Databa
 
 ### HIGH
 
-**H-1 — Revit has no `/ifc/data` producer.** Cross-host IFC ingest substrate is unfed by the flagship host; Revit element data rides the `[Obsolete]` `/api/tagsync/sync` (`PlanscapeServerClient.cs:377,391`; only Python posts `/ifc/data` per `Planscape.Server/docs/element-ingest-paths.md:78`). **Impact:** the "any host → /ifc/data → ExternalElementMapping" design (Phase 186) is half-built. **VERIFIED.** **Fix:** add `PostIfcDataAsync` + save-trigger, or formally bless tagsync as the Revit path and de-obsolete it.
+**H-1 — Revit has no `/ifc/data` producer.** ~~Cross-host IFC ingest substrate is unfed by the flagship host~~ **RESOLVED (§17).** Revit element data used to ride only the `[Obsolete]` `/api/tagsync/sync` (`PlanscapeServerClient.cs:377,391`; only Python posted `/ifc/data`). Commit `23672eb` added the transport producer `PushIfcDataAsync` (`PlanscapeServerClient.IfcData.cs`), and the PR-prep pass **wired** it into `IFC_PushModelCommand` with an on-API-thread element-builder (`BuildIfcElements`) that reads `IFC_GLOBAL_ID_TXT` + tag tokens, skips empty-GlobalId elements (skip-don't-mis-key), and posts the `IfcElementDto` payload with `host="revit"`. So Revit now feeds the SAME `/ifc/data` → `ExternalElementMapping` contract every other host speaks. Plugin builds against the Revit 2025 API (0 errors); the server `/ifc/data` contract is machine-verified (§16/§17). Residual: real-Revit *runtime* execution (does a live push land the rows) is in `docs/CROSS_HOST_VALIDATION_CHECKLIST.md`.
 
 **H-2 — ArchiCAD C++ add-on is a non-compiling stub; realtime push orphaned.** All menu handlers are `"to be implemented"` (`StingPlanscapeAddon.cpp:10,68,81,93,109`); `CMakeLists.txt:20-22` references `.cpp` files absent from disk → cannot link. `PlanscapeCloudPush.Enqueue` has no caller; `ArchiCADChangeListener.OnChanged` exists only in a comment. **Impact:** advertised "native ArchiCAD live integration" does not exist; only the Python bridge works. **VERIFIED.** **Fix:** route users to the Python bridge and document it as the only path, or delete the dead C++/realtime layers so they stop implying live sync.
 
@@ -250,9 +250,9 @@ DB is flagged explicitly.
 | **BLK-1** Revit identity | Identity | **Fixed (unbuilt)** | C# uses `BuiltInParameter.IFC_GUID` (RevitAPI.dll) — needs Revit to run |
 | **BLK-2** transform apply | Coords | **Fixed (viewer half)** | `node --check` clean; axis/unit convention needs a real federated model |
 | **BLK-3** round-trip unrun | Substrate | **Documented only** | Needs real Revit+ArchiCAD+server+Bonsai |
-| **BLK-4** prod schema | Migrations | **Fixed (patcher)** | C#; table names matched to EF convention — needs a prod DB to confirm |
+| **BLK-4** prod schema | Migrations | **Fixed + verified on real Postgres** | Patcher table names == EF model; proven patcher-only on docker Postgres with strict drift OK (see §17) |
 | **BLK-5** meeting gating | Meetings | **Fixed** | `node --check` clean |
-| **H-1** Revit `/ifc/data` | Sync | **Documented only** | Larger producer; see §9 |
+| **H-1** Revit `/ifc/data` | Sync | **Implemented + wired (unbuilt→now built)** | `PushIfcDataAsync` producer now wired into `IFC_PushModelCommand` with an element-builder; server contract machine-verified; real-Revit runtime in the Gate-3 checklist (see §17) |
 | **H-2** ArchiCAD C++ | Sync | **Documented only** | Needs ArchiCAD SDK |
 | **H-3** duplicate models | Workflow | **Fixed (unbuilt)** | C# unique index + race catch — needs DB |
 | **H-4** TenantId on insert | Workflow | **Fixed (unbuilt)** | C# — needs DB |
@@ -630,3 +630,97 @@ needed). Decisions and captured output follow.
   destructive migration** against existing data (additive `… IF NOT EXISTS`
   patcher only); exactly **one** rate-limiter policy per name; Gate-3 is a
   written runnable checklist, not a claim of execution.
+
+## 17. PR-prep: BLK-4 real-Postgres schema proof + H-1 resolution + strict-drift default (2026-06-04)
+
+Taken on `claude/upbeat-cori-vdOPA` immediately before opening the PR to `main`.
+Machine-verified on Windows: .NET `10.0.102`, Docker `29.4.3`,
+`postgres:16-alpine` (docker compose `db`, NOT the EnsureCreated dev shortcut),
+plugin built against the real Revit 2025 API.
+
+### Strict drift is now the DEFAULT outside Development
+
+`Program.cs` (schema-bootstrap block) — `SchemaDriftChecker.AssertAsync` is wired
+AFTER `PlatformSchemaPatcher.ApplyAsync`. The strict flag resolution is now:
+
+1. explicit `Database:SchemaDriftStrict` (true/false) always wins;
+2. else env `PLANSCAPE_SCHEMA_DRIFT_STRICT=true` forces on;
+3. else **default = ON for any non-Development environment** (Production /
+   Staging), OFF for Development.
+
+So in Production a wrong patcher table name can no longer silently 404 — drift
+fails the boot loudly. (Dev stays non-strict because the patcher only covers a
+subset there; CreateTables fills the rest.)
+
+### BLK-4 — the 5 tables exist with EF's EXACT names, created by the PATCHER alone
+
+**Ground truth — EF table names** (queried from a real CreateTables Postgres DB):
+
+```
+ArchiCADEventLogs
+ExternalElementMappings
+GlobalIdRegistry          <- NOT "ElementGlobalIdRegistry" (that's the CLR class; the DbSet is GlobalIdRegistry)
+HvacLoadSnapshot          <- singular (no DbSet; EF uses the class name)
+HvacNcSnapshot            <- singular
+HvacRefrigerantSizing
+```
+
+The patcher's names (added in Gate 2) **already match** these exactly — there was
+no wrong name to fix. The names asserted in the task brief
+(`HvacLoadSnapshots`, `HvacNcSnapshots`, `ElementGlobalIdRegistry`) are the CLR
+class names / a plural assumption; EF Core does not auto-pluralise, and an entity
+configured via `modelBuilder.Entity<T>()` with no `DbSet` takes the class name,
+while `ElementGlobalIdRegistry` is exposed via `DbSet<ElementGlobalIdRegistry> GlobalIdRegistry`
+so its table is `GlobalIdRegistry`. The **SchemaDriftChecker is the arbiter** and
+it agrees.
+
+**Patcher-only proof** (the real-world "pre-existing prod DB" path — EnsureCreated
+short-circuits because `Tenants` exists, so ONLY the patcher can create these):
+
+1. Clean docker Postgres; booted once (EnsureCreated) to get the full schema.
+2. `DROP TABLE` the 5 BLK-4 tables + `ExternalElementMappings`.
+3. Rebooted with `PLANSCAPE_SCHEMA_DRIFT_STRICT=true`. CreateTables
+   short-circuited; the **patcher recreated all 6**; the app booted clean with:
+   - `[platform-schema] done — 55 ok, 0 failed`
+   - `[schema-drift] OK — 131 EF tables match the live schema.`
+   - `Now listening on: http://localhost:5080`
+
+   A clean **strict** boot here is the definitive proof: had any patcher name been
+   wrong, the drift checker would have reported `MISSING TABLE: <name>` and failed
+   the boot. It didn't.
+4. SQL confirms the 6 tables are present (recreated by the patcher):
+   `ArchiCADEventLogs, ExternalElementMappings, GlobalIdRegistry, HvacLoadSnapshot,
+   HvacNcSnapshot, HvacRefrigerantSizing`.
+
+**Cross-host writes against the patcher-created tables succeeded (no "relation does not exist"):**
+
+- `POST /api/projects/{id}/ifc/data` host=`archicad` → `newMappings=1`
+  (ExternalElementMappings write OK).
+- `POST /api/projects/{id}/global-id-registry` → `201 Created`
+  (GlobalIdRegistry write OK). Row confirmed via SQL:
+  `IfcGlobalId=3qoVHv8R0kg5pZWvTabcDE ArchiCadGuid=AC-GUID-0042 RevitUniqueId=RVT-0042 MappingStatus=ManuallyMapped`.
+- `GET /ifc/mappings?ifcGuid=…` resolves; `GET /global-id-registry` reads back.
+
+> Note: the ArchiCAD `/ifc/ingest` path that auto-populates `GlobalIdRegistry`
+> (IfcIngestController, `Source=="archicad"`) requires a real `.ifc` upload
+> (xbim-parsed; Source derived from the IFC STEP header), so that auto-populate is
+> in the Gate-3 human checklist. The schema safety the brief asked for — the
+> `GlobalIdRegistry` table exists with the right name so the write doesn't 404 —
+> is proven here via the direct registry write.
+
+### H-1 — contradiction resolved (code now genuinely functional)
+
+The verdict table previously said H-1 "Documented only" while commit `23672eb`
+had added `PushIfcDataAsync` — a real contradiction. Read of the code:
+`PushIfcDataAsync` (`PlanscapeServerClient.IfcData.cs`) is a correct transport
+producer (builds the cross-host payload, posts `/ifc/data`, host="revit") but had
+**no caller** — an unwired method, not a scaffold.
+
+Resolution: **finished the wiring.** `IFC_PushModelCommand` now builds the
+`/ifc/data` element payload on the Revit API thread (`BuildIfcElements` — reads
+`IFC_GLOBAL_ID_TXT` + DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ/TAG1/STATUS/REV +
+category/family/type, skips empty-GlobalId elements per skip-don't-mis-key) and,
+after the geometry GLB push, calls `PushIfcDataAsync(CurrentProjectId, …, host:"revit")`.
+So Revit is now a first-class `/ifc/data` producer. Plugin builds against the
+Revit 2025 API (0 errors). Code and docs now AGREE: H-1 = implemented + wired;
+residual = real-Revit runtime validation (checklist).
