@@ -126,6 +126,9 @@
       window.dispatchEvent(new CustomEvent("sting:remoteHighlight", { detail: msg && msg.guids }));
     });
     conn.on("RoomChanged", function (st) { window.dispatchEvent(new CustomEvent("sting:roomChanged", { detail: st })); });
+    // WS3d — presenter switched the active surface (model | document | screen);
+    // livekit-av.js applies it so every client shows the same pane.
+    conn.on("SurfaceChanged", function (s) { window.dispatchEvent(new CustomEvent("sting:surfaceChanged", { detail: s })); });
 
     conn.onreconnected(function () { conn.invoke("JoinSession", sessionId, displayName).catch(noop); });
 

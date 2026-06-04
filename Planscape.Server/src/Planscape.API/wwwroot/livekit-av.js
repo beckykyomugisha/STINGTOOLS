@@ -44,8 +44,18 @@
     camOn: true,
     screenOn: false,
     isPresenter: false,
+    surface: "model",     // model | document | screen (WS3d)
     tiles: new Map(),     // participant.sid → { wrap, video, label }
   };
+
+  // WS3d — apply the active surface broadcast by the presenter (via MeetingHub).
+  window.addEventListener("sting:surfaceChanged", function (e) {
+    var d = e.detail || {}; applySurface(d.surface, d.documentId);
+  });
+  // Presenter auto-follows their own screen-share: starting a share switches the
+  // shared surface to 'screen' for everyone; stopping returns to 'model'.
+  window.addEventListener("sting:screenShareStarted", function () { if (state.isPresenter) setSurface("screen"); });
+  window.addEventListener("sting:screenShareStopped", function () { if (state.isPresenter && state.surface === "screen") setSurface("model"); });
 
   // ── boot: load livekit-client, fetch a token, connect ─────────────────────
   loadScript(LK_CDN, function (ok) {
@@ -183,7 +193,10 @@
     v.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;background:#000";
     pane.insertBefore(v, pane.firstChild);
     pane._video = v;
-    pane.style.display = "flex";
+    // Visibility is driven by the active surface (applySurface), not by the track
+    // arriving — so all clients show the screen at the same moment the presenter
+    // switches the surface. If we're already on the screen surface, reveal it now.
+    if (state.surface === "screen") pane.style.display = "flex";
     var who = (participant && (participant.name || participant.identity)) || "Presenter";
     var lbl = pane.querySelector(".lk-screen-label"); if (lbl) lbl.textContent = "🖥 " + who + " is sharing";
     // WS3d hook — when a screen-share starts, surface should follow (presenter
@@ -215,6 +228,59 @@
     state.room.localParticipant.setScreenShareEnabled(state.screenOn)
       .then(function () { paintBtn("lkScreen2", state.screenOn, "🖥", "🖥"); var b = document.getElementById("lkScreen2"); if (b) b.style.background = state.screenOn ? "rgba(55,194,114,0.85)" : "rgba(255,255,255,0.14)"; })
       .catch(function (e) { state.screenOn = !state.screenOn; console.warn("[livekit] screen-share", e); });
+  }
+
+  // ── WS3d — active surface (model | document | screen) ──────────────────────
+  // Presenter switches; the server persists + broadcasts SurfaceChanged; every
+  // client (incl. presenter) applies it so all panes stay in lock-step.
+  function setSurface(surface, docId) {
+    if (!state.isPresenter) return;            // only the presenter drives the surface
+    var url = apiBase + "/api/projects/" + projectId + "/meeting-sessions/" + sessionId + "/surface";
+    fetch(url, {
+      method: "POST",
+      headers: token ? { "Authorization": "Bearer " + token, "Content-Type": "application/json" } : { "Content-Type": "application/json" },
+      body: JSON.stringify({ surface: surface, documentId: docId || null }),
+    }).catch(function (e) { console.warn("[livekit] surface", e); });
+  }
+  function applySurface(surface, docId) {
+    surface = surface || "model";
+    state.surface = surface;
+    var screen = document.getElementById("lkScreen");
+    var doc = document.getElementById("lkDoc");
+    if (screen) screen.style.display = (surface === "screen") ? "flex" : "none";
+    if (doc)    doc.style.display    = (surface === "document") ? "flex" : "none";
+    if (surface === "document") showDocPane(docId);
+    paintSurfaceSwitch(surface);
+  }
+  function showDocPane(docId) {
+    var pane = ensureDocPane();
+    if (!docId) { pane._frame.removeAttribute("src"); pane._msg.textContent = "No document selected"; pane._msg.style.display = "block"; return; }
+    if (pane._docId === docId && pane._frame.getAttribute("src")) return;   // already showing
+    pane._docId = docId; pane._msg.style.display = "none";
+    // Fetch the doc file with the auth header, show it via a blob URL (PDF/image).
+    var url = apiBase + "/api/projects/" + projectId + "/documents/" + docId + "/file";
+    fetch(url, { headers: token ? { "Authorization": "Bearer " + token } : {} })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
+      .then(function (b) { if (pane._url) URL.revokeObjectURL(pane._url); pane._url = URL.createObjectURL(b); pane._frame.src = pane._url; })
+      .catch(function (e) { pane._msg.textContent = "Could not load document"; pane._msg.style.display = "block"; console.warn("[livekit] doc", e); });
+  }
+  function ensureDocPane() {
+    var pane = document.getElementById("lkDoc");
+    if (pane) return pane;
+    pane = el("div", { id: "lkDoc", style:
+      "position:absolute;inset:0 0 120px 0;z-index:13;display:none;flex-direction:column;background:#15171c;padding:8px" });
+    var frame = el("iframe", { style: "flex:1;width:100%;border:none;border-radius:6px;background:#fff" });
+    var msg = el("div", { style: "color:#9aa3b2;font:13px sans-serif;text-align:center;padding:20px;display:none" }, "");
+    pane.appendChild(msg); pane.appendChild(frame);
+    pane._frame = frame; pane._msg = msg;
+    document.body.appendChild(pane);
+    return pane;
+  }
+  function paintSurfaceSwitch(surface) {
+    ["model", "document", "screen"].forEach(function (s) {
+      var b = document.getElementById("lkSurf_" + s); if (!b) return;
+      b.style.background = (s === surface) ? "rgba(59,130,246,0.85)" : "rgba(255,255,255,0.14)";
+    });
   }
 
   // ── controls ───────────────────────────────────────────────────────────────
@@ -251,6 +317,16 @@
     ctrls.appendChild(ctrlBtn("lkCam", "📹", toggleCam, "Camera on / off"));
     // WS3c — screen-share is presenter/host only (also enforced by the LiveKit grant).
     if (state.isPresenter) ctrls.appendChild(ctrlBtn("lkScreen2", "🖥", toggleScreen, "Share / stop sharing screen"));
+    // WS3d — presenter switches the shared surface everyone sees. 'screen' engages
+    // automatically with the screen-share toggle above.
+    if (state.isPresenter) {
+      ctrls.appendChild(ctrlBtn("lkSurf_model", "🧊", function () { setSurface("model"); }, "Show the 3D model"));
+      ctrls.appendChild(ctrlBtn("lkSurf_document", "📄", function () {
+        var d = prompt("Document id to share with the room:"); if (d && d.trim()) setSurface("document", d.trim());
+      }, "Share a document"));
+      // hidden anchor so paintSurfaceSwitch can highlight the 'screen' surface too
+      ctrls.appendChild(el("span", { id: "lkSurf_screen", style: "display:none" }));
+    }
     var dot = el("span", { id: "lkDot", style:
       "width:8px;height:8px;border-radius:50%;background:#e8a13a;align-self:center;margin:0 2px" });
     ctrls.appendChild(dot);
