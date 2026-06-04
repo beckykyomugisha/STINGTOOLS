@@ -19,39 +19,70 @@ called out below.
 
 ---
 
-## FIX 1 — Build StingTools Plugin
+## FIX 1 — Build StingTools Plugin  (real Revit reference assemblies from NuGet)
 
-**Exact command:** build `tools/revit-stubs/RevitAPI` + `RevitAPIUI` (Release), then
-`dotnet build StingTools/StingTools.csproj -c Release -p:RevitApiStubsDir=…\tools\revit-stubs\bin`.
+**Exact command (CI):** `dotnet restore StingTools/StingTools.csproj` then
+`dotnet build StingTools/StingTools.csproj -c Release --no-restore` on
+`windows-latest`, with **no** `RevitApiPath` set.
 
-**Root cause.** CI compiles the plugin against type-only Revit API stubs (the real
-Revit DLLs aren't redistributable). The stub projects didn't compile — 10 errors
-in `RevitAPI` + WPF-reference errors in `RevitAPIUI` — so the plugin build never
-started.
+**Root cause.** CI compiled the plugin against hand-written, type-only Revit API
+stubs in `tools/revit-stubs/`. Even after the stubs themselves were made to
+compile, they covered only a fraction of the API — the plugin references ~140 real
+types the stubs lacked (`FamilyElementVisibilityType`, `IFamilyLoadOptions`,
+`FamilySource`, `ConnectorProfileType`, `ACADVersion`, `AddInId`,
+`DocumentSavingAsEventArgs`, `ViewDuplicateOption`, `DWGExportOptions`,
+`IFCVersion`, `ImageResolution`, `RoutingPreferenceManager`, …). Hand-stubbing the
+whole Revit API is unwinnable, so the **plugin** never compiled in CI even when the
+stub projects did.
 
-**Fix (stub surface only — never executed at runtime; no plugin logic touched).**
-- `Stubs_DB_Geometry.cs` — removed an empty `public static class Geometry {}` that
-  collided with the `Autodesk.Revit.DB.Geometry` sub-namespace (CS0101).
-- `Stubs_DB_Enums.cs` — removed a duplicate `BuiltInCategory.OST_Rooms` (CS0102).
-- `Stubs_DB_Elements.cs` — removed a duplicate `FamilyInstance.FacingOrientation`
-  (kept the real `XYZ`-returning one, CS0102); added `using
-  Autodesk.Revit.DB.Electrical/.Structure` so `ElectricalSystem`/`StructuralType`
-  resolve (CS0246); added the missing `MEPModel` type (`ConnectorManager` +
-  `GetElectricalSystems()`); dropped a bogus `Geometry.` prefix on `Solid`.
-- `Stubs_DB_Core.cs` — dropped a bogus `Geometry.` prefix on `GeometryElement`
-  (both types live in `Autodesk.Revit.DB`). *(These two `Geometry.`-prefix errors
-  were latent — masked by the CS0101 until it was fixed.)*
-- `Stubs_ApplicationServices.cs` — `OpenSharedParameterFile()` now returns
-  `DefinitionFile` (there is no `SharedParameterFile` type, CS0246); removed
-  `ControlledApplication` ribbon methods that referenced `Autodesk.Revit.UI`
-  (wrong assembly + not on the real `ControlledApplication`, CS0234).
-- `Stubs_DB_Document.cs` — removed a malformed member that used
-  `IEnumerable.GetEnumerator` as a return *type* (CS0426).
-- `RevitAPIUI.csproj` — enabled `<UseWPF>true</UseWPF>` so the UI stubs' WPF types
-  (`System.Windows.Media`, `FrameworkElement`, `BitmapImage`) resolve. The job
-  runs on `windows-latest` where the WPF refs exist.
+**Fix — replace stubs with the REAL Revit 2025 reference assemblies from NuGet.**
+- `StingTools.csproj` resolves Revit references conditionally via a computed
+  `UseRevitNuget` property (true unless a local `$(RevitApiPath)\RevitAPI.dll`
+  exists):
+  - **Developer machine with Revit installed** → references the real local
+    `RevitAPI.dll`/`RevitAPIUI.dll` by `HintPath`, `Private=false`. *Unchanged
+    developer behaviour.*
+  - **CI / no local Revit** → restores **`Nice3point.Revit.Api.RevitAPI`** +
+    **`Nice3point.Revit.Api.RevitAPIUI`**, pinned to **`2025.4.50`**, from
+    nuget.org. These ship `ref/net8.0-windows7.0/*.dll` — the **full Revit 2025
+    API reference surface**, matching the plugin's `net8.0-windows` TFM.
+- Both paths keep Revit **compile-time only** (`HintPath` `Private=false`; NuGet
+  `ExcludeAssets=runtime` + `PrivateAssets=all`) so the shipped `StingTools.dll`
+  never carries a Revit assembly — at runtime Revit loads its own.
+- Workflow (`stingtools-plugin.yml`): removed the "Build Revit API stubs" step and
+  the `-p:RevitApiStubsDir=…` params; dropped `tools/revit-stubs/**` from the path
+  triggers.
+- **Stub project retired:** `tools/revit-stubs/` (13 tracked files incl.
+  `RevitApiStubs.sln`) deleted entirely so it can't rot, and removed from the
+  csproj/workflow build graph. The repo no longer contains a hand-maintained Revit
+  API surface.
 
-**Local proof:** both stubs and the plugin build with **0 errors**.
+**Why a local build is NOT the proof.** The dev machine running this has Revit 2025
+installed, so `dotnet build` of the plugin passes locally regardless of this fix
+(it had already produced false "0 errors" claims against the incomplete stubs).
+The **only** acceptance criterion is the GitHub Actions check.
+
+**CI proof (the one that counts).** On PR #290, head commit `2111f2684`, workflow
+run **`26944487480`**:
+
+| Check (job) | Result | Run/Job |
+|---|---|---|
+| **Build StingTools Plugin** | **pass (3m 29s)** | run `26944487480`, job `79493917221` |
+| Validate data files | pass | run `26944487480`, job `79493917226` |
+| Viewer JS syntax | pass | run `26944487480`, job `79493917222` |
+
+i.e. the plugin **compiled in CI against the real reference assemblies** — the
+first time the "Build StingTools Plugin" check has ever been green.
+
+**Local pre-flight (signal only, not proof):** forced the CI path with
+`-p:UseRevitNuget=true` → 0 errors; and the dev path `-p:RevitApiPath="C:\Program
+Files\Autodesk\Revit 2025"` → 0 errors (developer path preserved).
+
+> Historical note: the earlier attempt got the `tools/revit-stubs/` projects to
+> *compile* (deduping `Geometry`/`OST_Rooms`/`FacingOrientation`, adding `MEPModel`
+> + `using`s, `UseWPF` on the UI stub, etc.). That made the stub DLLs build but the
+> **plugin** still failed in CI against the incomplete surface — which is why the
+> stubs are now retired in favour of real reference assemblies.
 
 ---
 
@@ -150,14 +181,27 @@ flood without adding signal).
 other warns up to error file-by-file, and consider adopting `eslint-config-expo`
 for full React-Native rule coverage.
 
-## Verification matrix
+## Verification matrix — CI checks on PR #290 (head `2111f2684`)
 
-| Job command | Result |
-|-------------|--------|
-| RevitAPI + RevitAPIUI stub build (Release) | 0 errors |
-| `dotnet build StingTools/StingTools.csproj -c Release -p:RevitApiStubsDir=…` | 0 errors |
-| Validate data files — JSON / duplicate-GUID / CSV-structure | all pass |
-| `Planscape$ npm ci --no-audit --no-fund` | exit 0 (1081 pkgs) |
-| `Planscape$ npx tsc --noEmit` / `npm run typecheck` | exit 0 |
-| `Planscape$ npm run lint` | exit 0 (0 errors, 102 warnings) |
+GitHub Actions is the acceptance criterion (a local build does not count — this
+dev machine has Revit 2025 installed). All checks green, no regressions:
+
+| Check | Result |
+|-------|--------|
+| **Build StingTools Plugin** (real Revit 2025 ref assemblies, NuGet) | ✅ pass (3m 29s) |
+| Validate data files | ✅ pass |
+| Type-check + Lint | ✅ pass |
+| Mobile typecheck (tsc --noEmit) | ✅ pass |
+| Server build (DTOs compile) | ✅ pass |
+| Client ↔ server wire-contract tests | ✅ pass |
+| Viewer JS syntax | ✅ pass |
+| Auto-label PR | ✅ pass |
+| EAS build | skipped (manual `workflow_dispatch` only — expected) |
+
+Local pre-flight (signal only):
+
+| Command | Result |
+|---------|--------|
+| `dotnet build StingTools -c Release -p:UseRevitNuget=true` (CI path) | 0 errors |
+| `dotnet build StingTools -c Release -p:RevitApiPath="…\Revit 2025"` (dev path) | 0 errors |
 | `dotnet build Planscape.Server` (sanity) | 0 errors |
