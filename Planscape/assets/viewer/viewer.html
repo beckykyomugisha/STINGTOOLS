@@ -781,14 +781,11 @@ THREE.ColorManagement.enabled = false;
   // the screen plane regardless of camera tilt.
   controls.zoomToCursor      = true;
   controls.screenSpacePanning = true;
-  // NEGATIVE rotateSpeed — natural Z-up orbit sense. With camera.up=(0,0,1)
-  // OrbitControls builds _quat = setFromUnitVectors((0,0,1),(0,1,0)) — a
-  // −90°-about-X mapping — which inverts BOTH the polar and azimuth drag sense
-  // (drag-up dropped the camera to the horizon i.e. tilted DOWN; drag-left spun
-  // the wrong way). The rotate delta is multiplied by rotateSpeed, so a negative
-  // value flips both _rotateLeft + _rotateUp: drag-up now tilts up, drag-left
-  // spins left — natural. Magnitude unchanged.
-  controls.rotateSpeed = -0.9;
+  // ORBIT FIX — with the model rendered Y-up and camera.up at the OrbitControls
+  // default (0,1,0), the drag sense is naturally correct, so rotateSpeed is a
+  // plain positive magnitude again (the previous negative value was a workaround
+  // for the camera.up=(0,0,1) quaternion inversion that we've now removed).
+  controls.rotateSpeed = 0.9;
   controls.zoomSpeed   = 1.2;
   controls.panSpeed    = 1.0;
   // Stop the user from rolling the camera under the model.
@@ -806,6 +803,7 @@ THREE.ColorManagement.enabled = false;
   const measureGroup = new THREE.Group(); scene.add(measureGroup);
 
   let modelRoot = null;
+  let modelPivot = null;    // ORBIT FIX — Y-up rotation wrapper around modelRoot
   let modelReady = false;   // BLK-5 — meeting co-presence waits on this
   let modelBounds = new THREE.Box3();
   // BUG 1 — recenter offset. On load the model root is translated by
@@ -817,8 +815,34 @@ THREE.ColorManagement.enabled = false;
   // (toScene, for IN placements). The host therefore still works entirely in
   // true world coordinates — the recenter is invisible to it.
   const modelOffset = new THREE.Vector3(0, 0, 0);
-  const toWorld = (a) => [a[0] + modelOffset.x, a[1] + modelOffset.y, a[2] + modelOffset.z];
-  const toScene = (a) => [a[0] - modelOffset.x, a[1] - modelOffset.y, a[2] - modelOffset.z];
+  // ORBIT FIX — definitive. Revit/IFC GLBs are Z-up, but stock OrbitControls is
+  // only rock-solid with the DEFAULT up (0,1,0); forcing camera.up to world-Z
+  // rolls/gimbals the camera near the up axis (the "drag-up rotates anti-clockwise
+  // + drift" symptom). Instead we rotate the RENDERED model Z-up → Y-up (a -90°
+  // turn about X, so Z→Y) via a parent pivot and let OrbitControls run at its
+  // native (0,1,0). The model root itself keeps its federation transform + the
+  // recenter UNCHANGED, in true Z-up world space, so the host bridge below is
+  // untouched apart from the rotation round-trip.
+  const Z_UP_TO_Y_UP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  const Y_UP_TO_Z_UP = Z_UP_TO_Y_UP.clone().invert();
+  // rendered (Y-up) → true world (Z-up): un-rotate, then add the recenter offset.
+  const toWorld = (a) => {
+    const v = new THREE.Vector3(a[0], a[1], a[2]).applyQuaternion(Y_UP_TO_Z_UP).add(modelOffset);
+    return [v.x, v.y, v.z];
+  };
+  // true world (Z-up) → rendered (Y-up): subtract the offset, then rotate.
+  const toScene = (a) => {
+    const v = new THREE.Vector3(a[0] - modelOffset.x, a[1] - modelOffset.y, a[2] - modelOffset.z)
+      .applyQuaternion(Z_UP_TO_Y_UP);
+    return [v.x, v.y, v.z];
+  };
+  // Direction-only variants (no translation) — for section-plane normals etc.
+  // that are expressed in true Z-up world axes and must align with the rendered
+  // scene. Exposed on STING_VIEWER so viewer-extras can reuse them.
+  const worldDirToScene = (a) => {
+    const v = new THREE.Vector3(a[0], a[1], a[2]).applyQuaternion(Z_UP_TO_Y_UP);
+    return [v.x, v.y, v.z];
+  };
   let elementMap = null;
   let pinMeta = new Map();
   let measurePoints = [];
@@ -836,7 +860,7 @@ THREE.ColorManagement.enabled = false;
     loader.load(
       url,
       (gltf) => {
-        if (modelRoot) scene.remove(modelRoot);
+        if (modelPivot) scene.remove(modelPivot);
         modelRoot = gltf.scene;
         assignElementIds(modelRoot);
         // BLK-2 — federation: apply the project-stored coordinate transform
@@ -845,27 +869,38 @@ THREE.ColorManagement.enabled = false;
         // transform is absent / unconfirmed / identity (the common single-
         // model case), so existing projects are unaffected.
         applyModelTransform(modelRoot, transform);
-        scene.add(modelRoot);
-        modelBounds.setFromObject(modelRoot);
         // BUG 1 — recenter the model to the origin. Survey-coordinated
         // buildings can sit tens of km from 0,0,0 (e.g. X 6557m Y 10940m
         // Z 6803m); at that distance float depth precision fails and faces
-        // flicker. Translate the root by -centre and remember the centre as
-        // modelOffset so true world coords are recovered at the host bridge.
+        // flicker. The recenter happens in TRUE Z-up world space (modelRoot is
+        // not yet parented to the Y-up pivot), so modelOffset stays a true-world
+        // Z-up vector and the host bridge (toWorld/toScene) is unaffected.
+        modelRoot.updateMatrixWorld(true);
+        modelBounds.setFromObject(modelRoot);   // true Z-up world bounds
         const _centre = modelBounds.getCenter(new THREE.Vector3());
         modelRoot.position.sub(_centre);
         modelRoot.updateMatrixWorld(true);
         modelOffset.copy(_centre);
-        modelBounds.setFromObject(modelRoot);   // recompute: now origin-centred
+        // ORBIT FIX — wrap the recentred Z-up model in a pivot rotated to Y-up
+        // so stock OrbitControls runs at its native (0,1,0). modelRoot stays
+        // Z-up internally; only the rendered orientation changes.
+        modelPivot = new THREE.Group();
+        modelPivot.name = 'sting-modelPivot';
+        modelPivot.quaternion.copy(Z_UP_TO_Y_UP);
+        modelPivot.add(modelRoot);
+        modelPivot.updateMatrixWorld(true);
+        scene.add(modelPivot);
+        modelBounds.setFromObject(modelRoot);   // recompute: now Y-up, origin-centred
         fitCamera();
         const el = document.getElementById('bootLoader');
         if (el) el.style.display = 'none';
         markModelReady();
         bridge.send('loaded', {
           elementCount: countMeshes(modelRoot),
-          // Report TRUE world bounds (add the offset back) so the host's
-          // extent display stays in survey coordinates.
-          bounds: bbToArray(modelBounds, modelOffset)
+          // Report TRUE world (Z-up) bounds so the host's extent display stays in
+          // survey coordinates. modelBounds is now the rendered (Y-up) AABB, so map
+          // its 8 corners through toWorld and re-AABB them.
+          bounds: trueWorldBounds(modelBounds)
         });
       },
       (progress) => {
@@ -929,15 +964,14 @@ THREE.ColorManagement.enabled = false;
     const centre = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
     const dist = maxDim * 1.8;
-    // BUG 2 — IFC/Revit are Z-up. Lock camera.up to world-Z (no bbox guess) so
-    // OrbitControls maps vertical drag → polar (tilt) and horizontal → azimuth
-    // (spin). Frame from the south (Y-) and slightly above (Z+) so the longest
-    // horizontal axis reads left-to-right.
-    camera.up.set(0, 0, 1);
-    if (Math.abs(size.x) >= Math.abs(size.y)) {
-      camera.position.copy(centre).add(new THREE.Vector3(0, -dist * 0.8, dist * 0.6));
+    // ORBIT FIX — the model is now rendered Y-up (vertical = world Y), so we do
+    // NOT touch camera.up; it stays at OrbitControls' rock-solid default (0,1,0).
+    // Frame from above (+Y) and in front (+Z), looking down the shorter horizontal
+    // axis so the longest horizontal axis reads left-to-right.
+    if (Math.abs(size.x) >= Math.abs(size.z)) {
+      camera.position.copy(centre).add(new THREE.Vector3(0, dist * 0.55, dist * 0.85));
     } else {
-      camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, 0, dist * 0.6));
+      camera.position.copy(centre).add(new THREE.Vector3(dist * 0.85, dist * 0.55, 0));
     }
     controls.target.copy(centre);
     // BUG 1 — tighten near/far from the WHOLE-model size (not the sub-target,
@@ -1191,10 +1225,12 @@ THREE.ColorManagement.enabled = false;
     const PRIORITY = { CRITICAL: 0xEF4444, HIGH: 0xF97316, MEDIUM: 0xF59E0B, LOW: 0x60A5FA };
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: PRIORITY[priority] || 0x60A5FA, depthTest: false }));
     const scale = modelBounds.isEmpty() ? 1 : modelBounds.getSize(new THREE.Vector3()).length() * 0.012;
-    // Pin coords arrive in TRUE world (issue anchors from the server) — shift
-    // into the recentred render space so the pin lands on the model.
+    // Pin coords arrive in TRUE world (Z-up, issue anchors from the server) —
+    // toScene shifts AND rotates them into the recentred Y-up render space so the
+    // pin lands on the model (pinGroup is a direct child of scene, not the pivot).
     sprite.scale.set(scale, scale, scale);
-    sprite.position.set(x - modelOffset.x, y - modelOffset.y, z - modelOffset.z);
+    const ps = toScene([x, y, z]);
+    sprite.position.set(ps[0], ps[1], ps[2]);
     pinGroup.add(sprite); pinMeta.set(sprite.uuid, { issueId: id, priority });
   }
   function clearPins() { while (pinGroup.children.length) pinGroup.remove(pinGroup.children[0]); pinMeta.clear(); }
@@ -1406,14 +1442,27 @@ THREE.ColorManagement.enabled = false;
     const o = off || { x: 0, y: 0, z: 0 };
     return [b.min.x + o.x, b.min.y + o.y, b.min.z + o.z, b.max.x + o.x, b.max.y + o.y, b.max.z + o.z];
   }
+  // ORBIT FIX — map a rendered (Y-up) AABB to a true-world (Z-up) AABB by sending
+  // its 8 corners through toWorld and re-bounding. Used for the host 'loaded' report.
+  function trueWorldBounds(b) {
+    if (!b || b.isEmpty()) return [0, 0, 0, 0, 0, 0];
+    const mn = b.min, mx = b.max;
+    let nx = Infinity, ny = Infinity, nz = Infinity, Mx = -Infinity, My = -Infinity, Mz = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      const w = toWorld([(i & 1) ? mx.x : mn.x, (i & 2) ? mx.y : mn.y, (i & 4) ? mx.z : mn.z]);
+      nx = Math.min(nx, w[0]); ny = Math.min(ny, w[1]); nz = Math.min(nz, w[2]);
+      Mx = Math.max(Mx, w[0]); My = Math.max(My, w[1]); Mz = Math.max(Mz, w[2]);
+    }
+    return [nx, ny, nz, Mx, My, Mz];
+  }
 
   // Level the camera: keep current position and yaw, zero out pitch so the
   // view is perfectly horizontal. Works for Z-up (Revit) and Y-up models.
   function levelCamera() {
     if (modelBounds.isEmpty()) return;
-    // BUG 2 — IFC/Revit are Z-up; lock it (no bbox guess) to match fitCamera.
-    const up = new THREE.Vector3(0, 0, 1);
-    camera.up.copy(up);
+    // ORBIT FIX — model is rendered Y-up; the horizon plane is perpendicular to
+    // world-Y. camera.up stays the OrbitControls default (0,1,0) — do not override.
+    const up = new THREE.Vector3(0, 1, 0);
     // Project the current look direction onto the horizontal plane.
     const fwd = new THREE.Vector3();
     camera.getWorldDirection(fwd);
@@ -1444,6 +1493,12 @@ THREE.ColorManagement.enabled = false;
     // downstream scripts (viewer-extras area measure) can convert rendered
     // coords back to true world coords.
     get modelOffset()     { return modelOffset; },
+    get modelPivot()      { return modelPivot; },
+    // ORBIT FIX — full rendered(Y-up) ↔ true-world(Z-up) bridge, rotation-aware.
+    // Downstream scripts (viewer-extras measure / sections) must use THESE, not
+    // a bare modelOffset add, now that the rendered scene is rotated.
+    toWorld, toScene, worldDirToScene,
+    get upQuaternion()    { return Z_UP_TO_Y_UP; },   // Z-up → Y-up (federation rotation)
     get highlightedMesh() { return highlightedMesh; },
     // R13 — expose pinGroup + pinMeta so the coordination layer can add
     // its own pins to the same pipeline the engine raycasts. The engine

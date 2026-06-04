@@ -31,10 +31,15 @@
         group.add(gltf.scene);
         merged.expandByObject(gltf.scene);
         if (--remaining === 0) {
+          // ORBIT FIX — rotate the whole federated group Z-up → Y-up to match the
+          // single-model pivot, so OrbitControls runs at its native (0,1,0).
+          if (h.upQuaternion) {
+            group.quaternion.copy(h.upQuaternion);
+            group.updateMatrixWorld(true);
+            merged.setFromObject(group);   // recompute bounds in the rotated (Y-up) space
+          }
           h.modelRoot = group;
           h.modelBounds = merged;
-          // fitCamera() now sets camera.up based on dominant vertical axis,
-          // so no separate up-axis sync is needed here.
           h.fitCamera();
           h.bridge.send('loaded', {
             elementCount: countMeshes(group),
@@ -52,9 +57,13 @@
   ext.setSectionPlane = function ({ normal, offset, enabled }) {
     const h = host(); if (!h) return;
     if (!enabled) { h.renderer.clippingPlanes = []; return; }
-    const n = (normal && normal.length === 3)
-      ? new THREE.Vector3(normal[0], normal[1], normal[2]).normalize()
-      : new THREE.Vector3(0, -1, 0);
+    // ORBIT FIX — section normals arrive in TRUE world (Z-up) building axes; the
+    // rendered scene is Y-up, so rotate the normal into scene space (e.g. a Revit
+    // 'Z'/vertical cut stays vertical on screen). modelBounds below is already in
+    // rendered space, so the offset/constant math stays consistent.
+    let na = (normal && normal.length === 3) ? [normal[0], normal[1], normal[2]] : [0, 0, -1];
+    if (typeof h.worldDirToScene === 'function') na = h.worldDirToScene(na);
+    const n = new THREE.Vector3(na[0], na[1], na[2]).normalize();
     if (n.lengthSq() < 1e-9) n.set(0, -1, 0);
     const sz = h.modelBounds.getSize(new THREE.Vector3());
     const c  = h.modelBounds.getCenter(new THREE.Vector3());
@@ -120,10 +129,9 @@
   let walkUp = new THREE.Vector3(0, 1, 0);
 
   function pickUpAxis(sz) {
-    const ax = Math.abs(sz.x), ay = Math.abs(sz.y), az = Math.abs(sz.z);
-    if (az <= ax && az <= ay) return new THREE.Vector3(0, 0, 1);
-    if (ay <= ax && ay <= az) return new THREE.Vector3(0, 1, 0);
-    return new THREE.Vector3(1, 0, 0);
+    // ORBIT FIX — the model is now rendered Y-up (the host rotates Z-up → Y-up),
+    // so first-person walk is always level against world-Y. No more bbox guess.
+    return new THREE.Vector3(0, 1, 0);
   }
 
   function eyeFromBounds(b) {
@@ -261,13 +269,15 @@
     const h = host(); if (!h || !areaGroup || areaPoints.length < 3) return;
     drawSegment(areaGroup, areaPoints[areaPoints.length - 1], areaPoints[0], 0x66bb6a);
     const a = polygonArea3D(areaPoints);
-    // Area points are drawn in the recentred render space; report them back in
-    // TRUE world coords (add the host's recenter offset) so the host stays in
-    // survey coordinates. The area value itself is translation-invariant.
-    const off = (h.modelOffset) || { x: 0, y: 0, z: 0 };
+    // Area points are drawn in the recentred + Y-up-rotated render space; report
+    // them back in TRUE world (Z-up) coords via the host bridge so the host stays
+    // in survey coordinates. The area value itself is rotation/translation-invariant.
+    const toW = (typeof h.toWorld === 'function')
+      ? h.toWorld
+      : (a3) => { const o = h.modelOffset || { x: 0, y: 0, z: 0 }; return [a3[0] + o.x, a3[1] + o.y, a3[2] + o.z]; };
     h.bridge.send('measureArea', {
       area: a,
-      points: areaPoints.map(v => [v.x + off.x, v.y + off.y, v.z + off.z])
+      points: areaPoints.map(v => toW([v.x, v.y, v.z]))
     });
     areaPoints = [];
   };
@@ -362,7 +372,19 @@
   ext.tickFps = function () { attachRafSampler(); };
 
   function countMeshes(o) { let n = 0; o.traverse(x => { if (x.isMesh) n++; }); return n; }
-  function bbToArray(b) { return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z]; }
+  // ORBIT FIX — merged bounds are in the rendered (Y-up) space; map the 8 corners
+  // through the host's toWorld so the reported bounds stay true-world (Z-up).
+  function bbToArray(b) {
+    const h = host();
+    if (!h || typeof h.toWorld !== 'function') return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z];
+    let nx = Infinity, ny = Infinity, nz = Infinity, Mx = -Infinity, My = -Infinity, Mz = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      const w = h.toWorld([(i & 1) ? b.max.x : b.min.x, (i & 2) ? b.max.y : b.min.y, (i & 4) ? b.max.z : b.min.z]);
+      nx = Math.min(nx, w[0]); ny = Math.min(ny, w[1]); nz = Math.min(nz, w[2]);
+      Mx = Math.max(Mx, w[0]); My = Math.max(My, w[1]); Mz = Math.max(Mz, w[2]);
+    }
+    return [nx, ny, nz, Mx, My, Mz];
+  }
 
   // ════════════════════════════════════════════════════════════════════════
   // 3D MARKUP — text · arrow · freehand draw · revision cloud · dimension ·
