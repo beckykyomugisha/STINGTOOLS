@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - 'StingTools/**'
-      - 'tools/revit-stubs/**'
       - 'StingTools.Standards/**'
       - 'Planscape.Server/src/Planscape.Shared/**'
       - 'Planscape.Server/src/Planscape.PluginSync/**'
@@ -14,7 +13,6 @@ on:
     branches: [main]
     paths:
       - 'StingTools/**'
-      - 'tools/revit-stubs/**'
       - 'StingTools.Standards/**'
       - '.github/workflows/stingtools-plugin.yml'
 
@@ -49,25 +47,50 @@ jobs:
           python3 - <<'EOF'
           import re, sys, collections
 
-          seen = collections.defaultdict(list)
+          # MR_PARAMETERS.csv is, BY DESIGN, a 1:1 mirror of MR_PARAMETERS.txt
+          # (same parameter set, same GUIDs). A real duplicate is the SAME GUID
+          # appearing twice WITHIN one file. The previous check pooled GUIDs from
+          # both files into one dict, so every GUID looked "duplicated" (once in
+          # the .txt, once in its .csv mirror) — a false positive that failed on
+          # all 3286 params. Scope the duplicate check PER FILE; additionally
+          # verify the two files mirror each other (same GUID set).
           guid_re = re.compile(r'\b([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\b')
 
-          for path in ['StingTools/Data/MR_PARAMETERS.txt', 'StingTools/Data/MR_PARAMETERS.csv']:
+          paths = ['StingTools/Data/MR_PARAMETERS.txt', 'StingTools/Data/MR_PARAMETERS.csv']
+          FAIL = 0
+          per_file_sets = {}
+          for path in paths:
+              seen = collections.defaultdict(list)
               try:
                   for i, line in enumerate(open(path), 1):
                       for guid in guid_re.findall(line):
-                          seen[guid.lower()].append(f'{path}:{i}')
+                          seen[guid.lower()].append(i)
               except FileNotFoundError:
-                  pass
+                  continue
+              per_file_sets[path] = set(seen)
+              dupes = {g: lines for g, lines in seen.items() if len(lines) > 1}
+              if dupes:
+                  for guid, lines in dupes.items():
+                      print(f'❌ Duplicate GUID {guid} within {path}: lines {lines}')
+                  FAIL = 1
+              else:
+                  print(f'✓ {path}: no within-file duplicate GUIDs ({len(seen)} unique)')
 
-          dupes = {g: locs for g, locs in seen.items() if len(locs) > 1}
-          if dupes:
-              for guid, locs in dupes.items():
-                  print(f'❌ Duplicate GUID {guid}:')
-                  for loc in locs:
-                      print(f'   {loc}')
-              sys.exit(1)
-          print(f'✓ No duplicate GUIDs ({len(seen)} unique)')
+          # Mirror-integrity check: the .csv must carry the same GUID set as the .txt.
+          if len(per_file_sets) == 2:
+              a, b = per_file_sets[paths[0]], per_file_sets[paths[1]]
+              only_txt, only_csv = a - b, b - a
+              if only_txt or only_csv:
+                  if only_txt:
+                      print(f'❌ {len(only_txt)} GUID(s) in .txt missing from the .csv mirror: '
+                            f'{sorted(only_txt)[:5]}')
+                  if only_csv:
+                      print(f'❌ {len(only_csv)} GUID(s) in .csv missing from the .txt source: '
+                            f'{sorted(only_csv)[:5]}')
+                  FAIL = 1
+              else:
+                  print(f'✓ .txt/.csv mirror in sync ({len(a)} GUIDs)')
+          sys.exit(FAIL)
           EOF
 
       - name: Validate CSV structure (required columns)
@@ -75,25 +98,43 @@ jobs:
           python3 - <<'EOF'
           import csv, sys, os
 
+          # Required columns are the ACTUAL column names in each file's real
+          # header. The previous values were stale (e.g. 'ScheduleName' vs the
+          # real 'Schedule_Name'; 'StingCategory'/'COBieType' which COBIE_TYPE_MAP
+          # has never had — it uses the COBie Type-sheet schema TypeCode/TypeName/
+          # Category). This check never actually ran on CI because the earlier
+          # duplicate-GUID step aborted the job first, so the drift went unseen.
+          # Several STING CSVs also start with a `#` comment banner, so skip
+          # leading comment/blank lines before reading the header.
           REQUIRED_COLS = {
-            'MR_SCHEDULES.csv': {'ScheduleName', 'Category', 'Discipline'},
-            'COBIE_TYPE_MAP.csv': {'StingCategory', 'COBieType'},
-            'TAG_STYLE_RULES.json': None,  # JSON, skip
+            'MR_SCHEDULES.csv': {'Schedule_Name', 'Category', 'Discipline'},
+            'COBIE_TYPE_MAP.csv': {'TypeCode', 'TypeName', 'Category'},
           }
+
+          def read_header(path):
+              with open(path, encoding='utf-8') as f:
+                  for row in csv.reader(f):
+                      if not row:
+                          continue
+                      first = (row[0] or '').lstrip('﻿').strip()
+                      if first.startswith('#') or first == '':
+                          continue   # comment / blank banner line
+                      return [c.lstrip('﻿').strip() for c in row]
+              return []
+
           FAIL = 0
           for fname, cols in REQUIRED_COLS.items():
-              if cols is None:
-                  continue
               path = f'StingTools/Data/{fname}'
               if not os.path.exists(path):
                   continue
               try:
-                  with open(path) as f:
-                      header = next(csv.reader(f))
+                  header = read_header(path)
                   missing = cols - set(header)
                   if missing:
-                      print(f'❌ {fname} missing columns: {missing}')
+                      print(f'❌ {fname} missing columns: {missing} (header: {header[:8]}…)')
                       FAIL = 1
+                  else:
+                      print(f'✓ {fname}: required columns present')
               except Exception as e:
                   print(f'❌ {fname}: {e}')
                   FAIL = 1
@@ -141,7 +182,7 @@ jobs:
             echo "Total: $TOTAL (target < 200KB)" >> $GITHUB_STEP_SUMMARY
           fi
 
-  # ── 3. Plugin build (Windows, uses stubs from tools/revit-stubs/ if present) ─
+  # ── 3. Plugin build (Windows, real Revit 2025 reference assemblies from NuGet) ─
   build:
     name: Build StingTools Plugin
     # Windows required — UseWPF=true and UseWindowsForms=true need Windows SDK
@@ -155,31 +196,11 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      # ── Step 1: Build Revit API stubs ───────────────────────────────────────
-      # The real Revit API DLLs ship only with Autodesk Revit (not redistributable).
-      # We maintain a set of minimal type-only stubs in tools/revit-stubs/ so the
-      # plugin can be compiled for CI. The stubs are compile-time-only — at runtime
-      # Revit loads the real assemblies from its own installation directory.
-      - name: Build Revit API stubs
-        run: |
-          $stubsDir = "tools\revit-stubs"
-          $outDir   = "$stubsDir\bin"
-          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-
-          # Build RevitAPI stub
-          dotnet build "$stubsDir\RevitAPI\RevitAPI.csproj" `
-            --configuration Release `
-            --output $outDir `
-            --nologo `
-            -v minimal
-
-          # Build RevitAPIUI stub (depends on RevitAPI)
-          dotnet build "$stubsDir\RevitAPIUI\RevitAPIUI.csproj" `
-            --configuration Release `
-            --output $outDir `
-            --nologo `
-            -v minimal
-        shell: pwsh
+      # The plugin compiles against the REAL Revit 2025 reference assemblies
+      # (Nice3point.Revit.Api.RevitAPI / .RevitAPIUI 2025.x) restored from NuGet —
+      # see StingTools.csproj. No local Revit install + no $(RevitApiPath) here, so
+      # the csproj's UseRevitNuget path kicks in. The hand-written stubs under
+      # tools/revit-stubs/ are RETIRED (no longer built or referenced by CI).
 
       # ── Step 2: Restore NuGet packages for dependent projects ───────────────
       - name: Restore dependencies (Planscape.Shared)
@@ -195,18 +216,15 @@ jobs:
         shell: pwsh
 
       - name: Restore dependencies (StingTools plugin)
-        run: |
-          dotnet restore StingTools/StingTools.csproj `
-            -p:RevitApiStubsDir="${{ github.workspace }}\tools\revit-stubs\bin"
+        run: dotnet restore StingTools/StingTools.csproj
         shell: pwsh
 
       # ── Step 3: Build the plugin ────────────────────────────────────────────
-      - name: Build StingTools plugin (with stubs)
+      - name: Build StingTools plugin (real Revit reference assemblies)
         run: |
           dotnet build StingTools/StingTools.csproj `
             --configuration Release `
             --no-restore `
-            -p:RevitApiStubsDir="${{ github.workspace }}\tools\revit-stubs\bin" `
             --nologo `
             -v minimal
         shell: pwsh

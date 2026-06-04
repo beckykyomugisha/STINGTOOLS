@@ -60,7 +60,7 @@ export class OfflineQueue {
     if (this.draining) return;
     this.draining = true;
     try {
-      let queue = await this.load();
+      const queue = await this.load();
       const remaining: QueuedAction[] = [];
       for (const action of queue) {
         try {
