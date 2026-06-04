@@ -42,20 +42,29 @@ public class GeofenceValidationService : IGeofenceValidationService
             using var doc = JsonDocument.Parse(geoJson);
             var root = doc.RootElement;
 
-            // Support both bare coordinate arrays and GeoJSON Polygon
+            // Support both a bare coordinate ring (`[[lon,lat],…]`, what the
+            // project seed + ProjectSettings store) and a GeoJSON Polygon
+            // (`{ "type":"Polygon", "coordinates":[[[lon,lat],…]] }`).
+            //
+            // BUGFIX: JsonElement.TryGetProperty THROWS InvalidOperationException
+            // when called on anything other than an Object. The old code called
+            // it FIRST, so a bare-array boundary threw, was caught below, and
+            // failed closed — i.e. geofence ALWAYS denied (every in-bounds point
+            // 403'd) for the array format. Branch on ValueKind first.
             JsonElement coordinates;
-            if (root.TryGetProperty("coordinates", out var coords))
+            if (root.ValueKind == JsonValueKind.Array)
+            {
+                coordinates = root; // bare outer ring
+            }
+            else if (root.ValueKind == JsonValueKind.Object
+                     && root.TryGetProperty("coordinates", out var coords))
             {
                 if (coords.ValueKind != JsonValueKind.Array || coords.GetArrayLength() == 0)
                 {
                     _logger.LogWarning("Geofence boundary has empty coordinates — failing closed");
                     return false;
                 }
-                coordinates = coords[0]; // outer ring of Polygon
-            }
-            else if (root.ValueKind == JsonValueKind.Array)
-            {
-                coordinates = root;
+                coordinates = coords[0]; // outer ring of the GeoJSON Polygon
             }
             else
             {
