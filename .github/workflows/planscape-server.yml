@@ -117,7 +117,12 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: Planscape.Server
+          # Context = repo root: the Dockerfile COPYs repo-root paths
+          # (Planscape/assets/viewer/, Planscape.Server/src/**, COPY . .) and is
+          # documented "Build context is the STINGTOOLS repo root" (matches
+          # docker-compose's context: ../..). 'Planscape.Server' was wrong and
+          # made every COPY fail "not found".
+          context: .
           file: Planscape.Server/docker/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
