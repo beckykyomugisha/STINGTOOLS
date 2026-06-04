@@ -90,6 +90,18 @@ namespace StingTools.Commands.IFC
             var buffers = new List<ClashMeshBuffer>(bufferMap.Values);
             StingLog.Info($"IFC_PushModel: extracted {buffers.Count} element meshes, serialising to GLB…");
 
+            // H-1 — build the cross-host /ifc/data element payload on the Revit
+            // API thread (ParameterHelpers reads must run here, not on the
+            // background thread). This is the producer that feeds the server's
+            // ExternalElementMapping (host="revit") so a Revit element resolves
+            // cross-host by IFC GlobalId. Elements with an empty IFC_GLOBAL_ID_TXT
+            // are skipped (skip-don't-mis-key) — run "Stabilize IFC GUIDs" first
+            // to populate the canonical 22-char key.
+            var ifcElements = BuildIfcElements(doc);
+            string hostDocGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
+            string revitUser = uiApp.Application?.Username ?? "";
+            StingLog.Info($"IFC_PushModel: built {ifcElements.Count} IFC-data element(s) with a stabilised GlobalId.");
+
             // Serialise + upload on a background thread so Revit stays responsive
             _ = Task.Run(async () =>
             {
@@ -100,8 +112,30 @@ namespace StingTools.Commands.IFC
 
                     bool ok = await client.PostGeometryDeltaAsync(glb, System.Array.Empty<int>());
                     StingLog.Info(ok
-                        ? $"IFC_PushModel: upload succeeded ({glb.Length / 1024:N0} kB)"
-                        : $"IFC_PushModel: upload failed — {client.LastError}");
+                        ? $"IFC_PushModel: geometry upload succeeded ({glb.Length / 1024:N0} kB)"
+                        : $"IFC_PushModel: geometry upload failed — {client.LastError}");
+
+                    // H-1 — push the cross-host element identity payload to
+                    // /api/projects/{id}/ifc/data (host="revit"). No-ops when no
+                    // element carries a stabilised GlobalId (nothing to map).
+                    if (ifcElements.Count > 0)
+                    {
+                        var resp = await client.PushIfcDataAsync(
+                            client.CurrentProjectId, ifcElements,
+                            host: "revit", hostDocumentGuid: hostDocGuid, userName: revitUser);
+                        if (resp != null)
+                            StingLog.Info(
+                                $"IFC_PushModel: /ifc/data push OK — newMappings={resp["newMappings"]} " +
+                                $"updatedMappings={resp["updatedMappings"]} newElements={resp["newElements"]} " +
+                                $"updatedElements={resp["updatedElements"]} skipped={resp["skipped"]}");
+                        else
+                            StingLog.Warn($"IFC_PushModel: /ifc/data push failed — {client.LastError}");
+                    }
+                    else
+                    {
+                        StingLog.Info("IFC_PushModel: no stabilised IFC GlobalIds — skipping /ifc/data push. " +
+                                      "Run 'Stabilize IFC GUIDs' to enable cross-host mapping.");
+                    }
                 }
                 catch (Exception ex2)
                 {
@@ -109,10 +143,75 @@ namespace StingTools.Commands.IFC
                 }
             });
 
+            string ifcNote = ifcElements.Count > 0
+                ? $"\nPlus {ifcElements.Count:N0} element(s) to the cross-host registry (host=revit)."
+                : "\n(No stabilised IFC GlobalIds yet — run 'Stabilize IFC GUIDs' for cross-host mapping.)";
             TaskDialog.Show("Push to Planscape",
-                $"Uploading {buffers.Count:N0} elements in the background.\n" +
+                $"Uploading {buffers.Count:N0} elements in the background.{ifcNote}\n" +
                 $"Check the Planscape web viewer in a few moments.");
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// H-1 — build the <c>/ifc/data</c> element payload (server
+        /// <c>IfcElementDto</c> shape, camelCase). One object per element that
+        /// carries a stabilised <c>IFC_GLOBAL_ID_TXT</c>; elements without one
+        /// are skipped so the server never keys a mapping on a wrong id
+        /// (skip-don't-mis-key, matching IfcIngestService). Must be called on the
+        /// Revit API thread (reads element parameters).
+        /// </summary>
+        private static List<object> BuildIfcElements(Document doc)
+        {
+            var list = new List<object>();
+            using var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            foreach (Element el in collector)
+            {
+                string ifcGid = ParameterHelpers.GetString(el, "IFC_GLOBAL_ID_TXT") ?? "";
+                if (string.IsNullOrWhiteSpace(ifcGid)) continue;   // skip-don't-mis-key
+
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "";
+                string loc  = ParameterHelpers.GetString(el, ParamRegistry.LOC)  ?? "";
+                string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE) ?? "";
+                string lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL)  ?? "";
+                string sys  = ParameterHelpers.GetString(el, ParamRegistry.SYS)  ?? "";
+                string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC) ?? "";
+                string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
+                string seq  = ParameterHelpers.GetString(el, ParamRegistry.SEQ)  ?? "";
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1) ?? "";
+                string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS) ?? "";
+                string rev  = ParameterHelpers.GetString(el, ParamRegistry.REV)  ?? "";
+                string cat  = ParameterHelpers.GetCategoryName(el) ?? "";
+                string fam  = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
+                string typeName = "";
+                try { typeName = doc.GetElement(el.GetTypeId())?.Name ?? ""; } catch { /* type may be invalid */ }
+
+                bool isComplete      = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
+                bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
+
+                list.Add(new
+                {
+                    ifcGlobalId      = ifcGid,
+                    hostElementId    = el.Id.Value.ToString(),
+                    hostDisplayLabel = string.IsNullOrEmpty(tag1) ? (el.Name ?? "") : tag1,
+                    discipline       = disc,
+                    location         = loc,
+                    zone             = zone,
+                    level            = lvl,
+                    system           = sys,
+                    function         = func,
+                    product          = prod,
+                    sequence         = seq,
+                    fullTag          = tag1,
+                    categoryName     = cat,
+                    familyName       = fam,
+                    typeName         = typeName,
+                    status           = status,
+                    rev              = rev,
+                    isComplete       = isComplete,
+                    isFullyResolved  = isFullyResolved,
+                });
+            }
+            return list;
         }
     }
 }

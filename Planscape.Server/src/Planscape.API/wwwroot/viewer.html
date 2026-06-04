@@ -770,6 +770,7 @@ THREE.ColorManagement.enabled = false;
   const measureGroup = new THREE.Group(); scene.add(measureGroup);
 
   let modelRoot = null;
+  let modelReady = false;   // BLK-5 — meeting co-presence waits on this
   let modelBounds = new THREE.Box3();
   let elementMap = null;
   let pinMeta = new Map();
@@ -778,7 +779,7 @@ THREE.ColorManagement.enabled = false;
   let lastPickEl = null;
   let pressTimer = null;
 
-  function loadModel(url) {
+  function loadModel(url, transform) {
     const loader = new GLTFLoader();
     try {
       const v = window.STING_VIEWER;
@@ -791,11 +792,18 @@ THREE.ColorManagement.enabled = false;
         if (modelRoot) scene.remove(modelRoot);
         modelRoot = gltf.scene;
         assignElementIds(modelRoot);
+        // BLK-2 — federation: apply the project-stored coordinate transform
+        // (survey origin / true-north / scale) so this model lands in the
+        // shared world space alongside other hosts' models. No-op when the
+        // transform is absent / unconfirmed / identity (the common single-
+        // model case), so existing projects are unaffected.
+        applyModelTransform(modelRoot, transform);
         scene.add(modelRoot);
         modelBounds.setFromObject(modelRoot);
         fitCamera();
-        const loader = document.getElementById('bootLoader');
-        if (loader) loader.style.display = 'none';
+        const el = document.getElementById('bootLoader');
+        if (el) el.style.display = 'none';
+        markModelReady();
         bridge.send('loaded', {
           elementCount: countMeshes(modelRoot),
           bounds: bbToArray(modelBounds)
@@ -810,10 +818,39 @@ THREE.ColorManagement.enabled = false;
       },
       (err) => {
         console.error('[viewer] load fail', err);
-        const loader = document.getElementById('bootLoader');
-        if (loader) loader.querySelector('.msg').textContent = 'Failed to load model';
+        const el = document.getElementById('bootLoader');
+        if (el) { const m = el.querySelector('.msg'); if (m) m.textContent = 'Failed to load model'; }
+        // BLK-5 — unblock meeting co-presence even on a failed model load so
+        // the session connects (degraded) rather than waiting on modelReady.
+        markModelReady();
       }
     );
+  }
+
+  // BLK-2 — apply a stored ProjectModelTransform to a loaded model root.
+  // Translation is stored in mm (server contract); GLB geometry is metres,
+  // so convert ÷1000. Rotation is degrees about the project vertical (world Z).
+  // Composed as T·R·S. Guarded so absent / unconfirmed / identity transforms
+  // leave the model untouched.
+  function applyModelTransform(root, t) {
+    if (!root || !t) return;
+    const tx = (+t.translationX || 0), ty = (+t.translationY || 0), tz = (+t.translationZ || 0);
+    const rot = (+t.rotationDeg || 0);
+    const scale = (t.scaleFactor != null ? +t.scaleFactor : 1) || 1;
+    const confirmed = (t.isConfirmed !== false);   // default-confirmed if unspecified
+    const isIdentity = tx === 0 && ty === 0 && tz === 0 && rot === 0 && scale === 1;
+    if (!confirmed || isIdentity) return;
+    try {
+      root.scale.set(scale, scale, scale);
+      root.rotation.z = rot * Math.PI / 180;
+      root.position.set(tx / 1000, ty / 1000, tz / 1000);
+      root.updateMatrixWorld(true);
+    } catch (e) { console.warn('[viewer] transform apply failed', e); }
+  }
+
+  function markModelReady() {
+    modelReady = true;
+    try { window.dispatchEvent(new CustomEvent('sting:modelReady')); } catch (_) {}
   }
 
   function assignElementIds(root) {
@@ -1112,7 +1149,7 @@ THREE.ColorManagement.enabled = false;
   function handleCommand(cmd) {
     if (!cmd || !cmd.type) return;
     switch (cmd.type) {
-      case 'load':            loadModel(cmd.payload.url); break;
+      case 'load':            loadModel(cmd.payload.url, cmd.payload.transform); break;
       case 'elementMap':      elementMap = Object.assign(elementMap || {}, cmd.payload.map || {}); break;
       case 'setTool':         setTool(cmd.payload.tool); break;
       case 'fit':              fitCamera(); break;
@@ -1339,6 +1376,8 @@ THREE.ColorManagement.enabled = false;
     get activeOverlaySource() { return _activeOverlaySource; },
     get modelRoot()       { return modelRoot; },
     set modelRoot(v)       { modelRoot = v; },
+    get modelReady()      { return modelReady; },
+    markModelReady, applyModelTransform,
     get modelBounds()     { return modelBounds; },
     set modelBounds(v)     { modelBounds = v; },
     get highlightedMesh() { return highlightedMesh; },

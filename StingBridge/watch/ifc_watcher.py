@@ -12,6 +12,7 @@ Usage (from bridge.py):
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -188,11 +189,18 @@ class IFCDropHandler:
         # ── Sync to Planscape ─────────────────────────────────────────────────
         self._emit(f"Syncing {len(sync_payloads)} elements to Planscape…")
         from ..planscape.client import PlanscapeError
+        # H-3/identity — stable per-document id so the same IfcGlobalId in
+        # different source documents (federated / hot-linked models) keeps
+        # distinct ExternalElementMapping rows instead of overwriting one. The
+        # composite key is (ProjectId, IfcGlobalId, Host, HostDocumentGuid);
+        # leaving the doc guid null collapsed every federated doc together.
+        # Derived from the resolved file path (≤64 chars to match the column).
+        doc_guid = hashlib.sha1(str(path.resolve()).lower().encode("utf-8")).hexdigest()
         batch_size = 100
         for i in range(0, len(sync_payloads), batch_size):
             batch = sync_payloads[i: i + batch_size]
             try:
-                self._ps.ingest_ifc_data(batch, host="archicad")
+                self._ps.ingest_ifc_data(batch, host="archicad", host_document_guid=doc_guid)
                 result["synced"] += len(batch)
             except (PlanscapeError, Exception) as exc:
                 msg = f"Planscape sync batch {i // batch_size} failed: {exc}"

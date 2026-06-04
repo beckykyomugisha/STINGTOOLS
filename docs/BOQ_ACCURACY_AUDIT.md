@@ -84,6 +84,7 @@ reinforced concrete density 2400–2500.
 | Density (C30, **after V1 fix**) | 2450 kg/m³ | lookup `CONCRETE C30 DENSITY_KG_M3`, now reachable from the Revit name via `ResolveConcreteGradeKey` (was keyword 2400, −2 %) |
 | Mass | 0.504 × 2450 = 1235 kg | |
 | Carbon (C30, **after V1 fix**) | 0.480 × 300 = **144 kgCO₂e** (net qty for carbon, ICE per m³, lookup-resolved) | was 0.13 kg/kg × mass keyword path |
+| Carbon — unit dependency (R2-1) | **Before V8** the `Columns` rate was `each` ⇒ `EstimateVolumeM3` returned **0** ⇒ **0 kgCO₂e** (the each-unit zeroing bug). V8's m³ rate restored the m³ branch for columns; the R2-1 fix below now returns a real volume for ALL each-priced families so none report 0 carbon. | |
 | Cement check (C30) | 0.480 × 360 = 173 kg ≈ 3.5 bags | `MATERIAL_LOOKUP CONCRETE C30` |
 | Rate (`Columns`, **m³ after V8 fix**) | 1 924 000 UGX/m³ | `cost_rates_5d.csv` (was `each` @ 1 295 000) |
 | Cost | 0.504 × 1 924 000 = **969 696 UGX** | volumetric (NRM2); a 6 m column now costs 2× a 3 m one |
@@ -167,3 +168,30 @@ density 2450 + carbon 300 via the lookup (V1), and costs 0.504 m³ × 1 924 000 
 (`Columns` → m³). **Revised tally: of the 10 original fixes, 2 were inert (F3/F4 via
 V1, F8 via V7), 1 was wrong (F6 via V6), 1 was an internal contradiction (F7/F2 via
 V2); all are now corrected. F1/F2/F5/F10 confirmed good as shipped.**
+
+---
+
+## Review pass 2 — each-unit embodied-carbon zeroing
+
+**Date:** 2026-06-03 · **Branch:** `claude/upbeat-cori-vdOPA` · A separate
+concurrent session re-used the label "F1" for this carbon-zero bug, creating a
+clash with the Round-1 "F1" (the `×2300` carbon bug). To keep PR #287's audit
+coherent the new findings use the unambiguous `R2-n` prefix; **no existing F/V
+item is renumbered.** **Built without `dotnet build` verification (Linux
+sandbox) — verify in Revit before merge.**
+
+| R2 | Concern | Verdict | What changed in this pass |
+|---|---|---|---|
+| R2-1 | `EstimateVolumeM3` returned **0** for the `each` unit (and every non-m³/m²/m unit), so any per-m³ carbon factor multiplied by 0 ⇒ **0 embodied carbon** for every each-priced family: doors, windows, MEP equipment, fixtures, furniture, stairs, sprinklers, fire/comms devices. This silently zeroed most M/E/P + FF&E carbon and skewed the carbon-coverage score. | **BLOCK** | Added an each-element volume-recovery chain before the final `return 0`: (a) exposed volume parameter (`HOST_VOLUME_COMPUTED`, then generic `Volume`, ft³→m³); (b) actual solid geometry summed from `get_Geometry` (recurses one level into `GeometryInstance`, ft³→m³); (c) mass ÷ density fallback so the per-m³ factor still yields a number. Only a true point family with no geometry/mass returns 0. The m³/m²/m branches and the genuine per-kg (mass-multiplied) path are unchanged. New helpers `ReadElementVolumeM3` + `ReadGeometryVolumeM3` + `SumSolidVolumeFt3`. |
+| R2-2 | Earlier audit text implied the "cement content raised to BS 8500" fix changed a delivered BOQ quantity. | **INFO (honesty)** | There is **no `FormulaEngine.Lookup`** in the tree and **no cement/sand/aggregate line-item takeoff** — nothing reads `CEMENT_BAGS_PER_M3` / `SAND_RATIO` / `AGGREGATE_RATIO`. They are **reference-only** values for manual QS use. The cement-content correction improves the table's hand-read accuracy but changes **no** delivered quantity (the main concrete m³ line is untouched). Marked explicitly REFERENCE-ONLY in `MATERIAL_LOOKUP.csv` (v1.1 header). What IS live: `DENSITY_KG_M3` / `CARBON_KG_PER_M3` (carbon + density takeoff) and `STEEL_KG_PER_M3` (rebar via `AutoRebarEstimator`). |
+| R2-3 | Round-1 "F1" label re-used by a concurrent session for the carbon-zero bug. | **DOC** | Consolidated into ONE numbering: Round-1 findings keep `F1…F13`, review pass keeps `V1…V8`, this pass uses `R2-1…R2-3`. The carbon-zero bug is `R2-1` (NOT a second "F1"). |
+
+**Files touched (review pass 2):** `BOQ/BOQCostManager.cs`
+(each-unit volume recovery in `EstimateVolumeM3` + 3 new helpers),
+`Data/MATERIAL_LOOKUP.csv` (v1.1 reference-only header note).
+
+**Revised summary: 4 BLOCK, 5 WARN, 5 INFO findings + 1 honesty/doc clarification;
+all BLOCK + WARN fixed.** The Round-1 `×2300` carbon over-count (F1) and the
+Review-pass-2 each-unit carbon zeroing (R2-1) were the two carbon BLOCKs — both
+now fixed. After R2-1 every each-priced family (doors, AHUs, fixtures, …) returns
+non-zero embodied carbon.

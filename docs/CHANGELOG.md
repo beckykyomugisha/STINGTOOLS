@@ -3,6 +3,38 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ accuracy — review pass 2: each-unit carbon zeroing)
+
+Three corrections to the BOQ engine, appended as the "Review pass 2"
+section of [`BOQ_ACCURACY_AUDIT.md`](BOQ_ACCURACY_AUDIT.md). **Built
+without `dotnet build` verification (Linux sandbox) — verify in Revit
+before merge.**
+
+- **R2-1 (BLOCK)** `BOQCostManager.EstimateVolumeM3` returned 0 for the
+  `each` unit (and every non-m³/m²/m unit), so a per-m³ embodied-carbon
+  factor × 0 reported **zero carbon** for every each-priced family
+  (doors, windows, MEP equipment, fixtures, furniture, stairs,
+  sprinklers, fire/comms devices). Added an each-element volume-recovery
+  chain: (a) exposed volume parameter (`HOST_VOLUME_COMPUTED`, then
+  generic `Volume`), (b) actual solid geometry summed from
+  `get_Geometry` (recurses into `GeometryInstance`), (c) mass ÷ density
+  fallback. Only a true point family with no geometry/mass returns 0.
+  The m³/m²/m branches and the per-kg mass path are unchanged. New
+  helpers `ReadElementVolumeM3` / `ReadGeometryVolumeM3` /
+  `SumSolidVolumeFt3`.
+- **R2-2 (honesty)** Marked the concrete mix-ratio columns
+  (`CEMENT_BAGS_PER_M3`, `SAND_RATIO`, `AGGREGATE_RATIO`) explicitly
+  REFERENCE-ONLY in `MATERIAL_LOOKUP.csv` (v1.1 header). There is no
+  `FormulaEngine.Lookup` and no cement/sand/aggregate takeoff — nothing
+  consumes them, so the earlier "cement content raised to BS 8500" fix
+  changes NO delivered BOQ quantity (improves manual-QS accuracy only).
+  Live consumers: `DENSITY_KG_M3` / `CARBON_KG_PER_M3` (carbon + density)
+  and `STEEL_KG_PER_M3` (rebar via `AutoRebarEstimator`).
+- **R2-3 (doc)** Consolidated the audit into one numbering — Round-1
+  `F1…F13`, review pass `V1…V8`, this pass `R2-1…R2-3`. The carbon-zero
+  bug is `R2-1`, not a second "F1" (a concurrent session had re-used
+  that label).
+
 #### Completed (BOQ accuracy audit — verification + hardening pass)
 
 Independent re-verification of the 10 BOQ-audit fixes against the live

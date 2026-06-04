@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Planscape.Core.Constants;
 using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
@@ -22,9 +23,14 @@ namespace Planscape.Infrastructure.Services;
 public sealed class IfcIngestService : IIfcIngestService
 {
     private readonly PlanscapeDbContext _db;
+    private readonly ILogger<IfcIngestService>? _logger;
     private const int IngestBatchSize = 500;
 
-    public IfcIngestService(PlanscapeDbContext db) => _db = db;
+    public IfcIngestService(PlanscapeDbContext db, ILogger<IfcIngestService>? logger = null)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
     public async Task<int> UpsertMappingsAsync(
         Guid tenantId, Guid projectId, string host, string? hostDocumentGuid,
@@ -155,6 +161,29 @@ public sealed class IfcIngestService : IIfcIngestService
             warnings.Add($"{nonCanonicalVe} element(s) carried a ValidationErrors blob that does not " +
                          "parse as the canonical ValidationErrorDto[] shape ([{code,message,severity}]); " +
                          "stored verbatim — producers should converge on that shape.");
+
+        // Pre-merge Gate 3 — cross-host ingest instrumentation. Purely
+        // observational (no behaviour change). Emits the resolved cross-host
+        // KEY (IFC GlobalId) + HOST for each ingest so the cross-host
+        // validation checklist (docs/CROSS_HOST_VALIDATION_CHECKLIST.md) is
+        // grep-checkable: after a Revit push you can confirm
+        //   host=revit key=<22-char GlobalId>
+        // and after an ArchiCAD push that the SAME key lands with host=archicad.
+        // Keys are sampled (first 10) to keep large federated pushes from
+        // flooding the log; the count carries the full cardinality.
+        var resolvedKeys = request.Elements
+            .Select(e => e.IfcGlobalId)
+            .Where(g => !string.IsNullOrWhiteSpace(g))
+            .Distinct()
+            .ToList();
+        var sampleKeys = string.Join(", ", resolvedKeys.Take(10));
+        _logger?.LogInformation(
+            "[ifc-ingest] cross-host upsert host={Host} project={ProjectId} hostDoc={HostDocumentGuid} " +
+            "keys={KeyCount} newMappings={NewMappings} updMappings={UpdMappings} " +
+            "newElements={NewElements} updElements={UpdElements} skipped={Skipped} sampleKeys=[{SampleKeys}]",
+            host, projectId, request.HostDocumentGuid ?? "(none)",
+            resolvedKeys.Count, newMappings, updMappings,
+            newElements, updElements, skipped, sampleKeys);
 
         return new IfcIngestResponse
         {

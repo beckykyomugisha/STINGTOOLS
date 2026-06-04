@@ -361,6 +361,14 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.ProjectId);
             e.HasIndex(x => x.ContentHash);
+            // H-3 — duplicate model rows: dedup was app-level only, so two
+            // concurrent same-geometry uploads both INSERTed. This unique
+            // filtered index makes the DB the arbiter; the Upload handler
+            // catches the resulting DbUpdateException and returns the winner.
+            // Filtered on DeletedAt so re-uploading after a soft-delete is OK.
+            e.HasIndex(x => new { x.TenantId, x.ProjectId, x.ContentHash })
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
             e.Property(x => x.Name).HasMaxLength(200);
             e.Property(x => x.Description).HasMaxLength(1000);
             e.Property(x => x.Discipline).HasMaxLength(8);

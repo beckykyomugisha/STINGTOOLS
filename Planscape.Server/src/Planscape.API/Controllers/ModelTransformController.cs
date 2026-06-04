@@ -3,6 +3,7 @@ namespace Planscape.API.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -229,11 +230,9 @@ public class ModelTransformController : ControllerBase
         double minX, double minY, double minZ,
         double maxX, double maxY, double maxZ)
     {
-        var rotRad = t.RotationDeg * Math.PI / 180.0;
-        var cos    = Math.Cos(rotRad);
-        var sin    = Math.Sin(rotRad);
-
-        // All 8 corners of the input AABB
+        // All 8 corners of the input AABB, transformed via the ONE canonical
+        // ModelTransformMath (Z-up, mm, T·R·S) so the controller, the viewer,
+        // and the overlay test all share identical transform semantics.
         double[] xs = [minX, maxX, minX, maxX, minX, maxX, minX, maxX];
         double[] ys = [minY, minY, maxY, maxY, minY, minY, maxY, maxY];
         double[] zs = [minZ, minZ, minZ, minZ, maxZ, maxZ, maxZ, maxZ];
@@ -244,13 +243,11 @@ public class ModelTransformController : ControllerBase
 
         for (int i = 0; i < 8; i++)
         {
-            double sx = xs[i] * t.ScaleFactor;
-            double sy = ys[i] * t.ScaleFactor;
-            double sz = zs[i] * t.ScaleFactor;
-
-            newXs[i] = cos * sx - sin * sy + t.TranslationX;
-            newYs[i] = sin * sx + cos * sy + t.TranslationY;
-            newZs[i] = sz + t.TranslationZ;
+            var w = ModelTransformMath.ApplyMm(
+                t.TranslationX, t.TranslationY, t.TranslationZ,
+                t.RotationDeg, t.ScaleFactor,
+                xs[i], ys[i], zs[i]);
+            newXs[i] = w.X; newYs[i] = w.Y; newZs[i] = w.Z;
         }
 
         return (newXs.Min(), newYs.Min(), newZs.Min(),

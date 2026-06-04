@@ -885,30 +885,13 @@ builder.Services.AddRateLimiter(options =>
                 ConnectionMultiplexerFactory = () => redisMux,
             });
     });
-
-    // S7.6 — per-tenant policy. Budgets a tenant's whole organisation
-    // proportional to its plan so a buggy automation account on
-    // tenant A can't DoS the cluster for tenant B. Reads tenant id
-    // from JWT claim 'tenant_id' (set by AuthController on login);
-    // anonymous requests partition by IP as a fallback.
-    options.AddPolicy("per-tenant", context =>
-    {
-        var tenantId = context.User?.FindFirst("tenant_id")?.Value
-                       ?? context.Connection.RemoteIpAddress?.ToString()
-                       ?? "anon";
-        // Default budget: 600/min for paying tenants, 60/min for trial.
-        // Plan resolution happens in middleware (TenantContext is scoped),
-        // so we keep a simple bucket here and let the [Quota] attribute
-        // (S1.4) own plan-specific axes. This rate-limit is a 'cluster
-        // safety net' — not a feature gate.
-        return RateLimitPartition.GetFixedWindowLimiter(tenantId, _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 600,
-            Window = TimeSpan.FromMinutes(1),
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 0,
-        });
-    });
+    // NOTE (Pre-merge Gate 1): a second `per-tenant` AddPolicy registration —
+    // an in-memory FixedWindowRateLimiter — used to live here. A duplicate
+    // AddPolicy with the same name throws at startup (ArgumentException:
+    // "An item with the same key has already been added"). It was the older,
+    // per-pod (in-memory) variant that Phase 175 explicitly retired in favour
+    // of the Redis sliding-window net above (which is cluster-wide, not
+    // per-pod). Removed so the host boots. See docs/COORDINATION_AUDIT_FINDINGS.md.
 });
 
 // ── CORS ──
@@ -1338,6 +1321,31 @@ app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
         // pre-existing DBs (EnsureCreated short-circuits once Tenants exists;
         // the EF migration set is incomplete). Idempotent CREATE TABLE IF NOT EXISTS.
         await Planscape.API.PlatformSchemaPatcher.ApplyAsync(patchConn);
+
+        // Pre-merge Gate 2 — schema-drift self-check. The patcher path (above)
+        // is the OFFICIAL schema-management mechanism for this codebase (see
+        // docs/adr/0001-schema-management.md). Its one failure mode is drift:
+        // an EF entity nobody mirrored into the patcher exists on fresh DBs but
+        // not on long-lived prod DBs. This asserts the live schema matches the
+        // EF model so that gap is caught loudly here, not as a prod 500.
+        //   Database:SchemaDriftStrict=true (or PLANSCAPE_SCHEMA_DRIFT_STRICT=true)
+        // turns drift into a boot failure — wire that flag into CI / canary.
+        //
+        // BLK-4 — strict is the DEFAULT outside Development (Production / Staging
+        // / any non-dev env) so a wrong patcher table name can't silently 404 in
+        // prod: drift fails the boot loudly instead. Resolution order:
+        //   1. explicit config Database:SchemaDriftStrict (true/false) always wins
+        //      (lets an operator force-on in dev, or deliberately opt-out in prod);
+        //   2. env PLANSCAPE_SCHEMA_DRIFT_STRICT=true forces on (CI/canary);
+        //   3. otherwise default = ON for non-Development, OFF for Development
+        //      (keeps the dev convenience where the patcher only covers a subset).
+        var driftStrictCfg = builder.Configuration.GetValue<bool?>("Database:SchemaDriftStrict");
+        var driftStrictEnv = string.Equals(
+            Environment.GetEnvironmentVariable("PLANSCAPE_SCHEMA_DRIFT_STRICT"),
+            "true", StringComparison.OrdinalIgnoreCase);
+        var driftStrict = driftStrictCfg
+            ?? (driftStrictEnv || !app.Environment.IsDevelopment());
+        await Planscape.API.SchemaDriftChecker.AssertAsync(db, patchConn, driftStrict);
     }
 
     if (app.Environment.IsDevelopment())

@@ -109,6 +109,13 @@ public class ClashesController : ControllerBase
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "clash-detector",
             Discipline = clash.DisciplineA,
+            // M-2 — carry the clash element identity onto the issue so the BCF
+            // viewpoint component + cross-host resolve aren't empty. NOTE: this
+            // is only cross-host once ClashDetectionJob populates ElementAGuid
+            // with the FederatedElement IfcGuid rather than its row id (job-side
+            // follow-up tracked in the audit) — until then it carries whatever
+            // identity the clash row holds, which is still better than null.
+            ModelElementGuid = string.IsNullOrWhiteSpace(clash.ElementAGuid) ? null : clash.ElementAGuid,
         };
 
         _db.Issues.Add(issue);

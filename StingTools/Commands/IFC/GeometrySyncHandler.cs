@@ -142,10 +142,19 @@ namespace StingTools.Commands.IFC
 
                 if (verts.Count == 0) return null;
 
-                // IFC GUID: ExportUtils is in RevitAPIIFC.dll (not referenced).
-                // UniqueId is the same base string Revit uses to derive IFC GUIDs —
-                // consistent with ClashExportContext.TryGetIfcGuid pattern.
-                string ifcGuid = el.UniqueId;
+                // BLK-1 / Drift 4 — ONE canonical cross-host key. The geometry
+                // GLB path now reads the SAME source the tag-sync path
+                // (PlatformLinkCommands.cs:2179) + the server ExternalElementMapping
+                // use: the stabilised IFC_GLOBAL_ID_TXT shared param, written by
+                // StabilizeIfcGuidsCommand from Revit's IfcGloballyUniqueId. This
+                // is deliberately NOT BuiltInParameter.IFC_GUID — the live value
+                // can re-map on export (the exact reason Stabilize snapshots it),
+                // and NOT Element.UniqueId (45-char, ≠ the 22-char IFC GlobalId).
+                // Empty until the model is stabilised; left empty here (the mesh
+                // still carries elementId + UniqueId for LOCAL clash) so geometry
+                // is never keyed on a wrong cross-host id — matching 8486cf0's
+                // skip-don't-mis-key rule. Run "Stabilize IFC GUIDs" for cross-host.
+                string ifcGuid = ParameterHelpers.GetString(el, "IFC_GLOBAL_ID_TXT");
 
                 var key = new ClashElementKey(docGuid, -1, (int)el.Id.Value, el.UniqueId, ifcGuid);
                 return new ClashMeshBuffer(key, el.Category.Name, verts.ToArray(), indices.ToArray());
