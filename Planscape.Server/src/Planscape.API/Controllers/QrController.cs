@@ -20,11 +20,13 @@ public class QrController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly IHttpContextAccessor _http;
+    private readonly IConfiguration _config;
 
-    public QrController(PlanscapeDbContext db, IHttpContextAccessor http)
+    public QrController(PlanscapeDbContext db, IHttpContextAccessor http, IConfiguration config)
     {
         _db = db;
         _http = http;
+        _config = config;
     }
 
     /// <summary>
@@ -44,7 +46,7 @@ public class QrController : ControllerBase
                 && e.Project!.TenantId == tenantId);
         if (el == null) return NotFound();
 
-        var baseUrl = $"{_http.HttpContext!.Request.Scheme}://{_http.HttpContext.Request.Host}";
+        var baseUrl = Planscape.API.PublicUrl.Resolve(_config, _http.HttpContext!.Request);
         var payload = JsonSerializer.Serialize(new
         {
             projectId = projectId.ToString(),

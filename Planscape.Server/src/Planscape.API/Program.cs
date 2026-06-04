@@ -907,6 +907,15 @@ var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>
     "exp://localhost:19000",
     "exp://localhost:8081",
 };
+// PublicBaseUrl (Cloudflare tunnel / cloud host) is the single source of truth for
+// outward URLs — it must also be a permitted CORS origin so the dashboard + viewer
+// served at that origin can call the API. Append it (deduped) when configured.
+{
+    var publicBase = builder.Configuration["Planscape:PublicBaseUrl"]?.Trim().TrimEnd('/');
+    if (!string.IsNullOrWhiteSpace(publicBase)
+        && !corsOrigins.Contains(publicBase, StringComparer.OrdinalIgnoreCase))
+        corsOrigins = corsOrigins.Append(publicBase).ToArray();
+}
 builder.Services.AddCors(options =>
 {
     // Dashboard policy keeps credentials allowed for the cookie-based web app.
@@ -1044,6 +1053,7 @@ app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
         if (name.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
          || name == "coordination-viewer.js"
          || name == "viewer-extras.js"
+         || name == "meeting-sync.js"
          || name == "signalr-shim.js"
          || name == "coordination-viewer.css")
         {

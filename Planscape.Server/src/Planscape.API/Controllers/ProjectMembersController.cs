@@ -25,14 +25,17 @@ public class ProjectMembersController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly IEmailService _emailService;
     private readonly IProjectMembershipNotifier _membershipNotifier;
+    private readonly IConfiguration _config;
 
     public ProjectMembersController(PlanscapeDbContext db,
                                     IEmailService emailService,
-                                    IProjectMembershipNotifier membershipNotifier)
+                                    IProjectMembershipNotifier membershipNotifier,
+                                    IConfiguration config)
     {
         _db = db;
         _emailService = emailService;
         _membershipNotifier = membershipNotifier;
+        _config = config;
     }
 
     // ── GET all members for a project ─────────────────────────────────────────
@@ -234,7 +237,10 @@ public class ProjectMembersController : ControllerBase
                 Role          = UserRole.Contributor,
                 Iso19650Role  = req.Iso19650Role ?? "M",
                 IsActive      = false,  // awaiting first login / password set
-                RefreshToken  = $"INV:{inviteTokenHash}",
+                // RESET: (not INV:) so the invite link's token validates against
+                // /api/auth/reset-password, which sets the password AND activates
+                // the user. reset-password.html consumes ?token=…&email=….
+                RefreshToken  = $"RESET:{inviteTokenHash}",
                 RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(14),
             };
             _db.Users.Add(user);
@@ -254,10 +260,12 @@ public class ProjectMembersController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            // Send invite email with password-reset link
+            // Send invite email with password-reset link. PublicUrl.Resolve uses
+            // Planscape:PublicBaseUrl (the tunnel/cloud URL) when set, so the link
+            // a remote guest receives is reachable — never the internal localhost.
             await _emailService.SendInviteEmailAsync(
                 user.Email, user.DisplayName, GetCurrentUserName(),
-                project.Name, $"{Request.Scheme}://{Request.Host}");
+                project.Name, Planscape.API.PublicUrl.Resolve(_config, Request), inviteToken);
         }
 
         // Add to project

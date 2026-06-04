@@ -781,7 +781,14 @@ THREE.ColorManagement.enabled = false;
   // the screen plane regardless of camera tilt.
   controls.zoomToCursor      = true;
   controls.screenSpacePanning = true;
-  controls.rotateSpeed = 0.9;
+  // NEGATIVE rotateSpeed — natural Z-up orbit sense. With camera.up=(0,0,1)
+  // OrbitControls builds _quat = setFromUnitVectors((0,0,1),(0,1,0)) — a
+  // −90°-about-X mapping — which inverts BOTH the polar and azimuth drag sense
+  // (drag-up dropped the camera to the horizon i.e. tilted DOWN; drag-left spun
+  // the wrong way). The rotate delta is multiplied by rotateSpeed, so a negative
+  // value flips both _rotateLeft + _rotateUp: drag-up now tilts up, drag-left
+  // spins left — natural. Magnitude unchanged.
+  controls.rotateSpeed = -0.9;
   controls.zoomSpeed   = 1.2;
   controls.panSpeed    = 1.0;
   // Stop the user from rolling the camera under the model.
@@ -999,7 +1006,17 @@ THREE.ColorManagement.enabled = false;
 
     setPointer(e);
     const hits = raycast();
-    if (hits.length === 0) return;
+    if (hits.length === 0) {
+      // Clicked empty space (raycast hit nothing) — deselect. Only for the
+      // plain pick tool; measurement / pin / clearance tools manage their own
+      // empty-click behaviour. Clears the engine highlight and tells the host
+      // to drop its selection set + hide the selection toolbar.
+      if (!longPress && (activeTool === 'pick' || !activeTool)) {
+        clearHighlight();
+        bridge.send('deselect', {});
+      }
+      return;
+    }
     const hit = hits[0];
     // Snap the hit point if a snap mode is active. Pin meshes (sprites) and
     // hits without face data fall back to raw hit.point.

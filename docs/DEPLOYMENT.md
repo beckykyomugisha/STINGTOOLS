@@ -1,0 +1,158 @@
+# Planscape — Deployment & Remote-Guest Review
+
+How to put the Planscape server on the internet for a remote reviewer (e.g. a
+guest in West Africa) and send them a real, clickable invite — and how the same
+build moves from a tunnel to a cloud host by changing **env only**.
+
+Secrets (SMTP creds, tunnel tokens, JWT key) live **only** in
+`Planscape.Server/docker/.env`, which is **gitignored**. Never commit them.
+
+---
+
+## 0. Single source of truth: `Planscape__PublicBaseUrl`
+
+Every outward URL a guest receives — invite / password-reset email links,
+share + QR links — derives from **one** value:
+
+| Surface | Env (in `docker/.env`) | Config key | Used by |
+|---|---|---|---|
+| Public base URL | `PUBLIC_BASE_URL` | `Planscape:PublicBaseUrl` | `PublicUrl.Resolve()` → emails, QR, CORS |
+
+`PublicUrl.Resolve(config, request)` returns `Planscape:PublicBaseUrl` when set,
+otherwise falls back to `{scheme}://{host}` of the request. Behind a reverse
+proxy / Cloudflare tunnel the request host is the **internal** origin
+(`localhost:5000`), so **you must set `PUBLIC_BASE_URL`** or guests get unreachable
+`localhost` links. The web app + viewer call the API **same-origin** (relative),
+so when served from the tunnel they automatically talk to the tunnel API.
+
+`PUBLIC_BASE_URL` is also auto-added to the CORS allow-list.
+
+---
+
+## 1. Run order (THIS ORDER MATTERS)
+
+```
+tunnel  →  set PUBLIC_BASE_URL  →  restart api  →  send invite
+```
+
+If you send the invite before `PUBLIC_BASE_URL` points at the tunnel, the link in
+the email is wrong. Steps:
+
+```bash
+# 1. Start the quick tunnel (prints https://<random>.trycloudflare.com)
+cloudflared tunnel --url http://localhost:5000
+
+# 2. Put that URL in docker/.env
+#    PUBLIC_BASE_URL=https://<random>.trycloudflare.com
+
+# 3. Recreate the api container so it picks up the new env (no rebuild needed)
+cd Planscape.Server/docker
+JWT_KEY=$(grep '^JWT_KEY=' .env | cut -d= -f2-) docker compose up -d api
+
+# 4. Send the guest a reset/invite link (see §4)
+```
+
+> ⚠️ A Cloudflare **quick** tunnel URL **changes every restart**. Re-set
+> `PUBLIC_BASE_URL`, re-run `docker compose up -d api`, and re-share each session.
+> For a stable URL, use a **named** Cloudflare tunnel (`cloudflared tunnel create`)
+> or the cloud/Docker deploy below.
+
+---
+
+## 2. Email — real SMTP (Gmail app password) vs Mailpit capture
+
+The api wires `SmtpEmailService` whenever `Smtp__Host` is set, else
+`NullEmailService` (which now logs a **loud warning** so mail never silently drops).
+`docker/.env` injects the SMTP config into the container:
+
+| Env | Container config | Notes |
+|---|---|---|
+| `SMTP_HOST` | `Smtp__Host` | `smtp.gmail.com` or `mailpit` |
+| `SMTP_PORT` | `Smtp__Port` | `587` Gmail STARTTLS · `1025` Mailpit |
+| `SMTP_USE_SSL` | `Smtp__UseSsl` | `false` for 587/1025; `true` for 465 |
+| `SMTP_USERNAME` | `Smtp__Username` | Gmail address (blank ⇒ no AUTH, for Mailpit) |
+| `SMTP_PASSWORD` | `Smtp__Password` | 16-char app password |
+| `SMTP_FROM_ADDRESS` | `Smtp__FromAddress` | must equal the Gmail address |
+
+The send uses `StartTlsWhenAvailable`, so the **same** build secures Gmail (587
+advertises STARTTLS) and still talks to a plain Mailpit catcher.
+
+### 2a. Gmail app-password setup (real delivery)
+
+1. Enable **2-Step Verification** on the sending Google account.
+2. Create an app password at <https://myaccount.google.com/apppasswords> for that
+   **exact** account (Workspace accounts may need the admin to allow app passwords).
+3. Put it in `docker/.env` (16 chars, no spaces) — `SMTP_USERNAME` /
+   `SMTP_FROM_ADDRESS` must be that same Gmail address.
+4. `docker compose up -d api`. Verify quickly from the host:
+   ```bash
+   python - <<'PY'
+   import smtplib,ssl
+   s=smtplib.SMTP("smtp.gmail.com",587,timeout=20); s.starttls(context=ssl.create_default_context())
+   s.login("you@gmail.com","apppassword16"); print("AUTH OK"); s.quit()
+   PY
+   ```
+   `535 BadCredentials` ⇒ wrong/expired password or app passwords disabled for that
+   account. Fix that before expecting real mail.
+
+### 2b. Mailpit (prove the path with no creds)
+
+Mailpit captures every outbound email so you can prove the send path + verify the
+link without real creds. It's a compose service (web UI `http://localhost:8025`):
+
+```bash
+docker compose up -d mailpit
+# .env:  SMTP_HOST=mailpit  SMTP_PORT=1025  SMTP_USERNAME=  SMTP_PASSWORD=  SMTP_USE_SSL=false
+docker compose up -d api
+```
+
+Trigger a send, then read it back:
+
+```bash
+curl -s http://localhost:8025/api/v1/messages | jq '.messages[0] | {To,Subject}'
+# open the captured HTML to confirm the link points at the tunnel
+```
+
+**One-line swap to real Gmail:** change the four `SMTP_*` lines in `.env` back to
+the Gmail block (§2a) and `docker compose up -d api`. No rebuild.
+
+---
+
+## 3. Reset / set-password page
+
+Invite + forgot-password emails link to `/{PublicBaseUrl}/reset-password.html?token=…&email=…`.
+`wwwroot/reset-password.html` reads the token+email from the query, takes a new
+password, and POSTs same-origin to `/api/auth/reset-password`. Works over the tunnel
+unchanged (same-origin fetch).
+
+---
+
+## 4. Review with a remote guest
+
+1. Ensure the guest is a project member (invite once via the BIM Coordination
+   Center, or `POST /api/projects/{id}/members/invite`).
+2. Run §1 (tunnel → PUBLIC_BASE_URL → restart).
+3. Send them a set-password link:
+   ```bash
+   curl -X POST "$PUBLIC_BASE_URL/api/auth/forgot-password" \
+        -H 'Content-Type: application/json' \
+        -d '{"email":"guest@example.com"}'
+   ```
+   They receive an email with a clickable `…/reset-password.html?token=…` link.
+4. Guest, on a **second device** over the tunnel URL: open the link → set a
+   password → sign in at `$PUBLIC_BASE_URL/` → project visible → open the model in
+   the viewer → issues/clashes load.
+
+### Perf note (slow links)
+The GLB can be large over a tunnel. The streaming loader shows real progress
+(no stuck-at-0%). For a first review on a slow link, publish a **smaller** model.
+
+---
+
+## 5. Long-term home — same image, env only
+
+The tunnel is for ad-hoc reviews. The stable path is the existing Docker deploy
+(`docker compose up -d` on a cloud VM, or push the image to your registry). Moving
+there is **env-only**: set `PUBLIC_BASE_URL` to the cloud hostname, set the real
+`SMTP_*` Gmail/Postmark values, set a strong `JWT_KEY` + `DB_PASSWORD`. No code or
+image change — `PublicUrl` + the SMTP wiring already read everything from env.

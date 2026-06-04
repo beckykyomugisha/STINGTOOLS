@@ -90,3 +90,4 @@ shared/ifc/psd_out/
 # variants are not.
 tests/fixtures/*.ifc
 tests/fixtures/*.roundtrip.ifc
+tools/bin/
