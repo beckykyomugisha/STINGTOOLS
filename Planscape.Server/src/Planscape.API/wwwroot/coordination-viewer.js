@@ -122,6 +122,12 @@
       photoReviewSelected: new Set(),
       elementMaterials: new Map(), // mesh.uuid → original material (for ghost / highlight)
       ghostMode: false,
+      // ── Visualize (discipline-aware appearance) ──────────────────────────
+      ghostStyle: { tint: 0x888888, opacity: 0.12 }, // user-tunable ghost look
+      vizDiscMode: new Map(),   // DISCIPLINE → 'show' | 'ghost' | 'hide'
+      vizCatMode:  new Map(),   // CATEGORY   → 'show' | 'ghost' | 'hide'
+      vizPreset:   null,        // active discipline appearance preset name
+      clashSection: { active: false, saved: null, onFocus: false }, // clip-plane section box
       apiBase, projectId, modelId, token
     };
     window.__COORD = state;  // debug handle
@@ -285,6 +291,7 @@
       buildModelTree();
       buildDisciplineChips();
       buildLevelStrip();
+      if (state.rightTab === 'visualize') renderVisualizePanel();
 
       // Load model GLB
       // B1 — security: never put the JWT in the query string. Fetch the
@@ -750,10 +757,14 @@
       mesh.material = mat;
     }
     function ghostMaterial(mesh) {
-      setReplacement(mesh, new THREE_.MeshStandardMaterial({
-        color: 0x888888, transparent: true, opacity: 0.12,
+      // Tint + opacity are user-tunable via the Visualize panel.
+      const gs = state.ghostStyle || { tint: 0x888888, opacity: 0.12 };
+      const mat = new THREE_.MeshStandardMaterial({
+        color: gs.tint, transparent: true, opacity: gs.opacity,
         depthWrite: false, side: THREE_.DoubleSide
-      }));
+      });
+      mat.userData = { stingGhost: true };   // tag so live tint/opacity edits can find ghosts
+      setReplacement(mesh, mat);
     }
     function restoreOriginalMaterial(mesh) {
       const slot = state.elementMaterials.get(mesh.uuid);
@@ -774,6 +785,324 @@
       });
       // Anything left (e.g., disposed mesh) — drop it.
       ids.forEach(id => state.elementMaterials.delete(id));
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Visualize — discipline-aware appearance. Reuses the existing material
+    // plumbing (ghostMaterial / restoreOriginalMaterial / setReplacement) and
+    // the engine overlay (V.applyOverlay / V.clearOverlay) — nothing new on
+    // the render side.
+    // ════════════════════════════════════════════════════════════════════════
+    const VIZ_PALETTE = ['#3B82F6','#22C55E','#F59E0B','#A855F7','#EC4899','#14B8A6',
+                         '#F97316','#EF4444','#84CC16','#06B6D4','#8B5CF6','#F43F5E',
+                         '#10B981','#EAB308','#6366F1','#D946EF','#0EA5E9','#65A30D'];
+    // BUILD 5 — per-discipline appearance presets (GLB textures are limited, so
+    // these give a clean discipline read). _other = everything not listed.
+    const DISC_PRESETS = {
+      'Discipline':   { A:'#3498db', M:'#e67e22', E:'#f1c40f', P:'#2ecc71', S:'#9b59b6', FP:'#e74c3c', LV:'#1abc9c', G:'#95a5a6', _other:'#5b6472' },
+      'MEP palette':  { M:'#e67e22', E:'#f1c40f', P:'#2ecc71', FP:'#e74c3c', LV:'#1abc9c', _other:'#3a3f4a' },
+      'Struct palette':{ S:'#9b59b6', _other:'#3a3f4a' },
+      'Arch palette': { A:'#3498db', _other:'#3a3f4a' },
+    };
+
+    function tokenValue(meta, token) {
+      if (!meta) return '';
+      switch (token) {
+        case 'DISC': return meta.discipline || meta.disc || meta.DISC || '';
+        case 'SYS':  return meta.system || meta.sys || meta.SYS || '';
+        case 'LVL':  return meta.level || meta.lvl || meta.LVL || '';
+        case 'FUNC': return meta.func || meta.function || meta.FUNC || '';
+        case 'PROD': return meta.prod || meta.product || meta.PROD || '';
+        case 'CAT':  return meta.category || '';
+        default: return '';
+      }
+    }
+    function discKey(meta) { return String(tokenValue(meta, 'DISC') || '').toUpperCase().slice(0, 4); }
+    function distinctTokens(token) {
+      const s = new Set();
+      if (state.elementMap) Object.values(state.elementMap).forEach(m => {
+        let v = String(tokenValue(m, token) || '').trim();
+        if (!v) return;
+        if (token === 'DISC') v = v.toUpperCase().slice(0, 4);
+        s.add(v);
+      });
+      return Array.from(s).sort();
+    }
+
+    // BUILD 1 — apply the per-discipline + per-category show/ghost/hide modes.
+    // Most-restrictive wins (hide > ghost > show).
+    function applyVizModes() {
+      if (!V.modelRoot) return;
+      // Ghost/show/hide owns materials via state.elementMaterials; the engine
+      // colour overlay owns them via its own map. Keep them mutually exclusive
+      // so neither captures the other's material as "original".
+      if (V.activeOverlaySource && V.clearOverlay) { V.clearOverlay(); state.vizPreset = null; }
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        const meta = state.elementMap[o.userData.elementGuid];
+        const m1 = state.vizDiscMode.get(discKey(meta));
+        const m2 = state.vizCatMode.get(String(tokenValue(meta, 'CAT') || ''));
+        let mode = 'show';
+        [m1, m2].forEach(m => {
+          if (m === 'hide') mode = 'hide';
+          else if (m === 'ghost' && mode !== 'hide') mode = 'ghost';
+        });
+        if (mode === 'hide') { o.visible = false; restoreOriginalMaterial(o); }
+        else if (mode === 'ghost') { o.visible = true; ghostMaterial(o); }
+        else { o.visible = true; restoreOriginalMaterial(o); }
+      });
+    }
+    // One-click "shade only X, ghost the rest".
+    function shadeOnlyDiscipline(disc) {
+      state.vizDiscMode.clear();
+      distinctTokens('DISC').forEach(d => state.vizDiscMode.set(d, d === disc ? 'show' : 'ghost'));
+      applyVizModes();
+      renderVisualizePanel();
+      toast(disc ? `Shading ${disc}, ghosting the rest` : 'Show all');
+    }
+
+    // BUILD 3 — colour every element by ANY STING token, with a legend, via the
+    // existing overlay engine. "Clear overlay" restores materials.
+    function colourByToken(token) {
+      if (!V.modelRoot || !state.elementMap) return toast('No model / element map', 'warn');
+      // Restore any host-managed ghost/highlight materials first so the engine
+      // overlay captures TRUE originals (visibility is preserved — hidden
+      // elements stay hidden).
+      clearAllHighlights();
+      const values = new Map(); // value → colour
+      const guidColorMap = {};
+      let idx = 0;
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        const guid = o.userData.elementGuid;
+        const v = String(tokenValue(state.elementMap[guid], token) || '').trim();
+        if (!v) return;
+        if (!values.has(v)) values.set(v, VIZ_PALETTE[idx++ % VIZ_PALETTE.length]);
+        guidColorMap[guid] = values.get(v);
+      });
+      if (!values.size) return toast(`No ${token} tokens on this model`, 'warn');
+      const legend = Array.from(values.entries())
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+        .map(([label, color]) => ({ label, color }));
+      V.applyOverlay({ source: 'tokens:' + token, mode: 'map', guidColorMap,
+                       defaultColor: '#444b57', opacity: 1,
+                       title: 'Colour by ' + token, legend });
+      toast(`Coloured by ${token} — ${values.size} value${values.size === 1 ? '' : 's'}`);
+    }
+
+    // BUILD 5 — apply a discipline appearance preset (solid colour per
+    // discipline) through the same overlay path.
+    function applyDisciplinePreset(name) {
+      const preset = DISC_PRESETS[name];
+      if (!preset || !V.modelRoot || !state.elementMap) return;
+      clearAllHighlights();   // capture true originals (see colourByToken)
+      const guidColorMap = {};
+      const used = new Set();
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        const guid = o.userData.elementGuid;
+        const d = discKey(state.elementMap[guid]);
+        const col = preset[d] || preset._other;
+        if (col) { guidColorMap[guid] = col; if (preset[d]) used.add(d); }
+      });
+      const legend = Array.from(used).sort().map(d => ({ label: d, color: preset[d] }));
+      if (preset._other) legend.push({ label: 'Other', color: preset._other });
+      state.vizPreset = name;
+      V.applyOverlay({ source: 'preset:' + name, mode: 'map', guidColorMap,
+                       defaultColor: preset._other || null, opacity: 1,
+                       title: name, legend });
+      toast(`Applied ${name}`);
+    }
+
+    // BUILD 4 (section) — a clip-plane section box around an arbitrary AABB.
+    // Snapshots the renderer's current clippingPlanes so it never clobbers the
+    // section tool; clearClashSection restores them.
+    function unionBoxForGuids(guids) {
+      const box = new THREE_.Box3(); let any = false;
+      guids.filter(Boolean).forEach(g => {
+        const m = findMeshByGuid(g);
+        if (m) { box.union(new THREE_.Box3().setFromObject(m)); any = true; }
+      });
+      return any ? box : null;
+    }
+    function applyClashSection(box) {
+      if (!box || !V.renderer) return;
+      const pad = (box.getSize(new THREE_.Vector3()).length() * 0.08) || 0.5;
+      const min = box.min.clone().addScalar(-pad), max = box.max.clone().addScalar(pad);
+      const planes = [
+        new THREE_.Plane(new THREE_.Vector3( 1, 0, 0), -min.x),
+        new THREE_.Plane(new THREE_.Vector3(-1, 0, 0),  max.x),
+        new THREE_.Plane(new THREE_.Vector3( 0, 1, 0), -min.y),
+        new THREE_.Plane(new THREE_.Vector3( 0,-1, 0),  max.y),
+        new THREE_.Plane(new THREE_.Vector3( 0, 0, 1), -min.z),
+        new THREE_.Plane(new THREE_.Vector3( 0, 0,-1),  max.z),
+      ];
+      if (state.clashSection.saved === null) state.clashSection.saved = V.renderer.clippingPlanes;
+      V.renderer.clippingPlanes = planes;
+      state.clashSection.active = true;
+    }
+    function clearClashSection() {
+      if (!V.renderer) return;
+      if (state.clashSection.saved !== null) {
+        V.renderer.clippingPlanes = state.clashSection.saved;
+        state.clashSection.saved = null;
+      } else {
+        V.renderer.clippingPlanes = [];
+      }
+      state.clashSection.active = false;
+    }
+
+    function resetVisualization() {
+      state.vizDiscMode.clear(); state.vizCatMode.clear(); state.vizPreset = null;
+      clearClashSection();
+      if (V.clearOverlay) V.clearOverlay();
+      clearAllHighlights();
+      showAllElements();
+      renderVisualizePanel();
+      toast('Visualization reset');
+    }
+
+    // ── Visualize panel UI ───────────────────────────────────────────────────
+    function vizModeRow(label, count, getMode, setMode) {
+      const row = el('div', { class: 'viz-row',
+        style: 'display:flex;align-items:center;gap:6px;padding:3px 0' });
+      row.appendChild(el('span', {
+        style: 'flex:1;font-size:12px;color:var(--text,#e6e6e6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
+      }, count != null ? `${label} (${count})` : label));
+      const group = el('div', { style: 'display:flex;gap:2px' });
+      [['show', '◐'], ['ghost', '○'], ['hide', '∅']].forEach(([m, glyph]) => {
+        const cur = getMode() || 'show';
+        const b = el('button', {
+          class: 'viz-mode-btn', title: m,
+          style: 'width:26px;height:22px;border-radius:4px;cursor:pointer;font-size:12px;'
+            + 'border:1px solid ' + (cur === m ? '#3B82F6' : 'rgba(255,255,255,0.15)') + ';'
+            + 'background:' + (cur === m ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.04)') + ';'
+            + 'color:#e6e6e6'
+        }, glyph);
+        b.addEventListener('click', () => { setMode(m); applyVizModes(); renderVisualizePanel(); });
+        group.appendChild(b);
+      });
+      row.appendChild(group);
+      return row;
+    }
+
+    function renderVisualizePanel() {
+      const pane = $('#pane-visualize');
+      if (!pane) return;
+      pane.innerHTML = '';
+      const haveMap = state.elementMap && Object.keys(state.elementMap).length > 0;
+      if (!haveMap) {
+        pane.appendChild(el('div', { class: 'empty-state' },
+          'Load a tagged model to use Visualize'));
+        return;
+      }
+      const wrap = el('div', { style: 'padding:10px;display:flex;flex-direction:column;gap:14px;overflow:auto' });
+      const sectionTitle = (t) => el('div', {
+        style: 'font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-muted,#9aa3b2);margin-bottom:2px'
+      }, t);
+
+      // ── Quick actions ──
+      const quick = el('div', {});
+      quick.appendChild(sectionTitle('Quick'));
+      const discs = distinctTokens('DISC');
+      const sel = el('select', { style: 'flex:1;background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:4px' });
+      sel.appendChild(el('option', { value: '' }, 'Pick discipline…'));
+      discs.forEach(d => sel.appendChild(el('option', { value: d }, d)));
+      const qRow = el('div', { style: 'display:flex;gap:6px;align-items:center' }, [
+        sel,
+        el('button', { class: 'btn sm', style: 'white-space:nowrap', onclick: () => sel.value && shadeOnlyDiscipline(sel.value) }, 'Shade only, ghost rest')
+      ]);
+      quick.appendChild(qRow);
+      quick.appendChild(el('div', { style: 'display:flex;gap:6px;margin-top:6px' }, [
+        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => { state.vizDiscMode.forEach((_, k) => state.vizDiscMode.set(k, 'show')); state.vizCatMode.forEach((_, k) => state.vizCatMode.set(k, 'show')); showAllElements(); clearAllHighlights(); renderVisualizePanel(); } }, 'Show all'),
+        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => resetVisualization() }, 'Reset')
+      ]));
+      wrap.appendChild(quick);
+
+      // ── BUILD 2 — Ghost appearance ──
+      const ghostBox = el('div', {});
+      ghostBox.appendChild(sectionTitle('Ghost appearance'));
+      const tintHex = '#' + ('000000' + (state.ghostStyle.tint >>> 0).toString(16)).slice(-6);
+      const tint = el('input', { type: 'color', value: tintHex, style: 'width:34px;height:24px;padding:0;border:none;background:none;cursor:pointer' });
+      tint.addEventListener('input', () => { state.ghostStyle.tint = parseInt(tint.value.slice(1), 16); reapplyGhosts(); });
+      const op = el('input', { type: 'range', min: '2', max: '60', value: String(Math.round(state.ghostStyle.opacity * 100)), style: 'flex:1' });
+      const opVal = el('span', { style: 'font-size:11px;color:#9aa3b2;width:34px;text-align:right' }, Math.round(state.ghostStyle.opacity * 100) + '%');
+      op.addEventListener('input', () => { state.ghostStyle.opacity = (+op.value) / 100; opVal.textContent = op.value + '%'; reapplyGhosts(); });
+      ghostBox.appendChild(el('div', { style: 'display:flex;gap:8px;align-items:center;margin-top:4px' }, [
+        el('span', { style: 'font-size:12px;color:#e6e6e6' }, 'Tint'), tint,
+        el('span', { style: 'font-size:12px;color:#e6e6e6;margin-left:8px' }, 'Opacity'), op, opVal
+      ]));
+      wrap.appendChild(ghostBox);
+
+      // ── BUILD 3 — Colour by token ──
+      const colBox = el('div', {});
+      colBox.appendChild(sectionTitle('Colour by tag'));
+      const tokens = [['DISC', 'Discipline'], ['SYS', 'System'], ['LVL', 'Level'], ['FUNC', 'Function'], ['PROD', 'Product']];
+      const tokRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' });
+      tokens.forEach(([t, label]) => tokRow.appendChild(
+        el('button', { class: 'btn sm', onclick: () => colourByToken(t) }, label)));
+      tokRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => { if (V.clearOverlay) V.clearOverlay(); state.vizPreset = null; toast('Overlay cleared'); } }, 'Clear overlay'));
+      colBox.appendChild(tokRow);
+      wrap.appendChild(colBox);
+
+      // ── BUILD 5 — Discipline presets ──
+      const presetBox = el('div', {});
+      presetBox.appendChild(sectionTitle('Discipline presets'));
+      const pRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' });
+      Object.keys(DISC_PRESETS).forEach(name => pRow.appendChild(
+        el('button', { class: 'btn sm' + (state.vizPreset === name ? '' : ' subtle'), onclick: () => { applyDisciplinePreset(name); renderVisualizePanel(); } }, name)));
+      presetBox.appendChild(pRow);
+      wrap.appendChild(presetBox);
+
+      // ── BUILD 1 — By discipline ──
+      const byDisc = el('div', {});
+      byDisc.appendChild(sectionTitle('By discipline'));
+      const discCounts = {};
+      Object.values(state.elementMap).forEach(m => { const d = discKey(m); if (d) discCounts[d] = (discCounts[d] || 0) + 1; });
+      discs.forEach(d => byDisc.appendChild(vizModeRow(d, discCounts[d],
+        () => state.vizDiscMode.get(d),
+        (m) => state.vizDiscMode.set(d, m))));
+      wrap.appendChild(byDisc);
+
+      // ── BUILD 1 — By category ──
+      const cats = distinctTokens('CAT');
+      if (cats.length) {
+        const byCat = el('div', {});
+        byCat.appendChild(sectionTitle('By category'));
+        const catCounts = {};
+        Object.values(state.elementMap).forEach(m => { const c = String(tokenValue(m, 'CAT') || ''); if (c) catCounts[c] = (catCounts[c] || 0) + 1; });
+        cats.forEach(c => byCat.appendChild(vizModeRow(c, catCounts[c],
+          () => state.vizCatMode.get(c),
+          (m) => state.vizCatMode.set(c, m))));
+        wrap.appendChild(byCat);
+      }
+
+      // ── Clash focus options ──
+      const clashBox = el('div', {});
+      clashBox.appendChild(sectionTitle('Clash focus'));
+      const cb = el('input', { type: 'checkbox' });
+      cb.checked = !!state.clashSection.onFocus;
+      cb.addEventListener('change', () => { state.clashSection.onFocus = cb.checked; if (!cb.checked) clearClashSection(); });
+      const lbl = el('label', { style: 'display:flex;gap:6px;align-items:center;font-size:12px;color:#e6e6e6;margin-top:4px;cursor:pointer' }, [cb, 'Section box around the clash pair']);
+      clashBox.appendChild(lbl);
+      clashBox.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2;margin-top:2px' },
+        'Click a clash (or its View button) to isolate the pair: A red, B orange, everything else ghosted, auto-zoomed.'));
+      wrap.appendChild(clashBox);
+
+      pane.appendChild(wrap);
+    }
+
+    // Re-apply ghost styling to whatever is currently ghosted (tint/opacity live update).
+    function reapplyGhosts() {
+      if (!V.modelRoot) return;
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        const slot = state.elementMaterials.get(o.uuid);
+        // Only re-tint meshes whose current replacement is a STING ghost.
+        if (slot && slot.replacement && slot.replacement.userData && slot.replacement.userData.stingGhost) {
+          ghostMaterial(o);
+        }
+      });
     }
 
     function renderModels() {
@@ -1154,6 +1483,7 @@
           const pane = $('#pane-' + t.dataset.tab);
           if (pane) pane.classList.add('active');
           state.rightTab = t.dataset.tab;
+          if (t.dataset.tab === 'visualize') renderVisualizePanel();
           if (t.dataset.tab === 'clashes') renderRightClashes();
           if (t.dataset.tab === 'issues')  renderRightIssues();
           if (t.dataset.tab === 'photos')  { loadSitePhotos(); renderPhotos(); }
@@ -1948,8 +2278,7 @@
           });
           tr.addEventListener('dblclick', (e) => {
             if (e.target.closest('button')) return;
-            focusClash(c);                         // zoom + isolate the pair
-            isolateClashPair(c);
+            focusClash(c);                         // focus mode: isolate (ghost rest) + zoom
           });
           // B3 — stopPropagation so clicking "→ Issue" doesn't ALSO fire
           // the row's focusClash and fly the camera away from the modal.
@@ -2005,11 +2334,10 @@
           if (e.target.closest('button')) return;
           focusClash(c);
         });
-        // Double-click → zoom + isolate the clashing pair (mirrors bottom-panel dblclick).
+        // Double-click → clash-focus mode (mirrors bottom-panel dblclick).
         card.addEventListener('dblclick', (e) => {
           if (e.target.closest('button')) return;
           focusClash(c);
-          isolateClashPair(c);
         });
         $('button[data-act=view]', card).addEventListener('click', (e) => { e.stopPropagation(); focusClash(c); });
         $('button[data-act=issue]', card).addEventListener('click', (e) => { e.stopPropagation(); openIssueModal({ clash: c }); });
@@ -2017,15 +2345,33 @@
       });
     }
 
+    // BUILD 4 — clash-focus mode. Isolate the two clashing elements by GHOSTING
+    // everything else (reusing ghostMaterial), colour A red / B orange, auto-zoom
+    // to the pair, and optionally drop a section box around them.
     function focusClash(c) {
       state.selectedClashId = c.id;
+      clearClashSection();
+      if (V.activeOverlaySource && V.clearOverlay) { V.clearOverlay(); state.vizPreset = null; }
       clearAllHighlights();              // L6
-      const pos = clashCentroid(c);
-      if (pos) flyTo(pos);
       const a = findMeshByGuid(c.elementA?.guid);
       const b = findMeshByGuid(c.elementB?.guid);
-      if (a) emissive(a, 0xEF4444);
-      if (b) emissive(b, 0x60A5FA);
+      const keep = new Set([a, b].filter(Boolean).map(m => m.uuid));
+      if (V.modelRoot && keep.size) {
+        V.modelRoot.traverse(o => {
+          if (!o.isMesh) return;
+          o.visible = true;
+          if (!keep.has(o.uuid)) ghostMaterial(o);   // ghost the context
+        });
+      }
+      // A red, B orange — solid + emissive so the pair pops against the ghost.
+      if (a) setReplacement(a, new THREE_.MeshStandardMaterial({ color: 0xEF4444, emissive: 0xEF4444, emissiveIntensity: 0.45 }));
+      if (b) setReplacement(b, new THREE_.MeshStandardMaterial({ color: 0xF97316, emissive: 0xF97316, emissiveIntensity: 0.45 }));
+      // Auto-zoom to the pair (fall back to a fly-to centroid).
+      const box = unionBoxForGuids([c.elementA?.guid, c.elementB?.guid]);
+      if (box && V.fitCamera) { try { V.fitCamera(box); } catch (_) { const p = clashCentroid(c); if (p) flyTo(p); } }
+      else { const p = clashCentroid(c); if (p) flyTo(p); }
+      // Optional section box around the pair.
+      if (state.clashSection.onFocus && box) applyClashSection(box);
       logHistory(`Inspected ${c.id}`);
     }
 
