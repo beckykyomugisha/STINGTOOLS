@@ -142,6 +142,8 @@
       // wins. Persisted alongside the viz maps.
       vizKeepSolidDisc: new Set(),
       vizKeepSolidCat:  new Set(),
+      vizColour:   null,        // M1/M4 colour descriptor (token | preset | param) or null
+      colourMats:  new Map(),   // hex → shared coloured material (no per-mesh leak)
       renderMode: 'shaded',
       applyingRemoteViz: false, // guard so a broadcast render-mode doesn't echo
       clashSection: { active: false, saved: null, onFocus: false }, // clip-plane section box
@@ -825,12 +827,16 @@
         state.elementMaterials.set(mesh.uuid, { original: mesh.material, replacement: null });
       }
     }
+    // Materials the appearance engine SHARES across many meshes must never be
+    // disposed per-mesh. Colour materials are shared in M1; the ghost material
+    // becomes shared in M2 (which adds stingGhost here).
+    function isSharedMat(m) { return !!(m && m.userData && m.userData.stingColour); }
     function setReplacement(mesh, mat) {
       rememberOriginal(mesh);
       const slot = state.elementMaterials.get(mesh.uuid);
-      // Dispose any previous replacement (avoids GPU leak when the same
-      // mesh gets ghosted then highlighted then ghosted again).
-      if (slot.replacement && typeof slot.replacement.dispose === 'function') {
+      // Dispose any previous replacement (avoids GPU leak when the same mesh gets
+      // ghosted then highlighted then ghosted again) — but NOT shared materials.
+      if (slot.replacement && slot.replacement !== mat && !isSharedMat(slot.replacement) && typeof slot.replacement.dispose === 'function') {
         try { slot.replacement.dispose(); } catch (_) {}
       }
       slot.replacement = mat;
@@ -850,7 +856,7 @@
       const slot = state.elementMaterials.get(mesh.uuid);
       if (!slot) return;
       mesh.material = slot.original;
-      if (slot.replacement && typeof slot.replacement.dispose === 'function') {
+      if (slot.replacement && !isSharedMat(slot.replacement) && typeof slot.replacement.dispose === 'function') {
         try { slot.replacement.dispose(); } catch (_) {}
       }
       state.elementMaterials.delete(mesh.uuid);
@@ -861,7 +867,9 @@
       if (!V.modelRoot) { state.elementMaterials.clear(); return; }
       const ids = Array.from(state.elementMaterials.keys());
       V.modelRoot.traverse(o => {
-        if (o.isMesh && state.elementMaterials.has(o.uuid)) restoreOriginalMaterial(o);
+        if (!o.isMesh) return;
+        o.userData._vizMode = undefined;   // force the next applyAppearance to re-evaluate
+        if (state.elementMaterials.has(o.uuid)) restoreOriginalMaterial(o);
       });
       // Anything left (e.g., disposed mesh) — drop it.
       ids.forEach(id => state.elementMaterials.delete(id));
@@ -922,78 +930,144 @@
       V.modelRoot.traverse(o => {
         if (!o.isMesh) return;
         const meta = metaForMesh(o);
-        const m1 = state.vizDiscMode.get(discKey(meta));
-        const m2 = state.vizCatMode.get(catKey(meta));
-        let mode = 'show';
-        [m1, m2].forEach(m => {
-          if (m === 'hide') mode = 'hide';
-          else if (m === 'ghost' && mode !== 'hide') mode = 'ghost';
-        });
-        if (mode === 'hide') { o.visible = false; restoreOriginalMaterial(o); }
-        else if (mode === 'ghost') { o.visible = true; ghostMaterial(o); }
-        else { o.visible = true; restoreOriginalMaterial(o); }
+        const dm = state.vizDiscMode.get(discOf(meta));
+        const cm = state.vizCatMode.get(catKey(meta));
+        // Most-restrictive of (discMode, catMode, colourOverride): hide > ghost > colour > show.
+        let mode;
+        if (dm === 'hide' || cm === 'hide') mode = 'hide';
+        else if (dm === 'ghost' || cm === 'ghost') mode = 'ghost';
+        else { const c = state.vizColour ? colourForMesh(state.vizColour, meta, o) : null; mode = c ? ('colour:' + c) : 'show'; }
+        applyMeshState(o, mode);
       });
+      broadcastAppearance();
+    }
+    // applyAppearance — canonical name; applyVizModes kept for existing callers.
+    const applyAppearance = applyVizModes;
+
+    // Set a single mesh to exactly one appearance state. Dirty-flagged + idempotent
+    // (skips redundant material swaps). hide → invisible; ghost → shared ghost mat;
+    // colour:<hex> → shared coloured mat; show → original.
+    function applyMeshState(o, mode) {
+      if (o.userData._vizMode === mode) return;     // idempotent
+      o.userData._vizMode = mode;
+      if (mode === 'hide') { o.visible = false; restoreOriginalMaterial(o); return; }
+      o.visible = true;
+      if (mode === 'ghost') { ghostMaterial(o); return; }
+      if (mode.indexOf('colour:') === 0) { setReplacement(o, colourMaterial(mode.slice(7))); return; }
+      restoreOriginalMaterial(o);                   // show
+    }
+    // Shared coloured material per hex (cached — no per-mesh leak).
+    function colourMaterial(hex) {
+      let m = state.colourMats.get(hex);
+      if (!m) {
+        const n = parseInt(String(hex).replace('#', ''), 16);
+        m = new THREE_.MeshStandardMaterial({ color: isFinite(n) ? n : 0x888888, metalness: 0.0, roughness: 0.85 });
+        m.userData = { stingColour: true };
+        state.colourMats.set(hex, m);
+      }
+      return m;
+    }
+    // Resolve a mesh's override colour from the active colour descriptor (M1 token /
+    // preset; M4 adds numeric param + legend isolation). Returns a hex or null.
+    function colourForMesh(col, meta, o) {
+      if (!col) return null;
+      if (col.kind === 'preset') {
+        const d = discOf(meta);
+        return col.map[d] || col.map._other || null;
+      }
+      // token / param: normalise the value the same way the legend was built.
+      let v = String(tokenValue(meta, col.token) || '').trim();
+      if (col.token === 'DISC') v = discOf(meta);
+      if (!v) return col.noValue || null;
+      // M4 legend isolation: when isolating, non-isolated values drop to null (→ ghost via caller).
+      if (col.isolate != null && v !== col.isolate) return null;
+      if (col.hidden && col.hidden.has(v)) return null;
+      return col.valueColors ? (col.valueColors.get(v) || col.noValue || null) : null;
+    }
+    // Derive a discipline even when the DISC token is absent (as-built models):
+    // map the Revit category to a discipline code (DiscMap-style).
+    function discOf(meta) {
+      const d = discKey(meta);
+      if (d) return d;
+      const c = catKey(meta).toLowerCase();
+      if (!c) return '';
+      const RULES = [
+        [/duct|air\s*terminal|diffuser|grille|hvac|vav|ahu|fcu|mechanical|fan|damper/, 'M'],
+        [/pipe|plumb|sanitary|fixture|valve|sprinkler\s*pipe/, 'P'],
+        [/cable|conduit|electric|lighting|light\s*fixture|panel|switch|socket|data|fire\s*alarm|device/, 'E'],
+        [/fire\s*protect|sprinkler|fire\s*supp/, 'FP'],
+        [/column|beam|brace|footing|foundation|framing|structural|rebar|truss|slab\s*edge/, 'S'],
+        [/wall|floor|ceiling|roof|door|window|stair|railing|furniture|casework|room|curtain|generic\s*model|topograph/, 'A'],
+      ];
+      for (const [re, disc] of RULES) if (re.test(c)) return disc;
+      return '';
+    }
+    // Distinct disciplines across the model (derived where the token is absent).
+    function distinctDisc() {
+      const s = new Set();
+      if (state.elementMap) Object.values(state.elementMap).forEach(m => { const d = discOf(m); if (d) s.add(d); });
+      return Array.from(s).sort();
+    }
+    // Broadcast the live appearance state to a meeting (echo-guarded), reusing the
+    // overlay channel established in WS2.
+    function broadcastAppearance() {
+      if (state.applyingRemoteViz) return;
+      if (typeof broadcastVizRenderMode === 'function' && state.renderMode && state.renderMode !== 'shaded') broadcastVizRenderMode();
     }
     // One-click "shade only X, ghost the rest".
     function shadeOnlyDiscipline(disc) {
       state.vizDiscMode.clear();
-      distinctTokens('DISC').forEach(d => state.vizDiscMode.set(d, d === disc ? 'show' : 'ghost'));
-      applyVizModes();
+      distinctDisc().forEach(d => state.vizDiscMode.set(d, d === disc ? 'show' : 'ghost'));
+      applyAppearance();
       renderVisualizePanel();
       toast(disc ? `Shading ${disc}, ghosting the rest` : 'Show all');
     }
 
-    // BUILD 3 — colour every element by ANY STING token, with a legend, via the
-    // existing overlay engine. "Clear overlay" restores materials.
+    // Colour every element by ANY STING token (categorical) — sets a colour
+    // descriptor and drives the ONE appearance engine (no separate overlay path).
     function colourByToken(token) {
       if (!V.modelRoot || !state.elementMap) return toast('No model / element map', 'warn');
-      // Restore any host-managed ghost/highlight materials first so the engine
-      // overlay captures TRUE originals (visibility is preserved — hidden
-      // elements stay hidden).
-      clearAllHighlights();
-      const values = new Map(); // value → colour
-      const guidColorMap = {};
+      const values = new Map();  // value → colour
+      const counts = new Map();
       let idx = 0;
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        const guid = o.userData.elementGuid;
-        const v = String(tokenValue(state.elementMap[guid], token) || '').trim();
+      Object.values(state.elementMap).forEach(m => {
+        let v = String(tokenValue(m, token) || '').trim();
+        if (token === 'DISC') v = discOf(m);
         if (!v) return;
         if (!values.has(v)) values.set(v, VIZ_PALETTE[idx++ % VIZ_PALETTE.length]);
-        guidColorMap[guid] = values.get(v);
+        counts.set(v, (counts.get(v) || 0) + 1);
       });
-      if (!values.size) return toast(`No ${token} tokens on this model`, 'warn');
-      const legend = Array.from(values.entries())
-        .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
-        .map(([label, color]) => ({ label, color }));
-      V.applyOverlay({ source: 'tokens:' + token, mode: 'map', guidColorMap,
-                       defaultColor: '#444b57', opacity: 1,
-                       title: 'Colour by ' + token, legend });
+      if (!values.size) return toast(`No ${token} values on this model`, 'warn');
+      state.vizColour = {
+        kind: 'token', token, valueColors: values, counts, noValue: '#3a3f4a',
+        legend: Array.from(values.entries())
+          .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+          .map(([label, color]) => ({ label, color, count: counts.get(label) || 0 })),
+      };
+      state.vizPreset = null;
+      applyAppearance();
+      renderVisualizePanel();
       toast(`Coloured by ${token} — ${values.size} value${values.size === 1 ? '' : 's'}`);
     }
 
-    // BUILD 5 — apply a discipline appearance preset (solid colour per
-    // discipline) through the same overlay path.
+    // Discipline appearance preset (solid colour per discipline) — same engine.
     function applyDisciplinePreset(name) {
       const preset = DISC_PRESETS[name];
-      if (!preset || !V.modelRoot || !state.elementMap) return;
-      clearAllHighlights();   // capture true originals (see colourByToken)
-      const guidColorMap = {};
+      if (!preset || !V.modelRoot) return;
       const used = new Set();
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        const guid = o.userData.elementGuid;
-        const d = discKey(state.elementMap[guid]);
-        const col = preset[d] || preset._other;
-        if (col) { guidColorMap[guid] = col; if (preset[d]) used.add(d); }
-      });
-      const legend = Array.from(used).sort().map(d => ({ label: d, color: preset[d] }));
-      if (preset._other) legend.push({ label: 'Other', color: preset._other });
+      Object.values(state.elementMap || {}).forEach(m => { const d = discOf(m); if (preset[d]) used.add(d); });
       state.vizPreset = name;
-      V.applyOverlay({ source: 'preset:' + name, mode: 'map', guidColorMap,
-                       defaultColor: preset._other || null, opacity: 1,
-                       title: name, legend });
+      state.vizColour = {
+        kind: 'preset', map: preset, presetName: name,
+        legend: Array.from(used).sort().map(d => ({ label: d, color: preset[d] }))
+          .concat(preset._other ? [{ label: 'Other', color: preset._other }] : []),
+      };
+      applyAppearance();
       toast(`Applied ${name}`);
+    }
+    function clearColour() {
+      state.vizColour = null; state.vizPreset = null;
+      applyAppearance();
     }
 
     // BUILD 4 (section) — a clip-plane section box around an arbitrary AABB.
@@ -1035,10 +1109,13 @@
     }
 
     function resetVisualization() {
-      state.vizDiscMode.clear(); state.vizCatMode.clear(); state.vizPreset = null;
+      state.vizDiscMode.clear(); state.vizCatMode.clear();
+      state.vizPreset = null; state.vizColour = null;
       clearClashSection();
       if (V.clearOverlay) V.clearOverlay();
       clearAllHighlights();
+      // Clear the dirty-flag so the next applyAppearance re-evaluates every mesh.
+      if (V.modelRoot) V.modelRoot.traverse(o => { if (o.isMesh) o.userData._vizMode = undefined; });
       showAllElements();
       renderVisualizePanel();
       toast('Visualization reset');
@@ -1068,6 +1145,21 @@
       return row;
     }
 
+    // Colour legend (swatch · label · count). Interactivity added in M4.
+    function renderVizLegend(col) {
+      const box = el('div', { class: 'viz-legend', style: 'margin-top:6px;display:flex;flex-direction:column;gap:2px;max-height:180px;overflow:auto' });
+      col.legend.forEach(it => {
+        const row = el('div', { class: 'viz-legend-row', 'data-value': it.label, style:
+          'display:flex;align-items:center;gap:6px;font-size:11px;color:#cfd6e4;padding:1px 2px;border-radius:3px;cursor:pointer' }, [
+          el('span', { style: `width:12px;height:12px;border-radius:2px;background:${it.color};flex:0 0 auto` }),
+          el('span', { style: 'flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' }, String(it.label)),
+          el('span', { style: 'color:#9aa3b2' }, it.count != null ? String(it.count) : ''),
+        ]);
+        box.appendChild(row);
+      });
+      return box;
+    }
+
     function renderVisualizePanel() {
       const pane = $('#pane-visualize');
       if (!pane) return;
@@ -1086,7 +1178,7 @@
       // ── Quick actions ──
       const quick = el('div', {});
       quick.appendChild(sectionTitle('Quick'));
-      const discs = distinctTokens('DISC');
+      const discs = distinctDisc();   // derived where the DISC token is absent
       const sel = el('select', { style: 'flex:1;background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:4px' });
       sel.appendChild(el('option', { value: '' }, 'Pick discipline…'));
       discs.forEach(d => sel.appendChild(el('option', { value: d }, d)));
@@ -1096,7 +1188,7 @@
       ]);
       quick.appendChild(qRow);
       quick.appendChild(el('div', { style: 'display:flex;gap:6px;margin-top:6px' }, [
-        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => { state.vizDiscMode.forEach((_, k) => state.vizDiscMode.set(k, 'show')); state.vizCatMode.forEach((_, k) => state.vizCatMode.set(k, 'show')); showAllElements(); clearAllHighlights(); renderVisualizePanel(); } }, 'Show all'),
+        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => { state.vizDiscMode.forEach((_, k) => state.vizDiscMode.set(k, 'show')); state.vizCatMode.forEach((_, k) => state.vizCatMode.set(k, 'show')); state.vizColour = null; if (V.modelRoot) V.modelRoot.traverse(o => { if (o.isMesh) o.userData._vizMode = undefined; }); applyAppearance(); renderVisualizePanel(); } }, 'Show all'),
         el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => resetVisualization() }, 'Reset')
       ]));
       wrap.appendChild(quick);
@@ -1123,8 +1215,13 @@
       const tokRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' });
       tokens.forEach(([t, label]) => tokRow.appendChild(
         el('button', { class: 'btn sm', onclick: () => colourByToken(t) }, label)));
-      tokRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => { if (V.clearOverlay) V.clearOverlay(); state.vizPreset = null; toast('Overlay cleared'); } }, 'Clear overlay'));
+      tokRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => { clearColour(); renderVisualizePanel(); toast('Colour cleared'); } }, 'Clear colour'));
       colBox.appendChild(tokRow);
+      // Legend — rendered by the M1 engine (was the overlay's). M4 makes the
+      // swatches interactive (click = isolate, shift-click = hide, hover = highlight).
+      if (state.vizColour && state.vizColour.legend && state.vizColour.legend.length) {
+        colBox.appendChild(renderVizLegend(state.vizColour));
+      }
       wrap.appendChild(colBox);
 
       // ── BUILD 5 — Discipline presets ──
@@ -1140,7 +1237,8 @@
       const byDisc = el('div', {});
       byDisc.appendChild(sectionTitle('By discipline'));
       const discCounts = {};
-      Object.values(state.elementMap).forEach(m => { const d = discKey(m); if (d) discCounts[d] = (discCounts[d] || 0) + 1; });
+      Object.values(state.elementMap).forEach(m => { const d = discOf(m); if (d) discCounts[d] = (discCounts[d] || 0) + 1; });
+      if (!discs.length) byDisc.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2' }, 'No discipline data'));
       discs.forEach(d => byDisc.appendChild(vizModeRow(d, discCounts[d],
         () => state.vizDiscMode.get(d),
         (m) => state.vizDiscMode.set(d, m))));
