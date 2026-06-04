@@ -1065,12 +1065,15 @@ THREE.ColorManagement.enabled = false;
     }
 
     if (longPress) { emitPlaceIssue(hit); return; }
+    // Tool exclusivity — markup + section OWN the pointer; they must NOT also
+    // select/pick. The pick raycaster is gated off for them here.
+    if (activeTool === 'markup' || activeTool === 'section') return;
     if (activeTool === 'pick')         emitPick(hit);
     else if (activeTool === 'measure') addMeasurePoint(hit);
     else if (activeTool === 'pin')     emitPlaceIssue(hit);
     else if (activeTool === 'clearance') addClearancePick(hit);
     else if (activeTool === 'cumPath') addCumulativePickHit(hit);
-    else                                emitPick(hit);
+    else                                emitPick(hit);   // pick / orbit / default
   });
 
   // ── Clearance pick — collects two element targets, emits min-distance ─

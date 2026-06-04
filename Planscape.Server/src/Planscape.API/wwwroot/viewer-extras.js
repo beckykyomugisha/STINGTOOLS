@@ -400,6 +400,7 @@
   let markupGesture = null;       // active drag/click gesture
   let markupClicks = [];          // accumulated points for multi-click tools
   let markupPreview = null;       // transient preview object during a drag
+  let markupStamps = [];          // children.length after each completed op (for Undo)
   let rotatePrev = null;          // saved controls.enableRotate
   const MARKUP_COLOR = 0xffcc33;
   const markupRay = new THREE.Raycaster();
@@ -605,6 +606,7 @@
 
   const DRAG_THRESHOLD = 5; // px
   function finishGesture(h, start, end, moved) {
+    const before = markupGroup ? markupGroup.children.length : 0;
     const dragged = moved > DRAG_THRESHOLD;
     switch (markupMode) {
       case 'text': {
@@ -636,6 +638,9 @@
         }
         break;
     }
+    // Record a stamp when this gesture actually placed object(s), so Undo can
+    // remove the whole last markup op (not just one of its child meshes).
+    if (markupGroup && markupGroup.children.length > before) markupStamps.push(markupGroup.children.length);
   }
 
   function markupKeydown(ev) { if (ev.key === 'Escape' && markupMode) ext.stopMarkup(); }
@@ -658,11 +663,24 @@
     if (h && h.controls && rotatePrev !== null) { h.controls.enableRotate = rotatePrev; rotatePrev = null; }
     markupMode = null; markupGesture = null; markupClicks = [];
     if (h && h.bridge) h.bridge.send('markupModeChanged', { mode: null });
+    // Tell the coordination layer markup exited (Escape / internal) so it can
+    // restore the exclusive tool state + pick + hide the markup toolbar.
+    try { window.dispatchEvent(new CustomEvent('sting:markupStopped')); } catch (e) {}
+  };
+  // Undo the last completed markup op (drops the whole op, not one child mesh).
+  ext.undoMarkup = function () {
+    if (!markupGroup || !markupGroup.children.length) return;
+    markupStamps.pop();
+    const target = markupStamps.length ? markupStamps[markupStamps.length - 1] : 0;
+    while (markupGroup.children.length > target) {
+      const obj = markupGroup.children[markupGroup.children.length - 1];
+      markupGroup.remove(obj); disposeObj(obj);
+    }
   };
   ext.clearMarkup = function () {
     const h = host();
     ext.stopMarkup();
     if (markupGroup && h) { h.scene.remove(markupGroup); disposeObj(markupGroup); }
-    markupGroup = null;
+    markupGroup = null; markupStamps = [];
   };
 })();

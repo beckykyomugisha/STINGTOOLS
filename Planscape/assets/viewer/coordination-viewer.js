@@ -111,6 +111,7 @@
       activeLevels: new Set(),
       levelBands: [],
       activeNav: 'orbit',
+      activeTool: 'orbit',   // exclusive tool: orbit | pick | measure | markup | section
       issuesFilter: 'all',
       // X1 — clash filters are now two independent axes.
       clashStatusFilter: 'any',  // any | NEW | OPEN | RESOLVED
@@ -558,12 +559,12 @@
       bindMenu('#btnMarkup', '#menuMarkup', {
         '#mkScreenshot': () => takeScreenshot(),
         '#mkShare':      () => shareCurrentView(),
-        '#mkText':    () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'text'    } }); toast('Markup: click a surface to place text'); },
-        '#mkArrow':   () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'arrow'   } }); toast('Markup: drag from tail to head'); },
-        '#mkDraw':    () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'draw'    } }); toast('Markup: drag to draw freehand'); },
-        '#mkCloud':   () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'cloud'   } }); toast('Markup: drag a box for a revision cloud'); },
-        '#mkDim':     () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'dim'     } }); toast('Markup: click two points for a dimension'); },
-        '#mkCallout': () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'callout' } }); toast('Markup: click a point, then a label spot'); },
+        '#mkText':    () => { startMarkupTool('text');    toast('Markup: click a surface to place text'); },
+        '#mkArrow':   () => { startMarkupTool('arrow');   toast('Markup: drag from tail to head'); },
+        '#mkDraw':    () => { startMarkupTool('draw');    toast('Markup: drag to draw freehand'); },
+        '#mkCloud':   () => { startMarkupTool('cloud');   toast('Markup: drag a box for a revision cloud'); },
+        '#mkDim':     () => { startMarkupTool('dim');     toast('Markup: click two points for a dimension'); },
+        '#mkCallout': () => { startMarkupTool('callout'); toast('Markup: click a point, then a label spot'); },
         '#mkClear':   () => { handleHostCommand({ type: 'clearMarkup' }); toast('Markups cleared'); },
       });
       bindMenu('#btnMeet', '#menuMeet', {
@@ -4768,6 +4769,9 @@
         $$('.nav-btn').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
         state.activeNav = m;
+        // Selecting a navigation mode exits any active exclusive tool
+        // (markup / measure / section) — restoring pick + OrbitControls.
+        if (state.activeTool !== 'orbit' && state.activeTool !== 'pick') setActiveTool('orbit');
         // Walk mode delegates to viewer-extras' first-person controls.
         handleHostCommand({ type: 'setWalkthrough', payload: { enabled: m === 'walk' } });
         // Toggle navControls.walking class so the speed-wheel highlights.
@@ -4877,8 +4881,59 @@
       }, { passive: false });
     }
 
+    // ── One mutually-exclusive tool state: orbit | pick | measure | markup | section.
+    // The engine's pick raycaster only fires in 'pick'/'orbit'; markup/measure/section
+    // own the pointer. Switching tools (or Exit) cleanly tears down the previous one
+    // and restores OrbitControls + pick.
     function setActiveTool(t) {
-      handleHostCommand({ type: 'setTool', payload: { tool: t } });
+      const prev = state.activeTool;
+      state.activeTool = t;                       // set FIRST so teardown sees the new state
+      if (prev === 'markup' && t !== 'markup') {
+        const x = window.STING_VIEWER_EXTRAS;
+        if (x && x.stopMarkup) { try { x.stopMarkup(); } catch (_) {} }   // restores rotate + detaches markup input
+        showMarkupBar(false);
+      }
+      if (prev === 'section' && t !== 'section') {
+        if (typeof exitSectionTool === 'function') { try { exitSectionTool(); } catch (_) {} }  // Commit 4
+      }
+      // Gate the engine pick raycaster.
+      const engineTool = (t === 'measure' || t === 'markup' || t === 'section') ? t : 'pick';
+      handleHostCommand({ type: 'setTool', payload: { tool: engineTool } });
+    }
+
+    // Enter markup with a specific tool — sets the exclusive tool state, then starts
+    // the markup gesture in the engine and shows the markup toolbar.
+    function startMarkupTool(mode) {
+      setActiveTool('markup');
+      handleHostCommand({ type: 'startMarkup', payload: { mode } });
+      showMarkupBar(true);
+    }
+
+    // Floating markup toolbar: Undo · Clear all · Exit. (Escape also exits, handled
+    // in viewer-extras which fires sting:markupStopped → we tidy the host state.)
+    function showMarkupBar(show) {
+      let bar = document.getElementById('markupBar');
+      if (!show) { if (bar) bar.remove(); return; }
+      if (bar) return;
+      bar = el('div', { id: 'markupBar', style:
+        'position:absolute;top:64px;left:50%;transform:translateX(-50%);z-index:14;display:flex;gap:6px;' +
+        'background:rgba(0,0,0,0.62);padding:6px 10px;border-radius:8px;backdrop-filter:blur(4px)' }, [
+        el('span', { style: 'color:#ffcc33;font:12px sans-serif;align-self:center;margin-right:4px' }, '✏ Markup'),
+        el('button', { class: 'btn sm subtle', onclick: () => { const x = window.STING_VIEWER_EXTRAS; if (x && x.undoMarkup) x.undoMarkup(); } }, '↩ Undo'),
+        el('button', { class: 'btn sm subtle', onclick: () => { handleHostCommand({ type: 'clearMarkup' }); toast('Markups cleared'); } }, '🗑 Clear all'),
+        el('button', { class: 'btn sm', style: 'background:rgba(208,80,80,0.85);color:#fff', onclick: () => setActiveTool('orbit') }, '✕ Exit'),
+      ]);
+      document.body.appendChild(bar);
+    }
+    // Escape (or any internal markup exit) in viewer-extras → tidy the host tool state.
+    if (typeof window !== 'undefined') {
+      window.addEventListener('sting:markupStopped', () => {
+        if (state.activeTool === 'markup') {
+          state.activeTool = 'orbit';
+          handleHostCommand({ type: 'setTool', payload: { tool: 'pick' } });
+          showMarkupBar(false);
+        }
+      });
     }
 
     function setRenderMode(mode) {
