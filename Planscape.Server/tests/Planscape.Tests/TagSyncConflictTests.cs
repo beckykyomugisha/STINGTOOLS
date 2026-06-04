@@ -76,7 +76,8 @@ public class TagSyncConflictTests
             db,
             new NullHubContext<TagSyncHub>(),
             new NullHubContext<ComplianceHub>(),
-            scopeFactory);
+            scopeFactory,
+            new NullHubContext<NotificationHub>());
 
         // Build a ClaimsPrincipal carrying the tenant so GetTenantId() resolves
         controller.ControllerContext = new ControllerContext

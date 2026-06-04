@@ -96,6 +96,23 @@ public class ModelsController : ControllerBase
             return BadRequest(new { error = "file_too_large", maxMb = MaxModelSizeBytes / 1024 / 1024 });
 
         var format = InferFormat(req.File.FileName);
+        // #1 (Empty 3D viewer) — the web viewer is GLTFLoader-only
+        // (viewer.html:782) and this endpoint serves the stored bytes verbatim
+        // (no conversion on the publish path; the converter sidecar's handlers
+        // are not yet written). Publishing IFC/RVT/OBJ/FBX therefore produced a
+        // "successful publish" that rendered an empty canvas. Reject non-glTF at
+        // the boundary so successful publish ⇒ viewable. The plugin's primary
+        // path already exports GLB (PublishModelCommand → RevitGltfExporter); to
+        // keep an IFC-first workflow, wire the converter to emit a GLB
+        // derivative and relax this check (also requires Converter__ApiBearer,
+        // finding #5).
+        if (format is not (ModelFormat.Glb or ModelFormat.Gltf))
+            return BadRequest(new
+            {
+                error = "unsupported_viewer_format",
+                format = format.ToString(),
+                message = "Only GLB/glTF are renderable by the viewer. Export/convert IFC/RVT/OBJ/FBX to GLB before publishing."
+            });
         var project = await _db.Projects.AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == projectId, ct);
         if (project == null) return NotFound(new { error = "project_not_found" });
