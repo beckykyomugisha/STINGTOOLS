@@ -497,3 +497,136 @@ tenant query filter), `H-5` (BCF/federated pagination + N+1), `M-2` job-side
 (`ClashDetectionJob.ElementAGuid`→IfcGuid), `H-2` (ArchiCAD C++), and the
 migration-set regeneration (§13). Each is a clean follow-up on this now-green,
 reconciled base.
+
+
+## 16. Pre-merge gates (2026-06-04)
+
+Three gates were taken to MERGE-READY on `claude/upbeat-cori-vdOPA` (from origin
+tip `2e82aa3`). All work below was machine-verified on Windows with .NET
+`10.0.102`, Docker `29.4.3`, against `postgres:16-alpine` + `redis:7-alpine`
+containers; the API was run via `dotnet run` (LocalFileStorageService — no MinIO
+needed). Decisions and captured output follow.
+
+### Gate 1 — rate-limiter duplicate + server boot smoke (machine-verified)
+
+- **Root cause:** `Program.cs` registered the rate-limiter policy named
+  `per-tenant` **twice** — a Redis sliding-window net (`Program.cs:874`, the
+  Phase-175 cluster-wide version) and an older in-memory `FixedWindowRateLimiter`
+  (`Program.cs:894`). A duplicate `AddPolicy` with the same name throws at
+  startup, so the host never booted (the section-14 "pre-existing startup crash").
+- **Fix:** deleted the in-memory duplicate; kept the Redis cluster-wide net
+  (`Program.cs:865-887`). Removing the in-memory one is the *correct* keep — it
+  was the per-pod variant Phase 175 explicitly retired (it multiplied each
+  tenant's budget by pod count). Verified all rate-limiter policy names are now
+  unique: `auth, api, tagsync, mobile, per-tenant` (one each).
+- **Build:** `dotnet build src/Planscape.API` -> **0 errors**.
+- **Boot:** API booted clean against the docker Postgres/Redis. Log:
+  `[schema-patch] done — 6 ok, 0 failed` · `[platform-schema] done — 55 ok,
+  0 failed` · `[schema-drift] OK` · `Now listening on http://localhost:5080` ·
+  `Application started.` — **no startup exception**.
+- **HTTP end-to-end smoke** (all green):
+  - `GET /health` -> `200` `{status:healthy, database.healthy:true, redis.healthy:true}`
+  - `POST /api/auth/login` (`admin@planscape.demo`/`admin123`) -> `200`, JWT issued
+  - `GET /api/projects` -> `200`, 6 seeded projects
+  - `GET /api/projects/{id}/models` -> `200`
+  - `POST /api/projects/{id}/models` (multipart GLB upload) -> `201`
+  - `GET /api/projects/{id}/models/{modelId}/file` -> `200`, **streams with
+    `Content-Length: 84`**, `Accept-Ranges: bytes`, body bytes == declared length.
+
+### Gate 2 — migration decision: Option B (official patcher + drift self-check) (machine-verified)
+
+- **Decision:** **Option B.** Option A (model-generated EF baseline + `Migrate()`)
+  was rejected as **not safe in this pass** for a decisive reason: the legacy
+  migrations carry hand-written `migrationBuilder.Sql(...)` that the EF model
+  snapshot **cannot** reproduce, and a model-only baseline would silently drop it:
+  - `20260506200000_EnablePostgresRowLevelSecurity.cs` — `CREATE POLICY` /
+    `ENABLE ROW LEVEL SECURITY` (the **tenant-isolation backstop**)
+  - `20260501030000_AddAuditLogHashChainAndPartitions.cs` — `PARTITION BY` /
+    `CREATE TRIGGER` (audit-log **tamper-evidence**)
+  - `20260418000000_AddIssueCustomFields.cs` — `GIN` / `tsvector` indexes
+
+  Verified: these appear **0 times** in `PlanscapeDbContextModelSnapshot.cs`.
+  Also confirmed the legacy migrations are inert today — `0` `[Migration]`
+  attributes and `0` `.Designer.cs` files, so `Database.Migrate()` already
+  applies nothing. Switching to a model-only baseline would be a silent
+  security/compliance regression; rebuilding that raw SQL by hand is exactly the
+  destructive unverifiable catch-up the gate warned against. Full rationale:
+  **`docs/adr/0001-schema-management.md`**.
+- **Implementation (Option B made rigorous):**
+  1. `PlatformSchemaPatcher` extended to cover this branch's EF entities that
+     have no applicable migration: `ExternalElementMappings` (+3 indexes incl.
+     the composite unique with EF's truncated `…HostDocu~` name),
+     `IdempotencyRecords`, `ClashRecords`, `IfcAlignmentReports`. DDL mirrors
+     `CreateTables()` output (verified by `pg_dump`). (Hvac*, `GlobalIdRegistry`,
+     `ArchiCADEventLogs`, and the `IX_ProjectModels_Tenant_Project_Hash` filtered
+     unique index were already covered.)
+  2. New **`SchemaDriftChecker`** (`src/Planscape.API/SchemaDriftChecker.cs`),
+     run after the patcher in `Program.cs`. It enumerates every table+column the
+     live EF model expects and diffs `information_schema`; logs every
+     expected-but-absent table/column. `Database:SchemaDriftStrict=true` (or
+     `PLANSCAPE_SCHEMA_DRIFT_STRICT=true`) turns drift into a **boot failure** —
+     the CI/startup self-check. This makes the patcher path's one failure mode
+     (an un-mirrored entity) self-detecting instead of a silent prod 500.
+- **Verification (all four states):**
+  - **A** (existing CreateTables DB): boots, `[schema-drift] OK — 131 EF tables`.
+  - **B** (pre-existing DB: dropped the 4 branch tables, rebooted): patcher
+    **recreated all 4**, `[schema-drift] OK`, clean boot — proves patcher
+    coverage + idempotency on a long-lived DB.
+  - **C** (drift detection): dropped a non-patched table (`SavedViews`), rebooted
+    with strict mode -> boot **failed** with
+    `[schema-drift] MISSING TABLE: SavedViews` +
+    `InvalidOperationException: Schema drift detected` and **no "Now listening"** —
+    the CI gate works.
+  - **D** (truly fresh, wiped volume, strict mode): CreateTables built **131**
+    tables, patcher ran, `[schema-drift] OK`, `Now listening` — fresh DB applies
+    clean. Full HTTP smoke re-run green on this DB.
+
+### Gate 3 — cross-host validation checklist + ingest instrumentation (checklist written; server contract machine-verified)
+
+- **Checklist:** `docs/CROSS_HOST_VALIDATION_CHECKLIST.md` — a precise,
+  step-by-step, pass/fail manual script for a human with Revit + ArchiCAD + the
+  stack. Covers BLK-1 (`IFC_GLOBAL_ID_TXT` = 22-char GlobalId = exported IFC
+  GlobalId; geometry sync keys on it), H-1 (`PushIfcDataAsync` -> `host=revit`
+  mappings), BLK-3 (same GlobalId resolves to both hosts), and BLK-2 (two
+  world-spaces overlay after `ModelTransform`). Each step has exact
+  command/click, expected result, and a pass/fail line. **It is a written
+  runnable script — not a claim of having run the Revit/ArchiCAD halves.**
+- **Instrumentation (behaviour-neutral):** `IfcIngestService.IngestAsync` now
+  logs one structured line per ingest with the resolved cross-host **key + host**
+  — `[ifc-ingest] cross-host upsert host=… project=… keys=N … sampleKeys=[…]` —
+  so the checklist steps are grep-checkable. Added an optional `ILogger`
+  (`src/Planscape.Infrastructure/Services/IfcIngestService.cs`).
+- **Server-contract proof (machine-verified, the part runnable in-sandbox):**
+  posted the **same** 22-char GlobalId (`3qoVHv8R0kg5pZWvTabcDE`) to
+  `POST /api/projects/{id}/ifc/data` as `host=revit` then `host=archicad`:
+  - revit push -> `newMappings=1, newElements=1`; archicad push (same key) ->
+    `newMappings=1, newElements=0` (shared TaggedElement projection).
+  - `GET …/ifc/mappings?ifcGuid=…` -> `totalCount=2`, items = `host=revit` **and**
+    `host=archicad` for the one GlobalId -> **cross-host resolution confirmed**.
+  - Log showed both `[ifc-ingest] … host=revit … sampleKeys=[3qoVHv8R0kg5pZWvTabcDE]`
+    and `… host=archicad …`.
+
+### MERGE-READINESS verdict
+
+**The branch is merge-ready.** It compiles (`0 errors`) and boots clean.
+
+- **Machine-verified now (Gates 1 & 2, and the server half of Gate 3):**
+  duplicate rate-limiter removed and host boots; full HTTP smoke (health, login,
+  projects, models, model-file streaming with Content-Length) green; the schema
+  story is decided (ADR 0001) and implemented — patcher covers this branch's
+  entities, drift self-check passes on fresh + pre-existing DBs and correctly
+  fails on injected drift; cross-host IFC ingest + resolution + the new
+  `[ifc-ingest]` instrumentation proven at the REST contract level (same
+  GlobalId -> revit + archicad).
+- **Awaits the Gate-3 human session (honestly outstanding):** the **plugin**
+  halves running against the **real Revit/ArchiCAD APIs** — that
+  `IFC_GLOBAL_ID_TXT` equals the actual exported IFC GlobalId, that
+  `StabilizeIfcGuidsCommand`/`GeometrySyncHandler`/`PushIfcDataAsync` behave on a
+  live model, and that two real differently-world-spaced models overlay after
+  `ModelTransform`. These cannot be exercised in a headless sandbox; the
+  runnable checklist (`docs/CROSS_HOST_VALIDATION_CHECKLIST.md`) is the
+  hand-off for that session.
+- **Constraints honoured:** branch compiles and boots before push; **no
+  destructive migration** against existing data (additive `… IF NOT EXISTS`
+  patcher only); exactly **one** rate-limiter policy per name; Gate-3 is a
+  written runnable checklist, not a claim of execution.
