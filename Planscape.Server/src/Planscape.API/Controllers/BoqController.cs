@@ -154,6 +154,18 @@ public class BoqController : ControllerBase
                 $"Cost snapshot pushed — estimated {dto.TotalEstimated:F2}, actual {dto.TotalActual:F2}.",
                 new { projectId, source = "plugin", snapshotId = snapshot.Id },
                 CancellationToken.None);
+
+            // #7 — also fire the typed BoqSnapshotUpdated event the mobile cost
+            // dashboard subscribes to (realtimeClient.ts:64). The generic
+            // NotifyProjectAsync above only emits the "Notification" channel,
+            // which that subscription never sees.
+            _ = _notifications.NotifyProjectEventAsync(
+                projectId,
+                "BoqSnapshotUpdated",
+                new { projectId, source = "plugin", snapshotId = snapshot.Id,
+                      totalEstimated = dto.TotalEstimated, totalActual = dto.TotalActual,
+                      createdAt = snapshot.CreatedAt },
+                CancellationToken.None);
         }
 
         return Ok(new { id = snapshot.Id, createdAt = snapshot.CreatedAt });

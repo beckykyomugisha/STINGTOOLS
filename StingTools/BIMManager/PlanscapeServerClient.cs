@@ -79,6 +79,64 @@ public sealed partial class PlanscapeServerClient : IDisposable
 
     private PlanscapeServerClient() { }
 
+    // ── Shared URL builders (#9, #21) ────────────────────────────────────────
+    // Single canonical fallback for the web SPA when no server URL is known.
+    // The retired Render.com host (planscape-api.onrender.com) is explicitly
+    // NOT used — LoadConnectionSettings already drops it (:677) — and Planscape
+    // is self-hosted/offline-first, so the docker-compose default is canonical.
+    public const string DefaultAppFallbackUrl = "http://localhost:5000";
+
+    /// <summary>
+    /// #9 — Build the coordinator SPA URL (<c>&lt;base&gt;/app/</c> + optional
+    /// hash like <c>#models?project={id}</c>), resolving the base URL in one
+    /// consistent order so the three "Open Web Dashboard" call sites stop
+    /// disagreeing: live <see cref="ServerUrl"/> → saved
+    /// <c>planscape_connection.json</c> (when a path is supplied) → the single
+    /// <see cref="DefaultAppFallbackUrl"/> const.
+    /// </summary>
+    public static string BuildAppUrl(string? hash = null, string? savedConnectionPath = null)
+    {
+        string baseUrl = Instance.ServerUrl;
+        if (string.IsNullOrWhiteSpace(baseUrl)
+            && !string.IsNullOrWhiteSpace(savedConnectionPath)
+            && File.Exists(savedConnectionPath))
+        {
+            try
+            {
+                var (savedUrl, _, _) = LoadConnectionSettings(savedConnectionPath);
+                if (!string.IsNullOrWhiteSpace(savedUrl)) baseUrl = savedUrl;
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildAppUrl: {ex.Message}"); }
+        }
+        if (string.IsNullOrWhiteSpace(baseUrl)) baseUrl = DefaultAppFallbackUrl;
+
+        string url = baseUrl.TrimEnd('/') + "/app/";
+        if (!string.IsNullOrWhiteSpace(hash))
+            url += hash!.StartsWith("#") ? hash : "#" + hash;
+        return url;
+    }
+
+    /// <summary>
+    /// #9 — Convenience: build the SPA URL deep-linked to the active project's
+    /// 3D models view when one is connected, else the SPA landing.
+    /// </summary>
+    public static string BuildAppUrlForActiveProject(string? savedConnectionPath = null)
+    {
+        var client = Instance;
+        string? hash = (client.IsConnected && client.CurrentProjectId != Guid.Empty)
+            ? $"#models?project={client.CurrentProjectId}"
+            : null;
+        return BuildAppUrl(hash, savedConnectionPath);
+    }
+
+    /// <summary>
+    /// #21 — Single source for the <c>planscape://dashboard/{name}/{ts}</c>
+    /// clipboard share link, previously duplicated in StingCommandHandler and
+    /// WarningsManager.
+    /// </summary>
+    public static string BuildDashboardShareLink(string projectName)
+        => $"planscape://dashboard/{projectName}/{DateTime.Now:yyyyMMdd-HHmm}";
+
     // ────────────────────────────────────────────────────────────────────────────
     //  Authentication
     // ────────────────────────────────────────────────────────────────────────────

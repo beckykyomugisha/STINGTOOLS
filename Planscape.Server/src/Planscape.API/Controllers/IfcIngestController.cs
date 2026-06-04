@@ -64,6 +64,7 @@ public class IfcIngestController : ControllerBase
     private readonly IAuditService _audit;
     private readonly Planscape.Core.Interfaces.IIfcAlignmentValidator _alignmentValidator;
     private readonly IHubContext<FederatedModelHub> _modelHub;
+    private readonly IHubContext<NotificationHub> _notificationHub;
     private readonly ILogger<IfcIngestController> _logger;
 
     public IfcIngestController(
@@ -73,6 +74,7 @@ public class IfcIngestController : ControllerBase
         IAuditService audit,
         Planscape.Core.Interfaces.IIfcAlignmentValidator alignmentValidator,
         IHubContext<FederatedModelHub> modelHub,
+        IHubContext<NotificationHub> notificationHub,
         ILogger<IfcIngestController> logger)
     {
         _db = db;
@@ -81,6 +83,7 @@ public class IfcIngestController : ControllerBase
         _audit = audit;
         _alignmentValidator = alignmentValidator;
         _modelHub = modelHub;
+        _notificationHub = notificationHub;
         _logger = logger;
     }
 
@@ -224,7 +227,8 @@ public class IfcIngestController : ControllerBase
                     projectId.ToString(),
                     new[] { effectiveModelId.ToString() },
                     Array.Empty<long>(),
-                    hubSource);
+                    hubSource,
+                    notificationHub: _notificationHub);
             }
             catch (Exception hubEx)
             {

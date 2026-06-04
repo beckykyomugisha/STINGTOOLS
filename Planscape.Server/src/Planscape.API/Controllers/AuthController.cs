@@ -599,9 +599,18 @@ public class AuthController : ControllerBase
 
         return Ok(new
         {
-            user.Id, user.TenantId, user.Email, user.DisplayName, user.Role, user.Iso19650Role,
+            user.Id, user.TenantId, user.Email, user.DisplayName,
+            // #16 — emit Role as its string name to match login (:216) + the
+            // mobile/web `role: string` type. There is no JsonStringEnumConverter
+            // registered (Program.cs:685), so a bare `user.Role` serialised as an
+            // int ("role": 2) and broke client string comparisons.
+            Role = user.Role.ToString(),
+            user.Iso19650Role,
             Tier = user.Tenant?.Tier.ToString() ?? "Starter",
             user.Tenant?.MimEnabled,
+            // #19 — the mobile UserProfile type (api.ts:29-30) documents tenantName
+            // as emitted here; it never was. Add it so profile.tenantName resolves.
+            TenantName = user.Tenant?.Name,
             user.LastLoginAt
         });
     }
