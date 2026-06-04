@@ -162,19 +162,34 @@ class StingCoordPanel(bpy.types.Panel):
     def draw(self, context: bpy.types.Context) -> None:
         layout = self.layout
 
-        # Login status indicator
-        token = context.scene.get(_TOKEN_KEY)
-        email = context.scene.get(_EMAIL_KEY, "")
+        # Login + target status (source of truth = add-on preferences).
+        token = ""
+        email = ""
+        project_id = ""
+        try:
+            from .. import prefs as _p
+            pr = _p.get_prefs(context)
+            token = pr.api_token or ""
+            email = pr.email or ""
+            project_id = pr.project_id or ""
+        except Exception:
+            token = context.scene.get(_TOKEN_KEY, "") or ""
+            email = context.scene.get(_EMAIL_KEY, "") or ""
+
         box = layout.box()
         if token:
-            box.label(text=f"Logged in: {email}", icon="CHECKMARK")
+            box.label(text=f"Logged in: {email}" if email else "Logged in", icon="CHECKMARK")
         else:
             box.label(text="Not logged in", icon="LOCKED")
+        box.label(
+            text=f"Project: {project_id[:8]}…" if project_id else "Project: (set in prefs)",
+            icon="FILE_BLEND" if project_id else "INFO",
+        )
 
         col = layout.column(align=True)
         col.operator("sting.planscape_login",   icon="URL")
         col.separator()
-        col.operator("sting.sync_to_planscape", icon="EXPORT")
+        col.operator("sting.sync_to_planscape", text="Push to Planscape (bonsai)", icon="EXPORT")
         col.separator()
         col.operator("sting.raise_issue",       icon="ERROR")
 

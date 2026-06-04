@@ -7,7 +7,7 @@ schema_version = "1.0.0"
 id = "stingtools_bonsai"
 version = "0.1.0"
 name = "StingTools for Bonsai"
-tagline = "ISO 19650 tagging + IDS validation + Planscape federation, on top of Bonsai"
+tagline = "ISO 19650 tagging + IDS validation + Planscape federation"
 maintainer = "Planscape Limited <info@stingtools.io>"
 type = "add-on"
 website = "https://stingtools.io"
@@ -36,8 +36,8 @@ copyright = ["2026 Planscape Limited"]
 
 # Permissions
 [permissions]
-files = "Read enums + project overlay files; write audit log + Planscape sync state."
-network = "Sync tags + raise issues to Planscape Server."
+files = "Read enum/overlay files; write audit log + sync state"
+network = "Push IFC tags + raise issues to Planscape Server"
 
 # Build
 [build]

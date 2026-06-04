@@ -1,64 +1,64 @@
-"""COORD operators — Planscape login, tag sync, and issue raising."""
+"""COORD operators — Planscape login + cross-host IFC push + issue raise.
+
+All HTTP goes through ``..planscape.client.PlanscapeClient`` which is
+Python-stdlib-only (urllib) — no ``requests`` / ``stingtools_core`` /
+``_vendor`` needed, so these work on a stock Blender 4.2+ with Bonsai.
+
+The push posts to ``/api/projects/{id}/ifc/data`` with ``host="bonsai"``,
+keyed on each element's 22-char IFC ``GlobalId`` (the cross-host key),
+carrying the host element id, and NO ``revitElementId``.
+"""
 
 from __future__ import annotations
 
+import datetime
 import json
 import os
 from pathlib import Path
 
 import bpy
 
-_TOKEN_KEY = "sting_planscape_token"
-_URL_KEY = "sting_planscape_url"
-_PROJECT_KEY = "sting_planscape_project_id"
-_EMAIL_KEY = "sting_planscape_email"
+# Host string for every Bonsai-originated push. Matches
+# Planscape.Core.Constants.MappingHosts.Bonsai on the server.
+HOST = "bonsai"
 
-_RESULTS_KEY = "sting_validation_results"
+# Session mirror keys (panel status only; the source of truth is prefs).
+_TOKEN_KEY = "sting_planscape_token"
+_EMAIL_KEY = "sting_planscape_email"
 
 
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------
 
+def _prefs(context):
+    from .. import prefs as _p
+    return _p.get_prefs(context)
+
+
+def _client(context, token=None):
+    from ..planscape.client import PlanscapeClient
+    p = _prefs(context)
+    return PlanscapeClient(p.server_url, token=token if token is not None else (p.api_token or None))
+
+
 def _active_ifc():
     from ..core.bonsai import bonsai
     return bonsai.active_ifc()
 
 
-def _get_pset(element, pset_name: str) -> dict:
-    try:
-        import ifcopenshell.util.element as ifc_util  # type: ignore
-        return ifc_util.get_pset(element, pset_name) or {}
-    except Exception:
-        return {}
+def _host_id_fn():
+    from ..core.bonsai import bonsai
+    return bonsai.host_element_id
 
 
 def _blend_dir() -> Path:
-    """Directory of the open .blend file, or temp dir as fallback."""
     path = bpy.data.filepath
-    if path:
-        return Path(path).parent
-    return Path(os.path.expanduser("~"))
+    return Path(path).parent if path else Path(os.path.expanduser("~"))
 
 
 def _local_issues_path() -> Path:
     return _blend_dir() / "_BIM_COORD" / "issues.json"
-
-
-def _load_local_issues() -> list:
-    p = _local_issues_path()
-    if p.exists():
-        try:
-            return json.loads(p.read_text())
-        except Exception:
-            pass
-    return []
-
-
-def _save_local_issues(issues: list) -> None:
-    p = _local_issues_path()
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(issues, indent=2))
 
 
 # ---------------------------------------------------------------------------
@@ -66,151 +66,113 @@ def _save_local_issues(issues: list) -> None:
 # ---------------------------------------------------------------------------
 
 class StingPlanscapeLoginOperator(bpy.types.Operator):
-    """Authenticate with Planscape Server and cache the access token."""
+    """Authenticate with Planscape Server (email+password from prefs) and store a token."""
 
     bl_idname = "sting.planscape_login"
     bl_label = "Planscape Login"
-    bl_description = "Log in to Planscape Server and store an access token for this session"
+    bl_description = "Log in to Planscape Server using the email/password in STING preferences and store the access token"
     bl_options = {"REGISTER"}
 
-    server_url: bpy.props.StringProperty(  # type: ignore[valid-type]
-        name="Server URL",
-        default="https://api.planscape.io",
-    )
-    email: bpy.props.StringProperty(  # type: ignore[valid-type]
-        name="Email",
-        default="",
-    )
-    password: bpy.props.StringProperty(  # type: ignore[valid-type]
-        name="Password",
-        subtype="PASSWORD",
-        default="",
-    )
-    project_id: bpy.props.StringProperty(  # type: ignore[valid-type]
-        name="Project ID",
-        description="Planscape project UUID — find it in the project URL",
-        default="",
-    )
-
-    def invoke(self, context: bpy.types.Context, event):
-        # Pre-fill from stored values if available
-        self.server_url = context.scene.get(_URL_KEY, self.server_url)
-        self.email = context.scene.get(_EMAIL_KEY, self.email)
-        return context.window_manager.invoke_props_dialog(self, width=400)
-
     def execute(self, context: bpy.types.Context) -> set[str]:
-        if not self.email or not self.password:
-            self.report({"ERROR"}, "Email and password are required")
+        p = _prefs(context)
+        if not p.server_url:
+            self.report({"ERROR"}, "Server URL is empty — set it in STING preferences")
+            return {"CANCELLED"}
+        if not p.email or not p.password:
+            self.report({"ERROR"}, "Email and password are required in STING preferences")
             return {"CANCELLED"}
 
+        from ..planscape.client import PlanscapeClient, PlanscapeError
         try:
-            from stingtools_core.planscape.client import PlanscapeClient  # type: ignore
-        except ImportError as e:
-            self.report({"ERROR"}, f"stingtools_core not available: {e}")
-            return {"CANCELLED"}
-
-        try:
-            client = PlanscapeClient(self.server_url)
-            access_token, _ = client.login(self.email, self.password)
-        except Exception as e:
+            client = PlanscapeClient(p.server_url)
+            token, resp = client.login(p.email, p.password)
+        except PlanscapeError as e:
             self.report({"ERROR"}, f"Login failed: {e}")
             return {"CANCELLED"}
 
-        context.scene[_TOKEN_KEY] = access_token
-        context.scene[_URL_KEY] = self.server_url
-        context.scene[_EMAIL_KEY] = self.email
-        if self.project_id:
-            context.scene[_PROJECT_KEY] = self.project_id
-
-        self.report({"INFO"}, f"Logged in as {self.email}")
+        p.api_token = token
+        # Clear the stored password once exchanged for a token.
+        p.password = ""
+        context.scene[_TOKEN_KEY] = token
+        context.scene[_EMAIL_KEY] = p.email
+        self.report({"INFO"}, f"Logged in as {resp.get('userName') or p.email}")
         return {"FINISHED"}
 
 
 # ---------------------------------------------------------------------------
-# 15 — Sync Tags to Planscape
+# 15 — Push to Planscape (host=bonsai)
 # ---------------------------------------------------------------------------
 
 class StingSyncToPlanscapeOperator(bpy.types.Operator):
-    """Push all IFC element tags to Planscape Server via the IFC ingest endpoint."""
+    """Push every IFC element (keyed on GlobalId) to Planscape as host=bonsai."""
 
     bl_idname = "sting.sync_to_planscape"
-    bl_label = "Sync Tags to Planscape"
-    bl_description = "Upload Pset_StingTags from the active IFC to Planscape Server"
+    bl_label = "Push to Planscape (bonsai)"
+    bl_description = "Upload IFC elements (GlobalId + Pset_StingTags) to Planscape as host=bonsai for cross-host coordination"
     bl_options = {"REGISTER"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        token = context.scene.get(_TOKEN_KEY)
-        if not token:
+        p = _prefs(context)
+        if not p.api_token:
             self.report({"ERROR"}, "Not logged in — use 'Planscape Login' first")
             return {"CANCELLED"}
-
-        project_id = context.scene.get(_PROJECT_KEY, "")
-        if not project_id:
-            self.report({"ERROR"}, "No Project ID stored — log in again and enter your Project ID")
+        if not p.project_id:
+            self.report({"ERROR"}, "No Project ID set in STING preferences")
             return {"CANCELLED"}
 
         model = _active_ifc()
         if model is None:
-            self.report({"ERROR"}, "No active IFC file — open one via Bonsai first")
+            self.report({"ERROR"}, "No active IFC file — open one via Bonsai (File → IFC → Open) first")
             return {"CANCELLED"}
 
-        try:
-            from stingtools_core.planscape.client import PlanscapeClient  # type: ignore
-        except ImportError as e:
-            self.report({"ERROR"}, f"stingtools_core not available: {e}")
-            return {"CANCELLED"}
+        from ..planscape import ingest
+        from ..planscape.client import PlanscapeError
 
-        # Collect elements
-        elements_payload = []
         try:
-            for el in model.by_type("IfcElement"):
-                pset = _get_pset(el, "Pset_StingTags")
-                global_id = getattr(el, "GlobalId", "") or ""
-                elements_payload.append({
-                    "ifc_global_id": global_id,
-                    "ifc_class": el.is_a(),
-                    "pset_sting_tags": pset,
-                    "host": "blender",
-                    "host_document_guid": getattr(model, "schema", "IFC4"),
-                })
-        except Exception as e:
+            elements = ingest.collect_elements(model, host_id_fn=_host_id_fn())
+        except Exception as e:  # noqa: BLE001
             self.report({"ERROR"}, f"Cannot collect IFC elements: {e}")
             return {"CANCELLED"}
 
-        if not elements_payload:
-            self.report({"WARNING"}, "No IFC elements found to sync")
+        if not elements:
+            self.report({"WARNING"}, "No IFC elements with a GlobalId found to push")
             return {"CANCELLED"}
 
-        server_url = context.scene.get(_URL_KEY, "https://api.planscape.io")
-        client = PlanscapeClient(server_url, access_token=token)
-
+        doc_guid = ingest.document_guid(model)
+        client = _client(context)
         try:
-            # POST to /api/projects/{id}/ifc/data
-            response = client._request(
-                "POST",
-                f"/api/projects/{project_id}/ifc/data",
-                body={
-                    "elements": elements_payload,
-                    "host": "blender",
-                },
+            resp = client.ingest_ifc(
+                p.project_id, HOST, elements,
+                host_document_guid=doc_guid,
+                plugin_version="stingtools-bonsai/0.1.0",
+                user_name=context.scene.get(_EMAIL_KEY, "") or "",
             )
-            synced = response.get("synced", len(elements_payload))
-            self.report({"INFO"}, f"Synced {synced} element(s) to Planscape")
-        except Exception as e:
-            self.report({"ERROR"}, f"Sync failed: {e}")
+        except PlanscapeError as e:
+            self.report({"ERROR"}, f"Push failed: {e}")
             return {"CANCELLED"}
 
+        new_m = resp.get("newMappings", 0)
+        upd_m = resp.get("updatedMappings", 0)
+        new_e = resp.get("newElements", 0)
+        upd_e = resp.get("updatedElements", 0)
+        skipped = resp.get("skipped", 0)
+        self.report(
+            {"INFO"},
+            f"Pushed {len(elements)} element(s): {new_m + upd_m} mappings "
+            f"({new_m} new), {new_e + upd_e} elements, {skipped} skipped",
+        )
+        print(f"[STING] bonsai push response: {json.dumps(resp)}")
         return {"FINISHED"}
 
 
 # ---------------------------------------------------------------------------
-# 16 — Raise Issue
+# 16 — Raise Issue (best-effort; offline fallback)
 # ---------------------------------------------------------------------------
 
 _PRIORITY_ITEMS = [
-    ("LOW",      "Low",      ""),
-    ("MEDIUM",   "Medium",   ""),
-    ("HIGH",     "High",     ""),
+    ("LOW", "Low", ""),
+    ("MEDIUM", "Medium", ""),
+    ("HIGH", "High", ""),
     ("CRITICAL", "Critical", ""),
 ]
 
@@ -220,21 +182,13 @@ class StingRaiseIssueOperator(bpy.types.Operator):
 
     bl_idname = "sting.raise_issue"
     bl_label = "Raise Issue"
-    bl_description = "Log a BIM coordination issue, linked to the selected element if possible"
+    bl_description = "Log a BIM coordination issue, linked to the selected element's GlobalId if possible"
     bl_options = {"REGISTER"}
 
-    title: bpy.props.StringProperty(  # type: ignore[valid-type]
-        name="Title",
-        default="",
-    )
-    description: bpy.props.StringProperty(  # type: ignore[valid-type]
-        name="Description",
-        default="",
-    )
+    title: bpy.props.StringProperty(name="Title", default="")  # type: ignore[valid-type]
+    description: bpy.props.StringProperty(name="Description", default="")  # type: ignore[valid-type]
     priority: bpy.props.EnumProperty(  # type: ignore[valid-type]
-        name="Priority",
-        items=_PRIORITY_ITEMS,
-        default="MEDIUM",
+        name="Priority", items=_PRIORITY_ITEMS, default="MEDIUM",
     )
 
     def invoke(self, context: bpy.types.Context, event):
@@ -245,61 +199,49 @@ class StingRaiseIssueOperator(bpy.types.Operator):
             self.report({"ERROR"}, "Issue title is required")
             return {"CANCELLED"}
 
-        # Try to get the GlobalId of the active/selected element
         element_global_id = ""
         model = _active_ifc()
-        if model:
-            obj = context.active_object
-            if obj:
-                props = getattr(obj, "BIMObjectProperties", None)
-                ifc_id = getattr(props, "ifc_definition_id", 0) if props else 0
-                if ifc_id:
-                    try:
-                        el = model.by_id(ifc_id)
-                        element_global_id = getattr(el, "GlobalId", "") or ""
-                    except Exception:
-                        pass
+        if model is not None:
+            from ..core.bonsai import bonsai
+            el = bonsai.element_for_object(context.active_object)
+            if el is not None:
+                element_global_id = getattr(el, "GlobalId", "") or ""
 
         issue = {
             "title": self.title,
             "description": self.description,
             "priority": self.priority,
-            "element_global_id": element_global_id,
+            "elementGlobalId": element_global_id,
             "status": "OPEN",
         }
 
-        token = context.scene.get(_TOKEN_KEY)
-        project_id = context.scene.get(_PROJECT_KEY, "")
-
-        if token and project_id:
-            # Try server
+        p = _prefs(context)
+        if p.api_token and p.project_id:
+            from ..planscape.client import PlanscapeError
             try:
-                from stingtools_core.planscape.client import PlanscapeClient  # type: ignore
-                server_url = context.scene.get(_URL_KEY, "https://api.planscape.io")
-                client = PlanscapeClient(server_url, access_token=token)
-                client._request(
-                    "POST",
-                    f"/api/projects/{project_id}/issues",
-                    body=issue,
-                )
+                client = _client(context)
+                client._request("POST", f"/api/projects/{p.project_id}/issues", body=issue)
                 self.report({"INFO"}, f"Issue raised on Planscape: {self.title}")
                 return {"FINISHED"}
-            except Exception as e:
+            except PlanscapeError as e:
                 print(f"[STING] Planscape issue raise failed ({e}) — saving locally")
 
-        # Offline fallback — save to _BIM_COORD/issues.json
-        import datetime
+        # Offline fallback.
         issue["created_at"] = datetime.datetime.utcnow().isoformat() + "Z"
-        issue["source"] = "blender_offline"
-        existing = _load_local_issues()
+        issue["source"] = "bonsai_offline"
+        path = _local_issues_path()
+        try:
+            existing = json.loads(path.read_text()) if path.exists() else []
+        except Exception:  # noqa: BLE001
+            existing = []
         existing.append(issue)
         try:
-            _save_local_issues(existing)
-            self.report({"INFO"}, f"Issue saved locally: {_local_issues_path()}")
-        except Exception as e:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(existing, indent=2))
+            self.report({"INFO"}, f"Issue saved locally: {path}")
+        except Exception as e:  # noqa: BLE001
             self.report({"ERROR"}, f"Could not save issue locally: {e}")
             return {"CANCELLED"}
-
         return {"FINISHED"}
 
 

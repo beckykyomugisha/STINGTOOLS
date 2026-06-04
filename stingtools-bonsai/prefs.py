@@ -38,15 +38,32 @@ class StingAddonPreferences(bpy.types.AddonPreferences):
         description="Planscape project GUID to ingest IFC data into",
         default="",
     )
+    email: bpy.props.StringProperty(
+        name="Email",
+        description="Planscape login email. Used by 'Planscape Login' to fetch a token.",
+        default="",
+    )
+    password: bpy.props.StringProperty(
+        name="Password",
+        description="Planscape login password (used once to fetch a token; not required if a token is set above)",
+        default="",
+        subtype="PASSWORD",
+    )
 
     def draw(self, context: bpy.types.Context) -> None:
         layout = self.layout
         col = layout.column()
         col.prop(self, "server_url")
+        col.separator()
+        col.label(text="Login (fetches a token)", icon="URL")
+        col.prop(self, "email")
+        col.prop(self, "password")
+        col.operator("sting.planscape_login", icon="URL")
+        col.separator()
         col.prop(self, "api_token")
         col.prop(self, "project_id")
         col.label(
-            text="Token from POST /api/auth/login; project GUID from /api/projects.",
+            text="Token auto-filled by Login (POST /api/auth/login); project GUID from /api/projects.",
             icon="INFO",
         )
 
