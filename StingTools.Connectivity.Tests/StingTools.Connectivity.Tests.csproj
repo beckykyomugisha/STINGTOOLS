@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Self-contained test harness for the Planscape Connect connectivity
+    classification (FIX 1/2/3). It links ONLY
+    StingTools/BIMManager/PlanscapeServerClient.Connectivity.cs — a pure-BCL
+    partial of PlanscapeServerClient with no Revit API / WPF dependency — so the
+    login error-message logic is verifiable without a Revit-API build.
+
+    The linked file declares `public sealed partial class PlanscapeServerClient`;
+    compiled alone here it is just a class with the internal static helpers, and
+    `internal` is visible because the file is compiled INTO this test assembly.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>StingTools.Connectivity.Tests</AssemblyName>
+    <RootNamespace>StingTools.Connectivity.Tests</RootNamespace>
+    <!-- This is a standalone harness, not part of the StingTools build. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\StingTools\BIMManager\PlanscapeServerClient.Connectivity.cs"
+             Link="PlanscapeServerClient.Connectivity.cs" />
+  </ItemGroup>
+
+</Project>
