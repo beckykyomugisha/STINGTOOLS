@@ -482,13 +482,18 @@ namespace StingTools.BIMManager
                     // which is what the right-panel Properties tab needs.
                     string lvlOnly = "";
                     try { lvlOnly = ParameterHelpers.GetLevelCode(doc, el) ?? ""; } catch { }
-                    map[guid] = new JObject
+                    var untaggedEntry = new JObject
                     {
                         ["name"]      = el.Name ?? "",
                         ["category"]  = el.Category?.Name ?? "",
+                        // M3 — derive a discipline from the Revit category so the viewer's
+                        // BY DISCIPLINE / colour-by-discipline work on as-built (untagged) models.
+                        ["discipline"] = DeriveDisciplineFromCategory(el.Category?.Name),
                         ["level"]     = lvlOnly,
                         ["elementId"] = el.Id.Value,
                     };
+                    AddCost(el, untaggedEntry);   // M3 — per-element cost (rate × measured qty)
+                    map[guid] = untaggedEntry;
                     count++;
                     continue;
                 }
@@ -498,18 +503,21 @@ namespace StingTools.BIMManager
                 var sys  = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                 var stat = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
 
-                map[guid] = new JObject
+                var taggedEntry = new JObject
                 {
                     ["tag"]        = tag ?? "",
                     ["name"]       = el.Name ?? "",
                     ["category"]   = el.Category?.Name ?? "",
-                    ["discipline"] = disc,
+                    // Fall back to a category-derived discipline if the DISC token is blank.
+                    ["discipline"] = string.IsNullOrWhiteSpace(disc) ? DeriveDisciplineFromCategory(el.Category?.Name) : disc,
                     ["location"]   = loc,
                     ["level"]      = lvl,
                     ["system"]     = sys,
                     ["status"]     = stat,
                     ["elementId"]  = el.Id.Value,
                 };
+                AddCost(el, taggedEntry);     // M3 — per-element cost
+                map[guid] = taggedEntry;
                 count++;
             }
 
@@ -527,6 +535,57 @@ namespace StingTools.BIMManager
             elementCount = count;
 
             File.WriteAllText(outputPath, map.ToString(Newtonsoft.Json.Formatting.Indented), Encoding.UTF8);
+        }
+
+        /// <summary>
+        /// M3 — write per-element cost into the element-map entry. Cost = unit rate
+        /// (ASS_CST_UNIT_RATE_NR) × measured quantity (volume m³ / area m² / length m,
+        /// whichever the element exposes). When no rate is set, nothing is written
+        /// (the viewer shows "—" — never a fabricated number). Currency from
+        /// ASS_CST_CURRENCY_TXT when present.
+        /// </summary>
+        private static void AddCost(Element el, JObject entry)
+        {
+            try
+            {
+                var rateStr = ParameterHelpers.GetString(el, ParamRegistry.CST_UNIT_RATE_NR);
+                if (!double.TryParse(rateStr, out var rate) || rate <= 0) return;
+                double qty = MeasuredQuantity(el);
+                double cost = qty > 0 ? rate * qty : rate;   // no measurable qty ⇒ rate is the line cost
+                entry["cost"] = Math.Round(cost, 2);
+                var cur = ParameterHelpers.GetString(el, ParamRegistry.CST_CURRENCY_TXT);
+                if (!string.IsNullOrWhiteSpace(cur)) entry["costCurrency"] = cur;
+            }
+            catch { /* cost is best-effort; never block the publish */ }
+        }
+
+        /// <summary>Primary measured quantity in metric: volume (m³) → area (m²) → length (m).</summary>
+        private static double MeasuredQuantity(Element el)
+        {
+            const double ft3 = 0.0283168, ft2 = 0.092903, ft = 0.3048;
+            Parameter p;
+            if ((p = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED)) != null && p.HasValue && p.AsDouble() > 0) return p.AsDouble() * ft3;
+            if ((p = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED))   != null && p.HasValue && p.AsDouble() > 0) return p.AsDouble() * ft2;
+            if ((p = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH))    != null && p.HasValue && p.AsDouble() > 0) return p.AsDouble() * ft;
+            return 0;
+        }
+
+        /// <summary>
+        /// M3 — map a Revit category name to an ISO discipline code so the viewer's
+        /// BY DISCIPLINE / colour-by-discipline / presets populate on as-built models
+        /// that never went through the STING tag pipeline. Mirrors the client discOf().
+        /// </summary>
+        private static string DeriveDisciplineFromCategory(string cat)
+        {
+            if (string.IsNullOrWhiteSpace(cat)) return "";
+            var c = cat.ToLowerInvariant();
+            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"duct|air\s*terminal|diffuser|grille|hvac|vav|ahu|fcu|mechanical|fan|damper")) return "M";
+            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"pipe|plumb|sanitary|fixture|valve")) return "P";
+            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"cable|conduit|electric|lighting|light\s*fixture|panel|switch|socket|data|fire\s*alarm|device")) return "E";
+            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"fire\s*protect|sprinkler")) return "FP";
+            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"column|beam|brace|footing|foundation|framing|structural|rebar|truss")) return "S";
+            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"wall|floor|ceiling|roof|door|window|stair|railing|furniture|casework|room|curtain|generic\s*model|topograph")) return "A";
+            return "";
         }
 
         /// <summary>

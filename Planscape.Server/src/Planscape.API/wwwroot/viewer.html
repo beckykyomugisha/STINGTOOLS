@@ -1037,7 +1037,11 @@ THREE.ColorManagement.enabled = false;
   function assignElementIds(root) {
     root.traverse(obj => {
       if (!obj.isMesh) return;
-      const g = obj.userData && (obj.userData.guid || (obj.userData.extras && obj.userData.extras.guid));
+      const u = obj.userData || {};
+      const ex = u.extras || {};
+      // The STING exporter writes the Revit UniqueId (the element-map key) into the
+      // glTF node extras → userData.uniqueId. Accept guid OR uniqueId, own or extras.
+      const g = u.guid || u.uniqueId || ex.guid || ex.uniqueId;
       obj.userData.elementGuid = g || obj.uuid;
     });
   }

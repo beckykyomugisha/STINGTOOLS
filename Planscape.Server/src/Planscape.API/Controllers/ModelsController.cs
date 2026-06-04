@@ -333,7 +333,64 @@ public class ModelsController : ControllerBase
         if (row == null || row.ElementMapPath == null) return NotFound();
         var stream = await _storage.GetAsync(row.ElementMapPath, ct);
         if (stream == null) return NotFound();
-        return File(stream, "application/json", $"{row.Name}-elements.json", enableRangeProcessing: true);
+
+        // M3 — merge per-element cost by GUID when the project has a cost sidecar
+        // (named "<base>-costs.json" beside the element map). Backward-compatible:
+        // no cost source ⇒ the base element map is returned unchanged.
+        string baseJson;
+        using (var sr = new System.IO.StreamReader(stream)) baseJson = await sr.ReadToEndAsync(ct);
+        try
+        {
+            var costPath = DeriveCostSidecarPath(row.ElementMapPath);
+            if (costPath != null)
+            {
+                var costStream = await _storage.GetAsync(costPath, ct);
+                if (costStream != null)
+                {
+                    string costJson;
+                    using (var cr = new System.IO.StreamReader(costStream)) costJson = await cr.ReadToEndAsync(ct);
+                    baseJson = MergeCostByGuid(baseJson, costJson);
+                }
+            }
+        }
+        catch { /* cost merge is best-effort — never fail the element-map fetch */ }
+
+        return Content(baseJson, "application/json");
+    }
+
+    // "<prefix>/foo-elements.json" → "<prefix>/foo-costs.json" (null if no match).
+    private static string? DeriveCostSidecarPath(string elementMapPath)
+    {
+        if (string.IsNullOrEmpty(elementMapPath)) return null;
+        if (elementMapPath.EndsWith("-elements.json", System.StringComparison.OrdinalIgnoreCase))
+            return elementMapPath[..^"-elements.json".Length] + "-costs.json";
+        if (elementMapPath.EndsWith(".json", System.StringComparison.OrdinalIgnoreCase))
+            return elementMapPath[..^".json".Length] + "-costs.json";
+        return null;
+    }
+
+    // Merge a cost sidecar { guid: number | { cost, currency } } into the element map
+    // { guid: { ... } }. Only guids already present in the base are augmented.
+    private static string MergeCostByGuid(string baseJson, string costJson)
+    {
+        var baseObj = System.Text.Json.Nodes.JsonNode.Parse(baseJson) as System.Text.Json.Nodes.JsonObject;
+        var costObj = System.Text.Json.Nodes.JsonNode.Parse(costJson) as System.Text.Json.Nodes.JsonObject;
+        if (baseObj == null || costObj == null) return baseJson;
+        foreach (var kv in costObj)
+        {
+            if (baseObj[kv.Key] is not System.Text.Json.Nodes.JsonObject entry || kv.Value == null) continue;
+            if (kv.Value is System.Text.Json.Nodes.JsonObject co)
+            {
+                if (co["cost"] != null) entry["cost"] = co["cost"]!.DeepClone();
+                if (co["currency"] != null) entry["costCurrency"] = co["currency"]!.DeepClone();
+                else if (co["costCurrency"] != null) entry["costCurrency"] = co["costCurrency"]!.DeepClone();
+            }
+            else
+            {
+                entry["cost"] = kv.Value.DeepClone();   // bare number
+            }
+        }
+        return baseObj.ToJsonString();
     }
 
     [HttpGet("{modelId:guid}/thumbnail")]

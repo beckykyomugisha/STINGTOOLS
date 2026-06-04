@@ -1993,6 +1993,26 @@
       };
     }
 
+    // M3 — element cost. Reads meta.cost / estimatedCost / totalCost / any CST_* key.
+    // Returns { value, currency } or null. Never fabricates — absent ⇒ null ⇒ "—".
+    function findCost(meta) {
+      if (!meta) return null;
+      let v = null;
+      if (meta.cost != null) v = meta.cost;
+      else if (meta.estimatedCost != null) v = meta.estimatedCost;
+      else if (meta.totalCost != null) v = meta.totalCost;
+      else { for (const k in meta) { if (/^CST_.*|.*cost$/i.test(k) && meta[k] != null && typeof meta[k] !== 'object') { v = meta[k]; break; } } }
+      if (v == null) return null;
+      return { value: v, currency: meta.costCurrency || meta.currency || state.currency || 'USD' };
+    }
+    function formatCurrency(c) {
+      if (!c || c.value == null) return '—';
+      const n = typeof c.value === 'number' ? c.value : parseFloat(String(c.value).replace(/[^0-9.\-]/g, ''));
+      if (!isFinite(n)) return String(c.value);
+      try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: c.currency, maximumFractionDigits: 0 }).format(n); }
+      catch (_) { return `${c.currency} ${n.toLocaleString()}`; }
+    }
+
     function renderProperties(guid) {
       const pane = $('#pane-properties');
       // Multi-select branch — show common-properties summary instead of
@@ -2089,20 +2109,25 @@
         if (!claimedDims.has(k) && !claimedPerfs.has(k)) others.push([k, v]);
       });
 
+      const cost = findCost(meta);
+      // Generic identity (category is shown in the title) — include category too for completeness.
+      const fullId = [['Category', meta.category]].concat(idCard).filter(([, v]) => v != null && v !== '');
+      const rowHtml = (k, v) => `<div class="prop-row" data-search="${escapeHtml((k + ' ' + v).toLowerCase())}"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`;
       pane.innerHTML = `
         <div class="prop-section-label">Element</div>
         <div class="prop-title">${escapeHtml(meta.name || meta.category || 'Element')}</div>
         ${tag ? `<div class="prop-section-label">STING Tag</div>
           <div class="prop-row"><span class="v mono">${escapeHtml(tag)}</span>
             <span class="copy" data-copy="${escapeHtml(tag)}" title="Copy">📋</span></div>` : ''}
-        ${idCard.length ? '<div class="prop-section-label">Identity</div>' +
-          idCard.map(([k, v]) => `<div class="prop-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
-        ${dims.length ? '<div class="prop-section-label">Dimensions</div>' +
-          dims.map(([k, v]) => `<div class="prop-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
-        ${perfs.length ? '<div class="prop-section-label">Performance</div>' +
-          perfs.map(([k, v]) => `<div class="prop-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
-        ${others.length ? '<div class="prop-section-label">Properties</div>' +
-          others.map(([k, v]) => `<div class="prop-row"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
+        <div class="prop-section-label">Cost</div>
+        <div class="prop-row" data-search="cost"><span class="k">Estimated cost</span><span class="v" style="${cost ? 'color:#37c272;font-weight:600' : 'opacity:0.6'}">${escapeHtml(formatCurrency(cost))}</span></div>
+        <input id="propFilter" placeholder="Filter properties…" style="width:100%;margin:8px 0 4px;background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:5px 8px;font-size:12px" />
+        <div id="propRows" style="max-height:48vh;overflow:auto">
+          ${fullId.length ? '<div class="prop-section-label">Identity</div>' + fullId.map(([k, v]) => rowHtml(k, v)).join('') : ''}
+          ${dims.length ? '<div class="prop-section-label">Dimensions</div>' + dims.map(([k, v]) => rowHtml(k, v)).join('') : ''}
+          ${perfs.length ? '<div class="prop-section-label">Performance</div>' + perfs.map(([k, v]) => rowHtml(k, v)).join('') : ''}
+          ${others.length ? '<div class="prop-section-label">Properties</div>' + others.map(([k, v]) => rowHtml(k, v)).join('') : ''}
+        </div>
         <div class="action-stack">
           <button class="btn full" id="actCreateIssue">🚩 Create issue</button>
           <button class="btn ghost full" id="actFindClashes">🔍 Find clashes for this</button>
@@ -2117,6 +2142,14 @@
       $('#actCopyTag', pane)?.addEventListener('click', () => copyText(tag));
       $('#actLinkSheet', pane)?.addEventListener('click', () => openSheetLinkPicker({ guid, meta }));
       $$('.copy', pane).forEach(c => c.addEventListener('click', () => copyText(c.dataset.copy)));
+      // M3 — live property filter (no re-render).
+      const pf = $('#propFilter', pane);
+      if (pf) pf.addEventListener('input', () => {
+        const q = pf.value.trim().toLowerCase();
+        $$('#propRows .prop-row', pane).forEach(r => {
+          r.style.display = (!q || (r.dataset.search || '').includes(q)) ? '' : 'none';
+        });
+      });
     }
 
     // U7 — clipboard.writeText is unavailable in non-secure contexts
@@ -2446,12 +2479,14 @@
       V.modelRoot.traverse(obj => {
         if (!obj.isMesh) return;
         total++;
-        let guid = obj.userData && obj.userData.elementGuid;
+        const ud = obj.userData || {};
+        let guid = ud.elementGuid || ud.uniqueId || (ud.extras && ud.extras.uniqueId);
         if (!guid || !map[guid]) {
-          // walk ancestors for a guid present in the element map
+          // walk ancestors for a guid/uniqueId present in the element map
           let p = obj.parent;
           while (p) {
-            const pg = p.userData && (p.userData.elementGuid || p.userData.guid || (p.userData.extras && p.userData.extras.guid));
+            const pu = p.userData || {}, pe = pu.extras || {};
+            const pg = pu.elementGuid || pu.guid || pu.uniqueId || pe.guid || pe.uniqueId;
             if (pg && map[pg]) { guid = pg; break; }
             p = p.parent;
           }
