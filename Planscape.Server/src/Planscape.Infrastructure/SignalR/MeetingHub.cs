@@ -108,6 +108,18 @@ public class MeetingHub : Hub
             : Task.CompletedTask;
 
     /// <summary>
+    /// WS3 (MeetingMedia) — presenter switches the active surface every client
+    /// shows (model | document | screen). Broadcast to the WHOLE group (incl. the
+    /// sender) so the presenter's own UI stays in lock-step. <paramref name="surface"/>
+    /// carries { surface, documentId? }. LiveKit owns the actual screen-share media;
+    /// this only tells clients which pane to show.
+    /// </summary>
+    public Task BroadcastSurface(string sessionId, object surface)
+        => Authorized.Contains(sessionId)
+            ? Clients.Group(Group(sessionId)).SendAsync("SurfaceChanged", surface)
+            : Task.CompletedTask;
+
+    /// <summary>
     /// Server-side push (from MeetingRoomController) when host/model/status
     /// changes so late joiners and existing clients re-sync their room state.
     /// </summary>

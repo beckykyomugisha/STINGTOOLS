@@ -21,11 +21,13 @@ public class MeetingRoomController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly IHubContext<MeetingHub> _hub;
+    private readonly IConfiguration _config;
 
-    public MeetingRoomController(PlanscapeDbContext db, IHubContext<MeetingHub> hub)
+    public MeetingRoomController(PlanscapeDbContext db, IHubContext<MeetingHub> hub, IConfiguration config)
     {
         _db = db;
         _hub = hub;
+        _config = config;
     }
 
     /// <summary>POST — open a live session (creator becomes host + first participant).</summary>
@@ -194,10 +196,81 @@ public class MeetingRoomController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// WS3 — set the active surface every client shows (model | document | screen)
+    /// and broadcast it to the room. Document surface carries the shared doc id.
+    /// </summary>
+    [HttpPost("{sessionId:guid}/surface")]
+    public async Task<ActionResult<object>> SetSurface(
+        Guid projectId, Guid sessionId, [FromBody] SetSurfaceRequest req, CancellationToken ct)
+    {
+        var session = await _db.MeetingSessions.FirstOrDefaultAsync(
+            x => x.Id == sessionId && x.ProjectId == projectId, ct);
+        if (session is null) return NotFound();
+        if (session.Status != "ACTIVE") return BadRequest("session ended");
+
+        var surface = (req?.Surface ?? "model").ToLowerInvariant();
+        if (surface != "model" && surface != "document" && surface != "screen")
+            return BadRequest("surface must be model | document | screen");
+
+        session.ActiveSurface = surface;
+        session.ActiveDocumentId = surface == "document" ? req?.DocumentId : null;
+        await _db.SaveChangesAsync(ct);
+
+        await _hub.Clients.Group($"meeting:{sessionId}").SendAsync("SurfaceChanged",
+            new { surface = session.ActiveSurface, documentId = session.ActiveDocumentId }, ct);
+        return Ok(ToDto(session));
+    }
+
+    /// <summary>
+    /// WS3 — mint a LiveKit access token so this participant can publish/subscribe
+    /// camera + mic (and screen-share when host/presenter) in the LiveKit room for
+    /// this session. Room = session id, identity = user id. Returns the token + the
+    /// LiveKit server URL the client connects to. 501 when LiveKit isn't configured.
+    /// </summary>
+    [HttpPost("{sessionId:guid}/livekit-token")]
+    public async Task<ActionResult<object>> LiveKitToken(
+        Guid projectId, Guid sessionId, [FromBody] LiveKitTokenRequest? req, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return NotFound();
+
+        var session = await _db.MeetingSessions.FirstOrDefaultAsync(
+            x => x.Id == sessionId && x.ProjectId == projectId, ct);
+        if (session is null) return NotFound();
+        if (session.Status != "ACTIVE") return BadRequest("session ended");
+
+        var url    = _config["LiveKit:Url"]       ?? _config["LIVEKIT_URL"];
+        var apiKey = _config["LiveKit:ApiKey"]    ?? _config["LIVEKIT_API_KEY"];
+        var secret = _config["LiveKit:ApiSecret"] ?? _config["LIVEKIT_API_SECRET"];
+        if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(secret))
+            return StatusCode(501, new { error = "LiveKit is not configured (set LiveKit:Url / ApiKey / ApiSecret)" });
+
+        var userId = GetUserId();
+        if (userId is not { } uid) return Unauthorized();
+        var identity = uid.ToString();
+
+        // Screen-share is gated to the host (presenter). Everyone may publish cam+mic.
+        var isPresenter = session.HostUserId == uid;
+        var room = sessionId.ToString();
+        var name = req?.DisplayName
+                   ?? (await _db.MeetingViewerParticipants
+                            .Where(p => p.SessionId == sessionId && p.UserId == uid)
+                            .Select(p => p.DisplayName).FirstOrDefaultAsync(ct))
+                   ?? User.Identity?.Name ?? "Guest";
+
+        var token = LiveKitTokenFactory.Create(
+            apiKey!, secret!, room, identity, name,
+            canPublish: true, canSubscribe: true, allowScreenShare: isPresenter,
+            ttl: TimeSpan.FromHours(4));
+
+        return Ok(new { token, url, identity, room, isPresenter });
+    }
+
     private static object ToDto(MeetingSession s) => new
     {
         s.Id, s.ProjectId, s.MeetingId, s.HostUserId, s.ModelId,
         s.BaseRevisionId, s.Status, s.CreatedAt, s.EndedAt,
+        s.ActiveSurface, s.ActiveDocumentId,
     };
 
     private async Task<bool> ProjectInTenant(Guid projectId, CancellationToken ct)
@@ -226,4 +299,6 @@ public class MeetingRoomController : ControllerBase
     public class JoinSessionRequest { public string? DisplayName { get; set; } public string? Surface { get; set; } }
     public class SetHostRequest { public Guid? UserId { get; set; } }
     public class BindModelRequest { public Guid? ModelId { get; set; } public string? BaseRevisionId { get; set; } }
+    public class SetSurfaceRequest { public string? Surface { get; set; } public Guid? DocumentId { get; set; } }
+    public class LiveKitTokenRequest { public string? DisplayName { get; set; } }
 }

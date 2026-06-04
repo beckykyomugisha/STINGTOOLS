@@ -60,6 +60,13 @@ services:
       - Smtp__FromName=${SMTP_FROM_NAME:-Planscape}
       # Gmail :587 uses STARTTLS ⇒ UseSsl=false. Gmail :465 ⇒ UseSsl=true.
       - Smtp__UseSsl=${SMTP_USE_SSL:-false}
+      # ── LiveKit (WS3 A/V media plane) ──
+      # Url is the BROWSER-reachable signaling URL (ws://localhost:7880 in dev).
+      # The dev livekit service below runs with key 'devkey' / secret 'secret'.
+      # Override all three via .env for staging/cloud; never commit real secrets.
+      - LiveKit__Url=${LIVEKIT_URL:-ws://localhost:7880}
+      - LiveKit__ApiKey=${LIVEKIT_API_KEY:-devkey}
+      - LiveKit__ApiSecret=${LIVEKIT_API_SECRET:-secret}
     depends_on:
       # NB: pgbouncer is intentionally NOT listed here. It lives behind the
       # optional `pool` profile (see below), and Compose rejects the whole
@@ -97,6 +104,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # LiveKit — WS3 A/V media SFU (camera/mic/screen-share). Dev mode ships a fixed
+  # key/secret (devkey/secret) and binds signaling on :7880. The api mints LiveKit
+  # JWTs (MeetingRoomController .../livekit-token) using the SAME key/secret. For
+  # staging/cloud, run a real LiveKit deployment + set LIVEKIT_* in .env (never
+  # commit secrets). UDP 50000-50019 + TCP 7881 carry media (TURN/TCP fallback).
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --dev --bind 0.0.0.0
+    ports:
+      - "7880:7880"               # signaling (ws) — the browser LiveKit:Url
+      - "7881:7881"               # ICE/TCP fallback
+      - "50000-50019:50000-50019/udp"  # RTC media (small dev range)
+    restart: unless-stopped
 
   # Mailpit — local SMTP capture (dev/proof). Catches every outbound email so the
   # full send path + link can be PROVEN without real creds. Web UI on :8025, SMTP
