@@ -1,0 +1,205 @@
+PROJECT INFORMATION
+Client,Mr. Kakuba Roderic
+Site,Plot 9711 Block 185 Kyadondo Kampala District
+Drawing Ref,SLD-ELEC-001  Rev P01
+Consultant,ICON CONSULTANTS  Architecture Engineering Environment  P.O. Box 6134 Kampala  Tel: 041-4540630
+Standard,BS 7671:2018+A2:2022 (18th Ed.) | IEC 60364 | Uganda Electricity Act Cap 145
+Date,June 2026
+
+SECTION A — INCOMING SUPPLY
+Item,Detail
+Utility,UMEME
+Supply,3Ø 415V / 1Ø 240V  50Hz  TN-S
+Metering,kWh UMEME Meter
+Main Isolator,100A DP HRC Isolator
+SPD,Class I+II fitted at MDB
+
+SECTION B — STANDBY GENERATOR
+Item,Detail
+Type,Diesel Generator
+Rating,7.5 kVA  240V 1Ø  50Hz
+Auto-start,On mains failure
+Fuel Tank,10L integral + 200L reserve recommended
+Run Time,~6 hours
+Location,External building plant area (confirmed drawing page 4)
+ATS Rating,100A / 2-pole
+ATS Priority,MAINS priority | Manual bypass
+ATS Changeover,< 2 seconds
+Generator Earth,Separate earth rod + bonded to MDB earth bar
+
+SECTION C — MAIN DISTRIBUTION BOARD (MDB)
+Item,Detail
+Incomer,80A 5PN (TP+N) MCCB
+Voltage,3Ø 415V / 1Ø 240V
+Location,External Kitchen/Sauna Building — Plant Room (drawing page 4)
+SPD,Class II fitted
+Earth Leakage Relay,100mA
+Enclosure,IP54
+Main Earth Bar,16mm² CPC → 2× Earth Rods (1.2m depth  3m apart)
+Bonding Rail,MET rail fitted
+Loop Impedance,Zs < 0.8Ω
+
+SECTION D1 — DB01 MAIN HOUSE (2-STOREY) CIRCUITS
+Circuit Ref,Description,Rating,Protection,Cable,Notes
+Incomer,DB01 Incomer,63A DP MCB,—,25mm² 4c SWA,18-way DIN IP40
+—,GROUND FLOOR,—,—,—,—
+L1,GF Lighting — Dining + Lounge,10A MCB,—,1.5mm²,8× D1 18W downlights
+L2,GF Lighting — Bedroom + WC,10A MCB,—,1.5mm²,C1/C2 ceiling + pendants
+L3,GF Security / Photocell,6A MCB,—,1.5mm²,6A photocell (page 1)
+L4,External / Compound Lights,10A MCB,—,2.5mm²,B/C bulkhead IP65 DALI
+P1,GF Sockets — Dining/Lounge,20A RCBO 30mA,Type A,2.5mm²,13A 1G+2G switched
+P2,GF Sockets — USB Charging,20A RCBO 30mA,Type A,2.5mm²,13A 2G + 2A USB outlets
+P3,GF Bedroom Sockets,20A RCBO 30mA,Type A,2.5mm²,13A sockets + USB
+H1,GF Water Heater,20A RCBO 30mA,Type A,4mm²,20A DP neon indicator
+K1,Kitchen Cooker CCU,45A RCBO 30mA,Type A,10mm²,45A DP + 13A socket FCU
+A1,Air Conditioning GF,20A RCBO 30mA,Type A,4mm²,Split system provision
+—,FIRST FLOOR,—,—,—,—
+L5,FF Lighting — Master Bedroom,10A MCB,—,1.5mm²,60W chandelier + D2 spots
+L6,FF Lighting — Bed1 + Bed2,10A MCB,—,1.5mm²,D1/D2 18W downlights
+L7,FF Lighting — 3 Baths + Laundry,10A MCB,—,1.5mm²,IP65 C1 flush ceiling
+L8,FF Lighting — Gym + Void,10A MCB,—,1.5mm²,Surface / downlights
+P4,FF Sockets — Master Bedroom,20A RCBO 30mA,Type A,2.5mm²,13A 2G + USB charging
+P5,FF Sockets — Bed1 + Bed2,20A RCBO 30mA,Type A,2.5mm²,13A outlets each room
+P6,FF Sockets — Gym + Laundry,16A RCBO 30mA,Type A,2.5mm²,13A sockets
+H2,FF Water Heater — Master Bath,20A RCBO 30mA,Type A,4mm²,20A DP neon indicator
+H3,FF Water Heater — Bed1/Bed2,20A RCBO 30mA,Type A,4mm²,20A DP neon indicator
+A2,Air Conditioning FF,20A RCBO 30mA,Type A,4mm²,Split system provision
+S1,Spare,16A MCB,—,—,—
+DB01 Totals,—,~42 kW installed,—,Max demand ~55A after diversity,Diversity factor 0.65
+
+SECTION D2 — DB02 EXTERNAL BUILDING (Kitchen / Sauna / Billiard)
+Circuit Ref,Description,Rating,Protection,Cable,Notes
+Incomer,DB02 Incomer,50A DP MCB,—,16mm² 4c SWA,DIN rail IP44 — same room as MDB (page 4)
+—,KITCHEN,—,—,—,—
+L1,Kitchen Lighting,10A MCB,—,1.5mm²,IP65 C1 + surface fittings
+P1,Kitchen Sockets,20A RCBO 30mA,Type A,2.5mm²,13A 2G + USB outlets
+K2,Kitchen Cooker CCU,45A RCBO 30mA,Type A,10mm²,45A DP + 13A FCU (page 4)
+H4,Kitchen Water Heater,20A RCBO 30mA,Type A,4mm²,20A DP neon (page 4)
+TP,5-pin 3Ø Socket 400V 32A,32A RCBO 30mA,Type B,6mm²,CEE IEC 60309 3P+N+E (page 4)
+—,SAUNA — IEC 60364-7-703,—,—,—,—
+SA1,Sauna Heater 9kW,40A RCBO 30mA,Type B,10mm²,Harvia/Tylö 9kW 240V 1Ø — 90°C cable
+SA2,Sauna Lighting IP65,6A MCB,—,1.5mm²,SELV / heat-resistant 90°C cable
+SA3,Sauna Ventilation + Controls,10A MCB,—,1.5mm²,Fan + thermo-hygrometer controller
+—,Sauna overheat thermostat: 110°C  |  Zone 1 above 1.0m from heater,—,—,—,—
+—,BILLIARD / OUTDOOR ENTERTAINMENT,—,—,—,—
+L2,Billiard / Outdoor Lighting,10A MCB,—,2.5mm²,60W LED linear IP44
+P2,Billiard Area Sockets,20A RCBO 30mA,Type A,2.5mm²,13A IP44 weatherproof
+—,BEDROOM 2 + WC/SH + TOILETS,—,—,—,—
+L3,Bedroom 2 Lighting,10A MCB,—,1.5mm²,D1/D2 downlights + switch
+L4,Toilets + WC/SH Lighting,6A MCB,—,1.5mm²,IP65 C1 flush ceiling
+P3,Bedroom 2 Sockets,16A RCBO 30mA,Type A,2.5mm²,13A + USB outlets
+SC,Security Lights Photocell,6A MCB,—,1.5mm²,B bulkhead photocell controlled
+DB02 Totals,—,~25 kW installed,—,Max demand ~50A after diversity,Diversity factor 0.70
+
+SECTION D3 — POOL DISTRIBUTION BOARD (IEC 60364-7-702)
+Circuit Ref,Description,Rating,Protection,Cable,Notes
+Incomer,Pool DB Incomer,40A DP RCBO 30mA,Type A,16mm² 4c SWA,IP65 enclosure
+PU1,Pool Pump / Filter Motor,20A RCBO 30mA,Type A,2.5mm²,1.5kW submersible IP68
+PL1,Pool Lighting,10A RCBO 30mA,Type A,1.5mm²,12V SELV transformer + LED IP68 (Zone 0 max 12V)
+PH1,Pool Heater,32A RCBO 30mA,Type B,6mm²,7kW electric heat pump
+PC1,Chemical Dosing Pump,10A MCB,—,2.5mm²,Dosing system
+PM1,Pool Cover Motor,10A MCB,—,2.5mm²,Motorised cover
+PP1,Control Panel / Timer,6A MCB,—,1.5mm²,Timer for filtration cycle
+—,Zone 0: IP68 (submerged),—,—,—,No 13A sockets within 3.5m of pool edge
+—,Zone 1: IP55 (0–2m pool edge),—,—,—,RCBO Type A for VFD pumps
+—,Zone 2: IP44 (2–3.5m edge),—,—,—,SWA cable buried 600mm min from pool structure
+Pool Totals,—,~11 kW installed,—,Max demand ~28A,Equipotential bonding ring 4mm² Cu — all pool metalwork to MET
+
+SECTION D4 — AUTOMATIC ELECTRIC GATE
+Circuit Ref,Description,Rating,Protection,Cable,Notes
+Incomer,Gate Panel Incomer,20A DP RCBO 30mA,Type B,6mm² 4c SWA,IP54 control panel at gate pillar
+GM1,Gate Motor Drive,16A MCB,—,2.5mm²,Sliding 400W / Swing 300W 24V motor
+GV1,Video Intercom,6A MCB,—,1.5mm²,7" colour monitor + outdoor camera
+GL1,Gate Pillar Lights,10A MCB,—,2.5mm²,2× PIR floodlights IP44
+GB1,Battery Backup UPS,6A MCB,—,2.5mm²,2× 12V 65Ah AGM (24V) — 80+ open cycles
+GC1,Control Board + GSM Module,6A MCB,—,1.5mm²,Remote open/close via app + keypad + fob
+GS1,Safety Photo-cells,6A MCB,—,1.5mm²,Infra-red anti-crush beam
+—,Auto-close timer: 30 sec | Soft start/stop | Manual release key override,—,—,—,BS EN 12453 safety standard
+Gate Totals,—,~1.5 kW,—,Max demand ~7A,Cable SWA buried 600mm
+
+SECTION D5 — EXTERNAL + SECURITY + CAR PARK
+Circuit Ref,Description,Rating,Protection,Cable,Notes
+Incomer,External/Security Incomer,16A DP RCBO 30mA,Type A,4mm² 3c SWA,IP55 enclosure
+EL1,Compound Perimeter Lighting,10A MCB,—,2.5mm²,B/C bulkhead IP65 DALI (page 1)
+EL2,Driveway / Garden Lights,10A MCB,—,2.5mm²,LED pathway lights IP44
+EL3,Photocell Security Main,6A MCB,—,1.5mm²,6A photocell control (page 1+2)
+EL4,Photocell Security External,6A MCB,—,1.5mm²,External building photocell
+EP1,External IP44 Sockets,16A RCBO 30mA,Type A,2.5mm²,13A weatherproof outlets
+Incomer CP,Car Park Incomer,16A DP RCBO 30mA,Type A,4mm² 3c SWA,NW compound per site plan page 1
+CP1,Car Park Lighting,10A MCB,—,2.5mm²,LED floodlights IP44
+CP2,Car Park Sockets,16A RCBO 30mA,Type A,2.5mm²,13A IP44 sockets
+External Totals,—,~4.0 kW,—,Max demand ~10A,—
+Car Park Totals,—,~3.0 kW,—,Max demand ~7A,—
+
+SECTION E — LUMINAIRE SCHEDULE
+Ref,Description,Fitting Type,Wattage,Colour Temp / CRI,Lumens,IP Rating,DALI,Location,Control
+D1,18W LED Recessed Downlight,Thorn CONTUS 60W LED (or D1 equiv),18W,4000K / CRI80,1600lm,IP44,YES,All rooms (GF+FF),1-way or 2-way switch
+D2,10W LED Recessed Spot,Surface/spot (D2 equiv),10W,4000K / CRI80,900lm,IP44,—,Master Bed + study,Dimmer switch
+C1,20W LED Flush Ceiling,Radiant B/C bulkhead IP65,20W,4000K / CRI80,1800lm,IP65,—,Bathrooms / WC / laundry / sauna,1-way switch
+C2,15W LED Flush Ceiling,Surface fitting,15W,4000K,1200lm,IP20,—,Bedrooms / corridors,1-way switch
+P1,60W Decorative Pendant E27,Radiant PB20 (or equal approved),60W,3000K / CRI85,700lm,IP20,—,Bedroom pendants / Lounge,2-way switch
+A,Wall Mounted Chandelier,Radiant PB20,60W,3000K,—,IP20,—,Staircase / Void / Hall,3G 2-way (stair switching)
+B,20W LED Wall Security Bulkhead (DALI),Radiant DALI Interface IP65,20W,4000K / CRI80,1800lm,IP65,YES,External walls / perimeter,Photocell 6A auto
+C,20W LED Anti-Vandal Bulkhead (DALI),Radiant DALI Interface IP65,20W,4000K,—,IP65,YES,First floor external / gate area,Photocell controlled
+CH1,8× 60W 1.9m Chandelier,Radiant 3P073/Teal (or equal approved),8×60W = 480W,3000K / E27,—,IP20,—,Dining Area main house,3G 2-way dimmer
+CH2,3× 60W Antique Cream Chandelier E27,Radiant JP436 (or equal approved),3×60W = 180W,3000K / E27 Amber,—,IP20,—,Lounge / Master Bedroom,2G dimmer switch
+
+SECTION F — SOCKET / SWITCH / OUTLET SCHEDULE
+Type,Specification,Location
+13A SP 1-Gang switched,BS 1363 flush mounted,All rooms — individual positions
+13A SP 2-Gang switched,BS 1363 flush mounted,Bedrooms (pairs)
+13A 2-Gang + 2A USB charging,BS 1363 + USB-A,Master bed / bedrooms
+20A DP control switch + neon,DP switch with neon + water heater,Bathrooms — one per WH
+45A DP main switch + 13A socket (CCU),Cooker Control Unit marked COOKER,Kitchen(s) — main house K1 + external K2
+5-pin 3-phase socket CEE 400V 32A 3P+N+E,IEC 60309 / BS EN 60309-2,External building (page 4)
+1-Gang 1-way switch,Standard plate,Individual luminaires
+2-Gang 1-way switch,Standard plate,2 luminaires from one plate
+2-Gang 2-way switch,Standard plate,Staircase / landing / corridor
+3-Gang 2-way switch,Standard plate,Chandeliers / large rooms
+6A Photocell,Dusk-dawn auto,Security/external lighting
+
+SECTION G — LOAD SCHEDULE & DIVERSITY
+Board,Incomer,Installed kW,Diversity Factor,Max Demand kW,Max Demand A,Cable,Protection,Location
+DB01 Main House (GF+FF 2-storey),63A RCBO 30mA,42.0,0.65,27.3,~55A,25mm² 4c SWA,63A RCBO Type B 30mA,Main house hallway/utility
+DB02 External Bldg (Kitchen/Sauna/Billiard),50A RCBO 30mA,25.5,0.70,17.9,~50A,16mm² 4c SWA,50A RCBO Type B 30mA,External bldg plant room (page 4)
+Pool Distribution Board,40A RCBO 30mA Type A,11.0,0.60,6.6,~28A,16mm² 4c SWA,40A RCBO Type A 30mA,Poolside IP65 enclosure
+Auto Electric Gate + Intercom + UPS,20A RCBO 30mA Type B,1.5,0.90,1.4,~6A,6mm² 4c SWA,20A RCBO Type B 30mA,Gate pillar panel
+External + Security + CCTV + Borehole,16A RCBO 30mA Type A,4.0,0.60,2.4,~10A,4mm² 3c SWA,16A RCBO Type A 30mA,External weatherproof boxes
+Car Parking Area Lighting + Sockets,16A RCBO 30mA Type A,3.0,0.55,1.7,~7A,4mm² 3c SWA,16A RCBO Type A 30mA,NW compound (site plan page 1)
+TOTALS,—,87.0 kW installed,—,57.3 kW after diversity,~88A after diversity,100A Isolator + 100A ATS,80A MCCB MDB,—
+Note: Diversity per IEE On-Site Guide Table 1B: First 3kW @ 100%  remainder @ 40% domestic,—,—,—,—,—,—,—,—
+Note: Generator 7.5kVA (~31A) covers essential loads (lighting + sockets + gate + security),—,—,—,—,—,—,—,—
+
+SECTION H — EARTHING & BONDING
+Item,Specification
+System,TN-S throughout
+Main Earth Conductor,16mm² Cu CPC from MDB to 2× earth rods (1.2m depth  3m apart)
+Earth Rods,Copper-bonded steel  1.2m × 16mm  compound near MDB
+Main Bonding,10mm² Cu — water service  gas (if applicable)  structural steel
+Supplementary Bonding,4mm² Cu — all bath/shower room extraneous metalwork
+Pool Bonding,4mm² Cu ring equipotential — ALL pool metalwork to MET
+Sauna Bonding,6mm² Cu — metal frame  bench brackets  door frame to MET
+Gate Bonding,6mm² Cu — gate motor frame  fence  pillars to earth
+Generator Earth,Separately earthed to dedicated earth rod + bonded to MDB earth bar
+Testing — Loop Impedance,Zs < 1.0Ω at all points
+Testing — RCD,Test every 6 months
+Testing — Insulation,> 1MΩ
+EICR,Full installation test on completion before supply connection
+UMEME Approval,Required — submit as-built drawings
+PME,NOT used at pool/sauna zones — local TT earthing for these areas
+
+SECTION I — GENERAL NOTES
+No.,Note
+1,Drawings prepared by ICON CONSULTANTS  P.O. Box 6134  Kampala  Tel: 041-4540630
+2,Standards: BS 7671:2018+A2:2022 (18th Ed.) | IEC 60364 | Uganda Electricity Act Cap 145
+3,3 buildings: Main House (2-storey octagonal) | External (Kitchen/Sauna/Billiard) | Pool/Gate
+4,MDB + Generator ATS located in external building plant room — confirmed drawing page 4
+5,DB01 in main house | DB02 in external building — both fed from MDB via SWA cable
+6,All RCBO Type B for motor/inductive loads (sauna pool pump gate) — Type A for general circuits
+7,Sauna: IEC 60364-7-703 | Pool: IEC 60364-7-702 | Gate: BS EN 12453 | External: IP44 min
+8,All cable sizes to be verified by voltage drop calculation for actual cable routes when confirmed
+9,DALI lighting bus: Thorn CONTUS + Radiant B/C bulkheads — wired per DALI protocol IEC 62386
+10,This schematic supersedes previous Rev 00 — no solar/battery provision in this design
+11,Generator confirmed page 4 — diesel auto-start. Solar/battery NOT in this project
+12,As-built drawings to be issued after practical completion + full test & inspection certificate
+13,Site: Plot 9711  Block 185  Kyadondo  Kampala | Client: Mr. Kakuba Roderic
