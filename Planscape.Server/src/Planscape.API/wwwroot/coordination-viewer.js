@@ -544,9 +544,18 @@
       bindMenu('#btnMarkup', '#menuMarkup', {
         '#mkScreenshot': () => takeScreenshot(),
         '#mkShare':      () => shareCurrentView(),
-        '#mkText':  () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'text'  } }); toast('Markup: click to place text'); },
-        '#mkArrow': () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'arrow' } }); toast('Markup: drag to draw arrow'); },
-        '#mkDraw':  () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'draw'  } }); toast('Markup: drag to draw freehand'); }
+        '#mkText':    () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'text'    } }); toast('Markup: click a surface to place text'); },
+        '#mkArrow':   () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'arrow'   } }); toast('Markup: drag from tail to head'); },
+        '#mkDraw':    () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'draw'    } }); toast('Markup: drag to draw freehand'); },
+        '#mkCloud':   () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'cloud'   } }); toast('Markup: drag a box for a revision cloud'); },
+        '#mkDim':     () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'dim'     } }); toast('Markup: click two points for a dimension'); },
+        '#mkCallout': () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'callout' } }); toast('Markup: click a point, then a label spot'); },
+        '#mkClear':   () => { handleHostCommand({ type: 'clearMarkup' }); toast('Markups cleared'); },
+      });
+      bindMenu('#btnMeet', '#menuMeet', {
+        '#meetStart': () => startMeeting(),
+        '#meetJoin':  () => joinMeeting(),
+        '#meetCopy':  () => copyMeetingLink(),
       });
 
       $('#btnClashes').addEventListener('click', () => switchBottomTab('clashes'));
@@ -671,6 +680,57 @@
         const it = $(sel, menu);
         if (it) it.addEventListener('click', () => { menu.classList.remove('open'); items[sel](); });
       }
+    }
+
+    // ── Live meetings entry point ─────────────────────────────────────────────
+    // The realtime co-presence client (meeting-sync.js) is URL-driven: it only
+    // activates with ?meeting=<sessionId>. These controls CREATE a session via
+    // the existing API, copy a shareable join link, and reload into it so the
+    // client connects (camera-follow + presence + overlay co-presence).
+    function meetingJoinUrl(sessionId) {
+      const u = new URL(location.href);
+      u.searchParams.set('meeting', sessionId);
+      if (projectId) u.searchParams.set('project', projectId);
+      if (modelId) u.searchParams.set('model', modelId);
+      return u.toString();
+    }
+    function copyToClipboard(text) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text); return; }
+      } catch (_) {}
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); ta.remove();
+      } catch (_) {}
+    }
+    async function startMeeting() {
+      if (!projectId) return toast('No project — cannot start a meeting', 'warn');
+      const displayName = (() => { try { return (localStorage.getItem('planscape_user') || 'Host').split('@')[0]; } catch (_) { return 'Host'; } })();
+      const resp = await api(`/api/projects/${projectId}/meeting-sessions`, {
+        method: 'POST',
+        body: JSON.stringify({ modelId: modelId || null, displayName, surface: 'web' }),
+      });
+      const id = resp && (resp.id || resp.Id);
+      if (!id) return toast('Could not start meeting (check sign-in)', 'error');
+      const link = meetingJoinUrl(id);
+      copyToClipboard(link);
+      toast('Meeting started — join link copied. Opening session…');
+      logHistory && logHistory('Started a live meeting');
+      // Reload this tab INTO the meeting so meeting-sync.js activates.
+      setTimeout(() => { location.href = link; }, 700);
+    }
+    function joinMeeting() {
+      const id = (prompt('Paste the meeting session ID to join:') || '').trim();
+      if (!id) return;
+      location.href = meetingJoinUrl(id);
+    }
+    function copyMeetingLink() {
+      const cur = new URLSearchParams(location.search).get('meeting');
+      if (!cur) return toast('Not in a meeting yet — Start one first', 'warn');
+      copyToClipboard(meetingJoinUrl(cur));
+      toast('Join link copied to clipboard');
     }
     document.addEventListener('click', () => $$('.menu.open').forEach(m => m.classList.remove('open')));
 
@@ -3439,6 +3499,10 @@
     // block has run.)
     let pendingPhotoFile = null;             // staged file in capture modal
     let pendingPhotoObjectUrl = null;        // preview url to revoke on close
+    let pcStream = null;                     // active getUserMedia webcam stream
+    function stopWebcam() {
+      if (pcStream) { try { pcStream.getTracks().forEach(t => t.stop()); } catch (_) {} pcStream = null; }
+    }
 
     // ── API helpers — match the existing loadIssues / loadClashes pattern ──
     async function loadSitePhotos(filters = {}) {
@@ -3820,6 +3884,7 @@
     function closePhotoCaptureModal() {
       const modal = $('#photoCaptureModal');
       if (!modal) return;
+      stopWebcam();   // release the camera if a live preview was open
       modal.classList.remove('open');
       pendingPhotoFile = null;
       if (pendingPhotoObjectUrl) { try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {} pendingPhotoObjectUrl = null; }
@@ -3857,6 +3922,50 @@
       }
       pickBtn?.addEventListener('click', (ev) => { ev.stopPropagation(); input.click(); });
       input.addEventListener('change', () => { stagePhoto(input.files?.[0]); input.value = ''; });
+
+      // Desktop webcam capture (getUserMedia). Falls back to the file picker
+      // when there's no camera or permission is denied. Mobile keeps its
+      // native camera via the file input's capture="environment".
+      const webcamBtn = $('#pcWebcamBtn');
+      function snapFromVideo(video) {
+        const w = video.videoWidth || 1280, h = video.videoHeight || 720;
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+        canvas.toBlob((blob) => {
+          stopWebcam();
+          if (!blob) { toast('Could not capture frame', 'error'); $('#pcPreview').innerHTML = ''; return; }
+          const file = new File([blob], 'webcam-' + Date.now() + '.jpg', { type: 'image/jpeg' });
+          stagePhoto(file);          // same path as a picked file
+        }, 'image/jpeg', 0.92);
+      }
+      async function startWebcamCapture() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          toast('Webcam not available — opening file picker', 'warn');
+          return input.click();
+        }
+        try {
+          stopWebcam();
+          pcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        } catch (err) {
+          console.warn('[photo] getUserMedia denied/failed', err);
+          toast('Camera blocked or unavailable — use Pick file', 'warn');
+          return input.click();   // graceful fallback
+        }
+        const preview = $('#pcPreview');
+        preview.innerHTML = '';
+        const video = document.createElement('video');
+        video.autoplay = true; video.playsInline = true; video.muted = true;
+        video.style.cssText = 'width:100%;border-radius:6px;background:#000';
+        video.srcObject = pcStream;
+        const bar = el('div', { style: 'display:flex;gap:8px;margin-top:6px' }, [
+          el('button', { class: 'btn sm', type: 'button', onclick: () => snapFromVideo(video) }, '📸 Snap'),
+          el('button', { class: 'btn sm subtle', type: 'button', onclick: () => { stopWebcam(); preview.innerHTML = ''; } }, 'Cancel'),
+        ]);
+        preview.appendChild(video); preview.appendChild(bar);
+        try { await video.play(); } catch (_) {}
+      }
+      webcamBtn?.addEventListener('click', (ev) => { ev.stopPropagation(); startWebcamCapture(); });
       drop.addEventListener('click', () => input.click());
       drop.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); input.click(); } });
       ['dragenter','dragover'].forEach(evt => drop.addEventListener(evt, (ev) => { ev.preventDefault(); ev.stopPropagation(); drop.classList.add('dragover'); }));
