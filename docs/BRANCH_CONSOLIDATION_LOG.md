@@ -65,3 +65,96 @@ for the three that lacked them.
   and triggers no build workflow.
 - **Archive tags:** 74 `archive/*` tags present (every retired/merged tip
   preserved, including all sweep candidates).
+
+---
+
+## Session — 2026-06-04 (branch protection: prepared, blocked on admin)
+
+Goal: make `main`'s rules **enforced** by GitHub, not relied on by discipline.
+
+### Required-check strategy — option B (single always-run aggregator)
+
+Every real CI workflow is path-filtered on `pull_request`, so **no build job
+runs on every PR**. Requiring a path-filtered job directly would deadlock any PR
+that doesn't touch its path (a required check that never runs blocks merge
+forever). Therefore the required set is **exactly one context: `CI Gate`**.
+
+`CI Gate` (`.github/workflows/ci-gate.yml`, merged to `main` in #296) runs on
+**every** PR (no path filter), uses `dorny/paths-filter` to detect changed
+areas, and waits **only** for the checks the triggered workflows actually
+produce for those areas — passing immediately when nothing build-relevant
+changed. Mapping (mirrors each workflow's `pull_request.paths` exactly):
+
+| Area (changed paths) | Checks the gate waits for |
+|---|---|
+| `StingTools/**`, `StingTools.Standards/**`, `…/stingtools-plugin.yml` | Validate data files · Viewer JS syntax · Build StingTools Plugin |
+| `Planscape.Server/**` | Build & Test |
+| server DTOs/Entities/Controllers, `stingtools-core/python/**`, `StingBridge/**`, `Planscape/**`, `…/contract-drift.yml` | Server build (DTOs compile) · Client ↔ server wire-contract tests · Mobile typecheck (tsc --noEmit) |
+| `Planscape/**` | Type-check + Lint |
+| `Planscape/assets/viewer/**`, `…/wwwroot/**`, `…/coordination-viewer-drift.yml` | Source ↔ wwwroot byte-equal |
+
+Never waited on (would deadlock): **Docker Build & Push** / **Deploy to
+Render.com** (push-to-main only), **EAS build** (workflow_dispatch only),
+**Auto-label PR** (cosmetic).
+
+### BLOCKED — needs repo admin
+
+The token on this machine is **`StingD85`** (write collaborator,
+`"admin": false`). The repo settings PATCH and the
+`branches/main/protection` PUT both require **admin** on
+`beckykyomugisha/STINGTOOLS` → they return **HTTP 404** for a non-admin. No
+`beckykyomugisha`/admin credential exists on the machine (checked env, `gh`,
+GCM, Windows Credential Manager). Per the owner's decision, protection is left
+**unapplied for now**; the `CI Gate` workflow is already on `main` and will be
+the single required check the moment an admin runs the two commands below.
+
+### Ready-to-run (owner / admin token) — apply + prove
+
+```bash
+# 1) repo merge settings
+gh api -X PATCH repos/beckykyomugisha/STINGTOOLS \
+  -F delete_branch_on_merge=true -F allow_squash_merge=true \
+  -F allow_rebase_merge=true -F allow_merge_commit=false -F allow_auto_merge=true
+
+# 2) branch protection on main (single required check: "CI Gate")
+gh api -X PUT repos/beckykyomugisha/STINGTOOLS/branches/main/protection --input - <<'JSON'
+{
+  "required_status_checks": { "strict": true, "contexts": ["CI Gate"] },
+  "enforce_admins": true,
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 0,
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": false
+  },
+  "required_linear_history": true,
+  "allow_force_pushes": false,
+  "allow_deletions": false,
+  "required_conversation_resolution": true,
+  "restrictions": null
+}
+JSON
+
+# 3) prove it
+gh api repos/beckykyomugisha/STINGTOOLS/branches/main/protection            # read-back: settings stuck
+git push origin HEAD:main                                                   # MUST be rejected
+# open a server-only PR (touch a non-DTO file under Planscape.Server/**) →
+#   CI Gate waits only for "Build & Test" (no frontend check) → no deadlock
+# open a server+frontend PR → CI Gate aggregates both areas' checks → mergeable
+# close test PR(s) unmerged; git push origin --delete <test-branch>
+```
+
+`required_approving_review_count: 0` because the project is solo + AI (an agent
+can't approve its own PR); raise to `1` only when a second human reviewer
+exists. `required_linear_history: true` pairs with `allow_merge_commit: false`
+(squash/rebase only) — note this changes the merge style from the merge-commit
+history used during consolidation.
+
+### Status
+
+- **Enforced now:** nothing additional yet (admin call pending). `CI Gate`
+  runs on every PR and is green-tested (#296).
+- **Prepared:** required-check strategy decided (`["CI Gate"]`), exact
+  apply + proof commands above.
+- **Action owner:** repo admin (`beckykyomugisha`) runs the block above, or
+  grants `StingD85` admin / supplies an admin token for the agent to apply +
+  prove.
