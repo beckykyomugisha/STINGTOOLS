@@ -1750,3 +1750,15 @@ tr.row-selected td { color: var(--text-primary); }
 }
 .view-cube .vc-btn:hover{background:rgba(59,130,246,0.55);color:#fff;}
 .view-cube .vc-btn.active{background:rgba(59,130,246,0.85);color:#fff;}
+
+/* Collapsible-panel edge handles + smooth grid transition (Commit 6) */
+.app-shell{ transition: grid-template-columns 0.18s ease; }
+.rail-handle{
+  position:absolute; top:50%; transform:translateY(-50%); z-index:11;
+  width:15px; height:48px; display:flex; align-items:center; justify-content:center;
+  background:rgba(20,22,28,0.72); color:#9aa3b2; cursor:pointer; border-radius:5px;
+  font:600 12px/1 sans-serif; backdrop-filter:blur(4px); user-select:none;
+}
+.rail-handle:hover{ color:#fff; background:rgba(59,130,246,0.7); }
+.rail-left{ left:4px; }
+.rail-right{ right:4px; }

@@ -244,6 +244,7 @@
     setupRowContextMenu();
     setupCanvasContextMenu();
     setupViewCube();
+    setupPanelHandles();
     setupPhotoCaptureModal();
     setupPhotoReviewModal();
     setupPhotoFab();
@@ -515,11 +516,11 @@
     function setupHeader() {
       $('#btnToggleLeft').addEventListener('click', () => {
         document.querySelector('.app-shell').classList.toggle('left-collapsed');
-        onResize();
+        savePanelState(); onResize(); updatePanelHandles();
       });
       $('#btnToggleRight').addEventListener('click', () => {
         document.querySelector('.app-shell').classList.toggle('right-collapsed');
-        onResize();
+        savePanelState(); onResize(); updatePanelHandles();
       });
 
       // Dropdown menus
@@ -2779,6 +2780,50 @@
       }
     }
 
+    // ── Collapsible panels ("Xpand") — edge handles + localStorage persistence ──
+    const PANEL_KEY = 'planscape_panels';
+    function savePanelState() {
+      const shell = document.querySelector('.app-shell'); if (!shell) return;
+      try {
+        localStorage.setItem(PANEL_KEY, JSON.stringify({
+          l: shell.classList.contains('left-collapsed'),
+          r: shell.classList.contains('right-collapsed'),
+          b: !!$('#bottomPanel')?.classList.contains('collapsed'),
+        }));
+      } catch (e) {}
+    }
+    function updatePanelHandles() {
+      const shell = document.querySelector('.app-shell'); if (!shell) return;
+      const lh = $('#railHandleLeft'), rh = $('#railHandleRight');
+      if (lh) lh.textContent = shell.classList.contains('left-collapsed') ? '›' : '‹';
+      if (rh) rh.textContent = shell.classList.contains('right-collapsed') ? '‹' : '›';
+    }
+    function setupPanelHandles() {
+      const shell = document.querySelector('.app-shell');
+      const wrap = $('.viewport-wrap');
+      if (!shell || !wrap) return;
+      // Restore persisted collapse state on load.
+      try {
+        const s = JSON.parse(localStorage.getItem(PANEL_KEY) || '{}');
+        if (s.l) shell.classList.add('left-collapsed');
+        if (s.r) shell.classList.add('right-collapsed');
+        if (s.b) $('#bottomPanel')?.classList.add('collapsed');
+        if (s.l || s.r || s.b) onResize();
+      } catch (e) {}
+      const mk = (id, cls, side) => {
+        const h = el('div', { id, class: 'rail-handle rail-' + side, title: 'Collapse / expand panel' });
+        h.addEventListener('click', () => {
+          shell.classList.toggle(cls);
+          savePanelState(); onResize(); updatePanelHandles();
+        });
+        wrap.appendChild(h);
+        return h;
+      };
+      mk('railHandleLeft',  'left-collapsed',  'left');
+      mk('railHandleRight', 'right-collapsed', 'right');
+      updatePanelHandles();
+    }
+
     // Hide every mesh that is NOT in the current selection.
     function hideOthers() {
       if (!V.modelRoot) return;
@@ -4394,7 +4439,7 @@
         bp.classList.toggle('collapsed');
         bp.classList.remove('expanded');
         $('.viewport-wrap')?.classList.toggle('bp-collapsed', bp.classList.contains('collapsed'));
-        onResize();
+        savePanelState(); onResize();
       });
 
       // ── Expand button (max state — toggles 60vh) ─────────────────────
@@ -5141,13 +5186,37 @@
       window.addEventListener('sting:remoteRenderMode', (e) => applyRemoteVizRenderMode(e.detail));
     }
 
-    // Exploded view — requires a federated model. Toggles between 0 and 1.
+    // 3D Explode — works on ANY model. Toggles an Explode control panel (factor
+    // slider 0..N + grouping: Radial | By level | By discipline). Factor 0 =
+    // collapsed. Visual only — coexists with section + selection.
     function toggleExplodedView() {
-      const extras = window.STING_VIEWER_EXTRAS;
-      if (!extras || !extras.setExplodeFactor) { toast('Explode requires a federated model', 'warn'); return; }
-      state.explodeFactor = state.explodeFactor > 0 ? 0 : 1;
-      extras.setExplodeFactor(state.explodeFactor);
-      toast(state.explodeFactor > 0 ? 'Exploded view — click View → Explode to collapse' : 'Exploded view: collapsed');
+      const x = window.STING_VIEWER_EXTRAS;
+      if (!x || !x.setExplodeFactor) { toast('Explode unavailable', 'warn'); return; }
+      const existing = $('#explodePanel');
+      if (existing) { existing.remove(); x.setExplodeFactor(0); state.explodeFactor = 0; toast('Explode off'); return; }
+      const panel = el('div', { id: 'explodePanel', style:
+        'position:absolute;top:120px;right:12px;z-index:13;width:200px;background:rgba(20,22,28,0.92);' +
+        'padding:10px;border-radius:8px;backdrop-filter:blur(4px)' });
+      panel.appendChild(el('div', { style: 'display:flex;justify-content:space-between;align-items:center;font:600 11px sans-serif;color:#cfd6e4;margin-bottom:6px' }, [
+        el('span', {}, '💥 EXPLODE'),
+        el('button', { style: 'background:none;border:none;color:#9aa3b2;cursor:pointer;font-size:14px', onclick: () => toggleExplodedView() }, '✕'),
+      ]));
+      panel.appendChild(el('div', { style: 'font:11px sans-serif;color:#9aa3b2;margin-bottom:2px' }, 'Factor'));
+      const fl = el('input', { type: 'range', min: '0', max: '100', value: String(Math.round((state.explodeFactor || 0) / 2 * 100)), style: 'width:100%;accent-color:var(--accent)' });
+      fl.addEventListener('input', () => { state.explodeFactor = parseInt(fl.value, 10) / 100 * 2; x.setExplodeFactor(state.explodeFactor); });
+      panel.appendChild(fl);
+      const modes = el('div', { style: 'display:flex;gap:4px;margin-top:8px' });
+      [['radial', 'Radial'], ['level', 'By level'], ['discipline', 'By disc.']].forEach(([m, lbl], i) => {
+        const b = el('button', { class: 'btn sm subtle' + (i === 0 ? ' active' : ''), onclick: () => {
+          modes.querySelectorAll('button').forEach(o => o.classList.remove('active')); b.classList.add('active');
+          if (x.setExplodeMode) x.setExplodeMode(m);
+        } }, lbl);
+        modes.appendChild(b);
+      });
+      panel.appendChild(modes);
+      $('.viewport-wrap')?.appendChild(panel);
+      if (state.explodeFactor > 0) x.setExplodeFactor(state.explodeFactor);
+      toast('Explode — drag the factor (0 = collapsed)');
     }
 
     // Edge-silhouette overlay — wireframe-on-shaded for depth perception.
@@ -5665,15 +5734,17 @@
     }
 
     function onResize() {
-      // give the layout a tick to settle, then nudge the renderer
+      // Let the 0.18s panel transition settle, then resize. Prefer the engine's
+      // ortho-aware sizeRenderer so the orthographic frustum stays correct too.
       setTimeout(() => {
+        if (V.sizeRenderer) { V.sizeRenderer(); return; }
         const wrap = $('.viewport-wrap');
         if (!wrap || !V.renderer) return;
         const w = wrap.clientWidth, h = wrap.clientHeight;
-        V.camera.aspect = Math.max(0.001, w / Math.max(1, h));
+        if (!V.camera.isOrthographicCamera) V.camera.aspect = Math.max(0.001, w / Math.max(1, h));
         V.camera.updateProjectionMatrix();
         V.renderer.setSize(w, h, false);
-      }, 16);
+      }, 200);
     }
 
     // ── Hide the boot loader once the scene has a model ───────────────

@@ -907,4 +907,58 @@
   ext.setSectionSnap = function (step) {
     if (sb.gizmo && sb.gizmo.setTranslationSnap) sb.gizmo.setTranslationSnap(step || null);
   };
+
+  // ════════════════════════════════════════════════════════════════════════
+  // 3D EXPLODE — displace every element from the model centre by a factor (0..N).
+  // Works on ANY model (not just federated). Visual only (positions, no geometry
+  // edits) so it coexists with section + selection. Grouping: radial | level |
+  // discipline. World-space displacement is converted to each mesh's PARENT-local
+  // space so the Z-up→Y-up pivot rotation is respected.
+  // ════════════════════════════════════════════════════════════════════════
+  const expl = { factor: 0, mode: 'radial', orig: new Map() };
+  function explHashAngle(key) {
+    let h = 0; const s = String(key);
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return (Math.abs(h) % 360) * Math.PI / 180;
+  }
+  ext.setExplodeMode = function (mode) {
+    expl.mode = (mode === 'level' || mode === 'discipline') ? mode : 'radial';
+    if (expl.factor > 0) ext.setExplodeFactor(expl.factor);   // re-apply with the new grouping
+  };
+  ext.setExplodeFactor = function (factor) {
+    const h = host(); if (!h || !h.modelRoot) return;
+    expl.factor = factor;
+    const mb = h.modelBounds;
+    const centre = (mb && !mb.isEmpty()) ? mb.getCenter(new THREE.Vector3()) : new THREE.Vector3();
+    const span = (mb && !mb.isEmpty()) ? mb.getSize(new THREE.Vector3()).length() : 1;
+    const tmpBox = new THREE.Box3();
+    const tmpQ = new THREE.Quaternion();
+    h.modelRoot.traverse(o => {
+      if (!o.isMesh) return;
+      if (!expl.orig.has(o.uuid)) expl.orig.set(o.uuid, o.position.clone());
+      const orig = expl.orig.get(o.uuid);
+      if (factor <= 0) { o.position.copy(orig); return; }
+      tmpBox.setFromObject(o);
+      if (tmpBox.isEmpty()) { o.position.copy(orig); return; }
+      const ec = tmpBox.getCenter(new THREE.Vector3());   // world centre of the element
+      let dir;
+      if (expl.mode === 'level') {
+        dir = new THREE.Vector3(0, Math.sign(ec.y - centre.y) || 1, 0);
+      } else if (expl.mode === 'discipline') {
+        const key = o.userData.discipline || o.userData.category || o.userData.modelId || o.uuid;
+        const a = explHashAngle(key);
+        dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+      } else {
+        dir = new THREE.Vector3().subVectors(ec, centre);
+        if (dir.lengthSq() < 1e-9) dir.set(0, 1, 0);
+        dir.normalize();
+      }
+      const disp = dir.multiplyScalar(factor * span * 0.25);   // world-space displacement
+      if (o.parent) o.parent.getWorldQuaternion(tmpQ); else tmpQ.identity();
+      disp.applyQuaternion(tmpQ.invert());                     // → parent-local space
+      o.position.copy(orig).add(disp);
+    });
+  };
+  ext.clearExplode = function () { ext.setExplodeFactor(0); };
+  ext.getExplode = function () { return { factor: expl.factor, mode: expl.mode }; };
 })();
