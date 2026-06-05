@@ -74,3 +74,45 @@ re-renders; Enter = isolate. One pass over the element map per action.
 ## Part C complete
 C1 transparency · C2 selection-isolate · C3 legend · C4 status colour · C5 presets+broadcast ·
 C6 search→act — all served + gated. Next: Part D audit.
+
+---
+
+## Part D — proactive audit (code-trace; browser-verify in the pause)
+
+Probed the layered model across controls × interactions × combinations by tracing the code
+(no browser here — flagged items need a human click). Confident fixes applied; ambiguous ones
+flagged.
+
+### Fixed
+- **D-1 (real bug) — per-model persistence collided across models.** `vizStateKey()` keyed off
+  `state.modelId`, which is **never assigned**, so every model wrote/read
+  `planscape_viz_default` — model A's visualize state loaded onto model B. Now keyed by the real
+  module-scope `modelId` (from `?model=`). B3 is now genuinely per-model.
+- **D-2 (minor) — colour-scheme toast fired during restore.** `colourBy*` toast on every restore
+  (load / preset recall / remote apply). Guarded with `restoringViz` so silent restores stay
+  silent.
+
+### Verified composing (layered model holds)
+- colour + ghost + select — selection is an emissive clone over the resolved appearance (Part A).
+- render-mode + colour — render lens composes under colour/ghost/hide (A4).
+- isolate/hide (selection or search) + colour/transparency — `vizIsolation` composes on top (C2).
+- legend isolate/hide/hover + scheme — routed through `col.isolate`/`col.hidden` (C3).
+- minimap reflects appearance — it is a scissor inset of the SAME scene, so ghost/hide/colour
+  show automatically (M6); no second material set.
+- performance — one traverse per state change; ghost/colour/transparency/render-mode materials
+  are shared + cached (never disposed per-mesh); search/colour iterate the element map once.
+
+### Flagged for human review / decision
+- **D-F1 — Viewer is single-model by design.** Only the active `?model=` element-map + GLB load;
+  the federation (e.g. 3×MBALWA + 2×Tendo) is **not co-rendered**. Per-model viz state is keyed
+  by model id and restored on switch, but cross-model aggregation / per-model checkbox toggling /
+  "isolate whole-federation vs one model" are **out of scope** for this viewer. Decision: confirm
+  whether federated co-render is wanted (large effort) or one-model-at-a-time is acceptable.
+- **D-F2 — Fit/Home frames the whole model even when elements are hidden/isolated** (`fitCamera`
+  uses `modelBounds`). Some users expect Fit to frame only visible geometry. Left as-is (framing
+  the full model is also a defensible default); change to visible-bounds on request.
+- **D-F3 — `searchAct('select')` / colour on a query matching thousands of elements** clones an
+  emissive per matched mesh (select) — fine for typical queries, potentially heavy for a
+  match-all. No cap today; add one if it bites on the 12k model.
+- **D-F4 — meeting broadcast fires on every appearance change** (no debounce). Fine for normal
+  interaction; could flood the overlay channel under rapid slider drags. Debounce if needed.

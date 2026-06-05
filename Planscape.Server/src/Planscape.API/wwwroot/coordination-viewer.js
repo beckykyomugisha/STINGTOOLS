@@ -269,7 +269,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD C6-search');
+    console.log('[viewer] STING_VIZ_BUILD D-audit');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1262,7 +1262,7 @@
       state.vizPreset = null;
       applyAppearance();
       renderVisualizePanel();
-      toast(`Coloured by ${token} — ${values.size} value${values.size === 1 ? '' : 's'}`);
+      if (!restoringViz) toast(`Coloured by ${token} — ${values.size} value${values.size === 1 ? '' : 's'}`);
     }
 
     // M4 — colour by ANY meta parameter. ≥80% numeric values ⇒ a min→max gradient
@@ -1301,7 +1301,7 @@
       state.vizPreset = null;
       applyAppearance();
       renderVisualizePanel();
-      toast(`Coloured by ${key}`);
+      if (!restoringViz) toast(`Coloured by ${key}`);
     }
     // C4 — colour by CLASH status. Each clashing element gets its worst clash status;
     // the rest are "Clear" (muted). Resolves by guid via col.byGuid (colourValueOf).
@@ -1327,7 +1327,7 @@
         legend: present.map(s => ({ label: s, color: COLOURS[s], count: counts[s] || 0 })),
       };
       state.vizPreset = null; applyAppearance(); renderVisualizePanel();
-      toast(`Coloured by clash status — ${byGuid.size} clashing element${byGuid.size === 1 ? '' : 's'}`);
+      if (!restoringViz) toast(`Coloured by clash status — ${byGuid.size} clashing element${byGuid.size === 1 ? '' : 's'}`);
     }
     // C4 — colour by ISSUE status (Open / Resolved / No issue), via elementGuids[].
     function colourByIssueStatus() {
@@ -1350,7 +1350,7 @@
         legend: present.map(s => ({ label: s, color: COLOURS[s], count: counts[s] || 0 })),
       };
       state.vizPreset = null; applyAppearance(); renderVisualizePanel();
-      toast(`Coloured by issue status — ${byGuid.size} flagged element${byGuid.size === 1 ? '' : 's'}`);
+      if (!restoringViz) toast(`Coloured by issue status — ${byGuid.size} flagged element${byGuid.size === 1 ? '' : 's'}`);
     }
     // C6 — search/filter → act. Find element guids whose chosen field (or ANY scalar
     // value when field='*') contains the query, then isolate / hide / colour / select
@@ -1424,7 +1424,7 @@
           .concat(preset._other ? [{ label: 'Other', color: preset._other }] : []),
       };
       applyAppearance();
-      toast(`Applied ${name}`);
+      if (!restoringViz) toast(`Applied ${name}`);
     }
     function clearColour() {
       state.vizColour = null; state.vizPreset = null;
@@ -1495,7 +1495,10 @@
     // re-derived deterministically on restore, so nothing drifts. Selection is NOT
     // persisted (it's transient). restoringViz suppresses re-save churn during load.
     let restoringViz = false;
-    function vizStateKey() { return 'planscape_viz_' + (state.modelId || 'default'); }
+    // D-fix — key per-model viz state by the REAL model id (the module-scope `modelId`
+    // from ?model=). state.modelId is never assigned, so the old key collapsed to
+    // 'planscape_viz_default' for every model → B3 state collided across models.
+    function vizStateKey() { return 'planscape_viz_' + (modelId || state.modelId || 'default'); }
     // C5 — one serializer for the appearance inputs, reused by per-model persistence (B3)
     // AND named visualize presets in Saved Views. Colours are stored as a descriptor and
     // re-derived deterministically (A5), so a snapshot reproduces identical colours.
