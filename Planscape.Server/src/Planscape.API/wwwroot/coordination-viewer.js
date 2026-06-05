@@ -236,27 +236,34 @@
     }
 
     // ── Initial render of static UI bits ───────────────────────────────
-    setupHeader();
-    setupPanelToggles();
-    setupTabs();
-    setupBottomPanel();
-    setupViewportOverlays();
-    setupKeyboardShortcuts();
-    setupKeyNav();
-    setupModalHandlers();
-    setupNavControls();
-    setupSectionCard();
-    setupHelp();
-    setupHeartbeat();
-    setupSelectionToolbar();
-    setupRowContextMenu();
-    setupCanvasContextMenu();
-    setupViewCube();
-    setupPanelHandles();
-    setupPhotoCaptureModal();
-    setupPhotoReviewModal();
-    setupPhotoFab();
-    setupPhotoRealtime();
+    // E1 — FAULT-ISOLATED init (STING_VIZ_E1_INIT). Previously these ran as a bare
+    // sequence: the FIRST one to throw (e.g. an unguarded $('#x').addEventListener on
+    // a missing element, or V.controls not ready) silently killed EVERY setup after
+    // it — which is why the nav-mode buttons + bottom-ribbon toggles all went dead at
+    // once. Each is now wrapped so one failure can't cascade, and the culprit is logged.
+    function _si(name, fn) { try { fn(); } catch (e) { console.warn('[viewer init] "' + name + '" threw (others still run):', e); } }
+    _si('header', setupHeader);
+    _si('panelToggles', setupPanelToggles);
+    _si('tabs', setupTabs);
+    _si('bottomPanel', setupBottomPanel);
+    _si('viewportOverlays', setupViewportOverlays);
+    _si('keyboardShortcuts', setupKeyboardShortcuts);
+    _si('keyNav', setupKeyNav);
+    _si('modalHandlers', setupModalHandlers);
+    _si('navControls', setupNavControls);
+    _si('sectionCard', setupSectionCard);
+    _si('help', setupHelp);
+    _si('heartbeat', setupHeartbeat);
+    _si('selectionToolbar', setupSelectionToolbar);
+    _si('rowContextMenu', setupRowContextMenu);
+    _si('canvasContextMenu', setupCanvasContextMenu);
+    _si('viewCube', setupViewCube);
+    _si('panelHandles', setupPanelHandles);
+    _si('photoCaptureModal', setupPhotoCaptureModal);
+    _si('photoReviewModal', setupPhotoReviewModal);
+    _si('photoFab', setupPhotoFab);
+    _si('photoRealtime', setupPhotoRealtime);
+    console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -4967,15 +4974,19 @@
 
     // ── Bottom panel ───────────────────────────────────────────────────
     function setupBottomPanel() {
-      $$('.btab').forEach(t => {
-        t.addEventListener('click', () => switchBottomTab(t.dataset.tab));
-      });
-      $('#bottomCollapse').addEventListener('click', () => {
-        const bp = $('#bottomPanel');
-        bp.classList.toggle('collapsed');
-        bp.classList.remove('expanded');
-        $('.viewport-wrap')?.classList.toggle('bp-collapsed', bp.classList.contains('collapsed'));
-        savePanelState(); onResize();
+      const bottom = $('#bottomPanel');
+      // E1 — DELEGATED click handling on the stable #bottomPanel so the tab buttons
+      // (CLASHES/ISSUES/TIMELINE) + the collapse toggle can't lose their bindings.
+      if (bottom) bottom.addEventListener('click', (ev) => {
+        const tab = ev.target.closest('.btab');
+        if (tab && bottom.contains(tab)) { switchBottomTab(tab.dataset.tab); return; }
+        const col = ev.target.closest('#bottomCollapse');
+        if (col) {
+          bottom.classList.toggle('collapsed');
+          bottom.classList.remove('expanded');
+          $('.viewport-wrap')?.classList.toggle('bp-collapsed', bottom.classList.contains('collapsed'));
+          savePanelState(); onResize();
+        }
       });
 
       // ── Expand button (max state — toggles 60vh) ─────────────────────
@@ -5479,7 +5490,7 @@
     function setupNavControls() {
       // Capture OrbitControls' default mouse-button bindings so Pan ↔ Orbit
       // toggling can restore them.
-      const defaultButtons = V.controls.mouseButtons
+      const defaultButtons = (V.controls && V.controls.mouseButtons)
         ? Object.assign({}, V.controls.mouseButtons)
         : null;
       // Brief visual flash for one-shot nav buttons (home / level / fit).
@@ -5488,7 +5499,12 @@
         setTimeout(() => btn.classList.remove('flash'), 300);
       }
       const navEl = $('#navControls');
-      $$('.nav-btn').forEach(b => b.addEventListener('click', () => {
+      // E1 — DELEGATED click handler on the stable #navControls container (one
+      // listener) so the nav-mode buttons can never lose their binding on a re-render.
+      if (!navEl) return;
+      navEl.addEventListener('click', (ev) => {
+        const b = ev.target.closest('.nav-btn');
+        if (!b || !navEl.contains(b)) return;
         const m = b.dataset.mode;
         // One-shot actions: fire and return without changing active mode.
         if (m === 'fit') {
@@ -5542,7 +5558,7 @@
           }
           toast('Pivot mode — click to set the orbit centre', 'info');
         }
-      }));
+      });
 
       // ── Walk-speed widget ─────────────────────────────────────────────
       // Three input paths into the same multiplier:
