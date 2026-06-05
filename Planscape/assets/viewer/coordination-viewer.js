@@ -275,7 +275,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD A1-disc-keys');
+    console.log('[viewer] STING_VIZ_BUILD A2-determinism');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1245,21 +1245,25 @@
       if (since >= BCAST_THROTTLE_MS) _doBroadcastAppearance();                 // leading — live
       else if (!_bcastTimer) _bcastTimer = setTimeout(_doBroadcastAppearance, BCAST_THROTTLE_MS - since);  // trailing — latest
     }
-    // One-click "shade only X, ghost the rest".
+    // One-click "shade only X, ghost the rest" — BUG 2: idempotent TOGGLE (clicking the
+    // already-isolated row clears back to show-all).
     function shadeOnlyDiscipline(disc) {
+      const all = distinctDisc();
+      const alreadyOnly = state.vizDiscMode.get(disc) === 'show' && all.filter(d => d !== disc).every(d => state.vizDiscMode.get(d) === 'ghost');
       state.vizDiscMode.clear();
-      distinctDisc().forEach(d => state.vizDiscMode.set(d, d === disc ? 'show' : 'ghost'));
+      if (!alreadyOnly) all.forEach(d => state.vizDiscMode.set(d, d === disc ? 'show' : 'ghost'));
       applyAppearance();
       renderVisualizePanel();
-      toast(disc ? `Shading ${disc}, ghosting the rest` : 'Show all');
+      toast(alreadyOnly ? 'Show all' : `Shading ${disc}, ghosting the rest`);
     }
-    // M4 — isolate a category (shade only it, ghost the rest).
     function shadeOnlyCategory(cat) {
+      const all = distinctTokens('CAT');
+      const alreadyOnly = state.vizCatMode.get(cat) === 'show' && all.filter(c => c !== cat).every(c => state.vizCatMode.get(c) === 'ghost');
       state.vizCatMode.clear();
-      distinctTokens('CAT').forEach(c => state.vizCatMode.set(c, c === cat ? 'show' : 'ghost'));
+      if (!alreadyOnly) all.forEach(c => state.vizCatMode.set(c, c === cat ? 'show' : 'ghost'));
       applyAppearance();
       renderVisualizePanel();
-      toast(`Shading ${cat}, ghosting the rest`);
+      toast(alreadyOnly ? 'Show all' : `Shading ${cat}, ghosting the rest`);
     }
 
     // Colour every element by ANY STING token (categorical) — sets a colour
@@ -1275,6 +1279,10 @@
     }
     function colourByToken(token) {
       if (!V.modelRoot || !state.elementMap) return toast('No model / element map', 'warn');
+      // BUG 2 — idempotent TOGGLE: clicking the active scheme again clears it (→ base).
+      if (!restoringViz && state.vizColour && state.vizColour.kind === 'token' && state.vizColour.token === token) {
+        clearColour(); renderVisualizePanel(); toast('Colour cleared'); return;
+      }
       const distinct = (token === 'DISC') ? distinctDisc() : distinctTokens(token);   // SORTED
       if (!distinct.length) return toast(`No ${token} values on this model`, 'warn');
       const values = buildValueColors(distinct, activePalette());
@@ -1300,6 +1308,9 @@
     // values get the distinct <No Value> colour for QA.
     function colourByParam(key) {
       if (!V.modelRoot || !state.elementMap) return toast('No model / element map', 'warn');
+      if (!restoringViz && state.vizColour && state.vizColour.kind === 'param' && state.vizColour.token === key) {
+        clearColour(); renderVisualizePanel(); toast('Colour cleared'); return;   // BUG 2 toggle
+      }
       const raws = [];
       Object.values(state.elementMap).forEach(m => { const r = m[key]; if (r != null && typeof r !== 'object') raws.push(r); });
       if (!raws.length) return toast(`No "${key}" values`, 'warn');
@@ -1337,6 +1348,7 @@
     // the rest are "Clear" (muted). Resolves by guid via col.byGuid (colourValueOf).
     function colourByClashStatus() {
       if (!V.modelRoot) return toast('No model', 'warn');
+      if (!restoringViz && state.vizColour && state.vizColour.kind === 'clash') { clearColour(); renderVisualizePanel(); toast('Colour cleared'); return; }
       const COLOURS = { NEW: '#e74c3c', OPEN: '#f39c12', RESOLVED: '#2ecc71', Clear: '#3a3f4a' };
       const RANK = { Clear: 0, RESOLVED: 1, OPEN: 2, NEW: 3 };
       const byGuid = new Map();
@@ -1362,6 +1374,7 @@
     // C4 — colour by ISSUE status (Open / Resolved / No issue), via elementGuids[].
     function colourByIssueStatus() {
       if (!V.modelRoot) return toast('No model', 'warn');
+      if (!restoringViz && state.vizColour && state.vizColour.kind === 'issue') { clearColour(); renderVisualizePanel(); toast('Colour cleared'); return; }
       const COLOURS = { Open: '#f39c12', Resolved: '#2ecc71', 'No issue': '#3a3f4a' };
       const byGuid = new Map();
       (state.issues || []).forEach(i => {
@@ -1450,6 +1463,7 @@
     function applyDisciplinePreset(name) {
       const preset = DISC_PRESETS[name];
       if (!preset || !V.modelRoot) return;
+      if (!restoringViz && state.vizPreset === name) { clearColour(); renderVisualizePanel(); toast('Preset cleared'); return; }   // BUG 2 toggle
       const used = new Set();
       Object.values(state.elementMap || {}).forEach(m => { const d = discOf(m); if (preset[d]) used.add(d); });
       state.vizPreset = name;
@@ -1766,16 +1780,20 @@
       // ── BUILD 3 — Colour by token ──
       const colBox = el('div', {});
       colBox.appendChild(sectionTitle('Colour by tag'));
+      // BUG 2 — buttons reflect the ACTIVE scheme (pressed) so state is visible + the
+      // toggle is obvious. cKind/cTok read the single state model (state.vizColour).
+      const cKind = state.vizColour && state.vizColour.kind, cTok = state.vizColour && state.vizColour.token;
+      const pressed = (on) => on ? 'border-color:#3B82F6;background:rgba(59,130,246,0.30);color:#fff' : '';
       const tokens = [['DISC', 'Discipline'], ['SYS', 'System'], ['LVL', 'Level'], ['FUNC', 'Function'], ['PROD', 'Product']];
       const tokRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' });
       tokens.forEach(([t, label]) => tokRow.appendChild(
-        el('button', { class: 'btn sm', onclick: () => colourByToken(t) }, label)));
+        el('button', { class: 'btn sm', style: pressed(cKind === 'token' && cTok === t), onclick: () => colourByToken(t) }, label)));
       tokRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => { clearColour(); renderVisualizePanel(); toast('Colour cleared'); } }, 'Clear colour'));
       colBox.appendChild(tokRow);
       // C4 — colour by coordination status (clash / issue).
       colBox.appendChild(el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' }, [
-        el('button', { class: 'btn sm', title: 'Colour by clash status (worst per element)', onclick: () => colourByClashStatus() }, 'Clash status'),
-        el('button', { class: 'btn sm', title: 'Colour by issue status (open / resolved)', onclick: () => colourByIssueStatus() }, 'Issue status'),
+        el('button', { class: 'btn sm', style: pressed(cKind === 'clash'), title: 'Colour by clash status (worst per element)', onclick: () => colourByClashStatus() }, 'Clash status'),
+        el('button', { class: 'btn sm', style: pressed(cKind === 'issue'), title: 'Colour by issue status (open / resolved)', onclick: () => colourByIssueStatus() }, 'Issue status'),
       ]));
       // M4 — palette set + colour-by-ANY-parameter (categorical or numeric gradient).
       const palSel = el('select', { style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px;font-size:11px;flex:1' });
@@ -1820,7 +1838,7 @@
       presetBox.appendChild(sectionTitle('Discipline presets'));
       const pRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' });
       Object.keys(DISC_PRESETS).forEach(name => pRow.appendChild(
-        el('button', { class: 'btn sm' + (state.vizPreset === name ? '' : ' subtle'), onclick: () => { applyDisciplinePreset(name); renderVisualizePanel(); } }, name)));
+        el('button', { class: 'btn sm', style: (state.vizPreset === name ? 'border-color:#3B82F6;background:rgba(59,130,246,0.30);color:#fff' : ''), onclick: () => { applyDisciplinePreset(name); renderVisualizePanel(); } }, name)));
       presetBox.appendChild(pRow);
       wrap.appendChild(presetBox);
 

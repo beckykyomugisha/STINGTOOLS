@@ -242,3 +242,29 @@ consistent across all federated element-maps. (The F1 merge already unions the m
 re-runs after federation lands to index every root, so isolate/hide/select resolve across all models.)
 PENDING-HUMAN-VERIFY: shade-only Electrical keeps lighting fixtures shaded; shade-only Plumbing leaves
 electrical untouched; isolate/hide/select act on the right elements across all 5 models.
+
+### BUG 2 — deterministic / idempotent controls  ✅ served `A2-determinism`
+Every colour control already routed through the one state model (`state.vizColour` / `vizPreset`)
+→ `applyAppearance`; colours are deterministic from sorted distinct (A5). Added the missing UX
+contract:
+- **Idempotent toggle:** clicking the ACTIVE scheme again clears it back to base —
+  colourByToken / colourByParam / colourByClashStatus / colourByIssueStatus (by kind+token),
+  applyDisciplinePreset (by name), shadeOnlyDiscipline / shadeOnlyCategory (detect "already only
+  this" → show-all). So on→off→on is identical every time.
+- **Pressed state:** the active scheme's button renders pressed (blue) so current state is
+  visible; switching schemes replaces `vizColour` wholesale (fresh isolate/hidden), so A→B→A
+  reproduces the first A exactly (mutually-exclusive colour modes).
+- Cross-modal composition (colour + ghost + transparency + isolate) is the intended layered model
+  (precedence hide > transparency > ghost > colour > show), unchanged.
+
+### Deep cross-check (code-trace; browser-verify pending)
+- colour-by Discipline/System/Level/Function/Product → all `colourByToken` (deterministic A5,
+  toggle, pressed). Clash/Issue → `byGuid` schemes (toggle, pressed). Gradient → `colourByParam`
+  numeric (stack-safe min/max, toggle).
+- shade-only, isolate/hide/show-all, transparency, ghost tint/opacity, legend click/shift/hover,
+  search→act, presets, reset — every one mutates the single state model then calls
+  `applyAppearance` (one traverse), so combinations compose deterministically and idempotently.
+- All value buckets (distinctDisc / distinctTokens / searchElementGuids / colour value-of) now
+  share `discOf` (DISC) + `catKey` (CAT) normalisation → consistent across the federated maps.
+PENDING-HUMAN-VERIFY: exercise every control × value × other-control on the 5-model federation;
+each stable, idempotent, acting on correctly-classified elements.
