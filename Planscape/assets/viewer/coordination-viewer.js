@@ -289,7 +289,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD V4-loadperf');
+    console.log('[viewer] STING_VIZ_BUILD M1-livekit');
     renderProperties(null);
     renderHistory();
     updateBadges();
