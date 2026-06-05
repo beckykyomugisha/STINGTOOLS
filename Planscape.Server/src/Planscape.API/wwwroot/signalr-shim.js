@@ -14,10 +14,9 @@
 // auto-bind on init. Falls back gracefully when the CDN is unreachable
 // (the viewer keeps working with the periodic-refresh hook).
 //
-// We load @microsoft/signalr from jsDelivr at a pinned version. No npm
-// build step in the viewer; the bundle is plain vanilla. Pinning the
-// version stops a future SignalR major bump silently breaking the wire
-// format; bump on review when needed.
+// P3 — @microsoft/signalr is VENDORED locally (vendor/signalr.min.js, pinned to
+// 8.0.7) instead of a third-party CDN: offline-capable + no SRI / CDN-tamper
+// exposure. Refresh the vendored file to bump the version.
 (function () {
   'use strict';
   if (typeof window === 'undefined') return;
@@ -30,7 +29,7 @@
   // Don't double-init if a host already mounted one.
   if (window.__planscapeHub) return;
 
-  const SIGNALR_CDN_URL = 'https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js';
+  const SIGNALR_CDN_URL = './vendor/signalr.min.js';
 
   // Read the same query / storage state the main viewer uses so we
   // start the connection only when there's a project + token. Mirrors

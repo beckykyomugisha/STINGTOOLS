@@ -30,7 +30,9 @@
   var projectId = params.get("project") || "";
   if (!sessionId || !projectId) return;           // not a meeting — stay inert
 
-  var LK_CDN = "https://cdn.jsdelivr.net/npm/livekit-client@2.7.5/dist/livekit-client.umd.min.js";
+  // P3 — vendored locally (offline; no third-party CDN / SRI exposure). Pinned to
+  // livekit-client 2.7.5 UMD; refresh vendor/livekit-client.umd.min.js to bump.
+  var LK_CDN = "./vendor/livekit-client.umd.min.js";
   var TOKEN_KEY = "planscape_token";
   var apiBase = (params.get("api")
     || (typeof localStorage !== "undefined" && localStorage.getItem("planscape_api_base"))
@@ -269,7 +271,10 @@
     if (pane) return pane;
     pane = el("div", { id: "lkDoc", style:
       "position:absolute;inset:0 0 120px 0;z-index:13;display:none;flex-direction:column;background:#15171c;padding:8px" });
-    var frame = el("iframe", { style: "flex:1;width:100%;border:none;border-radius:6px;background:#fff" });
+    // P3 — sandbox the shared-document iframe. The src is only ever an auth-fetched
+    // blob URL of the document response; allow-same-origin lets the blob render, nothing
+    // else (no scripts, forms, top-navigation, or popups).
+    var frame = el("iframe", { sandbox: "allow-same-origin", style: "flex:1;width:100%;border:none;border-radius:6px;background:#fff" });
     var msg = el("div", { style: "color:#9aa3b2;font:13px sans-serif;text-align:center;padding:20px;display:none" }, "");
     pane.appendChild(msg); pane.appendChild(frame);
     pane._frame = frame; pane._msg = msg;
