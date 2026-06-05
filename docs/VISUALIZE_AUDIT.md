@@ -116,3 +116,11 @@ flagged.
   match-all. No cap today; add one if it bites on the 12k model.
 - **D-F4 — meeting broadcast fires on every appearance change** (no debounce). Fine for normal
   interaction; could flood the overlay channel under rapid slider drags. Debounce if needed.
+
+---
+
+## E2 — elevation nav buttons  ✅ served `E2-elevation`
+Two buttons (⤒ Up / ⤓ Down) next to Pan in #navControls. One-shot (like Fit/Home/Level) — they
+call `STING_VIEWER_EXTRAS.elevateCamera(±1)`, which moves `camera.position` AND `controls.target`
+by the same model-scaled delta along the rendered up axis (+Y) via the camera getter, so heading
++ pitch stay fixed (altitude only). Surfaces the M5 Ctrl+↑/↓ gesture as buttons.

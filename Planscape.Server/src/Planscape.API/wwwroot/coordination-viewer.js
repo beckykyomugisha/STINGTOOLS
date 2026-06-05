@@ -269,7 +269,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD D-audit');
+    console.log('[viewer] STING_VIZ_BUILD E2-elevation');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -5722,6 +5722,15 @@
         if (m === 'level') {
           // Make the current view horizontal — zero pitch, keep heading.
           if (V.levelCamera) V.levelCamera();
+          flashNavBtn(b);
+          return;
+        }
+        // E2 — raise / lower the eye (altitude only; heading + pitch fixed). Moves
+        // camera.position AND controls.target by the same delta along the rendered up
+        // axis (+Y), model-scaled, via the camera GETTER inside ext.elevateCamera.
+        if (m === 'elevUp' || m === 'elevDown') {
+          const x = window.STING_VIEWER_EXTRAS;
+          if (x && x.elevateCamera) x.elevateCamera(m === 'elevUp' ? 1 : -1);
           flashNavBtn(b);
           return;
         }
