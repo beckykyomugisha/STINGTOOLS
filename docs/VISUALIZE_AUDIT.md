@@ -37,3 +37,11 @@ composes it on top of the normal resolution — in-set elements keep their colou
 out-of-set get ghosted (isolate) or hidden (hide-others); hide-selection hides the in-set.
 Show-all clears isolation + any per-group hide. Wired from the context menu (all four) + the
 multi-select toolbar. Transient (not persisted); cleared by Reset.
+
+### C3 — legend interactivity (consistency + hover safety)  ✅ served `C3-legend`
+Click swatch → isolate value (ghost rest), shift-click → hide, hover → highlight, per-value
+count — all already routed through the layered resolver via `col.isolate` / `col.hidden`. Fixed
+one hazard: `clearHoverHighlight` forced emissive to **black** on mouse-leave, which would stomp
+a true-original GLTF material's own emissive (and the orange selection emissive). Now captures
+each touched material's prior emissive and restores exactly that. Materials deduped by uuid so a
+shared colour material is touched once.

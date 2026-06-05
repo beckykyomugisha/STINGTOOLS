@@ -267,7 +267,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD C2-selisolate');
+    console.log('[viewer] STING_VIZ_BUILD C3-legend');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1535,7 +1535,10 @@
     // touched once; restore to black (these engine materials default to no emissive).
     let _hoverMats = [];
     function clearHoverHighlight() {
-      _hoverMats.forEach(mat => { if (mat && mat.emissive) mat.emissive.setHex(0x000000); });
+      // C3 — restore the material's PRIOR emissive (captured below), not a forced
+      // black: a true-original GLTF material may have its own emissive, and selected
+      // meshes carry the orange selection emissive — neither must be stomped.
+      _hoverMats.forEach(({ mat, hex }) => { if (mat && mat.emissive) mat.emissive.setHex(hex); });
       _hoverMats = [];
     }
     function highlightByColourValue(col, label) {
@@ -1547,8 +1550,8 @@
         const key = colourKey(col, colourValueOf(col, metaForMesh(o)));
         if (key === label && !seen.has(o.material.uuid)) {
           seen.add(o.material.uuid);
+          _hoverMats.push({ mat: o.material, hex: o.material.emissive.getHex() });
           o.material.emissive.setHex(0x2244aa);
-          _hoverMats.push(o.material);
         }
       });
     }
