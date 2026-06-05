@@ -49,6 +49,19 @@
     // index, picking, aggregation) traverses this so appearance/isolate/colour span all
     // loaded models, not just the active one. Falls back to the single root pre-pivot.
     function vizGroup() { return (V && V.modelGroup) || (V && V.modelRoot) || null; }
+    // V1 — keep only PICKABLE intersections: a mesh whose self + ancestors are visible AND
+    // whose appearance state isn't ghost / x-ray / transparent. Mirrors the engine's
+    // isPickableMesh so a click passes through ghosted/x-rayed elements to the solid behind.
+    function pickableHits(hits) {
+      return (hits || []).filter(h => {
+        const o = h.object; if (!o) return false;
+        for (let p = o; p; p = p.parent) { if (p.visible === false) return false; }
+        const vm = o.userData && o.userData._vizMode;
+        if (vm === 'ghost') return false;
+        if (typeof vm === 'string' && (vm.indexOf('trans:') === 0 || vm === 'rmode:xray' || vm === 'rmode:ghost')) return false;
+        return true;
+      });
+    }
     const params = new URLSearchParams(location.search);
     const projectId = params.get('project') || '';
     const modelId   = params.get('model')   || '';
@@ -275,7 +288,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD A2-determinism');
+    console.log('[viewer] STING_VIZ_BUILD V1-pickthrough');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -3627,7 +3640,7 @@
       const ptr = new THREE_.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
       const ray = new THREE_.Raycaster();
       ray.setFromCamera(ptr, V.camera);
-      const hits = V.modelRoot ? ray.intersectObject(vizGroup(), true) : [];
+      const hits = V.modelRoot ? pickableHits(ray.intersectObject(vizGroup(), true)) : [];   // V1 — skip ghost/x-ray
       if (hits.length && hits[0].object && hits[0].object.isMesh) {
         const mesh = hits[0].object;
         const guid = mesh.userData && mesh.userData.elementGuid;

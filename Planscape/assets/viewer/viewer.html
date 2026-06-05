@@ -1273,10 +1273,26 @@ THREE.ColorManagement.enabled = false;
     pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
   }
+  // V1 — a mesh is pickable only if it (and all ancestors) are visible AND its appearance
+  // state isn't ghost / x-ray / transparent. So a click passes THROUGH a ghosted/x-rayed
+  // element to the SOLID element behind it (Navisworks/ACC). Pins are always pickable;
+  // solid + colour-overridden elements stay pickable. _vizMode is stamped by the
+  // coordination layer's appearance resolver.
+  function isPickableMesh(o) {
+    if (!o) return false;
+    if (pinMeta.has(o.uuid)) return true;
+    for (let p = o; p; p = p.parent) { if (p.visible === false) return false; }
+    const vm = o.userData && o.userData._vizMode;
+    if (vm === 'ghost') return false;
+    if (typeof vm === 'string' && (vm.indexOf('trans:') === 0 || vm === 'rmode:xray' || vm === 'rmode:ghost')) return false;
+    return true;
+  }
   function raycast() {
     raycaster.setFromCamera(pointer, camera);
-    const targets = modelRoot ? [modelRoot, pinGroup] : [];
-    return raycaster.intersectObjects(targets, true);
+    // FEDERATION — raycast the whole pivot (every model root), not just the primary.
+    const root = modelPivot || modelRoot;
+    const targets = root ? [root, pinGroup] : (pinGroup ? [pinGroup] : []);
+    return raycaster.intersectObjects(targets, true).filter(h => isPickableMesh(h.object));
   }
 
   function emitPick(hit) {

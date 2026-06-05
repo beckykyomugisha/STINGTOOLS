@@ -268,3 +268,16 @@ contract:
   share `discOf` (DISC) + `catKey` (CAT) normalisation → consistent across the federated maps.
 PENDING-HUMAN-VERIFY: exercise every control × value × other-control on the 5-model federation;
 each stable, idempotent, acting on correctly-classified elements.
+
+---
+
+## VIEWER COMBINED FIXES
+
+### V1 — ghost / x-ray elements non-pickable (click-through)  ✅ served `V1-pickthrough`
+The pick raycaster returned ghosted/x-rayed elements, so a click selected the transparent element
+instead of the solid one behind it. Engine `raycast()` (viewer.html) + the coordination context
+raycast now filter via `isPickableMesh` / `pickableHits`: skip a hit whose mesh (or any ancestor)
+is invisible OR whose `_vizMode` is `ghost` / `trans:*` / `rmode:xray` / `rmode:ghost`; pins +
+solid + colour-overridden stay pickable. A click now passes THROUGH to the solid behind (ACC
+behaviour). Also fixed a federation pick-bug: the engine raycast targeted only `modelRoot`
+(primary) — now targets `modelPivot` (every loaded model).
