@@ -216,3 +216,29 @@ The Part-D / E5 flags below were design calls; all three are now implemented + S
 
 Still flagged (not requested): **D-F3** select-all-matches clone cost (no cap), **E5-F1**
 measure→section explicit teardown.
+
+---
+
+## TRACK A — stability + correctness fixes
+
+### BUG 1 — discipline misclassification (electrical → plumbing)  ✅ served `A1-disc-keys`
+**Root cause** (`coordination-viewer.js` `discOf`): the plumbing rule `/pipe|plumb|sanitary|fixture|
+valve|sprinkler pipe/` ran BEFORE the electrical rule AND matched the bare word **"fixture"**, so
+"Lighting Fixtures" / "Electrical Fixtures" derived to **P**. **Fix:** (a) the real DISC token still
+wins first; (b) reordered Electrical + Fire-protection BEFORE Plumbing; (c) Electrical now matches
+lighting/luminaire/light-fixture/conduit/cable/wire/data/fire-alarm/switch/socket/receptacle/
+panelboard (not bare "panel" → curtain panels stay A); (d) Plumbing made SPECIFIC — plumb/sanitary/
+WC/lavatory/urinal/basin/sink/cistern/soil/waste/drainage/pipe/valve, **never bare "fixture"**.
+Category cross-check: Lighting Fixtures→E, Electrical Fixtures→E, Electrical Equipment→E, Plumbing
+Fixtures→P, Pipes→P, Cable Trays→E, Conduits→E, Sprinklers→FP, Fire Alarm Devices→E, Curtain
+Panels→A, Mechanical Equipment→M.
+
+### BUG 3 — search/isolate/hide key consistency across the federation  ✅ served `A1-disc-keys`
+**Root cause** (`searchElementGuids`): search-by-DISC used the raw `tokenValue` while colour-by /
+shade-only / the resolver use `discOf` (derived) — so on as-built models search-by-DISC returned
+zero where colour-by-discipline showed values. **Fix:** search now uses `discOf` for DISC + `catKey`
+for CAT — the SAME normalisation the resolver + colour-by + counts use, so the buckets are
+consistent across all federated element-maps. (The F1 merge already unions the maps; rebuildGuidIndex
+re-runs after federation lands to index every root, so isolate/hide/select resolve across all models.)
+PENDING-HUMAN-VERIFY: shade-only Electrical keeps lighting fixtures shaded; shade-only Plumbing leaves
+electrical untouched; isolate/hide/select act on the right elements across all 5 models.

@@ -275,7 +275,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD F3-coalesce');
+    console.log('[viewer] STING_VIZ_BUILD A1-disc-keys');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1187,17 +1187,28 @@
     // Derive a discipline even when the DISC token is absent (as-built models):
     // map the Revit category to a discipline code (DiscMap-style).
     function discOf(meta) {
+      // BUG 1(a) — the REAL DISC token wins when present (exporter-authored truth).
       const d = discKey(meta);
       if (d) return d;
+      // Derived fallback for metadata-poor / as-built models. ORDER MATTERS (first match
+      // wins): Electrical BEFORE Plumbing so "Lighting Fixtures" / "Electrical Fixtures"
+      // never fall under the old bare-"fixture" plumbing rule; Fire-protection before
+      // Plumbing (sprinklers ≠ plumbing); Plumbing made SPECIFIC (never bare "fixture").
       const c = catKey(meta).toLowerCase();
       if (!c) return '';
       const RULES = [
-        [/duct|air\s*terminal|diffuser|grille|hvac|vav|ahu|fcu|mechanical|fan|damper/, 'M'],
-        [/pipe|plumb|sanitary|fixture|valve|sprinkler\s*pipe/, 'P'],
-        [/cable|conduit|electric|lighting|light\s*fixture|panel|switch|socket|data|fire\s*alarm|device/, 'E'],
-        [/fire\s*protect|sprinkler|fire\s*supp/, 'FP'],
-        [/column|beam|brace|footing|foundation|framing|structural|rebar|truss|slab\s*edge/, 'S'],
-        [/wall|floor|ceiling|roof|door|window|stair|railing|furniture|casework|room|curtain|generic\s*model|topograph/, 'A'],
+        // Mechanical / HVAC
+        [/duct|air\s*terminal|diffuser|grille|hvac|\bvav\b|\bahu\b|\bfcu\b|mechanical|\bfan\b|damper|air\s*handl|chiller|\bboiler\b|cooling\s*tower/, 'M'],
+        // Electrical (incl. lighting + comms/data + fire-alarm) — BEFORE plumbing.
+        [/electric|lighting|luminaire|light\s*fixture|\bconduit|cable\s*tray|\bcable\b|\bwire\b|\bdata\b|fire\s*alarm|communicat|security\s*device|nurse\s*call|telephon|\bswitch\b|socket|receptacle|panelboard|distribution\s*board|busway|bus\s*duct/, 'E'],
+        // Fire protection — BEFORE plumbing (sprinklers / standpipes / hydrants).
+        [/sprinkler|fire\s*protect|fire\s*supp|fire\s*pump|standpipe|hydrant/, 'FP'],
+        // Plumbing / public health — SPECIFIC; never bare "fixture".
+        [/plumb|sanitary|water\s*closet|\bwc\b|lavatory|urinal|\bbasin\b|\bsink\b|cistern|\bsoil\b|\bwaste\b|drainage|\bpipe|\bvalve\b|\btap\b|cold\s*water|hot\s*water|rainwater|\bgully\b/, 'P'],
+        // Structural
+        [/column|\bbeam\b|brace|footing|foundation|framing|structural|rebar|truss|slab\s*edge|\bpile\b/, 'S'],
+        // Architectural (building-element catch-all)
+        [/wall|floor|ceiling|roof|door|window|stair|railing|handrail|furniture|casework|\broom\b|curtain|generic\s*model|topograph|planting|\bsite\b|\bmass\b|parking|\bramp\b/, 'A'],
       ];
       for (const [re, disc] of RULES) if (re.test(c)) return disc;
       return '';
@@ -1383,7 +1394,12 @@
         if (!m || typeof m !== 'object') return;
         let hit = false;
         if (field && field !== '*') {
-          const v = SEARCH_TOKENS.includes(field) ? tokenValue(m, field) : m[field];
+          // BUG 3 — use the SAME normalisation the resolver + colour-by use, so search
+          // matches the displayed values: DISC → discOf (derived), CAT → catKey.
+          let v;
+          if (field === 'DISC') v = discOf(m);
+          else if (field === 'CAT') v = catKey(m);
+          else v = SEARCH_TOKENS.includes(field) ? tokenValue(m, field) : m[field];
           hit = String(v == null ? '' : v).toLowerCase().includes(q);
         } else {
           for (const k in m) { const v = m[k]; if (v != null && typeof v !== 'object' && String(v).toLowerCase().includes(q)) { hit = true; break; } }
