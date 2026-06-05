@@ -62,3 +62,15 @@ mirrors it to a live meeting. `broadcastAppearance` now sends the WHOLE appearan
 overlay channel (`source:'appearance'`), echo-guarded by `applyingRemoteViz`/`restoringViz`;
 meeting-sync routes it to `sting:remoteAppearance` → `applyRemoteVizSnapshot`. Followers see the
 presenter's exact colour/ghost/transparency/render-mode state.
+
+### C6 — search/filter → act  ✅ served `C6-search`
+New "Search → act" section: a text box + field selector (Any / DISC / SYS / LVL / FUNC / PROD /
+CAT / any param). `searchElementGuids` finds elements whose chosen field (or any scalar value)
+contains the query; the four action buttons route the matches through the layered model —
+**Isolate** (ghost rest), **Hide**, **Colour** (matches orange via a guid-keyed `search` scheme,
+rest muted), **Select** (drives the selection toolbar). Query/field kept in state across panel
+re-renders; Enter = isolate. One pass over the element map per action.
+
+## Part C complete
+C1 transparency · C2 selection-isolate · C3 legend · C4 status colour · C5 presets+broadcast ·
+C6 search→act — all served + gated. Next: Part D audit.

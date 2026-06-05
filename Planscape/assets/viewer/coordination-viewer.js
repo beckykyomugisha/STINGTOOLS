@@ -149,6 +149,8 @@
       vizCustomColours: new Map(), // B1 value/discipline → custom hex (overrides palette)
       vizTransp:   new Map(),   // C1 disc/cat → opacity 0..1 (continuous transparency)
       vizIsolation: null,       // C2 { mode:'isolate'|'hideOthers'|'hideSel', guids:Set } (transient)
+      vizSearchQuery: '',       // C6 search text (kept across panel re-renders)
+      vizSearchField: '*',      // C6 search field ('*' = any value, else token/param)
       colourMats:  new Map(),   // hex → shared coloured material (no per-mesh leak)
       transMats:   new Map(),   // opacity% → shared transparent material (C1)
       renderMode: 'shaded',
@@ -267,7 +269,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD C5-presets');
+    console.log('[viewer] STING_VIZ_BUILD C6-search');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1350,6 +1352,51 @@
       state.vizPreset = null; applyAppearance(); renderVisualizePanel();
       toast(`Coloured by issue status — ${byGuid.size} flagged element${byGuid.size === 1 ? '' : 's'}`);
     }
+    // C6 — search/filter → act. Find element guids whose chosen field (or ANY scalar
+    // value when field='*') contains the query, then isolate / hide / colour / select
+    // them — all through the layered model.
+    const SEARCH_TOKENS = ['DISC', 'SYS', 'LVL', 'FUNC', 'PROD', 'CAT'];
+    function searchElementGuids(query, field) {
+      const q = String(query || '').trim().toLowerCase();
+      const out = new Set();
+      if (!q || !state.elementMap) return out;
+      Object.entries(state.elementMap).forEach(([guid, m]) => {
+        if (!m || typeof m !== 'object') return;
+        let hit = false;
+        if (field && field !== '*') {
+          const v = SEARCH_TOKENS.includes(field) ? tokenValue(m, field) : m[field];
+          hit = String(v == null ? '' : v).toLowerCase().includes(q);
+        } else {
+          for (const k in m) { const v = m[k]; if (v != null && typeof v !== 'object' && String(v).toLowerCase().includes(q)) { hit = true; break; } }
+        }
+        if (hit) out.add(guid);
+      });
+      return out;
+    }
+    function colourBySearch(matched) {
+      const C = { Match: '#f39c12', Other: '#3a3f4a' };
+      state.vizColour = {
+        kind: 'search', byGuid: new Map(Array.from(matched).map(g => [g, 'Match'])), def: 'Other',
+        valueColors: new Map([['Match', C.Match], ['Other', C.Other]]), counts: { Match: matched.size, Other: 0 },
+        noValue: C.Other, isolate: null, hidden: new Set(),
+        legend: [{ label: 'Match', color: C.Match, count: matched.size }, { label: 'Other', color: C.Other, count: 0 }],
+      };
+      state.vizPreset = null; applyAppearance(); renderVisualizePanel();
+    }
+    function searchAct(action) {
+      const matched = searchElementGuids(state.vizSearchQuery, state.vizSearchField);
+      if (!matched.size) return toast('No matches', 'warn');
+      if (action === 'isolate')      { state.vizIsolation = { mode: 'isolate', guids: matched }; applyAppearance(); }
+      else if (action === 'hide')    { state.vizIsolation = { mode: 'hideSel', guids: matched }; applyAppearance(); }
+      else if (action === 'colour')  { colourBySearch(matched); }
+      else if (action === 'select')  {
+        state.selectedElementGuids = new Set(matched);
+        state.selectedElementGuid = matched.values().next().value;
+        reapplySelection(); renderProperties(state.selectedElementGuid);
+        renderSelectionToolbar(); updateRightTabCounts();
+      }
+      toast(`${matched.size} match${matched.size === 1 ? '' : 'es'} — ${action}`);
+    }
     function fmtNum(n) { return Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : (Math.round(n * 100) / 100).toString(); }
     function paramUnit(key) {
       const k = String(key).toLowerCase();
@@ -1702,6 +1749,26 @@
         colBox.appendChild(renderVizLegend(state.vizColour));
       }
       wrap.appendChild(colBox);
+
+      // ── C6 — Search → act ──
+      const searchBox = el('div', {});
+      searchBox.appendChild(sectionTitle('Search → act'));
+      const sInput = el('input', { type: 'text', value: state.vizSearchQuery, placeholder: 'Find by value…',
+        style: 'flex:1;background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:4px;font-size:11px' });
+      sInput.addEventListener('input', () => { state.vizSearchQuery = sInput.value; });
+      sInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchAct('isolate'); });
+      const sField = el('select', { style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px;font-size:11px;flex:0 0 auto' });
+      sField.appendChild(el('option', { value: '*' }, 'Any'));
+      SEARCH_TOKENS.concat(paramKeys()).forEach(f => { const o = el('option', { value: f }, f); if (f === state.vizSearchField) o.selected = true; sField.appendChild(o); });
+      sField.addEventListener('change', () => { state.vizSearchField = sField.value; });
+      searchBox.appendChild(el('div', { style: 'display:flex;gap:4px;margin-top:4px' }, [sInput, sField]));
+      searchBox.appendChild(el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:5px' }, [
+        el('button', { class: 'btn sm', title: 'Isolate matches (ghost the rest)', onclick: () => searchAct('isolate') }, 'Isolate'),
+        el('button', { class: 'btn sm', title: 'Hide matches', onclick: () => searchAct('hide') }, 'Hide'),
+        el('button', { class: 'btn sm', title: 'Colour matches', onclick: () => searchAct('colour') }, 'Colour'),
+        el('button', { class: 'btn sm', title: 'Select matches', onclick: () => searchAct('select') }, 'Select'),
+      ]));
+      wrap.appendChild(searchBox);
 
       // ── BUILD 5 — Discipline presets ──
       const presetBox = el('div', {});
