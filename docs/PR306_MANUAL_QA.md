@@ -17,6 +17,23 @@ with the step number + what you saw — don't merge.
 
 ---
 
+## 🔴 Step 0 — Deployed-artifact gate (run FIRST, before every other gate)
+
+The container serves the **minified npm `dist/`** built by `build.mjs`, **not** the committed
+`wwwroot/`. None of the prior checks (assets ↔ wwwroot byte-equal, `node --check`, CI) exercise
+the *deployed* artifact, so a stale/cached container can serve old viewer assets while every
+green check still passes. Force a clean build and prove a known-new asset is actually served:
+
+```bash
+docker compose build --no-cache api && docker compose up -d --force-recreate api
+curl -fsS -o /dev/null -w "%{http_code}\n" http://localhost:5000/livekit-av.js   # must print 200
+```
+
+**200 = the deployed viewer is current — proceed.**
+**404 = the container is serving a stale `dist/` — do NOT run any other gate until this is 200.**
+
+---
+
 ## 🔴 Gate 1 — Viewer browser pass
 
 ### 1a. Orbit stability (incl. over-the-top)
