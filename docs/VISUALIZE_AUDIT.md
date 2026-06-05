@@ -281,3 +281,13 @@ is invisible OR whose `_vizMode` is `ghost` / `trans:*` / `rmode:xray` / `rmode:
 solid + colour-overridden stay pickable. A click now passes THROUGH to the solid behind (ACC
 behaviour). Also fixed a federation pick-bug: the engine raycast targeted only `modelRoot`
 (primary) — now targets `modelPivot` (every loaded model).
+
+### V2 — draggable resize + collapse handles on both side panels  ✅ served `V2-panelresize`
+E1's rail handles only collapsed. Extended `setupPanelHandles`: each handle now **drags to resize**
+the panel width live (pointer drag → sets `--panel-left-width` / `--panel-right-width`, clamped
+180–560 px) and **clicks to collapse/expand** (a drag is distinguished from a click by >3px move).
+`savePanelState` persists BOTH the collapsed flags AND the widths (`lw`/`rw`); restored on load.
+During drag the grid transition is disabled (`.app-shell.resizing`) so the panel tracks the mouse,
+and `V.sizeRenderer()` (ortho-aware) runs each move so the canvas + camera reframe live and the
+viewport reclaims/yields space. Handle CSS: `cursor:ew-resize`, taller 72px grab area,
+`touch-action:none`, highlight while resizing.

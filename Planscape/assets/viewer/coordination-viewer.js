@@ -288,7 +288,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD V1-pickthrough');
+    console.log('[viewer] STING_VIZ_BUILD V2-panelresize');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -3706,10 +3706,13 @@
     function savePanelState() {
       const shell = document.querySelector('.app-shell'); if (!shell) return;
       try {
+        const rs = document.documentElement.style;
         localStorage.setItem(PANEL_KEY, JSON.stringify({
           l: shell.classList.contains('left-collapsed'),
           r: shell.classList.contains('right-collapsed'),
           b: !!$('#bottomPanel')?.classList.contains('collapsed'),
+          lw: rs.getPropertyValue('--panel-left-width').trim() || undefined,   // V2 — persist width
+          rw: rs.getPropertyValue('--panel-right-width').trim() || undefined,
         }));
       } catch (e) {}
     }
@@ -3723,20 +3726,49 @@
       const shell = document.querySelector('.app-shell');
       const wrap = $('.viewport-wrap');
       if (!shell || !wrap) return;
-      // Restore persisted collapse state on load.
+      // Restore persisted collapse state + widths on load.
       try {
         const s = JSON.parse(localStorage.getItem(PANEL_KEY) || '{}');
+        if (s.lw) document.documentElement.style.setProperty('--panel-left-width', s.lw);    // V2
+        if (s.rw) document.documentElement.style.setProperty('--panel-right-width', s.rw);
         if (s.l) shell.classList.add('left-collapsed');
         if (s.r) shell.classList.add('right-collapsed');
         if (s.b) $('#bottomPanel')?.classList.add('collapsed');
-        if (s.l || s.r || s.b) onResize();
+        if (s.l || s.r || s.b || s.lw || s.rw) onResize();
       } catch (e) {}
+      // V2 — each rail handle: DRAG to resize the panel's width live (clamped), CLICK (no
+      // drag) to collapse/expand. Width persists; the canvas + camera resize live via the
+      // ortho-aware sizeRenderer so 3D framing stays correct as the viewport reclaims space.
       const mk = (id, cls, side) => {
-        const h = el('div', { id, class: 'rail-handle rail-' + side, title: 'Collapse / expand panel' });
-        h.addEventListener('click', () => {
-          shell.classList.toggle(cls);
-          savePanelState(); onResize(); updatePanelHandles();
+        const varName = side === 'left' ? '--panel-left-width' : '--panel-right-width';
+        const h = el('div', { id, class: 'rail-handle rail-' + side, title: 'Drag to resize · click to collapse/expand' });
+        let down = null, moved = false;
+        h.addEventListener('pointerdown', (e) => {
+          down = { x: e.clientX }; moved = false;
+          try { h.setPointerCapture(e.pointerId); } catch (_) {}
+          shell.classList.add('resizing');
+          e.preventDefault();
         });
+        h.addEventListener('pointermove', (e) => {
+          if (!down) return;
+          if (!moved && Math.abs(e.clientX - down.x) > 3) moved = true;
+          if (!moved) return;
+          let w = (side === 'left') ? e.clientX : (window.innerWidth - e.clientX);
+          w = Math.max(180, Math.min(560, w));
+          shell.classList.remove(cls);                 // a resize implies expanded
+          document.documentElement.style.setProperty(varName, w + 'px');
+          if (V.sizeRenderer) V.sizeRenderer();         // live canvas + camera
+        });
+        const end = (e) => {
+          if (!down) return;
+          try { h.releasePointerCapture(e.pointerId); } catch (_) {}
+          shell.classList.remove('resizing');
+          if (!moved) { shell.classList.toggle(cls); onResize(); }   // click → collapse toggle
+          down = null;
+          savePanelState(); updatePanelHandles();
+        };
+        h.addEventListener('pointerup', end);
+        h.addEventListener('pointercancel', end);
         wrap.appendChild(h);
         return h;
       };

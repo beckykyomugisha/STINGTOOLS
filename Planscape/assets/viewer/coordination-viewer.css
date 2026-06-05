@@ -1753,13 +1753,15 @@ tr.row-selected td { color: var(--text-primary); }
 
 /* Collapsible-panel edge handles + smooth grid transition (Commit 6) */
 .app-shell{ transition: grid-template-columns 0.18s ease; }
+.app-shell.resizing{ transition: none; user-select: none; }   /* V2 — live drag, no lag */
 .rail-handle{
   position:absolute; top:50%; transform:translateY(-50%); z-index:11;
-  width:15px; height:48px; display:flex; align-items:center; justify-content:center;
-  background:rgba(20,22,28,0.72); color:#9aa3b2; cursor:pointer; border-radius:5px;
-  font:600 12px/1 sans-serif; backdrop-filter:blur(4px); user-select:none;
+  width:16px; height:72px; display:flex; align-items:center; justify-content:center;
+  background:rgba(20,22,28,0.72); color:#9aa3b2; cursor:ew-resize; border-radius:5px;
+  font:600 12px/1 sans-serif; backdrop-filter:blur(4px); user-select:none; touch-action:none;
 }
 .rail-handle:hover{ color:#fff; background:rgba(59,130,246,0.7); }
+.app-shell.resizing .rail-handle{ background:rgba(59,130,246,0.85); color:#fff; }
 .rail-left{ left:4px; }
 .rail-right{ right:4px; }
 
