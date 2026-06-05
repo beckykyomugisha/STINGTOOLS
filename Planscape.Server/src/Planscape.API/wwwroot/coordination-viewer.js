@@ -267,7 +267,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD C3-legend');
+    console.log('[viewer] STING_VIZ_BUILD C4-statuscolour');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1074,7 +1074,7 @@
         else if (dm === 'ghost' || cm === 'ghost') mode = 'ghost';
         else if (state.vizColour) {
           const col = state.vizColour;
-          const v = colourValueOf(col, meta);
+          const v = colourValueOf(col, meta, o.userData.elementGuid);
           const key = colourKey(col, v);
           if (col.hidden && col.hidden.has(key)) mode = 'hide';                 // legend shift-click
           else if (col.isolate != null && key !== col.isolate) mode = 'ghost';  // legend isolate → ghost rest
@@ -1150,7 +1150,9 @@
     }
     // The raw value a mesh contributes to the active colour scheme: a number for a
     // numeric/gradient scheme, a discipline for a preset, else the (normalised) token.
-    function colourValueOf(col, meta) {
+    function colourValueOf(col, meta, guid) {
+      // C4 — clash/issue status schemes resolve by element GUID via a precomputed map.
+      if (col.byGuid) return (guid && col.byGuid.get(guid)) || col.def;
       if (col.kind === 'preset') return discOf(meta);
       if (col.numeric) { const raw = tokenValue(meta, col.token); const n = parseFloat(raw); return isFinite(n) ? n : null; }
       let v = String(tokenValue(meta, col.token) || '').trim();
@@ -1265,7 +1267,9 @@
       const nums = raws.map(x => parseFloat(x)).filter(n => isFinite(n));
       const numeric = nums.length >= raws.length * 0.8;
       if (numeric) {
-        const min = Math.min(...nums), max = Math.max(...nums);
+        // C4 — reduce, NOT Math.min(...nums): a 12k-element spread overflows the call stack.
+        let min = Infinity, max = -Infinity;
+        for (let i = 0; i < nums.length; i++) { const n = nums[i]; if (n < min) min = n; if (n > max) max = n; }
         const ramp = (state.vizPalette === 'STING') ? PALETTE_SETS.Viridis : activePalette();
         const unit = paramUnit(key);
         state.vizColour = {
@@ -1289,6 +1293,55 @@
       applyAppearance();
       renderVisualizePanel();
       toast(`Coloured by ${key}`);
+    }
+    // C4 — colour by CLASH status. Each clashing element gets its worst clash status;
+    // the rest are "Clear" (muted). Resolves by guid via col.byGuid (colourValueOf).
+    function colourByClashStatus() {
+      if (!V.modelRoot) return toast('No model', 'warn');
+      const COLOURS = { NEW: '#e74c3c', OPEN: '#f39c12', RESOLVED: '#2ecc71', Clear: '#3a3f4a' };
+      const RANK = { Clear: 0, RESOLVED: 1, OPEN: 2, NEW: 3 };
+      const byGuid = new Map();
+      (state.clashes || []).forEach(c => {
+        const st = c.status || 'NEW';
+        [c.elementA && c.elementA.guid, c.elementB && c.elementB.guid].forEach(g => {
+          if (!g) return;
+          const cur = byGuid.get(g);
+          if (!cur || (RANK[st] || 0) > (RANK[cur] || 0)) byGuid.set(g, st);
+        });
+      });
+      if (!byGuid.size) return toast('No clashes to colour by', 'warn');
+      const counts = { Clear: 0 }; byGuid.forEach(s => counts[s] = (counts[s] || 0) + 1);
+      const present = ['NEW', 'OPEN', 'RESOLVED', 'Clear'].filter(s => s === 'Clear' || counts[s]);
+      state.vizColour = {
+        kind: 'clash', byGuid, def: 'Clear', valueColors: new Map(present.map(s => [s, COLOURS[s]])),
+        counts, noValue: COLOURS.Clear, isolate: null, hidden: new Set(),
+        legend: present.map(s => ({ label: s, color: COLOURS[s], count: counts[s] || 0 })),
+      };
+      state.vizPreset = null; applyAppearance(); renderVisualizePanel();
+      toast(`Coloured by clash status — ${byGuid.size} clashing element${byGuid.size === 1 ? '' : 's'}`);
+    }
+    // C4 — colour by ISSUE status (Open / Resolved / No issue), via elementGuids[].
+    function colourByIssueStatus() {
+      if (!V.modelRoot) return toast('No model', 'warn');
+      const COLOURS = { Open: '#f39c12', Resolved: '#2ecc71', 'No issue': '#3a3f4a' };
+      const byGuid = new Map();
+      (state.issues || []).forEach(i => {
+        const st = (i.status === 'RESOLVED') ? 'Resolved' : 'Open';
+        (Array.isArray(i.elementGuids) ? i.elementGuids : []).forEach(g => {
+          if (!g) return;
+          if (byGuid.get(g) !== 'Open') byGuid.set(g, st);   // Open wins over Resolved
+        });
+      });
+      if (!byGuid.size) return toast('No issues linked to elements', 'warn');
+      const counts = { 'No issue': 0 }; byGuid.forEach(s => counts[s] = (counts[s] || 0) + 1);
+      const present = ['Open', 'Resolved', 'No issue'].filter(s => s === 'No issue' || counts[s]);
+      state.vizColour = {
+        kind: 'issue', byGuid, def: 'No issue', valueColors: new Map(present.map(s => [s, COLOURS[s]])),
+        counts, noValue: COLOURS['No issue'], isolate: null, hidden: new Set(),
+        legend: present.map(s => ({ label: s, color: COLOURS[s], count: counts[s] || 0 })),
+      };
+      state.vizPreset = null; applyAppearance(); renderVisualizePanel();
+      toast(`Coloured by issue status — ${byGuid.size} flagged element${byGuid.size === 1 ? '' : 's'}`);
     }
     function fmtNum(n) { return Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : (Math.round(n * 100) / 100).toString(); }
     function paramUnit(key) {
@@ -1424,6 +1477,8 @@
         // values, so the same scheme reproduces the same colours (A5).
         if (d.colour) {
           if (d.colour.kind === 'preset' && d.colour.presetName) applyDisciplinePreset(d.colour.presetName);
+          else if (d.colour.kind === 'clash') colourByClashStatus();
+          else if (d.colour.kind === 'issue') colourByIssueStatus();
           else if (d.colour.numeric && d.colour.token) colourByParam(d.colour.token);
           else if (d.colour.kind === 'token' && d.colour.token) colourByToken(d.colour.token);
           else if (d.colour.kind === 'param' && d.colour.token) colourByParam(d.colour.token);
@@ -1547,7 +1602,7 @@
       const seen = new Set();
       V.modelRoot.traverse(o => {
         if (!o.isMesh || !o.visible || !o.material || !o.material.emissive) return;
-        const key = colourKey(col, colourValueOf(col, metaForMesh(o)));
+        const key = colourKey(col, colourValueOf(col, metaForMesh(o), o.userData.elementGuid));
         if (key === label && !seen.has(o.material.uuid)) {
           seen.add(o.material.uuid);
           _hoverMats.push({ mat: o.material, hex: o.material.emissive.getHex() });
@@ -1613,6 +1668,11 @@
         el('button', { class: 'btn sm', onclick: () => colourByToken(t) }, label)));
       tokRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => { clearColour(); renderVisualizePanel(); toast('Colour cleared'); } }, 'Clear colour'));
       colBox.appendChild(tokRow);
+      // C4 — colour by coordination status (clash / issue).
+      colBox.appendChild(el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' }, [
+        el('button', { class: 'btn sm', title: 'Colour by clash status (worst per element)', onclick: () => colourByClashStatus() }, 'Clash status'),
+        el('button', { class: 'btn sm', title: 'Colour by issue status (open / resolved)', onclick: () => colourByIssueStatus() }, 'Issue status'),
+      ]));
       // M4 — palette set + colour-by-ANY-parameter (categorical or numeric gradient).
       const palSel = el('select', { style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px;font-size:11px;flex:1' });
       Object.keys(PALETTE_SETS).forEach(p => { const o = el('option', { value: p }, p); if (p === state.vizPalette) o.selected = true; palSel.appendChild(o); });

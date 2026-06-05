@@ -45,3 +45,11 @@ one hazard: `clearHoverHighlight` forced emissive to **black** on mouse-leave, w
 a true-original GLTF material's own emissive (and the orange selection emissive). Now captures
 each touched material's prior emissive and restores exactly that. Materials deduped by uuid so a
 shared colour material is touched once.
+
+### C4 — colour-by Clash status, Issue status, robust numeric gradient  ✅ served `C4-statuscolour`
+New schemes resolve per element GUID via `col.byGuid` (new arg to `colourValueOf`). **Clash
+status** = worst clash status per element (NEW>OPEN>RESOLVED), rest "Clear" (muted). **Issue
+status** = Open / Resolved / No issue via `elementGuids[]` (Open wins). Both add a status legend
+with counts and compose with isolate/hide/hover/transparency like any scheme; persisted +
+re-derived on reload. Gradient robustness: replaced `Math.min(...nums)` / `Math.max(...nums)`
+(a 12k-element spread overflows the call stack) with a single reduce loop.
