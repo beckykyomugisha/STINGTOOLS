@@ -1063,7 +1063,12 @@
           if (col.hidden && col.hidden.has(key)) mode = 'hide';                 // legend shift-click
           else if (col.isolate != null && key !== col.isolate) mode = 'ghost';  // legend isolate → ghost rest
           else { const c = colourForValue(col, v); mode = c ? ('colour:' + c) : 'show'; }
-        } else mode = 'show';
+        } else {
+          // B1 — a per-discipline/category custom colour applies directly even with
+          // no active colour scheme (the scheme path already honours it via colourForValue).
+          const custom = state.vizCustomColours.get(disc) || state.vizCustomColours.get(cat);
+          mode = custom ? ('colour:' + custom) : 'show';
+        }
         // A4 — global render-mode lens applies UNDER colour/ghost/hide: only meshes
         // that resolved to plain 'show' (and aren't kept-solid) take the lens.
         if (mode === 'show' && rmode) {
@@ -1074,6 +1079,7 @@
       });
       reapplySelection();      // A3 — re-overlay the selection on the new appearance
       broadcastAppearance();
+      saveVizState();          // B3 — persist appearance inputs per model (guarded)
     }
     // applyAppearance — canonical name; applyVizModes kept for existing callers.
     const applyAppearance = applyVizModes;
@@ -1331,34 +1337,98 @@
       if (V.clearOverlay) V.clearOverlay();
       clearAllHighlights();            // selection + appearance → true original, flags reset
       showAllElements();
+      try { localStorage.removeItem(vizStateKey()); } catch (_) {}   // B3 — wipe persisted state
       renderVisualizePanel();
       toast('Visualization reset');
     }
 
+    // ── B3 — per-MODEL visualize persistence ──────────────────────────────────
+    // Saves the appearance INPUTS (not per-mesh state) keyed by model id; colours are
+    // re-derived deterministically on restore, so nothing drifts. Selection is NOT
+    // persisted (it's transient). restoringViz suppresses re-save churn during load.
+    let restoringViz = false;
+    function vizStateKey() { return 'planscape_viz_' + (state.modelId || 'default'); }
+    function saveVizState() {
+      if (state.applyingRemoteViz || restoringViz) return;
+      try {
+        const c = state.vizColour;
+        localStorage.setItem(vizStateKey(), JSON.stringify({
+          disc: Array.from(state.vizDiscMode.entries()),
+          cat:  Array.from(state.vizCatMode.entries()),
+          custom: Array.from(state.vizCustomColours.entries()),
+          keepDisc: Array.from(state.vizKeepSolidDisc),
+          keepCat:  Array.from(state.vizKeepSolidCat),
+          palette: state.vizPalette,
+          renderMode: state.renderMode,
+          colour: c ? { kind: c.kind, token: c.token, presetName: c.presetName, numeric: !!c.numeric } : null,
+        }));
+      } catch (_) {}
+    }
+    function loadVizState() {
+      let d;
+      try { const raw = localStorage.getItem(vizStateKey()); if (!raw) return; d = JSON.parse(raw); } catch (_) { return; }
+      if (!d) return;
+      restoringViz = true;
+      try {
+        state.vizDiscMode = new Map(d.disc || []);
+        state.vizCatMode  = new Map(d.cat || []);
+        state.vizCustomColours = new Map(d.custom || []);
+        state.vizKeepSolidDisc = new Set(d.keepDisc || []);
+        state.vizKeepSolidCat  = new Set(d.keepCat || []);
+        if (d.palette) state.vizPalette = d.palette;
+        state.renderMode = d.renderMode || 'shaded';
+        // Re-derive the colour scheme — valueColors rebuilt from the SORTED distinct
+        // values, so the same scheme reproduces the same colours (A5).
+        if (d.colour) {
+          if (d.colour.kind === 'preset' && d.colour.presetName) applyDisciplinePreset(d.colour.presetName);
+          else if (d.colour.numeric && d.colour.token) colourByParam(d.colour.token);
+          else if (d.colour.kind === 'token' && d.colour.token) colourByToken(d.colour.token);
+          else if (d.colour.kind === 'param' && d.colour.token) colourByParam(d.colour.token);
+        }
+      } catch (_) {}
+      restoringViz = false;
+      applyAppearance();
+      renderVisualizePanel();
+    }
+
     // ── Visualize panel UI ───────────────────────────────────────────────────
-    function vizModeRow(label, count, getMode, setMode, onIsolate) {
+    // B1 — a discipline/category row: optional colour picker (custom colour for that
+    // group, overrides the palette) · label (click = isolate) · show / ghost / hide /
+    // isolate buttons. customKey is the value (disc code / category) for the colour map.
+    function vizModeRow(label, count, getMode, setMode, onIsolate, customKey) {
       const row = el('div', { class: 'viz-row',
-        style: 'display:flex;align-items:center;gap:6px;padding:3px 0' });
+        style: 'display:flex;align-items:center;gap:5px;padding:3px 0' });
+      if (customKey != null) {
+        const cp = el('input', { type: 'color', value: state.vizCustomColours.get(customKey) || '#888888',
+          title: 'Custom colour for ' + label,
+          style: 'width:18px;height:18px;padding:0;border:none;background:none;cursor:pointer;flex:0 0 auto' });
+        cp.addEventListener('input', () => { state.vizCustomColours.set(customKey, cp.value); applyAppearance(); });
+        row.appendChild(cp);
+      }
       const lbl = el('span', {
         title: onIsolate ? 'Click to isolate (shade only, ghost rest)' : '',
         style: 'flex:1;font-size:12px;color:var(--text,#e6e6e6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
           + (onIsolate ? ';cursor:pointer' : '')
       }, count != null ? `${label} (${count})` : label);
-      if (onIsolate) lbl.addEventListener('click', () => onIsolate());   // M4 — label click isolates
+      if (onIsolate) lbl.addEventListener('click', () => onIsolate());
       row.appendChild(lbl);
       const group = el('div', { style: 'display:flex;gap:2px' });
-      [['show', '◐'], ['ghost', '○'], ['hide', '∅']].forEach(([m, glyph]) => {
+      const mkBtn = (m, glyph, title, fn) => {
         const cur = getMode() || 'show';
+        const active = (m === '_iso') ? false : (cur === m);
         const b = el('button', {
-          class: 'viz-mode-btn', title: m,
-          style: 'width:26px;height:22px;border-radius:4px;cursor:pointer;font-size:12px;'
-            + 'border:1px solid ' + (cur === m ? '#3B82F6' : 'rgba(255,255,255,0.15)') + ';'
-            + 'background:' + (cur === m ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.04)') + ';'
+          class: 'viz-mode-btn', title: title || m,
+          style: 'width:24px;height:22px;border-radius:4px;cursor:pointer;font-size:12px;'
+            + 'border:1px solid ' + (active ? '#3B82F6' : 'rgba(255,255,255,0.15)') + ';'
+            + 'background:' + (active ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.04)') + ';'
             + 'color:#e6e6e6'
         }, glyph);
-        b.addEventListener('click', () => { setMode(m); applyVizModes(); renderVisualizePanel(); });
+        b.addEventListener('click', fn);
         group.appendChild(b);
-      });
+      };
+      [['show', '◐', 'Show'], ['ghost', '○', 'Ghost'], ['hide', '∅', 'Hide']].forEach(([m, glyph, title]) =>
+        mkBtn(m, glyph, title, () => { setMode(m); applyAppearance(); renderVisualizePanel(); }));
+      if (onIsolate) mkBtn('_iso', '◎', 'Isolate (shade only, ghost the rest)', () => onIsolate());
       row.appendChild(group);
       return row;
     }
@@ -1518,7 +1588,8 @@
       discs.forEach(d => byDisc.appendChild(vizModeRow(d, discCounts[d],
         () => state.vizDiscMode.get(d),
         (m) => state.vizDiscMode.set(d, m),
-        () => shadeOnlyDiscipline(d))));     // M4 — label click isolates
+        () => shadeOnlyDiscipline(d),        // label / ◎ click isolates
+        d)));                                 // B1 — custom-colour key
       wrap.appendChild(byDisc);
 
       // ── BUILD 1 — By category ──
@@ -1531,7 +1602,8 @@
         cats.forEach(c => byCat.appendChild(vizModeRow(c, catCounts[c],
           () => state.vizCatMode.get(c),
           (m) => state.vizCatMode.set(c, m),
-          () => shadeOnlyCategory(c))));      // M4 — label click isolates
+          () => shadeOnlyCategory(c),         // label / ◎ click isolates
+          c)));                                // B1 — custom-colour key
         wrap.appendChild(byCat);
       }
 
@@ -2780,7 +2852,7 @@
       });
       const pct = total ? Math.round(hit / total * 100) : 0;
       console.log(`[viz] mesh→meta resolver: ${hit}/${total} meshes resolved (${pct}%)`);
-      console.log('[viz] STING_VIZ_LAYERED_A appearance+selection engine');   // STEP-0 served-artifact marker
+      console.log('[viz] STING_VIZ_LAYERED_AB rows+deselect+persist');   // STEP-0 served-artifact marker
       if (total && pct < 50) console.warn('[viz] LOW resolver hit-rate — check the exporter writes per-mesh guids matching the element map');
     }
     // Fast meta lookup for a mesh (resolver map first, then a guid fallback).
@@ -3207,13 +3279,16 @@
           { glyph: 'ℹ', label: 'Properties',           run: () => { $('.tab-bar .tab[data-tab=properties]')?.click(); renderProperties(state.selectedElementGuid); } },
           { glyph: '🚩', label: 'Create issue',         run: () => openIssueModal({ guid, meta }) },
           tag ? { glyph: '🏷', label: 'Copy STING tag', run: () => { copyToClipboard(String(tag)); toast('Tag copied'); } } : null,
+          '-',
+          { glyph: '✕', label: 'Deselect',             run: () => selectElementByGuid(null) },   // B2
         ].filter(Boolean), x, y);
       } else {
         showRowMenuAt(menu, [
+          { glyph: '✕', label: 'Deselect / clear selection', run: () => selectElementByGuid(null) },  // B2
           { glyph: '⊙', label: 'Show all',  run: () => showAllElements() },
           { glyph: '⌖', label: 'Fit model', run: () => { if (V.fitCamera) V.fitCamera(); } },
           '-',
-          { glyph: '✕', label: 'Exit markup / section', run: () => setActiveTool('orbit') },
+          { glyph: '◳', label: 'Exit markup / section', run: () => setActiveTool('orbit') },
         ], x, y);
       }
     }
@@ -6237,6 +6312,7 @@
         $('#bootLoader')?.style.setProperty('display', 'none');
         invalidateCentroidCache();   // L7 — fresh model, fresh cache
         rebuildGuidIndex();          // B7 — GUID→mesh map for fast lookups
+        loadVizState();              // B3 — restore this model's saved visualize state
         placeIssuePins();
         placeClashPins();
         placePhotoPins();             // Slice 4b — photo pins after model bounds known
