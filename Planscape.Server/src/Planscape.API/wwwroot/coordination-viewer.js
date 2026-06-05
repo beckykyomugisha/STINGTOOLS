@@ -147,7 +147,9 @@
       vizColour:   null,        // M1/M4 colour descriptor (token | preset | param) or null
       vizPalette:  'STING',     // M4 active palette set name
       vizCustomColours: new Map(), // B1 value/discipline → custom hex (overrides palette)
+      vizTransp:   new Map(),   // C1 disc/cat → opacity 0..1 (continuous transparency)
       colourMats:  new Map(),   // hex → shared coloured material (no per-mesh leak)
+      transMats:   new Map(),   // opacity% → shared transparent material (C1)
       renderMode: 'shaded',
       applyingRemoteViz: false, // guard so a broadcast render-mode doesn't echo
       clashSection: { active: false, saved: null, onFocus: false }, // clip-plane section box
@@ -264,6 +266,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
+    console.log('[viewer] STING_VIZ_BUILD C1-transparency');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1059,9 +1062,13 @@
         const disc = discOf(meta), cat = catKey(meta);
         const dm = state.vizDiscMode.get(disc);
         const cm = state.vizCatMode.get(cat);
-        // Most-restrictive of (discMode, catMode, colourOverride): hide > ghost > colour > show.
+        // Precedence: hide > transparency(slider) > ghost(button) > colour > show.
         let mode;
+        // C1 — a per-discipline/category transparency slider (< 100%) overrides ghost.
+        const tv = state.vizTransp.has(disc) ? state.vizTransp.get(disc)
+                 : (state.vizTransp.has(cat) ? state.vizTransp.get(cat) : null);
         if (dm === 'hide' || cm === 'hide') mode = 'hide';
+        else if (tv != null && tv < 1) mode = 'trans:' + Math.round(tv * 100);
         else if (dm === 'ghost' || cm === 'ghost') mode = 'ghost';
         else if (state.vizColour) {
           const col = state.vizColour;
@@ -1102,6 +1109,7 @@
       o.visible = true;
       if (mode === 'ghost') { ghostMaterial(o); return; }
       if (mode.indexOf('colour:') === 0) { setReplacement(o, colourMaterial(mode.slice(7))); return; }
+      if (mode.indexOf('trans:') === 0)  { setReplacement(o, transMaterial(parseInt(mode.slice(6), 10))); return; }   // C1
       if (mode.indexOf('rmode:') === 0)  { setReplacement(o, renderModeMaterial(mode.slice(6))); return; }
       restoreOriginalMaterial(o);                   // show → true original
     }
@@ -1113,6 +1121,19 @@
         m = new THREE_.MeshStandardMaterial({ color: isFinite(n) ? n : 0x888888, metalness: 0.0, roughness: 0.85 });
         m.userData = { stingColour: true };
         state.colourMats.set(hex, m);
+      }
+      return m;
+    }
+    // C1 — shared transparent material per opacity% (cached). A continuous version of
+    // ghost: the group's elements render at the slider's opacity over a neutral tint.
+    function transMaterial(pct) {
+      pct = Math.max(0, Math.min(100, Math.round(pct)));
+      let m = state.transMats.get(pct);
+      if (!m) {
+        m = new THREE_.MeshStandardMaterial({ color: 0x9aa3b2, transparent: true,
+          opacity: Math.max(0.02, pct / 100), depthWrite: false, side: THREE_.DoubleSide });
+        m.userData = { stingColour: true };   // shared — never disposed per-mesh
+        state.transMats.set(pct, m);
       }
       return m;
     }
@@ -1338,6 +1359,7 @@
       state.vizKeepSolidDisc.clear(); state.vizKeepSolidCat.clear();
       state.vizPreset = null; state.vizColour = null;
       state.vizCustomColours.clear();
+      state.vizTransp.clear();
       state.renderMode = 'shaded';
       state.selectedElementGuid = null; state.selectedElementGuids.clear();
       clearClashSection();
@@ -1363,6 +1385,7 @@
           disc: Array.from(state.vizDiscMode.entries()),
           cat:  Array.from(state.vizCatMode.entries()),
           custom: Array.from(state.vizCustomColours.entries()),
+          transp: Array.from(state.vizTransp.entries()),
           keepDisc: Array.from(state.vizKeepSolidDisc),
           keepCat:  Array.from(state.vizKeepSolidCat),
           palette: state.vizPalette,
@@ -1380,6 +1403,7 @@
         state.vizDiscMode = new Map(d.disc || []);
         state.vizCatMode  = new Map(d.cat || []);
         state.vizCustomColours = new Map(d.custom || []);
+        state.vizTransp   = new Map(d.transp || []);
         state.vizKeepSolidDisc = new Set(d.keepDisc || []);
         state.vizKeepSolidCat  = new Set(d.keepCat || []);
         if (d.palette) state.vizPalette = d.palette;
@@ -1437,6 +1461,21 @@
         mkBtn(m, glyph, title, () => { setMode(m); applyAppearance(); renderVisualizePanel(); }));
       if (onIsolate) mkBtn('_iso', '◎', 'Isolate (shade only, ghost the rest)', () => onIsolate());
       row.appendChild(group);
+      // C1 — continuous transparency slider (100% = opaque/no override; < 100% renders
+      // the group at that opacity, overriding the binary ghost).
+      if (customKey != null) {
+        const cur = state.vizTransp.has(customKey) ? Math.round(state.vizTransp.get(customKey) * 100) : 100;
+        const sl = el('input', { type: 'range', min: '0', max: '100', step: '5', value: String(cur),
+          title: 'Opacity ' + cur + '%', class: 'viz-transp',
+          style: 'width:46px;flex:0 0 auto;cursor:pointer;accent-color:#3B82F6' });
+        sl.addEventListener('input', () => {
+          const v = parseInt(sl.value, 10);
+          sl.title = 'Opacity ' + v + '%';
+          if (v >= 100) state.vizTransp.delete(customKey); else state.vizTransp.set(customKey, v / 100);
+          applyAppearance();
+        });
+        row.appendChild(sl);
+      }
       return row;
     }
 

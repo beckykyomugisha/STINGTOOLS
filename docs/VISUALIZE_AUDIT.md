@@ -1,0 +1,31 @@
+# Viewer Visualize — audit & change log
+
+Living record of the visualize/interaction work and the proactive audits (Parts C–E of the
+combined viewer prompt). Each entry: what changed / what was found, root cause, fix, and the
+served-artifact proof. The deployed bundle is the minified `dist/` (build.mjs) served by the
+container — every item is verified with `docker compose build --no-cache api` then a marker
+grep on the **served** file, not the source.
+
+## Invariants (must not regress)
+- Layered model: appearance (`_vizMode`, single `applyAppearance()` resolver, one `_trueOrig`
+  store) ⊥ selection (emissive clone overlay, own set). Deterministic colours from sorted
+  distinct values.
+- Orbit (modelPivot Y-up + native OrbitControls), camera **getter** (ortho-safe), minimap
+  inset, true Z-up coordinate readout, and the FITFIX (size-based fit — `Sphere` is tree-shaken
+  from the bundle, never call `getBoundingSphere`).
+
+## Marker
+`coordination-viewer.js` logs `[viewer] STING_VIZ_BUILD <tag>` at init; the `<tag>` is bumped
+per commit so the STEP 0 gate can prove the running container serves that exact change.
+
+---
+
+## Part C — Visualize flexibility
+
+### C1 — per-discipline/-category continuous transparency  ✅ served `C1-transparency`
+Each BY-DISCIPLINE / BY-CATEGORY row gains a continuous opacity slider (0–100%, replacing the
+binary ghost). Wired through the layered resolver: precedence `hide > transparency(slider) >
+ghost(button) > colour > show`. `state.vizTransp` (key→opacity) drives a cached shared
+transparent material per opacity bucket (`transMaterial`, tagged `stingColour` so it's never
+disposed per-mesh). 100% = no override (entry removed). Persisted per model (B3) + cleared by
+Reset. One traverse per change; selection re-overlays on top.
