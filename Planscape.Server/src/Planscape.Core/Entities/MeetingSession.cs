@@ -40,9 +40,12 @@ public class MeetingSession : ITenantScoped
     /// <c>screen</c> (a presenter's LiveKit screen-share). The SignalR hub owns
     /// this "active surface" state; LiveKit owns the A/V media plane.
     /// </summary>
-    public string ActiveSurface { get; set; } = "model";
+    /// NULLABLE column — existing rows predating this column read as null and the app
+    /// treats null as the default "model" surface (see MeetingRoomController). This keeps
+    /// adding the column to an existing table non-breaking (no NOT NULL + default needed).
+    public string? ActiveSurface { get; set; } = "model";
 
-    /// <summary>When <see cref="ActiveSurface"/> is <c>document</c>, the shared DocumentRecord id.</summary>
+    /// <summary>When <see cref="ActiveSurface"/> is <c>document</c>, the shared DocumentRecord id. Nullable.</summary>
     public Guid? ActiveDocumentId { get; set; }
 
     public string CreatedBy { get; set; } = "";

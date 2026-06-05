@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Planscape.Infrastructure.Data;
@@ -11,9 +12,11 @@ using Planscape.Infrastructure.Data;
 namespace Planscape.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(PlanscapeDbContext))]
-    partial class PlanscapeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260605041920_MeetingMedia")]
+    partial class MeetingMedia
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -270,7 +270,10 @@ public class MeetingRoomController : ControllerBase
     {
         s.Id, s.ProjectId, s.MeetingId, s.HostUserId, s.ModelId,
         s.BaseRevisionId, s.Status, s.CreatedAt, s.EndedAt,
-        s.ActiveSurface, s.ActiveDocumentId,
+        // Null (a row predating the column) ⇒ the default "model" surface — app logic,
+        // not a DB constraint, so the column can stay nullable + non-breaking.
+        ActiveSurface = s.ActiveSurface ?? "model",
+        s.ActiveDocumentId,
     };
 
     private async Task<bool> ProjectInTenant(Guid projectId, CancellationToken ct)
