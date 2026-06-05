@@ -108,6 +108,8 @@
                                       // ctrl/cmd-click toggle, shift-click
                                       // range, and tree-multi-select.
       selectedElementMesh: null,
+      selMeshes: new Set(),           // PART A — meshes currently carrying a
+                                      // selection-highlight overlay (≠ appearance).
       selectedClashId: null,
       selectedIssueId: null,
       activeLevels: new Set(),
@@ -144,6 +146,7 @@
       vizKeepSolidCat:  new Set(),
       vizColour:   null,        // M1/M4 colour descriptor (token | preset | param) or null
       vizPalette:  'STING',     // M4 active palette set name
+      vizCustomColours: new Map(), // B1 value/discipline → custom hex (overrides palette)
       colourMats:  new Map(),   // hex → shared coloured material (no per-mesh leak)
       renderMode: 'shaded',
       applyingRemoteViz: false, // guard so a broadcast render-mode doesn't echo
@@ -825,7 +828,10 @@
     // and free the replacement's GPU resources on clear.
     function rememberOriginal(mesh) {
       if (!state.elementMaterials.has(mesh.uuid)) {
-        state.elementMaterials.set(mesh.uuid, { original: mesh.material, replacement: null });
+        // A1 — the original is ALWAYS the load-time true original, never the
+        // mesh's current (possibly already-swapped) material.
+        if (!mesh.userData._trueOrig) mesh.userData._trueOrig = mesh.material;
+        state.elementMaterials.set(mesh.uuid, { original: mesh.userData._trueOrig, replacement: null });
       }
     }
     // Materials the appearance engine SHARES across many meshes must never be
@@ -860,24 +866,96 @@
     function ghostMaterial(mesh) { setReplacement(mesh, getGhostMaterial()); }
     function restoreOriginalMaterial(mesh) {
       const slot = state.elementMaterials.get(mesh.uuid);
-      if (!slot) return;
-      mesh.material = slot.original;
-      if (slot.replacement && !isSharedMat(slot.replacement) && typeof slot.replacement.dispose === 'function') {
+      mesh.material = mesh.userData._trueOrig || (slot && slot.original) || mesh.material;
+      if (slot && slot.replacement && !isSharedMat(slot.replacement) && typeof slot.replacement.dispose === 'function') {
         try { slot.replacement.dispose(); } catch (_) {}
       }
       state.elementMaterials.delete(mesh.uuid);
     }
-    // L6 — wipe every active highlight / ghost across the scene. Called
-    // whenever the user focuses a different clash or issue.
+    // ════════════════════════════════════════════════════════════════════════
+    // PART A — SELECTION LAYER (an OVERLAY on the appearance layer, never clobbers
+    // it). The highlight is a CLONE of the mesh's current appearance-resolved
+    // material + emissive; tracked in its own set; never routed through
+    // state.elementMaterials. STING_VIZ_LAYERED_A — served-artifact marker.
+    // ════════════════════════════════════════════════════════════════════════
+    // Render-mode "lens" materials (View menu) — shared + cached so they compose
+    // through applyAppearance without per-mesh leaks.
+    const _rmodeMats = {};
+    function renderModeMaterial(m) {
+      if (_rmodeMats[m]) return _rmodeMats[m];
+      let mat;
+      if (m === 'wire')       mat = new THREE_.MeshBasicMaterial({ color: 0x60A5FA, wireframe: true });
+      else if (m === 'xray')  mat = new THREE_.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.25, depthWrite: false });
+      else if (m === 'ghost') mat = new THREE_.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false });
+      else return null;
+      mat.userData = { stingColour: true };   // shared — isSharedMat protects it
+      _rmodeMats[m] = mat;
+      return mat;
+    }
+    // The mesh's current BASE appearance material (what it shows when NOT selected):
+    // its appearance replacement (ghost/colour/render-mode) or the true original.
+    function appearanceMaterialOf(o) {
+      const slot = state.elementMaterials.get(o.uuid);
+      if (slot && slot.replacement) return slot.replacement;
+      return o.userData._trueOrig || o.material;
+    }
+    // Add / refresh the selection overlay on a mesh: clone its appearance material
+    // and add emissive. Re-clones only when the underlying appearance changed.
+    function addSelHighlight(o) {
+      if (!o) return;
+      const base = appearanceMaterialOf(o);
+      let clone = o.userData._selClone;
+      if (!clone || o.userData._selSrc !== base) {
+        if (clone && !isSharedMat(clone) && typeof clone.dispose === 'function') { try { clone.dispose(); } catch (_) {} }
+        clone = base.clone();
+        if (clone.emissive) { clone.emissive.setHex(0xF97316); clone.emissiveIntensity = 0.5; }
+        clone.userData = { stingSel: true };
+        o.userData._selClone = clone;
+        o.userData._selSrc = base;
+      }
+      o.material = clone;
+      state.selMeshes.add(o);
+    }
+    function removeSelHighlight(o) {
+      if (!o) return;
+      o.material = appearanceMaterialOf(o);          // back to the appearance material
+      const clone = o.userData._selClone;
+      if (clone && !isSharedMat(clone) && typeof clone.dispose === 'function') { try { clone.dispose(); } catch (_) {} }
+      o.userData._selClone = null; o.userData._selSrc = null;
+      state.selMeshes.delete(o);
+    }
+    // Re-overlay the selection on the CURRENT appearance: drop highlights from
+    // de-selected meshes, (re)add to selected ones. Cheap — touches only the
+    // selection set, not the whole scene. Called by selection changes AND at the
+    // end of applyAppearance so a viz change re-clones on the new base material.
+    function reapplySelection() {
+      const want = state.selectedElementGuids;
+      Array.from(state.selMeshes).forEach(o => {
+        if (!want.has(o.userData.elementGuid)) removeSelHighlight(o);
+      });
+      want.forEach(g => {
+        const meshes = (state.guidMeshes && state.guidMeshes.get(g)) || [findMeshByGuid(g)].filter(Boolean);
+        meshes.forEach(m => addSelHighlight(m));
+      });
+    }
+
+    // A2 — full reset to the true original (used by clash/issue FOCUS, which then
+    // applies its own materials). Clears BOTH the selection overlay AND the
+    // appearance replacements, and resets the dirty-flags so the next
+    // applyAppearance re-evaluates every mesh. (Selection alone uses
+    // reapplySelection, which never wipes the appearance — that was the
+    // "click resets to shaded" bug.)
     function clearAllHighlights() {
+      Array.from(state.selMeshes).forEach(o => removeSelHighlight(o));
+      state.selMeshes.clear();
       if (!V.modelRoot) { state.elementMaterials.clear(); return; }
       const ids = Array.from(state.elementMaterials.keys());
       V.modelRoot.traverse(o => {
         if (!o.isMesh) return;
-        o.userData._vizMode = undefined;   // force the next applyAppearance to re-evaluate
+        o.userData._vizMode = undefined;
+        o.userData._paintKey = undefined;
         if (state.elementMaterials.has(o.uuid)) restoreOriginalMaterial(o);
       });
-      // Anything left (e.g., disposed mesh) — drop it.
       ids.forEach(id => state.elementMaterials.delete(id));
     }
 
@@ -960,19 +1038,20 @@
 
     // BUILD 1 — apply the per-discipline + per-category show/ghost/hide modes.
     // Most-restrictive wins (hide > ghost > show).
+    // PART A — the SINGLE appearance resolver. One traverse, dirty-flagged. Each
+    // mesh gets exactly one base state: hidden | ghost | colour:hex | rmode:lens |
+    // original. The render mode (View menu) is a GLOBAL lens that COMPOSES here
+    // rather than via its own traversal/store. Selection is re-overlaid at the end.
     function applyVizModes() {
       if (!V.modelRoot) return;
-      // Ghost/show/hide owns materials via state.elementMaterials; the engine
-      // colour overlay + the global render mode own them via their own stores.
-      // Keep them mutually exclusive so none captures another's material as
-      // "original".
-      if (V.activeOverlaySource && V.clearOverlay) { V.clearOverlay(); state.vizPreset = null; }
-      if (state.renderMode && state.renderMode !== 'shaded') clearRenderMode();
+      if (V.activeOverlaySource && V.clearOverlay) { V.clearOverlay(); }   // retire any legacy overlay store
+      const rmode = (state.renderMode && state.renderMode !== 'shaded') ? state.renderMode : null;
       V.modelRoot.traverse(o => {
         if (!o.isMesh) return;
         const meta = metaForMesh(o);
-        const dm = state.vizDiscMode.get(discOf(meta));
-        const cm = state.vizCatMode.get(catKey(meta));
+        const disc = discOf(meta), cat = catKey(meta);
+        const dm = state.vizDiscMode.get(disc);
+        const cm = state.vizCatMode.get(cat);
         // Most-restrictive of (discMode, catMode, colourOverride): hide > ghost > colour > show.
         let mode;
         if (dm === 'hide' || cm === 'hide') mode = 'hide';
@@ -985,8 +1064,15 @@
           else if (col.isolate != null && key !== col.isolate) mode = 'ghost';  // legend isolate → ghost rest
           else { const c = colourForValue(col, v); mode = c ? ('colour:' + c) : 'show'; }
         } else mode = 'show';
+        // A4 — global render-mode lens applies UNDER colour/ghost/hide: only meshes
+        // that resolved to plain 'show' (and aren't kept-solid) take the lens.
+        if (mode === 'show' && rmode) {
+          const keepSolid = state.vizKeepSolidDisc.has(disc) || state.vizKeepSolidCat.has(cat);
+          if (!keepSolid) mode = 'rmode:' + rmode;
+        }
         applyMeshState(o, mode);
       });
+      reapplySelection();      // A3 — re-overlay the selection on the new appearance
       broadcastAppearance();
     }
     // applyAppearance — canonical name; applyVizModes kept for existing callers.
@@ -998,11 +1084,13 @@
     function applyMeshState(o, mode) {
       if (o.userData._vizMode === mode) return;     // idempotent
       o.userData._vizMode = mode;
+      o.userData._paintKey = undefined;             // appearance changed → selection re-clones
       if (mode === 'hide') { o.visible = false; restoreOriginalMaterial(o); return; }
       o.visible = true;
       if (mode === 'ghost') { ghostMaterial(o); return; }
       if (mode.indexOf('colour:') === 0) { setReplacement(o, colourMaterial(mode.slice(7))); return; }
-      restoreOriginalMaterial(o);                   // show
+      if (mode.indexOf('rmode:') === 0)  { setReplacement(o, renderModeMaterial(mode.slice(6))); return; }
+      restoreOriginalMaterial(o);                   // show → true original
     }
     // Shared coloured material per hex (cached — no per-mesh leak).
     function colourMaterial(hex) {
@@ -1033,6 +1121,9 @@
     // Value → hex for the active scheme. Numeric uses the min→max ramp; categorical
     // uses the per-value palette; missing values get the distinct <No Value> colour.
     function colourForValue(col, v) {
+      // B1 — a user-assigned custom colour for this value/discipline overrides the
+      // palette (checked first, for both categorical + preset schemes).
+      if (state.vizCustomColours && (v || v === 0) && state.vizCustomColours.has(v)) return state.vizCustomColours.get(v);
       if (col.kind === 'preset') return col.map[v] || col.map._other || null;
       if (col.numeric) return (v == null) ? col.noValue : rampColour(col, v);
       if (v === '' || v == null) return col.noValue || null;
@@ -1066,7 +1157,7 @@
     // overlay channel established in WS2.
     function broadcastAppearance() {
       if (state.applyingRemoteViz) return;
-      if (typeof broadcastVizRenderMode === 'function' && state.renderMode && state.renderMode !== 'shaded') broadcastVizRenderMode();
+      if (typeof broadcastVizRenderMode === 'function' && state.renderMode && state.renderMode !== 'shaded') broadcastVizRenderMode(state.renderMode);
     }
     // One-click "shade only X, ghost the rest".
     function shadeOnlyDiscipline(disc) {
@@ -1088,26 +1179,29 @@
     // Colour every element by ANY STING token (categorical) — sets a colour
     // descriptor and drives the ONE appearance engine (no separate overlay path).
     function activePalette() { return PALETTE_SETS[state.vizPalette] || VIZ_PALETTE; }
+    // A5 — assign palette colours DETERMINISTICALLY from the SORTED distinct values,
+    // so a given value always maps to the same hex across re-renders / selections /
+    // reloads. Cached on state.vizColour.valueColors; never reassigned on interaction.
+    function buildValueColors(sortedValues, pal) {
+      const m = new Map();
+      sortedValues.forEach((v, i) => m.set(v, pal[i % pal.length]));
+      return m;
+    }
     function colourByToken(token) {
       if (!V.modelRoot || !state.elementMap) return toast('No model / element map', 'warn');
-      const values = new Map();  // value → colour
+      const distinct = (token === 'DISC') ? distinctDisc() : distinctTokens(token);   // SORTED
+      if (!distinct.length) return toast(`No ${token} values on this model`, 'warn');
+      const values = buildValueColors(distinct, activePalette());
       const counts = new Map();
-      const pal = activePalette();
-      let idx = 0;
       Object.values(state.elementMap).forEach(m => {
         let v = String(tokenValue(m, token) || '').trim();
         if (token === 'DISC') v = discOf(m);
-        if (!v) return;
-        if (!values.has(v)) values.set(v, pal[idx++ % pal.length]);
-        counts.set(v, (counts.get(v) || 0) + 1);
+        if (v) counts.set(v, (counts.get(v) || 0) + 1);
       });
-      if (!values.size) return toast(`No ${token} values on this model`, 'warn');
       state.vizColour = {
         kind: 'token', token, valueColors: values, counts, noValue: '#3a3f4a',
         isolate: null, hidden: new Set(),
-        legend: Array.from(values.entries())
-          .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
-          .map(([label, color]) => ({ label, color, count: counts.get(label) || 0 })),
+        legend: distinct.map(v => ({ label: v, color: values.get(v), count: counts.get(v) || 0 })),
       };
       state.vizPreset = null;
       applyAppearance();
@@ -1138,11 +1232,13 @@
           })),
         };
       } else {
-        const values = new Map(), counts = new Map(); const pal = activePalette(); let idx = 0;
-        Object.values(state.elementMap).forEach(m => { const v = String(m[key] != null ? m[key] : '').trim(); if (!v) return; if (!values.has(v)) values.set(v, pal[idx++ % pal.length]); counts.set(v, (counts.get(v) || 0) + 1); });
-        if (!values.size) return toast(`No "${key}" values`, 'warn');
+        const distinct = Array.from(new Set(raws.map(r => String(r).trim()).filter(Boolean))).sort();   // SORTED
+        if (!distinct.length) return toast(`No "${key}" values`, 'warn');
+        const values = buildValueColors(distinct, activePalette());   // A5 deterministic
+        const counts = new Map();
+        Object.values(state.elementMap).forEach(m => { const v = String(m[key] != null ? m[key] : '').trim(); if (v) counts.set(v, (counts.get(v) || 0) + 1); });
         state.vizColour = { kind: 'param', token: key, valueColors: values, counts, noValue: '#3a3f4a', isolate: null, hidden: new Set(),
-          legend: Array.from(values.entries()).sort((a, b) => String(a[0]).localeCompare(String(b[0]))).map(([label, color]) => ({ label, color, count: counts.get(label) || 0 })) };
+          legend: distinct.map(v => ({ label: v, color: values.get(v), count: counts.get(v) || 0 })) };
       }
       state.vizPreset = null;
       applyAppearance();
@@ -1221,14 +1317,19 @@
       state.clashSection.active = false;
     }
 
+    // Deterministic reset to the TRUE original — clears every appearance input
+    // (disc/cat modes, colour scheme, custom colours, keep-solid, render mode) AND
+    // the selection, then restores each mesh to its load-time original material.
     function resetVisualization() {
       state.vizDiscMode.clear(); state.vizCatMode.clear();
+      state.vizKeepSolidDisc.clear(); state.vizKeepSolidCat.clear();
       state.vizPreset = null; state.vizColour = null;
+      state.vizCustomColours.clear();
+      state.renderMode = 'shaded';
+      state.selectedElementGuid = null; state.selectedElementGuids.clear();
       clearClashSection();
       if (V.clearOverlay) V.clearOverlay();
-      clearAllHighlights();
-      // Clear the dirty-flag so the next applyAppearance re-evaluates every mesh.
-      if (V.modelRoot) V.modelRoot.traverse(o => { if (o.isMesh) o.userData._vizMode = undefined; });
+      clearAllHighlights();            // selection + appearance → true original, flags reset
       showAllElements();
       renderVisualizePanel();
       toast('Visualization reset');
@@ -2651,6 +2752,10 @@
       V.modelRoot.traverse(obj => {
         if (!obj.isMesh) return;
         total++;
+        // PART A / A1 — THE single true-original store. Captured ONCE at load,
+        // before any appearance/render swap, so the appearance + selection +
+        // render-mode layers all restore from the same source and never fight.
+        if (!obj.userData._trueOrig) obj.userData._trueOrig = obj.material;
         const ud = obj.userData || {};
         let guid = ud.elementGuid || ud.uniqueId || (ud.extras && ud.extras.uniqueId);
         if (!guid || !map[guid]) {
@@ -2675,6 +2780,7 @@
       });
       const pct = total ? Math.round(hit / total * 100) : 0;
       console.log(`[viz] mesh→meta resolver: ${hit}/${total} meshes resolved (${pct}%)`);
+      console.log('[viz] STING_VIZ_LAYERED_A appearance+selection engine');   // STEP-0 served-artifact marker
       if (total && pct < 50) console.warn('[viz] LOW resolver hit-rate — check the exporter writes per-mesh guids matching the element map');
     }
     // Fast meta lookup for a mesh (resolver map first, then a guid fallback).
@@ -5170,7 +5276,7 @@
       if (!guid) {
         state.selectedElementGuid = null;
         state.selectedElementGuids.clear();
-        clearAllHighlights();
+        reapplySelection();          // A3 — drop highlights ONLY; appearance stays put
         renderProperties(null);
         updateRightTabCounts();
         renderSelectionToolbar();
@@ -5196,16 +5302,13 @@
         state.selectedElementGuids.clear();
         state.selectedElementGuids.add(guid);
       }
-      // Re-paint highlights from scratch so removed elements lose their
-      // emissive material.
-      clearAllHighlights();
-      state.selectedElementGuids.forEach(g => {
-        const m = findMeshByGuid(g);
-        if (m) emissive(m, 0xF97316);
-      });
+      // A3 — selection is an OVERLAY on the appearance layer: clone the current
+      // appearance material + emissive, never wipe ghost/colour. Selecting does NOT
+      // touch any _vizMode or the render mode. (Was clearAllHighlights + emissive,
+      // which reset every mesh to shaded — the "click resets to shaded" bug.)
+      reapplySelection();
       // ACC-style interaction — a single click SELECTS ONLY; the camera does NOT
-      // move. Double-click frames the element (see the dblclick handler). This
-      // removes the previous "click flies to the element" behaviour.
+      // move. Double-click frames the element (see the dblclick handler).
       renderProperties(state.selectedElementGuid);
       updateRightTabCounts();
       renderSelectionToolbar();
@@ -5501,61 +5604,20 @@
       });
     }
 
+    // A4 — render mode is now a GLOBAL appearance state. setRenderMode just records
+    // it and lets applyAppearance compose it with the per-discipline/category/colour
+    // resolution (keep-solid + hide honoured there) and re-overlay the selection.
     function setRenderMode(mode) {
       if (!V.modelRoot) return;
-      // WS2 — x-ray / ghost now honour the VISUALIZE maps: disciplines/categories
-      // in the keep-solid exclusion set stay in their ORIGINAL shaded material,
-      // and anything set to 'hide' is hidden (most-restrictive wins). Start from
-      // true originals so _origMat never captures a per-discipline ghost.
-      clearAllHighlights();
-      const em = state.elementMap || {};
-      let keptSolid = 0;
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        // B8 — remember the true original once; dispose stale replacements below
-        // so toggling shaded → wire → xray → ghost doesn't leak GPU materials.
-        if (!o.userData._origMat) o.userData._origMat = o.material;
-        const orig = o.userData._origMat;
-        const meta = em[o.userData.elementGuid];
-        const disc = discKey(meta);
-        const cat  = String(tokenValue(meta, 'CAT') || '');
-        const hidden    = state.vizDiscMode.get(disc) === 'hide' || state.vizCatMode.get(cat) === 'hide';
-        const keepSolid = state.vizKeepSolidDisc.has(disc) || state.vizKeepSolidCat.has(cat);
-        let next;
-        if (mode === 'shaded')      next = orig;
-        else if (keepSolid)       { next = orig; if (mode === 'xray' || mode === 'ghost') keptSolid++; }
-        else if (mode === 'wire')   next = new THREE_.MeshBasicMaterial({ color: 0x60A5FA, wireframe: true });
-        else if (mode === 'xray')   next = new THREE_.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.25, depthWrite: false });
-        else if (mode === 'ghost')  next = new THREE_.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false });
-        else                        next = orig;
-        const prev = o.material;
-        if (prev && prev !== orig && prev !== next && typeof prev.dispose === 'function') {
-          try { prev.dispose(); } catch (_) {}
-        }
-        o.material = next;
-        o.visible = !hidden;
-      });
       state.renderMode = mode;
+      applyAppearance();
       broadcastVizRenderMode(mode);   // mirror to meeting followers (no-op when solo)
-      const extra = (keptSolid && (mode === 'xray' || mode === 'ghost')) ? ` · ${keptSolid} kept solid` : '';
-      toast('View: ' + mode + extra);
+      toast('View: ' + mode);
     }
-
-    // Restore every mesh to its true original material + visibility (exits any
-    // render mode cleanly). Reuses the _origMat store setRenderMode populated.
     function clearRenderMode() {
-      if (!V.modelRoot) return;
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        const orig = o.userData._origMat;
-        if (orig) {
-          const prev = o.material;
-          if (prev && prev !== orig && typeof prev.dispose === 'function') { try { prev.dispose(); } catch (_) {} }
-          o.material = orig;
-        }
-        o.visible = true;
-      });
+      if (!V.modelRoot) { state.renderMode = 'shaded'; return; }
       state.renderMode = 'shaded';
+      applyAppearance();
     }
 
     // WS2 — mirror the global render mode + keep-solid exclusion to meeting
@@ -5940,11 +6002,12 @@
           if (rowMenu && rowMenu.classList.contains('open')) {
             return;     // setupRowContextMenu's own keydown handler closes it
           }
+          // B2 — Esc clears the SELECTION only; the visualize appearance stays put.
           handleHostCommand({ type: 'clearHighlight' });
-          clearAllHighlights();          // L6
           state.selectedElementGuid = null;
           state.selectedElementGuids.clear();
           state.selectedIssueId = null;
+          reapplySelection();            // drop selection overlays, keep appearance
           renderProperties(null);
           updateRightTabCounts();        // X2
           renderSelectionToolbar();
