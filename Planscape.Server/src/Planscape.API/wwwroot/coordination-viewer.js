@@ -275,7 +275,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD F2-fitvisible');
+    console.log('[viewer] STING_VIZ_BUILD F3-coalesce');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1214,12 +1214,25 @@
     // channel (echo-guarded). The whole appearance (modes + scheme + custom colours +
     // transparency + render mode) travels as one snapshot; followers re-derive colours
     // deterministically. restoringViz/applyingRemoteViz prevent self-echo + reload churn.
-    function broadcastAppearance() {
+    // Item 3 — COALESCED near-real-time broadcast: leading-edge immediate, then at most
+    // one send per 100 ms carrying the LATEST snapshot (intermediate states dropped, the
+    // final always sent). Effectively live during a slider drag without flooding SignalR.
+    // Echo-guarded by applyingRemoteViz/restoringViz so a received snapshot can't loop.
+    let _bcastTimer = null, _bcastAt = 0;
+    const BCAST_THROTTLE_MS = 100;
+    function _doBroadcastAppearance() {
+      _bcastTimer = null; _bcastAt = Date.now();
       if (state.applyingRemoteViz || restoringViz) return;
       const m = (typeof window !== 'undefined') && window.STING_MEETING;
       if (m && typeof m.broadcastOverlay === 'function') {
         try { m.broadcastOverlay({ source: 'appearance', viz: serializeViz() }); } catch (_) {}
       }
+    }
+    function broadcastAppearance() {
+      if (state.applyingRemoteViz || restoringViz) return;
+      const since = Date.now() - _bcastAt;
+      if (since >= BCAST_THROTTLE_MS) _doBroadcastAppearance();                 // leading — live
+      else if (!_bcastTimer) _bcastTimer = setTimeout(_doBroadcastAppearance, BCAST_THROTTLE_MS - since);  // trailing — latest
     }
     // One-click "shade only X, ghost the rest".
     function shadeOnlyDiscipline(disc) {
