@@ -3044,8 +3044,9 @@
       const cam = V.camera;
       let r = radius;
       if (r == null) {
+        // STING_VIEWER_FITFIX — radius from box size (Sphere is tree-shaken from the bundle).
         const ms = (V.modelBounds && !V.modelBounds.isEmpty())
-          ? V.modelBounds.getBoundingSphere(new THREE_.Vector3()).radius : 0;
+          ? 0.5 * V.modelBounds.getSize(new THREE_.Vector3()).length() : 0;
         r = ms > 0 ? ms * 0.08 : V.controls.target.distanceTo(cam.position) * 0.3;
       }
       const vFov = (cam.fov || 50) * Math.PI / 180;
