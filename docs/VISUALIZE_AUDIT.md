@@ -191,3 +191,28 @@ every Revit API call is best-effort + try/caught so a publish never fails on qua
 ## Prompt complete
 A · B · E1 · 4 console fixes · C1–C6 · D · E2 · E3 · E4 · E5 — all committed + STEP-0 gated
 (SERVED + livekit 200 on the running container).
+
+---
+
+## Design decisions implemented (audit flags → RESOLVED)
+
+The Part-D / E5 flags below were design calls; all three are now implemented + STEP-0 gated.
+
+- **RESOLVED D-F1 — VIZ SCOPE = ALL LOADED MODELS (federation).** `e741cf2f9` · `F1-federation`.
+  Engine loads every project model into the shared `modelPivot` (`addModel`, shared recenter →
+  relative positions); the viz layer traverses `modelGroup` so resolver / index / picking /
+  discipline+category aggregation + legend / colour / isolate / hide / transparency span all
+  loaded models. Element-maps merged; model checkboxes toggle a root by id + re-apply; viz
+  persistence re-keyed per **project** (`planscape_viz_proj_<projectId>`) so federation state
+  doesn't fragment. Supersedes the D-1 per-model key (correct only while single-model).
+- **RESOLVED D-F2 — Fit frames only VISIBLE elements.** `51cb480cf` · `F2-fitvisible`.
+  `fitCamera` (no target) now uses `visibleModelBounds()` (meshes with self + all ancestors
+  visible), FITFIX size math; nav Fit/Home → `fitVisibleOrToast` (no-op + toast when nothing
+  visible). Isolate/hide/model-toggle then Fit frames what's shown.
+- **RESOLVED D-F4 / E5 broadcast — coalesced near-real-time meeting sync.** `96f6fa461` ·
+  `F3-coalesce`. `broadcastAppearance` is leading-edge immediate + ≤1 send/100 ms carrying the
+  LATEST snapshot (intermediate dropped, final always sent), echo-guarded. Effectively live,
+  no SignalR flood.
+
+Still flagged (not requested): **D-F3** select-all-matches clone cost (no cap), **E5-F1**
+measure→section explicit teardown.
