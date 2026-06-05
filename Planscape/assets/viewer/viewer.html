@@ -1101,10 +1101,26 @@ THREE.ColorManagement.enabled = false;
     });
   }
 
+  // FITFIX/Item-2 — bbox of only the VISIBLE meshes (mesh + all ancestors visible),
+  // so Fit/Home frame what's actually shown after isolate/hide/model-toggle. Empty
+  // Box3 when nothing is visible.
+  function visibleModelBounds() {
+    const b = new THREE.Box3();
+    const root = modelPivot || modelRoot;
+    if (!root) return b;
+    root.updateMatrixWorld(true);
+    root.traverse(o => {
+      if (!o.isMesh || !o.visible) return;
+      for (let p = o.parent; p; p = p.parent) { if (!p.visible) return; }   // ancestor hidden
+      b.expandByObject(o);
+    });
+    return b;
+  }
   function fitCamera(target) {
-    // 'target' lets callers fit to a sub-region (e.g. a single selected
-    // element's bounding box). Defaults to the whole-model bounds.
-    const box = target || modelBounds;
+    // 'target' lets callers fit to a sub-region (e.g. a single selected element's
+    // bbox). With no target, frame only the VISIBLE geometry (Item 2); if nothing is
+    // visible, no-op (the caller toasts).
+    const box = target || visibleModelBounds();
     if (!box || box.isEmpty()) return;
     // STING_VIEWER_FITFIX — FOV-aware framing computed from the box SIZE, NOT
     // Box3.getBoundingSphere(): THREE.Sphere is tree-shaken out of the prod bundle, so
@@ -1661,7 +1677,7 @@ THREE.ColorManagement.enabled = false;
     // camera is swapped by setCameraMode (persp ↔ ortho), so expose it as a getter
     // — downstream V.camera always reads the CURRENT camera.
     get camera() { return camera; },
-    fitCamera, levelCamera, assignElementIds,
+    fitCamera, levelCamera, assignElementIds, visibleModelBounds,
     setCameraMode, snapView, sizeRenderer,
     // M6 — minimap inset (single-renderer scissor) + an after-render hook.
     renderInset,

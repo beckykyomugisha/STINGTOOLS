@@ -275,7 +275,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD F1-federation');
+    console.log('[viewer] STING_VIZ_BUILD F2-fitvisible');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -3395,6 +3395,13 @@
       return out;
     }
 
+    // Item 2 — Fit/Home frame only the VISIBLE geometry; no-op + toast when nothing
+    // is shown (e.g. everything hidden / all models toggled off).
+    function fitVisibleOrToast() {
+      const vb = (V.visibleModelBounds && V.visibleModelBounds());
+      if (vb && !vb.isEmpty()) { if (V.fitCamera) V.fitCamera(); return; }
+      toast('Nothing visible to frame', 'warn');
+    }
     function fitToSelection() {
       const meshes = selectedMeshes();
       if (!meshes.length) return toast('Nothing selected', 'warn');
@@ -5820,13 +5827,12 @@
         // One-shot actions: fire and return without changing active mode.
         if (m === 'fit') {
           if (state.selectedElementGuids.size) fitToSelection();
-          else if (V.fitCamera) V.fitCamera();   // whole-model edge-to-edge
+          else fitVisibleOrToast();              // Item 2 — frame only what's visible
           flashNavBtn(b);
           return;
         }
         if (m === 'home') {
-          // Reset to the default opening camera position (fitCamera).
-          if (V.fitCamera) V.fitCamera();
+          fitVisibleOrToast();                   // Item 2 — frame only what's visible
           flashNavBtn(b);
           return;
         }
