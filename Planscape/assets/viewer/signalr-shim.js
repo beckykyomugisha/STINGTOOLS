@@ -67,13 +67,44 @@
     const SR = window.signalR;
     const hubUrl = (apiBase || '') + '/hubs/notifications';
 
+    // V3 — long-session auth. The captured `token` goes stale after the JWT TTL, so a
+    // (re)negotiate after that 401s and SignalR retries with the SAME dead token →
+    // negotiate storm. Read the CURRENT token from localStorage each call, and when it's
+    // expired/near-expiry exchange the refresh token for a fresh JWT before handing it to
+    // SignalR. A clean single reconnect with a live token instead of a storm.
+    function currentToken() { try { return localStorage.getItem('planscape_token') || token; } catch (_) { return token; } }
+    function isExpiringSoon(t) {
+      try {
+        const p = JSON.parse(atob(String(t).split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        return !p.exp || (p.exp * 1000 - Date.now() < 60000);   // <60s left (or no exp)
+      } catch (_) { return false; }
+    }
+    let _refreshing = null;
+    function refreshAccessToken() {
+      if (_refreshing) return _refreshing;                       // coalesce concurrent refreshes
+      const rt = (function () { try { return localStorage.getItem('planscape_refresh'); } catch (_) { return null; } })();
+      if (!rt) return Promise.resolve(null);
+      _refreshing = fetch((apiBase || '') + '/api/auth/refresh', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: rt }),
+      }).then(r => r.ok ? r.json() : null).then(b => {
+        if (b && b.accessToken) { try { localStorage.setItem('planscape_token', b.accessToken); if (b.refreshToken) localStorage.setItem('planscape_refresh', b.refreshToken); } catch (_) {} return b.accessToken; }
+        return null;
+      }).catch(() => null).then(v => { _refreshing = null; return v; });
+      return _refreshing;
+    }
+    async function tokenFactory() {
+      let t = currentToken();
+      if (isExpiringSoon(t)) { const fresh = await refreshAccessToken(); if (fresh) t = fresh; }
+      return t || '';
+    }
+
     const conn = new SR.HubConnectionBuilder()
       .withUrl(hubUrl, {
         // The server's JwtBearerEvents.OnMessageReceived handler also
         // accepts `?access_token=` for SignalR; long-poll-only fall-back
         // works the same way. accessTokenFactory beats the query path
         // because it's the cleanest WebSocket/SSE story.
-        accessTokenFactory: () => token,
+        accessTokenFactory: tokenFactory,   // V3 — dynamic, refresh-aware (STING_VIZ_SIGNALR_REFRESH)
         // Forward the tenant header so the server's tenant-resolution
         // middleware sees it on the upgrade handshake.
         headers: tenantId ? { 'X-Tenant': tenantId } : undefined,
@@ -108,6 +139,10 @@
       // did not match that name, so viewer in-app notifications never fired.
       // Keep this list in lockstep with what NotificationHub emits.
       'Notification',
+      // A0 — NotificationHub.JoinProject replies with these to the caller + project
+      // group; register them so SignalR stops warning "No client method with the name
+      // 'joinedproject'/'presencechanged'". (Dashboard side already done.)
+      'JoinedProject', 'PresenceChanged',
     ].forEach(name => conn.on(name, payload => emit(name, payload)));
 
     conn.onreconnected(() => {

@@ -291,3 +291,15 @@ During drag the grid transition is disabled (`.app-shell.resizing`) so the panel
 and `V.sizeRenderer()` (ortho-aware) runs each move so the canvas + camera reframe live and the
 viewport reclaims/yields space. Handle CSS: `cursor:ew-resize`, taller 72px grab area,
 `touch-action:none`, highlight while resizing.
+
+### V3 — SignalR long-session auth (no 401 + reconnect storm)  ✅ served `V3-signalr`
+Both `signalr-shim.js` (notifications) and `meeting-sync.js` (meeting hub) used
+`accessTokenFactory: () => token` — a STATIC token captured at init, so once the JWT TTL passed a
+(re)negotiate 401'd and SignalR retried with the same dead token → negotiate storm. Replaced with a
+dynamic, refresh-aware `tokenFactory`: read the current `planscape_token` from localStorage each
+call; when the JWT is expired/within 60 s, exchange `planscape_refresh` via `POST /api/auth/refresh`
+for a fresh access+refresh pair (coalesced so concurrent calls share one request) before handing it
+to SignalR. So a long session reconnects cleanly with a live token; if the refresh token is also
+dead, `withAutomaticReconnect`'s finite backoff gives up (no infinite storm). A0: the shim now
+registers `JoinedProject` + `PresenceChanged` so the "No client method" warnings stop (dashboard
+side was already done in the console-fixes round).

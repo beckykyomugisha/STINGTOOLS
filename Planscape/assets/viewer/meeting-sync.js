@@ -86,11 +86,35 @@
     }).catch(function () { /* non-fatal */ });
   }
 
+  // V3 — long-session auth (same as signalr-shim): current token from localStorage,
+  // refreshed via /api/auth/refresh when the JWT is near expiry, so a long meeting
+  // doesn't 401 + storm negotiate. STING_VIZ_SIGNALR_REFRESH.
+  function currentToken() { try { return localStorage.getItem(TOKEN_KEY) || token; } catch (e) { return token; } }
+  function isExpiringSoon(t) {
+    try { var p = JSON.parse(atob(String(t).split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); return !p.exp || (p.exp * 1000 - Date.now() < 60000); } catch (e) { return false; }
+  }
+  var _refreshing = null;
+  function refreshAccessToken() {
+    if (_refreshing) return _refreshing;
+    var rt = (function () { try { return localStorage.getItem("planscape_refresh"); } catch (e) { return null; } })();
+    if (!rt) return Promise.resolve(null);
+    _refreshing = fetch(apiBase + "/api/auth/refresh", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refreshToken: rt }) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (b) { if (b && b.accessToken) { try { localStorage.setItem(TOKEN_KEY, b.accessToken); if (b.refreshToken) localStorage.setItem("planscape_refresh", b.refreshToken); } catch (e) {} return b.accessToken; } return null; })
+      .catch(function () { return null; })
+      .then(function (v) { _refreshing = null; return v; });
+    return _refreshing;
+  }
+  function tokenFactory() {
+    var t = currentToken();
+    if (!isExpiringSoon(t)) return t || "";
+    return refreshAccessToken().then(function (fresh) { return fresh || t || ""; });
+  }
   function connect() {
     var SR = window.signalR;
     var hubUrl = apiBase + "/hubs/meeting";
     var conn = new SR.HubConnectionBuilder()
-      .withUrl(hubUrl, { accessTokenFactory: function () { return token; } })
+      .withUrl(hubUrl, { accessTokenFactory: tokenFactory })
       .withAutomaticReconnect()
       .build();
     state.conn = conn;
