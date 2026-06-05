@@ -68,3 +68,23 @@ Verify on the 5-model federation in a 2nd incognito tab.
 - [ ] Active colour-by / preset button shows **pressed** (blue).
 - [ ] Click the active scheme again → clears to base (toggle off). Click A → B → A → identical to first A.
 - [ ] Every button responds every time; switching never leaves residual state or a dead control.
+
+## VIEWER COMBINED FIXES (this round) — PENDING-HUMAN-VERIFY (fresh InPrivate)
+
+### V1 — ghost/x-ray click-through  ·  `ab2e5fe97` · marker `V1-pickthrough`
+- [ ] Ghost the rest, click a solid element behind a ghosted wall → the **solid** selects, not the ghost.
+- [ ] X-ray/ghost render mode: clicks pass through to solids. Isolate / colour-overridden stay pickable.
+- [ ] Right-click context menu targets the solid behind a ghost too. Picking works across all 5 models.
+
+### V2 — side-panel resize + collapse  ·  `311e46130` · marker `V2-panelresize`
+- [ ] Drag each side panel's rail handle → panel resizes live (clamped); 3D reframes as space changes.
+- [ ] Click (no drag) the handle → collapse/expand. Reload → BOTH width + collapsed state persist.
+
+### V3 — SignalR long-session auth  ·  `c91d2d4e6` · marker `V3-signalr`
+- [ ] After a long session (past JWT TTL): no `/hubs/notifications/negotiate 401`, no negotiate storm —
+      one clean reconnect with a refreshed token.
+- [ ] No "No client method 'joinedproject'/'presencechanged'" warnings on the viewer.
+
+### V4 — federation load performance  ·  `0e92aa2b6` · marker `V4-loadperf`
+- [ ] Loading the 5 models does NOT lock the UI — the primary is orbitable while siblings stream in.
+- [ ] Steady-state orbit on the full federation stays ~30–50 fps (low-end target).
