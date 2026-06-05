@@ -269,7 +269,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD E3-section');
+    console.log('[viewer] STING_VIZ_BUILD E4-props');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -2670,6 +2670,20 @@
       // Generic identity (category is shown in the title) — include category too for completeness.
       const fullId = [['Category', meta.category]].concat(idCard).filter(([, v]) => v != null && v !== '');
       const rowHtml = (k, v) => `<div class="prop-row" data-search="${escapeHtml((k + ' ' + v).toLowerCase())}"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`;
+      // E4 — Materials (per-material name + area/volume) + Quantities (area/volume/length/
+      // count), rendered only when the exporter supplied them; absent fields just don't show.
+      const mats = Array.isArray(meta.materials) ? meta.materials : [];
+      const matsHtml = mats.length ? '<div class="prop-section-label">Materials</div>' + mats.map(m => {
+        const nm = m.name || m.material || '—';
+        const ex = [m.area != null ? fmtNum(m.area) + ' m²' : '', m.volume != null ? fmtNum(m.volume) + ' m³' : ''].filter(Boolean).join(' · ');
+        return rowHtml(nm, ex);
+      }).join('') : '';
+      const qty = [];
+      if (meta.area != null)   qty.push(['Area', fmtNum(meta.area) + ' m²']);
+      if (meta.volume != null) qty.push(['Volume', fmtNum(meta.volume) + ' m³']);
+      if (meta.length != null) qty.push(['Length', fmtNum(meta.length) + ' m']);
+      if (meta.quantity != null || meta.count != null) qty.push(['Quantity', String(meta.quantity != null ? meta.quantity : meta.count)]);
+      const qtyHtml = qty.length ? '<div class="prop-section-label">Quantities</div>' + qty.map(([k, v]) => rowHtml(k, v)).join('') : '';
       pane.innerHTML = `
         <div class="prop-section-label">Element</div>
         <div class="prop-title">${escapeHtml(meta.name || meta.category || 'Element')}</div>
@@ -2677,21 +2691,55 @@
           <div class="prop-row"><span class="v mono">${escapeHtml(tag)}</span>
             <span class="copy" data-copy="${escapeHtml(tag)}" title="Copy">📋</span></div>` : ''}
         <div class="prop-section-label">Cost</div>
-        <div class="prop-row" data-search="cost"><span class="k">Estimated cost</span><span class="v" style="${cost ? 'color:#37c272;font-weight:600' : 'opacity:0.6'}">${escapeHtml(formatCurrency(cost))}</span></div>
+        <div class="prop-row" data-search="cost"><span class="k">Estimated cost</span><span class="v" style="${cost ? 'color:#37c272;font-weight:600' : 'opacity:0.6'}" title="${cost ? '' : 'No cost data — set CST_UNIT_RATE_NR on the type, or attach a cost sidecar'}">${escapeHtml(cost ? formatCurrency(cost) : '— no cost data')}</span></div>
         <input id="propFilter" placeholder="Filter properties…" style="width:100%;margin:8px 0 4px;background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:5px 8px;font-size:12px" />
-        <div id="propRows" style="max-height:48vh;overflow:auto">
+        <div id="propRows" style="max-height:42vh;overflow:auto">
           ${fullId.length ? '<div class="prop-section-label">Identity</div>' + fullId.map(([k, v]) => rowHtml(k, v)).join('') : ''}
+          ${matsHtml}
+          ${qtyHtml}
           ${dims.length ? '<div class="prop-section-label">Dimensions</div>' + dims.map(([k, v]) => rowHtml(k, v)).join('') : ''}
           ${perfs.length ? '<div class="prop-section-label">Performance</div>' + perfs.map(([k, v]) => rowHtml(k, v)).join('') : ''}
           ${others.length ? '<div class="prop-section-label">Properties</div>' + others.map(([k, v]) => rowHtml(k, v)).join('') : ''}
         </div>
-        <div class="action-stack">
+        <div class="prop-section-label">Actions</div>
+        <div class="action-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px">
+          <button class="btn sm" id="actIsolate">◎ Isolate</button>
+          <button class="btn sm" id="actHide">⊘ Hide</button>
+          <button class="btn sm" id="actHideOthers">⊝ Hide others</button>
+          <button class="btn sm" id="actShowAll">⊙ Show all</button>
+          <button class="btn sm" id="actFit">⌖ Fit</button>
+          <button class="btn sm" id="actZoom">🔎 Zoom</button>
+          <button class="btn sm" id="actPivot">⊕ Set pivot</button>
+          <button class="btn sm" id="actSection">⊟ Section box</button>
+          <button class="btn sm" id="actMeasure">📏 Measure</button>
+          <button class="btn sm" id="actColourLike">🎨 Colour like</button>
+        </div>
+        <div class="action-stack" style="margin-top:6px">
           <button class="btn full" id="actCreateIssue">🚩 Create issue</button>
           <button class="btn ghost full" id="actFindClashes">🔍 Find clashes for this</button>
           <button class="btn subtle full" id="actCopyTag">📋 Copy STING tag</button>
           <button class="btn subtle full" id="actLinkSheet">📌 Link to sheet</button>
         </div>
       `;
+      // E4 — actions, all composing with the layered model. Each ensures THIS element
+      // is the selection so the selection-driven ops act on it.
+      const ensureSel = () => { if (!state.selectedElementGuids.has(guid)) { state.selectedElementGuids = new Set([guid]); state.selectedElementGuid = guid; reapplySelection(); } };
+      const centreOf = () => { const m = findMeshByGuid(guid); if (!m) return null; return new THREE_.Box3().setFromObject(m).getCenter(new THREE_.Vector3()); };
+      $('#actIsolate', pane)?.addEventListener('click', () => { ensureSel(); isolateSelection(); });
+      $('#actHide', pane)?.addEventListener('click', () => { ensureSel(); hideSelection(); });
+      $('#actHideOthers', pane)?.addEventListener('click', () => { ensureSel(); hideOthers(); });
+      $('#actShowAll', pane)?.addEventListener('click', () => showAllElements());
+      $('#actFit', pane)?.addEventListener('click', () => { ensureSel(); fitToSelection(); });
+      $('#actZoom', pane)?.addEventListener('click', () => { const m = findMeshByGuid(guid); if (m && V.fitCamera) V.fitCamera(new THREE_.Box3().setFromObject(m)); });
+      $('#actPivot', pane)?.addEventListener('click', () => { const c = centreOf(); if (c) { V.controls.target.copy(c); V.controls.update(); toast('Orbit pivot set'); } });
+      $('#actSection', pane)?.addEventListener('click', () => { ensureSel(); sectionBoxFromSelection(); });
+      $('#actMeasure', pane)?.addEventListener('click', () => { const x = window.STING_VIEWER_EXTRAS; const c = centreOf(); if (x && x.startMeasureFrom && c) x.startMeasureFrom(c); else setActiveTool('measure'); });
+      $('#actColourLike', pane)?.addEventListener('click', () => {
+        const catv = String(tokenValue(meta, 'CAT') || meta.category || '').trim();
+        if (!catv) return toast('No category to match', 'warn');
+        const matched = new Set(Object.entries(state.elementMap || {}).filter(([, m]) => String((m && (m.category)) || '').trim() === catv).map(([g]) => g));
+        colourBySearch(matched); toast(`Coloured ${matched.size} like "${catv}"`);
+      });
       $('#actCreateIssue', pane)?.addEventListener('click', () => openIssueModal({ guid, meta }));
       $('#actFindClashes', pane)?.addEventListener('click', () => {
         switchBottomTab('clashes'); state.selectedElementGuid = guid; renderClashes();

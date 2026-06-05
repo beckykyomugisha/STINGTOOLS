@@ -139,3 +139,20 @@ Added flexibility: **Flip** (show outside the box via `clipIntersection`) and **
 save/restore** — `getSectionBox()`/`applySectionState()` (fraction-based, model-relative) now
 ride inside `serializeViz()`/`applyVizSnapshot()`, so the section travels with B3 persistence,
 Saved-Views presets, and the meeting broadcast. Step-along-normal is covered by the sliders.
+
+---
+
+## E4 — rich properties + actions + cost  ✅ served `E4-props` (client) · exporter unverified (Revit)
+**Client (`renderProperties`):** grouped + filterable — Element title · STING tag · Cost (real
+currency in green, or "— no cost data" + hint when absent) · Identity · **Materials** (per
+material: name + area m² + volume m³) · **Quantities** (area / volume / length / count) ·
+Dimensions · Performance · all remaining params. New **Actions** grid composing through the
+layers: Isolate · Hide · Hide others · Show all · Fit · Zoom · Set pivot · Section box · Measure ·
+Colour-like (same category) + Create issue · Find clashes · Copy tag · Link to sheet. Materials/
+Quantities only render when the exporter supplied them (graceful on metadata-poor models).
+**Data path (`PublishModelCommand.BuildElementMap`):** new `AddQuantitiesAndMaterials(doc, el,
+entry)` emits `area`/`volume`/`length` (metric) + a `materials[]` breakdown (name + area +
+volume via `GetMaterialIds`/`GetMaterialArea`/`GetMaterialVolume`) into each element-map entry,
+alongside M3's `discipline` + `cost`. `ModelsController` already merges a `<model>-costs.json`
+sidecar by GUID. **Caveat:** the C# is unbuilt here (no Revit/.NET in sandbox) — verify in Revit;
+every Revit API call is best-effort + try/caught so a publish never fails on quantities.

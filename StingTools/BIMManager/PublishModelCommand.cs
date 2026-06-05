@@ -493,6 +493,7 @@ namespace StingTools.BIMManager
                         ["elementId"] = el.Id.Value,
                     };
                     AddCost(el, untaggedEntry);   // M3 — per-element cost (rate × measured qty)
+                    AddQuantitiesAndMaterials(doc, el, untaggedEntry);   // E4 — area/volume/length + materials
                     map[guid] = untaggedEntry;
                     count++;
                     continue;
@@ -517,6 +518,7 @@ namespace StingTools.BIMManager
                     ["elementId"]  = el.Id.Value,
                 };
                 AddCost(el, taggedEntry);     // M3 — per-element cost
+                AddQuantitiesAndMaterials(doc, el, taggedEntry);   // E4 — area/volume/length + materials
                 map[guid] = taggedEntry;
                 count++;
             }
@@ -557,6 +559,40 @@ namespace StingTools.BIMManager
                 if (!string.IsNullOrWhiteSpace(cur)) entry["costCurrency"] = cur;
             }
             catch { /* cost is best-effort; never block the publish */ }
+        }
+
+        /// <summary>
+        /// E4 — emit per-element quantities (area m² / volume m³ / length m) and a
+        /// per-material breakdown (name + area + volume) into the element-map entry so
+        /// the viewer's Properties → Materials / Quantities sections populate. All
+        /// best-effort + metric; absent values are simply not written (the client only
+        /// renders the sections when present).
+        /// </summary>
+        private static void AddQuantitiesAndMaterials(Document doc, Element el, JObject entry)
+        {
+            const double ft3 = 0.0283168, ft2 = 0.092903, ft = 0.3048;
+            try
+            {
+                Parameter p;
+                if ((p = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED)) != null && p.HasValue && p.AsDouble() > 0) entry["volume"] = Math.Round(p.AsDouble() * ft3, 3);
+                if ((p = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED))   != null && p.HasValue && p.AsDouble() > 0) entry["area"]   = Math.Round(p.AsDouble() * ft2, 3);
+                if ((p = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH))    != null && p.HasValue && p.AsDouble() > 0) entry["length"] = Math.Round(p.AsDouble() * ft, 3);
+            }
+            catch { }
+            try
+            {
+                var mats = new JArray();
+                foreach (ElementId mid in el.GetMaterialIds(false))
+                {
+                    if (!(doc.GetElement(mid) is Material m)) continue;
+                    var mo = new JObject { ["name"] = m.Name ?? "" };
+                    try { double a = el.GetMaterialArea(mid, false); if (a > 0) mo["area"]   = Math.Round(a * ft2, 3); } catch { }
+                    try { double v = el.GetMaterialVolume(mid);      if (v > 0) mo["volume"] = Math.Round(v * ft3, 3); } catch { }
+                    mats.Add(mo);
+                }
+                if (mats.Count > 0) entry["materials"] = mats;
+            }
+            catch { }
         }
 
         /// <summary>Primary measured quantity in metric: volume (m³) → area (m²) → length (m).</summary>
