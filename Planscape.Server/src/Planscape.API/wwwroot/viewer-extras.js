@@ -826,13 +826,35 @@
     const mb = sbModelBounds();
     const frac = (axis, v) => { const lo = mb.min[axis], hi = mb.max[axis]; return hi > lo ? (v - lo) / (hi - lo) : 0; };
     return {
-      active: true, caps: sb.caps,
+      active: true, caps: sb.caps, invert: !!sb.invert,
       fractions: {
         minX: frac('x', sb.min.x), maxX: frac('x', sb.max.x),
         minY: frac('y', sb.min.y), maxY: frac('y', sb.max.y),
         minZ: frac('z', sb.min.z), maxZ: frac('z', sb.max.z),
       },
     };
+  };
+  // E3 — FLIP the box: show OUTSIDE the box instead of inside (clipIntersection).
+  ext.setSectionInvert = function (on) {
+    const h = host(); if (!h || !h.renderer) return;
+    sb.invert = !!on;
+    h.renderer.clipIntersection = !!on;
+    rebuildCaps(sbPlanes());
+  };
+  // E3 — save/restore the WHOLE box state per model (fractions are model-relative, so
+  // they reproduce the same cut on any reload). Used by serializeViz / applyVizSnapshot
+  // so the section travels with B3 persistence, Saved-Views presets, and meeting state.
+  ext.applySectionState = function (s) {
+    if (!s || !s.active) { if (ext.clearSectionBox) ext.clearSectionBox(); return; }
+    ext.setSectionBox({});                       // init to model bounds
+    const f = s.fractions || {};
+    ['x', 'y', 'z'].forEach(a => {
+      const A = a.toUpperCase();
+      if (typeof f['min' + A] === 'number') ext.setSectionBoxFace(a, 'min', f['min' + A]);
+      if (typeof f['max' + A] === 'number') ext.setSectionBoxFace(a, 'max', f['max' + A]);
+    });
+    ext.setSectionInvert(!!s.invert);
+    if (s.caps) ext.setSectionCaps(true);
   };
   ext.setSectionCaps = function (on) { sb.caps = !!on; rebuildCaps(sbPlanes()); };
   ext.onSectionChange = function (cb) { sb.onChange = cb; };

@@ -124,3 +124,18 @@ Two buttons (⤒ Up / ⤓ Down) next to Pan in #navControls. One-shot (like Fit/
 call `STING_VIEWER_EXTRAS.elevateCamera(±1)`, which moves `camera.position` AND `controls.target`
 by the same model-scaled delta along the rendered up axis (+Y) via the camera getter, so heading
 + pitch stay fixed (altitude only). Surfaces the M5 Ctrl+↑/↓ gesture as buttons.
+
+---
+
+## E3 — section system (verify + flexibility)  ✅ served `E3-section`
+Verified the Commit-4 pipeline LOADS in the deployed build — its THREE classes (`Plane`,
+`PlaneGeometry`, `TransformControls`, `Mesh`, `Line`) ARE in the bundle (not tree-shaken like
+`Sphere` was), so it's not the fitCamera trap. The core is present: oblique plane
+(`setSectionPlane`), axis planes (`openSectionPlane`/`addSectionPlane`/`removeSectionPlane`),
+section BOX with 6 per-face sliders + draggable per-face TransformControls gizmo (axis-locked,
+faces clamped so they can't cross, dragging-changed disables orbit) + cap-fill, From-selection,
+Clear. Clipping is renderer-level so it composes with the appearance layer + ortho.
+Added flexibility: **Flip** (show outside the box via `clipIntersection`) and **per-model
+save/restore** — `getSectionBox()`/`applySectionState()` (fraction-based, model-relative) now
+ride inside `serializeViz()`/`applyVizSnapshot()`, so the section travels with B3 persistence,
+Saved-Views presets, and the meeting broadcast. Step-along-normal is covered by the sliders.

@@ -269,7 +269,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD E2-elevation');
+    console.log('[viewer] STING_VIZ_BUILD E3-section');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1514,6 +1514,9 @@
         palette: state.vizPalette,
         renderMode: state.renderMode,
         colour: c ? { kind: c.kind, token: c.token, presetName: c.presetName, numeric: !!c.numeric } : null,
+        // E3 — the section box (fraction-based, model-relative) rides along.
+        section: (typeof window !== 'undefined' && window.STING_VIEWER_EXTRAS && window.STING_VIEWER_EXTRAS.getSectionBox)
+          ? window.STING_VIEWER_EXTRAS.getSectionBox() : null,
       };
     }
     function applyVizSnapshot(d) {
@@ -1538,6 +1541,9 @@
           else if (d.colour.kind === 'token' && d.colour.token) colourByToken(d.colour.token);
           else if (d.colour.kind === 'param' && d.colour.token) colourByParam(d.colour.token);
         }
+        // E3 — restore the section box (or clear if the snapshot had none).
+        const xx = (typeof window !== 'undefined') && window.STING_VIEWER_EXTRAS;
+        if (xx && xx.applySectionState) xx.applySectionState(d.section || { active: false });
       } catch (_) {}
       restoringViz = false;
       applyAppearance();
@@ -6119,6 +6125,7 @@
       };
       const toolRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px' }, [
         mkChk('Caps', box.caps, (c) => { if (x && x.setSectionCaps) x.setSectionCaps(c.checked); }),
+        mkChk('Flip (show outside)', box.invert, (c) => { if (x && x.setSectionInvert) x.setSectionInvert(c.checked); }),   // E3
         mkChk('Gizmo', false, (c) => {
           if (!x) return;
           if (c.checked) { if (!x.attachSectionGizmo || !x.attachSectionGizmo()) { c.checked = false; toast('Drag-gizmo unavailable — use sliders', 'warn'); } }
