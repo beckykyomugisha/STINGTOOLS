@@ -22,32 +22,27 @@ namespace Planscape.Infrastructure.Data.Migrations
         // instead of the whole-schema scaffold. Both columns are nullable + additive, so
         // applying this on an existing MeetingSessions table is non-breaking.
 
+        // Raw idempotent SQL (not AddColumn<>) because no migration in the chain
+        // CREATEs MeetingSessions — that table is materialised by EnsureCreated /
+        // PlatformSchemaPatcher, which on a fresh-DB boot run AFTER Database.Migrate().
+        // A plain AddColumn would therefore fail at this migration on a fresh DB.
+        // `ALTER TABLE IF EXISTS … ADD COLUMN IF NOT EXISTS` makes Up() a safe no-op
+        // when the table isn't there yet (the patcher adds the table + columns), and
+        // adds the columns when it exists but predates them. (Verified via a throwaway
+        // Postgres `dotnet ef database update`.)
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "ActiveSurface",
-                table: "MeetingSessions",
-                type: "text",
-                nullable: true);
-
-            migrationBuilder.AddColumn<Guid>(
-                name: "ActiveDocumentId",
-                table: "MeetingSessions",
-                type: "uuid",
-                nullable: true);
+            migrationBuilder.Sql(@"ALTER TABLE IF EXISTS ""MeetingSessions"" ADD COLUMN IF NOT EXISTS ""ActiveSurface"" text;");
+            migrationBuilder.Sql(@"ALTER TABLE IF EXISTS ""MeetingSessions"" ADD COLUMN IF NOT EXISTS ""ActiveDocumentId"" uuid;");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "ActiveSurface",
-                table: "MeetingSessions");
-
-            migrationBuilder.DropColumn(
-                name: "ActiveDocumentId",
-                table: "MeetingSessions");
+            migrationBuilder.Sql(@"ALTER TABLE IF EXISTS ""MeetingSessions"" DROP COLUMN IF EXISTS ""ActiveSurface"";");
+            migrationBuilder.Sql(@"ALTER TABLE IF EXISTS ""MeetingSessions"" DROP COLUMN IF EXISTS ""ActiveDocumentId"";");
         }
     }
 }

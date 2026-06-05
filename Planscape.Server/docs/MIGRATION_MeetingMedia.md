@@ -29,10 +29,26 @@ see its header comment). So:
   migration history is incomplete) still get them on next boot.
 
 ## Surgical DDL (what the migration applies)
+The migration `Up()` uses raw idempotent SQL (not EF `AddColumn<>`) because **no migration
+in the chain creates `MeetingSessions`** — that table is materialised by EnsureCreated /
+`PlatformSchemaPatcher`, which on a fresh-DB boot run *after* `Database.Migrate()`. A plain
+`AddColumn` would crash `Migrate()` at this migration on a fresh DB. `ALTER TABLE IF EXISTS`
+makes it a safe no-op when the table isn't there yet (the patcher adds the table + columns)
+and adds the columns when it exists but predates them:
 ```sql
-ALTER TABLE "MeetingSessions" ADD COLUMN IF NOT EXISTS "ActiveSurface" text;
-ALTER TABLE "MeetingSessions" ADD COLUMN IF NOT EXISTS "ActiveDocumentId" uuid;
+ALTER TABLE IF EXISTS "MeetingSessions" ADD COLUMN IF NOT EXISTS "ActiveSurface" text;
+ALTER TABLE IF EXISTS "MeetingSessions" ADD COLUMN IF NOT EXISTS "ActiveDocumentId" uuid;
 ```
+
+### Test-DB verification (pre-merge gate)
+Verified against a throwaway Postgres 16:
+- `dotnet ef database update` completes cleanly (`Done.`) — no crash at `MeetingMedia`.
+  (The original `AddColumn` form WOULD have crashed; this is why the robust SQL is used.)
+- The `PlatformSchemaPatcher` path then creates `MeetingSessions` and adds both columns,
+  confirmed present + **nullable**, and idempotent on re-run (`column … already exists, skipping`).
+- Note (pre-existing, not from this change): the historical migration chain does not build
+  the schema on a fresh DB — EnsureCreated / the patcher do (see `docs/adr/0001-schema-management.md`).
+  This migration is correct precisely because it assumes nothing about table existence.
 
 ## Run order (deploy)
 1. `dotnet build` — clean (verified here).
