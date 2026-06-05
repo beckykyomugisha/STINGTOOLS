@@ -29,3 +29,11 @@ ghost(button) > colour > show`. `state.vizTransp` (key→opacity) drives a cache
 transparent material per opacity bucket (`transMaterial`, tagged `stingColour` so it's never
 disposed per-mesh). 100% = no override (entry removed). Persisted per model (B3) + cleared by
 Reset. One traverse per change; selection re-overlays on top.
+
+### C2 — selection-driven Isolate / Hide / Hide-others / Show-all  ✅ served `C2-selisolate`
+These set raw `o.visible` before, which a later `applyAppearance` would clobber. Now they set a
+transient `state.vizIsolation = { mode, guids }` and call `applyAppearance`; the resolver
+composes it on top of the normal resolution — in-set elements keep their colour/transparency,
+out-of-set get ghosted (isolate) or hidden (hide-others); hide-selection hides the in-set.
+Show-all clears isolation + any per-group hide. Wired from the context menu (all four) + the
+multi-select toolbar. Transient (not persisted); cleared by Reset.

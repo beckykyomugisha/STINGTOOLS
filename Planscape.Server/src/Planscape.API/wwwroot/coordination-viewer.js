@@ -148,6 +148,7 @@
       vizPalette:  'STING',     // M4 active palette set name
       vizCustomColours: new Map(), // B1 value/discipline → custom hex (overrides palette)
       vizTransp:   new Map(),   // C1 disc/cat → opacity 0..1 (continuous transparency)
+      vizIsolation: null,       // C2 { mode:'isolate'|'hideOthers'|'hideSel', guids:Set } (transient)
       colourMats:  new Map(),   // hex → shared coloured material (no per-mesh leak)
       transMats:   new Map(),   // opacity% → shared transparent material (C1)
       renderMode: 'shaded',
@@ -266,7 +267,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD C1-transparency');
+    console.log('[viewer] STING_VIZ_BUILD C2-selisolate');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1056,6 +1057,7 @@
       if (!V.modelRoot) return;
       if (V.activeOverlaySource && V.clearOverlay) { V.clearOverlay(); }   // retire any legacy overlay store
       const rmode = (state.renderMode && state.renderMode !== 'shaded') ? state.renderMode : null;
+      const iso = state.vizIsolation;   // C2 selection-driven isolation (or null)
       V.modelRoot.traverse(o => {
         if (!o.isMesh) return;
         const meta = metaForMesh(o);
@@ -1088,6 +1090,15 @@
         if (mode === 'show' && rmode) {
           const keepSolid = state.vizKeepSolidDisc.has(disc) || state.vizKeepSolidCat.has(cat);
           if (!keepSolid) mode = 'rmode:' + rmode;
+        }
+        // C2 — selection-driven isolation composes ON TOP: in-set elements keep their
+        // resolved appearance (colour/transparency/show); out-of-set get ghosted (isolate)
+        // or hidden (hide-others); hide-selection hides the in-set ones.
+        if (iso) {
+          const inSet = iso.guids.has(o.userData.elementGuid);
+          if (iso.mode === 'isolate' && !inSet && mode !== 'hide') mode = 'ghost';
+          else if (iso.mode === 'hideOthers' && !inSet) mode = 'hide';
+          else if (iso.mode === 'hideSel' && inSet) mode = 'hide';
         }
         applyMeshState(o, mode);
       });
@@ -1360,6 +1371,7 @@
       state.vizPreset = null; state.vizColour = null;
       state.vizCustomColours.clear();
       state.vizTransp.clear();
+      state.vizIsolation = null;
       state.renderMode = 'shaded';
       state.selectedElementGuid = null; state.selectedElementGuids.clear();
       clearClashSection();
@@ -3135,31 +3147,31 @@
       flyTo(bb.getCenter(new THREE_.Vector3()));
     }
 
+    // C2 — selection-driven visibility, routed through the appearance layer so it
+    // COMPOSES with colour / ghost / transparency (was a raw o.visible traversal that
+    // a subsequent applyAppearance would clobber).
     function isolateSelection() {
-      if (!V.modelRoot) return;
       const set = state.selectedElementGuids;
       if (!set.size) return toast('Nothing selected', 'warn');
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        o.visible = set.has(o.userData.elementGuid);
-      });
-      toast(`Isolated ${set.size} element${set.size === 1 ? '' : 's'}`);
+      state.vizIsolation = { mode: 'isolate', guids: new Set(set) };
+      applyAppearance();
+      toast(`Isolated ${set.size} element${set.size === 1 ? '' : 's'} (rest ghosted)`);
     }
-
     function hideSelection() {
-      if (!V.modelRoot) return;
       const set = state.selectedElementGuids;
       if (!set.size) return toast('Nothing selected', 'warn');
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        if (set.has(o.userData.elementGuid)) o.visible = false;
-      });
+      state.vizIsolation = { mode: 'hideSel', guids: new Set(set) };
+      applyAppearance();
       toast(`Hid ${set.size} element${set.size === 1 ? '' : 's'}`);
     }
-
     function showAllElements() {
-      if (!V.modelRoot) return;
-      V.modelRoot.traverse(o => { if (o.isMesh) o.visible = true; });
+      // Show-all clears selection isolation AND any per-group hide so nothing stays
+      // hidden; ghost/colour/transparency are left intact.
+      state.vizIsolation = null;
+      state.vizDiscMode.forEach((m, k) => { if (m === 'hide') state.vizDiscMode.delete(k); });
+      state.vizCatMode.forEach((m, k) => { if (m === 'hide') state.vizCatMode.delete(k); });
+      applyAppearance();
+      renderVisualizePanel();
       toast('All elements visible');
     }
 
@@ -3407,12 +3419,12 @@
       updatePanelHandles();
     }
 
-    // Hide every mesh that is NOT in the current selection.
+    // Hide every mesh that is NOT in the current selection (C2 — through the layer).
     function hideOthers() {
-      if (!V.modelRoot) return;
       const keep = state.selectedElementGuids;
       if (!keep.size) return toast('Nothing selected', 'warn');
-      V.modelRoot.traverse(o => { if (o.isMesh) o.visible = keep.has(o.userData.elementGuid); });
+      state.vizIsolation = { mode: 'hideOthers', guids: new Set(keep) };
+      applyAppearance();
       toast(`Hid all but ${keep.size}`);
     }
 
