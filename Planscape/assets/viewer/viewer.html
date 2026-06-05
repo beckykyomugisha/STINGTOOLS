@@ -724,13 +724,21 @@ THREE.ColorManagement.enabled = false;
       else console.log('[viewer→rn]', msg);
     }
   };
-  window.addEventListener('message', (ev) => {
-    try { handleCommand(JSON.parse(ev.data)); }
-    catch (err) { console.warn('[viewer] bad command:', ev.data, err); }
-  });
-  document.addEventListener('message', (ev) => {
-    try { handleCommand(JSON.parse(ev.data)); } catch (err) {}
-  });
+  // STING_VIEWER_CMDFILTER — the window receives postMessages from many sources
+  // (libraries, the host page, extensions), most of which are NOT viewer commands —
+  // e.g. a bare version string "s2.8.1,…" that JSON.parse choked on, spamming the
+  // console. Only strings that look like a command envelope ({...}/[...]) are parsed;
+  // everything else is ignored silently, and only a malformed envelope is warned.
+  function dispatchBridgeMessage(data) {
+    if (typeof data !== 'string') return;
+    const t = data.trim();
+    if (t[0] !== '{' && t[0] !== '[') return;        // not a command — ignore quietly
+    let cmd;
+    try { cmd = JSON.parse(t); } catch (err) { console.warn('[viewer] ignored malformed command JSON:', data); return; }
+    handleCommand(cmd);
+  }
+  window.addEventListener('message', (ev) => dispatchBridgeMessage(ev.data));
+  document.addEventListener('message', (ev) => dispatchBridgeMessage(ev.data));
 
   if (typeof THREE === 'undefined') {
     const e = document.createElement('div');

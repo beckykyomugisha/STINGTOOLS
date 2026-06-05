@@ -168,7 +168,11 @@
   // Hub.on(event, handler). WarningsReported is the first consumer; add
   // IssueCreated / TransmittalUpdated / ComplianceChanged the same way
   // (they are pre-registered below, so a one-line Hub.on() is all it takes).
-  const SIGNALR_CDN = "https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js";
+  // STING_DASH_SIGNALR_VENDORED — load SignalR from our OWN origin, not a third-party
+  // CDN. Edge/Firefox Tracking Prevention blocks cdn.jsdelivr.net in InPrivate ("blocked
+  // access to storage") and it fails offline; vendored locally (pinned 8.0.7), mirroring
+  // the viewer + livekit-client.
+  const SIGNALR_CDN = "/vendor/signalr.min.js";
   const Hub = (function () {
     const subs = new Map();
     let conn = null;
@@ -189,6 +193,11 @@
       "MeetingCreated", "MeetingUpdated",
       "WorkflowRunCompleted",
       "ModelUpdated",
+      // NotificationHub.JoinProject replies with these to the caller + the project
+      // group; register them so SignalR doesn't warn "No client method with the name
+      // 'joinedproject'/'presencechanged'". Subscribers can listen via Hub.on(); the
+      // default registration just routes them through emit() (no-op when unobserved).
+      "JoinedProject", "PresenceChanged",
     ];
 
     function emit(event, payload) {
