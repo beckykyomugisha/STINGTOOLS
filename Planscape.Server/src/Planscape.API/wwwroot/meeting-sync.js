@@ -115,6 +115,11 @@
         try { window.dispatchEvent(new CustomEvent("sting:remoteRenderMode", { detail: profile })); } catch (e) {}
         return;
       }
+      // C5 — a full visualize snapshot (scheme + modes + custom colours + transparency).
+      if (profile && profile.source === "appearance") {
+        try { window.dispatchEvent(new CustomEvent("sting:remoteAppearance", { detail: profile })); } catch (e) {}
+        return;
+      }
       try { window.STING_VIEWER.applyOverlay && window.STING_VIEWER.applyOverlay(profile); } catch (e) {}
     });
     conn.on("SectionChanged", function (msg) {

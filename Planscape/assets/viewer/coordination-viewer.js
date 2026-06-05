@@ -267,7 +267,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD C4-statuscolour');
+    console.log('[viewer] STING_VIZ_BUILD C5-presets');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1202,9 +1202,16 @@
     }
     // Broadcast the live appearance state to a meeting (echo-guarded), reusing the
     // overlay channel established in WS2.
+    // C5 — mirror the FULL visualize state to meeting followers via the WS2 overlay
+    // channel (echo-guarded). The whole appearance (modes + scheme + custom colours +
+    // transparency + render mode) travels as one snapshot; followers re-derive colours
+    // deterministically. restoringViz/applyingRemoteViz prevent self-echo + reload churn.
     function broadcastAppearance() {
-      if (state.applyingRemoteViz) return;
-      if (typeof broadcastVizRenderMode === 'function' && state.renderMode && state.renderMode !== 'shaded') broadcastVizRenderMode(state.renderMode);
+      if (state.applyingRemoteViz || restoringViz) return;
+      const m = (typeof window !== 'undefined') && window.STING_MEETING;
+      if (m && typeof m.broadcastOverlay === 'function') {
+        try { m.broadcastOverlay({ source: 'appearance', viz: serializeViz() }); } catch (_) {}
+      }
     }
     // One-click "shade only X, ghost the rest".
     function shadeOnlyDiscipline(disc) {
@@ -1442,26 +1449,24 @@
     // persisted (it's transient). restoringViz suppresses re-save churn during load.
     let restoringViz = false;
     function vizStateKey() { return 'planscape_viz_' + (state.modelId || 'default'); }
-    function saveVizState() {
-      if (state.applyingRemoteViz || restoringViz) return;
-      try {
-        const c = state.vizColour;
-        localStorage.setItem(vizStateKey(), JSON.stringify({
-          disc: Array.from(state.vizDiscMode.entries()),
-          cat:  Array.from(state.vizCatMode.entries()),
-          custom: Array.from(state.vizCustomColours.entries()),
-          transp: Array.from(state.vizTransp.entries()),
-          keepDisc: Array.from(state.vizKeepSolidDisc),
-          keepCat:  Array.from(state.vizKeepSolidCat),
-          palette: state.vizPalette,
-          renderMode: state.renderMode,
-          colour: c ? { kind: c.kind, token: c.token, presetName: c.presetName, numeric: !!c.numeric } : null,
-        }));
-      } catch (_) {}
+    // C5 — one serializer for the appearance inputs, reused by per-model persistence (B3)
+    // AND named visualize presets in Saved Views. Colours are stored as a descriptor and
+    // re-derived deterministically (A5), so a snapshot reproduces identical colours.
+    function serializeViz() {
+      const c = state.vizColour;
+      return {
+        disc: Array.from(state.vizDiscMode.entries()),
+        cat:  Array.from(state.vizCatMode.entries()),
+        custom: Array.from(state.vizCustomColours.entries()),
+        transp: Array.from(state.vizTransp.entries()),
+        keepDisc: Array.from(state.vizKeepSolidDisc),
+        keepCat:  Array.from(state.vizKeepSolidCat),
+        palette: state.vizPalette,
+        renderMode: state.renderMode,
+        colour: c ? { kind: c.kind, token: c.token, presetName: c.presetName, numeric: !!c.numeric } : null,
+      };
     }
-    function loadVizState() {
-      let d;
-      try { const raw = localStorage.getItem(vizStateKey()); if (!raw) return; d = JSON.parse(raw); } catch (_) { return; }
+    function applyVizSnapshot(d) {
       if (!d) return;
       restoringViz = true;
       try {
@@ -1471,10 +1476,10 @@
         state.vizTransp   = new Map(d.transp || []);
         state.vizKeepSolidDisc = new Set(d.keepDisc || []);
         state.vizKeepSolidCat  = new Set(d.keepCat || []);
+        state.vizIsolation = null;
         if (d.palette) state.vizPalette = d.palette;
         state.renderMode = d.renderMode || 'shaded';
-        // Re-derive the colour scheme — valueColors rebuilt from the SORTED distinct
-        // values, so the same scheme reproduces the same colours (A5).
+        state.vizColour = null;
         if (d.colour) {
           if (d.colour.kind === 'preset' && d.colour.presetName) applyDisciplinePreset(d.colour.presetName);
           else if (d.colour.kind === 'clash') colourByClashStatus();
@@ -1487,6 +1492,13 @@
       restoringViz = false;
       applyAppearance();
       renderVisualizePanel();
+    }
+    function saveVizState() {
+      if (state.applyingRemoteViz || restoringViz) return;
+      try { localStorage.setItem(vizStateKey(), JSON.stringify(serializeViz())); } catch (_) {}
+    }
+    function loadVizState() {
+      try { const raw = localStorage.getItem(vizStateKey()); if (raw) applyVizSnapshot(JSON.parse(raw)); } catch (_) {}
     }
 
     // ── Visualize panel UI ───────────────────────────────────────────────────
@@ -2090,7 +2102,8 @@
         camPos: cam.position.toArray(),
         camTarget: V.controls.target.toArray(),
         disciplines: Array.from(state.activeDisciplines),
-        levels: $$('.level-pill.active').map(p => p.dataset.lvl)
+        levels: $$('.level-pill.active').map(p => p.dataset.lvl),
+        viz: serializeViz(),   // C5 — full visualize state (scheme + modes + custom colours)
       };
     }
     function restoreViewState(s) {
@@ -2109,6 +2122,8 @@
         $$('.level-pill').forEach(p => p.classList.toggle('active', s.levels.includes(p.dataset.lvl)));
         applyLevelFilter();
       }
+      // C5 — restore the full visualize appearance, then mirror it to a live meeting.
+      if (s.viz) { applyVizSnapshot(s.viz); broadcastAppearance(); }
     }
     function renderSavedViews() {
       const list = $('#savedViewsList');
@@ -5854,8 +5869,16 @@
       } catch (_) {}
       state.applyingRemoteViz = false;
     }
+    // C5 — apply a FULL appearance snapshot received from the meeting presenter.
+    function applyRemoteVizSnapshot(viz) {
+      if (!viz) return;
+      state.applyingRemoteViz = true;
+      try { applyVizSnapshot(viz); } catch (_) {}
+      state.applyingRemoteViz = false;
+    }
     if (typeof window !== 'undefined') {
       window.addEventListener('sting:remoteRenderMode', (e) => applyRemoteVizRenderMode(e.detail));
+      window.addEventListener('sting:remoteAppearance', (e) => applyRemoteVizSnapshot(e.detail && e.detail.viz));
     }
 
     // 3D Explode — works on ANY model. Toggles an Explode control panel (factor

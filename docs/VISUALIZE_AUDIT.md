@@ -53,3 +53,12 @@ status** = Open / Resolved / No issue via `elementGuids[]` (Open wins). Both add
 with counts and compose with isolate/hide/hover/transparency like any scheme; persisted +
 re-derived on reload. Gradient robustness: replaced `Math.min(...nums)` / `Math.max(...nums)`
 (a 12k-element spread overflows the call stack) with a single reduce loop.
+
+### C5 — named visualize presets in Saved Views + meeting broadcast  ✅ served `C5-presets`
+Factored `serializeViz()` / `applyVizSnapshot()` (shared by B3 persistence + presets). Saved
+Views' `captureViewState` now embeds the full visualize snapshot; recalling a view restores
+camera + disciplines + levels + the entire appearance (scheme re-derived deterministically) and
+mirrors it to a live meeting. `broadcastAppearance` now sends the WHOLE appearance over the WS2
+overlay channel (`source:'appearance'`), echo-guarded by `applyingRemoteViz`/`restoringViz`;
+meeting-sync routes it to `sting:remoteAppearance` → `applyRemoteVizSnapshot`. Followers see the
+presenter's exact colour/ghost/transparency/render-mode state.
