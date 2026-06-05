@@ -185,7 +185,9 @@
     document.addEventListener('keyup',   onKeyUp);
     h.renderer.domElement.addEventListener('pointermove', onPtrMove);
     walkJoystick = createJoystick();
-    document.body.appendChild(walkJoystick.el);
+    // M7 — mount inside the viewport-wrap so it positions relative to the viewport
+    // (adjacent to #navControls) and the bp-collapsed/expanded rules track the panel.
+    (document.getElementById('viewerCanvas') || document.body).appendChild(walkJoystick.el);
     if (!h._walkAnim) {
       h._walkAnim = true;
       const tick = () => {
@@ -255,7 +257,11 @@
 
   function createJoystick() {
     const el = document.createElement('div');
-    el.style.cssText = 'position:absolute;left:24px;bottom:90px;width:120px;height:120px;border-radius:60px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);touch-action:none;';
+    // M7 — positioned by CSS (.walk-joystick) so it sits adjacent to #navControls and
+    // tracks the bottom panel, instead of the old fixed bottom-left corner.
+    el.id = 'walkJoystick';
+    el.className = 'walk-joystick';
+    el.style.cssText = 'width:120px;height:120px;border-radius:60px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);touch-action:none;';
     const knob = document.createElement('div');
     knob.style.cssText = 'position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:20px;background:rgba(232,145,45,0.9);';
     el.appendChild(knob);

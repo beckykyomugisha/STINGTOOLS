@@ -1762,3 +1762,13 @@ tr.row-selected td { color: var(--text-primary); }
 .rail-handle:hover{ color:#fff; background:rgba(59,130,246,0.7); }
 .rail-left{ left:4px; }
 .rail-right{ right:4px; }
+
+/* M7 — walk joystick: centred just above the nav-controls cluster (tracks the
+   bottom panel), clear of the bottom-left capture FAB + bottom-right minimap. */
+.walk-joystick{
+  position:absolute; left:50%; transform:translateX(-50%);
+  bottom: calc(var(--bottom-panel-height) + 66px);
+  z-index:12; transition: bottom 0.18s ease;
+}
+.viewport-wrap.bp-collapsed .walk-joystick { bottom: calc(32px + 66px); }
+.viewport-wrap.bp-expanded  .walk-joystick { bottom: calc(60vh + 66px); }
