@@ -169,6 +169,7 @@
       vizSearchQuery: '',       // C6 search text (kept across panel re-renders)
       vizSearchField: '*',      // C6 search field ('*' = any value, else token/param)
       federatedLoaded: false,   // FEDERATION — guard so we co-load the project once
+      federationLoading: false, // V4 — true while sibling models stream in (suppress heavy work)
       modelVisible: new Map(),  // FEDERATION — modelId → shown? (checkbox state)
       colourMats:  new Map(),   // hex → shared coloured material (no per-mesh leak)
       transMats:   new Map(),   // opacity% → shared transparent material (C1)
@@ -288,7 +289,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD V3-signalr');
+    console.log('[viewer] STING_VIZ_BUILD V4-loadperf');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1253,7 +1254,7 @@
       }
     }
     function broadcastAppearance() {
-      if (state.applyingRemoteViz || restoringViz) return;
+      if (state.applyingRemoteViz || restoringViz || state.federationLoading) return;   // V4 — no broadcast while streaming models
       const since = Date.now() - _bcastAt;
       if (since >= BCAST_THROTTLE_MS) _doBroadcastAppearance();                 // leading — live
       else if (!_bcastTimer) _bcastTimer = setTimeout(_doBroadcastAppearance, BCAST_THROTTLE_MS - since);  // trailing — latest
@@ -3161,6 +3162,19 @@
       if (token) headers['Authorization'] = `Bearer ${token}`;
       const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
       if (tenantId) headers['X-Tenant'] = tenantId;
+      // V4 — STREAM the models in ONE AT A TIME: wait for each model's GLTF parse to
+      // land before fetching the next, with a short breather so the render loop keeps
+      // delivering frames (the primary stays orbitable, siblings pop in). This replaces
+      // the old "fire all addModel then poll" which let 5 parses pile onto one frame and
+      // crashed FPS to ~0.2. `federationLoading` suppresses the per-change broadcast while
+      // streaming. Heavy re-index/re-apply runs ONCE at the end, not per model.
+      state.federationLoading = true;
+      const hasRoot = (id) => (V.modelRoots || []).some(r => r.userData && r.userData.stingModelId === id);
+      const waitForRoot = (id, ms) => new Promise(res => {
+        if (hasRoot(id)) return res();
+        let t = 0; const iv = setInterval(() => { t += 100; if (hasRoot(id) || t >= ms) { clearInterval(iv); res(); } }, 100);
+      });
+      const breather = (ms) => new Promise(r => setTimeout(r, ms));
       for (const m of others) {
         try {
           const res = await fetch(`${apiBase}/api/projects/${projectId}/models/${m.id}/file`, { headers, cache: 'no-store' });
@@ -3171,24 +3185,16 @@
           try { const map = await api(`/api/projects/${projectId}/models/${m.id}/element-map`); if (map && typeof map === 'object') Object.assign(state.elementMap, map); } catch (_) {}
           handleHostCommand({ type: 'addModel', payload: { url: blobUrl, transform, modelId: m.id } });
           state.modelVisible.set(m.id, true);
+          await waitForRoot(m.id, 20000);   // let THIS model's parse finish before the next
+          await breather(250);              // yield frames to the render loop
         } catch (e) { console.warn('[fed] model load failed', m.id, e); }
       }
-      // Wait for the async GLTF loads to land in the scene, then re-index + re-apply
-      // the appearance across ALL roots and refresh the (now aggregated) panel.
-      const expected = 1 + others.length;
-      let tries = 0;
-      const iv = setInterval(() => {
-        tries++;
-        const n = (V.modelRoots || []).length;
-        if (n >= expected || tries > 40) {
-          clearInterval(iv);
-          rebuildGuidIndex();
-          applyAppearance();
-          renderVisualizePanel();
-          if (typeof renderModels === "function") renderModels();
-          console.log(`[fed] STING_VIZ_FEDERATION ${n} model roots co-rendered`);
-        }
-      }, 300);
+      state.federationLoading = false;
+      rebuildGuidIndex();
+      applyAppearance();
+      renderVisualizePanel();
+      if (typeof renderModels === 'function') renderModels();
+      console.log(`[fed] STING_VIZ_FEDERATION ${(V.modelRoots || []).length} model roots co-rendered`);
     }
 
     function rebuildGuidIndex() {
@@ -6758,7 +6764,9 @@
         invalidateCentroidCache();   // L7 — fresh model, fresh cache
         rebuildGuidIndex();          // B7 — GUID→mesh map for fast lookups
         loadVizState();              // B3 — restore this PROJECT's saved visualize state
-        loadFederatedModels();       // FEDERATION — co-load the rest of the project
+        // V4 — DEFER federation co-load so the PRIMARY model is interactive first; start
+        // on idle (fallback timer) rather than racing the primary's first frames.
+        (window.requestIdleCallback || ((fn) => setTimeout(fn, 1500)))(() => loadFederatedModels(), { timeout: 3000 });
         placeIssuePins();
         placeClashPins();
         placePhotoPins();             // Slice 4b — photo pins after model bounds known

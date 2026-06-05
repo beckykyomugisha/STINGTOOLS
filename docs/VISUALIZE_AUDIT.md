@@ -303,3 +303,14 @@ to SignalR. So a long session reconnects cleanly with a live token; if the refre
 dead, `withAutomaticReconnect`'s finite backoff gives up (no infinite storm). A0: the shim now
 registers `JoinedProject` + `PresenceChanged` so the "No client method" warnings stop (dashboard
 side was already done in the console-fixes round).
+
+### V4 — federation load performance (don't freeze while loading 5 models)  ✅ served `V4-loadperf`
+The old federated loader fired all `addModel`s then polled — letting up to 5 GLTF parses pile onto
+single frames (avgFps → ~0.2). Now models STREAM one at a time: each model's parse must land
+(`waitForRoot`) before the next is fetched, with a 250 ms breather so the render loop keeps
+delivering frames — the primary stays orbitable and siblings pop in progressively. The federation
+co-load is also DEFERRED via `requestIdleCallback` (1.5 s/3 s fallback) so the primary model is
+interactive first. `state.federationLoading` suppresses the coalesced broadcast while streaming;
+the heavy `rebuildGuidIndex` + `applyAppearance` + panel refresh run ONCE at the end, not per model.
+PENDING-HUMAN-VERIFY: loading the 5 models doesn't lock the UI; steady-state orbit on the full
+federation stays ~30–50 fps (low-end target).
