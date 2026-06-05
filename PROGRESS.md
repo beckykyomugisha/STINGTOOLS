@@ -47,3 +47,24 @@ A (layered model) · B (rows/deselect/persist) · E1 (dead-control regression) �
 (FITFIX / CMDFILTER / SignalR handlers / vendored SignalR) · C1–C6 · D audit · E2 (elevation) ·
 E3 (section flip + save/restore) · E4 (rich properties + actions + cost) · E5 (audit).
 Full per-item record + markers in `docs/VISUALIZE_AUDIT.md`.
+
+## TRACK A — stability + correctness (this round) — PENDING-HUMAN-VERIFY
+
+Verify on the 5-model federation in a 2nd incognito tab.
+
+### BUG 1 — discipline classification  ·  `fc8b926da` · marker `A1-disc-keys`
+- [ ] Colour-by-Discipline: **Lighting Fixtures / Electrical Fixtures show as Electrical (E)**, not P.
+- [ ] **Shade-only Electrical** keeps ALL electrical (incl. lighting fixtures) shaded.
+- [ ] **Shade-only Plumbing** does NOT shade any electrical.
+- [ ] Spot every real category (Lighting/Electrical/Mechanical/Plumbing Fixtures, Conduits, Cable
+      Trays, Sprinklers, Curtain Panels) → correct discipline.
+
+### BUG 3 — isolate/hide/select key consistency  ·  `fc8b926da` · marker `A1-disc-keys`
+- [ ] Search by DISC = "E" (or isolate/hide via search) finds the SAME elements colour-by-discipline
+      shows (works on as-builts via derived discipline), across all 5 models.
+- [ ] Isolate / Hide / Select act on the right elements across the whole federation (not "no matches").
+
+### BUG 2 — deterministic / idempotent controls  ·  `1a05b097c` · marker `A2-determinism`
+- [ ] Active colour-by / preset button shows **pressed** (blue).
+- [ ] Click the active scheme again → clears to base (toggle off). Click A → B → A → identical to first A.
+- [ ] Every button responds every time; switching never leaves residual state or a dead control.
