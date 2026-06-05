@@ -269,7 +269,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD E4-props');
+    console.log('[viewer] STING_VIZ_BUILD E5-audit');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -6107,11 +6107,13 @@
     }
 
     function setupSectionCard() {
-      $('#sectionClose').addEventListener('click', () => $('#sectionCard').style.display = 'none');
-      $('#sectionAddX').addEventListener('click', () => addSectionPlane('x'));
-      $('#sectionAddY').addEventListener('click', () => addSectionPlane('y'));
-      $('#sectionAddZ').addEventListener('click', () => addSectionPlane('z'));
-      $('#sectionClear').addEventListener('click', () => clearSection());
+      // E5 — optional-chain every binding so one missing element can't abort the rest
+      // of the section card's wiring (the E1 fragility class, contained per-control).
+      $('#sectionClose')?.addEventListener('click', () => { const c = $('#sectionCard'); if (c) c.style.display = 'none'; });
+      $('#sectionAddX')?.addEventListener('click', () => addSectionPlane('x'));
+      $('#sectionAddY')?.addEventListener('click', () => addSectionPlane('y'));
+      $('#sectionAddZ')?.addEventListener('click', () => addSectionPlane('z'));
+      $('#sectionClear')?.addEventListener('click', () => clearSection());
     }
 
     function openSectionPlane(axis) {

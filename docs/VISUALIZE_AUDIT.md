@@ -156,3 +156,38 @@ volume via `GetMaterialIds`/`GetMaterialArea`/`GetMaterialVolume`) into each ele
 alongside M3's `discipline` + `cost`. `ModelsController` already merges a `<model>-costs.json`
 sidecar by GUID. **Caveat:** the C# is unbuilt here (no Revit/.NET in sandbox) — verify in Revit;
 every Revit API call is best-effort + try/caught so a publish never fails on quantities.
+
+---
+
+## E5 — broader discovery audit (beyond visualize)  ✅ served `E5-audit`
+
+### Fixed
+- **E5-1 (real, self-introduced) — `clipIntersection` leaked across sections.**
+  `clearSectionBox` (viewer-extras) didn't reset the E3 Flip (`renderer.clipIntersection`), so a
+  flipped box, once cleared, would invert the NEXT section / clash box. Now resets
+  `clipIntersection=false` + `sb.invert=false` on clear.
+- **E5-2 (E1 fragility class) — `setupSectionCard` unguarded bindings.** It did
+  `$('#sectionClose').addEventListener(...)` etc. with no null-guard; a single missing element
+  would abort the rest of the section-card wiring. Optional-chained every binding (per-control
+  containment; fault-isolated init already stops the cascade).
+
+### Verified working (traced)
+- `setActiveTool` exits markup (`stopMarkup` → restores rotate) + section (`exitSectionTool`)
+  when switching; engine pick raycaster gated per tool (no select while measure/markup/section).
+- Section gizmo `dragging-changed` toggles `controls.enabled`; `clearSectionBox` →
+  `detachSectionGizmo` re-enables orbit. No orbit-disabled leak after exit.
+- Toolbar menus (`bindMenu` for Measure/Section/View/Markup/Meet) guard trigger/menu null,
+  attach to static HTML (not re-rendered) — bindings can't be orphaned.
+- `setupViewCube` / `setupMinimap` guard their root element (`if (!x) return`). All ~22 init
+  setups are fault-isolated (E1) so one failure can't cascade + the culprit is logged.
+
+### Flagged
+- **E5-F1 — `measure → section` switch doesn't explicitly stop measure** (only markup/section get
+  teardown in setActiveTool). The engine `setTool` changes the raycaster so measure effectively
+  stops, but any measure overlay state isn't torn down by name. Low risk; confirm with a click.
+- Carried from Part D: single-model-by-design, Fit-frames-whole-model-when-hidden,
+  select-all-matches clone cost, meeting-broadcast no debounce.
+
+## Prompt complete
+A · B · E1 · 4 console fixes · C1–C6 · D · E2 · E3 · E4 · E5 — all committed + STEP-0 gated
+(SERVED + livekit 200 on the running container).

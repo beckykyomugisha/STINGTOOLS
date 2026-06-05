@@ -863,7 +863,11 @@
     detachSectionGizmo();
     if (sb.capGroup && h) { h.scene.remove(sb.capGroup); disposeObj(sb.capGroup); }
     sb.capGroup = null;
-    if (h && h.renderer) h.renderer.clippingPlanes = (sb.savedClip !== null) ? sb.savedClip : [];
+    if (h && h.renderer) {
+      h.renderer.clippingPlanes = (sb.savedClip !== null) ? sb.savedClip : [];
+      h.renderer.clipIntersection = false;   // E5 — reset the E3 flip so it can't leak into the next section / clash box
+    }
+    sb.invert = false;
     sb.savedClip = null; sb.active = false; sb.min = sb.max = null;
     if (typeof sb.onChange === 'function') { try { sb.onChange({ active: false }); } catch (e) {} }
   };
