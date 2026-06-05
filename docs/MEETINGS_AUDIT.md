@@ -30,3 +30,39 @@ Verify in two tabs that the existing `livekit-av.js` flow works now that tokens 
 meeting reloads into `?meeting=`; connects; cam/mic prompt; own + 2nd participant tiles; screen-share
 in the central pane; surface switching broadcasts. Add/confirm clear in-viewer Join/Leave + cam/mic/
 screen controls + an "in a meeting" state. (Tracked below as it's implemented.)
+
+---
+
+## Track B scaffolding assessment (what exists vs net-new) — as of M1
+
+Surveyed `MeetingHub.cs`, `meeting-sync.js`, `livekit-av.js`, `MeetingsController.cs` to scope
+M2–M5 accurately (not claim un-built work as done).
+
+**Present today (build on these):**
+- **Media plane (M1):** `livekit-av.js` — connect, cam/mic/screen toggles, leave, participant
+  tiles, screen-share → central pane, auto-connect on `?meeting=`. **Now unblocked** by the token
+  fix. Control bar (`#lkBar`) has cam/mic/screen/leave.
+- **Co-presence plane:** `MeetingHub` exposes `JoinSession`/`LeaveSession`/`BroadcastCamera`/
+  `BroadcastHighlight`/`BroadcastOverlay`/`BroadcastSection`/`BroadcastSurface`; `meeting-sync.js`
+  receives `ParticipantJoined/Left`, `CameraMoved`, `OverlayChanged`, `SectionChanged`,
+  `HighlightChanged`, `RoomChanged`, **`SurfaceChanged`**. So **surface switching (model/document/
+  screen) already broadcasts** (M1/M2a transport).
+- Meeting record + session: `MeetingsController` (formal Meeting) + `MeetingRoomController`
+  (live MeetingSession, participants, join/leave/host, set-surface, bind-model).
+
+**Net-new for M2–M5 (NOT yet built — honest status):**
+- **M2** document surface + **collaborative markup**: a `document` surface render (PDF/image/sheet
+  + drag-drop upload), a markup canvas overlay, a new `MeetingHub.BroadcastDocMarkup` + client
+  handler, and `MeetingSnapshot` persistence + "save markup as Issue/Snapshot". (Surface *switching*
+  exists; the document *renderer* + *markup* do not.)
+- **M3** chat, raise-hand + reactions, roster with roles + host controls (make-presenter/mute-all/
+  remove), device picker, speaker/gallery + pin, low-bandwidth (audio-only) mode. (Roster exists as
+  participants; the rest is net-new — each needs a hub method + client UI.)
+- **M4** in-meeting issue (assign/due/link), clash-review mode (step + camera-follow), link live
+  session ↔ formal Meeting (agenda/actions/minutes), viewpoint/snapshot → issue/minutes.
+- **M5** the two-tab discovery matrix.
+
+**Recommendation:** M1 (the token unblock) is the foundational fix and is done + verified. M2–M5
+are each a focused feature pass (hub method + client UI + two-tab human verification) — best built
+and verified one at a time rather than batched. Constraints to hold throughout: LiveKit = media,
+MeetingHub = co-presence/markup/chat/state (no duplicate transports); secrets via env only.
