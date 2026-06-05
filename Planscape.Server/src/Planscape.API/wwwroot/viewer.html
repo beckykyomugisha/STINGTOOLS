@@ -901,6 +901,7 @@ THREE.ColorManagement.enabled = false;
   const measureGroup = new THREE.Group(); scene.add(measureGroup);
 
   let modelRoot = null;
+  let modelRoots = [];      // FEDERATION — every loaded model root (children of modelPivot)
   let modelPivot = null;    // ORBIT FIX — Y-up rotation wrapper around modelRoot
   let modelReady = false;   // BLK-5 — meeting co-presence waits on this
   let modelBounds = new THREE.Box3();
@@ -948,7 +949,7 @@ THREE.ColorManagement.enabled = false;
   let lastPickEl = null;
   let pressTimer = null;
 
-  function loadModel(url, transform) {
+  function loadModel(url, transform, modelId) {
     const loader = new GLTFLoader();
     try {
       const v = window.STING_VIEWER;
@@ -959,7 +960,9 @@ THREE.ColorManagement.enabled = false;
       url,
       (gltf) => {
         if (modelPivot) scene.remove(modelPivot);
+        modelRoots = [];
         modelRoot = gltf.scene;
+        modelRoot.userData.stingModelId = modelId || 'primary';   // FEDERATION tag
         assignElementIds(modelRoot);
         // BLK-2 — federation: apply the project-stored coordinate transform
         // (survey origin / true-north / scale) so this model lands in the
@@ -988,6 +991,7 @@ THREE.ColorManagement.enabled = false;
         modelPivot.add(modelRoot);
         modelPivot.updateMatrixWorld(true);
         scene.add(modelPivot);
+        modelRoots = [modelRoot];               // FEDERATION — primary is root 0
         modelBounds.setFromObject(modelRoot);   // recompute: now Y-up, origin-centred
         fitCamera();
         const el = document.getElementById('bootLoader');
@@ -1017,6 +1021,46 @@ THREE.ColorManagement.enabled = false;
         markModelReady();
       }
     );
+  }
+
+  // FEDERATION — add an ADDITIONAL model into the SAME pivot, sharing the primary's
+  // recenter offset so the project transforms keep models in their relative positions.
+  // Co-renders the whole project so the viz layer operates across every model.
+  function addModel(url, transform, modelId) {
+    if (!modelPivot) { loadModel(url, transform, modelId); return; }   // no primary yet
+    const loader = new GLTFLoader();
+    try {
+      const v = window.STING_VIEWER;
+      if (v && v.dracoLoader && loader.setDRACOLoader) loader.setDRACOLoader(v.dracoLoader);
+      if (v && v.meshoptDecoder && loader.setMeshoptDecoder) loader.setMeshoptDecoder(v.meshoptDecoder);
+    } catch (_) {}
+    loader.load(url, (gltf) => {
+      if (modelRoots.some(r => r.userData && r.userData.stingModelId === modelId)) return;  // already loaded
+      const root = gltf.scene;
+      root.userData.stingModelId = modelId || ('fed-' + modelRoots.length);
+      assignElementIds(root);
+      applyModelTransform(root, transform);
+      root.updateMatrixWorld(true);
+      root.position.sub(modelOffset);       // share the primary's recenter → relative positions
+      root.updateMatrixWorld(true);
+      modelPivot.add(root);
+      modelRoots.push(root);
+      recomputeModelBounds();
+      bridge.send('modelAdded', { modelId: root.userData.stingModelId, elementCount: countMeshes(root) });
+    }, undefined, (err) => console.warn('[viewer] federated model load failed', modelId, err));
+  }
+  function recomputeModelBounds() {
+    const b = new THREE.Box3();
+    modelRoots.forEach(r => { if (r && r.visible) b.expandByObject(r); });
+    if (b.isEmpty() && modelRoots[0]) b.expandByObject(modelRoots[0]);
+    modelBounds = b;
+  }
+  function setModelVisibleById(modelId, visible) {
+    const r = modelRoots.find(x => x.userData && x.userData.stingModelId === modelId);
+    if (!r) return false;
+    r.visible = !!visible;
+    recomputeModelBounds();
+    return true;
   }
 
   // BLK-2 — apply a stored ProjectModelTransform to a loaded model root.
@@ -1357,7 +1401,9 @@ THREE.ColorManagement.enabled = false;
   function handleCommand(cmd) {
     if (!cmd || !cmd.type) return;
     switch (cmd.type) {
-      case 'load':            loadModel(cmd.payload.url, cmd.payload.transform); break;
+      case 'load':            loadModel(cmd.payload.url, cmd.payload.transform, cmd.payload.modelId); break;
+      case 'addModel':        addModel(cmd.payload.url, cmd.payload.transform, cmd.payload.modelId); break;
+      case 'setModelVisibleById': setModelVisibleById(cmd.payload.modelId, cmd.payload.visible); break;
       case 'elementMap':      elementMap = Object.assign(elementMap || {}, cmd.payload.map || {}); break;
       case 'setTool':         setTool(cmd.payload.tool); break;
       case 'fit':              fitCamera(); break;
@@ -1627,6 +1673,11 @@ THREE.ColorManagement.enabled = false;
     get activeOverlaySource() { return _activeOverlaySource; },
     get modelRoot()       { return modelRoot; },
     set modelRoot(v)       { modelRoot = v; },
+    // FEDERATION — all loaded roots + the group (modelPivot) that holds them all.
+    // The viz layer traverses modelGroup so appearance spans every loaded model.
+    get modelRoots()      { return modelRoots; },
+    get modelGroup()      { return modelPivot; },
+    addModel, setModelVisibleById,
     get modelReady()      { return modelReady; },
     markModelReady, applyModelTransform,
     get modelBounds()     { return modelBounds; },

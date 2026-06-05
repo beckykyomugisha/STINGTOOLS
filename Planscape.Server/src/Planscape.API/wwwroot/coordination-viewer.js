@@ -45,6 +45,10 @@
   function initCoordination() {
     const V = window.STING_VIEWER;
     const THREE_ = window.THREE;
+    // FEDERATION — the group holding EVERY loaded model root. The viz layer (resolver,
+    // index, picking, aggregation) traverses this so appearance/isolate/colour span all
+    // loaded models, not just the active one. Falls back to the single root pre-pivot.
+    function vizGroup() { return (V && V.modelGroup) || (V && V.modelRoot) || null; }
     const params = new URLSearchParams(location.search);
     const projectId = params.get('project') || '';
     const modelId   = params.get('model')   || '';
@@ -151,6 +155,8 @@
       vizIsolation: null,       // C2 { mode:'isolate'|'hideOthers'|'hideSel', guids:Set } (transient)
       vizSearchQuery: '',       // C6 search text (kept across panel re-renders)
       vizSearchField: '*',      // C6 search field ('*' = any value, else token/param)
+      federatedLoaded: false,   // FEDERATION — guard so we co-load the project once
+      modelVisible: new Map(),  // FEDERATION — modelId → shown? (checkbox state)
       colourMats:  new Map(),   // hex → shared coloured material (no per-mesh leak)
       transMats:   new Map(),   // opacity% → shared transparent material (C1)
       renderMode: 'shaded',
@@ -269,7 +275,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD E5-audit');
+    console.log('[viewer] STING_VIZ_BUILD F1-federation');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -468,7 +474,7 @@
           // engine places it in shared world space. Absent / identity → no-op.
           let transform = null;
           try { transform = await api(`/api/projects/${projectId}/models/${modelId}/transform`); } catch (_) {}
-          handleHostCommand({ type: 'load', payload: { url: blobUrl, transform } });
+          handleHostCommand({ type: 'load', payload: { url: blobUrl, transform, modelId } });
         } catch (err) {
           const aborted = err && err.name === 'AbortError';
           console.warn('[coord] GLB fetch failed', aborted ? 'timeout' : err.message);
@@ -820,7 +826,7 @@
       state.activeDisciplines = new Set(active);
       const filterAll = active.length === 0;
       if (!V.modelRoot || !state.elementMap) return;
-      V.modelRoot.traverse(obj => {
+      vizGroup().traverse(obj => {
         if (!obj.isMesh) return;
         const meta = metaForMesh(obj);
         const disc = meta?.discipline ? String(meta.discipline).toUpperCase().slice(0, 4) : null;
@@ -963,7 +969,7 @@
       state.selMeshes.clear();
       if (!V.modelRoot) { state.elementMaterials.clear(); return; }
       const ids = Array.from(state.elementMaterials.keys());
-      V.modelRoot.traverse(o => {
+      vizGroup().traverse(o => {
         if (!o.isMesh) return;
         o.userData._vizMode = undefined;
         o.userData._paintKey = undefined;
@@ -1060,7 +1066,7 @@
       if (V.activeOverlaySource && V.clearOverlay) { V.clearOverlay(); }   // retire any legacy overlay store
       const rmode = (state.renderMode && state.renderMode !== 'shaded') ? state.renderMode : null;
       const iso = state.vizIsolation;   // C2 selection-driven isolation (or null)
-      V.modelRoot.traverse(o => {
+      vizGroup().traverse(o => {
         if (!o.isMesh) return;
         const meta = metaForMesh(o);
         const disc = discOf(meta), cat = catKey(meta);
@@ -1495,10 +1501,11 @@
     // re-derived deterministically on restore, so nothing drifts. Selection is NOT
     // persisted (it's transient). restoringViz suppresses re-save churn during load.
     let restoringViz = false;
-    // D-fix — key per-model viz state by the REAL model id (the module-scope `modelId`
-    // from ?model=). state.modelId is never assigned, so the old key collapsed to
-    // 'planscape_viz_default' for every model → B3 state collided across models.
-    function vizStateKey() { return 'planscape_viz_' + (modelId || state.modelId || 'default'); }
+    // FEDERATION — viz now spans EVERY loaded model in the project, so persist the
+    // appearance per PROJECT (not per model id) — otherwise the federation state would
+    // fragment across the individual models. (Supersédes the D-fix per-model key, which
+    // was correct only while the viewer was single-model.)
+    function vizStateKey() { return 'planscape_viz_proj_' + (projectId || modelId || 'default'); }
     // C5 — one serializer for the appearance inputs, reused by per-model persistence (B3)
     // AND named visualize presets in Saved Views. Colours are stored as a descriptor and
     // re-derived deterministically (A5), so a snapshot reproduces identical colours.
@@ -1668,7 +1675,7 @@
       clearHoverHighlight();
       if (!V.modelRoot) return;
       const seen = new Set();
-      V.modelRoot.traverse(o => {
+      vizGroup().traverse(o => {
         if (!o.isMesh || !o.visible || !o.material || !o.material.emissive) return;
         const key = colourKey(col, colourValueOf(col, metaForMesh(o), o.userData.elementGuid));
         if (key === label && !seen.has(o.material.uuid)) {
@@ -1707,7 +1714,7 @@
       ]);
       quick.appendChild(qRow);
       quick.appendChild(el('div', { style: 'display:flex;gap:6px;margin-top:6px' }, [
-        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => { state.vizDiscMode.forEach((_, k) => state.vizDiscMode.set(k, 'show')); state.vizCatMode.forEach((_, k) => state.vizCatMode.set(k, 'show')); state.vizColour = null; if (V.modelRoot) V.modelRoot.traverse(o => { if (o.isMesh) o.userData._vizMode = undefined; }); applyAppearance(); renderVisualizePanel(); } }, 'Show all'),
+        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => { state.vizDiscMode.forEach((_, k) => state.vizDiscMode.set(k, 'show')); state.vizCatMode.forEach((_, k) => state.vizCatMode.set(k, 'show')); state.vizColour = null; if (V.modelRoot) vizGroup().traverse(o => { if (o.isMesh) o.userData._vizMode = undefined; }); applyAppearance(); renderVisualizePanel(); } }, 'Show all'),
         el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => resetVisualization() }, 'Reset')
       ]));
       wrap.appendChild(quick);
@@ -1893,14 +1900,19 @@
           el('span', { class: 'timestamp' }, relativeTime(m.uploadedAt))
         ]);
         const cb = $('input[type=checkbox]', row);
+        if (state.modelVisible.has(m.id)) cb.checked = state.modelVisible.get(m.id);
         cb.addEventListener('change', () => {
-          // Use per-model visibility from extras if available; fall back to full-scene toggle.
-          const label = m.name || m.fileName || '';
-          const extras = window.STING_VIEWER_EXTRAS;
-          if (extras && extras.setModelVisible && label) {
-            extras.setModelVisible(label, cb.checked);
-          } else if (V.modelRoot) {
-            V.modelRoot.traverse(obj => { if (obj.isMesh) obj.visible = cb.checked; });
+          // FEDERATION — toggle THIS model root by id (three.js gates its meshes via
+          // the root's visibility), then re-apply the active appearance across the
+          // federation so a newly-shown model picks up the current scheme.
+          state.modelVisible.set(m.id, cb.checked);
+          if (V.setModelVisibleById && V.setModelVisibleById(m.id, cb.checked)) {
+            applyAppearance();
+          } else {
+            const extras = window.STING_VIEWER_EXTRAS;
+            const label = m.name || m.fileName || '';
+            if (extras && extras.setModelVisible && label) extras.setModelVisible(label, cb.checked);
+            else if (V.modelRoot) vizGroup().traverse(obj => { if (obj.isMesh) obj.visible = cb.checked; });
           }
         });
         list.appendChild(row);
@@ -2143,12 +2155,12 @@
       const active = $$('.level-pill.active').map(p => p.dataset.lvl);
       if (!active.length) {
         V.renderer.clippingPlanes = [];
-        if (V.modelRoot) V.modelRoot.traverse(o => { if (o.isMesh) o.visible = true; });
+        if (V.modelRoot) vizGroup().traverse(o => { if (o.isMesh) o.visible = true; });
         return;
       }
       const wanted = state.levelBands.filter(b => active.includes(b.level));
       if (!V.modelRoot || !wanted.length) return;
-      V.modelRoot.traverse(obj => {
+      vizGroup().traverse(obj => {
         if (!obj.isMesh) return;
         const cy = getCentroidY(obj);
         obj.visible = wanted.some(w => cy >= w.min - 0.01 && cy <= w.max + 0.01);
@@ -3074,6 +3086,51 @@
     // Resolves a mesh's guid from its own userData, then ancestors, then name,
     // accepting only a guid that exists in elementMap. Logs the hit-rate so a
     // bad export (meshes with no resolvable guid) is visible immediately.
+    // FEDERATION — co-load every OTHER project model into the same scene so the viz
+    // layer spans the whole federation (3×MBALWA + 2×Tendo …). Each model's GLB is
+    // added via the engine's addModel (shared recenter → relative positions) and its
+    // element-map merged into state.elementMap (guids are globally unique Revit ids).
+    // Best-effort + sequential so a slow/missing model can't block the rest.
+    async function loadFederatedModels() {
+      if (state.federatedLoaded) return;
+      state.federatedLoaded = true;
+      state.modelVisible.set(modelId, true);
+      const others = (state.models || []).filter(m => m && m.id && m.id !== modelId);
+      if (!others.length) return;
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
+      if (tenantId) headers['X-Tenant'] = tenantId;
+      for (const m of others) {
+        try {
+          const res = await fetch(`${apiBase}/api/projects/${projectId}/models/${m.id}/file`, { headers, cache: 'no-store' });
+          if (!res.ok) continue;
+          const blobUrl = URL.createObjectURL(await res.blob());
+          let transform = null;
+          try { transform = await api(`/api/projects/${projectId}/models/${m.id}/transform`); } catch (_) {}
+          try { const map = await api(`/api/projects/${projectId}/models/${m.id}/element-map`); if (map && typeof map === 'object') Object.assign(state.elementMap, map); } catch (_) {}
+          handleHostCommand({ type: 'addModel', payload: { url: blobUrl, transform, modelId: m.id } });
+          state.modelVisible.set(m.id, true);
+        } catch (e) { console.warn('[fed] model load failed', m.id, e); }
+      }
+      // Wait for the async GLTF loads to land in the scene, then re-index + re-apply
+      // the appearance across ALL roots and refresh the (now aggregated) panel.
+      const expected = 1 + others.length;
+      let tries = 0;
+      const iv = setInterval(() => {
+        tries++;
+        const n = (V.modelRoots || []).length;
+        if (n >= expected || tries > 40) {
+          clearInterval(iv);
+          rebuildGuidIndex();
+          applyAppearance();
+          renderVisualizePanel();
+          if (typeof renderModels === "function") renderModels();
+          console.log(`[fed] STING_VIZ_FEDERATION ${n} model roots co-rendered`);
+        }
+      }, 300);
+    }
+
     function rebuildGuidIndex() {
       guidIndex.clear();
       state.meshMeta = new Map();
@@ -3081,7 +3138,7 @@
       if (!V.modelRoot) return;
       const map = state.elementMap || {};
       let total = 0, hit = 0;
-      V.modelRoot.traverse(obj => {
+      vizGroup().traverse(obj => {
         if (!obj.isMesh) return;
         total++;
         // PART A / A1 — THE single true-original store. Captured ONCE at load,
@@ -3134,7 +3191,7 @@
       // a glTF added meshes (e.g., federation deferred-load).
       if (!V.modelRoot) return null;
       let found = null;
-      V.modelRoot.traverse(obj => {
+      vizGroup().traverse(obj => {
         if (!found && obj.isMesh && obj.userData.elementGuid === guid) found = obj;
       });
       if (found) guidIndex.set(guid, found);
@@ -3261,7 +3318,7 @@
       const b = findMeshByGuid(c.elementB?.guid);
       const keep = new Set([a, b].filter(Boolean).map(m => m.uuid));
       if (V.modelRoot && keep.size) {
-        V.modelRoot.traverse(o => {
+        vizGroup().traverse(o => {
           if (!o.isMesh) return;
           o.visible = true;
           if (!keep.has(o.uuid)) ghostMaterial(o);   // ghost the context
@@ -3396,7 +3453,7 @@
       const bGuid = c.elementB?.guid;
       const set = new Set([aGuid, bGuid].filter(Boolean));
       if (!set.size) return;
-      V.modelRoot.traverse(o => {
+      vizGroup().traverse(o => {
         if (!o.isMesh) return;
         o.visible = set.has(o.userData.elementGuid);
       });
@@ -3516,7 +3573,7 @@
       const ptr = new THREE_.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
       const ray = new THREE_.Raycaster();
       ray.setFromCamera(ptr, V.camera);
-      const hits = V.modelRoot ? ray.intersectObject(V.modelRoot, true) : [];
+      const hits = V.modelRoot ? ray.intersectObject(vizGroup(), true) : [];
       if (hits.length && hits[0].object && hits[0].object.isMesh) {
         const mesh = hits[0].object;
         const guid = mesh.userData && mesh.userData.elementGuid;
@@ -3659,7 +3716,7 @@
         { glyph: '◎',  label: 'Isolate pair',      run: () => isolateClashPair(c) },
         { glyph: '⊘',  label: 'Hide both',         run: () => {
             if (!V.modelRoot) return;
-            V.modelRoot.traverse(o => { if (o.isMesh && (o.userData.elementGuid === aGuid || o.userData.elementGuid === bGuid)) o.visible = false; });
+            vizGroup().traverse(o => { if (o.isMesh && (o.userData.elementGuid === aGuid || o.userData.elementGuid === bGuid)) o.visible = false; });
             toast('Hid clash pair');
         }},
         { glyph: '⊙',  label: 'Show all',          run: () => showAllElements() },
@@ -3683,7 +3740,7 @@
         { glyph: '◎',  label: 'Isolate linked elements', run: () => {
             if (!V.modelRoot || !Array.isArray(i.elementGuids)) return;
             const set = new Set(i.elementGuids);
-            V.modelRoot.traverse(o => {
+            vizGroup().traverse(o => {
               if (!o.isMesh) return;
               o.visible = set.has(o.userData.elementGuid);
             });
@@ -5427,7 +5484,7 @@
         ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
         ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
         ray.setFromCamera(ptr, V.camera);
-        const hits = ray.intersectObject(V.modelRoot, true);
+        const hits = ray.intersectObject(vizGroup(), true);
         if (hits.length) {
           const p = hits[0].point;
           readout.innerHTML = `<span class="x">X</span> ${p.x.toFixed(2)}m  <span class="y">Y</span> ${p.y.toFixed(2)}m  <span class="z">Z</span> ${p.z.toFixed(2)}m`;
@@ -5491,7 +5548,7 @@
           const pinHits = ray.intersectObject(V.pinGroup, true);
           if (pinHits.length) return;
         }
-        const hits = ray.intersectObject(V.modelRoot, true);
+        const hits = ray.intersectObject(vizGroup(), true);
         if (hits.length) {
           lastClickPoint = hits[0].point.clone();
           // Pivot mode — a single click sets the orbit centre (controls.target)
@@ -5515,7 +5572,7 @@
         ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
         ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
         ray.setFromCamera(ptr, V.camera);
-        const hits = ray.intersectObject(V.modelRoot, true);
+        const hits = ray.intersectObject(vizGroup(), true);
         if (!hits.length) return;
         const m = hits[0].object;
         if (m && m.isMesh) {
@@ -6602,7 +6659,8 @@
         $('#bootLoader')?.style.setProperty('display', 'none');
         invalidateCentroidCache();   // L7 — fresh model, fresh cache
         rebuildGuidIndex();          // B7 — GUID→mesh map for fast lookups
-        loadVizState();              // B3 — restore this model's saved visualize state
+        loadVizState();              // B3 — restore this PROJECT's saved visualize state
+        loadFederatedModels();       // FEDERATION — co-load the rest of the project
         placeIssuePins();
         placeClashPins();
         placePhotoPins();             // Slice 4b — photo pins after model bounds known
