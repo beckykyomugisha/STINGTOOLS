@@ -432,6 +432,41 @@ PENDING-HUMAN-VERIFY (full loop on devices):
 - [ ] End the session → the BCC meeting flips to COMPLETED, attendance lists who joined, and
       `Export Minutes` produces the minutes doc. (Recording row appears once N2 is deployed.)
 
+### N2 — meeting recording via LiveKit Egress · markers `N2-recording` (livekit-av + meeting-sync) · SERVED + COMPILES; recording FUNCTIONALLY PENDING (needs egress infra)
+Server-side recording of a live session to the object store via LiveKit Egress, linked to the session +
+meeting (flows into N5 live-artifacts + minutes). **Host-gated start/stop; a consent `● REC` indicator
+shows for everyone.**
+
+**What landed**
+- Entity `MeetingRecording` (ITenantScoped, no FK nav) + DbSet + config; table created at runtime via
+  `PatchDevSchemaAsync` CREATE TABLE (idempotent) + manual `dev-schema-patch.sql`. Hand-authored
+  migration `20260607000000_MeetingRecordings` (repo convention — no [Migration]/Designer) **and** the
+  model snapshot block was added in the same commit (P3-2 forward-practice → no NEW snapshot drift).
+- `LiveKitEgressClient` — Twirp `StartRoomCompositeEgress`/`StopEgress` with a raw-HMAC egress JWT
+  (`video.roomRecord`), S3/MinIO output per-request. `IsConfigured` false until LiveKit creds + an S3
+  target are set ⇒ endpoints 501 (ships dark, like livekit-token).
+- `MeetingRoomController`: `POST /{sid}/recording/start` (host-gated, idempotent, 501 unconfigured),
+  `POST /{sid}/recording/stop`, `GET /{sid}/recording`; broadcasts `RecordingChanged` over MeetingHub.
+  N5 `live-artifacts.recordings` now returns real rows.
+- Frontend: host-only ⏺ record toggle + a `● REC` consent indicator shown to ALL participants, driven
+  by the `RecordingChanged` broadcast (meeting-sync relays → `sting:recordingChanged`).
+- Infra: opt-in `egress` service in docker-compose (`--profile egress`) + api env
+  `LiveKit__ServerUrl` + `LiveKit__Egress__S3__*` (**secrets env-only**).
+
+**Verified here** (rebuilt container): served markers `N2-recording` on both bundles; `recording/start`
+→ **501** (egress unconfigured); `GET recording` → 204/null and `live-artifacts.recordings` → `[]`
+(table queries succeed → table exists); schema-patch `11 ok, 0 failed`. Local `dotnet build` + docker
+publish → 0 errors.
+
+**FUNCTIONALLY PENDING (cannot be verified in this dev stack — `livekit --dev` is in-memory, no egress
+dispatch, no S3):** to produce a real recording —
+1. Run `livekit-server` NOT in `--dev`, configured with the SAME redis as egress + a real key/secret.
+2. Put `EGRESS_S3_*` (+ `LIVEKIT_*`) in `.env` (never commit).
+3. `docker compose --profile egress up -d egress`.
+- [ ] PENDING-HUMAN-VERIFY (2 tabs, egress deployed): host taps ⏺ → both tabs show `● REC`; stop → a
+      playable file lands in the bucket; the meeting's `live-artifacts.recordings` lists it with size; a
+      webhook/`egress_ended` finalises StorageKey + size (webhook handler is a follow-up).
+
 ### Slice index (all on branch `claude/optimistic-bell-EfjJw`, PR #306 — do not merge)
 | Slice | Marker | Commit | What |
 |---|---|---|---|
@@ -445,6 +480,7 @@ PENDING-HUMAN-VERIFY (full loop on devices):
 | N3 | `N3-docs` | (this commit) | document presentation: fix `/file`→`/download` (surface never rendered) · discoverable doc picker (searchable list) · drag-drop / upload a local file → persisted then shared |
 | N4 | `N4-layout` | (this commit) | meeting panel movable / minimisable / closeable (full LiveKit+SignalR teardown) · PiP/sidebar/theater layout modes + persistence + sizeRenderer reframe (grid-reflow dock deferred) |
 | N5 | (server+mobile) | (this commit) | BCC⇄live one flow: `POST /meetings/{id}/live-session` (idempotent), `liveSessionId` on meeting DTOs, `GET /meetings/{id}/live-artifacts`, end→roster→attendees + COMPLETED · mobile LIVE badge + Resume + artifacts card. Server functionally verified; mobile tsc-clean. |
+| N2 | `N2-recording` | (this commit) | LiveKit Egress recording: `MeetingRecording` entity+table (migration+snapshot, P3-2-correct), `LiveKitEgressClient` (Twirp, 501 unconfigured), host-gated start/stop/get + `RecordingChanged` consent `● REC`, recordings in live-artifacts, opt-in `egress` compose service. SERVED+COMPILES; recording functionally PENDING (needs egress+S3). |
 
 ### Cross-cutting caveats / known follow-ups
 - **Mobile parity:** `live.tsx` covers native A/V + surface-follow + co-presence; the M2 markup,

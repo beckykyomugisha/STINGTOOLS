@@ -27,7 +27,7 @@
 
   // STEP-0 SERVED marker — bumped per slice so a marker grep on the *served*
   // bundle proves the running container has this exact change.
-  var STING_MEETING_BUILD = "N4-layout";
+  var STING_MEETING_BUILD = "N2-recording";
   try { console.log("[livekit] STING_MEETING_BUILD " + STING_MEETING_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -52,6 +52,7 @@
     micOn: true,
     camOn: true,
     screenOn: false,
+    recording: false,    // N2 — whether the room is being recorded (LiveKit Egress)
     isPresenter: false,
     surface: "model",     // model | document | screen (WS3d)
     tiles: new Map(),     // participant.sid → { wrap, video, label }
@@ -97,6 +98,11 @@
     var bar = document.getElementById("lkBar"); if (!bar) return;
     if (mode === "sidebar") { bar.style.left = "auto"; bar.style.right = "12px"; bar.style.transform = "none"; }
     else { bar.style.left = "50%"; bar.style.right = "auto"; bar.style.transform = "translateX(-50%)"; }
+  });
+  // N2 — the host started/stopped recording (MeetingHub RecordingChanged); show the
+  // consent "● REC" indicator to EVERYONE.
+  window.addEventListener("sting:recordingChanged", function (e) {
+    applyRecordingState(!!(e.detail && e.detail.recording));
   });
 
   // ── boot: load livekit-client, fetch a token, show the JOIN lobby ─────────
@@ -172,7 +178,7 @@
       .on(LK.RoomEvent.Disconnected, function () { onRoomDisconnected(); });
 
     room.connect(info.url, info.token)
-      .then(function () { setStatus("live"); setLobby("live"); renderTiles(); emitAvState(); return enableDevices(); })
+      .then(function () { setStatus("live"); setLobby("live"); renderTiles(); emitAvState(); refreshRecordingState(); return enableDevices(); })
       .catch(function (e) {
         console.warn("[livekit] connect failed", e);
         setStatus("offline"); setLobby("error");
@@ -866,6 +872,33 @@
     emitAvState();   // N1 — clear "in call" status on the roster
   }
 
+  // ── N2 — recording (host-gated start/stop; consent indicator for all) ───────
+  function toggleRecording() {
+    if (!state.isPresenter) return;
+    var path = state.recording ? "stop" : "start";
+    fetch(apiBase + "/api/projects/" + projectId + "/meeting-sessions/" + sessionId + "/recording/" + path,
+      { method: "POST", headers: jsonHeaders(), body: JSON.stringify({}) })
+      .then(function (r) {
+        if (r.status === 501) { toast("Recording unavailable — LiveKit Egress not configured"); return; }
+        if (!r.ok) { toast("Recording " + path + " failed"); return; }
+        // The RecordingChanged broadcast flips the indicator for everyone (incl. us).
+      })
+      .catch(function () { toast("Recording " + path + " failed"); });
+  }
+  function applyRecordingState(on) {
+    state.recording = on;
+    var ind = document.getElementById("lkRec"); if (ind) ind.style.display = on ? "inline" : "none";
+    var b = document.getElementById("lkRecBtn");
+    if (b) { b.style.background = on ? "rgba(255,82,82,0.92)" : "rgba(255,255,255,0.14)"; b.title = on ? "Stop recording" : "Start recording (saved to the meeting)"; }
+  }
+  function refreshRecordingState() {
+    fetch(apiBase + "/api/projects/" + projectId + "/meeting-sessions/" + sessionId + "/recording",
+      { headers: token ? { "Authorization": "Bearer " + token } : {} })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (rec) { applyRecordingState(!!(rec && (rec.status === "ACTIVE" || rec.status === "STARTING"))); })
+      .catch(noop);
+  }
+
   // ── UI shell ────────────────────────────────────────────────────────────────
   // M1 — one persistent bar with three rows: an "in a meeting" pill (always),
   // the participant tile strip (live only), and a control row that swaps between
@@ -884,6 +917,8 @@
     pill.appendChild(el("span", { id: "lkDot", style:
       "width:9px;height:9px;border-radius:50%;background:#e8a13a;flex:0 0 auto" }));
     pill.appendChild(el("span", { id: "lkPillTxt" }, "In a meeting"));
+    // N2 — consent recording indicator, shown to ALL participants while recording.
+    pill.appendChild(el("span", { id: "lkRec", style: "display:none;color:#ff5252;font-weight:700;margin-left:4px" }, "● REC"));
     bar.appendChild(pill);
 
     // Row 2 — participant tiles (populated once live).
@@ -923,6 +958,8 @@
       // hidden anchor so paintSurfaceSwitch can highlight the 'screen' surface too
       live.appendChild(el("span", { id: "lkSurf_screen", style: "display:none" }));
     }
+    // N2 — host-only record toggle (consent indicator shows for everyone via RecordingChanged).
+    if (state.isPresenter) live.appendChild(ctrlBtn("lkRecBtn", "⏺", toggleRecording, "Start / stop recording (saved to the meeting)"));
     live.appendChild(ctrlBtn("lkLeave", "✖", leave, "Leave A/V", "#d05050"));
     bar.appendChild(live);
 

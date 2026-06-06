@@ -125,6 +125,17 @@ are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that fil
 - [ ] 📋 link/create formal meeting (button greens; other tab greens via RoomChanged).
 - [ ] 📋 (linked) add action item; blank → generate minutes (MEETING_MINUTES doc record).
 
+### N2 — meeting recording via LiveKit Egress  · markers `N2-recording` (livekit-av + meeting-sync) + server
+SERVED + COMPILES; the recording artifact is FUNCTIONALLY PENDING (needs egress service + S3 — dev
+`livekit --dev` is in-memory). Verified on the rebuilt container: served `N2-recording` on both bundles;
+`recording/start` → 501 (egress unconfigured); `GET recording` → 204/null + `live-artifacts.recordings`
+→ [] (table queries OK → table created; schema-patch 11 ok/0 failed). Local dotnet build + docker publish 0 err.
+- MeetingRecording entity + table (migration + snapshot block, P3-2-correct → no new drift) + dev-schema-patch.
+- LiveKitEgressClient (Twirp room-composite/audio egress → S3; 501 until configured).
+- Host-gated start/stop/get + RecordingChanged → consent ● REC for everyone; recordings in N5 artifacts.
+- Opt-in `egress` compose service (`--profile egress`) + LiveKit__ServerUrl + Egress S3 env (secrets env-only).
+- [ ] PENDING-HUMAN-VERIFY (egress deployed, 2 tabs): ⏺ → ● REC both tabs → stop → file in bucket + listed in artifacts. Deploy steps in docs/MEETINGS_AUDIT.md → N2.
+
 ### N5 — BCC meetings ⇄ live meetings (one flow)  · server + mobile (no viewer marker)
 Server FUNCTIONALLY VERIFIED via a logged-in REST run against the rebuilt container (create → live-session
 idempotent → IN_PROGRESS → live-artifacts → end → COMPLETED + attendance flow-back). Mobile `tsc --noEmit`

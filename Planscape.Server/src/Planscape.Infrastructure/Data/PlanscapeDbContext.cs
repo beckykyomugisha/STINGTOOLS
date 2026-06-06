@@ -105,6 +105,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<MeetingSession> MeetingSessions => Set<MeetingSession>();
     public DbSet<MeetingViewerParticipant> MeetingViewerParticipants => Set<MeetingViewerParticipant>();
     public DbSet<MeetingSnapshot> MeetingSnapshots => Set<MeetingSnapshot>();
+    public DbSet<MeetingRecording> MeetingRecordings => Set<MeetingRecording>();
     // Pillar B — IoT / digital twin
     public DbSet<DeviceTwin> DeviceTwins => Set<DeviceTwin>();
     public DbSet<TelemetryPoint> TelemetryPoints => Set<TelemetryPoint>();
@@ -739,6 +740,17 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(x => x.Session).WithMany().HasForeignKey(x => x.SessionId);
             e.Property(x => x.Label).HasMaxLength(200);
             e.HasIndex(x => new { x.SessionId, x.CapturedAt });
+        });
+        // N2 — LiveKit Egress recordings (no FK nav; plain SessionId/MeetingId).
+        modelBuilder.Entity<MeetingRecording>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.Kind).HasMaxLength(24);
+            e.Property(x => x.EgressId).HasMaxLength(128);
+            e.HasIndex(x => x.SessionId);
+            e.HasIndex(x => new { x.ProjectId, x.MeetingId });
+            e.HasIndex(x => x.EgressId);
         });
 
         // ── Pillar B — IoT / digital twin ──

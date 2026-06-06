@@ -67,6 +67,16 @@ services:
       - LiveKit__Url=${LIVEKIT_URL:-ws://localhost:7880}
       - LiveKit__ApiKey=${LIVEKIT_API_KEY:-devkey}
       - LiveKit__ApiSecret=${LIVEKIT_API_SECRET:-secret}
+      # N2 — server→livekit http endpoint for Egress Twirp calls (internal compose host).
+      - LiveKit__ServerUrl=${LIVEKIT_SERVER_URL:-http://livekit:7880}
+      # N2 — LiveKit Egress recording target (S3 / MinIO). EMPTY ⇒ /recording/* return 501
+      # (feature ships dark). Set these in .env (secrets env-only) AND start the egress
+      # service: `docker compose --profile egress up -d egress`. See MEETINGS_AUDIT → N2.
+      - LiveKit__Egress__S3__Endpoint=${EGRESS_S3_ENDPOINT:-}
+      - LiveKit__Egress__S3__Bucket=${EGRESS_S3_BUCKET:-}
+      - LiveKit__Egress__S3__Region=${EGRESS_S3_REGION:-us-east-1}
+      - LiveKit__Egress__S3__AccessKey=${EGRESS_S3_ACCESS_KEY:-}
+      - LiveKit__Egress__S3__Secret=${EGRESS_S3_SECRET:-}
     depends_on:
       # NB: pgbouncer is intentionally NOT listed here. It lives behind the
       # optional `pool` profile (see below), and Compose rejects the whole
@@ -118,6 +128,33 @@ services:
       - "7881:7881"               # ICE/TCP fallback
       - "50000-50019:50000-50019/udp"  # RTC media (small dev range)
     restart: unless-stopped
+
+  # N2 — LiveKit Egress: records meeting rooms (room-composite A/V or audio-only) to
+  # S3/MinIO. OPT-IN via the "egress" profile so a plain `docker compose up` doesn't
+  # start it. IMPORTANT: the dev `livekit --dev` above runs in-memory (no redis
+  # dispatch), so egress is a STAGING/PROD feature — recording is functionally
+  # pending in this dev stack (the api's /recording/* endpoints return 501 until
+  # LiveKit:Egress:S3:* is set). To enable end-to-end:
+  #   1) run livekit-server NOT in --dev, configured with the SAME redis as egress
+  #      + a real api key/secret;
+  #   2) put EGRESS_S3_* (+ LIVEKIT_*) in .env (secrets env-only, never committed);
+  #   3) `docker compose --profile egress up -d egress`.
+  # The S3 target is sent per-request by the api (LiveKitEgressClient), so this
+  # service only needs redis + the api creds + the internal ws_url.
+  egress:
+    image: livekit/egress:latest
+    profiles: ["egress"]
+    restart: unless-stopped
+    environment:
+      EGRESS_CONFIG_BODY: |
+        redis:
+          address: redis:6379
+        api_key: ${LIVEKIT_API_KEY:-devkey}
+        api_secret: ${LIVEKIT_API_SECRET:-secret}
+        ws_url: ws://livekit:7880
+    depends_on:
+      - redis
+      - livekit
 
   # Mailpit — local SMTP capture (dev/proof). Catches every outbound email so the
   # full send path + link can be PROVEN without real creds. Web UI on :8025, SMTP

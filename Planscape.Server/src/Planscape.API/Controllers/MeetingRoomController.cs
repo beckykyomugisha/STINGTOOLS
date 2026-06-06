@@ -323,6 +323,99 @@ public class MeetingRoomController : ControllerBase
         return Ok(new { token, url, identity, room, isPresenter });
     }
 
+    // ── N2 — meeting recording via LiveKit Egress (host-gated, consent-visible) ──
+
+    /// <summary>POST — host starts recording the live room (LiveKit Egress → object store).
+    /// 501 when egress/S3 isn't configured. Idempotent: returns the running recording if any.
+    /// Broadcasts RecordingChanged so every client shows the consent "● REC" indicator.</summary>
+    [HttpPost("{sessionId:guid}/recording/start")]
+    public async Task<ActionResult<object>> StartRecording(
+        Guid projectId, Guid sessionId, [FromBody] StartRecordingRequest? req, CancellationToken ct)
+    {
+        var session = await _db.MeetingSessions.FirstOrDefaultAsync(x => x.Id == sessionId && x.ProjectId == projectId, ct);
+        if (session is null) return NotFound();
+        if (session.Status != "ACTIVE") return BadRequest("session ended");
+        var userId = GetUserId();
+        if (session.HostUserId != userId) return Forbid();   // host-gated
+
+        var egress = new LiveKitEgressClient(_config);
+        if (!egress.IsConfigured)
+            return StatusCode(501, new { error = "LiveKit Egress is not configured (set LiveKit:ServerUrl + LiveKit:Egress:S3:*)" });
+
+        // Idempotent — one active recording per session.
+        var existing = await _db.MeetingRecordings
+            .FirstOrDefaultAsync(r => r.SessionId == sessionId && (r.Status == "ACTIVE" || r.Status == "STARTING"), ct);
+        if (existing != null) return Ok(ToRecDto(existing));
+
+        var audioOnly = req?.AudioOnly ?? false;
+        var result = await egress.StartAsync(sessionId.ToString(), audioOnly, ct);
+        if (result is null) return StatusCode(502, new { error = "egress start failed" });
+
+        var rec = new MeetingRecording
+        {
+            TenantId = session.TenantId,
+            ProjectId = projectId,
+            SessionId = sessionId,
+            MeetingId = session.MeetingId,
+            EgressId = result.EgressId,
+            Kind = audioOnly ? "audio-only" : "room-composite",
+            Status = "ACTIVE",
+            StorageKey = result.StorageKey,
+            StartedBy = User.Identity?.Name ?? "",
+            StartedByUserId = userId,
+        };
+        _db.MeetingRecordings.Add(rec);
+        await _db.SaveChangesAsync(ct);
+        await _hub.Clients.Group($"meeting:{sessionId}").SendAsync("RecordingChanged",
+            new { recording = true, recordingId = rec.Id, kind = rec.Kind }, ct);
+        return Ok(ToRecDto(rec));
+    }
+
+    /// <summary>POST — host stops the running recording. Broadcasts RecordingChanged (off).</summary>
+    [HttpPost("{sessionId:guid}/recording/stop")]
+    public async Task<ActionResult<object>> StopRecording(Guid projectId, Guid sessionId, CancellationToken ct)
+    {
+        var session = await _db.MeetingSessions.FirstOrDefaultAsync(x => x.Id == sessionId && x.ProjectId == projectId, ct);
+        if (session is null) return NotFound();
+        var userId = GetUserId();
+        if (session.HostUserId != userId) return Forbid();
+
+        var rec = await _db.MeetingRecordings
+            .FirstOrDefaultAsync(r => r.SessionId == sessionId && (r.Status == "ACTIVE" || r.Status == "STARTING"), ct);
+        if (rec is null) return NoContent();
+
+        var egress = new LiveKitEgressClient(_config);
+        if (egress.IsConfigured && !string.IsNullOrEmpty(rec.EgressId))
+            await egress.StopAsync(rec.EgressId, ct);   // best-effort; webhook finalises file metadata
+
+        rec.Status = "STOPPING";
+        rec.EndedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        await _hub.Clients.Group($"meeting:{sessionId}").SendAsync("RecordingChanged",
+            new { recording = false, recordingId = rec.Id }, ct);
+        return Ok(ToRecDto(rec));
+    }
+
+    /// <summary>GET — the latest recording for this session (null when none).</summary>
+    [HttpGet("{sessionId:guid}/recording")]
+    public async Task<ActionResult<object>> GetRecording(Guid projectId, Guid sessionId, CancellationToken ct)
+    {
+        var owned = await _db.MeetingSessions.AnyAsync(x => x.Id == sessionId && x.ProjectId == projectId, ct);
+        if (!owned) return NotFound();
+        var rec = await _db.MeetingRecordings.Where(r => r.SessionId == sessionId)
+            .OrderByDescending(r => r.StartedAt).FirstOrDefaultAsync(ct);
+        return Ok(rec is null ? null : ToRecDto(rec));
+    }
+
+    public class StartRecordingRequest { public bool AudioOnly { get; set; } }
+
+    private static object ToRecDto(MeetingRecording r) => new
+    {
+        r.Id, r.SessionId, r.MeetingId, r.EgressId, r.Kind, r.Status,
+        r.StorageKey, r.FileName, r.FileSizeBytes, r.DurationSeconds,
+        r.StartedBy, r.StartedAt, r.EndedAt, r.Error,
+    };
+
     private static object ToDto(MeetingSession s) => new
     {
         s.Id, s.ProjectId, s.MeetingId, s.HostUserId, s.ModelId,

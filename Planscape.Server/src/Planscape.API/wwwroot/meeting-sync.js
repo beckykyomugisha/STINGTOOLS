@@ -24,7 +24,7 @@
   "use strict";
 
   // STEP-0 SERVED marker — bumped per slice that touches this file.
-  var STING_MEETINGSYNC_BUILD = "N4-layout";
+  var STING_MEETINGSYNC_BUILD = "N2-recording";
   try { console.log("[meeting] STING_MEETINGSYNC_BUILD " + STING_MEETINGSYNC_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -187,6 +187,8 @@
     // M2 — a markup op on the shared DOCUMENT surface (add stroke / clear / grant);
     // livekit-av.js renders it on the markup canvas so everyone sees it live.
     conn.on("DocMarkupChanged", function (m) { window.dispatchEvent(new CustomEvent("sting:docMarkupChanged", { detail: m })); });
+    // N2 — host started/stopped recording; livekit-av.js shows the "● REC" consent indicator.
+    conn.on("RecordingChanged", function (s) { window.dispatchEvent(new CustomEvent("sting:recordingChanged", { detail: s })); });
 
     // ── M3 — conferencing essentials (chat / reactions / hand / moderation) ──
     conn.on("ChatReceived", function (m) { addChatLine((m && m.from) || "Guest", (m && m.text) || "", false); });

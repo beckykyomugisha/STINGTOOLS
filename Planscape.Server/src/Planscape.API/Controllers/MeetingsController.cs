@@ -971,7 +971,14 @@ public class MeetingsController : ControllerBase
             })
             .ToListAsync(ct);
 
-        return Ok(new { meetingId, sessions, snapshots, attendance, recordings = Array.Empty<object>() });
+        // N2 — recordings for this meeting's session(s) (LiveKit Egress → object store).
+        var recordings = await _db.MeetingRecordings
+            .Where(r => sessionIds.Contains(r.SessionId))
+            .OrderByDescending(r => r.StartedAt)
+            .Select(r => new { r.Id, r.SessionId, r.Kind, r.Status, r.StorageKey, r.FileName, r.FileSizeBytes, r.DurationSeconds, r.StartedAt, r.EndedAt })
+            .ToListAsync(ct);
+
+        return Ok(new { meetingId, sessions, snapshots, attendance, recordings });
     }
 
     public class StartLiveSessionRequest
