@@ -215,12 +215,18 @@ namespace StingTools.Core
 
         private static void EnsureWriter()
         {
+            // Touch LogPath up front so the getter performs day-rollover: when the
+            // date changes it disposes the still-open writer and repoints the path,
+            // so post-midnight entries land in the new StingTools_<today>.log instead
+            // of yesterday's file. Previously LogPath was only read inside the
+            // _writer == null branch, so a writer that stayed open across midnight
+            // kept the prior day's filename until disposed for some other reason.
+            string path = LogPath;
             if (_writer == null)
             {
                 // AG-10 FIX: Check file size — rotate if exceeded to prevent disk exhaustion
                 try
                 {
-                    string path = LogPath;
                     if (File.Exists(path))
                     {
                         var fi = new FileInfo(path);
@@ -246,7 +252,7 @@ namespace StingTools.Core
                 FileStream stream = null;
                 try
                 {
-                    stream = new FileStream(LogPath, FileMode.Append, FileAccess.Write, FileShare.Read);
+                    stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
                     _writer = new StreamWriter(stream) { AutoFlush = true };
                     stream = null; // ownership transferred to _writer
                 }
