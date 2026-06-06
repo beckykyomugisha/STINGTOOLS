@@ -13,6 +13,17 @@ Mobile: `tsc --noEmit`.
 
 ---
 
+## Mission adjustments (logged)
+1. **Early area stop:** end an area as soon as a full round yields 0 new Critical/High AND a
+   regression round is clean — do NOT force the full 8–10 rounds on already-clean areas; spend
+   cycles where defects exist.
+2. **#306 divergence guard:** A4 (`Planscape/assets/viewer`) and the meetings server code
+   (`MeetingHub`, `MeetingRoomController`, `MeetingsController`, `HubTenantGuard`, meeting
+   entities/DTOs) are heavily changed on the unmerged PR #306. Reviewing them off `main` would be
+   stale + conflict-prone. **DEFER A4 + meetings-server review** until #306 merges (then a
+   rebase-onto-#306 review). In-scope now: A1 Core, A2 Data, A3 non-meeting server, engine sub-dirs,
+   A6 commands, A7 tooling.
+
 ## AREA A1 — StingTools/Core (foundational infra)
 
 **Scope decision (logged):** A1 = the high-blast-radius cross-cutting infrastructure under
@@ -76,3 +87,41 @@ change is a variable-reuse + getter-reorder refactor with no API-surface change 
 Coverage map updated: StingLog ×1(full), TransactionHelper ×1(full), ComplianceScan ×1(full),
 others ×1(scan). Next round must read ParamRegistry / ParameterHelpers / TagConfig / WorkflowEngine /
 StingToolsApp in full (R2 integration/alignment) to hit the ≥2× target.
+
+#### A1 · R2 — integration / alignment (single-source-of-truth contract)
+Focus: `ParamRegistry` ↔ `PARAMETER_REGISTRY.json` ↔ `MR_PARAMETERS.txt` integrity (also de-risks A2).
+Pattern-scanned `ParamRegistry.cs` load path (`_guidByName`/`_nameByGuid` builders, lines ~2099–2258):
+the registry mixes **first-wins** (`if (ContainsKey) continue`, 2099) and **last-wins** (`_guidByName[name]=g`,
+2257) across sections — so a name defined twice with different GUIDs resolves by fragile load order.
+
+| # | File:line | Dim | Sev | Root cause | Blast radius | Disposition |
+|---|---|---|---|---|---|---|
+| A1-R2-1 | `Data/PARAMETER_REGISTRY.json` (387/395/403, 27483-27490) | 2 integration / 5 data-integrity | **Medium** | 5 param names each defined twice with **two different GUIDs**; the stale copy used a placeholder namespace (`a1b2c3d4-…100x`) or the **null GUID** (`00000000-…`). A Revit shared param is GUID-identified, so resolving a name to the wrong GUID silently breaks read/write round-trip. | Verified clean: **nothing** in `.cs`/`.csv`/families references the wrong GUIDs; the correct GUIDs already exist in the JSON's other occurrence AND in the authoritative `MR_PARAMETERS.txt`/`.csv`. Consumers reference by **name** (unchanged). | **FIXED** — corrected the 5 wrong GUID strings in place to the `.txt`-authoritative values (`a8f3c1d2-…780x`, `fa93b8a1…`, `4529fc89…`). In-place value edit only — no structural/comma surgery, no reformat (anti-churn). |
+
+Plan-before-fix record for A1-R2-1: (a) stale duplicate GUID defs + load-order ambiguity; (b) grepped
+all `.cs`/`.csv`/`.txt`/families for the wrong GUIDs → none; confirmed `.txt`/`.csv` hold the correct
+GUID; (c) least-blast = correct the wrong value to match the authoritative `.txt` (vs. deleting the
+dup block, which risks JSON structure); (d) no contract change — names unchanged, GUIDs now match the
+field-authoritative source; (e) verified: JSON parses, 0 name→multi-GUID conflicts (was 5), all 5
+match `.txt`. The other ~177 dup names/GUIDs are benign (same name **and** same GUID listed in two
+sections); 0 GUID→multiple-name collisions; 0 malformed GUIDs.
+
+**Scorecard (A1 R2):** Critical 0 · High 0 · Medium 1 (fixed) · Low 0. Fixes applied: 1.
+Build: data-only change, verified by JSON parse + conflict scan (no C# build needed). The runtime
+copies under `bin/` and `CompiledPlugin/data/` are build artifacts — regenerated from source on build,
+not hand-edited.
+
+#### A1 — AREA CLOSE (regression)
+A1 code (R1) is hardened/clean — 0 Critical/High across the read-in-full foundation (StingLog,
+TransactionHelper, ComplianceScan) and the pattern-scanned registry/helpers/tagconfig/app/autotagger.
+A1 data-integrity (R2) had 1 Medium (5 GUID conflicts) — **fixed + verified**. The StingLog rotation
+fix (R1) and the JSON GUID fix (R2) are isolated and re-verified to hold. No new Critical/High.
+Per the early-stop adjustment, **A1 is closed**. Carry-forward to A2: continue the data-integrity
+thread on `MR_PARAMETERS.txt`/`.csv` ↔ registry ↔ CSV data files (the natural continuation of A1-R2-1).
+Open cross-area proposal carried: **CP-1** (WorkflowEngine SLA timestamp tz — settle in A3/A6).
+
+**A1 AREA SUMMARY:** 2 rounds (foundation already pre-hardened ⇒ early stop). Findings: 1 Medium
+(data integrity, fixed), 3 Low (1 fixed: StingLog rotation; 2 logged: WorkflowEngine tz deferred as
+CP-1, TransactionHelper log-wording info). Sustainability win: the param single-source-of-truth no
+longer self-conflicts, so name→GUID binding is load-order-independent for those 5 params.
+
