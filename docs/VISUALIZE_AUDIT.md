@@ -1,5 +1,18 @@
 # Viewer Visualize — audit & change log
 
+### P3 — discipline colour: category override + "Disc + category variants" · marker `disc-variants` · served-verified
+- **(a) Precedence fix:** when colouring by Discipline (preset) or by variants, a category's **custom picked
+  colour now OVERRIDES** the discipline colour (previously discipline won). Other schemes (system/param/status)
+  keep their own resolution.
+- **(b) New mode "Disc + variants":** each discipline keeps its base colour; categories within it get
+  auto-generated **variant shades** (`shadeVariant` spreads lightness ±28%) so they're distinguishable while
+  still reading as that discipline (P=green → Pipes/Fittings/Fixtures = green shades). A custom category colour
+  still wins. Scheme `kind:'discVariants'` keyed on the `disc|cat` pair, with a legend grouped by discipline;
+  rebuilt on reload (serializeViz/restoreViz). New "Disc + variants" preset button.
+- Served proof: minified bundle keeps `discVariants` + "Disc + variants" + marker `disc-variants`.
+  PENDING-HUMAN-VERIFY (incognito): pick a category colour under colour-by-Discipline → it overrides; Disc +
+  variants → categories within a discipline read as distinct shades; legend lists them.
+
 ### P2 — multi-discipline / multi-category isolate · marker `multi-isolate` (coordination-viewer) · served-verified
 BY DISCIPLINE / BY CATEGORY rows gain a **checkbox**; tick several (E+P, S+E…) then **"◎ Shade ticked, ghost
 rest"** shades exactly the ticked set and ghosts everything else (empty selection → show all). "Clear ticks"

@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD multi-isolate');
+    console.log('[viewer] STING_VIZ_BUILD disc-variants');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1133,7 +1133,15 @@
           const key = colourKey(col, v);
           if (col.hidden && col.hidden.has(key)) mode = 'hide';                 // legend shift-click
           else if (col.isolate != null && key !== col.isolate) mode = 'ghost';  // legend isolate → ghost rest
-          else { const c = colourForValue(col, v); mode = c ? ('colour:' + c) : 'show'; }
+          else {
+            // P3a — when colouring by DISCIPLINE (preset) or by discipline+variants, a
+            // custom CATEGORY colour OVERRIDES the discipline/variant colour (was: discipline
+            // won). Other schemes (system/param/status) keep their own resolution.
+            let c;
+            if ((col.kind === 'preset' || col.kind === 'discVariants') && state.vizCustomColours.has(cat)) c = state.vizCustomColours.get(cat);
+            else c = colourForValue(col, v);
+            mode = c ? ('colour:' + c) : 'show';
+          }
         } else {
           // B1 — a per-discipline/category custom colour applies directly even with
           // no active colour scheme (the scheme path already honours it via colourForValue).
@@ -1253,6 +1261,8 @@
       // C4 — clash/issue status schemes resolve by element GUID via a precomputed map.
       if (col.byGuid) return (guid && col.byGuid.get(guid)) || col.def;
       if (col.kind === 'preset') return discOf(meta);
+      // P3b — discipline + category variants: value keys on the (disc|cat) pair.
+      if (col.kind === 'discVariants') return (discOf(meta) || '_other') + '|' + (catKey(meta) || '');
       if (col.numeric) { const raw = tokenValue(meta, col.token); const n = parseFloat(raw); return isFinite(n) ? n : null; }
       let v = String(tokenValue(meta, col.token) || '').trim();
       if (col.token === 'DISC') v = discOf(meta);
@@ -1271,6 +1281,13 @@
       // palette (checked first, for both categorical + preset schemes).
       if (state.vizCustomColours && (v || v === 0) && state.vizCustomColours.has(v)) return state.vizCustomColours.get(v);
       if (col.kind === 'preset') return col.map[v] || col.map._other || null;
+      // P3b — variant value is "disc|cat"; a custom CATEGORY colour wins, else the
+      // precomputed variant shade for that pair.
+      if (col.kind === 'discVariants') {
+        const cat = String(v).split('|')[1] || '';
+        if (cat && state.vizCustomColours.has(cat)) return state.vizCustomColours.get(cat);
+        return col.valueColors.get(v) || col.noValue || null;
+      }
       if (col.numeric) return (v == null) ? col.noValue : rampColour(col, v);
       if (v === '' || v == null) return col.noValue || null;
       return col.valueColors ? (col.valueColors.get(v) || col.noValue || null) : null;
@@ -1580,6 +1597,41 @@
     }
 
     // Discipline appearance preset (solid colour per discipline) — same engine.
+    // P3b — derive a distinguishable shade of a discipline base colour for the i-th of n
+    // categories: spread lightness across roughly ±28% (mix toward white/black) so the
+    // categories read apart while still clearly belonging to that discipline.
+    function shadeVariant(baseHex, i, n) {
+      if (n <= 1) return baseHex;
+      const f = (i / (n - 1) - 0.5) * 0.56;   // -0.28 … +0.28
+      return f >= 0 ? lerpHex(baseHex, '#ffffff', f) : lerpHex(baseHex, '#1a1a1a', -f);
+    }
+    // P3b — "Discipline + category variants": each discipline keeps its base colour;
+    // categories within it get auto variant shades (legend grouped by discipline). Custom
+    // category colours still win (handled in colourForValue). Idempotent toggle.
+    function applyDisciplineVariants() {
+      if (!V.modelRoot) return;
+      if (!restoringViz && state.vizPreset === '__variants') { clearColour(); renderVisualizePanel(); toast('Variants cleared'); return; }
+      const base = DISC_PRESETS['Discipline'];
+      const catsByDisc = {};
+      Object.values(state.elementMap || {}).forEach(m => {
+        const d = discOf(m) || '_other', c = catKey(m) || '';
+        (catsByDisc[d] = catsByDisc[d] || new Set()).add(c);
+      });
+      const valueColors = new Map(), legend = [];
+      Object.keys(catsByDisc).sort().forEach(d => {
+        const bcol = base[d] || base._other || '#5b6472';
+        const cats = Array.from(catsByDisc[d]).sort();
+        cats.forEach((c, i) => {
+          const hex = shadeVariant(bcol, i, cats.length);
+          valueColors.set(d + '|' + c, hex);
+          legend.push({ label: d + ' · ' + (c || '—'), color: hex });
+        });
+      });
+      state.vizPreset = '__variants';
+      state.vizColour = { kind: 'discVariants', valueColors, isolate: null, hidden: new Set(), noValue: '#3a3f4a', legend };
+      applyAppearance();
+      if (!restoringViz) toast('Discipline + category variants');
+    }
     function applyDisciplinePreset(name) {
       const preset = DISC_PRESETS[name];
       if (!preset || !V.modelRoot) return;
@@ -1706,6 +1758,7 @@
         state.vizColour = null;
         if (d.colour) {
           if (d.colour.kind === 'preset' && d.colour.presetName) applyDisciplinePreset(d.colour.presetName);
+          else if (d.colour.kind === 'discVariants') applyDisciplineVariants();   // P3b — rebuild variants
           else if (d.colour.kind === 'clash') colourByClashStatus();
           else if (d.colour.kind === 'issue') colourByIssueStatus();
           else if (d.colour.numeric && d.colour.token) colourByParam(d.colour.token);
@@ -1968,6 +2021,10 @@
       const pRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' });
       Object.keys(DISC_PRESETS).forEach(name => pRow.appendChild(
         el('button', { class: 'btn sm', style: (state.vizPreset === name ? 'border-color:#3B82F6;background:rgba(59,130,246,0.30);color:#fff' : ''), onclick: () => { applyDisciplinePreset(name); renderVisualizePanel(); } }, name)));
+      // P3b — discipline base colour + per-category variant shades.
+      pRow.appendChild(el('button', { class: 'btn sm',
+        style: (state.vizPreset === '__variants' ? 'border-color:#3B82F6;background:rgba(59,130,246,0.30);color:#fff' : ''),
+        onclick: () => { applyDisciplineVariants(); renderVisualizePanel(); } }, 'Disc + variants'));
       presetBox.appendChild(pRow);
       wrap.appendChild(presetBox);
 
