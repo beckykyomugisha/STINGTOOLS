@@ -292,7 +292,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD realistic-glass');
+    console.log('[viewer] STING_VIZ_BUILD props-hints');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -2866,6 +2866,16 @@
             : n6Scalars(v);
           return inner ? ('<div class="prop-section-label">' + escapeHtml(n6Humanize(k)) + '</div>' + inner) : '';
         }).filter(Boolean).join('');
+      // Item 3 — "no data" hints: when a standard group is ABSENT from the element-map,
+      // show a muted hint so it's clear it's a DATA GAP (export from Revit), not a viewer
+      // bug. Present fields are already rendered above (Identity / Dimensions / Performance /
+      // Properties / Relationships / psets via the generic N6 path).
+      const dataHint = (label, what) =>
+        '<div class="prop-section-label">' + label + '</div>' +
+        '<div class="prop-row" style="opacity:0.5"><span class="v">— ' + escapeHtml(what) + '</span></div>';
+      const matsBlock = matsHtml || dataHint('Materials', 'no material data — re-export from Revit with PLANSCAPE_EXPORT_TEXTURES to populate');
+      const qtyBlock  = qtyHtml  || dataHint('Quantities', 'no area/volume/quantity — re-export from Revit with quantities to populate');
+      const psetBlock = groupsHtml ? '' : dataHint('Property sets', 'no IFC psets / classification — re-export from Revit to populate');
       pane.innerHTML = `
         <div class="prop-section-label">Element</div>
         <div class="prop-title">${escapeHtml(meta.name || meta.category || 'Element')}</div>
@@ -2877,13 +2887,14 @@
         <input id="propFilter" placeholder="Filter properties…" style="width:100%;margin:8px 0 4px;background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:5px 8px;font-size:12px" />
         <div id="propRows" style="max-height:42vh;overflow:auto">
           ${fullId.length ? '<div class="prop-section-label">Identity</div>' + fullId.map(([k, v]) => rowHtml(k, v)).join('') : ''}
-          ${matsHtml}
-          ${qtyHtml}
+          ${matsBlock}
+          ${qtyBlock}
           ${dims.length ? '<div class="prop-section-label">Dimensions</div>' + dims.map(([k, v]) => rowHtml(k, v)).join('') : ''}
           ${perfs.length ? '<div class="prop-section-label">Performance</div>' + perfs.map(([k, v]) => rowHtml(k, v)).join('') : ''}
           ${others.length ? '<div class="prop-section-label">Properties</div>' + others.map(([k, v]) => rowHtml(k, v)).join('') : ''}
           ${relHtml}
           ${groupsHtml}
+          ${psetBlock}
         </div>
         <div class="prop-section-label">Actions</div>
         <div class="action-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px">

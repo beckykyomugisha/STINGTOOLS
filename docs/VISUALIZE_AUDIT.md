@@ -17,6 +17,16 @@ Adds **Realistic** to the View menu (alongside Shaded / Wireframe / X-Ray / Ghos
 - PENDING-HUMAN-VERIFY (browser): select Realistic → reflections/lighting appear on MeshStandard materials;
   colour-by/ghost still override; Clear returns to base; pairs with Phase-2 textures once published.
 
+### Properties "no data" hints + full field coverage · marker `props-hints` (coordination-viewer) · served-verified
+When Materials / Quantities / Property-sets are ABSENT from the element-map, the selected-element panel now
+shows a muted per-group hint ("— no material data — re-export from Revit with PLANSCAPE_EXPORT_TEXTURES to
+populate" / "— no area/volume/quantity — re-export with quantities" / "— no IFC psets / classification —
+re-export") so it's clear it's a DATA GAP, not a viewer bug. All PRESENT fields are already shown (N6 generic
+Identity / Dimensions / Performance / Properties / Relationships + nested psets/classification path); Cost
+already shows "— no cost data". Served proof: minified bundle keeps `PLANSCAPE_EXPORT_TEXTURES` + "no IFC
+psets" + marker `props-hints`. PENDING-HUMAN-VERIFY: an element with no quantities shows the hints; one with
+psets renders them (no hint).
+
 ### Realistic exposure tune + glass STOPGAP · marker `realistic-glass` (coordination-viewer) · served-verified
 - **Exposure:** Realistic now sets `toneMappingExposure = 0.8` + `scene.environmentIntensity = 0.55` so flat
   untextured white materials read as LIT, not blown out (OFF restores 1.0 / NoToneMapping / LinearSRGB).
