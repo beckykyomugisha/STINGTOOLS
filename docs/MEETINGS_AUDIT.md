@@ -1,5 +1,12 @@
 # Meetings (Track B) — audit & build log
 
+### Marathon W0–W6 — web meeting gaps CLOSED (parity) · markers w1-authoring/w2-livejoin/w3-rec-core/w5-roles
+Shared `meetings-core.js` (web) + `meetingsCore.ts` (mobile) now back BOTH surfaces (one contract + role matrix).
+Web `/app` gained: role-aware authoring (create/edit/agenda/actions/attendees/minutes+doc), Join-live (viewer
+`?meeting=`), live-start Join banner + `MeetingScheduled`, and recordings via the core. Remaining: mobile
+authoring per-control role gating (web done). See DEPLOY.md parity table + PROGRESS.md for SERVED proofs +
+the exact 2-tab/role PENDING-HUMAN tests.
+
 ### Recordings on the VANILLA web /app dashboard · marker `STING_DASH_BUILD recordings-web` · SERVED-verified
 Mirrored the mobile recordings UI into the served web `/app` (`wwwroot/js/dashboard.js` + a nav-link in
 `wwwroot/app/index.html`) — **not** the Expo app (which isn't web-exportable; see DEPLOY.md). `renderMeetings`
