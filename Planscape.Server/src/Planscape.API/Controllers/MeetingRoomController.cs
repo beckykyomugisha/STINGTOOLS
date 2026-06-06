@@ -22,12 +22,38 @@ public class MeetingRoomController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly IHubContext<MeetingHub> _hub;
     private readonly IConfiguration _config;
+    private readonly Planscape.Core.Interfaces.INotificationService _notifications;   // N — live-meeting notify
 
-    public MeetingRoomController(PlanscapeDbContext db, IHubContext<MeetingHub> hub, IConfiguration config)
+    public MeetingRoomController(PlanscapeDbContext db, IHubContext<MeetingHub> hub, IConfiguration config,
+        Planscape.Core.Interfaces.INotificationService notifications)
     {
         _db = db;
         _hub = hub;
         _config = config;
+        _notifications = notifications;
+    }
+
+    /// <summary>
+    /// N — notify project members (in-app + push, per-user prefs honoured) that a LIVE
+    /// meeting has started, with a deep link to <c>?meeting={sessionId}</c>. Excludes the
+    /// starter; membership-filtered. Best-effort — never breaks session creation.
+    /// </summary>
+    private async Task NotifyLiveMeetingStartedAsync(Guid projectId, Guid sessionId, Guid? starterUserId, CancellationToken ct)
+    {
+        try
+        {
+            var projName = await _db.Projects.Where(p => p.Id == projectId).Select(p => p.Name).FirstOrDefaultAsync(ct) ?? "the project";
+            var starter = User.FindFirst("display_name")?.Value ?? User.Identity?.Name ?? "Someone";
+            var members = await _db.ProjectMembers.Where(m => m.ProjectId == projectId).Select(m => m.UserId).Distinct().ToListAsync(ct);
+            var data = new { type = "meeting_live", meetingSessionId = sessionId, projectId, deepLink = $"?meeting={sessionId}" };
+            foreach (var uid in members)
+            {
+                if (starterUserId.HasValue && uid == starterUserId.Value) continue;   // don't notify the starter
+                await _notifications.NotifyUserAsync(uid, $"{starter} started a meeting",
+                    $"Join the live meeting in {projName}", data, ct);
+            }
+        }
+        catch (Exception ex) { /* notifications must never break the meeting */ Console.WriteLine($"[meeting-notify] {ex.Message}"); }
     }
 
     /// <summary>POST — open a live session (creator becomes host + first participant).</summary>
@@ -66,6 +92,8 @@ public class MeetingRoomController : ControllerBase
             });
         }
         await _db.SaveChangesAsync(ct);
+        // N — a live meeting just started: notify the other project members (in-app + push).
+        await NotifyLiveMeetingStartedAsync(projectId, session.Id, userId, ct);
         return Ok(ToDto(session));
     }
 

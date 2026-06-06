@@ -29,6 +29,7 @@ public class MeetingsController : ControllerBase
     private readonly IAuditService _audit;
     private readonly ILogger<MeetingsController> _logger;
     private readonly IConfiguration _config;   // N2 — egress presign config
+    private readonly Planscape.Core.Interfaces.INotificationService _notifications;   // N — live/scheduled notify
 
     public MeetingsController(
         PlanscapeDbContext db,
@@ -36,7 +37,8 @@ public class MeetingsController : ControllerBase
         IPushNotificationService push,
         IAuditService audit,
         ILogger<MeetingsController> logger,
-        IConfiguration config)
+        IConfiguration config,
+        Planscape.Core.Interfaces.INotificationService notifications)
     {
         _db = db;
         _notifHub = notifHub;
@@ -44,6 +46,7 @@ public class MeetingsController : ControllerBase
         _audit = audit;
         _logger = logger;
         _config = config;
+        _notifications = notifications;
     }
 
     // ── List ─────────────────────────────────────────────────────────────────
@@ -236,6 +239,10 @@ public class MeetingsController : ControllerBase
 
         // Send push notifications to each invited user (registered members only)
         await PushMeetingInvitesAsync(meeting, projectId, creatorId, "New Meeting");
+        // N — surface the scheduled meeting in-app on the dashboard (lightweight SignalR
+        // refresh event to the project group; no push — invitees already got the push above).
+        _ = _notifications.NotifyProjectEventAsync(projectId, "MeetingScheduled",
+            new { meeting.Id, meeting.Title, meeting.ScheduledAt, meeting.MeetingType, projectId });
 
         return CreatedAtAction(nameof(GetMeeting), new { projectId, meetingId = meeting.Id }, meeting);
     }
@@ -919,6 +926,8 @@ public class MeetingsController : ControllerBase
             isNew = true;
             await _audit.LogAsync("LIVE_START", "Meeting", meeting.Id.ToString(),
                 System.Text.Json.JsonSerializer.Serialize(new { sessionId = session.Id }));
+            // N — notify the other project members the live meeting started (in-app + push).
+            await NotifyLiveMeetingStartedAsync(projectId, session.Id, userId, ct);
         }
 
         return Ok(new
@@ -996,6 +1005,26 @@ public class MeetingsController : ControllerBase
         public Guid? ModelId { get; set; }
         public string? DisplayName { get; set; }
         public string? Surface { get; set; }
+    }
+
+    // N — notify project members a LIVE meeting started (in-app + push, per-user prefs),
+    // excl. the starter; membership-filtered; deep link ?meeting={sessionId}. Best-effort.
+    private async Task NotifyLiveMeetingStartedAsync(Guid projectId, Guid sessionId, Guid? starterUserId, CancellationToken ct)
+    {
+        try
+        {
+            var projName = await _db.Projects.Where(p => p.Id == projectId).Select(p => p.Name).FirstOrDefaultAsync(ct) ?? "the project";
+            var starter = User.FindFirst("display_name")?.Value ?? User.Identity?.Name ?? "Someone";
+            var members = await _db.ProjectMembers.Where(m => m.ProjectId == projectId).Select(m => m.UserId).Distinct().ToListAsync(ct);
+            var data = new { type = "meeting_live", meetingSessionId = sessionId, projectId, deepLink = $"?meeting={sessionId}" };
+            foreach (var uid in members)
+            {
+                if (starterUserId.HasValue && uid == starterUserId.Value) continue;
+                await _notifications.NotifyUserAsync(uid, $"{starter} started a meeting",
+                    $"Join the live meeting in {projName}", data, ct);
+            }
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "[meeting-notify] live notify failed"); }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

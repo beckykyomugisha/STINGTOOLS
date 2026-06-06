@@ -491,6 +491,19 @@ They appear on Join (in `lkLive`, shown by `showLiveControls`). Served proof: ma
 `vRealistic` + `vClashMarkers` + `vIssueMarkers` + `vGlass` all present (1 each). PENDING-HUMAN-VERIFY (2 tabs):
 host sees `⏺ Record`; presenter sees `📄 Present`; both legible.
 
+### Live-meeting notifications · server (MeetingRoomController + MeetingsController) · FUNCTIONAL (server) · 2-account PENDING-HUMAN-VERIFY
+When a live MeetingSession STARTS, project members are notified **in-app (SignalR) + push (FCM/APNs)** via
+`INotificationService.NotifyUserAsync` (per-user prefs honoured, membership-filtered, **starter excluded**):
+"{user} started a meeting — Join the live meeting in {project}" with data `{ type:"meeting_live",
+meetingSessionId, projectId, deepLink:"?meeting=<id>" }`. Wired at BOTH session-create paths:
+`MeetingRoomController.Create` (web auto-create) **and** `MeetingsController.StartOrJoinLiveSession` (BCC
+"Join live", on `isNew`). Scheduled-meeting create also emits a lightweight
+`NotifyProjectEventAsync("MeetingScheduled")` to the project group so the **dashboard surfaces it** (no
+double-push — invitees already get the invite push). Best-effort (try/catch) — never breaks session creation.
+Local `dotnet build` → 0 errors.
+- [ ] PENDING-HUMAN-VERIFY (2 accounts): account A starts a live session in a shared project → account B (a
+      member) gets the in-app notification + push with a Join link to `?meeting=<id>`; the starter (A) does NOT.
+
 ### Slice index (all on branch `claude/optimistic-bell-EfjJw`, PR #306 — do not merge)
 | Slice | Marker | Commit | What |
 |---|---|---|---|
