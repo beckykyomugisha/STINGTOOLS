@@ -292,7 +292,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD marker-toolbar');
+    console.log('[viewer] STING_VIZ_BUILD nav-back');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -640,6 +640,18 @@
       // of the wider Planscape app instead of a leaf page. They link to
       // the parent shell (the static planscape-site / API "/app" route)
       // when one is reachable, and otherwise fall back gracefully.
+      // C — explicit "← Back" that always works: native history.back() when there's a
+      // prior entry (no forced refresh — the dashboard restores from bfcache), else fall
+      // back to the project dashboard / projects home. Opening the viewer is a normal
+      // navigation (location.href), so a history entry exists and browser Back works too.
+      const backBtn = $('#btnBack');
+      if (backBtn) backBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'navigateBack' })); return; }
+        if (window.history.length > 1) { window.history.back(); return; }
+        location.href = projectId ? (apiBase ? `${apiBase}/app/projects/${projectId}` : `/app/projects/${projectId}`)
+                                  : (apiBase ? `${apiBase}/app/projects` : '/app/projects');
+      });
       const brand = $('#brandHome');
       if (brand) brand.addEventListener('click', (e) => {
         e.preventDefault();

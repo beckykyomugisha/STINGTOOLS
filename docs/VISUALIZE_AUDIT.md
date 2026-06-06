@@ -1,5 +1,14 @@
 # Viewer Visualize — audit & change log
 
+### Navigation — "← Back" + clickable breadcrumb · marker `nav-back` (coordination-viewer) · served-verified
+Added a visible header **`← Back`** button: native `history.back()` when there's a prior entry (dashboard
+restores from bfcache — no forced refresh), else falls back to the project dashboard / projects home (and
+posts `navigateBack` inside the RN WebView). The breadcrumb was already clickable (PLANSCAPE → `/app/projects`,
+project name → `/app/projects/{id}`); opening the viewer is a normal `location.href` navigation, so browser
+Back already leaves a history entry. Served proof: viewer.html has `id="btnBack"`; minified bundle keeps the
+`#btnBack` binding + marker `nav-back`. PENDING-HUMAN-VERIFY (incognito): Back returns to the dashboard
+without a refresh; brand/project crumbs navigate.
+
 ### Clash/issue marker toolbar toggles · marker `marker-toolbar` (coordination-viewer) · served-verified
 The clash/issue marker show-hide was buried in View ▾. Now surfaced as labelled toolbar buttons
 **`▣ Clashes`** / **`⬤ Issues`** (next to View), in addition to the View-menu items — they call the same
