@@ -125,6 +125,14 @@ are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that fil
 - [ ] 📋 link/create formal meeting (button greens; other tab greens via RoomChanged).
 - [ ] 📋 (linked) add action item; blank → generate minutes (MEETING_MINUTES doc record).
 
+### N3 — document presentation: discoverable picker + drag-drop  · marker `N3-docs` (livekit-av)
+SERVED-proven (`livekit-av.js` 200 + `N3-docs`; `openDocPicker` present; `/file`→`/download` fixed).
+Real bug: the shared-doc surface fetched a non-existent `/documents/{id}/file` (→404, never rendered).
+- [ ] Presenter 📄 → "Present a document" picker (searchable doc list), not a raw id prompt.
+- [ ] Click a doc → both tabs show the SAME file on the DOCUMENT surface (the /download fix).
+- [ ] Drag-drop / upload a local file → persisted to project docs, then shared to all.
+- [ ] M2 markup still syncs on the shared doc; presenter-gated.
+
 ### N6 — expanded element properties panel  · marker `N6-properties` (coordination-viewer)
 SERVED-proven (`curl localhost:5000/coordination-viewer.js` 200 + `N6-properties`; "Property sets" /
 "Relationships" / "Instance parameters" labels present on the served **minified** bundle).

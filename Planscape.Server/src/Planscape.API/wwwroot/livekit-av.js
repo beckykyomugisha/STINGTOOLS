@@ -27,7 +27,7 @@
 
   // STEP-0 SERVED marker — bumped per slice so a marker grep on the *served*
   // bundle proves the running container has this exact change.
-  var STING_MEETING_BUILD = "N1-presence";
+  var STING_MEETING_BUILD = "N3-docs";
   try { console.log("[livekit] STING_MEETING_BUILD " + STING_MEETING_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -381,6 +381,88 @@
     });
   }
 
+  // ── N3 — present a document (discoverable picker + drag-drop / upload) ───────
+  // Presenter picks an existing project doc OR drops / uploads a local file into the
+  // shared DOCUMENT surface. The file is persisted to the project document store first
+  // (so every participant can fetch it by id), then the surface is broadcast via
+  // MeetingHub SurfaceChanged → all clients render the same doc and M2 markup syncs on it.
+  function openDocPicker() {
+    if (!state.isPresenter) { toast("Only the presenter can share a document"); return; }
+    var pop = document.getElementById("lkDocPick");
+    if (pop) { pop.remove(); return; }
+    pop = el("div", { id: "lkDocPick", style:
+      "position:absolute;bottom:54px;left:50%;transform:translateX(-50%);z-index:16;" +
+      "background:rgba(12,14,18,0.97);color:#fff;border-radius:10px;padding:12px;pointer-events:auto;" +
+      "font:12px -apple-system,Segoe UI,sans-serif;display:flex;flex-direction:column;gap:8px;width:300px;max-width:92vw" });
+    pop.appendChild(el("div", { style: "font-weight:600" }, "Present a document"));
+
+    var search = el("input", { placeholder: "Search project documents…", style:
+      "background:#1b1f27;color:#fff;border:1px solid #333;border-radius:6px;padding:5px 8px" });
+    pop.appendChild(search);
+
+    var list = el("div", { style: "max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px" });
+    list.appendChild(el("div", { style: "opacity:0.7;padding:6px" }, "Loading…"));
+    pop.appendChild(list);
+
+    // drag-drop / click-to-upload zone for a LOCAL file.
+    var drop = el("div", { id: "lkDocDrop", style:
+      "border:1.5px dashed rgba(255,255,255,0.35);border-radius:8px;padding:10px;text-align:center;cursor:pointer;opacity:0.92" },
+      "⬇ Drop a file here, or click to upload");
+    var fileInput = el("input", { type: "file" }); fileInput.style.display = "none";
+    drop.appendChild(fileInput);
+    drop.addEventListener("click", function () { fileInput.click(); });
+    fileInput.addEventListener("change", function () { if (fileInput.files && fileInput.files[0]) uploadAndShare(fileInput.files[0]); });
+    ["dragenter", "dragover"].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); drop.style.background = "rgba(55,194,114,0.18)"; }); });
+    ["dragleave"].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); drop.style.background = ""; }); });
+    drop.addEventListener("drop", function (e) {
+      e.preventDefault(); e.stopPropagation(); drop.style.background = "";
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) uploadAndShare(f);
+    });
+    pop.appendChild(drop);
+
+    var live = document.getElementById("lkLive"); if (live) live.appendChild(pop);
+
+    function render(items, q) {
+      list.innerHTML = "";
+      var filtered = items.filter(function (d) { return !q || (((d.fileName || "") + " " + (d.documentType || "")).toLowerCase().indexOf(q) >= 0); });
+      if (!filtered.length) { list.appendChild(el("div", { style: "opacity:0.6;padding:6px" }, items.length ? "No match" : "No documents in this project")); return; }
+      filtered.slice(0, 200).forEach(function (d) {
+        var row = el("button", { title: d.fileName || d.id, style:
+          "text-align:left;border:none;border-radius:6px;cursor:pointer;padding:6px 8px;background:rgba(255,255,255,0.08);color:#fff;display:flex;flex-direction:column;gap:1px" });
+        row.appendChild(el("div", { style: "white-space:nowrap;overflow:hidden;text-overflow:ellipsis" }, d.fileName || d.id));
+        var sub = [d.documentType, d.discipline, d.revision].filter(Boolean).join(" · ");
+        if (sub) row.appendChild(el("div", { style: "font-size:10px;opacity:0.6" }, sub));
+        row.addEventListener("click", function () { setSurface("document", d.id); pop.remove(); toast("Sharing " + (d.fileName || "document")); });
+        list.appendChild(row);
+      });
+    }
+    var allDocs = [];
+    fetch(apiBase + "/api/projects/" + projectId + "/documents?pageSize=200", { headers: token ? { "Authorization": "Bearer " + token } : {} })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { allDocs = (d && d.items) || []; render(allDocs, ""); })
+      .catch(function () { list.innerHTML = ""; list.appendChild(el("div", { style: "opacity:0.6;padding:6px" }, "Could not load documents")); });
+    search.addEventListener("input", function () { render(allDocs, search.value.trim().toLowerCase()); });
+  }
+  function uploadAndShare(file) {
+    if (!file) return;
+    if (!state.isPresenter) { toast("Only the presenter can share a document"); return; }
+    toast("Uploading " + file.name + "…");
+    var fd = new FormData();
+    fd.append("file", file, file.name);
+    fetch(apiBase + "/api/projects/" + projectId + "/documents/upload", {
+      method: "POST",
+      headers: token ? { "Authorization": "Bearer " + token } : {},   // NO Content-Type — the browser sets the multipart boundary
+      body: fd,
+    }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (doc) {
+        if (!doc || !doc.id) { toast("Upload failed"); return; }
+        var pick = document.getElementById("lkDocPick"); if (pick) pick.remove();
+        setSurface("document", doc.id);
+        toast("Shared " + (doc.fileName || file.name));
+      }).catch(function (e) { toast("Upload failed"); console.warn("[livekit] upload", e); });
+  }
+
   // ── M3 — low-bandwidth (audio-only) mode ───────────────────────────────────
   function toggleLowBw() {
     state.lowBw = !state.lowBw;
@@ -490,7 +572,9 @@
     if (pane._docId === docId && pane._frame.getAttribute("src")) return;   // already showing
     pane._docId = docId; pane._msg.style.display = "none";
     // Fetch the doc file with the auth header, show it via a blob URL (PDF/image).
-    var url = apiBase + "/api/projects/" + projectId + "/documents/" + docId + "/file";
+    // N3 — the route is /download (there is no /file route — the old URL 404'd, so the
+    // shared-document surface never rendered).
+    var url = apiBase + "/api/projects/" + projectId + "/documents/" + docId + "/download";
     fetch(url, { headers: token ? { "Authorization": "Bearer " + token } : {} })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
       .then(function (b) { if (pane._url) URL.revokeObjectURL(pane._url); pane._url = URL.createObjectURL(b); pane._frame.src = pane._url; })
@@ -827,9 +911,7 @@
     // automatically with the screen-share toggle above.
     if (state.isPresenter) {
       live.appendChild(ctrlBtn("lkSurf_model", "🧊", function () { setSurface("model"); }, "Show the 3D model"));
-      live.appendChild(ctrlBtn("lkSurf_document", "📄", function () {
-        var d = prompt("Document id to share with the room:"); if (d && d.trim()) setSurface("document", d.trim());
-      }, "Share a document"));
+      live.appendChild(ctrlBtn("lkSurf_document", "📄", openDocPicker, "Present a document (pick a project doc · drag-drop · upload)"));
       // hidden anchor so paintSurfaceSwitch can highlight the 'screen' surface too
       live.appendChild(el("span", { id: "lkSurf_screen", style: "display:none" }));
     }

@@ -364,6 +364,24 @@ running LiveKit + Postgres stack — never claim it "works" from the served grep
 - [ ] **Identity correlation:** the roster A/V status lands on the RIGHT person (LiveKit identity =
       userId = SignalR roster userId) — not mismatched or duplicated.
 
+### N3 — document presentation: discoverable picker + drag-drop · marker `N3-docs` (livekit-av) · PENDING-HUMAN-VERIFY
+**Real bug fixed:** the shared-document surface fetched `/api/projects/{pid}/documents/{docId}/file`,
+but that route does not exist (the controller serves `/download`) — so the document **never rendered**.
+N3 corrects the URL to `/download`, replaces the unusable `prompt("Document id")` with a real document
+**picker** (lists project documents, searchable, click to share) and a **drag-drop / upload** zone that
+persists a LOCAL file to the project document store first (so every participant can fetch it by id),
+then broadcasts the surface. SERVED-proven (marker `N3-docs`, `openDocPicker` present, `/file`→`/download`).
+
+- [ ] **Discoverable entry:** as presenter, the 📄 button opens a "Present a document" picker (not a raw
+      id prompt) listing the project's documents with a search box.
+- [ ] **Share an existing doc:** click a document → A and B both switch to the DOCUMENT surface showing
+      the SAME file (the `/download` fix — previously blank/404).
+- [ ] **Drag-drop a local file:** drag a PDF/image onto the picker's drop zone (or click → file chooser)
+      → it uploads to the project docs, then both tabs show it on the shared surface.
+- [ ] **Markup syncs (M2):** presenter draws on the shared doc → B sees the strokes live; Save-as-Issue /
+      Save-as-Snapshot still persist.
+- [ ] **Presenter-gated:** a non-presenter's 📄 / drop is refused ("Only the presenter can share").
+
 ### Slice index (all on branch `claude/optimistic-bell-EfjJw`, PR #306 — do not merge)
 | Slice | Marker | Commit | What |
 |---|---|---|---|
@@ -374,6 +392,7 @@ running LiveKit + Postgres stack — never claim it "works" from the served grep
 | M4 | `M4-aec` | `a362c4582` | issue/clash-review/meeting-link/minutes/viewpoint |
 | M5 | (docs) | — | this discovery matrix |
 | N1 | `N1-presence` | (this commit) | remote video tiles populate on join / clear on leave · per-tile mic/cam badge + camera-off initials placeholder · live roster A/V status (online/in-call/cam/mic/presenter/away) correlated by userId |
+| N3 | `N3-docs` | (this commit) | document presentation: fix `/file`→`/download` (surface never rendered) · discoverable doc picker (searchable list) · drag-drop / upload a local file → persisted then shared |
 
 ### Cross-cutting caveats / known follow-ups
 - **Mobile parity:** `live.tsx` covers native A/V + surface-follow + co-presence; the M2 markup,
