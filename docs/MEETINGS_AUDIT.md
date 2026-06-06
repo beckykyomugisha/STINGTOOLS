@@ -1,5 +1,12 @@
 # Meetings (Track B) — audit & build log
 
+### Recordings — meetings-list indicator (P2) · Expo app · tsc-clean · 2-tab PENDING-HUMAN-VERIFY
+Each meeting row shows a small **`▶ REC`** badge when that meeting has ≥1 recording (alongside the ● LIVE
+badge). MeetingsScreen does one cheap `getProjectRecordings(projectId)` on load and builds a Set of
+`meetingId`s that have a recording → passed to `MeetingRow hasRecording`. New `getProjectRecordings` +
+`ProjectRecording` in endpoints.ts (shared with the archive view). `tsc --noEmit` clean; in-browser visual
+PENDING-HUMAN after expo export.
+
 ### Recordings — meeting-detail section + in-app player (P1/P4/P5-audio) · Expo app · tsc-clean · 2-tab PENDING-HUMAN-VERIFY
 Meeting detail (Overview) gets a dedicated **Recordings** card (the primary home), each row: 🎥/🎙 ·
 date/time · duration · size · status · **▶ Play** · **⬇ Download** (Play gated to `COMPLETE` + a URL;

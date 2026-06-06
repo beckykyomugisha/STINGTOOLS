@@ -724,6 +724,17 @@ export function getMeetingLiveArtifacts(projectId: string, meetingId: string): P
   return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/live-artifacts`);
 }
 
+/** Project-level recordings archive (newest first) — scheduled-meeting + ad-hoc session recordings. */
+export interface ProjectRecording {
+  id: string; sessionId: string; meetingId?: string | null; kind: string; status: string;
+  fileSizeBytes?: number | null; durationSeconds?: number | null;
+  startedAt: string; endedAt?: string | null;
+  meetingTitle?: string | null; adHoc: boolean; label: string; downloadUrl?: string | null;
+}
+export function getProjectRecordings(projectId: string): Promise<{ projectId: string; recordings: ProjectRecording[] }> {
+  return apiFetch(`/api/projects/${projectId}/recordings`);
+}
+
 export function createMeeting(projectId: string, body: {
   title: string;
   meetingType?: string;

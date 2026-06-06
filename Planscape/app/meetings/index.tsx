@@ -9,7 +9,7 @@ import {
   logMeetingMinutes, addMeetingAction, updateMeetingAction, listOpenMeetingActions,
   listMeetingAttendees, addMeetingAttendee, updateMeetingAttendee, deleteMeetingAttendee,
   addMeetingAgendaItem, updateMeetingAgendaItem, deleteMeetingAgendaItem,
-  exportMeetingMinutesDoc, getMeetingIcsUrl, startLiveSession, getMeetingLiveArtifacts,
+  exportMeetingMinutesDoc, getMeetingIcsUrl, startLiveSession, getMeetingLiveArtifacts, getProjectRecordings,
   type MeetingActionItem, type MeetingAttendee, type MeetingAgendaItem, type MeetingLiveArtifacts,
 } from "@/api/endpoints";
 import { MemberPicker } from "@/components/MemberPicker";
@@ -27,6 +27,7 @@ export default function MeetingsScreen() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Meeting | null>(null);
   const [createVisible, setCreateVisible] = useState(false);
+  const [recordedIds, setRecordedIds] = useState<Set<string>>(new Set());   // P2 — meetings with ≥1 recording
 
   const load = useCallback(async () => {
     if (!projectId) { setLoading(false); return; }
@@ -37,6 +38,10 @@ export default function MeetingsScreen() {
       ]);
       setMeetings(m);
       setOpenActions(a);
+      // P2 — one cheap project-level fetch → which meetings have a recording (badge them).
+      getProjectRecordings(projectId)
+        .then((r) => setRecordedIds(new Set(r.recordings.filter((x) => x.meetingId).map((x) => x.meetingId as string))))
+        .catch(() => { /* none / not configured */ });
     } catch (err) {
       Alert.alert("Load failed", err instanceof Error ? err.message : String(err));
     } finally {
@@ -104,7 +109,7 @@ export default function MeetingsScreen() {
           {upcoming.length === 0 ? (
             <Text style={styles.emptyBody}>No meetings scheduled. Tap + to draft one.</Text>
           ) : upcoming.map((m) => (
-            <MeetingRow key={m.id} meeting={m} onPress={() => setSelected(m)} />
+            <MeetingRow key={m.id} meeting={m} onPress={() => setSelected(m)} hasRecording={recordedIds.has(m.id)} />
           ))}
         </View>
 
@@ -112,7 +117,7 @@ export default function MeetingsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Past ({past.length})</Text>
             {past.slice(0, 20).map((m) => (
-              <MeetingRow key={m.id} meeting={m} onPress={() => setSelected(m)} isPast />
+              <MeetingRow key={m.id} meeting={m} onPress={() => setSelected(m)} isPast hasRecording={recordedIds.has(m.id)} />
             ))}
           </View>
         )}
@@ -141,8 +146,8 @@ export default function MeetingsScreen() {
 }
 
 // ── Meeting list row ──────────────────────────────────────────────────────────
-function MeetingRow({ meeting, onPress, isPast = false }: {
-  meeting: Meeting; onPress: () => void; isPast?: boolean;
+function MeetingRow({ meeting, onPress, isPast = false, hasRecording = false }: {
+  meeting: Meeting; onPress: () => void; isPast?: boolean; hasRecording?: boolean;
 }) {
   const type = meeting.meetingType ?? meeting.type ?? "MEETING";
   const t = meeting.scheduledAt;
@@ -160,6 +165,12 @@ function MeetingRow({ meeting, onPress, isPast = false }: {
         <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
         {meeting.liveSessionId && (
           <View style={styles.liveBadge}><Text style={styles.liveBadgeText}>● LIVE</Text></View>
+        )}
+        {/* P2 — recorded-meeting indicator: obvious at a glance which meetings have recordings. */}
+        {hasRecording && (
+          <View style={{ backgroundColor: "rgba(25,118,210,0.18)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1, marginLeft: 6 }}>
+            <Text style={{ color: "#1976d2", fontSize: 10, fontWeight: "700" }}>▶ REC</Text>
+          </View>
         )}
         {typeof meeting.actionItemCount === "number" && meeting.actionItemCount > 0 && (
           <Text style={styles.actionCount}>{meeting.actionItemCount} actions</Text>
