@@ -125,6 +125,13 @@ are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that fil
 - [ ] 📋 link/create formal meeting (button greens; other tab greens via RoomChanged).
 - [ ] 📋 (linked) add action item; blank → generate minutes (MEETING_MINUTES doc record).
 
+### N4 — flexible meeting ⇄ model layout  · marker `N4-layout` (meeting-sync + livekit-av)
+SERVED-proven (both files 200 + `N4-layout`; `closeMeeting`/`cycleMeetLayout`/`sting:meetLayout` present).
+- [ ] Drag the panel header → repositions + persists across reload.
+- [ ] – minimises to header pill / restores; ✕ tears down LiveKit + SignalR + hides all overlays.
+- [ ] ▦ cycles PiP → sidebar → theater; A/V bar follows; 3D reframes (sizeRenderer); choice persists.
+- Deferred: grid-reflowing dock (shrink canvas column) — would touch app-shell grid / FITFIX / camera.
+
 ### N3 — document presentation: discoverable picker + drag-drop  · marker `N3-docs` (livekit-av)
 SERVED-proven (`livekit-av.js` 200 + `N3-docs`; `openDocPicker` present; `/file`→`/download` fixed).
 Real bug: the shared-doc surface fetched a non-existent `/documents/{id}/file` (→404, never rendered).

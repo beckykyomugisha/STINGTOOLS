@@ -382,6 +382,24 @@ then broadcasts the surface. SERVED-proven (marker `N3-docs`, `openDocPicker` pr
       Save-as-Snapshot still persist.
 - [ ] **Presenter-gated:** a non-presenter's 📄 / drop is refused ("Only the presenter can share").
 
+### N4 — flexible meeting ⇄ model layout · marker `N4-layout` (meeting-sync + livekit-av) · PENDING-HUMAN-VERIFY
+The "Live meeting" panel is now **movable** (drag the header), **minimisable** (– collapses the body to
+the header pill), and **closeable** (✕ → leaves LiveKit media via `STING_LIVEKIT.leave()` + leaves the
+SignalR room via `LeaveSession` + `conn.stop()` + hides every meeting overlay). A layout button (▦)
+cycles **PiP → sidebar → theater**; the A/V bar repositions to match (sidebar docks bottom-right). The
+mode + minimised flag + dragged position **persist** (`localStorage.planscape_meet_layout`) and each
+change calls `STING_VIEWER.sizeRenderer()` (ortho-aware) so the 3D re-fits. **Deferred (regression
+safety):** a true grid-reflowing dock that shrinks the canvas *column* (vs the overlay reposition done
+here) — it would touch the app-shell grid / FITFIX / camera, so it's a separate follow-up.
+
+- [ ] **Move:** drag the panel header → it repositions and stays put across a reload (persisted).
+- [ ] **Minimise / restore:** – collapses to the header pill; the icon flips; restores on click; survives reload.
+- [ ] **Close = full teardown:** ✕ → own A/V disconnects (tile gone for the other tab), you drop from the
+      other tab's roster (SignalR LeaveSession), and ALL meeting overlays hide (panel + A/V bar + screen/doc).
+- [ ] **Layout cycle:** ▦ cycles PiP → sidebar → theater; the A/V bar moves to bottom-right in sidebar and
+      back to centre otherwise; the 3D doesn't end up mis-framed (sizeRenderer ran).
+- [ ] **Persistence:** chosen layout/min/position restore on reopening the meeting.
+
 ### Slice index (all on branch `claude/optimistic-bell-EfjJw`, PR #306 — do not merge)
 | Slice | Marker | Commit | What |
 |---|---|---|---|
@@ -393,6 +411,7 @@ then broadcasts the surface. SERVED-proven (marker `N3-docs`, `openDocPicker` pr
 | M5 | (docs) | — | this discovery matrix |
 | N1 | `N1-presence` | (this commit) | remote video tiles populate on join / clear on leave · per-tile mic/cam badge + camera-off initials placeholder · live roster A/V status (online/in-call/cam/mic/presenter/away) correlated by userId |
 | N3 | `N3-docs` | (this commit) | document presentation: fix `/file`→`/download` (surface never rendered) · discoverable doc picker (searchable list) · drag-drop / upload a local file → persisted then shared |
+| N4 | `N4-layout` | (this commit) | meeting panel movable / minimisable / closeable (full LiveKit+SignalR teardown) · PiP/sidebar/theater layout modes + persistence + sizeRenderer reframe (grid-reflow dock deferred) |
 
 ### Cross-cutting caveats / known follow-ups
 - **Mobile parity:** `live.tsx` covers native A/V + surface-follow + co-presence; the M2 markup,

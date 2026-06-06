@@ -27,7 +27,7 @@
 
   // STEP-0 SERVED marker — bumped per slice so a marker grep on the *served*
   // bundle proves the running container has this exact change.
-  var STING_MEETING_BUILD = "N3-docs";
+  var STING_MEETING_BUILD = "N4-layout";
   try { console.log("[livekit] STING_MEETING_BUILD " + STING_MEETING_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -90,6 +90,14 @@
     if (state.room && state.micOn) { state.micOn = false; state.room.localParticipant.setMicrophoneEnabled(false).catch(noop); paintBtn("lkMic", false, "🎤", "🔇"); }
   });
   window.addEventListener("sting:removed", function () { if (state.joined) leave(); });
+  // N4 — meeting layout mode changed (meeting-sync.js owns the control); reposition
+  // the A/V bar to match: sidebar → dock bottom-right; pip/theater → bottom-centre.
+  window.addEventListener("sting:meetLayout", function (e) {
+    var mode = (e.detail && e.detail.mode) || "pip";
+    var bar = document.getElementById("lkBar"); if (!bar) return;
+    if (mode === "sidebar") { bar.style.left = "auto"; bar.style.right = "12px"; bar.style.transform = "none"; }
+    else { bar.style.left = "50%"; bar.style.right = "auto"; bar.style.transform = "translateX(-50%)"; }
+  });
 
   // ── boot: load livekit-client, fetch a token, show the JOIN lobby ─────────
   // M1 — A/V is gesture-gated: we build the in-meeting pill + a "Join A/V"

@@ -24,7 +24,7 @@
   "use strict";
 
   // STEP-0 SERVED marker — bumped per slice that touches this file.
-  var STING_MEETINGSYNC_BUILD = "N1-presence";
+  var STING_MEETINGSYNC_BUILD = "N4-layout";
   try { console.log("[meeting] STING_MEETINGSYNC_BUILD " + STING_MEETINGSYNC_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -342,20 +342,124 @@
       "border-radius:6px", "font:12px -apple-system,Segoe UI,Roboto,sans-serif",
       "max-width:220px", "backdrop-filter:blur(4px)",
     ].join(";");
+    var hbtn = "border:none;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;padding:2px 5px;background:rgba(255,255,255,0.16);color:#fff";
     panel.innerHTML =
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">' +
-        '<span id="meetingDot" style="width:8px;height:8px;border-radius:50%;background:#e8a13a"></span>' +
-        '<strong>Live meeting</strong>' +
+      // N4 — the header is the DRAG handle + carries layout / minimise / close controls.
+      '<div id="meetingHead" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;cursor:move;user-select:none">' +
+        '<span id="meetingDot" style="width:8px;height:8px;border-radius:50%;background:#e8a13a;flex:0 0 auto"></span>' +
+        '<strong style="flex:1">Live meeting</strong>' +
+        '<button id="meetLayout" title="Layout: PiP / sidebar / theater" style="' + hbtn + '">▦</button>' +
+        '<button id="meetMin" title="Minimise" style="' + hbtn + '">–</button>' +
+        '<button id="meetClose" title="Leave &amp; close the meeting" style="' + hbtn + '">✕</button>' +
       '</div>' +
-      '<div id="meetingCounts" style="font-size:10px;opacity:0.78;margin-bottom:6px"></div>' +
-      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:6px">' +
-        '<input type="checkbox" id="meetingFollow" checked> Follow presenter' +
-      '</label>' +
-      '<div id="meetingParticipants" style="display:flex;flex-wrap:wrap;gap:4px"></div>';
-    (document.getElementById("viewer-canvas") ? document.body : document.body).appendChild(panel);
+      '<div id="meetingBody">' +
+        '<div id="meetingCounts" style="font-size:10px;opacity:0.78;margin-bottom:6px"></div>' +
+        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:6px">' +
+          '<input type="checkbox" id="meetingFollow" checked> Follow presenter' +
+        '</label>' +
+        '<div id="meetingParticipants" style="display:flex;flex-wrap:wrap;gap:4px"></div>' +
+      '</div>';
+    document.body.appendChild(panel);
     var f = document.getElementById("meetingFollow");
     if (f) f.addEventListener("change", function () { state.following = f.checked; });
+    // N4 — movable / minimisable / closeable + persisted layout mode.
+    document.getElementById("meetLayout").addEventListener("click", cycleMeetLayout);
+    document.getElementById("meetMin").addEventListener("click", toggleMeetMinimise);
+    document.getElementById("meetClose").addEventListener("click", closeMeeting);
+    makePanelDraggable(panel, document.getElementById("meetingHead"));
+    restoreMeetState();
     renderPresence();
+  }
+
+  // ── N4 — flexible meeting ⇄ model layout ───────────────────────────────────
+  // The meeting UI is an OVERLAY on the 3D canvas; layout modes reposition the
+  // overlays (PiP corner / right sidebar / theater) and persist. Each change calls
+  // STING_VIEWER.sizeRenderer() (ortho-aware — the existing safe reframe API the
+  // panel-resize handles already use) so the 3D re-fits whatever space it has. The
+  // grid-reflowing dock (shrinking the canvas column itself) is intentionally NOT
+  // done here to avoid regressing the app-shell grid / FITFIX / camera.
+  var MEET = { mode: "pip", min: false, pos: null };
+  function reframe() { try { var V = window.STING_VIEWER; if (V && V.sizeRenderer) V.sizeRenderer(); } catch (e) {} }
+  function saveMeetState() {
+    try { localStorage.setItem("planscape_meet_layout", JSON.stringify({ mode: MEET.mode, min: MEET.min, pos: MEET.pos })); } catch (e) {}
+  }
+  function restoreMeetState() {
+    try { var s = JSON.parse(localStorage.getItem("planscape_meet_layout") || "null"); if (s) { MEET.mode = s.mode || "pip"; MEET.min = !!s.min; MEET.pos = s.pos || null; } } catch (e) {}
+    applyMeetLayout(MEET.mode, true);
+    if (MEET.min) applyMinimise(true);
+    if (MEET.pos) positionPanel(MEET.pos.left, MEET.pos.top);
+  }
+  function positionPanel(left, top) {
+    var p = document.getElementById("meetingPanel"); if (!p) return;
+    var maxL = Math.max(0, window.innerWidth - 80), maxT = Math.max(0, window.innerHeight - 60);
+    p.style.left = Math.min(Math.max(0, left), maxL) + "px";
+    p.style.top = Math.min(Math.max(0, top), maxT) + "px";
+    p.style.right = "auto";
+  }
+  function applyMeetLayout(mode, silent) {
+    MEET.mode = mode;
+    var p = document.getElementById("meetingPanel"); if (!p) return;
+    // a manual drag position (PiP) overrides the preset anchor
+    p.style.maxWidth = "220px"; p.style.maxHeight = "";
+    if (mode === "sidebar") {
+      p.style.right = "8px"; p.style.left = "auto"; p.style.top = "8px";
+      p.style.maxHeight = (window.innerHeight - 24) + "px"; p.style.overflowY = "auto";
+    } else if (mode === "theater") {
+      p.style.right = "8px"; p.style.left = "auto"; p.style.top = "8px";
+    } else { // pip
+      if (MEET.pos) positionPanel(MEET.pos.left, MEET.pos.top);
+      else { p.style.right = "184px"; p.style.left = "auto"; p.style.top = "8px"; }
+    }
+    var lb = document.getElementById("meetLayout"); if (lb) lb.textContent = mode === "sidebar" ? "▥" : (mode === "theater" ? "▣" : "▦");
+    try { window.dispatchEvent(new CustomEvent("sting:meetLayout", { detail: { mode: mode } })); } catch (e) {}
+    if (!silent) { saveMeetState(); reframe(); toast("Layout: " + mode); }
+  }
+  function cycleMeetLayout() {
+    var order = ["pip", "sidebar", "theater"];
+    applyMeetLayout(order[(order.indexOf(MEET.mode) + 1) % order.length]);
+  }
+  function applyMinimise(on) {
+    var p = document.getElementById("meetingPanel"); if (!p) return;
+    MEET.min = on;
+    for (var i = 0; i < p.children.length; i++) {
+      if (p.children[i].id !== "meetingHead") p.children[i].style.display = on ? "none" : "";
+    }
+    var b = document.getElementById("meetMin"); if (b) { b.textContent = on ? "▢" : "–"; b.title = on ? "Restore" : "Minimise"; }
+  }
+  function toggleMeetMinimise() { applyMinimise(!MEET.min); saveMeetState(); }
+  function makePanelDraggable(panel, handle) {
+    var sx = 0, sy = 0, ox = 0, oy = 0, dragging = false;
+    handle.addEventListener("pointerdown", function (e) {
+      if (e.target && e.target.tagName === "BUTTON") return;   // header buttons aren't drag
+      dragging = true; sx = e.clientX; sy = e.clientY;
+      var r = panel.getBoundingClientRect(); ox = r.left; oy = r.top;
+      try { handle.setPointerCapture(e.pointerId); } catch (x) {}
+      e.preventDefault();
+    });
+    handle.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      var left = ox + (e.clientX - sx), top = oy + (e.clientY - sy);
+      positionPanel(left, top);
+    });
+    function end() {
+      if (!dragging) return; dragging = false;
+      var r = panel.getBoundingClientRect();
+      MEET.pos = { left: r.left, top: r.top }; MEET.mode = "pip"; saveMeetState();
+    }
+    handle.addEventListener("pointerup", end);
+    handle.addEventListener("pointercancel", end);
+  }
+  // N4 — close = full teardown: leave LiveKit media, leave the SignalR room, hide
+  // every meeting overlay. (The A/V bar's own ✖ only leaves media; this closes all.)
+  function closeMeeting() {
+    try { if (window.STING_LIVEKIT && window.STING_LIVEKIT.leave) window.STING_LIVEKIT.leave(); } catch (e) {}
+    try { if (state.conn) state.conn.invoke("LeaveSession", sessionId); } catch (e) {}
+    try { if (state.conn) state.conn.stop(); } catch (e) {}
+    ["meetingPanel", "lkBar", "lkScreen", "lkDoc", "lkDocPick", "lkDevPop"].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.style.display = "none";
+    });
+    reframe();
+    toast("Left the meeting");
   }
 
   // M3 — roster with roles (★ host · "(you)") + ✋ hand + host controls.
@@ -713,5 +817,9 @@
     get isHost() { return isHost(); },
     get connected() { return !!state.conn; },
     sessionId: sessionId,
+    // N4 — layout + teardown
+    leave: closeMeeting,
+    get layout() { return MEET.mode; },
+    setLayout: function (m) { applyMeetLayout(m); },
   };
 })();
