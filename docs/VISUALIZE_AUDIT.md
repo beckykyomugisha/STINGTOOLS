@@ -17,6 +17,23 @@ Adds **Realistic** to the View menu (alongside Shaded / Wireframe / X-Ray / Ghos
 - PENDING-HUMAN-VERIFY (browser): select Realistic → reflections/lighting appear on MeshStandard materials;
   colour-by/ghost still override; Clear returns to base; pairs with Phase-2 textures once published.
 
+### Discipline misclassification — exporter root fix + viewer safety-net · marker `disc-safetynet` · served + Revit-build verified
+The exporter stamped the WRONG DISC (bare "fixture" → P before E; no lighting→E; toposolid → S), and the
+viewer's `discOf` trusts the stamped token — so Lighting Fixtures read as Plumbing, Toposolid as Structural,
+and the P count was inflated.
+- **A1 root fix (`PublishModelCommand.DeriveDisciplineFromCategory`, StingTools — needs RE-PUBLISH):** rewritten
+  to mirror `discOf`'s RULES exactly — order: M → **E (incl. lighting/luminaire/conduit/cable/data/switch/
+  socket/panelboard)** → FP → **P (specific; never bare "fixture")** → S → A (incl. toposolid/site). Build
+  0 warnings against Revit 2025.
+- **A2 viewer safety-net (`discOf`, marker `disc-safetynet` — no re-publish needed):** new
+  `categoryOverrideDisc(category)` lets the category override a STALE wrong stamp ONLY for the known-mis-stamped
+  categories (lighting/electrical-devices → E; toposolid/site → A) — always-correct overrides; every other
+  category still trusts the stamp. So on the CURRENT export: shade-only Electrical now includes lighting
+  fixtures+devices, toposolid ghosts under Architecture, and the P count drops to real plumbing.
+- Served proof: minified bundle keeps `toposolid` override + marker `disc-safetynet`. PENDING-HUMAN-VERIFY
+  (incognito): BY-DISCIPLINE — lighting under E, toposolid under A, P = real plumbing only; (Revit) re-publish
+  → stamped DISC correct at source.
+
 ### Properties "no data" hints + full field coverage · marker `props-hints` (coordination-viewer) · served-verified
 When Materials / Quantities / Property-sets are ABSENT from the element-map, the selected-element panel now
 shows a muted per-group hint ("— no material data — re-export from Revit with PLANSCAPE_EXPORT_TEXTURES to

@@ -618,16 +618,28 @@ namespace StingTools.BIMManager
         /// BY DISCIPLINE / colour-by-discipline / presets populate on as-built models
         /// that never went through the STING tag pipeline. Mirrors the client discOf().
         /// </summary>
+        // A1 — root discipline classification. MUST mirror the viewer's discOf() RULES
+        // (coordination-viewer.js): ORDER MATTERS — Electrical BEFORE Plumbing (so
+        // "Lighting Fixtures" never falls under a bare-"fixture" plumbing rule), Fire
+        // protection before Plumbing, Plumbing made SPECIFIC (never bare "fixture"),
+        // Toposolid/site → Architectural. Keep this in sync with discOf on changes.
         private static string DeriveDisciplineFromCategory(string cat)
         {
             if (string.IsNullOrWhiteSpace(cat)) return "";
             var c = cat.ToLowerInvariant();
-            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"duct|air\s*terminal|diffuser|grille|hvac|vav|ahu|fcu|mechanical|fan|damper")) return "M";
-            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"pipe|plumb|sanitary|fixture|valve")) return "P";
-            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"cable|conduit|electric|lighting|light\s*fixture|panel|switch|socket|data|fire\s*alarm|device")) return "E";
-            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"fire\s*protect|sprinkler")) return "FP";
-            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"column|beam|brace|footing|foundation|framing|structural|rebar|truss")) return "S";
-            if (System.Text.RegularExpressions.Regex.IsMatch(c, @"wall|floor|ceiling|roof|door|window|stair|railing|furniture|casework|room|curtain|generic\s*model|topograph")) return "A";
+            bool Rx(string p) => System.Text.RegularExpressions.Regex.IsMatch(c, p);
+            // Mechanical / HVAC
+            if (Rx(@"duct|air\s*terminal|diffuser|grille|hvac|\bvav\b|\bahu\b|\bfcu\b|mechanical|\bfan\b|damper|air\s*handl|chiller|\bboiler\b|cooling\s*tower")) return "M";
+            // Electrical (incl. lighting + comms/data + fire-alarm) — BEFORE plumbing.
+            if (Rx(@"electric|lighting|luminaire|light\s*fixture|\bconduit|cable\s*tray|\bcable\b|\bwire\b|\bdata\b|fire\s*alarm|communicat|security\s*device|nurse\s*call|telephon|\bswitch\b|socket|receptacle|panelboard|distribution\s*board|busway|bus\s*duct")) return "E";
+            // Fire protection — BEFORE plumbing (sprinklers / standpipes / hydrants).
+            if (Rx(@"sprinkler|fire\s*protect|fire\s*supp|fire\s*pump|standpipe|hydrant")) return "FP";
+            // Plumbing / public health — SPECIFIC; never bare "fixture".
+            if (Rx(@"plumb|sanitary|water\s*closet|\bwc\b|lavatory|urinal|\bbasin\b|\bsink\b|cistern|\bsoil\b|\bwaste\b|drainage|\bpipe|\bvalve\b|\btap\b|cold\s*water|hot\s*water|rainwater|\bgully\b")) return "P";
+            // Structural
+            if (Rx(@"column|\bbeam\b|brace|footing|foundation|framing|structural|rebar|truss|slab\s*edge|\bpile\b")) return "S";
+            // Architectural (building-element catch-all incl. toposolid/site)
+            if (Rx(@"wall|floor|ceiling|roof|door|window|stair|railing|handrail|furniture|casework|\broom\b|curtain|generic\s*model|toposolid|topograph|planting|\bsite\b|\bmass\b|parking|\bramp\b|\bpad\b|grading")) return "A";
             return "";
         }
 

@@ -292,7 +292,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD props-hints');
+    console.log('[viewer] STING_VIZ_BUILD disc-safetynet');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1254,8 +1254,14 @@
     // Derive a discipline even when the DISC token is absent (as-built models):
     // map the Revit category to a discipline code (DiscMap-style).
     function discOf(meta) {
-      // BUG 1(a) — the REAL DISC token wins when present (exporter-authored truth).
+      // BUG 1(a) — the REAL DISC token wins when present (exporter-authored truth)…
       const d = discKey(meta);
+      // …EXCEPT A2 SAFETY-NET: the old exporter stamped some categories with the WRONG
+      // DISC (Lighting Fixtures → P, Toposolid → S, etc.). For those KNOWN-misclassified
+      // categories the category-derived discipline OVERRIDES a stale stamp, so existing
+      // exports read right WITHOUT a re-publish. Every other category trusts the stamp.
+      const c0 = catKey(meta).toLowerCase();
+      if (c0) { const ov = categoryOverrideDisc(c0); if (ov && ov !== d) return ov; }
       if (d) return d;
       // Derived fallback for metadata-poor / as-built models. ORDER MATTERS (first match
       // wins): Electrical BEFORE Plumbing so "Lighting Fixtures" / "Electrical Fixtures"
@@ -1278,6 +1284,15 @@
         [/wall|floor|ceiling|roof|door|window|stair|railing|handrail|furniture|casework|\broom\b|curtain|generic\s*model|topograph|planting|\bsite\b|\bmass\b|parking|\bramp\b/, 'A'],
       ];
       for (const [re, disc] of RULES) if (re.test(c)) return disc;
+      return '';
+    }
+    // A2 — strong category→discipline ONLY for the categories the exporter historically
+    // mis-stamped: lighting/electrical devices → E, toposolid/site → A. Returns '' for
+    // anything else (so the stamped DISC is trusted). These overrides are always correct
+    // (a Lighting Fixture is electrical no matter what a bad stamp said).
+    function categoryOverrideDisc(c) {
+      if (/lighting|luminaire|light\s*fixture|electric|\bconduit\b|cable\s*tray|\bcable\b|\bdata\b|fire\s*alarm|\bswitch\b|socket|receptacle|panelboard|distribution\s*board|busway|bus\s*duct/.test(c)) return 'E';
+      if (/toposolid|topograph|\bsite\b|\bpad\b|grading|sub-?region/.test(c)) return 'A';
       return '';
     }
     // Distinct disciplines across the model (derived where the token is absent).
