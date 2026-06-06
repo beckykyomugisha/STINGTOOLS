@@ -88,3 +88,18 @@ Verify on the 5-model federation in a 2nd incognito tab.
 ### V4 — federation load performance  ·  `0e92aa2b6` · marker `V4-loadperf`
 - [ ] Loading the 5 models does NOT lock the UI — the primary is orbitable while siblings stream in.
 - [ ] Steady-state orbit on the full federation stays ~30–50 fps (low-end target).
+
+## TRACK B — MEETINGS (this round) — PENDING-HUMAN-VERIFY
+
+Live meetings = **LiveKit media plane** (`livekit-av.js`) ⊥ **SignalR `MeetingHub` co-presence plane**
+(`meeting-sync.js`). Built marathon-style, one slice per commit, each STEP-0 SERVED-proven
+(`curl http://localhost:5000/livekit-av.js` = 200 + the served file greps the slice's
+`STING_MEETING_BUILD <marker>`). The 2-tab live A/V test is the human's — every slice's exact steps
+are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that file. PR #306; do not merge.
+
+### M1-polish — explicit Join/Leave + in-meeting state  · marker `M1-polish`
+- [ ] Load `?meeting=` → NO auto camera/mic prompt; "● In a meeting" pill = **Ready to join** + **▶ Join A/V**.
+- [ ] Click Join → permission prompt fires (gesture-driven); pill → **● Live**; own tile appears.
+- [ ] 2nd tab Join → both tabs show 2 tiles + audio. Leave → returns to Join lobby; re-join works.
+- [ ] Deny camera → joins audio-only, control struck-through + toast; no crash.
+- [ ] Token 501 (LiveKit down) → pill **A/V unavailable**, Join disabled; co-presence still works.

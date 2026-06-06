@@ -25,11 +25,45 @@ host gets `camera/microphone/screen_share/screen_share_audio`, `url=ws://localho
 Creds documented in `Planscape.Server/docker/.env.template` (LiveKit section): dev falls back to
 `devkey`/`secret` + the local `--dev` server on `:7880`; staging/cloud set `LIVEKIT_*` in `.env`.
 
-### M1 remaining (client UX) — PENDING
-Verify in two tabs that the existing `livekit-av.js` flow works now that tokens mint: Meet → Start
-meeting reloads into `?meeting=`; connects; cam/mic prompt; own + 2nd participant tiles; screen-share
-in the central pane; surface switching broadcasts. Add/confirm clear in-viewer Join/Leave + cam/mic/
-screen controls + an "in a meeting" state. (Tracked below as it's implemented.)
+### M1-2 (client UX polish, slice) — explicit Join/Leave + in-meeting state  ✅ served `M1-polish`
+`livekit-av.js` no longer auto-connects the media plane on page-load (an unprompted camera light is
+hostile, and browsers gate `getUserMedia` behind a user gesture anyway). New flow:
+- **Lobby on load:** an always-visible "● In a meeting" pill (dot + status text) + a prominent
+  **▶ Join A/V** button. No device access until the user clicks Join.
+- **Explicit Join:** click → connect to LiveKit → request **mic + camera independently** (a denial of
+  one doesn't block the other; the button paints the REAL state + a toast names the missing device).
+- **Visible controls (live):** 🎤 mic · 📹 cam · 🖥 share (presenter) · 🧊/📄 surface (presenter) · ✖ Leave.
+- **Explicit Leave:** returns to the lobby (Join button back) instead of destroying the bar — re-join
+  the same session without reloading. Unexpected media drop falls back to the same lobby.
+- **State machine** drives the pill: `Ready to join → Connecting… → ● Live → Left/Reconnecting`,
+  plus `A/V unavailable` when `/livekit-token` 501s (LiveKit unconfigured).
+- `?autojoin=1` opt-in auto-joins (for embeds / automated harnesses).
+
+Co-presence (`meeting-sync.js`, model camera-follow + presence) still auto-joins — it needs no devices,
+so the "Live meeting" presence panel appears independently of the A/V Join state. **No C# change**;
+JS-only. LiveKit stays the media plane, MeetingHub the co-presence plane.
+
+**SERVED proof:** `docker compose build --no-cache api && up -d --force-recreate api`;
+`curl -fsS -w '%{http_code}' http://localhost:5000/livekit-av.js` = 200; the served file greps
+`STING_MEETING_BUILD M1-polish`. (Recorded at commit time below.)
+
+**2-tab test — PENDING-HUMAN-VERIFY** (two InPrivate tabs, signed in, same
+`viewer.html?project=<pid>&model=<mid>&meeting=<sessionId>`; host = the session creator):
+- [ ] On load, **no camera/mic prompt fires automatically**; both tabs show the "● In a meeting" pill
+      reading **Ready to join** + a green **▶ Join A/V** button.
+- [ ] Click **Join A/V** in tab 1 → the **browser's camera/mic permission prompt appears** (the gesture
+      drove it); allow → pill flips to **● Live**, the Join button is replaced by the mic/cam/leave row,
+      and your own tile appears in the strip.
+- [ ] Click **Join A/V** in tab 2 + allow → within ~1–2 s **each tab shows the other participant's
+      tile** (2 tiles total) and hears audio.
+- [ ] **Deny** the prompt in a 3rd tab (or block the camera) → it still joins audio if mic allowed; the
+      denied control shows struck-through "off" + a "Camera/Microphone unavailable" toast (no crash).
+- [ ] Toggle 🎤 / 📹 → the control paints on/off and the peer sees the track stop/start.
+- [ ] Click **✖ Leave** in tab 2 → tab 2 returns to the **▶ Join A/V** lobby (pill: **Left — Join to
+      rejoin**); tab 1 drops tab 2's tile. Click **Join A/V** again → re-joins without reload.
+- [ ] Host only: 🖥 / 🧊 / 📄 controls are present (presenter); a non-host tab does **not** show 🖥.
+- [ ] If LiveKit is down/unconfigured (token 501): pill reads **A/V unavailable**, Join is disabled;
+      the model co-presence panel still works.
 
 ---
 

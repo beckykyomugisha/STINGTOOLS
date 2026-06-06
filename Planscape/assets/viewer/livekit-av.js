@@ -25,6 +25,11 @@
   if (window.__STING_LIVEKIT__) return;           // no double-init
   window.__STING_LIVEKIT__ = true;
 
+  // STEP-0 SERVED marker — bumped per slice so a marker grep on the *served*
+  // bundle proves the running container has this exact change.
+  var STING_MEETING_BUILD = "M1-polish";
+  try { console.log("[livekit] STING_MEETING_BUILD " + STING_MEETING_BUILD); } catch (e) {}
+
   var params = new URLSearchParams(location.search);
   var sessionId = params.get("meeting") || params.get("session") || "";
   var projectId = params.get("project") || "";
@@ -42,6 +47,8 @@
   var state = {
     room: null,
     LK: null,
+    joined: false,        // M1 — gesture-gated: true only after the user clicks Join
+    tokenInfo: null,      // M1 — fetched at boot, consumed by join()
     micOn: true,
     camOn: true,
     screenOn: false,
@@ -59,17 +66,34 @@
   window.addEventListener("sting:screenShareStarted", function () { if (state.isPresenter) setSurface("screen"); });
   window.addEventListener("sting:screenShareStopped", function () { if (state.isPresenter && state.surface === "screen") setSurface("model"); });
 
-  // ── boot: load livekit-client, fetch a token, connect ─────────────────────
+  // ── boot: load livekit-client, fetch a token, show the JOIN lobby ─────────
+  // M1 — A/V is gesture-gated: we build the in-meeting pill + a "Join A/V"
+  // button but do NOT connect or touch the camera/mic until the user clicks
+  // Join. Browsers require a user gesture for getUserMedia anyway, and an
+  // unprompted camera light on page-load is hostile. Co-presence (meeting-
+  // sync.js) still auto-joins — it needs no devices.
   loadScript(LK_CDN, function (ok) {
-    if (!ok || !window.LivekitClient) { console.warn("[livekit] client lib failed to load"); return; }
+    if (!ok || !window.LivekitClient) { console.warn("[livekit] client lib failed to load"); buildShell(); setLobby("unavailable"); return; }
     state.LK = window.LivekitClient;
     fetchToken().then(function (info) {
-      if (!info) return;                          // 501 (unconfigured) / error — silent
-      state.isPresenter = !!info.isPresenter;     // needed by buildUI (screen button gate)
-      buildUI();
-      connect(info);
+      buildShell();
+      if (!info) { setLobby("unavailable"); return; }   // 501 (unconfigured) / error
+      state.tokenInfo = info;
+      state.isPresenter = !!info.isPresenter;            // gates the screen-share button
+      setLobby("ready");
+      if (params.get("autojoin") === "1") join();        // opt-in auto-join for embeds/tests
     });
   });
+
+  // M1 — explicit Join: connect the media plane + request devices ON the click
+  // gesture (so the permission prompt is expected, not a surprise).
+  function join() {
+    if (state.joined || !state.tokenInfo) return;
+    state.joined = true;
+    setLobby("connecting");
+    showLiveControls();
+    connect(state.tokenInfo);
+  }
 
   function fetchToken() {
     var url = apiBase + "/api/projects/" + projectId + "/meeting-sessions/" + sessionId + "/livekit-token";
@@ -103,13 +127,15 @@
       .on(LK.RoomEvent.ParticipantDisconnected, function (p) { dropTile(p.sid); })
       .on(LK.RoomEvent.ActiveSpeakersChanged, function (speakers) { highlightSpeakers(speakers); })
       .on(LK.RoomEvent.LocalTrackPublished, function (pub) { if (pub.track) attachTrack(pub.track, room.localParticipant); })
-      .on(LK.RoomEvent.Disconnected, function () { teardownUI(); });
+      .on(LK.RoomEvent.Disconnected, function () { onRoomDisconnected(); });
 
     room.connect(info.url, info.token)
-      .then(function () { return room.localParticipant.setMicrophoneEnabled(true); })
-      .then(function () { return room.localParticipant.setCameraEnabled(true); })
-      .then(function () { setStatus("live"); renderTiles(); })
-      .catch(function (e) { console.warn("[livekit] connect failed", e); setStatus("offline"); });
+      .then(function () { setStatus("live"); setLobby("live"); renderTiles(); return enableDevices(); })
+      .catch(function (e) {
+        console.warn("[livekit] connect failed", e);
+        setStatus("offline"); setLobby("error");
+        state.joined = false; showLobbyControls();
+      });
 
     window.addEventListener("beforeunload", function () { try { room.disconnect(); } catch (e) {} });
 
@@ -289,6 +315,20 @@
   }
 
   // ── controls ───────────────────────────────────────────────────────────────
+  // M1 — enable mic + camera independently so denying one doesn't block the
+  // other; the buttons reflect the REAL device state (a denied/absent device
+  // shows its control struck-through "off" rather than lying that it's live).
+  function enableDevices() {
+    var lp = state.room && state.room.localParticipant;
+    if (!lp) return Promise.resolve();
+    var mic = lp.setMicrophoneEnabled(true)
+      .then(function () { state.micOn = true; paintBtn("lkMic", true, "🎤", "🔇"); })
+      .catch(function (e) { state.micOn = false; paintBtn("lkMic", false, "🎤", "🔇"); toast("Microphone unavailable"); console.warn("[livekit] mic denied/unavailable", e); });
+    var cam = lp.setCameraEnabled(true)
+      .then(function () { state.camOn = true; paintBtn("lkCam", true, "📹", "🚫"); })
+      .catch(function (e) { state.camOn = false; paintBtn("lkCam", false, "📹", "🚫"); toast("Camera unavailable"); console.warn("[livekit] camera denied/unavailable", e); });
+    return Promise.all([mic, cam]);
+  }
   function toggleMic() {
     if (!state.room) return;
     state.micOn = !state.micOn;
@@ -301,48 +341,118 @@
     state.room.localParticipant.setCameraEnabled(state.camOn).catch(noop);
     paintBtn("lkCam", state.camOn, "📹", "🚫");
   }
+  // M1 — Leave returns to the lobby (Join button) rather than destroying the
+  // whole bar, so a user can re-join the same session without reloading.
   function leave() {
-    if (state.room) { try { state.room.disconnect(); } catch (e) {} }
-    teardownUI();
+    if (state.room) { try { state.room.disconnect(); } catch (e) {} state.room = null; }
+    state.joined = false; state.screenOn = false;
+    clearTiles(); clearScreen();
+    showLobbyControls(); setStatus("idle"); setLobby("left");
+  }
+  // Unexpected media drop (network / SFU restart). Co-presence (meeting-sync.js)
+  // keeps its own auto-reconnect; here we fall back to the Join lobby.
+  function onRoomDisconnected() {
+    if (!state.joined) return;            // already left intentionally
+    state.joined = false; state.room = null; state.screenOn = false;
+    clearTiles(); clearScreen();
+    showLobbyControls(); setStatus("offline"); setLobby("left");
   }
 
   // ── UI shell ────────────────────────────────────────────────────────────────
-  function buildUI() {
+  // M1 — one persistent bar with three rows: an "in a meeting" pill (always),
+  // the participant tile strip (live only), and a control row that swaps between
+  // a LOBBY group (Join A/V button) and a LIVE group (mic/cam/screen/surface/leave).
+  function buildShell() {
     if (document.getElementById("lkBar")) return;
     var bar = el("div", { id: "lkBar", style:
       "position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:14;" +
       "display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none" });
+
+    // Row 1 — the "in a meeting" pill (status indicator, always visible).
+    var pill = el("div", { id: "lkPill", style:
+      "display:flex;align-items:center;gap:7px;pointer-events:auto;cursor:default;" +
+      "background:rgba(0,0,0,0.66);color:#fff;padding:5px 12px;border-radius:18px;" +
+      "font:12px -apple-system,Segoe UI,Roboto,sans-serif;backdrop-filter:blur(4px)" });
+    pill.appendChild(el("span", { id: "lkDot", style:
+      "width:9px;height:9px;border-radius:50%;background:#e8a13a;flex:0 0 auto" }));
+    pill.appendChild(el("span", { id: "lkPillTxt" }, "In a meeting"));
+    bar.appendChild(pill);
+
+    // Row 2 — participant tiles (populated once live).
     var strip = el("div", { id: "lkStrip", style:
-      "display:flex;gap:8px;max-width:90vw;overflow-x:auto;pointer-events:auto;" +
+      "display:none;gap:8px;max-width:90vw;overflow-x:auto;pointer-events:auto;" +
       "padding:4px;background:rgba(0,0,0,0.35);border-radius:8px;backdrop-filter:blur(4px)" });
-    var ctrls = el("div", { style:
+    bar.appendChild(strip);
+
+    // Row 3a — LOBBY controls (pre-join).
+    var lobby = el("div", { id: "lkLobby", style:
       "display:flex;gap:8px;pointer-events:auto;background:rgba(0,0,0,0.6);" +
       "padding:6px 10px;border-radius:24px;backdrop-filter:blur(4px)" });
-    ctrls.appendChild(ctrlBtn("lkMic", "🎤", toggleMic, "Mute / unmute mic"));
-    ctrls.appendChild(ctrlBtn("lkCam", "📹", toggleCam, "Camera on / off"));
+    var joinBtn = el("button", { id: "lkJoin", title: "Join the meeting's audio / video", style:
+      "border:none;border-radius:20px;cursor:pointer;font:600 14px -apple-system,Segoe UI,sans-serif;" +
+      "padding:8px 18px;background:#37c272;color:#06140c" }, "▶  Join A/V");
+    joinBtn.addEventListener("click", join);
+    lobby.appendChild(joinBtn);
+    bar.appendChild(lobby);
+
+    // Row 3b — LIVE controls (post-join), hidden until Join.
+    var live = el("div", { id: "lkLive", style:
+      "display:none;gap:8px;pointer-events:auto;background:rgba(0,0,0,0.6);" +
+      "padding:6px 10px;border-radius:24px;backdrop-filter:blur(4px)" });
+    live.appendChild(ctrlBtn("lkMic", "🎤", toggleMic, "Mute / unmute mic"));
+    live.appendChild(ctrlBtn("lkCam", "📹", toggleCam, "Camera on / off"));
     // WS3c — screen-share is presenter/host only (also enforced by the LiveKit grant).
-    if (state.isPresenter) ctrls.appendChild(ctrlBtn("lkScreen2", "🖥", toggleScreen, "Share / stop sharing screen"));
+    if (state.isPresenter) live.appendChild(ctrlBtn("lkScreen2", "🖥", toggleScreen, "Share / stop sharing screen"));
     // WS3d — presenter switches the shared surface everyone sees. 'screen' engages
     // automatically with the screen-share toggle above.
     if (state.isPresenter) {
-      ctrls.appendChild(ctrlBtn("lkSurf_model", "🧊", function () { setSurface("model"); }, "Show the 3D model"));
-      ctrls.appendChild(ctrlBtn("lkSurf_document", "📄", function () {
+      live.appendChild(ctrlBtn("lkSurf_model", "🧊", function () { setSurface("model"); }, "Show the 3D model"));
+      live.appendChild(ctrlBtn("lkSurf_document", "📄", function () {
         var d = prompt("Document id to share with the room:"); if (d && d.trim()) setSurface("document", d.trim());
       }, "Share a document"));
       // hidden anchor so paintSurfaceSwitch can highlight the 'screen' surface too
-      ctrls.appendChild(el("span", { id: "lkSurf_screen", style: "display:none" }));
+      live.appendChild(el("span", { id: "lkSurf_screen", style: "display:none" }));
     }
-    var dot = el("span", { id: "lkDot", style:
-      "width:8px;height:8px;border-radius:50%;background:#e8a13a;align-self:center;margin:0 2px" });
-    ctrls.appendChild(dot);
-    ctrls.appendChild(ctrlBtn("lkLeave", "✖", leave, "Leave A/V", "#d05050"));
-    bar.appendChild(strip);
-    bar.appendChild(ctrls);
+    live.appendChild(ctrlBtn("lkLeave", "✖", leave, "Leave A/V", "#d05050"));
+    bar.appendChild(live);
+
     document.body.appendChild(bar);
   }
-  function teardownUI() {
-    var bar = document.getElementById("lkBar"); if (bar) bar.remove();
+  function showLiveControls() {
+    var lobby = document.getElementById("lkLobby"); if (lobby) lobby.style.display = "none";
+    var live = document.getElementById("lkLive"); if (live) live.style.display = "flex";
+    var strip = document.getElementById("lkStrip"); if (strip) strip.style.display = "flex";
+  }
+  function showLobbyControls() {
+    var live = document.getElementById("lkLive"); if (live) live.style.display = "none";
+    var strip = document.getElementById("lkStrip"); if (strip) strip.style.display = "none";
+    var lobby = document.getElementById("lkLobby"); if (lobby) lobby.style.display = "flex";
+  }
+  function clearTiles() {
+    state.tiles.forEach(function (t) { try { t.wrap.remove(); } catch (e) {} });
     state.tiles.clear();
+    var strip = document.getElementById("lkStrip"); if (strip) strip.innerHTML = "";
+  }
+  // M1 — drive the pill's dot colour + label from the lobby/live state machine.
+  var LOBBY_TEXT = {
+    ready: "Ready to join",
+    connecting: "Connecting…",
+    live: "● Live",
+    left: "Left — Join to rejoin",
+    offline: "Reconnecting…",
+    unavailable: "A/V unavailable",
+    error: "Couldn't join — retry",
+  };
+  function setLobby(s) {
+    var txt = document.getElementById("lkPillTxt");
+    if (txt) txt.textContent = LOBBY_TEXT[s] || "In a meeting";
+    var dot = document.getElementById("lkDot");
+    if (dot) dot.style.background =
+      s === "live" ? "#37c272" :
+      (s === "connecting" ? "#e8a13a" :
+      ((s === "error" || s === "unavailable" || s === "offline") ? "#d05050" : "#9aa3b2"));
+    var join = document.getElementById("lkJoin");
+    if (join) join.disabled = (s === "unavailable" || s === "connecting");
   }
   function ctrlBtn(id, glyph, fn, title, bg) {
     var b = el("button", { id: id, title: title || "", style:
