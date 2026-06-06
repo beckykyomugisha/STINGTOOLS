@@ -1,5 +1,15 @@
 # Meetings (Track B) — audit & build log
 
+### Recordings — project archive view + ad-hoc coverage (P3/P4/P5) · Expo app · tsc-clean · PENDING-HUMAN-VERIFY
+New **/recordings** screen lists EVERY project recording (newest first): label (meeting title, or
+`Ad-hoc session · date · host` with an **AD-HOC** chip) · date/time · duration · size · status · ▶ Play ·
+⬇ Download. Reachable from the dashboard via a new **🎬 Recordings** QuickAction next to Meetings. Consumes
+`getProjectRecordings` (members-only + presigned, server-side). The in-app player + formatters were extracted
+to a shared `src/components/RecordingPlayer.tsx` (video for mp4, **audio player for audio-only** egress) used
+by both the meeting-detail section (P1) and this archive. `tsc --noEmit` clean across all files.
+- Full loop: record in a meeting → appears in that meeting's Recordings section **and** the project archive →
+  ▶ to play. In-browser play is PENDING-HUMAN after `expo export` redeploy; the server endpoint is REST-verified.
+
 ### Recordings — meetings-list indicator (P2) · Expo app · tsc-clean · 2-tab PENDING-HUMAN-VERIFY
 Each meeting row shows a small **`▶ REC`** badge when that meeting has ≥1 recording (alongside the ● LIVE
 badge). MeetingsScreen does one cheap `getProjectRecordings(projectId)` on load and builds a Set of

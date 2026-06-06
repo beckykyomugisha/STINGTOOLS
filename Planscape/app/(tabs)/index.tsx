@@ -325,6 +325,7 @@ export default function DashboardScreen() {
       <View style={styles.quickRow}>
         <QuickAction label="Site Diary" emoji="📒" onPress={() => router.push('/diary' as any)} />
         <QuickAction label="Meetings" emoji="📅" onPress={() => router.push('/meetings' as any)} />
+        <QuickAction label="Recordings" emoji="🎬" onPress={() => router.push('/recordings' as any)} />
         <QuickAction label="Transmittals" emoji="📤" onPress={() => router.push('/transmittals' as any)} />
         <QuickAction label="Warnings" emoji="⚠️" onPress={() => router.push('/warnings' as any)} />
         <QuickAction label="Healthcare" emoji="🏥" onPress={() => router.push('/healthcare' as any)} />
