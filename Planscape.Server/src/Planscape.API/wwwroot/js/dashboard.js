@@ -7,6 +7,10 @@
 (function () {
   "use strict";
 
+  // Deployed-artifact marker for serve path #3 (vanilla web /app). dashboard.js is
+  // volume-mounted (wwwroot/js) → reflects on restart/refresh, no docker rebuild.
+  console.log("[dashboard] STING_DASH_BUILD recordings-web");
+
   // Phase 169 — runtime config. The Mapbox token must be replaced with a
   // real public token from mapbox.com (free account, no credit card
   // required). When left as the placeholder, the dashboard renders a
@@ -317,7 +321,7 @@
   // Views that can appear in the URL hash. project-dashboard is reachable by
   // deep-link only (no nav button).
   const KNOWN_VIEWS = new Set([
-    "overview", "issues", "documents", "transmittals", "meetings", "workflows",
+    "overview", "issues", "documents", "transmittals", "meetings", "recordings", "workflows",
     "warnings", "models", "photos", "schedule", "cost", "tenant-keywords",
     "tenant-bim-manager-roles", "project-dashboard",
   ]);
@@ -457,7 +461,8 @@
         case "issues":       await renderList(main, `Issues`, `/api/projects/${state.projectId}/issues`, issueColumns); break;
         case "documents":    await renderList(main, `Documents`, `/api/projects/${state.projectId}/documents`, docColumns); break;
         case "transmittals": await renderList(main, `Transmittals`, `/api/projects/${state.projectId}/transmittals`, tmxColumns); break;
-        case "meetings":     await renderList(main, `Meetings`, `/api/projects/${state.projectId}/meetings`, meetingColumns); break;
+        case "meetings":     await renderMeetings(main); break;
+        case "recordings":   await renderRecordings(main); break;
         case "workflows":    await renderList(main, `Workflow runs`, `/api/projects/${state.projectId}/workflows/history`, workflowColumns); break;
         case "warnings":     await renderList(main, `Warnings`, `/api/projects/${state.projectId}/warnings/trend`, warningColumns); break;
         case "models":       await renderModels(main); break;
@@ -797,7 +802,7 @@
   // it's clear whose Issues / Documents / etc. you're navigating.
   const PROJECT_SCOPED_VIEWS = new Set([
     "project-dashboard", "issues", "documents", "transmittals",
-    "meetings", "workflows", "warnings", "models", "schedule", "cost",
+    "meetings", "recordings", "workflows", "warnings", "models", "schedule", "cost",
   ]);
   function syncSidebarScope() {
     const inProject = PROJECT_SCOPED_VIEWS.has(state.view);
@@ -920,6 +925,7 @@
             <button data-jump="issues">⚠ Issues (${d.openIssues || 0})</button>
             <button data-jump="transmittals">📤 Transmittals</button>
             <button data-jump="meetings">📅 Meetings</button>
+            <button data-jump="recordings">🎬 Recordings</button>
             <button data-jump="warnings">🚧 Warnings (${d.warningCount || 0})</button>
             <button data-jump="models">🧊 3D models</button>
             <button data-jump="schedule">📊 Schedule</button>
@@ -1653,6 +1659,134 @@
     { k: "durationMinutes", label: "Duration (m)" },
     { k: "location",      label: "Location" },
   ];
+
+  // ── Recordings (web /app — mirrors the mobile Expo recordings UI) ──────────
+  function fmtDur(s) { if (!s || s <= 0) return "—"; const m = Math.floor(s / 60), ss = Math.round(s % 60); return m + ":" + String(ss).padStart(2, "0"); }
+  function fmtSize(b) { if (!b || b <= 0) return "—"; return b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : (b / 1024).toFixed(0) + " KB"; }
+  function fmtDateTime(v) { if (!v) return ""; try { return new Date(v).toLocaleString(); } catch { return v; } }
+  function isAudio(k) { return k === "audio-only" || k === "audio"; }
+
+  // In-browser player: HTML5 <video> (mp4) / <audio> (audio-only egress) over the
+  // short-lived presigned URL (self-authenticating — no Bearer needed). Body-level
+  // overlay so it never clobbers an open recordings modal.
+  function openRecordingPlayer(rec) {
+    const audio = isAudio(rec.kind);
+    const url = rec.downloadUrl || "";
+    const ov = document.createElement("div");
+    ov.className = "modal-overlay";
+    ov.style.zIndex = "9999";
+    ov.innerHTML =
+      '<div class="modal-box" style="max-width:760px">' +
+        '<h2 style="margin-bottom:10px">' + (audio ? "🎙 Audio recording" : "🎥 Recording") + "</h2>" +
+        (audio
+          ? '<audio src="' + esc(url) + '" controls autoplay style="width:100%"></audio>'
+          : '<video src="' + esc(url) + '" controls autoplay style="width:100%;max-height:60vh;background:#000;border-radius:8px"></video>') +
+        '<div class="actions" style="margin-top:12px">' +
+          '<a class="ghost" href="' + esc(url) + '" target="_blank" rel="noopener" style="text-decoration:none">⬇ Download</a>' +
+          '<button type="button" class="btn-cancel" id="recPlayClose">Close</button>' +
+        "</div>" +
+      "</div>";
+    document.body.appendChild(ov);
+    const close = () => { try { ov.remove(); } catch (e) {} };
+    ov.querySelector("#recPlayClose").onclick = close;
+    ov.onclick = (e) => { if (e.target === ov) close(); };
+  }
+
+  // A recording row's action cell: ▶ Play (COMPLETE + url only) + ⬇ Download; else status.
+  function recActionsHtml(r) {
+    if (r.status === "COMPLETE" && r.downloadUrl) {
+      return '<button class="ghost rec-play" data-url="' + esc(r.downloadUrl) + '" data-kind="' + esc(r.kind) + '" ' +
+        'style="color:var(--primary);border-color:var(--primary)">▶ Play</button> ' +
+        '<a class="ghost" href="' + esc(r.downloadUrl) + '" target="_blank" rel="noopener" style="text-decoration:none">⬇ Download</a>';
+    }
+    return '<span style="color:var(--muted);font-size:12px">' +
+      (r.status === "ACTIVE" || r.status === "STARTING" ? "recording…" : esc(r.status)) + "</span>";
+  }
+  function wireRecPlay(scope) {
+    scope.querySelectorAll(".rec-play").forEach((b) => {
+      b.onclick = () => openRecordingPlayer({ downloadUrl: b.dataset.url, kind: b.dataset.kind });
+    });
+  }
+  async function fetchProjectRecordings() {
+    try { const w = await api(`/api/projects/${state.projectId}/recordings`); return (w && w.recordings) || []; }
+    catch (e) { return []; }
+  }
+
+  // Per-meeting recordings modal (the meeting-detail "Recordings" block).
+  function openMeetingRecordings(main, meeting, recs) {
+    const mount = main.querySelector("#modal-mount") || document.getElementById("modal-mount");
+    if (!mount) return;
+    const rows = recs.length
+      ? '<table><tbody>' + recs.map((r) =>
+          '<tr><td style="font-size:13px">' + (isAudio(r.kind) ? "🎙" : "🎥") + " " + fmtDateTime(r.startedAt) +
+          " · " + fmtDur(r.durationSeconds) + " · " + fmtSize(r.fileSizeBytes) + " · " + esc(r.status) +
+          '</td><td style="text-align:right;white-space:nowrap">' + recActionsHtml(r) + "</td></tr>").join("") + "</tbody></table>"
+      : '<div class="empty">No recordings for this meeting.</div>';
+    mount.innerHTML =
+      '<div class="modal-overlay" id="recMeetOverlay"><div class="modal-box" style="max-width:580px">' +
+        "<h2>" + esc((meeting && meeting.title) || "Meeting") + " — Recordings</h2>" + rows +
+        '<div class="actions"><button type="button" class="btn-cancel" id="recMeetClose">Close</button></div>' +
+      "</div></div>";
+    document.getElementById("recMeetClose").onclick = () => { mount.innerHTML = ""; };
+    const ov = document.getElementById("recMeetOverlay");
+    ov.onclick = (e) => { if (e.target === ov) mount.innerHTML = ""; };
+    wireRecPlay(mount);
+  }
+
+  // Meetings view — table with a ▶ REC badge on recorded rows; click a row to see its
+  // recordings. (Replaces the generic renderList for meetings.)
+  async function renderMeetings(main) {
+    const [mRaw, recs] = await Promise.all([
+      api(`/api/projects/${state.projectId}/meetings`),
+      fetchProjectRecordings(),
+    ]);
+    const meetings = Array.isArray(mRaw) ? mRaw : (mRaw?.items || []);
+    const byMeeting = {};
+    recs.forEach((r) => { if (r.meetingId) (byMeeting[r.meetingId] = byMeeting[r.meetingId] || []).push(r); });
+    const body = meetings.map((m) => {
+      const badge = byMeeting[m.id]
+        ? ' <span class="chip" style="background:rgba(25,118,210,0.15);color:#1976d2">▶ REC</span>' : "";
+      return '<tr data-meeting-id="' + esc(m.id) + '" style="cursor:pointer">' +
+        "<td>" + esc(m.title || "(untitled)") + badge + "</td>" +
+        "<td>" + esc(m.type || m.meetingType || "") + "</td>" +
+        "<td>" + fmtDate(m.scheduledAt) + "</td>" +
+        "<td>" + (m.durationMinutes == null ? "" : esc(String(m.durationMinutes))) + "</td>" +
+        "<td>" + esc(m.location || "") + "</td></tr>";
+    }).join("");
+    main.innerHTML = "<h1>Meetings</h1>" +
+      '<p style="color:var(--muted);font-size:13px;margin:-4px 0 12px">Click a meeting to see its recordings.</p>' +
+      '<div class="card">' + (meetings.length
+        ? "<table><thead><tr><th>Title</th><th>Type</th><th>When</th><th>Duration (m)</th><th>Location</th></tr></thead><tbody>" + body + "</tbody></table>"
+        : '<div class="empty">No meetings yet.</div>') + "</div>" +
+      '<div id="modal-mount"></div>';
+    main.querySelectorAll("tr[data-meeting-id]").forEach((tr) => {
+      tr.onclick = () => {
+        const m = meetings.find((x) => x.id === tr.dataset.meetingId);
+        openMeetingRecordings(main, m, byMeeting[tr.dataset.meetingId] || []);
+      };
+    });
+  }
+
+  // Project Recordings archive — ALL recordings newest-first (label/date/duration/size/
+  // status/Play/Download + AD-HOC chip). Covers scheduled-meeting + ad-hoc sessions.
+  async function renderRecordings(main) {
+    const recs = await fetchProjectRecordings();
+    const body = recs.map((r) =>
+      "<tr><td>" + (isAudio(r.kind) ? "🎙" : "🎥") + " " + esc(r.label || "") +
+        (r.adHoc ? ' <span class="chip" style="background:rgba(230,81,0,0.15);color:#e65100">AD-HOC</span>' : "") + "</td>" +
+      "<td>" + fmtDateTime(r.startedAt) + "</td>" +
+      "<td>" + fmtDur(r.durationSeconds) + "</td>" +
+      "<td>" + fmtSize(r.fileSizeBytes) + "</td>" +
+      "<td>" + esc(r.status) + "</td>" +
+      '<td style="text-align:right;white-space:nowrap">' + recActionsHtml(r) + "</td></tr>").join("");
+    main.innerHTML = "<h1>Recordings</h1>" +
+      '<p style="color:var(--muted);font-size:13px;margin:-4px 0 12px">All meeting &amp; ad-hoc session recordings in this project (newest first).</p>' +
+      (recs.length === 0
+        ? '<div class="empty">No recordings yet. Record a live meeting and it will appear here.</div>'
+        : '<div class="card"><table><thead><tr><th>Recording</th><th>When</th><th>Duration</th><th>Size</th><th>Status</th><th></th></tr></thead><tbody>' + body + "</tbody></table></div>") +
+      '<div id="modal-mount"></div>';
+    wireRecPlay(main);
+  }
   const workflowColumns = [
     { k: "preset",          label: "Preset" },
     { k: "stepsPassed",     label: "✓", render: v => `<span style="color:var(--green)">${v}</span>` },

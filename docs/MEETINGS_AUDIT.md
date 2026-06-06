@@ -1,5 +1,24 @@
 # Meetings (Track B) — audit & build log
 
+### Recordings on the VANILLA web /app dashboard · marker `STING_DASH_BUILD recordings-web` · SERVED-verified
+Mirrored the mobile recordings UI into the served web `/app` (`wwwroot/js/dashboard.js` + a nav-link in
+`wwwroot/app/index.html`) — **not** the Expo app (which isn't web-exportable; see DEPLOY.md). `renderMeetings`
+replaces the generic table: a **▶ REC** chip on rows that have a recording (one `GET /recordings` → Set of
+meetingIds), and clicking a row opens a per-meeting **Recordings** modal (date·duration·size·status·▶Play·
+⬇Download). New **🎬 Recordings** nav section (`renderRecordings`) lists ALL project recordings newest-first
+(label/date/duration/size/status/Play/Download + **AD-HOC** chip). `▶ Play` opens an HTML5 `<video>`/`<audio>`
+overlay on the presigned URL (gated to `COMPLETE`; FAILED/ACTIVE show status). Served proof:
+`curl /js/dashboard.js` → marker + `renderRecordings`/`renderMeetings`/`openRecordingPlayer`/`case "recordings"`;
+`curl /app/index.html` → `data-view="recordings"`. 2-tab PENDING-HUMAN-VERIFY.
+
+**Web /app vs Expo parity audit (flags for what else needs porting to dashboard.js):**
+- ❌ Live-meeting **JOIN / A/V** (LiveKit) — web-missing (Expo-only).
+- ❌ Meeting **authoring** (create / minutes / agenda / attendees / actions) — web is a read-only list.
+- ❌ Live-start notification + `?meeting=` **Join deep-link** + `MeetingScheduled` event — web has the SignalR
+  notification infra (handles `MeetingCreated/Updated`) but these newer events are unwired.
+- ✅ Notifications infra, meetings list, **recordings** (this change) are present on web.
+See DEPLOY.md for the four-surface deploy matrix.
+
 ### Recordings — project archive view + ad-hoc coverage (P3/P4/P5) · Expo app · tsc-clean · PENDING-HUMAN-VERIFY
 New **/recordings** screen lists EVERY project recording (newest first): label (meeting title, or
 `Ad-hoc session · date · host` with an **AD-HOC** chip) · date/time · duration · size · status · ▶ Play ·
