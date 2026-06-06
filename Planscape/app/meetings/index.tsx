@@ -9,8 +9,8 @@ import {
   logMeetingMinutes, addMeetingAction, updateMeetingAction, listOpenMeetingActions,
   listMeetingAttendees, addMeetingAttendee, updateMeetingAttendee, deleteMeetingAttendee,
   addMeetingAgendaItem, updateMeetingAgendaItem, deleteMeetingAgendaItem,
-  exportMeetingMinutesDoc, getMeetingIcsUrl, createMeetingSession,
-  type MeetingActionItem, type MeetingAttendee, type MeetingAgendaItem,
+  exportMeetingMinutesDoc, getMeetingIcsUrl, startLiveSession, getMeetingLiveArtifacts,
+  type MeetingActionItem, type MeetingAttendee, type MeetingAgendaItem, type MeetingLiveArtifacts,
 } from "@/api/endpoints";
 import { MemberPicker } from "@/components/MemberPicker";
 import { useProjectStore } from "@/stores/projectStore";
@@ -158,6 +158,9 @@ function MeetingRow({ meeting, onPress, isPast = false }: {
           <Text style={styles.typeText}>{type.replace(/_/g, " ").toUpperCase()}</Text>
         </View>
         <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+        {meeting.liveSessionId && (
+          <View style={styles.liveBadge}><Text style={styles.liveBadgeText}>● LIVE</Text></View>
+        )}
         {typeof meeting.actionItemCount === "number" && meeting.actionItemCount > 0 && (
           <Text style={styles.actionCount}>{meeting.actionItemCount} actions</Text>
         )}
@@ -342,15 +345,26 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
   const [saving, setSaving] = useState(false);
   const [editStatus, setEditStatus] = useState(meeting.status);
   const [joining, setJoining] = useState(false);
+  // N5 — live artifacts (snapshots / attendance) captured against this meeting's session(s).
+  const [artifacts, setArtifacts] = useState<MeetingLiveArtifacts | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getMeetingLiveArtifacts(projectId, meeting.id)
+      .then((a) => { if (alive) setArtifacts(a); })
+      .catch(() => { /* none yet */ });
+    return () => { alive = false; };
+  }, [projectId, meeting.id]);
 
-  // WS3e — start/join a LIVE A/V session for this scheduled meeting, then open the
-  // live screen. Creating is idempotent enough for a demo: each tap opens a fresh
-  // session bound to this meeting; a follow-up can reuse an existing ACTIVE one.
+  // N5 — start/join the LIVE A/V session bound to this scheduled meeting, then open
+  // the live screen. Idempotent server-side: the FIRST join creates the session +
+  // flips the meeting to IN_PROGRESS; everyone after joins the SAME session, so all
+  // live artifacts (snapshots / actions / attendance) flow back to this one meeting.
   async function joinLive() {
     setJoining(true);
     try {
-      const session = await createMeetingSession(projectId, { meetingId: meeting.id });
-      router.push({ pathname: "/meetings/live", params: { project: projectId, session: session.id } });
+      const session = await startLiveSession(projectId, meeting.id);
+      onRefresh();   // pick up IN_PROGRESS + liveSessionId
+      router.push({ pathname: "/meetings/live", params: { project: projectId, session: session.sessionId } });
     } catch (err) {
       Alert.alert("Could not join", err instanceof Error ? err.message : String(err));
     } finally {
@@ -378,15 +392,39 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
       {/* WS3e — live A/V meeting (camera/mic/screen-share). Replaces the
           "nothing to show yet" disconnect: scheduled meetings can go live. */}
       <View style={styles.card}>
-        <Text style={styles.fieldLabel}>Live meeting</Text>
+        <Text style={styles.fieldLabel}>Live meeting{meeting.liveSessionId ? "  ● IN PROGRESS" : ""}</Text>
         <TouchableOpacity onPress={joinLive} disabled={joining}
           style={[styles.pillActive, { marginTop: 8, paddingVertical: 12, alignItems: "center", borderRadius: 8, opacity: joining ? 0.6 : 1 }]}>
-          <Text style={{ color: "#fff", fontWeight: "600" }}>{joining ? "Starting…" : "🎥 Join live A/V"}</Text>
+          <Text style={{ color: "#fff", fontWeight: "600" }}>
+            {joining ? "Starting…" : meeting.liveSessionId ? "🎥 Resume live A/V" : "🎥 Join live A/V"}
+          </Text>
         </TouchableOpacity>
         <Text style={[styles.fieldValue, { color: "#9aa3b2", fontSize: 12, marginTop: 6 }]}>
           Camera, mic + screen-share over LiveKit. Needs a dev build on mobile (not Expo Go).
         </Text>
       </View>
+
+      {/* N5 — live artifacts that flowed back from the live session(s): viewpoint /
+          markup snapshots + attendance from the live roster. (Recording lands here
+          once N2 / LiveKit Egress is deployed.) */}
+      {artifacts && (artifacts.snapshots.length > 0 || artifacts.attendance.length > 0 || artifacts.sessions.length > 0) && (
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Live artifacts</Text>
+          <Text style={[styles.fieldValue, { fontSize: 12, color: "#666", marginTop: 2 }]}>
+            {artifacts.sessions.length} session(s) · {artifacts.snapshots.length} snapshot(s) · {artifacts.attendance.length} attended
+          </Text>
+          {artifacts.attendance.length > 0 && (
+            <Text style={[styles.fieldValue, { fontSize: 12, marginTop: 6 }]} numberOfLines={2}>
+              👥 {artifacts.attendance.map((a) => a.displayName).join(", ")}
+            </Text>
+          )}
+          {artifacts.snapshots.slice(0, 5).map((s) => (
+            <Text key={s.id} style={[styles.fieldValue, { fontSize: 12, marginTop: 4 }]} numberOfLines={1}>
+              📸 {s.label || "Viewpoint"} · {new Date(s.capturedAt).toLocaleString()}
+            </Text>
+          ))}
+        </View>
+      )}
 
       {/* Meeting URL */}
       {meeting.meetingUrl && (
@@ -1041,6 +1079,8 @@ const styles = StyleSheet.create({
   typeChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   typeText: { color: "#fff", fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
+  liveBadge: { backgroundColor: "#d32f2f", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 },
+  liveBadgeText: { color: "#fff", fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
   actionCount: { marginLeft: "auto", fontSize: 11, color: "#E8912D", fontWeight: "700" },
   meetingTitle: { fontSize: 15, fontWeight: "600", color: "#222" },
   meta: { fontSize: 12, color: "#666", marginTop: 2 },

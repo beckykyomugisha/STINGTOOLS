@@ -125,6 +125,16 @@ are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that fil
 - [ ] 📋 link/create formal meeting (button greens; other tab greens via RoomChanged).
 - [ ] 📋 (linked) add action item; blank → generate minutes (MEETING_MINUTES doc record).
 
+### N5 — BCC meetings ⇄ live meetings (one flow)  · server + mobile (no viewer marker)
+Server FUNCTIONALLY VERIFIED via a logged-in REST run against the rebuilt container (create → live-session
+idempotent → IN_PROGRESS → live-artifacts → end → COMPLETED + attendance flow-back). Mobile `tsc --noEmit`
+0 errors. No new entities → no migration.
+- POST /meetings/{id}/live-session (create-or-get, host, IN_PROGRESS); liveSessionId on list+detail.
+- GET /meetings/{id}/live-artifacts (snapshots + attendance + sessions; recordings pending N2).
+- end → roster→ATTENDED attendees + meeting COMPLETED.
+- /app: ● LIVE badge + idempotent Join/Resume + Live-artifacts card.
+- [ ] Device loop PENDING-HUMAN-VERIFY (docs/MEETINGS_AUDIT.md → N5): schedule → Join live → do stuff → end → BCC record shows attendance/snapshots/actions + minutes.
+
 ### N4 — flexible meeting ⇄ model layout  · marker `N4-layout` (meeting-sync + livekit-av)
 SERVED-proven (both files 200 + `N4-layout`; `closeMeeting`/`cycleMeetLayout`/`sting:meetLayout` present).
 - [ ] Drag the panel header → repositions + persists across reload.

@@ -322,6 +322,8 @@ export interface Meeting {
   recurrenceRule?: string | null;
   seriesId?: string | null;
   actionItemCount?: number;
+  /** N5 — the ACTIVE live (LiveKit/SignalR) session backing this meeting, if any. */
+  liveSessionId?: string | null;
 }
 
 export interface WorkflowRun {

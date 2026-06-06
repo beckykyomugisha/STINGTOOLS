@@ -81,6 +81,12 @@ public class MeetingsController : ControllerBase
                 ActionItemCount = m.ActionItems.Count,
                 OpenActions = m.ActionItems.Count(a => a.Status == "OPEN" || a.Status == "IN_PROGRESS"),
                 HasMinutes = m.Minutes != null || m.MinutesDocumentId != null,
+                // N5 — the live (LiveKit/SignalR) session currently backing this scheduled
+                // meeting, if any. Non-null ⇒ the /app Meetings page shows an in-progress
+                // badge + "Join live". Correlated by MeetingSession.MeetingId == meeting.Id.
+                LiveSessionId = _db.MeetingSessions
+                    .Where(s => s.MeetingId == m.Id && s.Status == "ACTIVE")
+                    .Select(s => (Guid?)s.Id).FirstOrDefault(),
             })
             .ToListAsync();
 
@@ -100,6 +106,11 @@ public class MeetingsController : ControllerBase
             .FirstOrDefaultAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId);
         if (meeting == null) return NotFound();
 
+        // N5 — the active live session backing this meeting (in-progress badge + Join).
+        var liveSessionId = await _db.MeetingSessions
+            .Where(s => s.MeetingId == meetingId && s.ProjectId == projectId && s.Status == "ACTIVE")
+            .Select(s => (Guid?)s.Id).FirstOrDefaultAsync();
+
         return Ok(new
         {
             meeting.Id, meeting.Title, meeting.MeetingType, meeting.ScheduledAt,
@@ -107,6 +118,7 @@ public class MeetingsController : ControllerBase
             meeting.Minutes, meeting.MinutesDocumentId, meeting.NotifiedUserIds,
             meeting.RecurrenceRule, meeting.SeriesId,
             meeting.CreatedBy, meeting.CreatedByUserId, meeting.CreatedAt,
+            LiveSessionId = liveSessionId,
             Attendees = meeting.Attendees.OrderBy(a => a.Role).ThenBy(a => a.Name).Select(a => new
             {
                 a.Id, a.UserId, a.Name, a.Email, a.Company, a.Discipline,
@@ -845,6 +857,128 @@ public class MeetingsController : ControllerBase
             message = "Minutes document record created. Template rendering will produce the .docx file.",
             meetingId
         });
+    }
+
+    // ── N5 — BCC meeting ⇄ live meeting bridge ────────────────────────────────
+
+    /// <summary>
+    /// N5 — "Join live" from a scheduled BCC meeting. Returns the ACTIVE live
+    /// <see cref="MeetingSession"/> bound to this Meeting, creating one (and making
+    /// the caller host) if none exists. Idempotent: a second caller joins the SAME
+    /// session. Flips the meeting to IN_PROGRESS on first start. The client then
+    /// opens the viewer at <c>?meeting={sessionId}</c> (web) or the native meeting
+    /// screen — the same session the formal Meeting's artifacts flow back into.
+    /// </summary>
+    [HttpPost("{meetingId}/live-session")]
+    public async Task<ActionResult> StartOrJoinLiveSession(Guid projectId, Guid meetingId, [FromBody] StartLiveSessionRequest? req, CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        var meeting = await _db.Meetings
+            .FirstOrDefaultAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId, ct);
+        if (meeting == null) return NotFound("Meeting not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        Guid? userId = Guid.TryParse(User.FindFirst("user_id")?.Value ?? User.FindFirst("sub")?.Value, out var uid) ? uid : null;
+
+        var session = await _db.MeetingSessions
+            .FirstOrDefaultAsync(s => s.MeetingId == meetingId && s.ProjectId == projectId && s.Status == "ACTIVE", ct);
+        var isNew = false;
+        if (session == null)
+        {
+            session = new MeetingSession
+            {
+                TenantId = tenantId,
+                ProjectId = projectId,
+                MeetingId = meetingId,
+                ModelId = req?.ModelId,
+                HostUserId = userId,
+                Status = "ACTIVE",
+                CreatedBy = User.FindFirst("display_name")?.Value ?? User.Identity?.Name ?? "",
+                CreatedByUserId = userId,
+            };
+            _db.MeetingSessions.Add(session);
+            if (userId is { } hostId)
+            {
+                _db.MeetingViewerParticipants.Add(new MeetingViewerParticipant
+                {
+                    TenantId = tenantId,
+                    SessionId = session.Id,
+                    UserId = hostId,
+                    DisplayName = req?.DisplayName ?? User.FindFirst("display_name")?.Value ?? User.Identity?.Name ?? "Host",
+                    IsHost = true,
+                    IsFollowingHost = false,
+                    Surface = req?.Surface ?? "web",
+                });
+            }
+            // First Join Live flips the scheduled meeting to in-progress.
+            if (meeting.Status == "SCHEDULED") meeting.Status = "IN_PROGRESS";
+            await _db.SaveChangesAsync(ct);
+            isNew = true;
+            await _audit.LogAsync("LIVE_START", "Meeting", meeting.Id.ToString(),
+                System.Text.Json.JsonSerializer.Serialize(new { sessionId = session.Id }));
+        }
+
+        return Ok(new
+        {
+            sessionId = session.Id,
+            meetingId,
+            isNew,
+            status = session.Status,
+            modelId = session.ModelId,
+            hostUserId = session.HostUserId,
+        });
+    }
+
+    /// <summary>
+    /// N5 — live artifacts captured against this meeting's session(s): viewpoint /
+    /// markup snapshots, attendance (from the live viewer roster), and the linked
+    /// sessions themselves. Action items already live on the Meeting (added live via
+    /// the meeting link). Recordings land here once N2 (LiveKit Egress) is deployed —
+    /// returned empty until then.
+    /// </summary>
+    [HttpGet("{meetingId}/live-artifacts")]
+    public async Task<ActionResult> GetLiveArtifacts(Guid projectId, Guid meetingId, CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        var owned = await _db.Meetings.AnyAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId, ct);
+        if (!owned) return NotFound();
+
+        var sessionIds = await _db.MeetingSessions
+            .Where(s => s.MeetingId == meetingId && s.ProjectId == projectId)
+            .Select(s => s.Id).ToListAsync(ct);
+
+        var sessions = await _db.MeetingSessions
+            .Where(s => s.MeetingId == meetingId && s.ProjectId == projectId)
+            .OrderByDescending(s => s.CreatedAt)
+            .Select(s => new { s.Id, s.Status, s.HostUserId, s.ModelId, s.CreatedAt, s.EndedAt })
+            .ToListAsync(ct);
+
+        var snapshots = await _db.MeetingSnapshots
+            .Where(x => sessionIds.Contains(x.SessionId))
+            .OrderByDescending(x => x.CapturedAt)
+            .Select(x => new { x.Id, x.SessionId, x.Label, x.CapturedBy, x.CapturedByUserId, x.CapturedAt })
+            .ToListAsync(ct);
+
+        var attendance = await _db.MeetingViewerParticipants
+            .Where(p => sessionIds.Contains(p.SessionId))
+            .GroupBy(p => new { p.UserId, p.DisplayName })
+            .Select(g => new
+            {
+                g.Key.UserId,
+                g.Key.DisplayName,
+                FirstJoinedAt = g.Min(p => p.JoinedAt),
+                LastSeenAt = g.Max(p => p.LastSeenAt),
+            })
+            .ToListAsync(ct);
+
+        return Ok(new { meetingId, sessions, snapshots, attendance, recordings = Array.Empty<object>() });
+    }
+
+    public class StartLiveSessionRequest
+    {
+        public Guid? ModelId { get; set; }
+        public string? DisplayName { get; set; }
+        public string? Surface { get; set; }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

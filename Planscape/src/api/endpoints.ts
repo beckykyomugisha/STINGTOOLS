@@ -691,6 +691,35 @@ export function setMeetingSurface(
   return apiFetch(`/api/projects/${projectId}/meeting-sessions/${sessionId}/surface`, { method: 'POST', body: JSON.stringify(body) });
 }
 
+// ── N5 — BCC meeting ⇄ live session bridge ──────────────────────────────────
+export interface StartLiveSessionDto {
+  sessionId: string;
+  meetingId: string;
+  isNew: boolean;
+  status: string;
+  modelId?: string | null;
+  hostUserId?: string | null;
+}
+export interface MeetingLiveArtifacts {
+  meetingId: string;
+  sessions: Array<{ id: string; status: string; hostUserId?: string | null; modelId?: string | null; createdAt: string; endedAt?: string | null }>;
+  snapshots: Array<{ id: string; sessionId: string; label: string; capturedBy?: string; capturedByUserId?: string | null; capturedAt: string }>;
+  attendance: Array<{ userId: string; displayName: string; firstJoinedAt: string; lastSeenAt: string }>;
+  recordings: unknown[];
+}
+/** N5 — create-or-get the ACTIVE live session bound to a scheduled meeting (idempotent). */
+export function startLiveSession(
+  projectId: string,
+  meetingId: string,
+  body: { modelId?: string; displayName?: string; surface?: string } = {},
+): Promise<StartLiveSessionDto> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/live-session`, { method: 'POST', body: JSON.stringify(body) });
+}
+/** N5 — viewpoint/markup snapshots + attendance captured against this meeting's live session(s). */
+export function getMeetingLiveArtifacts(projectId: string, meetingId: string): Promise<MeetingLiveArtifacts> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/live-artifacts`);
+}
+
 export function createMeeting(projectId: string, body: {
   title: string;
   meetingType?: string;

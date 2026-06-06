@@ -400,6 +400,38 @@ here) — it would touch the app-shell grid / FITFIX / camera, so it's a separat
       back to centre otherwise; the 3D doesn't end up mis-framed (sizeRenderer ran).
 - [ ] **Persistence:** chosen layout/min/position restore on reopening the meeting.
 
+### N5 — BCC meetings ⇄ live meetings (one flow) · server + mobile · FUNCTIONALLY VERIFIED (server) + tsc-clean (mobile)
+Makes a scheduled BCC `Meeting` and a live `MeetingSession` one flow. **No new entities → no migration.**
+
+**Server** (`MeetingsController` + `MeetingRoomController`):
+- `POST /meetings/{id}/live-session` — create-or-get the ACTIVE session bound to the meeting
+  (idempotent), make the caller host, flip the meeting to IN_PROGRESS on first start.
+- `liveSessionId` added to the meeting **list + detail** DTOs (drives the in-progress badge + Join).
+- `GET /meetings/{id}/live-artifacts` — viewpoint/markup snapshots + attendance (from the live roster)
+  + linked sessions; recordings empty until N2 (Egress) lands.
+- `POST /meeting-sessions/{id}/end` enhanced: when bound to a meeting, flow the live roster back as
+  **ATTENDED** attendees and complete the meeting. (Actions already flow live via the M4 link; minutes
+  via the existing `POST /meetings/{id}/export/minutes` after end.)
+
+**Server functional proof** (logged-in REST run against the rebuilt container, demo tenant):
+create meeting → `liveSessionId:null`/SCHEDULED → `live-session` ⇒ ACTIVE `isNew:true` + meeting
+IN_PROGRESS → 2nd call ⇒ **same session, `isNew:false`** → detail `liveSessionId` matches →
+live-artifacts `sessions:1, attendance:1 (host), snapshots:0, recordings:0` → `end` 204 ⇒ meeting
+**COMPLETED**, **1 attendee (ATTENDED)**, `liveSessionId:null`, session **ENDED**. ✅ all pass.
+
+**Mobile** (`/app/meetings/index.tsx` + `src/api/endpoints.ts` + `src/types/api.ts`): `● LIVE` badge on
+rows with an active session; "Join live" now uses the idempotent `startLiveSession` (Resume when
+in-progress); a **Live artifacts** card shows session/snapshot/attendance counts + attendees + recent
+snapshots. `tsc --noEmit` → 0 errors.
+
+PENDING-HUMAN-VERIFY (full loop on devices):
+- [ ] Schedule a meeting in the /app Meetings page → tap **Join live** → the live viewer opens bound to
+      this meeting; the row shows ● LIVE and the card shows ● IN PROGRESS.
+- [ ] Do stuff live (capture a viewpoint, raise an action via the meeting link) → they appear under the
+      meeting's **Live artifacts** / Actions.
+- [ ] End the session → the BCC meeting flips to COMPLETED, attendance lists who joined, and
+      `Export Minutes` produces the minutes doc. (Recording row appears once N2 is deployed.)
+
 ### Slice index (all on branch `claude/optimistic-bell-EfjJw`, PR #306 — do not merge)
 | Slice | Marker | Commit | What |
 |---|---|---|---|
@@ -412,6 +444,7 @@ here) — it would touch the app-shell grid / FITFIX / camera, so it's a separat
 | N1 | `N1-presence` | (this commit) | remote video tiles populate on join / clear on leave · per-tile mic/cam badge + camera-off initials placeholder · live roster A/V status (online/in-call/cam/mic/presenter/away) correlated by userId |
 | N3 | `N3-docs` | (this commit) | document presentation: fix `/file`→`/download` (surface never rendered) · discoverable doc picker (searchable list) · drag-drop / upload a local file → persisted then shared |
 | N4 | `N4-layout` | (this commit) | meeting panel movable / minimisable / closeable (full LiveKit+SignalR teardown) · PiP/sidebar/theater layout modes + persistence + sizeRenderer reframe (grid-reflow dock deferred) |
+| N5 | (server+mobile) | (this commit) | BCC⇄live one flow: `POST /meetings/{id}/live-session` (idempotent), `liveSessionId` on meeting DTOs, `GET /meetings/{id}/live-artifacts`, end→roster→attendees + COMPLETED · mobile LIVE badge + Resume + artifacts card. Server functionally verified; mobile tsc-clean. |
 
 ### Cross-cutting caveats / known follow-ups
 - **Mobile parity:** `live.tsx` covers native A/V + surface-follow + co-presence; the M2 markup,

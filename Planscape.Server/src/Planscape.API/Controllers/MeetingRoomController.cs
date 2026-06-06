@@ -191,6 +191,40 @@ public class MeetingRoomController : ControllerBase
         if (session is null) return NotFound();
         session.Status = "ENDED";
         session.EndedAt = DateTime.UtcNow;
+
+        // N5 — when this session backs a formal Meeting, flow the live viewer roster
+        // back as ATTENDANCE (so the BCC meeting record reflects who actually attended)
+        // and complete the meeting. Action items + snapshots already flow live; minutes
+        // are (re)generated via POST /meetings/{id}/export/minutes after end.
+        if (session.MeetingId is { } mid)
+        {
+            var parts = await _db.MeetingViewerParticipants
+                .Where(p => p.SessionId == sessionId)
+                .GroupBy(p => p.UserId)
+                .Select(g => new { UserId = g.Key, Name = g.Max(p => p.DisplayName) })
+                .ToListAsync(ct);
+            var existing = await _db.MeetingAttendees.Where(a => a.MeetingId == mid).ToListAsync(ct);
+            foreach (var p in parts)
+            {
+                var row = existing.FirstOrDefault(a => a.UserId == p.UserId);
+                if (row != null) { row.AttendanceStatus = "ATTENDED"; }
+                else
+                {
+                    _db.MeetingAttendees.Add(new MeetingAttendee
+                    {
+                        TenantId = session.TenantId,
+                        MeetingId = mid,
+                        UserId = p.UserId,
+                        Name = string.IsNullOrWhiteSpace(p.Name) ? "Participant" : p.Name,
+                        Role = "ATTENDEE",
+                        AttendanceStatus = "ATTENDED",
+                    });
+                }
+            }
+            var meeting = await _db.Meetings.FirstOrDefaultAsync(m => m.Id == mid, ct);
+            if (meeting != null && meeting.Status == "IN_PROGRESS") meeting.Status = "COMPLETED";
+        }
+
         await _db.SaveChangesAsync(ct);
         await MeetingHub.NotifyRoomChanged(_hub, sessionId, ToDto(session));
         return NoContent();
