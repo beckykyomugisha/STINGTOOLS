@@ -24,7 +24,7 @@
   "use strict";
 
   // STEP-0 SERVED marker — bumped per slice that touches this file.
-  var STING_MEETINGSYNC_BUILD = "M4-aec";
+  var STING_MEETINGSYNC_BUILD = "N1-presence";
   try { console.log("[meeting] STING_MEETINGSYNC_BUILD " + STING_MEETINGSYNC_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -56,8 +56,14 @@
     meetingId: "",           // linked formal Meeting (agenda/actions/minutes)
     modelId: "",             // session model (informational)
     clash: { list: [], idx: -1, on: false },
+    // N1 — live A/V state from livekit-av.js, keyed by participant identity (= userId).
+    av: {},
   };
   state.myUserId = decodeUserId(token);
+
+  // N1 — the media plane (livekit-av.js) publishes camera/mic/in-call state; merge it
+  // into the co-presence roster so it shows WHO IS ONLINE + their live A/V status.
+  window.addEventListener("sting:avState", function (e) { state.av = (e && e.detail) || {}; renderPresence(); });
 
   // ── wait for the viewer API, the SignalR lib (shim loads it async), AND the
   //    model to be on screen. BLK-5: joining before the model loads makes us
@@ -341,6 +347,7 @@
         '<span id="meetingDot" style="width:8px;height:8px;border-radius:50%;background:#e8a13a"></span>' +
         '<strong>Live meeting</strong>' +
       '</div>' +
+      '<div id="meetingCounts" style="font-size:10px;opacity:0.78;margin-bottom:6px"></div>' +
       '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:6px">' +
         '<input type="checkbox" id="meetingFollow" checked> Follow presenter' +
       '</label>' +
@@ -357,19 +364,33 @@
     if (!host) return;
     host.innerHTML = "";
     var meHost = isHost() ? " ★" : "";
-    host.appendChild(rosterChip(displayName + " (you)" + meHost + (state.myHand ? " ✋" : ""), "#3a7de8"));
+    host.appendChild(rosterChip(displayName + " (you)" + meHost + (state.myHand ? " ✋" : "") + avSuffix(state.myUserId), "#3a7de8"));
     state.participants.forEach(function (p, cid) {
       var badge = (p.userId && String(p.userId) === state.hostUserId) ? " ★" : "";
       var wrap = document.createElement("span");
       wrap.style.cssText = "display:inline-flex;align-items:center;gap:3px";
-      wrap.appendChild(rosterChip(p.displayName + badge + (p.hand ? " ✋" : ""), colorFor(p.displayName)));
+      wrap.appendChild(rosterChip(p.displayName + badge + (p.hand ? " ✋" : "") + avSuffix(String(p.userId)), colorFor(p.displayName)));
       if (isHost()) {  // host controls: make-host (★) + remove (✖)
         wrap.appendChild(miniBtn("★", "Make host", function () { makeHost(p.userId); }));
         wrap.appendChild(miniBtn("✖", "Remove", function () { removeParticipant(cid); }));
       }
       host.appendChild(wrap);
     });
+    // N1 — "N online · M in call" summary.
+    var counts = document.getElementById("meetingCounts");
+    if (counts) counts.textContent = (state.participants.size + 1) + " online · " + inCallCount() + " in call";
     refreshHostControls();
+  }
+  // N1 — A/V status suffix for a roster chip, from the live media-plane state.
+  //   in call: 📹 (cam on) + 🎤/🔇 (mic) + 🔊 (active speaker);  online only: 🕓 (away from A/V).
+  function avSuffix(uid) {
+    var a = uid && state.av ? state.av[uid] : null;
+    if (!a || !a.present) return " 🕓";
+    return (a.cam ? " 📹" : "") + (a.mic ? " 🎤" : " 🔇") + (a.speaking ? " 🔊" : "");
+  }
+  function inCallCount() {
+    var n = 0; for (var k in (state.av || {})) { if (state.av[k] && state.av[k].present) n++; }
+    return n;
   }
   function rosterChip(text, bg) {
     var s = document.createElement("span");

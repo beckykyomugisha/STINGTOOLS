@@ -27,7 +27,7 @@
 
   // STEP-0 SERVED marker — bumped per slice so a marker grep on the *served*
   // bundle proves the running container has this exact change.
-  var STING_MEETING_BUILD = "M3-confer";
+  var STING_MEETING_BUILD = "N1-presence";
   try { console.log("[livekit] STING_MEETING_BUILD " + STING_MEETING_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -141,21 +141,30 @@
     state.room = room;
 
     room
-      .on(LK.RoomEvent.TrackSubscribed, function (track, pub, participant) { attachTrack(track, participant); })
-      .on(LK.RoomEvent.TrackUnsubscribed, function (track) {
+      .on(LK.RoomEvent.TrackSubscribed, function (track, pub, participant) { attachTrack(track, participant); updateTileBadgeFor(participant); emitAvState(); })
+      .on(LK.RoomEvent.TrackUnsubscribed, function (track, pub, participant) {
         try { track.detach().forEach(function (el) { el.remove(); }); } catch (e) {}
         if (isScreenShare(track)) clearScreen();
-        renderTiles();
+        // N1 — a remote turned their camera off (track gone): drop the video,
+        // reveal the initials placeholder, keep the tile + name in the strip.
+        if (participant && track && track.kind === "video" && !isScreenShare(track)) {
+          var t = state.tiles.get(participant.sid);
+          if (t) { t.video = null; showPlaceholder(t, true); updateTileBadge(t, participant); }
+        }
+        renderTiles(); emitAvState();
       })
       .on(LK.RoomEvent.LocalTrackUnpublished, function (pub) { if (pub && isScreenShare(pub.track)) { state.screenOn = false; clearScreen(); } })
-      .on(LK.RoomEvent.ParticipantConnected, function () { renderTiles(); })
-      .on(LK.RoomEvent.ParticipantDisconnected, function (p) { dropTile(p.sid); })
-      .on(LK.RoomEvent.ActiveSpeakersChanged, function (speakers) { highlightSpeakers(speakers); })
+      .on(LK.RoomEvent.ParticipantConnected, function () { renderTiles(); emitAvState(); })
+      .on(LK.RoomEvent.ParticipantDisconnected, function (p) { dropTile(p.sid); emitAvState(); })
+      .on(LK.RoomEvent.ActiveSpeakersChanged, function (speakers) { highlightSpeakers(speakers); emitAvState(); })
+      // N1 — mic/camera mute toggles change a tile's badge + placeholder; reflect it live.
+      .on(LK.RoomEvent.TrackMuted, function (pub, participant) { updateTileBadgeFor(participant); emitAvState(); })
+      .on(LK.RoomEvent.TrackUnmuted, function (pub, participant) { updateTileBadgeFor(participant); emitAvState(); })
       .on(LK.RoomEvent.LocalTrackPublished, function (pub) { if (pub.track) attachTrack(pub.track, room.localParticipant); })
       .on(LK.RoomEvent.Disconnected, function () { onRoomDisconnected(); });
 
     room.connect(info.url, info.token)
-      .then(function () { setStatus("live"); setLobby("live"); renderTiles(); return enableDevices(); })
+      .then(function () { setStatus("live"); setLobby("live"); renderTiles(); emitAvState(); return enableDevices(); })
       .catch(function (e) {
         console.warn("[livekit] connect failed", e);
         setStatus("offline"); setLobby("error");
@@ -170,6 +179,9 @@
       toggleMic: toggleMic,
       toggleCam: toggleCam,
       toggleScreen: toggleScreen,
+      leave: leave,
+      _av: {},
+      avState: function () { return (window.STING_LIVEKIT && window.STING_LIVEKIT._av) || {}; },
       get isPresenter() { return state.isPresenter; },
       get screenOn() { return state.screenOn; },
     };
@@ -199,6 +211,8 @@
     v.muted = participant.isLocal === true;     // never echo our own mic
     tile.wrap.insertBefore(v, tile.label);
     tile.video = v;
+    showPlaceholder(tile, false);               // N1 — live video hides the initials placeholder
+    updateTileBadge(tile, participant);
   }
 
   function ensureTile(participant) {
@@ -208,11 +222,26 @@
       style: "position:relative;width:132px;height:99px;border-radius:6px;overflow:hidden;" +
         "background:#11141a;border:2px solid transparent;flex:0 0 auto"
     });
+    // N1 — initials placeholder shown whenever there's no live camera video
+    // (participant present but camera off / not yet published). Hidden by
+    // attachTrack the moment a video track lands.
+    var nm = (participant.name) || (participant.isLocal ? "You" : (participant.identity || "Guest"));
+    var ph = el("div", {
+      style: "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;" +
+        "font:600 26px -apple-system,Segoe UI,sans-serif;color:#9fb0c8;background:#11141a"
+    }, initials(nm));
+    wrap.appendChild(ph);
+    // N1 — per-tile mic/camera state badge (top-left).
+    var badge = el("div", {
+      style: "position:absolute;left:4px;top:4px;display:flex;gap:3px;font-size:11px;line-height:1;" +
+        "background:rgba(0,0,0,0.5);padding:2px 4px;border-radius:4px;pointer-events:none"
+    });
+    wrap.appendChild(badge);
     var label = el("div", {
       style: "position:absolute;left:4px;bottom:4px;right:4px;font:11px -apple-system,Segoe UI,sans-serif;" +
         "color:#fff;background:rgba(0,0,0,0.55);padding:1px 5px;border-radius:4px;" +
         "white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
-    }, (participant.identity && participant.name) || (participant.isLocal ? "You" : (participant.identity || "Guest")));
+    }, nm);
     wrap.appendChild(label);
     // M3 — click a tile to pin it (speaker focus); click again to unpin.
     wrap.style.cursor = "pointer";
@@ -222,10 +251,58 @@
     });
     var strip = document.getElementById("lkStrip");
     if (strip) strip.appendChild(wrap);
-    var tile = { wrap: wrap, video: null, label: label, sid: sid };
+    var tile = { wrap: wrap, video: null, label: label, ph: ph, badge: badge, sid: sid };
     state.tiles.set(sid, tile);
+    updateTileBadge(tile, participant);
     applyTileLayout();
     return tile;
+  }
+
+  // N1 — initials / placeholder / per-tile badge + project-wide A/V state.
+  function initials(name) {
+    var parts = String(name || "?").trim().split(/[\s@._-]+/).filter(Boolean);
+    var s = (parts[0] || "?").charAt(0) + (parts.length > 1 ? parts[parts.length - 1].charAt(0) : "");
+    return s.toUpperCase() || "?";
+  }
+  function showPlaceholder(tile, on) { if (tile && tile.ph) tile.ph.style.display = on ? "flex" : "none"; }
+  function avFor(p) {
+    var cam = false, mic = false;
+    try { cam = !!p.isCameraEnabled; } catch (e) {}
+    try { mic = !!p.isMicrophoneEnabled; } catch (e) {}
+    return { cam: cam, mic: mic };
+  }
+  function updateTileBadge(tile, p) {
+    if (!tile || !tile.badge || !p) return;
+    var a = avFor(p);
+    tile.badge.innerHTML = "";
+    tile.badge.appendChild(el("span", {}, a.mic ? "🎤" : "🔇"));
+    tile.badge.appendChild(el("span", {}, a.cam ? "📹" : "🚫"));
+    showPlaceholder(tile, !(a.cam && tile.video));   // hide placeholder only when a live camera is shown
+  }
+  function participantBySid(sid) {
+    var room = state.room; if (!room) return null;
+    if (room.localParticipant && room.localParticipant.sid === sid) return room.localParticipant;
+    var found = null; room.remoteParticipants.forEach(function (p) { if (p.sid === sid) found = p; });
+    return found;
+  }
+  function updateTileBadgeFor(p) { if (!p) return; var t = state.tiles.get(p.sid); if (t) updateTileBadge(t, p); }
+  // N1 — broadcast the room's A/V state (keyed by participant identity = userId)
+  // so meeting-sync.js can show camera/mic/in-call status on the co-presence roster.
+  function emitAvState() {
+    var room = state.room, map = {};
+    if (room) {
+      var add = function (p) {
+        if (!p) return; var a = avFor(p);
+        map[String(p.identity || p.sid)] = {
+          name: p.name || p.identity || "", cam: a.cam, mic: a.mic, present: true,
+          isLocal: !!p.isLocal, speaking: p.sid === state.activeSid
+        };
+      };
+      add(room.localParticipant);
+      room.remoteParticipants.forEach(add);
+    }
+    if (window.STING_LIVEKIT) window.STING_LIVEKIT._av = map;
+    try { window.dispatchEvent(new CustomEvent("sting:avState", { detail: map })); } catch (e) {}
   }
   function dropTile(sid) {
     var t = state.tiles.get(sid);
@@ -238,6 +315,8 @@
       ensureTile(p);
       p.trackPublications.forEach(function (pub) { if (pub.track && pub.isSubscribed) attachTrack(pub.track, p); });
     });
+    // N1 — keep every tile's mic/cam badge + placeholder in sync with live state.
+    state.tiles.forEach(function (t, sid) { var p = participantBySid(sid); if (p) updateTileBadge(t, p); });
   }
   function highlightSpeakers(speakers) {
     var active = {};
@@ -660,19 +739,21 @@
     var cam = lp.setCameraEnabled(true)
       .then(function () { state.camOn = true; paintBtn("lkCam", true, "📹", "🚫"); })
       .catch(function (e) { state.camOn = false; paintBtn("lkCam", false, "📹", "🚫"); toast("Camera unavailable"); console.warn("[livekit] camera denied/unavailable", e); });
-    return Promise.all([mic, cam]);
+    return Promise.all([mic, cam]).then(function () { updateTileBadgeFor(lp); emitAvState(); });
   }
   function toggleMic() {
     if (!state.room) return;
     state.micOn = !state.micOn;
     state.room.localParticipant.setMicrophoneEnabled(state.micOn).catch(noop);
     paintBtn("lkMic", state.micOn, "🎤", "🔇");
+    updateTileBadgeFor(state.room.localParticipant); emitAvState();
   }
   function toggleCam() {
     if (!state.room) return;
     state.camOn = !state.camOn;
     state.room.localParticipant.setCameraEnabled(state.camOn).catch(noop);
     paintBtn("lkCam", state.camOn, "📹", "🚫");
+    updateTileBadgeFor(state.room.localParticipant); emitAvState();
   }
   // M1 — Leave returns to the lobby (Join button) rather than destroying the
   // whole bar, so a user can re-join the same session without reloading.
@@ -681,6 +762,7 @@
     state.joined = false; state.screenOn = false;
     clearTiles(); clearScreen();
     showLobbyControls(); setStatus("idle"); setLobby("left");
+    emitAvState();   // N1 — room is null now → empty map clears "in call" on the roster
   }
   // Unexpected media drop (network / SFU restart). Co-presence (meeting-sync.js)
   // keeps its own auto-reconnect; here we fall back to the Join lobby.
@@ -689,6 +771,7 @@
     state.joined = false; state.room = null; state.screenOn = false;
     clearTiles(); clearScreen();
     showLobbyControls(); setStatus("offline"); setLobby("left");
+    emitAvState();   // N1 — clear "in call" status on the roster
   }
 
   // ── UI shell ────────────────────────────────────────────────────────────────

@@ -125,6 +125,16 @@ are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that fil
 - [ ] 📋 link/create formal meeting (button greens; other tab greens via RoomChanged).
 - [ ] 📋 (linked) add action item; blank → generate minutes (MEETING_MINUTES doc record).
 
+### N1 — multi-participant video + presence roster  · markers `N1-presence` (livekit-av + meeting-sync)
+SERVED-proven (`curl localhost:5000/livekit-av.js` 200 + `N1-presence`; `meeting-sync.js` 200 +
+`N1-presence`; `sting:avState`/`avSuffix` present on the served bundles). 2-tab live A/V is the human's
+— full checklist in `docs/MEETINGS_AUDIT.md` → "N1 — multi-participant video + presence roster".
+- [ ] Tab B joins the same `?meeting=` → B's video tile appears in A's strip (not just A's self-view).
+- [ ] Camera-off remote shows an initials placeholder + name + 🚫, not a blank tile.
+- [ ] Per-tile mic/cam badge tracks mute/unmute + camera on/off live; active-speaker keeps the border.
+- [ ] B leaves → B's tile clears from A; roster A/V drops to 🕓 then the chip is removed on disconnect.
+- [ ] Roster shows 📹/🎤/🔇/🔊/★/🕓 per person + "N online · M in call"; correlated by userId.
+
 ### M5 — meetings discovery audit  · docs-only (no served artifact)
 - [ ] Cross-cutting matrix in docs/MEETINGS_AUDIT.md: start/join/leave/reconnect, 2+ participants,
       host handoff, surface switch under load, screen-share start/stop, mobile join (live.tsx),

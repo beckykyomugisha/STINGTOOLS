@@ -343,6 +343,27 @@ moderation/state). No feature duplicates a transport; secrets are env-only.
 - [ ] **Tenant isolation:** a user from another tenant who guesses the session GUID cannot join the
       hub group or mint a token (HubTenantGuard / controller tenant checks).
 
+### N1 — multi-participant video + presence roster · marker `N1-presence` (livekit-av + meeting-sync) · PENDING-HUMAN-VERIFY
+SERVED-proven only (container serves `N1-presence` on both bundles, HTTP 200, `sting:avState`/`avSuffix`
+present). The live behaviour needs **two InPrivate tabs on the same `?meeting=<sessionId>`** against the
+running LiveKit + Postgres stack — never claim it "works" from the served grep alone.
+
+- [ ] **Remote tile populates on join:** tab A joins A/V; tab B opens the same `?meeting=` and Joins →
+      A's `lkStrip` gains a SECOND tile for B (not just A's self-view) with B's name label.
+- [ ] **Camera-off shows a tile, not nothing:** B joins with camera OFF (or denies camera) → A still
+      sees B's tile as an initials placeholder + name + 🚫 cam badge (previously a blank/invisible tile —
+      the "you only see yourself" symptom).
+- [ ] **Per-tile mic/cam badges live:** B mutes mic → B's tile in A shows 🔇; unmute → 🎤. B turns camera
+      off → tile flips to the initials placeholder + 🚫; on → live video returns. Active speaker keeps the
+      green border.
+- [ ] **Clear on leave:** B clicks Leave (or closes the tab) → B's tile disappears from A's strip and
+      B's roster A/V status drops to 🕓 (online, not in call), then the chip is removed on full disconnect.
+- [ ] **Roster A/V status:** the "Live meeting" panel roster shows each participant with status —
+      📹 (cam on) · 🎤/🔇 (mic) · 🔊 (active speaker) · ★ (host) · 🕓 (online but not in A/V); the
+      header reads "N online · M in call" and updates live on join/leave/mute.
+- [ ] **Identity correlation:** the roster A/V status lands on the RIGHT person (LiveKit identity =
+      userId = SignalR roster userId) — not mismatched or duplicated.
+
 ### Slice index (all on branch `claude/optimistic-bell-EfjJw`, PR #306 — do not merge)
 | Slice | Marker | Commit | What |
 |---|---|---|---|
@@ -352,6 +373,7 @@ moderation/state). No feature duplicates a transport; secrets are env-only.
 | M3 | `M3-confer` | `bdb7564fb` | chat/reactions/roster+roles/host-controls/device-picker/views/low-bw |
 | M4 | `M4-aec` | `a362c4582` | issue/clash-review/meeting-link/minutes/viewpoint |
 | M5 | (docs) | — | this discovery matrix |
+| N1 | `N1-presence` | (this commit) | remote video tiles populate on join / clear on leave · per-tile mic/cam badge + camera-off initials placeholder · live roster A/V status (online/in-call/cam/mic/presenter/away) correlated by userId |
 
 ### Cross-cutting caveats / known follow-ups
 - **Mobile parity:** `live.tsx` covers native A/V + surface-follow + co-presence; the M2 markup,
