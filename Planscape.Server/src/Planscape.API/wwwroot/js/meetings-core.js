@@ -15,11 +15,12 @@
 }(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var BUILD = "STING_MEETINGS_CORE_BUILD w0-core";
+  var BUILD = "STING_MEETINGS_CORE_BUILD w5-roles";
 
-  // ── Role → capability matrix (W5 — single source of truth for BOTH surfaces). ──
-  // Server enforces; UIs show only allowed controls. Role strings match the server's
-  // ProjectRole / meeting role conventions (case-insensitive lookup via roleCaps()).
+  // ── Role → capability matrix (W5 — the contract BOTH surfaces share). ──
+  // Server enforces; UIs show only allowed controls (web: dashboard.js mCan(); mobile:
+  // meetingsCore.can()). LOCKSTEP: keep identical to Planscape/src/api/meetingsCore.ts CAPS.
+  // Role strings match the server's ProjectRole / meeting-role conventions (normalised).
   var CAPS = {
     host:           ["schedule","start","record","present","editAgenda","editMinutes","assignActions","manageAttendees","completeOwnActions","join","view","watchRecordings","readMinutes"],
     bimcoordinator: ["schedule","start","record","present","editAgenda","editMinutes","assignActions","manageAttendees","completeOwnActions","join","view","watchRecordings","readMinutes"],

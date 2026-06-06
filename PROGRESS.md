@@ -7,12 +7,12 @@ Surfaces + SERVED gates per DEPLOY.md. `meetings-core.js` + `dashboard.js` are v
 
 | Item | Status | Commit | SERVED proof / exact human test |
 |---|---|---|---|
-| W0 shared meetings-core.js | DONE-SERVED | 71cadfc54 | `curl /js/meetings-core.js \| grep "STING_MEETINGS_CORE_BUILD w0-core"`; index.html loads it |
+| W0 shared meetings-core.js | DONE-SERVED | 71cadfc54 | `curl /js/meetings-core.js \| grep STING_MEETINGS_CORE_BUILD (now w5-roles)`; index.html loads it |
 | W1 web meeting authoring | DONE-SERVED | 48557abb3 | `curl /js/dashboard.js \| grep w1-authoring`. HUMAN(2-tab/role): as Host create meeting + add agenda/action/attendee + edit+save minutes + Generate doc; plain attendee sees only THEIR actions + read-only minutes; client read-only. Role-gating best-effort (server enforces). |
 | W2 web join-live + live notifications | DONE-SERVED | marker w2-livejoin | `curl /js/dashboard.js \| grep w2-livejoin`. HUMAN(2-tab): acct A starts a live meeting → acct B (member) sees top 'Join' banner → click opens viewer ?meeting= (A/V). 🎥 Join on list rows + detail open the viewer. Starter excluded/membership-filtered server-side. |
 | W3 web recordings via core | DONE-SERVED | marker w3-rec-core | `curl /js/dashboard.js \| grep w3-rec-core`. Recordings (detail tab + project archive + REC badge + Play/Download, Play gated to COMPLETE) all route through MeetingsCore.listRecordings/recordingsByMeeting. REST /recordings 200. HUMAN: Play opens HTML5 modal; FAILED rows show status. |
 | W4 mobile re-point to core | DONE-SERVED (tsc) | src/api/meetingsCore.ts | `cd Planscape && npx tsc --noEmit` clean. Mobile twin module (same contract + role matrix + helpers as meetings-core.js); recordings screens re-pointed to meetingsCore.listRecordings. NOTE: web(UMD)+mobile(TS) are 2 files w/ identical contract — Metro can't import the wwwroot UMD across roots; future shared package could collapse to 1. |
-| W5 role matrix (shared) | TODO | — | one role→cap map both surfaces (in meetings-core) |
+| W5 role matrix (shared) | DONE-SERVED | core marker w5-roles | `curl /js/meetings-core.js \| grep w5-roles`. ONE role→cap matrix (CAPS+can/roleCaps) in meetings-core.js + meetingsCore.ts (parity verified: 10 roles, host=13 caps both). Web gates via dashboard.js mCan(); mobile via meetingsCore.can(); server enforces. HUMAN: per-role control visibility (host full / attendee own-actions / client read-only). Mobile-authoring per-control gating = follow-up (web done). |
 | W6 DEPLOY.md + gates current | TODO | — | DEPLOY.md 4 surfaces |
 
 Branch `claude/optimistic-bell-EfjJw` (PR #306 tracks it — do **not** open a new PR).
