@@ -51,7 +51,7 @@ cross-area pass.
 | `ISO19650Validator.cs` · `TagIntelligence.cs` · `TaggingModels.cs` · `SeqAssigner.cs` | Tag core | |
 | `OutputLocationHelper.cs` · `PerformanceTracker.cs` · `IPanelCommand.cs` | Output/profiling/iface | |
 
-### Rounds
+### Rounds (A1)
 
 #### A1 · R1 — broad correctness
 **Files covered (read in full):** `StingLog.cs`, `TransactionHelper.cs`, `ComplianceScan.cs`.
@@ -124,4 +124,43 @@ Open cross-area proposal carried: **CP-1** (WorkflowEngine SLA timestamp tz — 
 (data integrity, fixed), 3 Low (1 fixed: StingLog rotation; 2 logged: WorkflowEngine tz deferred as
 CP-1, TransactionHelper log-wording info). Sustainability win: the param single-source-of-truth no
 longer self-conflicts, so name→GUID binding is load-order-independent for those 5 params.
+
+---
+
+## AREA A2 — StingTools/Data (param/CSV/JSON files)
+
+**Coverage map:** `PARAMETER_REGISTRY.json` (done in A1-R2), `MR_PARAMETERS.txt`, `MR_PARAMETERS.csv`,
+`FORMULAS_WITH_DEPENDENCIES.csv`, `CATEGORY_BINDINGS.csv`, `FAMILY_PARAMETER_BINDINGS.csv`, all 202
+`Data/**/*.json`. Method: cross-file referential + GUID/type-drift scans (the defect class most
+likely in mirrored data files), not line-reading.
+
+### Rounds (A2)
+
+#### A2 · R1 — cross-file integrity / referential alignment
+Checks + results:
+- **All 202 Data JSON files parse** (0 malformed).
+- **`MR_PARAMETERS.txt` ↔ `.csv` mirror:** 3286 names each — 0 presence drift, **0 same-name/diff-GUID,
+  0 same-name/diff-datatype**. Perfectly aligned. (The 3292-vs-3286 line count = 6 CSV `#` comment lines.)
+- **`PARAMETER_REGISTRY.json` ↔ authoritative `.txt`:** 3106 shared names — **0 GUID mismatches, 0 orphans**
+  (after the A1-R2-1 fix). The param single-source-of-truth triad is now fully consistent.
+- **`CATEGORY_BINDINGS.csv`** (16,830 rows / 1,426 params) + **`FAMILY_PARAMETER_BINDINGS.csv`**
+  (6,035 rows / 1,158 params): **0 param refs missing** from `.txt`.
+- **`FORMULAS_WITH_DEPENDENCIES.csv`:** 0 formula-target params missing; 0 self-referential issues.
+
+| # | File | Dim | Sev | Root cause | Blast radius | Disposition |
+|---|---|---|---|---|---|---|
+| A2-R1-1 | `FORMULAS_WITH_DEPENDENCIES.csv` (rows 218/220/232) | 2 integration / 6 data-hygiene | **Low** | 3 TAG7 narrative formulas list `RGL_KCCA_/NEMA_/UMEME_APPROVAL_TXT` in `Input_Parameters`, but the formula expression doesn't reference them and they're defined nowhere (txt/csv/registry). Stale dependency metadata. | **Benign:** consumer `FormulaEvaluatorCommand.BuildContext` does an ignored failed lookup; `ValidateFormulas` only emits an Info count. Formula evaluation unaffected (it uses `RGL_STD_TXT`, which exists). | **LOGGED, not edited.** Two readings: (a) copy-paste cruft → trim the 3 from the dep lists; (b) **intent gap** — the Uganda-focused narrative may have been *meant* to cite KCCA/NEMA/UMEME approvals as real params. Recommendation: trim if (a); if (b), define the 3 params + reference them in the formula. Not auto-fixed: editing a complex quoted CSV field for a benign Low risks corruption (anti-churn), and the (a)-vs-(b) choice is product intent. |
+
+**Scorecard (A2 R1):** Critical 0 · High 0 · Medium 0 · Low 1 (logged) · referential checks all clean.
+Fixes applied: 0 (the A2 data Medium was the A1-R2-1 GUID-conflict fix, already shipped). Build:
+data-only, verified by JSON parse + cross-file scans.
+
+#### A2 — AREA CLOSE (regression)
+R1's cross-file scans are the regression for the A1-R2-1 fix too — re-confirmed the param triad is
+consistent (0 mismatches). No Critical/High/Medium in A2's own scope. Per early-stop, **A2 is closed**
+with 1 Low logged (A2-R1-1) + 1 recommendation surfaced (RGL approval intent — non-blocking).
+
+**A2 AREA SUMMARY:** 1 round (data backbone clean post-A1-R2-1). The param/binding/formula referential
+graph is internally consistent: every binding + formula target resolves to a real, GUID-stable param.
+Open recommendation: RGL_*_APPROVAL_TXT formula-dep intent (trim vs. define) — your call.
 
