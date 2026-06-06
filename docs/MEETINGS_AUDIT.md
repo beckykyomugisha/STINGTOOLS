@@ -168,7 +168,7 @@ presenter; the project must have a document — note its id):
 
 ---
 
-## M3 — conferencing essentials  ✅ served `M3-confer`
+## M3 — conferencing essentials  ✅ served `M3-confer` · `bdb7564fb`
 
 The full conferencing layer. All co-presence (chat / reactions / hand / roster / moderation) flows
 over `MeetingHub`; all media (device picker / layout / low-bandwidth) over LiveKit. No new transport.
@@ -235,3 +235,60 @@ over `MeetingHub`; all media (device picker / layout / low-bandwidth) over LiveK
   raised sees it on the next toggle. Roster membership itself is live (join/leave events).
 - **Speaker view enlarges within the strip** rather than a dedicated stage pane; a full stage layout
   is a visual refinement, not a transport change.
+
+---
+
+## M4 — AEC functions  ✅ served `M4-aec`
+
+Turns the live meeting into a coordination tool. Reuses existing controllers (Issues, Clashes,
+Meetings, Snapshots) + one new link endpoint; all UI hangs off the co-presence panel in
+`meeting-sync.js` (it already owns the SignalR connection, the camera-follow + selection broadcast,
+and the viewer `selectAndZoom` command channel).
+
+**Server (`MeetingRoomController`):** new `POST …/meeting-sessions/{sid}/link-meeting {meetingId}`
+sets `MeetingSession.MeetingId` (validates the meeting is in the project) and pushes `RoomChanged`
+so every client learns the link. Everything else reuses existing endpoints.
+
+**Client (`meeting-sync.js`) — an AEC tool row on the meeting panel:**
+- **⚑ Raise issue** → `POST …/issues` (Type `OBS`, optional assignee email, links the **last picked
+  element** as `ModelElementGuid`), then auto-captures a viewpoint snapshot named after the issue.
+  (Selection is captured by extending the existing pick/pinTap bridge wrap — `state.lastPickGuid`.)
+- **⧉ Clash review** → `GET …/clashes`, a ◀ ▶ stepper + "⚑→ promote". Stepping calls the viewer's
+  `selectAndZoom` for the clash's `elementAGuid`; the presenter's camera moves and the **existing
+  camera-follow mirrors it to every follower** (no new transport). "⚑→" = `POST …/clashes/{id}/
+  promote-to-issue`.
+- **📸 Viewpoint** → camera (`serializeCamera`) + highlighted element → a replayable `MeetingSnapshot`.
+- **📋 Meeting** → if unlinked, create a `Meeting` + `link-meeting`; if linked, prompt to add a
+  decision (`POST …/meetings/{id}/actions`) or, left blank, **generate minutes**
+  (`POST …/meetings/{id}/export/minutes`). The button greens when a meeting is linked.
+
+**SERVED proof:** `curl /meeting-sync.js` = 200; served bundle greps
+`STING_MEETINGSYNC_BUILD = "M4-aec"`; api `/health` 200 (the new `link-meeting` endpoint compiled).
+(Commit recorded below.)
+
+**2-tab test — PENDING-HUMAN-VERIFY** (two tabs in a meeting; project has clashes + the user is a
+project member so Issues/Meetings endpoints authorise):
+- [ ] **Issue:** in the 3D model, click an element → click **⚑** → enter a title → toast "Issue
+      OBS-NNNN created"; the issue exists with the element guid in its description + a viewpoint
+      snapshot saved.
+- [ ] **Clash review:** click **⧉** → the panel loads "Clash 1/N …"; **▶/◀** steps clashes and the
+      camera flies to each; the **follower tab's camera follows** (Follow presenter on).
+- [ ] **Promote:** on a clash, click **⚑→** → toast "Clash → CLASH-NNNN" (or "already an issue").
+- [ ] **Viewpoint:** click **📸** → toast "Viewpoint saved"; `GET …/snapshots` lists it with the
+      camera JSON.
+- [ ] **Meeting link:** click **📋** (unlinked) → create a meeting → button greens, `GET …/meeting-
+      sessions/{sid}` shows `meetingId` set, and the OTHER tab's button greens too (RoomChanged).
+- [ ] **Action + minutes:** click **📋** (linked) → type a decision → toast "Action added"
+      (`GET …/meetings/{id}` lists the action); click **📋** again, leave blank → toast "Minutes
+      generated" (a MEETING_MINUTES DocumentRecord exists).
+
+**Caveats (M4):**
+- **Clash `elementAGuid` may be a clash-row identity, not a federated IfcGuid** (per the clash-job
+  follow-up noted in the clash code) — `selectAndZoom` resolves only when the guid matches a loaded
+  mesh's uniqueId. Camera-follow + promote-to-issue work regardless.
+- **Issue links the element guid only, not ModelId** — `IssuesController` validates ModelId against
+  `ProjectModels`, and a meeting session's model may be a `FederatedModel`; sending it would 400 the
+  whole create, so we omit it and carry the guid (+ description) instead.
+- **Minutes are a DocumentRecord** (the .docx is rendered server-side by the template engine when the
+  `meeting_minutes.docx` template is present — same pattern as transmittals); the toast confirms the
+  record, not a downloaded file.

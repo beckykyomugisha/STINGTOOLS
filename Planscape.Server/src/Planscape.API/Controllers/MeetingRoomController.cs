@@ -197,6 +197,29 @@ public class MeetingRoomController : ControllerBase
     }
 
     /// <summary>
+    /// M4 — link this live session to a formal <see cref="Meeting"/> record
+    /// (agenda / attendees / actions / minutes). Sets <c>MeetingSession.MeetingId</c>
+    /// so decisions captured live (action items) and minutes generation target the
+    /// right Meeting. Pushes RoomChanged so every client learns the link.
+    /// </summary>
+    [HttpPost("{sessionId:guid}/link-meeting")]
+    public async Task<ActionResult<object>> LinkMeeting(
+        Guid projectId, Guid sessionId, [FromBody] LinkMeetingRequest req, CancellationToken ct)
+    {
+        var session = await _db.MeetingSessions.FirstOrDefaultAsync(
+            x => x.Id == sessionId && x.ProjectId == projectId, ct);
+        if (session is null) return NotFound();
+        if (req?.MeetingId is not { } mid) return BadRequest("meetingId required");
+        var owned = await _db.Meetings.AnyAsync(m => m.Id == mid && m.ProjectId == projectId, ct);
+        if (!owned) return BadRequest("meeting is not in this project");
+
+        session.MeetingId = mid;
+        await _db.SaveChangesAsync(ct);
+        await MeetingHub.NotifyRoomChanged(_hub, sessionId, ToDto(session));
+        return Ok(ToDto(session));
+    }
+
+    /// <summary>
     /// WS3 — set the active surface every client shows (model | document | screen)
     /// and broadcast it to the room. Document surface carries the shared doc id.
     /// </summary>
@@ -304,4 +327,5 @@ public class MeetingRoomController : ControllerBase
     public class BindModelRequest { public Guid? ModelId { get; set; } public string? BaseRevisionId { get; set; } }
     public class SetSurfaceRequest { public string? Surface { get; set; } public Guid? DocumentId { get; set; } }
     public class LiveKitTokenRequest { public string? DisplayName { get; set; } }
+    public class LinkMeetingRequest { public Guid? MeetingId { get; set; } }
 }

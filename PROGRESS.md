@@ -118,3 +118,9 @@ are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that fil
 - [ ] Make-host (★) moves host; mute-all mutes others; remove (✖) ejects a participant.
 - [ ] Device picker ⚙ switches cam/mic/speaker. ▦/▭ + tile-click pin = speaker/gallery.
 - [ ] 📶 low-bandwidth drops remote camera video (audio + screen-share stay); off restores.
+
+### M4 — AEC functions  · marker `M4-aec` (meeting-sync) + link-meeting endpoint
+- [ ] ⚑ issue from a picked element (+ auto viewpoint snapshot). 📸 viewpoint saved.
+- [ ] ⧉ clash review steps clashes; camera flies + follower follows; ⚑→ promotes to issue.
+- [ ] 📋 link/create formal meeting (button greens; other tab greens via RoomChanged).
+- [ ] 📋 (linked) add action item; blank → generate minutes (MEETING_MINUTES doc record).

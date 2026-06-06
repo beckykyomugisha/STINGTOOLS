@@ -24,7 +24,7 @@
   "use strict";
 
   // STEP-0 SERVED marker — bumped per slice that touches this file.
-  var STING_MEETINGSYNC_BUILD = "M3-confer";
+  var STING_MEETINGSYNC_BUILD = "M4-aec";
   try { console.log("[meeting] STING_MEETINGSYNC_BUILD " + STING_MEETINGSYNC_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -51,6 +51,11 @@
     myConnId: "",            // our own SignalR connection id (set after start)
     hostUserId: "",          // session host's user id (from room state / RoomChanged)
     myHand: false,
+    // M4 — AEC functions
+    lastPickGuid: "",        // last picked element (for issue link + viewpoint)
+    meetingId: "",           // linked formal Meeting (agenda/actions/minutes)
+    modelId: "",             // session model (informational)
+    clash: { list: [], idx: -1, on: false },
   };
   state.myUserId = decodeUserId(token);
 
@@ -166,6 +171,8 @@
     });
     conn.on("RoomChanged", function (st) {
       if (st && st.hostUserId) { state.hostUserId = String(st.hostUserId); renderPresence(); }
+      if (st && st.meetingId) { state.meetingId = String(st.meetingId); renderAecMeeting(); }
+      if (st && st.modelId) state.modelId = String(st.modelId);
       window.dispatchEvent(new CustomEvent("sting:roomChanged", { detail: st }));
     });
     // WS3d — presenter switched the active surface (model | document | screen);
@@ -203,7 +210,7 @@
 
     conn.start()
       .then(function () { state.myConnId = conn.connectionId || ""; return conn.invoke("JoinSession", sessionId, displayName); })
-      .then(function () { wireCameraBroadcast(); wireSelectionAndSection(); buildConferenceUI(); fetchRoomState(); setStatus("live"); })
+      .then(function () { wireCameraBroadcast(); wireSelectionAndSection(); buildConferenceUI(); buildAecUI(); fetchRoomState(); setStatus("live"); })
       .catch(function (e) { console.warn("[meeting] connect failed", e); setStatus("offline"); });
 
     window.addEventListener("beforeunload", function () {
@@ -265,9 +272,12 @@
         var orig = V.bridge.send.bind(V.bridge);
         V.bridge.send = function (type, payload) {
           try {
-            if (!state.applyingRemoteHi && state.conn && (type === "pick" || type === "pinTap")) {
+            if (state.conn && (type === "pick" || type === "pinTap")) {
               var guid = payload && (payload.guid || (payload.meta && payload.meta.guid));
-              if (guid) state.conn.invoke("BroadcastHighlight", sessionId, [guid]).catch(noop);
+              if (guid) {
+                state.lastPickGuid = guid;   // M4 — remember selection for issue/viewpoint
+                if (!state.applyingRemoteHi) state.conn.invoke("BroadcastHighlight", sessionId, [guid]).catch(noop);
+              }
             }
           } catch (e) {}
           return orig(type, payload);
@@ -382,7 +392,13 @@
     var t = currentToken();
     fetch(apiBase + "/api/projects/" + projectId + "/meeting-sessions/" + sessionId, { headers: t ? { "Authorization": "Bearer " + t } : {} })
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (s) { if (s && s.hostUserId) { state.hostUserId = String(s.hostUserId); renderPresence(); } })
+      .then(function (s) {
+        if (!s) return;
+        if (s.hostUserId) state.hostUserId = String(s.hostUserId);
+        if (s.meetingId) state.meetingId = String(s.meetingId);
+        if (s.modelId) state.modelId = String(s.modelId);
+        renderPresence(); renderAecMeeting();
+      })
       .catch(noop);
   }
   function jsonHeadersMS() { var t = currentToken(); return t ? { "Authorization": "Bearer " + t, "Content-Type": "application/json" } : { "Content-Type": "application/json" }; }
@@ -483,6 +499,140 @@
     for (var i = 0; i < list.length; i++) list[i].style.display = show ? "inline-block" : "none";
   }
 
+  // ── M4 — AEC functions (issue / clash review / meeting link / viewpoint) ────
+  function buildAecUI() {
+    if (document.getElementById("meetAec")) return;
+    var panel = document.getElementById("meetingPanel"); if (!panel) return;
+    var row = document.createElement("div");
+    row.id = "meetAec";
+    row.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;border-top:1px solid rgba(255,255,255,0.15);padding-top:6px";
+    row.appendChild(toolBtn(null, "⚑", "Raise an issue (links current selection + viewpoint)", newIssue));
+    row.appendChild(toolBtn("meetClashBtn", "⧉", "Clash review (step + camera-follow)", toggleClashReview));
+    row.appendChild(toolBtn(null, "📸", "Capture viewpoint snapshot", function () { captureViewpoint(""); }));
+    row.appendChild(toolBtn("meetMtgBtn", "📋", "Link / minutes (formal meeting)", meetingMenu));
+    panel.appendChild(row);
+
+    var cp = document.createElement("div");
+    cp.id = "meetClashPanel";
+    cp.style.cssText = "display:none;flex-direction:column;gap:4px;margin-top:6px;font-size:11px";
+    var info = document.createElement("div"); info.id = "meetClashInfo"; info.textContent = "Clash review";
+    var nav = document.createElement("div"); nav.style.cssText = "display:flex;gap:4px";
+    nav.appendChild(toolBtn(null, "◀", "Previous clash", function () { stepClash(-1); }));
+    nav.appendChild(toolBtn(null, "▶", "Next clash", function () { stepClash(1); }));
+    nav.appendChild(toolBtn(null, "⚑→", "Promote this clash to an issue", promoteClash));
+    cp.appendChild(info); cp.appendChild(nav);
+    panel.appendChild(cp);
+    renderAecMeeting();
+  }
+  function renderAecMeeting() {
+    var b = document.getElementById("meetMtgBtn"); if (!b) return;
+    b.style.background = state.meetingId ? "rgba(55,194,114,0.85)" : "rgba(255,255,255,0.14)";
+    b.title = state.meetingId ? "Meeting linked — add action / generate minutes" : "Link / create a formal meeting record";
+  }
+  // markup/discussion → Issue, linking the current model selection + a viewpoint.
+  function newIssue() {
+    var title = prompt("Issue title:", "Issue from meeting"); if (!title) return;
+    var assignee = prompt("Assignee email (optional):", "");
+    var body = { Type: "OBS", Title: title, Priority: "MEDIUM",
+      Description: "Raised in live meeting " + sessionId + (state.lastPickGuid ? "\nElement: " + state.lastPickGuid : "") };
+    if (assignee && assignee.trim()) body.AssigneeEmail = assignee.trim();
+    if (state.lastPickGuid) body.ModelElementGuid = state.lastPickGuid;   // no ModelId — avoids ProjectModel validation
+    fetch(apiBase + "/api/projects/" + projectId + "/issues", { method: "POST", headers: jsonHeadersMS(), body: JSON.stringify(body) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (issue) {
+        if (issue && (issue.issueCode || issue.id)) { toast("Issue " + (issue.issueCode || "") + " created"); captureViewpoint("Issue " + (issue.issueCode || "")); }
+        else toast("Issue create failed");
+      }).catch(function () { toast("Issue create failed"); });
+  }
+  // Viewpoint = camera + highlighted element → a replayable MeetingSnapshot.
+  function captureViewpoint(label) {
+    var cam = null; try { cam = serializeCamera(); } catch (e) {}
+    var body = { Label: label || ("Viewpoint " + new Date().toLocaleTimeString()),
+      StateJson: JSON.stringify({ surface: "model", camera: cam, highlights: state.lastPickGuid ? [state.lastPickGuid] : [] }) };
+    fetch(apiBase + "/api/projects/" + projectId + "/meeting-sessions/" + sessionId + "/snapshots", { method: "POST", headers: jsonHeadersMS(), body: JSON.stringify(body) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (s) { if (s) toast("Viewpoint saved"); else toast("Viewpoint failed"); }).catch(noop);
+  }
+  // Clash review — fetch project clashes, step through them; selectAndZoom moves
+  // the presenter's camera which the existing camera-follow mirrors to followers.
+  function toggleClashReview() {
+    state.clash.on = !state.clash.on;
+    var cp = document.getElementById("meetClashPanel");
+    var b = document.getElementById("meetClashBtn");
+    if (b) b.style.background = state.clash.on ? "rgba(59,130,246,0.85)" : "rgba(255,255,255,0.14)";
+    if (cp) cp.style.display = state.clash.on ? "flex" : "none";
+    if (state.clash.on && !state.clash.list.length) loadClashes();
+  }
+  function loadClashes() {
+    fetch(apiBase + "/api/projects/" + projectId + "/clashes?pageSize=100", { headers: jsonHeadersMS() })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        state.clash.list = (d && d.items) || [];
+        state.clash.idx = state.clash.list.length ? 0 : -1;
+        renderClash();
+        if (state.clash.idx >= 0) focusClash(state.clash.list[0]);
+      }).catch(function () { toast("Could not load clashes"); });
+  }
+  function stepClash(delta) {
+    if (!state.clash.list.length) return;
+    state.clash.idx = (state.clash.idx + delta + state.clash.list.length) % state.clash.list.length;
+    renderClash(); focusClash(state.clash.list[state.clash.idx]);
+  }
+  function focusClash(c) {
+    var guid = c && (c.elementAGuid || c.ElementAGuid);
+    if (!guid) return;
+    state.lastPickGuid = guid;
+    postCmd({ type: "selectAndZoom", payload: { guid: guid } });
+    if (state.conn) state.conn.invoke("BroadcastHighlight", sessionId, [guid]).catch(noop);
+  }
+  function promoteClash() {
+    var c = state.clash.list[state.clash.idx]; if (!c) return;
+    var cid = c.id || c.Id; if (!cid) return;
+    fetch(apiBase + "/api/projects/" + projectId + "/clashes/" + cid + "/promote-to-issue", { method: "POST", headers: jsonHeadersMS() })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (x) { toast(x ? ("Clash → " + (x.issueCode || "issue")) : "Promote failed (already an issue?)"); })
+      .catch(function () { toast("Promote failed"); });
+  }
+  function renderClash() {
+    var info = document.getElementById("meetClashInfo"); if (!info) return;
+    if (!state.clash.list.length) { info.textContent = "No clashes found"; return; }
+    var c = state.clash.list[state.clash.idx] || {};
+    info.textContent = "Clash " + (state.clash.idx + 1) + "/" + state.clash.list.length +
+      " — " + (c.disciplineA || "?") + "↔" + (c.disciplineB || "?") + " (" + (c.severity || "") + ")";
+  }
+  // Formal-meeting link → action items + minutes.
+  function meetingMenu() {
+    if (!state.meetingId) { linkOrCreateMeeting(); return; }
+    var t = prompt("Add a decision/action (leave blank to GENERATE MINUTES):", "");
+    if (t === null) return;
+    if (t.trim() === "") generateMinutes(); else addDecision(t.trim());
+  }
+  function linkOrCreateMeeting() {
+    var title = prompt("Create a formal meeting record — title:", "Coordination meeting"); if (!title) return;
+    fetch(apiBase + "/api/projects/" + projectId + "/meetings", { method: "POST", headers: jsonHeadersMS(),
+      body: JSON.stringify({ Title: title, MeetingType: "BIM Coordination", ScheduledAt: new Date().toISOString() }) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) {
+        var mid = m && (m.id || m.Id); if (!mid) { toast("Create meeting failed"); return; }
+        return fetch(apiBase + "/api/projects/" + projectId + "/meeting-sessions/" + sessionId + "/link-meeting",
+          { method: "POST", headers: jsonHeadersMS(), body: JSON.stringify({ meetingId: mid }) })
+          .then(function (r) { if (r.ok) { state.meetingId = String(mid); toast("Meeting created + linked"); renderAecMeeting(); } else toast("Link failed"); });
+      }).catch(function () { toast("Meeting link failed"); });
+  }
+  function addDecision(text) {
+    if (!state.meetingId) { toast("Link a meeting first"); return; }
+    fetch(apiBase + "/api/projects/" + projectId + "/meetings/" + state.meetingId + "/actions",
+      { method: "POST", headers: jsonHeadersMS(), body: JSON.stringify({ Description: text }) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (x) { toast(x ? "Action added" : "Add action failed"); }).catch(function () { toast("Add action failed"); });
+  }
+  function generateMinutes() {
+    if (!state.meetingId) { toast("Link a meeting first"); return; }
+    fetch(apiBase + "/api/projects/" + projectId + "/meetings/" + state.meetingId + "/export/minutes", { method: "POST", headers: jsonHeadersMS() })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (x) { toast(x ? "Minutes generated" : "Minutes failed"); }).catch(function () { toast("Minutes failed"); });
+  }
+
   function setStatus(s) {
     var dot = document.getElementById("meetingDot");
     if (dot) dot.style.background = s === "live" ? "#37c272" : (s === "offline" ? "#d05050" : "#e8a13a");
@@ -535,6 +685,10 @@
     react: react,
     raiseHand: raiseHand,
     muteAll: muteAll,
+    // M4 — AEC
+    newIssue: newIssue,
+    captureViewpoint: captureViewpoint,
+    toggleClashReview: toggleClashReview,
     get isHost() { return isHost(); },
     get connected() { return !!state.conn; },
     sessionId: sessionId,
