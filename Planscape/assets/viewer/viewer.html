@@ -565,6 +565,7 @@
   <div class="menu-item" id="vWire">▦ Wireframe</div>
   <div class="menu-item" id="vXray">◌ X-Ray</div>
   <div class="menu-item" id="vGhost">◑ Ghosted</div>
+  <div class="menu-item" id="vRealistic">◐ Realistic</div>
   <div class="menu-sep"></div>
   <div class="menu-item" id="vEdges">┃ Edge overlay</div>
   <div class="menu-item" id="vCaps">▤ Section caps</div>
@@ -687,6 +688,7 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { GLTFLoader }     from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader }    from 'three/addons/loaders/DRACOLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';   // Realistic mode (procedural IBL)
 
 // ── Compatibility bridge ─────────────────────────────────────────────────
 // viewer-extras.js + coordination-viewer.js are classic (non-module) scripts
@@ -1688,8 +1690,39 @@ THREE.ColorManagement.enabled = false;
 
   // STING_VIEWER export — exact same surface viewer-extras + coordination
   // viewer expect.
+  // ── Realistic render mode ─────────────────────────────────────────────
+  // Procedural IBL via PMREMGenerator.fromScene(new RoomEnvironment()) — no asset.
+  // ON: scene.environment + ACES tonemap + sRGB output (the model's MeshStandard
+  // materials gain reflections/lighting). OFF: restore the legacy linear look
+  // (NoToneMapping + LinearSRGBColorSpace). The env texture is built once + cached.
+  // The unconditional render loop picks the change up next frame. Composition with
+  // the layered model is handled in coordination-viewer.js (Realistic = base
+  // appearance; colour-by/ghost still override; Clear returns to it).
+  let _realisticEnv = null;
+  function setRealistic(on) {
+    on = !!on;
+    if (on) {
+      if (!_realisticEnv) {
+        try {
+          const pmrem = new THREE.PMREMGenerator(renderer);
+          _realisticEnv = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+          pmrem.dispose();
+        } catch (e) { console.warn('[viewer] Realistic env build failed', e); _realisticEnv = null; }
+      }
+      scene.environment = _realisticEnv;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+    } else {
+      scene.environment = null;
+      renderer.toneMapping = THREE.NoToneMapping;
+      renderer.outputColorSpace = THREE.LinearSRGBColorSpace;   // legacy/default look
+    }
+  }
+
   window.STING_VIEWER = {
     scene, renderer, controls, bridge,
+    setRealistic,
     // camera is swapped by setCameraMode (persp ↔ ortho), so expose it as a getter
     // — downstream V.camera always reads the CURRENT camera.
     get camera() { return camera; },

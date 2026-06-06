@@ -1,5 +1,22 @@
 # Viewer Visualize — audit & change log
 
+### Realistic render mode · marker `realistic-mode` (coordination-viewer) · served-verified
+Adds **Realistic** to the View menu (alongside Shaded / Wireframe / X-Ray / Ghosted). Procedural IBL via
+`PMREMGenerator.fromScene(new RoomEnvironment())` (no asset) → `scene.environment` + `ACESFilmicToneMapping`
++ `SRGBColorSpace` while active; OFF restores the legacy `NoToneMapping` + `LinearSRGBColorSpace`.
+- **ESM importmap path:** `RoomEnvironment` vendored to `vendor/three/addons/environments/RoomEnvironment.js`
+  (imports only from `three`, importmap-resolvable; PMREMGenerator is core, already in the full
+  `three.module.js`). Tree-shaking guard: it's a verbatim-served vendored file under the importmap — no
+  bundler/minify touches it; served `RoomEnvironment.js` → **HTTP 200**, no "undefined" crash.
+- **Renderer-global, not a per-mesh lens:** `STING_VIEWER.setRealistic(on)` builds the env once + caches it;
+  `coordination-viewer.setRenderMode('realistic')` calls it. `applyVizModes` treats `'realistic'` like
+  `'shaded'` for per-mesh resolution, so it's the **base appearance** and colour-by / ghost / hide still
+  override on top. **Clear / resetVisualization** turns it OFF (returns to the original look).
+- Served proof: viewer.html carries the import + `setRealistic` + `id="vRealistic"`; minified
+  `coordination-viewer.js` keeps `setRealistic` + the `'realistic'` literal + marker `realistic-mode`.
+- PENDING-HUMAN-VERIFY (browser): select Realistic → reflections/lighting appear on MeshStandard materials;
+  colour-by/ghost still override; Clear returns to base; pairs with Phase-2 textures once published.
+
 ## Phase 2 — real Revit material textures in the glTF exporter · COMPILE-UNVERIFIED (verify in Revit + re-publish)
 `StingTools/BIMManager/RevitGltfExporter.cs` previously wrote only flat `baseColorFactor`. Phase 2 adds a
 real PBR texture path (Revit plugin code — **cannot `dotnet build` in this sandbox**; signature-checked

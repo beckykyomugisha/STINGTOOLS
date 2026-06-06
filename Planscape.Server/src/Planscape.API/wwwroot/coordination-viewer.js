@@ -289,7 +289,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD N6-properties');
+    console.log('[viewer] STING_VIZ_BUILD realistic-mode');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -584,6 +584,7 @@
         '#vWire':      () => setRenderMode('wire'),
         '#vXray':      () => setRenderMode('xray'),
         '#vGhost':     () => setRenderMode('ghost'),
+        '#vRealistic': () => setRenderMode('realistic'),
         '#vEdges':     () => toggleEdgeOverlay(),
         '#vCaps':      () => toggleSectionCaps(),
         '#vCoords':    () => toggleCoordReadout(),
@@ -1078,7 +1079,9 @@
     function applyVizModes() {
       if (!V.modelRoot) return;
       if (V.activeOverlaySource && V.clearOverlay) { V.clearOverlay(); }   // retire any legacy overlay store
-      const rmode = (state.renderMode && state.renderMode !== 'shaded') ? state.renderMode : null;
+      // 'realistic' is a renderer-global (env+tonemap), NOT a per-mesh lens → treat as
+      // 'shaded' here so meshes keep their real (base) materials for the IBL to light.
+      const rmode = (state.renderMode && state.renderMode !== 'shaded' && state.renderMode !== 'realistic') ? state.renderMode : null;
       const iso = state.vizIsolation;   // C2 selection-driven isolation (or null)
       vizGroup().traverse(o => {
         if (!o.isMesh) return;
@@ -1543,6 +1546,7 @@
       state.vizTransp.clear();
       state.vizIsolation = null;
       state.renderMode = 'shaded';
+      try { if (V.setRealistic) V.setRealistic(false); } catch (_) {}   // Clear returns to base look
       state.selectedElementGuid = null; state.selectedElementGuids.clear();
       clearClashSection();
       if (V.clearOverlay) V.clearOverlay();
@@ -6182,6 +6186,10 @@
     function setRenderMode(mode) {
       if (!V.modelRoot) return;
       state.renderMode = mode;
+      // Realistic is a RENDERER-global (env + tonemap), not a per-mesh lens. Toggle it
+      // here; applyAppearance treats 'realistic' like 'shaded' for per-mesh resolution
+      // so colour-by / ghost / hide still override on top.
+      try { if (V.setRealistic) V.setRealistic(mode === 'realistic'); } catch (_) {}
       applyAppearance();
       broadcastVizRenderMode(mode);   // mirror to meeting followers (no-op when solo)
       toast('View: ' + mode);
@@ -6189,6 +6197,7 @@
     function clearRenderMode() {
       if (!V.modelRoot) { state.renderMode = 'shaded'; return; }
       state.renderMode = 'shaded';
+      try { if (V.setRealistic) V.setRealistic(false); } catch (_) {}
       applyAppearance();
     }
 
