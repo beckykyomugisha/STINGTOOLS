@@ -111,11 +111,21 @@ public class ProjectsController : ControllerBase
         var tenantId = GetTenantId();
         var tenant = await _db.Tenants.FindAsync(tenantId);
         if (tenant == null) return NotFound("Tenant not found");
+        if (string.IsNullOrWhiteSpace(req.Name)) return BadRequest(new { message = "Project name is required" });
 
-        // 409 Conflict on duplicate project Code within tenant
-        var duplicate = await _db.Projects.AnyAsync(p => p.TenantId == tenantId && p.Code == req.Code);
-        if (duplicate)
-            return Conflict(new { message = $"A project with code '{req.Code}' already exists" });
+        // D — Code is optional. An explicit code must be unique (409). An omitted code is
+        // derived from the name and auto-uniquified, so a name-only create always succeeds.
+        var explicitCode = !string.IsNullOrWhiteSpace(req.Code);
+        var baseCode = explicitCode ? req.Code!.Trim() : DeriveProjectCode(req.Name);
+        var code = baseCode;
+        var dup = await _db.Projects.AnyAsync(p => p.TenantId == tenantId && p.Code == code);
+        if (dup && explicitCode)
+            return Conflict(new { message = $"A project with code '{code}' already exists" });
+        for (int i = 2; dup && i < 1000; i++)
+        {
+            code = $"{baseCode}-{i}";
+            dup = await _db.Projects.AnyAsync(p => p.TenantId == tenantId && p.Code == code);
+        }
 
         var projectCount = await _db.Projects.CountAsync(p => p.TenantId == tenantId);
         if (projectCount >= tenant.MaxProjects)
@@ -126,7 +136,7 @@ public class ProjectsController : ControllerBase
         {
             TenantId = tenantId,
             Name = req.Name,
-            Code = req.Code,
+            Code = code,
             Description = req.Description,
             Phase = req.Phase ?? "Design",
             CreatedById = creatorId == Guid.Empty ? null : creatorId
@@ -162,6 +172,15 @@ public class ProjectsController : ControllerBase
             project.Id, project.Name, project.Code, project.Description,
             project.Phase, project.Status, project.CreatedAt
         });
+    }
+
+    // D — derive a short uppercase alphanumeric code from a project name (caller uniquifies
+    // within the tenant). Falls back to "PRJ" when the name has no usable characters.
+    private static string DeriveProjectCode(string? name)
+    {
+        var s = new string((name ?? "").ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray());
+        if (string.IsNullOrEmpty(s)) s = "PRJ";
+        return s.Length > 12 ? s.Substring(0, 12) : s;
     }
 
     /// <summary>Update project settings — name, phase, tag format, config JSON.</summary>
@@ -316,7 +335,10 @@ public class ProjectsController : ControllerBase
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 }
 
-public record CreateProjectRequest(string Name, string Code, string? Description, string? Phase);
+// D — Code is OPTIONAL: the UI / a user creating a project sends a name only. A required
+// Code 400'd every name-only create ("Failed to create a new project"). When omitted it's
+// auto-derived from the name (and uniquified within the tenant).
+public record CreateProjectRequest(string Name, string? Code, string? Description, string? Phase);
 public record UpdateProjectRequest(
     string? Name, string? Description, string? Phase, ProjectStatus? Status,
     string? TagSeparator, int? SeqNumPad, string? TagPrefix, string? TagSuffix,
