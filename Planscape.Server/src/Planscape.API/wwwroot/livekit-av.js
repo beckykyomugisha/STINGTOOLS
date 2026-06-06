@@ -27,7 +27,7 @@
 
   // STEP-0 SERVED marker — bumped per slice so a marker grep on the *served*
   // bundle proves the running container has this exact change.
-  var STING_MEETING_BUILD = "N2-recording";
+  var STING_MEETING_BUILD = "meet-discover";
   try { console.log("[livekit] STING_MEETING_BUILD " + STING_MEETING_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -889,7 +889,7 @@
     state.recording = on;
     var ind = document.getElementById("lkRec"); if (ind) ind.style.display = on ? "inline" : "none";
     var b = document.getElementById("lkRecBtn");
-    if (b) { b.style.background = on ? "rgba(255,82,82,0.92)" : "rgba(255,255,255,0.14)"; b.title = on ? "Stop recording" : "Start recording (saved to the meeting)"; }
+    if (b) { b.style.background = on ? "rgba(255,82,82,0.92)" : "rgba(255,255,255,0.14)"; b.title = on ? "Stop recording" : "Record the meeting (host)"; b.textContent = on ? "⏹ Stop" : "⏺ Record"; }
   }
   function refreshRecordingState() {
     fetch(apiBase + "/api/projects/" + projectId + "/meeting-sessions/" + sessionId + "/recording",
@@ -954,12 +954,12 @@
     // automatically with the screen-share toggle above.
     if (state.isPresenter) {
       live.appendChild(ctrlBtn("lkSurf_model", "🧊", function () { setSurface("model"); }, "Show the 3D model"));
-      live.appendChild(ctrlBtn("lkSurf_document", "📄", openDocPicker, "Present a document (pick a project doc · drag-drop · upload)"));
+      live.appendChild(labelBtn("lkSurf_document", "📄 Present", openDocPicker, "Present a document — open a project doc, or drag-drop / upload a file (everyone sees it)"));
       // hidden anchor so paintSurfaceSwitch can highlight the 'screen' surface too
       live.appendChild(el("span", { id: "lkSurf_screen", style: "display:none" }));
     }
     // N2 — host-only record toggle (consent indicator shows for everyone via RecordingChanged).
-    if (state.isPresenter) live.appendChild(ctrlBtn("lkRecBtn", "⏺", toggleRecording, "Start / stop recording (saved to the meeting)"));
+    if (state.isPresenter) live.appendChild(labelBtn("lkRecBtn", "⏺ Record", toggleRecording, "Record the meeting (host) — saved to the meeting record"));
     live.appendChild(ctrlBtn("lkLeave", "✖", leave, "Leave A/V", "#d05050"));
     bar.appendChild(live);
 
@@ -1005,6 +1005,16 @@
     var b = el("button", { id: id, title: title || "", style:
       "width:38px;height:38px;border:none;border-radius:50%;cursor:pointer;font-size:16px;" +
       "background:" + (bg || "rgba(255,255,255,0.14)") + ";color:#fff" }, glyph);
+    b.addEventListener("click", fn);
+    return b;
+  }
+  // Discoverability — a LABELLED pill (icon + text) for the actions users couldn't find
+  // as bare icons (Record, Present document). Wider than ctrlBtn so the label reads.
+  function labelBtn(id, text, fn, title, bg) {
+    var b = el("button", { id: id, title: title || "", style:
+      "display:inline-flex;align-items:center;gap:5px;border:none;border-radius:19px;cursor:pointer;" +
+      "height:38px;padding:0 14px;font:600 12px -apple-system,Segoe UI,Roboto,sans-serif;white-space:nowrap;" +
+      "background:" + (bg || "rgba(255,255,255,0.14)") + ";color:#fff" }, text);
     b.addEventListener("click", fn);
     return b;
   }

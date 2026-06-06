@@ -482,6 +482,15 @@ never commit. Empty `EGRESS_S3_*` ⇒ endpoints 501 (ships dark).
       host ⏺ → both tabs show `● REC` → stop → the recording captures the real participants' A/V (this
       proof used a synthetic demo publisher, not live webcams).
 
+### Discoverability — labelled Record + Present buttons · marker `meet-discover` (livekit-av) · served-verified
+The Record (host-only) + Present-document actions existed but were **bare icons** users couldn't find. Both
+are now **labelled pills** in the in-meeting live bar (new `labelBtn` helper): `📄 Present` (open a project
+doc / drag-drop / upload — everyone sees it) and `⏺ Record` (host-only; toggles to `⏹ Stop` while recording).
+They appear on Join (in `lkLive`, shown by `showLiveControls`). Served proof: marker `meet-discover`,
+`labelBtn` ×3, Record/Present labels present. **View ▾ menu confirmed on this fresh `--no-cache` build:**
+`vRealistic` + `vClashMarkers` + `vIssueMarkers` + `vGlass` all present (1 each). PENDING-HUMAN-VERIFY (2 tabs):
+host sees `⏺ Record`; presenter sees `📄 Present`; both legible.
+
 ### Slice index (all on branch `claude/optimistic-bell-EfjJw`, PR #306 — do not merge)
 | Slice | Marker | Commit | What |
 |---|---|---|---|
