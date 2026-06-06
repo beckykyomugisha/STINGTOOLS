@@ -4,7 +4,8 @@
 // only + presigned URLs are enforced server-side (GET /api/projects/{id}/recordings).
 import { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking } from "react-native";
-import { getProjectRecordings, type ProjectRecording } from "@/api/endpoints";
+import { type ProjectRecording } from "@/api/endpoints";
+import { meetingsCore } from "@/api/meetingsCore";
 import { useProjectStore } from "@/stores/projectStore";
 import { RecordingPlayerModal, fmtDur, fmtSize, isAudioKind } from "@/components/RecordingPlayer";
 
@@ -17,8 +18,8 @@ export default function RecordingsScreen() {
   const load = useCallback(async () => {
     if (!projectId) { setLoading(false); return; }
     try {
-      const r = await getProjectRecordings(projectId);
-      setRecordings(r.recordings);
+      const recs = await meetingsCore.listRecordings(projectId);   // W4 — via shared core
+      setRecordings(recs);
     } catch { /* none / not configured */ }
     finally { setLoading(false); }
   }, [projectId]);

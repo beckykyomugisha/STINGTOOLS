@@ -9,9 +9,10 @@ import {
   logMeetingMinutes, addMeetingAction, updateMeetingAction, listOpenMeetingActions,
   listMeetingAttendees, addMeetingAttendee, updateMeetingAttendee, deleteMeetingAttendee,
   addMeetingAgendaItem, updateMeetingAgendaItem, deleteMeetingAgendaItem,
-  exportMeetingMinutesDoc, getMeetingIcsUrl, startLiveSession, getMeetingLiveArtifacts, getProjectRecordings,
+  exportMeetingMinutesDoc, getMeetingIcsUrl, startLiveSession, getMeetingLiveArtifacts,
   type MeetingActionItem, type MeetingAttendee, type MeetingAgendaItem, type MeetingLiveArtifacts,
 } from "@/api/endpoints";
+import { meetingsCore } from "@/api/meetingsCore";
 import { MemberPicker } from "@/components/MemberPicker";
 import { RecordingPlayerModal, fmtDur, fmtSize, isAudioKind } from "@/components/RecordingPlayer";
 import { useProjectStore } from "@/stores/projectStore";
@@ -39,9 +40,9 @@ export default function MeetingsScreen() {
       ]);
       setMeetings(m);
       setOpenActions(a);
-      // P2 — one cheap project-level fetch → which meetings have a recording (badge them).
-      getProjectRecordings(projectId)
-        .then((r) => setRecordedIds(new Set(r.recordings.filter((x) => x.meetingId).map((x) => x.meetingId as string))))
+      // P2/W4 — one cheap project-level fetch (via shared meetingsCore) → which meetings have a recording.
+      meetingsCore.listRecordings(projectId)
+        .then((recs) => setRecordedIds(new Set(recs.filter((x) => x.meetingId).map((x) => x.meetingId as string))))
         .catch(() => { /* none / not configured */ });
     } catch (err) {
       Alert.alert("Load failed", err instanceof Error ? err.message : String(err));
