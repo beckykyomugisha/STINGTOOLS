@@ -292,7 +292,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD disc-safetynet');
+    console.log('[viewer] STING_VIZ_BUILD marker-toolbar');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -602,6 +602,12 @@
         '#vBmSave':    () => saveBookmark(1),
         '#vBmRestore': () => restoreBookmark(1),
       });
+      // B — labelled toolbar toggles for clash / issue markers (in addition to the View ▾
+      // items); reflect the on/off state on the button. Default on (markers visible).
+      $('#tbClashMarkers')?.addEventListener('click', () => toggleClashMarkers());
+      $('#tbIssueMarkers')?.addEventListener('click', () => toggleIssueMarkers());
+      paintMarkerBtn('tbClashMarkers', state.clashMarkersVisible);
+      paintMarkerBtn('tbIssueMarkers', state.issueMarkersVisible);
       bindMenu('#btnIssues', '#menuIssues', {
         '#iCreate': () => openIssueModal(),
         '#iMine':   () => { state.issuesFilter = 'mine'; switchBottomTab('issues'); renderIssues(); },
@@ -6365,14 +6371,22 @@
     // Flip the existing pin meshes' .visible (place*Pins re-applies the flag on rebuild).
     // The wire-box clash markers + sphere issue markers stay visually distinct from the
     // orbit-pivot indicator; this only touches the marker groups, never the pivot.
+    // B — reflect marker on/off on the labelled toolbar button (dim + strike when off).
+    function paintMarkerBtn(id, on) {
+      const b = $('#' + id); if (!b) return;
+      b.style.opacity = on ? '1' : '0.45';
+      b.style.textDecoration = on ? 'none' : 'line-through';
+    }
     function toggleClashMarkers() {
       state.clashMarkersVisible = !state.clashMarkersVisible;
       state.clashPins.forEach(m => { m.visible = state.clashMarkersVisible; });
+      paintMarkerBtn('tbClashMarkers', state.clashMarkersVisible);
       toast(state.clashMarkersVisible ? 'Clash markers ON' : 'Clash markers OFF');
     }
     function toggleIssueMarkers() {
       state.issueMarkersVisible = !state.issueMarkersVisible;
       state.issuePins.forEach(m => { m.visible = state.issueMarkersVisible; });
+      paintMarkerBtn('tbIssueMarkers', state.issueMarkersVisible);
       toast(state.issueMarkersVisible ? 'Issue markers ON' : 'Issue markers OFF');
     }
 

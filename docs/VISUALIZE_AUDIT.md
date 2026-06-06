@@ -1,5 +1,14 @@
 # Viewer Visualize — audit & change log
 
+### Clash/issue marker toolbar toggles · marker `marker-toolbar` (coordination-viewer) · served-verified
+The clash/issue marker show-hide was buried in View ▾. Now surfaced as labelled toolbar buttons
+**`▣ Clashes`** / **`⬤ Issues`** (next to View), in addition to the View-menu items — they call the same
+`toggleClashMarkers`/`toggleIssueMarkers` and reflect on/off state (dim + strike when off, via
+`paintMarkerBtn`). Default on. Served proof: viewer.html has `id="tbClashMarkers"` + `id="tbIssueMarkers"`;
+minified `coordination-viewer.js` keeps the `#tbClashMarkers` binding + marker `marker-toolbar`. (View ▾
+items still present — no regression.) PENDING-HUMAN-VERIFY (incognito): clicking each hides/shows the
+red/orange boxes + issue markers and dims the button.
+
 ### Realistic render mode · marker `realistic-mode` (coordination-viewer) · served-verified
 Adds **Realistic** to the View menu (alongside Shaded / Wireframe / X-Ray / Ghosted). Procedural IBL via
 `PMREMGenerator.fromScene(new RoomEnvironment())` (no asset) → `scene.environment` + `ACESFilmicToneMapping`
