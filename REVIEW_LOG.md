@@ -164,3 +164,54 @@ with 1 Low logged (A2-R1-1) + 1 recommendation surfaced (RGL approval intent —
 graph is internally consistent: every binding + formula target resolves to a real, GUID-stable param.
 Open recommendation: RGL_*_APPROVAL_TXT formula-dep intent (trim vs. define) — your call.
 
+---
+
+## AREA A3 — Planscape.Server (non-meeting)
+
+**Scope:** 114 non-meeting controllers + entities/DTOs + non-meeting SignalR + EF model/migrations +
+Program.cs. **Deferred (#306 guard):** MeetingHub/Room/Meetings controllers, HubTenantGuard, meeting
+entities/DTOs. Buildable area (`dotnet build` available).
+
+### Rounds (A3)
+
+#### A3 · R1 — security / data-integrity (tenant isolation — the #1 server defect class)
+Method: establish the isolation model, then hunt entities that bypass it.
+- **Isolation model (verified):** `PlanscapeDbContext.ApplyTenantQueryFilters` (line 1960) installs a
+  **global query filter `TenantId == CurrentTenantId` on every `ITenantScoped` entity** (dynamic
+  lambda over `Model.GetEntityTypes()`), `SaveChanges` (line 79) auto-stamps + guards `TenantId` on
+  Added `ITenantScoped`, and a `TenantId` index is auto-created (line 1990). So a controller scoping a
+  query by route `projectId` alone is tenant-safe **iff** the entity is `ITenantScoped` (filter adds
+  the tenant predicate; cross-tenant projectId → empty). Strong baseline. Class-level `[Authorize]`
+  present on all but the intentionally-public `Status/PublicConfig/Pricing/PluginUpdates/Downloads/
+  AutodeskWebhooks` (webhook uses signature auth) — to spot-verify in a later round.
+- **Bypass hunt (high-signal):** entities with a `TenantId` property but NOT `: ITenantScoped` →
+  excluded from the global filter. Found **5**: `MeetingAttendee/AgendaItem/ActionItem` (deferred),
+  and in-scope `InformationDeliverable` + `SiteDiaryAttachment`.
+- **Exploitability (traced):** NOT currently exploitable. `DeliverablesController` ([Authorize] +
+  [ProjectAccess]) enforces `Project.TenantId == tenantId` on **every** list/get/create/update/transition
+  endpoint; `SiteDiaryAttachment` is only added/read via its `ITenantScoped` parent `SiteDiary`
+  (Include); `StageGate` (ITenantScoped) protects the deliverable Count sub-queries.
+
+| # | Item | Dim | Sev | Root cause | Blast radius | Disposition |
+|---|---|---|---|---|---|---|
+| A3-R1-1 | `InformationDeliverable` (StageGate.cs:65), `SiteDiaryAttachment` (SiteDiary.cs) | 5 security / 4 robustness | **Medium (latent, not exploitable)** | Both carry a `TenantId` column but don't implement `ITenantScoped`, so they're excluded from the global tenant query filter + auto-stamp + auto-index. The codebase's tenant safety net doesn't cover them — isolation depends entirely on every controller remembering the explicit `Project.TenantId==tenantId` check (today: all do). | **Wide:** adding the interface changes the EF model → needs a migration (TenantId index) + a one-time backfill of `TenantId` on legacy rows where it's `Guid.Empty` (else the new filter would hide them). Touches EF/migrations + deployment. | **LOGGED + SURFACED as CP-2** (above-Low, cross-area). Ranked proposal below; not auto-applied (migration I can't safely generate/verify here + legacy-row risk). |
+
+**Cross-area proposal CP-2 (surfaced for sign-off):** restore the tenant safety net for the
+non-`ITenantScoped` entities that carry `TenantId`.
+- **Option A (recommended):** add `: ITenantScoped` to `InformationDeliverable` + `SiteDiaryAttachment`
+  (+ the 3 Meeting* entities when #306 merges). Then: (1) `dotnet ef migrations add TenantScopeBackfill`
+  for the auto-created TenantId index; (2) one-time `UPDATE … SET TenantId = <parent.TenantId> WHERE
+  TenantId = '00000000-…'` backfill so the global filter doesn't hide legacy rows. Closes the gap +
+  gives defense-in-depth.
+- **Option B:** leave as-is — relies on every controller's explicit check (currently complete). No cost,
+  no backstop.
+- **Option C (cheap regression guard, complements A):** add a unit/architecture test asserting every
+  entity exposing a `TenantId` property implements `ITenantScoped`. Prevents recurrence.
+- **Recommendation:** A + C. Do A behind a reviewed migration + backfill; add C to stop new bypasses.
+
+**Scorecard (A3 R1):** Critical 0 · High 0 · Medium 1 (surfaced, not applied) · Low 0. Tenant-isolation
+baseline is strong (global filter + [ProjectAccess] + explicit checks). Fixes applied: 0 (the only
+finding is a wide-blast architectural one → proposal). Build: not rebuilt (no code change this round).
+**A3 remains OPEN** — R1 covered the security/tenant dimension only; correctness/async/EF-migration/
+DTO-alignment rounds still pending across the 114 controllers.
+
