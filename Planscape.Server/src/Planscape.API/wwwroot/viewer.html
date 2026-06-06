@@ -1712,6 +1712,7 @@ THREE.ColorManagement.enabled = false;
   // the layered model is handled in coordination-viewer.js (Realistic = base
   // appearance; colour-by/ghost still override; Clear returns to it).
   let _realisticEnv = null;
+  let _realisticBg = null;   // P4 — dark studio gradient backdrop for Realistic (NOT the env)
   function setRealistic(on) {
     on = !!on;
     if (on) {
@@ -1723,11 +1724,26 @@ THREE.ColorManagement.enabled = false;
         } catch (e) { console.warn('[viewer] Realistic env build failed', e); _realisticEnv = null; }
       }
       scene.environment = _realisticEnv;
+      // P4 — DECOUPLE backdrop from the IBL: the RoomEnvironment lights/reflects the model
+      // (scene.environment) but must NOT be the backdrop (that's the bright/whitish look).
+      // Use a subtle dark studio gradient so the lit model pops; env stays environment-only.
+      if (!_realisticBg) {
+        try {
+          const cv = document.createElement('canvas'); cv.width = 16; cv.height = 256;
+          const ctx = cv.getContext('2d');
+          const g = ctx.createLinearGradient(0, 0, 0, 256);
+          g.addColorStop(0, '#1b2027'); g.addColorStop(1, '#0c0e12');
+          ctx.fillStyle = g; ctx.fillRect(0, 0, 16, 256);
+          _realisticBg = new THREE.CanvasTexture(cv);
+          _realisticBg.colorSpace = THREE.SRGBColorSpace;
+        } catch (e) { _realisticBg = null; }
+      }
+      scene.background = _realisticBg || new THREE.Color(0x111318);
       // Soften IBL + pull exposure down so flat untextured white plaster reads as LIT with
       // form, not washed flat. (Real materials/textures come from the Phase-2 exporter.)
-      try { scene.environmentIntensity = 0.5; } catch (e) {}
+      try { scene.environmentIntensity = 0.45; } catch (e) {}
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.7;
+      renderer.toneMappingExposure = 0.62;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       // E — DEPTH: dampen the flat hemisphere/ambient fill so the IBL's soft directional
       // variation (a contact-shadow / ambient-occlusion-like gradient) shows; keep the key
@@ -1735,6 +1751,7 @@ THREE.ColorManagement.enabled = false;
       try { hemi.intensity = _legacyFill.hemi * 0.35; amb.intensity = _legacyFill.amb * 0.25; dir.intensity = _legacyFill.dir * 1.1; } catch (e) {}
     } else {
       scene.environment = null;
+      scene.background = new THREE.Color(0x111318);   // P4 — restore the legacy solid dark backdrop
       try { scene.environmentIntensity = 1.0; } catch (e) {}
       renderer.toneMapping = THREE.NoToneMapping;
       renderer.toneMappingExposure = 1.0;

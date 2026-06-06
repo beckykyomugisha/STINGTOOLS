@@ -1,5 +1,18 @@
 # Viewer Visualize — audit & change log
 
+### P4 — Realistic background decouple + exposure re-tune · marker `realistic-bg` (coordination-viewer) · served-verified
+Realistic now sets an explicit **dark studio gradient backdrop** (`_realisticBg` CanvasTexture, #1b2027→#0c0e12)
+while `scene.environment` stays the RoomEnvironment for **lighting/reflections only** — the bright IBL is never
+the backdrop. OFF restores the legacy solid `0x111318`. Exposure re-tuned 0.7→**0.62**, environmentIntensity
+0.5→**0.45** so white-plaster reads with form, not washed. (Finding: the code already used a dark
+`scene.background` and never assigned the env as background; P4 makes the decouple explicit + adds the gradient
++ lowers exposure.) In-app note on entering Realistic (from the prior toast): full material realism needs
+textures actually ON — current models were published with textures OFF, so there's **no `[tex]` log yet**;
+confirm via a Revit re-publish (`PLANSCAPE_EXPORT_TEXTURES=1`) per `docs/EXPORTER_TEXTURES.md`. Served proof:
+viewer.html has `_realisticBg` + `createLinearGradient` + `toneMappingExposure = 0.62` + the OFF-restore;
+marker `realistic-bg`. PENDING-HUMAN-VERIFY (incognito): Realistic backdrop is dark (not whitish), model reads
+with form; OFF restores the legacy look.
+
 ### P3 — discipline colour: category override + "Disc + category variants" · marker `disc-variants` · served-verified
 - **(a) Precedence fix:** when colouring by Discipline (preset) or by variants, a category's **custom picked
   colour now OVERRIDES** the discipline colour (previously discipline won). Other schemes (system/param/status)

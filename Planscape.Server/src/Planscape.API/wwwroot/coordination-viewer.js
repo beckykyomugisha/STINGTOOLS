@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD disc-variants');
+    console.log('[viewer] STING_VIZ_BUILD realistic-bg');
     renderProperties(null);
     renderHistory();
     updateBadges();
