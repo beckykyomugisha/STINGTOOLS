@@ -238,7 +238,7 @@ over `MeetingHub`; all media (device picker / layout / low-bandwidth) over LiveK
 
 ---
 
-## M4 — AEC functions  ✅ served `M4-aec`
+## M4 — AEC functions  ✅ served `M4-aec` · `a362c4582`
 
 Turns the live meeting into a coordination tool. Reuses existing controllers (Issues, Clashes,
 Meetings, Snapshots) + one new link endpoint; all UI hangs off the co-presence panel in
@@ -292,3 +292,75 @@ project member so Issues/Meetings endpoints authorise):
 - **Minutes are a DocumentRecord** (the .docx is rendered server-side by the template engine when the
   `meeting_minutes.docx` template is present — same pattern as transmittals); the toast confirms the
   record, not a downloaded file.
+
+---
+
+## M5 — meetings discovery audit (cross-cutting matrix)
+
+Docs-only slice — no served artifact (the per-feature SERVED proofs are recorded in M1–M4 above).
+This is the **integration** matrix: scenarios that span slices and must hold together. Run it after
+the per-slice checklists pass. Architecture invariant throughout: **LiveKit = media plane**
+(camera/mic/screen), **SignalR `MeetingHub` = co-presence plane** (surface/markup/chat/roster/
+moderation/state). No feature duplicates a transport; secrets are env-only.
+
+### Setup (the canonical two-tab harness)
+1. `cd Planscape.Server/docker && docker compose up -d` (api :5000, livekit :7880 dev, postgres,
+   redis). Confirm `curl http://localhost:5000/health` = 200 and `…/livekit-token` mints (M1-1).
+2. Sign in (so `localStorage.planscape_token` is set). Pick a project + published model; create a
+   live session (BCC "Start meeting" or `POST …/meeting-sessions`). Note the session id.
+3. Open **two InPrivate windows** at
+   `http://localhost:5000/viewer.html?project=<pid>&model=<mid>&meeting=<sid>` — tab 1 signed in as
+   the session **host**, tab 2 as another project member. (A 3rd tab tests late-join + non-member
+   gating.)
+
+### Discovery matrix — PENDING-HUMAN-VERIFY
+- [ ] **Start / join:** both tabs auto-join co-presence ("Live meeting" panel, presence chips). A/V
+      is gesture-gated — each tab shows **▶ Join A/V** until clicked (M1).
+- [ ] **2+ participants:** after both Join A/V, each tab shows the other's tile + audio; the roster
+      lists both with the ★ host badge on tab 1 (M1, M3).
+- [ ] **Leave / rejoin:** tab 2 Leave → returns to the Join lobby, drops from tab 1's tiles; Join
+      again → re-appears without a reload (M1).
+- [ ] **Reconnect (network blip):** kill tab 2's network ~10 s then restore → SignalR auto-reconnects
+      (re-`JoinSession`), the token-refresh path avoids a 401 storm (V3), and A/V re-establishes or
+      falls back to the Join lobby. No ghost participant lingers in tab 1 (OnDisconnected fires
+      ParticipantLeft).
+- [ ] **Host handoff:** tab 1 makes tab 2 host (★) → ★ migrates, host controls move to tab 2, and the
+      presenter-only surface/screen/grant affordances follow the host (M3 + RoomChanged).
+- [ ] **Surface switch under load:** with both drawing markup + chatting, the host switches
+      model → document → screen repeatedly → every tab stays in lock-step on the active surface; markup
+      canvas shows only on `document`; no transport flooding (camera broadcast throttled, V/F3 coalesce).
+- [ ] **Screen-share start/stop:** host shares a window → it renders in the central pane for both and
+      the surface auto-follows to `screen`; stop → returns to `model` (WS3c/d).
+- [ ] **Co-presence + A/V together:** camera-follow (move host camera → follower tracks), element
+      highlight, section, clash-review camera-fly (M4) all work **while** A/V tiles + chat are live —
+      the two planes don't interfere.
+- [ ] **Mobile join (`Planscape/app/meetings/live.tsx`, native build):** a phone joins the same
+      session → native LiveKit A/V + surface-follow + model co-presence. (Web-only for now: markup /
+      chat / roster / AEC UI — mobile parity is a follow-up; see Caveats.)
+- [ ] **Token expiry / refresh:** run a session past the JWT TTL → the meeting hub + livekit token
+      paths refresh without a negotiate storm; the LiveKit token is minted for a 4 h TTL so a long
+      meeting doesn't drop media mid-call.
+- [ ] **Tenant isolation:** a user from another tenant who guesses the session GUID cannot join the
+      hub group or mint a token (HubTenantGuard / controller tenant checks).
+
+### Slice index (all on branch `claude/optimistic-bell-EfjJw`, PR #306 — do not merge)
+| Slice | Marker | Commit | What |
+|---|---|---|---|
+| M1-1 | `M1-livekit` | (earlier) | `/livekit-token` 500→200 (raw HMACSHA256 JWT) |
+| M1-2 | `M1-polish` | `39f6a59b0` | gesture-gated Join/Leave + in-meeting state + device prompts |
+| M2 | `M2-markup` | `a8a0d57ed` | collaborative document markup (broadcast + Snapshot/Issue) |
+| M3 | `M3-confer` | `bdb7564fb` | chat/reactions/roster+roles/host-controls/device-picker/views/low-bw |
+| M4 | `M4-aec` | `a362c4582` | issue/clash-review/meeting-link/minutes/viewpoint |
+| M5 | (docs) | — | this discovery matrix |
+
+### Cross-cutting caveats / known follow-ups
+- **Mobile parity:** `live.tsx` covers native A/V + surface-follow + co-presence; the M2 markup,
+  M3 chat/roster/moderation, and M4 AEC UIs are **web-only** so far. Porting them to the RN app is
+  the natural next phase (the hub methods + REST are already host-agnostic).
+- **Server-enforced mute/remove:** M3 moderation is a host-gated *signal* the client self-applies;
+  hard enforcement needs the LiveKit server SDK (`RoomService.MutePublishedTrack` / `RemoveParticipant`).
+- **Late-join replay:** neither M2 markup strokes nor M3 raised-hands replay to a tab that joins
+  after they happen (the hub mirrors live ops). A snapshot/full-state resync on join is the fix.
+- **No 2-tab live A/V proof in this build pass:** every slice was SERVED-proven (container serves the
+  exact bundle) but the live camera/mic/screen behaviour was **not** machine-verified — it requires
+  two real browser tabs against the running LiveKit + Postgres stack. That is what this matrix is for.

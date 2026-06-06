@@ -124,3 +124,12 @@ are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that fil
 - [ ] ⧉ clash review steps clashes; camera flies + follower follows; ⚑→ promotes to issue.
 - [ ] 📋 link/create formal meeting (button greens; other tab greens via RoomChanged).
 - [ ] 📋 (linked) add action item; blank → generate minutes (MEETING_MINUTES doc record).
+
+### M5 — meetings discovery audit  · docs-only (no served artifact)
+- [ ] Cross-cutting matrix in docs/MEETINGS_AUDIT.md: start/join/leave/reconnect, 2+ participants,
+      host handoff, surface switch under load, screen-share start/stop, mobile join (live.tsx),
+      co-presence + A/V together, token expiry/refresh, tenant isolation.
+- Slice index (all PR #306, do not merge): M1 `39f6a59b0` · M2 `a8a0d57ed` · M3 `bdb7564fb` ·
+  M4 `a362c4582` · M5 docs.
+- Known follow-ups: mobile parity for markup/chat/AEC; server-enforced mute/remove (LiveKit SDK);
+  late-join replay of markup/hand state.
