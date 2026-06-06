@@ -9,7 +9,7 @@
 
   // Deployed-artifact marker for serve path #3 (vanilla web /app). dashboard.js is
   // volume-mounted (wwwroot/js) → reflects on restart/refresh, no docker rebuild.
-  console.log("[dashboard] STING_DASH_BUILD recordings-web");
+  console.log("[dashboard] STING_DASH_BUILD w1-authoring");
 
   // Phase 169 — runtime config. The Mapbox token must be replaced with a
   // real public token from mapbox.com (free account, no credit card
@@ -1753,18 +1753,34 @@
         "<td>" + (m.durationMinutes == null ? "" : esc(String(m.durationMinutes))) + "</td>" +
         "<td>" + esc(m.location || "") + "</td></tr>";
     }).join("");
-    main.innerHTML = "<h1>Meetings</h1>" +
-      '<p style="color:var(--muted);font-size:13px;margin:-4px 0 12px">Click a meeting to see its recordings.</p>' +
+    var canNew = mCan("schedule", null);
+    main.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><h1 style="margin:0;flex:1">Meetings</h1>' +
+      (canNew ? '<button class="btn-primary" id="mNew">+ New meeting</button>' : "") + "</div>" +
+      '<p style="color:var(--muted);font-size:13px;margin:-2px 0 12px">Click a meeting to open it (overview · agenda · actions · attendees · minutes · recordings).</p>' +
       '<div class="card">' + (meetings.length
         ? "<table><thead><tr><th>Title</th><th>Type</th><th>When</th><th>Duration (m)</th><th>Location</th></tr></thead><tbody>" + body + "</tbody></table>"
         : '<div class="empty">No meetings yet.</div>') + "</div>" +
       '<div id="modal-mount"></div>';
     main.querySelectorAll("tr[data-meeting-id]").forEach((tr) => {
-      tr.onclick = () => {
-        const m = meetings.find((x) => x.id === tr.dataset.meetingId);
-        openMeetingRecordings(main, m, byMeeting[tr.dataset.meetingId] || []);
-      };
+      tr.onclick = () => { renderMeetingDetail(main, tr.dataset.meetingId); };
     });
+    var nb = document.getElementById("mNew");
+    if (nb) nb.onclick = async function () {
+      var core = mcApi(); if (!core) return;
+      var v = await formModal("New meeting", [
+        { key: "title", label: "Title" },
+        { key: "meetingType", label: "Type", type: "select", options: MTYPES, value: "MEETING" },
+        { key: "scheduledAt", label: "When", type: "datetime-local" },
+        { key: "durationMinutes", label: "Duration (min)", type: "number", value: 60 },
+        { key: "location", label: "Location" },
+      ]);
+      if (!v || !v.title) return;
+      try {
+        await core.createMeeting(state.projectId, { title: v.title, meetingType: v.meetingType, scheduledAt: v.scheduledAt ? new Date(v.scheduledAt).toISOString() : new Date().toISOString(), durationMinutes: v.durationMinutes ? parseInt(v.durationMinutes, 10) : 60, location: v.location });
+        toast("Meeting created"); renderMeetings(main);
+      } catch (e) { toast("Create failed: " + e); }
+    };
   }
 
   // Project Recordings archive — ALL recordings newest-first (label/date/duration/size/
@@ -1787,6 +1803,204 @@
       '<div id="modal-mount"></div>';
     wireRecPlay(main);
   }
+
+  // ── W0/W1 — meetings-core client + role helpers (web consumes the shared module) ──
+  function MC() { return (typeof window !== "undefined" && window.MeetingsCore) || null; }
+  function mcApi() { return MC() ? MC().create((p, o) => api(p, o)) : null; }
+  function toast(msg) {
+    var t = document.createElement("div");
+    t.textContent = msg;
+    t.style.cssText = "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1d24;color:#fff;padding:10px 16px;border-radius:6px;z-index:10000;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.4)";
+    document.body.appendChild(t); setTimeout(() => { try { t.remove(); } catch (e) {} }, 3000);
+  }
+  function b64urlJson(s) { try { return JSON.parse(atob(s.replace(/-/g, "+").replace(/_/g, "/"))); } catch (e) { return {}; } }
+  function jwtClaims() { var t = getToken(); if (!t) return {}; var p = t.split("."); return p.length >= 2 ? b64urlJson(p[1]) : {}; }
+  function currentUserId() { var c = jwtClaims(); return c.sub || c.nameid || c.user_id || c.uid || c["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || null; }
+  function claimRole() { var c = jwtClaims(); return c.iso_role || c.role || c["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || ""; }
+  // Map an arbitrary role string to a CAPS key the shared matrix understands.
+  function mapRole(r) {
+    r = (r || "").toString().toLowerCase();
+    if (/host|manager|coordinator|\bbc\b|bim/.test(r)) return "host";
+    if (/chair/.test(r)) return "chair";
+    if (/secretary|minute/.test(r)) return "secretary";
+    if (/client/.test(r)) return "client";
+    if (/lead|author|attendee|discipline/.test(r)) return "attendee";
+    return r;
+  }
+  // Effective meeting role: creator → host; else the user's attendee role; else JWT role;
+  // unknown → "attendee" (safe non-destructive default — server still enforces).
+  function meetingRole(meeting) {
+    var uid = currentUserId();
+    if (meeting && uid && (meeting.createdBy === uid || meeting.hostUserId === uid)) return "host";
+    var r = "";
+    if (meeting && meeting.attendees && uid) {
+      var me = meeting.attendees.find(function (a) { return a.userId === uid; });
+      if (me && me.role) r = me.role;
+    }
+    if (!r) r = claimRole();
+    var k = mapRole(r);
+    return (MC() && MC().CAPS[k]) ? k : "attendee";
+  }
+  function mCan(cap, meeting) { return MC() ? MC().can(meetingRole(meeting), cap) : false; }
+
+  // Generic form modal → resolves to a values object (or null on cancel).
+  function formModal(title, fields) {
+    return new Promise((resolve) => {
+      var mount = document.getElementById("modal-mount") || document.body;
+      var wrap = document.createElement("div");
+      wrap.className = "modal-overlay"; wrap.style.zIndex = "9998";
+      var inner = fields.map(function (f) {
+        var id = "fm_" + f.key;
+        if (f.type === "select") {
+          var opts = (f.options || []).map(function (o) { return '<option value="' + esc(o) + '"' + (o === f.value ? " selected" : "") + ">" + esc(o) + "</option>"; }).join("");
+          return '<div class="field"><label>' + esc(f.label) + '</label><select id="' + id + '">' + opts + "</select></div>";
+        }
+        if (f.type === "textarea") return '<div class="field"><label>' + esc(f.label) + '</label><textarea id="' + id + '" rows="5">' + esc(f.value || "") + "</textarea></div>";
+        return '<div class="field"><label>' + esc(f.label) + '</label><input id="' + id + '" type="' + (f.type || "text") + '" value="' + esc(f.value == null ? "" : String(f.value)) + '" /></div>';
+      }).join("");
+      wrap.innerHTML = '<div class="modal-box" style="max-width:520px"><h2>' + esc(title) + "</h2>" + inner +
+        '<div class="actions"><button type="button" class="btn-cancel" id="fmCancel">Cancel</button>' +
+        '<button type="button" class="btn-primary" id="fmSave">Save</button></div></div>';
+      mount.appendChild(wrap);
+      var close = function (v) { try { wrap.remove(); } catch (e) {} resolve(v); };
+      wrap.querySelector("#fmCancel").onclick = function () { close(null); };
+      wrap.onclick = function (e) { if (e.target === wrap) close(null); };
+      wrap.querySelector("#fmSave").onclick = function () {
+        var out = {}; fields.forEach(function (f) { out[f.key] = (document.getElementById("fm_" + f.key) || {}).value; });
+        close(out);
+      };
+    });
+  }
+
+  var MTYPES = ["MEETING", "COORDINATION", "DESIGN_REVIEW", "PROGRESS", "CLIENT", "SITE", "HANDOVER"];
+  function toLocalInput(iso) { if (!iso) return ""; try { var d = new Date(iso); var z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); } catch (e) { return ""; } }
+
+  // W1 — full role-aware meeting detail (Overview / Agenda / Actions / Attendees / Minutes /
+  // Recordings). Everything routes through meetings-core; controls gated by mCan(); server enforces.
+  async function renderMeetingDetail(main, meetingId) {
+    var core = mcApi();
+    if (!core) { main.innerHTML = '<div class="empty">Meeting module not loaded.</div>'; return; }
+    var pid = state.projectId;
+    var m, recsByMeeting = {};
+    try {
+      m = await core.getMeeting(pid, meetingId);
+      try { recsByMeeting = (await core.recordingsByMeeting(pid)).byMeeting; } catch (e) {}
+    } catch (e) { main.innerHTML = '<div class="empty">Could not load meeting: ' + esc(String(e)) + "</div>"; return; }
+    var recs = recsByMeeting[meetingId] || [];
+    var role = meetingRole(m);
+    var canEdit = mCan("editAgenda", m), canMinutes = mCan("editMinutes", m), canAttend = mCan("manageAttendees", m), canAssign = mCan("assignActions", m);
+    var agenda = m.agendaItems || m.agenda || [];
+    var actions = m.actionItems || m.actions || [];
+    var attendees = m.attendees || [];
+
+    main.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+        '<button class="ghost" id="mdBack">← Meetings</button>' +
+        "<h1 style=\"margin:0\">" + esc(m.title || "(untitled)") + "</h1>" +
+        '<span class="chip">' + esc(m.status || "") + '</span>' +
+        (recs.length ? ' <span class="chip" style="background:rgba(25,118,210,0.15);color:#1976d2">▶ REC</span>' : "") +
+        '<span style="margin-left:auto;color:var(--muted);font-size:12px">your role: ' + esc(role) + "</span>" +
+      "</div>" +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">' +
+        (mCan("join", m) ? '<button class="btn-primary" id="mdJoin">🎥 Join live</button>' : "") +
+        (mCan("schedule", m) ? '<button class="ghost" id="mdEdit">✏ Edit meeting</button>' : "") +
+      "</div>" +
+      '<div class="card"><h3 style="margin-top:0">Overview</h3>' +
+        '<div style="font-size:13px;color:var(--muted)">' + esc(m.meetingType || m.type || "MEETING") + " · " +
+        (m.scheduledAt ? new Date(m.scheduledAt).toLocaleString() : "Unscheduled") +
+        (m.durationMinutes ? " · " + m.durationMinutes + " min" : "") + (m.location ? " · " + esc(m.location) : "") + "</div></div>" +
+      sectionCard("Agenda", canEdit ? '<button class="ghost" id="mdAddAgenda">+ Item</button>' : "",
+        agenda.length ? agenda.map(function (i, ix) {
+          return '<div class="md-row" style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--slate-100,#eee)">' +
+            '<span style="flex:1;font-size:13px"><strong>' + (ix + 1) + ".</strong> " + esc(i.title || "") +
+            (i.status ? ' <span class="chip">' + esc(i.status) + "</span>" : "") +
+            (i.decision ? '<br><span style="color:var(--muted);font-size:12px">Decision: ' + esc(i.decision) + "</span>" : "") + "</span>" +
+            (canEdit ? '<button class="ghost md-ed-agenda" data-id="' + esc(i.id) + '">edit</button><button class="ghost md-del-agenda" data-id="' + esc(i.id) + '">✕</button>' : "") + "</div>";
+        }).join("") : '<div class="empty">No agenda items.</div>') +
+      sectionCard("Action items", "",
+        actions.length ? actions.map(function (a) {
+          var mine = a.assigneeUserId && a.assigneeUserId === currentUserId();
+          var canRow = canAssign || mine;
+          return '<div class="md-row" style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--slate-100,#eee)">' +
+            '<span style="flex:1;font-size:13px">' + esc(a.description || "") +
+            (a.assignee ? ' <span style="color:var(--muted)">→ ' + esc(a.assignee) + "</span>" : "") +
+            (a.priority ? ' <span class="chip">' + esc(a.priority) + "</span>" : "") +
+            ' <span class="chip">' + esc(a.status || "OPEN") + "</span></span>" +
+            (canRow ? '<button class="ghost md-ed-action" data-id="' + esc(a.id) + '">edit</button>' : "") + "</div>";
+        }).join("") : '<div class="empty">No action items.</div>',
+        canAssign ? '<button class="ghost" id="mdAddAction">+ Action</button>' : "") +
+      sectionCard("Attendees", canAttend ? '<button class="ghost" id="mdAddAttendee">+ Attendee</button>' : "",
+        attendees.length ? attendees.map(function (a) {
+          return '<div class="md-row" style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--slate-100,#eee)">' +
+            '<span style="flex:1;font-size:13px">' + esc(a.name || a.email || "") +
+            (a.role ? ' <span class="chip">' + esc(a.role) + "</span>" : "") +
+            (a.attendanceStatus ? ' <span style="color:var(--muted)">' + esc(a.attendanceStatus) + "</span>" : "") + "</span>" +
+            (canAttend ? '<button class="ghost md-ed-attendee" data-id="' + esc(a.id) + '">edit</button>' : "") + "</div>";
+        }).join("") : '<div class="empty">No attendees.</div>') +
+      '<div class="card"><div style="display:flex;align-items:center;gap:8px"><h3 style="margin:0;flex:1">Minutes</h3>' +
+        (canMinutes ? '<button class="ghost" id="mdGenDoc">📄 Generate doc</button>' : "") + "</div>" +
+        (canMinutes
+          ? '<textarea id="mdMinutes" rows="6" style="width:100%;margin-top:8px">' + esc(m.minutes || "") + '</textarea><div class="actions"><button class="btn-primary" id="mdSaveMinutes">Save minutes</button></div>'
+          : '<div style="white-space:pre-wrap;font-size:13px;margin-top:8px">' + esc(m.minutes || "—") + "</div>") + "</div>" +
+      sectionCard("Recordings", "",
+        recs.length ? '<table><tbody>' + recs.map(function (r) {
+          return "<tr><td style=\"font-size:13px\">" + (isAudio(r.kind) ? "🎙" : "🎥") + " " + fmtDateTime(r.startedAt) + " · " + fmtDur(r.durationSeconds) + " · " + fmtSize(r.fileSizeBytes) + " · " + esc(r.status) +
+            "</td><td style=\"text-align:right;white-space:nowrap\">" + recActionsHtml(r) + "</td></tr>";
+        }).join("") + "</tbody></table>" : '<div class="empty">No recordings for this meeting.</div>') +
+      '<div id="modal-mount"></div>';
+
+    var reload = function () { renderMeetingDetail(main, meetingId); };
+    document.getElementById("mdBack").onclick = function () { state.section = "meetings"; render(); };
+    var jb = document.getElementById("mdJoin"); if (jb) jb.onclick = function () { window.open(MC().meetingJoinUrl(pid, meetingId), "_blank"); };
+    var eb = document.getElementById("mdEdit"); if (eb) eb.onclick = async function () {
+      var v = await formModal("Edit meeting", [
+        { key: "title", label: "Title", value: m.title },
+        { key: "meetingType", label: "Type", type: "select", options: MTYPES, value: m.meetingType || m.type || "MEETING" },
+        { key: "scheduledAt", label: "When", type: "datetime-local", value: toLocalInput(m.scheduledAt) },
+        { key: "durationMinutes", label: "Duration (min)", type: "number", value: m.durationMinutes },
+        { key: "location", label: "Location", value: m.location },
+      ]);
+      if (!v) return;
+      try { await core.updateMeeting(pid, meetingId, { title: v.title, meetingType: v.meetingType, scheduledAt: v.scheduledAt ? new Date(v.scheduledAt).toISOString() : m.scheduledAt, durationMinutes: v.durationMinutes ? parseInt(v.durationMinutes, 10) : null, location: v.location }); toast("Saved"); reload(); }
+      catch (e) { toast("Save failed: " + e); }
+    };
+    var aa = document.getElementById("mdAddAgenda"); if (aa) aa.onclick = async function () {
+      var v = await formModal("Add agenda item", [{ key: "title", label: "Title" }, { key: "description", label: "Description", type: "textarea" }, { key: "durationMinutes", label: "Duration (min)", type: "number" }]);
+      if (!v || !v.title) return;
+      try { await core.addAgendaItem(pid, meetingId, { title: v.title, description: v.description, durationMinutes: v.durationMinutes ? parseInt(v.durationMinutes, 10) : null }); reload(); } catch (e) { toast("Failed: " + e); }
+    };
+    main.querySelectorAll(".md-ed-agenda").forEach(function (b) { b.onclick = async function () {
+      var it = agenda.find(function (x) { return x.id === b.dataset.id; }) || {};
+      var v = await formModal("Edit agenda item", [{ key: "title", label: "Title", value: it.title }, { key: "status", label: "Status", type: "select", options: ["", "OPEN", "DISCUSSED", "CLOSED"], value: it.status || "" }, { key: "outcome", label: "Outcome", type: "textarea", value: it.outcome }, { key: "decision", label: "Decision", type: "textarea", value: it.decision }]);
+      if (!v) return; try { await core.updateAgendaItem(pid, meetingId, b.dataset.id, v); reload(); } catch (e) { toast("Failed: " + e); }
+    }; });
+    main.querySelectorAll(".md-del-agenda").forEach(function (b) { b.onclick = async function () { if (!confirm("Delete this agenda item?")) return; try { await core.deleteAgendaItem(pid, meetingId, b.dataset.id); reload(); } catch (e) { toast("Failed: " + e); } }; });
+    var ac = document.getElementById("mdAddAction"); if (ac) ac.onclick = async function () {
+      var v = await formModal("Add action", [{ key: "description", label: "Description" }, { key: "assignee", label: "Assignee (name)" }, { key: "dueDate", label: "Due", type: "date" }, { key: "priority", label: "Priority", type: "select", options: ["LOW", "MEDIUM", "HIGH"], value: "MEDIUM" }]);
+      if (!v || !v.description) return; try { await core.addAction(pid, meetingId, { description: v.description, assignee: v.assignee, dueDate: v.dueDate || null, priority: v.priority }); reload(); } catch (e) { toast("Failed: " + e); }
+    };
+    main.querySelectorAll(".md-ed-action").forEach(function (b) { b.onclick = async function () {
+      var it = actions.find(function (x) { return x.id === b.dataset.id; }) || {};
+      var v = await formModal("Edit action", [{ key: "description", label: "Description", value: it.description }, { key: "assignee", label: "Assignee", value: it.assignee }, { key: "dueDate", label: "Due", type: "date", value: (it.dueDate || "").slice(0, 10) }, { key: "priority", label: "Priority", type: "select", options: ["LOW", "MEDIUM", "HIGH"], value: it.priority || "MEDIUM" }, { key: "status", label: "Status", type: "select", options: ["OPEN", "IN_PROGRESS", "CLOSED"], value: it.status || "OPEN" }]);
+      if (!v) return; try { await core.updateAction(pid, meetingId, b.dataset.id, v); reload(); } catch (e) { toast("Failed: " + e); }
+    }; });
+    var ad = document.getElementById("mdAddAttendee"); if (ad) ad.onclick = async function () {
+      var v = await formModal("Add attendee", [{ key: "name", label: "Name" }, { key: "email", label: "Email" }, { key: "role", label: "Role", type: "select", options: ["Attendee", "Chair", "Secretary", "Client", "Discipline-lead"], value: "Attendee" }]);
+      if (!v || (!v.name && !v.email)) return; try { await core.addAttendee(pid, meetingId, v); reload(); } catch (e) { toast("Failed: " + e); }
+    };
+    main.querySelectorAll(".md-ed-attendee").forEach(function (b) { b.onclick = async function () {
+      var it = attendees.find(function (x) { return x.id === b.dataset.id; }) || {};
+      var v = await formModal("Edit attendee", [{ key: "role", label: "Role", type: "select", options: ["Attendee", "Chair", "Secretary", "Client", "Discipline-lead"], value: it.role || "Attendee" }, { key: "attendanceStatus", label: "Attendance", type: "select", options: ["INVITED", "ACCEPTED", "DECLINED", "ATTENDED", "ABSENT"], value: it.attendanceStatus || "INVITED" }]);
+      if (!v) return; try { await core.updateAttendee(pid, meetingId, b.dataset.id, v); reload(); } catch (e) { toast("Failed: " + e); }
+    }; });
+    var sm = document.getElementById("mdSaveMinutes"); if (sm) sm.onclick = async function () { try { await core.logMinutes(pid, meetingId, document.getElementById("mdMinutes").value, m.status); toast("Minutes saved"); } catch (e) { toast("Failed: " + e); } };
+    var gd = document.getElementById("mdGenDoc"); if (gd) gd.onclick = async function () { try { await core.generateMinutesDoc(pid, meetingId); toast("Minutes doc generated → Documents"); } catch (e) { toast("Failed: " + e); } };
+    wireRecPlay(main);
+  }
+  function sectionCard(title, headerBtn, bodyHtml, headerBtn2) {
+    return '<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><h3 style="margin:0;flex:1">' + esc(title) + "</h3>" + (headerBtn || "") + (headerBtn2 || "") + "</div>" + bodyHtml + "</div>";
+  }
+
   const workflowColumns = [
     { k: "preset",          label: "Preset" },
     { k: "stepsPassed",     label: "✓", render: v => `<span style="color:var(--green)">${v}</span>` },

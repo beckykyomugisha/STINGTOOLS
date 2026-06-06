@@ -7,8 +7,8 @@ Surfaces + SERVED gates per DEPLOY.md. `meetings-core.js` + `dashboard.js` are v
 
 | Item | Status | Commit | SERVED proof / exact human test |
 |---|---|---|---|
-| W0 shared meetings-core.js | DONE-SERVED | 70de55631 | `curl /js/meetings-core.js \| grep "STING_MEETINGS_CORE_BUILD w0-core"`; index.html loads it |
-| W1 web meeting authoring | TODO | — | create/edit/agenda/actions/attendees/minutes role-aware in dashboard.js |
+| W0 shared meetings-core.js | DONE-SERVED | 71cadfc54 | `curl /js/meetings-core.js \| grep "STING_MEETINGS_CORE_BUILD w0-core"`; index.html loads it |
+| W1 web meeting authoring | DONE-SERVED | 48557abb3 | `curl /js/dashboard.js \| grep w1-authoring`. HUMAN(2-tab/role): as Host create meeting + add agenda/action/attendee + edit+save minutes + Generate doc; plain attendee sees only THEIR actions + read-only minutes; client read-only. Role-gating best-effort (server enforces). |
 | W2 web join-live + live notifications | TODO | — | Join → viewer ?meeting=; live-start banner |
 | W3 web recordings via core | TODO | — | recordings routed through meetings-core |
 | W4 mobile re-point to core | TODO | — | tsc --noEmit clean |
