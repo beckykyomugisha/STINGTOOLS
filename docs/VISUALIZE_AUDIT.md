@@ -1,5 +1,15 @@
 # Viewer Visualize — audit & change log
 
+### P1 — full 8-token ISO 19650 tag in Properties · marker `iso-tokens` (coordination-viewer) · served + Revit-build verified
+New **"ISO 19650 Tag"** group in the selected-element panel: DISC · LOC · ZONE · LVL · SYS · FUNC · PROD · SEQ
++ the assembled tag string. Present tokens show their value (DISC falls back to the derived discipline);
+absent ones show **"— re-export from Revit"**. `tokenValue` extended for LOC/ZONE/SEQ/TAG.
+- **Exporter (needs RE-PUBLISH):** `PublishModelCommand` tagged-element map now also emits `zone/func/prod/seq`
+  (was only disc/loc/lvl/sys/status/tag) so the missing tokens populate after a re-publish. Build 0 warnings
+  (Revit 2025).
+- Served proof: minified bundle keeps "ISO 19650 Tag" + "re-export from Revit" + marker `iso-tokens`.
+  PENDING-HUMAN-VERIFY: select an element — present tokens show, ZONE/LOC/SEQ hint until a re-publish.
+
 ### Realistic exposure + depth tune · marker `realistic-depth` (coordination-viewer) · served-verified
 Realistic was washing flat white-plaster models out. Tuned for form: `toneMappingExposure` 0.8→**0.7**,
 `environmentIntensity` 0.55→**0.5**, and the flat fill is **dampened** while Realistic is on (hemisphere ×0.35,

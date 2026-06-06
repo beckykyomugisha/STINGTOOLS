@@ -292,7 +292,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD realistic-depth');
+    console.log('[viewer] STING_VIZ_BUILD iso-tokens');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1063,10 +1063,14 @@
       if (!meta) return '';
       switch (token) {
         case 'DISC': return meta.discipline || meta.disc || meta.DISC || '';
+        case 'LOC':  return meta.loc || meta.location || meta.LOC || '';
+        case 'ZONE': return meta.zone || meta.ZONE || '';
         case 'SYS':  return meta.system || meta.sys || meta.SYS || '';
         case 'LVL':  return meta.level || meta.lvl || meta.LVL || '';
         case 'FUNC': return meta.func || meta.function || meta.FUNC || '';
         case 'PROD': return meta.prod || meta.product || meta.PROD || '';
+        case 'SEQ':  return meta.seq || meta.sequence || meta.SEQ || '';
+        case 'TAG':  return meta.tag || meta.assTag || meta.ASS_TAG_1 || meta.tag1 || '';
         case 'CAT':  return meta.category || '';
         default: return '';
       }
@@ -2909,6 +2913,22 @@
       const matsBlock = matsHtml || dataHint('Materials', 'no material data — re-export from Revit with PLANSCAPE_EXPORT_TEXTURES to populate');
       const qtyBlock  = qtyHtml  || dataHint('Quantities', 'no area/volume/quantity — re-export from Revit with quantities to populate');
       const psetBlock = groupsHtml ? '' : dataHint('Property sets', 'no IFC psets / classification — re-export from Revit to populate');
+      // P1 — full 8-token ISO 19650 tag. Present tokens show their value; absent ones
+      // (commonly LOC/ZONE/SEQ until a re-publish that includes the ASS_* params) show the
+      // "re-export" hint. DISC falls back to the derived discipline (disc-safetynet).
+      const ISO_TOKENS = [['DISC', 'Discipline'], ['LOC', 'Location'], ['ZONE', 'Zone'], ['LVL', 'Level'], ['SYS', 'System'], ['FUNC', 'Function'], ['PROD', 'Product'], ['SEQ', 'Sequence']];
+      const isoVals = ISO_TOKENS.map(([t, label]) => {
+        let v = String(tokenValue(meta, t) || '').trim();
+        if (t === 'DISC' && !v) v = discOf(meta) || '';
+        return [t, label, v];
+      });
+      const isoAssembled = String(tokenValue(meta, 'TAG') || '').trim() ||
+        (isoVals.every(([, , v]) => v) ? isoVals.map(([, , v]) => v).join('-') : '');
+      const isoBlock = '<div class="prop-section-label">ISO 19650 Tag</div>' +
+        (isoAssembled ? `<div class="prop-row"><span class="v mono">${escapeHtml(isoAssembled)}</span><span class="copy" data-copy="${escapeHtml(isoAssembled)}" title="Copy">📋</span></div>` : '') +
+        isoVals.map(([t, label, v]) => v
+          ? rowHtml(label + ' (' + t + ')', v)
+          : `<div class="prop-row" style="opacity:0.5"><span class="k">${label} (${t})</span><span class="v">— re-export from Revit</span></div>`).join('');
       pane.innerHTML = `
         <div class="prop-section-label">Element</div>
         <div class="prop-title">${escapeHtml(meta.name || meta.category || 'Element')}</div>
@@ -2920,6 +2940,7 @@
         <input id="propFilter" placeholder="Filter properties…" style="width:100%;margin:8px 0 4px;background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:5px 8px;font-size:12px" />
         <div id="propRows" style="max-height:42vh;overflow:auto">
           ${fullId.length ? '<div class="prop-section-label">Identity</div>' + fullId.map(([k, v]) => rowHtml(k, v)).join('') : ''}
+          ${isoBlock}
           ${matsBlock}
           ${qtyBlock}
           ${dims.length ? '<div class="prop-section-label">Dimensions</div>' + dims.map(([k, v]) => rowHtml(k, v)).join('') : ''}

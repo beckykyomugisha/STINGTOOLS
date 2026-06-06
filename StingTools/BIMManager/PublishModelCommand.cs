@@ -510,6 +510,12 @@ namespace StingTools.BIMManager
                 var lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                 var sys  = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                 var stat = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                // P1 — the remaining ISO 19650 tokens so the viewer's "ISO 19650 Tag" group
+                // shows all 8 (DISC·LOC·ZONE·LVL·SYS·FUNC·PROD·SEQ) instead of hinting them.
+                var zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                var func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                var prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                var seq  = ParameterHelpers.GetString(el, ParamRegistry.SEQ);
 
                 var taggedEntry = new JObject
                 {
@@ -519,8 +525,12 @@ namespace StingTools.BIMManager
                     // Fall back to a category-derived discipline if the DISC token is blank.
                     ["discipline"] = string.IsNullOrWhiteSpace(disc) ? DeriveDisciplineFromCategory(el.Category?.Name ?? "") : disc,
                     ["location"]   = loc,
+                    ["zone"]       = zone,
                     ["level"]      = lvl,
                     ["system"]     = sys,
+                    ["func"]       = func,
+                    ["prod"]       = prod,
+                    ["seq"]        = seq,
                     ["status"]     = stat,
                     ["elementId"]  = el.Id.Value,
                 };
