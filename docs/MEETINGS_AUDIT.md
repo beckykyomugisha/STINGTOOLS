@@ -103,7 +103,7 @@ MeetingHub = co-presence/markup/chat/state (no duplicate transports); secrets vi
 
 ---
 
-## M2 — collaborative document markup on the shared DOCUMENT surface  ✅ served `M2-markup`
+## M2 — collaborative document markup on the shared DOCUMENT surface  ✅ served `M2-markup` · `a8a0d57ed`
 
 The headline net-new feature. Surface *switching* (model | document | screen) already existed; the
 document *renderer* existed (an auth-fetched blob in a sandboxed iframe). M2 adds the **markup** —
@@ -165,3 +165,73 @@ presenter; the project must have a document — note its id):
   is the natural M2.1 (server-side markup buffer or a "request current markup" hub round-trip).
 - **Issue raster is markup-on-white**, not a composite over the document pixels (sandboxed
   cross-origin iframe can't be drawn to a canvas). The document id in the description is the bridge.
+
+---
+
+## M3 — conferencing essentials  ✅ served `M3-confer`
+
+The full conferencing layer. All co-presence (chat / reactions / hand / roster / moderation) flows
+over `MeetingHub`; all media (device picker / layout / low-bandwidth) over LiveKit. No new transport.
+
+**Server (`MeetingHub` + `HubTenantGuard`):**
+- `BroadcastChat` → `ChatReceived`, `BroadcastReaction` → `ReactionReceived`, `BroadcastHand` →
+  `HandChanged` (all to others-in-group).
+- `MuteAll` + `RemoveParticipant` → `Moderation` — **host-gated** by new
+  `HubTenantGuard.IsSessionHostAsync` (caller must be the session `HostUserId`). `RemoveParticipant`
+  fans out to the GROUP carrying the target connection id; the matching client self-leaves (so the
+  signal can't be aimed outside the session). The mute is a *request* the target self-applies on its
+  LiveKit mic — the hub never touches media.
+
+**Client — co-presence (`meeting-sync.js`):**
+- **Chat:** 💬 toggles a chat panel (log + input, Enter to send); a closed-panel badge flags unread.
+- **Reactions:** 👍 👏 ❤️ 😂 float up and broadcast.
+- **Raise hand:** ✋ toggles a persistent hand state shown in the roster (✋ next to the name) for
+  everyone.
+- **Roster + roles:** the presence panel lists every participant with a **★ host** badge + "(you)";
+  the host (resolved from session state / `RoomChanged`) sees per-participant **★ make-host** + **✖
+  remove**, plus a global **🔇 mute-all** (host-only buttons hidden for non-hosts).
+- **Host controls wire:** make-host → `POST …/host` (existing `SetHost`, broadcasts `RoomChanged`);
+  remove → `RemoveParticipant` hub; mute-all → `MuteAll` hub (→ `sting:selfMute` → livekit-av mutes).
+
+**Client — media (`livekit-av.js`):**
+- **Device picker:** ⚙ opens a cam/mic/speaker selector (`enumerateDevices` →
+  `room.switchActiveDevice(kind, id)`).
+- **Speaker / gallery + pin:** ▦/▭ toggles layout; click a tile to **pin** (enlarge as the focus);
+  speaker view auto-focuses the active speaker (unless pinned).
+- **Low-bandwidth (audio-only):** 📶 stops publishing the local camera + unsubscribes remote **camera**
+  video (audio + screen-share stay) for 3G / field; toggling back resubscribes. New camera tracks are
+  dropped while low-bw is on.
+
+**SERVED proof:** `curl /livekit-av.js` + `/meeting-sync.js` = 200; served bundles grep
+`STING_MEETING_BUILD = "M3-confer"` + `STING_MEETINGSYNC_BUILD = "M3-confer"`; api `/health` 200
+(MeetingHub + HubTenantGuard compiled). (Commit recorded below.)
+
+**2-tab test — PENDING-HUMAN-VERIFY** (two InPrivate tabs Joined per M1; tab 1 = host):
+- [ ] **Chat:** type in tab 1 → appears in tab 2's chat log (badge if its panel is closed) and vice
+      versa.
+- [ ] **Reactions:** click 👍/❤️ → the emoji floats up in BOTH tabs.
+- [ ] **Raise hand:** tab 2 clicks ✋ → tab 1's roster shows "✋" next to tab 2's name + a toast; click
+      again → it clears.
+- [ ] **Roster/roles:** tab 1 (host) shows **★** on itself; both tabs show the other participant. Only
+      the host tab shows ★/✖ per row + the 🔇 button.
+- [ ] **Make host:** tab 1 clicks ★ on tab 2 → host moves to tab 2 (★ migrates; tab 2 now shows host
+      controls, tab 1 loses them).
+- [ ] **Mute all:** host clicks 🔇 → the other tab's mic mutes (🎤→🔇) + a toast.
+- [ ] **Remove:** host clicks ✖ on a participant → that tab leaves the meeting (toast "You were
+      removed") and drops from everyone's roster.
+- [ ] **Device picker:** ⚙ lists real cameras/mics/speakers; choosing another camera switches the
+      published video.
+- [ ] **Speaker/gallery + pin:** ▦/▭ toggles; clicking a tile enlarges it (pin); speaker view enlarges
+      whoever is talking.
+- [ ] **Low-bandwidth:** 📶 on → remote camera tiles drop to audio-only (screen-share still shows);
+      off → video returns.
+
+**Caveats (M3):**
+- **Mute-all / remove are self-applied signals**, not server-enforced LiveKit mutes (no LiveKit
+  server-API/egress wired). A modified client could ignore them. Host authority over the *signal* is
+  enforced (`IsSessionHostAsync`); enforcing the *media* needs the LiveKit server SDK (`RoomService.
+  MutePublishedTrack` / `RemoveParticipant`) — a server-side follow-up.
+- **Hand state isn't replayed to late joiners** (same as M2 markup) — a tab joining after a hand is
+  raised sees it on the next toggle. Roster membership itself is live (join/leave events).
+- **Speaker view enlarges within the strip** rather than a dedicated stage pane; a full stage layout
+  is a visual refinement, not a transport change.

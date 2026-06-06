@@ -27,7 +27,7 @@
 
   // STEP-0 SERVED marker — bumped per slice so a marker grep on the *served*
   // bundle proves the running container has this exact change.
-  var STING_MEETING_BUILD = "M2-markup";
+  var STING_MEETING_BUILD = "M3-confer";
   try { console.log("[livekit] STING_MEETING_BUILD " + STING_MEETING_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -55,6 +55,11 @@
     isPresenter: false,
     surface: "model",     // model | document | screen (WS3d)
     tiles: new Map(),     // participant.sid → { wrap, video, label }
+    // M3 — media-plane conferencing
+    lowBw: false,         // audio-only (no camera video) for 3G / field
+    viewMode: "gallery",  // gallery | speaker
+    pinnedSid: null,      // a pinned participant (overrides active-speaker focus)
+    activeSid: null,      // current active speaker (speaker-view focus)
   };
 
   // M2 — collaborative document markup. Strokes are stored with NORMALISED
@@ -80,6 +85,11 @@
   window.addEventListener("sting:screenShareStopped", function () { if (state.isPresenter && state.surface === "screen") setSurface("model"); });
   // M2 — a markup op (add stroke / clear / grant) arrived from a participant.
   window.addEventListener("sting:docMarkupChanged", function (e) { onRemoteMarkup(e.detail || {}); });
+  // M3 — host moderation: self-mute on "mute all", leave on "removed".
+  window.addEventListener("sting:selfMute", function () {
+    if (state.room && state.micOn) { state.micOn = false; state.room.localParticipant.setMicrophoneEnabled(false).catch(noop); paintBtn("lkMic", false, "🎤", "🔇"); }
+  });
+  window.addEventListener("sting:removed", function () { if (state.joined) leave(); });
 
   // ── boot: load livekit-client, fetch a token, show the JOIN lobby ─────────
   // M1 — A/V is gesture-gated: we build the in-meeting pill + a "Join A/V"
@@ -179,6 +189,8 @@
     if (track.kind !== "video") return;
     // WS3c — a screen-share track goes to the big central pane, not a small tile.
     if (isScreenShare(track)) { attachScreen(track, participant); return; }
+    // M3 — low-bandwidth: drop remote CAMERA video (keep audio + screen-share).
+    if (state.lowBw && !participant.isLocal) { try { var pub = track.sid && participant.getTrackPublication && participant.getTrackPublication(track.source); if (pub && pub.setSubscribed) pub.setSubscribed(false); } catch (e) {} return; }
     var tile = ensureTile(participant);
     // Clear any previous video element, attach the new track.
     if (tile.video) { try { tile.video.remove(); } catch (e) {} }
@@ -202,10 +214,17 @@
         "white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
     }, (participant.identity && participant.name) || (participant.isLocal ? "You" : (participant.identity || "Guest")));
     wrap.appendChild(label);
+    // M3 — click a tile to pin it (speaker focus); click again to unpin.
+    wrap.style.cursor = "pointer";
+    wrap.addEventListener("click", function () {
+      state.pinnedSid = (state.pinnedSid === sid) ? null : sid;
+      applyTileLayout();
+    });
     var strip = document.getElementById("lkStrip");
     if (strip) strip.appendChild(wrap);
     var tile = { wrap: wrap, video: null, label: label, sid: sid };
     state.tiles.set(sid, tile);
+    applyTileLayout();
     return tile;
   }
   function dropTile(sid) {
@@ -223,9 +242,90 @@
   function highlightSpeakers(speakers) {
     var active = {};
     speakers.forEach(function (p) { active[p.sid] = true; });
+    if (speakers && speakers.length) state.activeSid = speakers[0].sid;   // speaker-view focus
     state.tiles.forEach(function (t, sid) {
       t.wrap.style.borderColor = active[sid] ? "#37c272" : "transparent";
     });
+    if (state.viewMode === "speaker" && !state.pinnedSid) applyTileLayout();
+  }
+
+  // ── M3 — speaker / gallery layout + pin ────────────────────────────────────
+  function setTileSize(tile, big) {
+    tile.wrap.style.width = big ? "320px" : "132px";
+    tile.wrap.style.height = big ? "200px" : "99px";
+    tile.wrap.style.boxShadow = big ? "0 0 0 2px rgba(59,130,246,0.8)" : "none";
+  }
+  function applyTileLayout() {
+    var focus = state.pinnedSid || (state.viewMode === "speaker" ? state.activeSid : null);
+    state.tiles.forEach(function (t, sid) { setTileSize(t, sid === focus); });
+  }
+  function toggleView() {
+    state.viewMode = (state.viewMode === "gallery") ? "speaker" : "gallery";
+    var b = document.getElementById("lkView");
+    if (b) { b.textContent = state.viewMode === "speaker" ? "▭" : "▦"; b.title = state.viewMode === "speaker" ? "Speaker view (click for gallery)" : "Gallery view (click for speaker)"; }
+    if (state.viewMode === "gallery") state.pinnedSid = null;
+    applyTileLayout();
+  }
+
+  // ── M3 — device picker (camera / mic / speaker) ────────────────────────────
+  function toggleDevicePicker() {
+    var pop = document.getElementById("lkDevPop");
+    if (pop) { pop.remove(); return; }
+    pop = el("div", { id: "lkDevPop", style:
+      "position:absolute;bottom:54px;left:50%;transform:translateX(-50%);z-index:16;" +
+      "background:rgba(12,14,18,0.97);color:#fff;border-radius:10px;padding:10px 12px;pointer-events:auto;" +
+      "font:12px -apple-system,Segoe UI,sans-serif;display:flex;flex-direction:column;gap:8px;min-width:230px" });
+    pop.appendChild(el("div", { style: "font-weight:600;margin-bottom:2px" }, "Devices"));
+    buildDeviceSelect(pop, "videoinput", "Camera");
+    buildDeviceSelect(pop, "audioinput", "Microphone");
+    buildDeviceSelect(pop, "audiooutput", "Speaker");
+    var live = document.getElementById("lkLive"); if (live) live.appendChild(pop);
+  }
+  function buildDeviceSelect(pop, kind, label) {
+    var row = el("div", { style: "display:flex;flex-direction:column;gap:3px" });
+    row.appendChild(el("label", { style: "opacity:0.8" }, label));
+    var sel = el("select", { style: "background:#1b1f27;color:#fff;border:1px solid #333;border-radius:6px;padding:4px" });
+    row.appendChild(sel); pop.appendChild(row);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) { sel.appendChild(el("option", {}, "Not available")); return; }
+    navigator.mediaDevices.enumerateDevices().then(function (devs) {
+      var n = 0;
+      devs.forEach(function (d) {
+        if (d.kind !== kind) return;
+        n++;
+        var o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || (label + " " + n); sel.appendChild(o);
+      });
+      if (!n) sel.appendChild(el("option", {}, "No " + label.toLowerCase()));
+    }).catch(noop);
+    sel.addEventListener("change", function () {
+      if (!state.room || !state.room.switchActiveDevice) return;
+      try { state.room.switchActiveDevice(kind, sel.value); } catch (e) { console.warn("[livekit] switchActiveDevice", e); }
+    });
+  }
+
+  // ── M3 — low-bandwidth (audio-only) mode ───────────────────────────────────
+  function toggleLowBw() {
+    state.lowBw = !state.lowBw;
+    var b = document.getElementById("lkLowBw");
+    if (b) b.style.background = state.lowBw ? "rgba(244,180,0,0.9)" : "rgba(255,255,255,0.14)";
+    if (!state.room) return;
+    if (state.lowBw) {
+      // Stop publishing our camera + unsubscribe remote camera video (TrackUnsubscribed
+      // detaches the tile videos). Audio + screen-share stay.
+      state.camOn = false; state.room.localParticipant.setCameraEnabled(false).catch(noop); paintBtn("lkCam", false, "📹", "🚫");
+      state.room.remoteParticipants.forEach(function (p) {
+        p.trackPublications.forEach(function (pub) {
+          if (pub.kind === "video" && pub.source !== state.LK.Track.Source.ScreenShare && pub.setSubscribed) { try { pub.setSubscribed(false); } catch (e) {} }
+        });
+      });
+      toast("Low-bandwidth: audio only");
+    } else {
+      state.room.remoteParticipants.forEach(function (p) {
+        p.trackPublications.forEach(function (pub) {
+          if (pub.kind === "video" && pub.setSubscribed) { try { pub.setSubscribed(true); } catch (e) {} }
+        });
+      });
+      toast("Video restored");
+    }
   }
 
   // ── WS3c — screen-share: a presenter's screen renders in a big central pane ──
@@ -634,6 +734,10 @@
       "padding:6px 10px;border-radius:24px;backdrop-filter:blur(4px)" });
     live.appendChild(ctrlBtn("lkMic", "🎤", toggleMic, "Mute / unmute mic"));
     live.appendChild(ctrlBtn("lkCam", "📹", toggleCam, "Camera on / off"));
+    // M3 — device picker (cam/mic/speaker), low-bandwidth (audio-only), view toggle.
+    live.appendChild(ctrlBtn("lkDev", "⚙", toggleDevicePicker, "Choose camera / mic / speaker"));
+    live.appendChild(ctrlBtn("lkLowBw", "📶", toggleLowBw, "Low-bandwidth (audio-only)"));
+    live.appendChild(ctrlBtn("lkView", "▦", toggleView, "Gallery / speaker view"));
     // WS3c — screen-share is presenter/host only (also enforced by the LiveKit grant).
     if (state.isPresenter) live.appendChild(ctrlBtn("lkScreen2", "🖥", toggleScreen, "Share / stop sharing screen"));
     // WS3d — presenter switches the shared surface everyone sees. 'screen' engages

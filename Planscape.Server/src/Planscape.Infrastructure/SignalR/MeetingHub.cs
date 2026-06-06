@@ -132,6 +132,57 @@ public class MeetingHub : Hub
             ? Clients.OthersInGroup(Group(sessionId)).SendAsync("DocMarkupChanged", markup)
             : Task.CompletedTask;
 
+    // ── M3 — conferencing essentials (co-presence: chat / reactions / hand /
+    //    moderation). Media stays on LiveKit; mute/remove are SIGNALS the target
+    //    client self-applies on its media plane. ──────────────────────────────
+
+    /// <summary>In-meeting chat line → the other participants (sender echoes locally).</summary>
+    public Task BroadcastChat(string sessionId, object message)
+        => Authorized.Contains(sessionId)
+            ? Clients.OthersInGroup(Group(sessionId)).SendAsync("ChatReceived", message)
+            : Task.CompletedTask;
+
+    /// <summary>Ephemeral reaction (👍/👏/❤️/😂 …) → the other participants.</summary>
+    public Task BroadcastReaction(string sessionId, object reaction)
+        => Authorized.Contains(sessionId)
+            ? Clients.OthersInGroup(Group(sessionId)).SendAsync("ReactionReceived", reaction)
+            : Task.CompletedTask;
+
+    /// <summary>Raise / lower hand → others update the roster's hand indicator.</summary>
+    public Task BroadcastHand(string sessionId, bool raised)
+        => Authorized.Contains(sessionId)
+            ? Clients.OthersInGroup(Group(sessionId)).SendAsync("HandChanged",
+                new { connectionId = Context.ConnectionId, userId = Context.UserIdentifier, raised })
+            : Task.CompletedTask;
+
+    /// <summary>
+    /// Host-only: ask everyone (but the host) to mute. The mute is self-applied
+    /// on each client's LiveKit mic — the hub only carries the request.
+    /// </summary>
+    public async Task MuteAll(string sessionId)
+    {
+        if (!Authorized.Contains(sessionId)) return;
+        if (!Guid.TryParse(sessionId, out var sid)
+            || !await HubTenantGuard.IsSessionHostAsync(Context.User, _db, sid)) return;
+        await Clients.OthersInGroup(Group(sessionId)).SendAsync("Moderation",
+            new { action = "mute-all", by = Context.UserIdentifier });
+    }
+
+    /// <summary>
+    /// Host-only: remove a participant. Broadcast to the GROUP carrying the
+    /// target connection id; the matching client self-leaves, everyone else
+    /// drops it from the roster. (Group-scoped so the signal can't be aimed at
+    /// a connection outside the session.)
+    /// </summary>
+    public async Task RemoveParticipant(string sessionId, string targetConnectionId)
+    {
+        if (!Authorized.Contains(sessionId)) return;
+        if (!Guid.TryParse(sessionId, out var sid)
+            || !await HubTenantGuard.IsSessionHostAsync(Context.User, _db, sid)) return;
+        await Clients.Group(Group(sessionId)).SendAsync("Moderation",
+            new { action = "remove", connectionId = targetConnectionId, by = Context.UserIdentifier });
+    }
+
     /// <summary>
     /// Server-side push (from MeetingRoomController) when host/model/status
     /// changes so late joiners and existing clients re-sync their room state.

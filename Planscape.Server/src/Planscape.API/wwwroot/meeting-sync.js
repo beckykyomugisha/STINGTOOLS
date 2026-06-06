@@ -24,7 +24,7 @@
   "use strict";
 
   // STEP-0 SERVED marker — bumped per slice that touches this file.
-  var STING_MEETINGSYNC_BUILD = "M2-markup";
+  var STING_MEETINGSYNC_BUILD = "M3-confer";
   try { console.log("[meeting] STING_MEETINGSYNC_BUILD " + STING_MEETINGSYNC_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -45,8 +45,14 @@
     applyingRemoteHi: false, // highlight feedback-loop guard
     applyingRemoteSec: false,// section feedback-loop guard
     lastSentAt: 0,
-    participants: new Map(), // connectionId → { displayName }
+    participants: new Map(), // connectionId → { displayName, userId, hand }
+    // M3 — conferencing
+    myUserId: "",            // decoded from the JWT (for host comparison)
+    myConnId: "",            // our own SignalR connection id (set after start)
+    hostUserId: "",          // session host's user id (from room state / RoomChanged)
+    myHand: false,
   };
+  state.myUserId = decodeUserId(token);
 
   // ── wait for the viewer API, the SignalR lib (shim loads it async), AND the
   //    model to be on screen. BLK-5: joining before the model loads makes us
@@ -124,7 +130,7 @@
     state.conn = conn;
 
     conn.on("ParticipantJoined", function (p) {
-      if (p && p.connectionId) state.participants.set(p.connectionId, { displayName: p.displayName || "Guest" });
+      if (p && p.connectionId) state.participants.set(p.connectionId, { displayName: p.displayName || "Guest", userId: (p.userId || ""), hand: false });
       renderPresence();
       toast((p && p.displayName ? p.displayName : "Someone") + " joined");
     });
@@ -158,7 +164,10 @@
       applyRemoteHighlight(msg && msg.guids);
       window.dispatchEvent(new CustomEvent("sting:remoteHighlight", { detail: msg && msg.guids }));
     });
-    conn.on("RoomChanged", function (st) { window.dispatchEvent(new CustomEvent("sting:roomChanged", { detail: st })); });
+    conn.on("RoomChanged", function (st) {
+      if (st && st.hostUserId) { state.hostUserId = String(st.hostUserId); renderPresence(); }
+      window.dispatchEvent(new CustomEvent("sting:roomChanged", { detail: st }));
+    });
     // WS3d — presenter switched the active surface (model | document | screen);
     // livekit-av.js applies it so every client shows the same pane.
     conn.on("SurfaceChanged", function (s) { window.dispatchEvent(new CustomEvent("sting:surfaceChanged", { detail: s })); });
@@ -166,11 +175,35 @@
     // livekit-av.js renders it on the markup canvas so everyone sees it live.
     conn.on("DocMarkupChanged", function (m) { window.dispatchEvent(new CustomEvent("sting:docMarkupChanged", { detail: m })); });
 
-    conn.onreconnected(function () { conn.invoke("JoinSession", sessionId, displayName).catch(noop); });
+    // ── M3 — conferencing essentials (chat / reactions / hand / moderation) ──
+    conn.on("ChatReceived", function (m) { addChatLine((m && m.from) || "Guest", (m && m.text) || "", false); });
+    conn.on("ReactionReceived", function (r) { floatReaction((r && r.emoji) || "👍", (r && r.from) || ""); });
+    conn.on("HandChanged", function (h) {
+      if (!h || !h.connectionId) return;
+      var p = state.participants.get(h.connectionId);
+      if (p) { p.hand = !!h.raised; renderPresence(); }
+      if (h.raised) toast(((p && p.displayName) || "Someone") + " raised their hand ✋");
+    });
+    conn.on("Moderation", function (m) {
+      if (!m || !m.action) return;
+      if (m.action === "mute-all") { window.dispatchEvent(new CustomEvent("sting:selfMute")); toast("Host muted everyone 🔇"); }
+      else if (m.action === "remove") {
+        if (m.connectionId && m.connectionId === state.myConnId) {
+          toast("You were removed from the meeting");
+          window.dispatchEvent(new CustomEvent("sting:removed"));
+          try { conn.invoke("LeaveSession", sessionId); } catch (e) {}
+          try { conn.stop(); } catch (e) {}
+        } else if (m.connectionId) {
+          state.participants.delete(m.connectionId); renderPresence();
+        }
+      }
+    });
+
+    conn.onreconnected(function () { state.myConnId = conn.connectionId || state.myConnId; conn.invoke("JoinSession", sessionId, displayName).catch(noop); });
 
     conn.start()
-      .then(function () { return conn.invoke("JoinSession", sessionId, displayName); })
-      .then(function () { wireCameraBroadcast(); wireSelectionAndSection(); setStatus("live"); })
+      .then(function () { state.myConnId = conn.connectionId || ""; return conn.invoke("JoinSession", sessionId, displayName); })
+      .then(function () { wireCameraBroadcast(); wireSelectionAndSection(); buildConferenceUI(); fetchRoomState(); setStatus("live"); })
       .catch(function (e) { console.warn("[meeting] connect failed", e); setStatus("offline"); });
 
     window.addEventListener("beforeunload", function () {
@@ -308,20 +341,146 @@
     renderPresence();
   }
 
+  // M3 — roster with roles (★ host · "(you)") + ✋ hand + host controls.
   function renderPresence() {
     var host = document.getElementById("meetingParticipants");
     if (!host) return;
     host.innerHTML = "";
-    var me = document.createElement("span");
-    me.textContent = displayName + " (you)";
-    me.style.cssText = chipCss("#3a7de8");
-    host.appendChild(me);
-    state.participants.forEach(function (p) {
-      var s = document.createElement("span");
-      s.textContent = p.displayName;
-      s.style.cssText = chipCss(colorFor(p.displayName));
-      host.appendChild(s);
+    var meHost = isHost() ? " ★" : "";
+    host.appendChild(rosterChip(displayName + " (you)" + meHost + (state.myHand ? " ✋" : ""), "#3a7de8"));
+    state.participants.forEach(function (p, cid) {
+      var badge = (p.userId && String(p.userId) === state.hostUserId) ? " ★" : "";
+      var wrap = document.createElement("span");
+      wrap.style.cssText = "display:inline-flex;align-items:center;gap:3px";
+      wrap.appendChild(rosterChip(p.displayName + badge + (p.hand ? " ✋" : ""), colorFor(p.displayName)));
+      if (isHost()) {  // host controls: make-host (★) + remove (✖)
+        wrap.appendChild(miniBtn("★", "Make host", function () { makeHost(p.userId); }));
+        wrap.appendChild(miniBtn("✖", "Remove", function () { removeParticipant(cid); }));
+      }
+      host.appendChild(wrap);
     });
+    refreshHostControls();
+  }
+  function rosterChip(text, bg) {
+    var s = document.createElement("span");
+    s.textContent = text; s.style.cssText = chipCss(bg);
+    return s;
+  }
+  function miniBtn(g, title, fn) {
+    var b = document.createElement("button");
+    b.textContent = g; b.title = title;
+    b.style.cssText = "border:none;border-radius:4px;cursor:pointer;font-size:10px;padding:1px 4px;background:rgba(255,255,255,0.18);color:#fff";
+    b.addEventListener("click", fn); return b;
+  }
+  function isHost() { return !!state.myUserId && state.myUserId === state.hostUserId; }
+  function decodeUserId(t) {
+    try { var p = JSON.parse(atob(String(t).split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); return String(p.sub || p.user_id || ""); }
+    catch (e) { return ""; }
+  }
+  function fetchRoomState() {
+    if (!projectId) return;
+    var t = currentToken();
+    fetch(apiBase + "/api/projects/" + projectId + "/meeting-sessions/" + sessionId, { headers: t ? { "Authorization": "Bearer " + t } : {} })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (s) { if (s && s.hostUserId) { state.hostUserId = String(s.hostUserId); renderPresence(); } })
+      .catch(noop);
+  }
+  function jsonHeadersMS() { var t = currentToken(); return t ? { "Authorization": "Bearer " + t, "Content-Type": "application/json" } : { "Content-Type": "application/json" }; }
+
+  // ── M3 — chat / reactions / raise-hand / moderation senders + UI ───────────
+  function sendChat(text) {
+    text = (text || "").trim(); if (!text) return;
+    addChatLine(displayName, text, true);
+    if (state.conn) state.conn.invoke("BroadcastChat", sessionId, { from: displayName, text: text, ts: Date.now() }).catch(noop);
+  }
+  function react(emoji) {
+    floatReaction(emoji);
+    if (state.conn) state.conn.invoke("BroadcastReaction", sessionId, { emoji: emoji, from: displayName }).catch(noop);
+  }
+  function raiseHand() {
+    state.myHand = !state.myHand;
+    if (state.conn) state.conn.invoke("BroadcastHand", sessionId, state.myHand).catch(noop);
+    var b = document.getElementById("meetHand"); if (b) b.style.background = state.myHand ? "rgba(244,180,0,0.9)" : "rgba(255,255,255,0.14)";
+    renderPresence();
+  }
+  function muteAll() { if (state.conn) state.conn.invoke("MuteAll", sessionId).catch(noop); toast("Asked everyone to mute"); }
+  function makeHost(userId) {
+    if (!userId) return;
+    fetch(apiBase + "/api/projects/" + projectId + "/meeting-sessions/" + sessionId + "/host",
+      { method: "POST", headers: jsonHeadersMS(), body: JSON.stringify({ userId: String(userId) }) })
+      .then(function (r) { if (r.ok) toast("Host changed"); else toast("Make-host failed"); }).catch(noop);
+  }
+  function removeParticipant(cid) { if (state.conn && cid) state.conn.invoke("RemoveParticipant", sessionId, cid).catch(noop); }
+
+  function buildConferenceUI() {
+    if (document.getElementById("meetTools")) return;
+    var panel = document.getElementById("meetingPanel"); if (!panel) return;
+    var tools = document.createElement("div");
+    tools.id = "meetTools";
+    tools.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-top:6px";
+    tools.appendChild(toolBtn("meetHand", "✋", "Raise / lower hand", raiseHand));
+    ["👍", "👏", "❤️", "😂"].forEach(function (e) { tools.appendChild(toolBtn(null, e, "Send reaction", function () { react(e); })); });
+    tools.appendChild(toolBtn("meetChatBtn", "💬", "Toggle chat", toggleChat));
+    var mute = toolBtn("meetMuteAll", "🔇", "Mute everyone (host)", muteAll);
+    mute.setAttribute("data-host", "1");
+    tools.appendChild(mute);
+    panel.appendChild(tools);
+
+    var chat = document.createElement("div");
+    chat.id = "meetChat";
+    chat.style.cssText = "display:none;flex-direction:column;gap:4px;margin-top:6px";
+    var log = document.createElement("div");
+    log.id = "meetChatLog";
+    log.style.cssText = "max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;font-size:11px";
+    var inputRow = document.createElement("div");
+    inputRow.style.cssText = "display:flex;gap:4px";
+    var input = document.createElement("input");
+    input.id = "meetChatInput"; input.placeholder = "Message…";
+    input.style.cssText = "flex:1;min-width:0;border:none;border-radius:4px;padding:3px 6px;font-size:11px";
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") { sendChat(input.value); input.value = ""; } });
+    inputRow.appendChild(input);
+    inputRow.appendChild(toolBtn(null, "➤", "Send", function () { sendChat(input.value); input.value = ""; }));
+    chat.appendChild(log); chat.appendChild(inputRow);
+    panel.appendChild(chat);
+    refreshHostControls();
+  }
+  function toolBtn(id, glyph, title, fn) {
+    var b = document.createElement("button");
+    if (id) b.id = id; b.textContent = glyph; b.title = title;
+    b.style.cssText = "border:none;border-radius:6px;cursor:pointer;font-size:13px;padding:3px 7px;background:rgba(255,255,255,0.14);color:#fff";
+    b.addEventListener("click", fn); return b;
+  }
+  function toggleChat() {
+    var c = document.getElementById("meetChat"); if (!c) return;
+    var open = c.style.display === "none";
+    c.style.display = open ? "flex" : "none";
+    if (open) { var b = document.getElementById("meetChatBtn"); if (b) b.style.background = "rgba(255,255,255,0.14)"; var i = document.getElementById("meetChatInput"); if (i) i.focus(); }
+  }
+  function addChatLine(from, text, mine) {
+    var log = document.getElementById("meetChatLog"); if (!log) return;
+    var line = document.createElement("div");
+    var who = document.createElement("strong");
+    who.textContent = (mine ? "You" : from) + ": "; who.style.color = mine ? "#7fb2ff" : "#9fe0b0";
+    line.appendChild(who); line.appendChild(document.createTextNode(text));
+    log.appendChild(line); log.scrollTop = log.scrollHeight;
+    var c = document.getElementById("meetChat");
+    if (c && c.style.display === "none" && !mine) { var b = document.getElementById("meetChatBtn"); if (b) b.style.background = "rgba(55,194,114,0.85)"; }
+  }
+  var _rx = 17;
+  function floatReaction(emoji) {
+    _rx = (_rx + 41) % 100;
+    var f = document.createElement("div");
+    f.textContent = emoji;
+    f.style.cssText = "position:absolute;bottom:120px;left:" + (38 + (_rx % 28)) + "%;z-index:14;font-size:30px;" +
+      "pointer-events:none;transition:transform 2s linear,opacity 2s linear;opacity:1";
+    document.body.appendChild(f);
+    requestAnimationFrame(function () { f.style.transform = "translateY(-170px)"; f.style.opacity = "0"; });
+    setTimeout(function () { f.remove(); }, 2100);
+  }
+  function refreshHostControls() {
+    var show = isHost();
+    var list = document.querySelectorAll('#meetTools [data-host]');
+    for (var i = 0; i < list.length; i++) list[i].style.display = show ? "inline-block" : "none";
   }
 
   function setStatus(s) {
@@ -371,6 +530,12 @@
     // M2 — push one markup op (add stroke / clear / grant) to the other
     // participants over MeetingHub. livekit-av.js calls this from the markup canvas.
     broadcastDocMarkup: function (markup) { if (state.conn) state.conn.invoke("BroadcastDocMarkup", sessionId, markup || {}).catch(noop); },
+    // M3 — conferencing
+    sendChat: sendChat,
+    react: react,
+    raiseHand: raiseHand,
+    muteAll: muteAll,
+    get isHost() { return isHost(); },
     get connected() { return !!state.conn; },
     sessionId: sessionId,
   };

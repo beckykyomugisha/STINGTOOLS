@@ -31,4 +31,20 @@ internal static class HubTenantGuard
         return await db.MeetingSessions.IgnoreQueryFilters()
             .AnyAsync(s => s.Id == sessionId && s.TenantId == tenantId);
     }
+
+    /// <summary>
+    /// M3 — host gate for moderation hub methods (mute-all / remove). True only
+    /// when the caller is the session's HostUserId within their own tenant.
+    /// </summary>
+    public static async Task<bool> IsSessionHostAsync(
+        ClaimsPrincipal? user, PlanscapeDbContext db, Guid sessionId)
+    {
+        var tclaim = user?.FindFirst("tenant_id")?.Value;
+        var uclaim = user?.FindFirst("sub")?.Value ?? user?.FindFirst("user_id")?.Value;
+        if (sessionId == Guid.Empty
+            || !Guid.TryParse(tclaim, out var tenantId)
+            || !Guid.TryParse(uclaim, out var userId)) return false;
+        return await db.MeetingSessions.IgnoreQueryFilters()
+            .AnyAsync(s => s.Id == sessionId && s.TenantId == tenantId && s.HostUserId == userId);
+    }
 }

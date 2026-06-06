@@ -111,3 +111,10 @@ are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that fil
 - [ ] 👥 Grant → non-presenter toolbar appears + can draw; off → hidden.
 - [ ] 📸 Snapshot → saved (GET …/snapshots lists strokes). ⚑ Issue → OBS-NNNN with PNG attachment.
 - [ ] New tab joining mid-session sees subsequent strokes (replay of prior = known M2.1 follow-up).
+
+### M3 — conferencing essentials  · markers `M3-confer` (livekit-av + meeting-sync)
+- [ ] Chat both ways (badge when closed). Reactions 👍/❤️ float in both tabs. ✋ shows in roster.
+- [ ] Roster shows ★ host + (you); host-only sees ★/✖ per row + 🔇 mute-all.
+- [ ] Make-host (★) moves host; mute-all mutes others; remove (✖) ejects a participant.
+- [ ] Device picker ⚙ switches cam/mic/speaker. ▦/▭ + tile-click pin = speaker/gallery.
+- [ ] 📶 low-bandwidth drops remote camera video (audio + screen-share stay); off restores.
