@@ -1000,6 +1000,51 @@ public class MeetingsController : ControllerBase
         return Ok(new { meetingId, sessions, snapshots, attendance, recordings });
     }
 
+    /// <summary>
+    /// Project-level recordings archive (newest first) — EVERY meeting recording in the
+    /// project, covering BOTH scheduled-meeting recordings AND ad-hoc live-session
+    /// recordings not tied to a formal Meeting (labelled by session date/host so nothing
+    /// is orphaned). Each COMPLETE recording carries a short-lived presigned playback/
+    /// download URL. Members-only (ProjectVisibility gate). Absolute route so it sits at
+    /// /api/projects/{id}/recordings (beside Meetings), not under …/meetings.
+    /// </summary>
+    [HttpGet("~/api/projects/{projectId}/recordings")]
+    public async Task<ActionResult> GetProjectRecordings(Guid projectId, CancellationToken ct)
+    {
+        if (!await Planscape.Infrastructure.Services.ProjectVisibility.CanSeeProjectAsync(_db, projectId, User)) return NotFound();
+
+        var rows = await _db.MeetingRecordings
+            .Where(r => r.ProjectId == projectId)
+            .OrderByDescending(r => r.StartedAt)
+            .Select(r => new { r.Id, r.SessionId, r.MeetingId, r.Kind, r.Status, r.StorageKey,
+                r.FileName, r.FileSizeBytes, r.DurationSeconds, r.StartedAt, r.EndedAt, r.StartedBy })
+            .ToListAsync(ct);
+
+        var meetingIds = rows.Where(r => r.MeetingId != null).Select(r => r.MeetingId!.Value).Distinct().ToList();
+        var titles = await _db.Meetings.Where(m => meetingIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.Title }).ToDictionaryAsync(m => m.Id, m => m.Title, ct);
+
+        var egress = new LiveKitEgressClient(_config);
+        var recordings = rows.Select(r =>
+        {
+            var hasTitle = r.MeetingId != null && titles.ContainsKey(r.MeetingId.Value);
+            return new
+            {
+                r.Id, r.SessionId, r.MeetingId, r.Kind, r.Status, r.FileName, r.FileSizeBytes,
+                r.DurationSeconds, r.StartedAt, r.EndedAt,
+                meetingTitle = hasTitle ? titles[r.MeetingId!.Value] : null,
+                adHoc = r.MeetingId == null,
+                // P4 — ad-hoc sessions (no formal Meeting) labelled by date/host so they
+                // still surface in the archive instead of being orphaned.
+                label = hasTitle ? titles[r.MeetingId!.Value]
+                    : $"Ad-hoc session · {r.StartedAt:yyyy-MM-dd HH:mm}" + (string.IsNullOrWhiteSpace(r.StartedBy) ? "" : $" · {r.StartedBy}"),
+                downloadUrl = string.IsNullOrEmpty(r.StorageKey) ? null : egress.GetPresignedGetUrl(r.StorageKey, TimeSpan.FromHours(6)),
+            };
+        }).ToList();
+
+        return Ok(new { projectId, recordings });
+    }
+
     public class StartLiveSessionRequest
     {
         public Guid? ModelId { get; set; }

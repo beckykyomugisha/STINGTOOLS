@@ -1,5 +1,14 @@
 # Meetings (Track B) — audit & build log
 
+### Recordings — project archive endpoint · `GET /api/projects/{id}/recordings` · server REST-verified
+Members-only (ProjectVisibility gate) project-level recordings archive (newest first), covering BOTH
+scheduled-meeting recordings AND **ad-hoc** live-session recordings with no formal Meeting (labelled
+`Ad-hoc session · {date} · {host}` so nothing is orphaned). Each row: id/sessionId/meetingId/kind/status/
+fileSizeBytes/durationSeconds/startedAt/endedAt + `meetingTitle`/`label`/`adHoc` + a short-lived presigned
+`downloadUrl` (6 h, only when a StorageKey exists). Reuses the existing `MeetingRecording` rows +
+`LiveKitEgressClient.GetPresignedGetUrl` (no new transport). REST-verified on the demo project → 200, 5
+recordings with labels + kind + status + presigned URLs. dotnet build 0 errors.
+
 LiveKit = **media plane** (camera/mic/screen). SignalR `MeetingHub` = **co-presence plane**
 (surface/markup/chat/roster/state). Never duplicate transports. Secrets via env only.
 
