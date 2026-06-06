@@ -397,7 +397,14 @@ namespace StingTools.BIMManager
                 $"{safeDocName}-{safeViewName}.glb");
             try
             {
-                var result = RevitGltfExporter.Export(doc, v3d, outPath);
+                // Phase 2 — "PlanscapeExportTextures" export option: real Revit material
+                // textures (ON for presentation / as-built, OFF for lean coordination /
+                // low-bandwidth). Opt in via env var PLANSCAPE_EXPORT_TEXTURES=1 or by
+                // setting RevitGltfExporter.ExportTextures=true. Default OFF (unchanged).
+                bool wantTextures =
+                    string.Equals(Environment.GetEnvironmentVariable("PLANSCAPE_EXPORT_TEXTURES"), "1", StringComparison.OrdinalIgnoreCase)
+                    || RevitGltfExporter.ExportTextures;
+                var result = RevitGltfExporter.Export(doc, v3d, outPath, exportTextures: wantTextures);
                 StingLog.Info($"Planscape: GLB exported ({result.ElementCount} elements, {result.FileSizeBytes:N0} bytes) → {outPath}");
                 return outPath;
             }

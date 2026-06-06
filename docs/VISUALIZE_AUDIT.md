@@ -1,5 +1,33 @@
 # Viewer Visualize — audit & change log
 
+## Phase 2 — real Revit material textures in the glTF exporter · COMPILE-UNVERIFIED (verify in Revit + re-publish)
+`StingTools/BIMManager/RevitGltfExporter.cs` previously wrote only flat `baseColorFactor`. Phase 2 adds a
+real PBR texture path (Revit plugin code — **cannot `dotnet build` in this sandbox**; signature-checked
+against the documented Revit API, version-sensitive bits marked `TODO-VERIFY-API`).
+- **Toggle** `RevitGltfExporter.ExportTextures` / `Export(…, exportTextures)` / env `PLANSCAPE_EXPORT_TEXTURES=1`
+  (wired in `PublishModelCommand`). **Default OFF** → lean coordination / low-bandwidth exports unchanged;
+  ON for presentation / as-built. Cost/area/volume (E4) emission untouched.
+- **Appearance resolve** (`OnMaterial`): Material → `AppearanceAssetId` → `AppearanceAssetElement.
+  GetRenderingAsset()` → `generic_diffuse` colour + connected `unifiedbitmap_Bitmap` (diffuse image),
+  `generic_glossiness`→roughness, `generic_is_metal`→metallic, `generic_transparency`→alpha,
+  `generic_bump_map`→normal. Per-material cache; ANY failure → flat-colour fallback (never breaks export).
+  Missing image paths resolve-or-skip gracefully.
+- **UVs** (`OnPolymesh`): `TEXCOORD_0` from `GetUVs()`/`NumberOfUVs`, padded (0,0) for alignment; real-world
+  scale/offset/rotation applied via **KHR_texture_transform** (scale = 1/realWorldScale) rather than baking.
+- **glTF texture graph** (`WriteGlb`): GLB-embedded `images[]` (PNG/JPEG; others skipped; >8 MB skipped —
+  downscale TODO), `samplers[]` REPEAT, `textures[]`, `pbrMetallicRoughness.baseColorTexture` (+ optional
+  `normalTexture`), `alphaMode=BLEND` when translucent. **Dedupe** images by path + materials by appearance
+  hash (`MaterialDef.Key`).
+- **Verify in Revit 2025/2026/2027** on a textured model (brick/wood/tile): re-publish → load in the web
+  viewer → patterns at correct scale; colour-only materials unchanged; transparency reads; GLB size
+  reasonable via dedupe; resolver hit-rate + cost path unaffected. Pair with viewer Realistic mode (NOT yet
+  implemented — see below) for lighting.
+- Caveats: Revit appearance-asset API is version-sensitive; some texture paths resolve only where the
+  material library is installed; UVs exist only for textured materials; KHR scale/rotation units need a
+  Revit check.
+
+
+
 Living record of the visualize/interaction work and the proactive audits (Parts C–E of the
 combined viewer prompt). Each entry: what changed / what was found, root cause, fix, and the
 served-artifact proof. The deployed bundle is the minified `dist/` (build.mjs) served by the
