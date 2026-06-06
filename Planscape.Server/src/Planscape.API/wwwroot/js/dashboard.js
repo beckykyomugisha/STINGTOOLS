@@ -9,7 +9,7 @@
 
   // Deployed-artifact marker for serve path #3 (vanilla web /app). dashboard.js is
   // volume-mounted (wwwroot/js) → reflects on restart/refresh, no docker rebuild.
-  console.log("[dashboard] STING_DASH_BUILD w1-authoring");
+  console.log("[dashboard] STING_DASH_BUILD w2-livejoin");
 
   // Phase 169 — runtime config. The Mapbox token must be replaced with a
   // real public token from mapbox.com (free account, no credit card
@@ -195,6 +195,9 @@
       "ComplianceChanged", "ComplianceUpdated", "TagsUpdated",
       "DocumentUpdated", "ApprovalDecided",
       "MeetingCreated", "MeetingUpdated",
+      // W2 — live-meeting start (per-user "Notification" with data.type=meeting_live) +
+      // scheduled-meeting surface. Parsed via MeetingsCore.parseNotificationEvent.
+      "Notification", "MeetingScheduled",
       "WorkflowRunCompleted",
       "ModelUpdated",
       // NotificationHub.JoinProject replies with these to the caller + the project
@@ -252,6 +255,40 @@
     }
     return { start, join, on };
   })();
+
+  // W2 — live-meeting "Join" banner (top, dismissible). The server only sends the
+  // live-start Notification to OTHER project members (starter excluded, membership-filtered),
+  // so just surfacing it here is correct.
+  function showJoinBanner(text, joinUrl) {
+    var ex = document.getElementById("liveJoinBanner"); if (ex) ex.remove();
+    var b = document.createElement("div");
+    b.id = "liveJoinBanner";
+    b.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:10001;background:#1976d2;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.3);font-size:14px";
+    b.innerHTML = '<span style="flex:1">🎥 ' + esc(text) + "</span>" +
+      (joinUrl ? '<button id="ljbJoin" style="background:#fff;color:#1976d2;border:none;border-radius:5px;padding:6px 14px;font-weight:600;cursor:pointer">Join</button>' : "") +
+      '<button id="ljbX" style="background:transparent;color:#fff;border:none;font-size:18px;cursor:pointer">✕</button>';
+    document.body.appendChild(b);
+    var x = document.getElementById("ljbX"); if (x) x.onclick = function () { b.remove(); };
+    var j = document.getElementById("ljbJoin"); if (j) j.onclick = function () { window.open(joinUrl, "_blank"); b.remove(); };
+    setTimeout(function () { try { b.remove(); } catch (e) {} }, 30000);
+  }
+  // W2 — live-start: "{user} started a meeting — Join" with a ?meeting= deep-link into the viewer.
+  Hub.on("Notification", function (payload) {
+    var MCx = (typeof window !== "undefined") && window.MeetingsCore; if (!MCx) return;
+    var ev = MCx.parseNotificationEvent("Notification", payload); if (!ev || ev.type !== "live-start") return;
+    var data = (payload && payload.data) || payload || {};
+    var pid = data.projectId || state.projectId;
+    var id = ev.sessionId || ev.meetingId;
+    var url = id ? MCx.meetingJoinUrl(pid, id) : null;
+    showJoinBanner((payload && (payload.title || payload.message)) || "A meeting started", url);
+  });
+  // W2 — scheduled meeting: light surface + refresh the list if it's open.
+  Hub.on("MeetingScheduled", function (payload) {
+    var MCx = (typeof window !== "undefined") && window.MeetingsCore; if (!MCx) return;
+    var ev = MCx.parseNotificationEvent("MeetingScheduled", payload); if (!ev) return;
+    toast("📅 Meeting scheduled: " + (ev.body || ""));
+    if (state.section === "meetings") { var main = document.getElementById("main"); if (main) renderMeetings(main); }
+  });
 
   // Update / create the live count badge on the Warnings nav link.
   function setWarnBadge(total, delta) {
@@ -1751,7 +1788,8 @@
         "<td>" + esc(m.type || m.meetingType || "") + "</td>" +
         "<td>" + fmtDate(m.scheduledAt) + "</td>" +
         "<td>" + (m.durationMinutes == null ? "" : esc(String(m.durationMinutes))) + "</td>" +
-        "<td>" + esc(m.location || "") + "</td></tr>";
+        "<td>" + esc(m.location || "") + "</td>" +
+        '<td style="text-align:right"><button class="ghost m-join-list" data-id="' + esc(m.id) + '" style="color:var(--primary);border-color:var(--primary)">🎥 Join</button></td></tr>';
     }).join("");
     var canNew = mCan("schedule", null);
     main.innerHTML =
@@ -1759,11 +1797,14 @@
       (canNew ? '<button class="btn-primary" id="mNew">+ New meeting</button>' : "") + "</div>" +
       '<p style="color:var(--muted);font-size:13px;margin:-2px 0 12px">Click a meeting to open it (overview · agenda · actions · attendees · minutes · recordings).</p>' +
       '<div class="card">' + (meetings.length
-        ? "<table><thead><tr><th>Title</th><th>Type</th><th>When</th><th>Duration (m)</th><th>Location</th></tr></thead><tbody>" + body + "</tbody></table>"
+        ? "<table><thead><tr><th>Title</th><th>Type</th><th>When</th><th>Duration (m)</th><th>Location</th><th></th></tr></thead><tbody>" + body + "</tbody></table>"
         : '<div class="empty">No meetings yet.</div>') + "</div>" +
       '<div id="modal-mount"></div>';
     main.querySelectorAll("tr[data-meeting-id]").forEach((tr) => {
       tr.onclick = () => { renderMeetingDetail(main, tr.dataset.meetingId); };
+    });
+    main.querySelectorAll(".m-join-list").forEach((b) => {
+      b.onclick = (e) => { e.stopPropagation(); window.open(MC().meetingJoinUrl(state.projectId, b.dataset.id), "_blank"); };
     });
     var nb = document.getElementById("mNew");
     if (nb) nb.onclick = async function () {
