@@ -705,7 +705,11 @@ export interface MeetingLiveArtifacts {
   sessions: Array<{ id: string; status: string; hostUserId?: string | null; modelId?: string | null; createdAt: string; endedAt?: string | null }>;
   snapshots: Array<{ id: string; sessionId: string; label: string; capturedBy?: string; capturedByUserId?: string | null; capturedAt: string }>;
   attendance: Array<{ userId: string; displayName: string; firstJoinedAt: string; lastSeenAt: string }>;
-  recordings: unknown[];
+  recordings: Array<{
+    id: string; sessionId: string; kind: string; status: string;
+    fileSizeBytes?: number | null; durationSeconds?: number | null;
+    startedAt: string; endedAt?: string | null; downloadUrl?: string | null;
+  }>;
 }
 /** N5 — create-or-get the ACTIVE live session bound to a scheduled meeting (idempotent). */
 export function startLiveSession(

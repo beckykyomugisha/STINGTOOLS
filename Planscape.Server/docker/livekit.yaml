@@ -1,0 +1,27 @@
+# N2 — LiveKit server config (replaces `--dev`, which is in-memory and CANNOT
+# dispatch Egress jobs). Egress requires the server + egress worker to share Redis,
+# so this config wires redis + keys + the egress webhook back to the API.
+#
+# Keys are the SAME dev pair the api mints tokens with (devkey:secret) so the
+# surfaced A/V bar + livekit-token keep working unchanged. For staging/prod, run a
+# real LiveKit deployment with rotated keys (env-only) — do NOT ship this file's keys.
+port: 7880
+bind_addresses:
+  - ""            # all interfaces
+rtc:
+  tcp_port: 7881  # ICE/TCP fallback — carries media on localhost when UDP host
+                  # candidates aren't reachable from the browser (same as --dev did).
+  port_range_start: 50000
+  port_range_end: 50019
+  use_external_ip: false
+keys:
+  devkey: secret
+redis:
+  address: redis:6379
+# Egress completion → the API finalises the MeetingRecording row (StorageKey/size/
+# duration). The webhook is signed with the api key/secret (HS256 JWT + sha256 body
+# claim); LiveKitWebhookController verifies it.
+webhook:
+  api_key: devkey
+  urls:
+    - http://api:8080/api/livekit/webhook

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView,
-  Alert, ActivityIndicator, Platform, KeyboardAvoidingView, FlatList, Share,
+  Alert, ActivityIndicator, Platform, KeyboardAvoidingView, FlatList, Share, Linking,
 } from "react-native";
 import { router } from "expo-router";
 import {
@@ -423,6 +423,22 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
               📸 {s.label || "Viewpoint"} · {new Date(s.capturedAt).toLocaleString()}
             </Text>
           ))}
+          {/* N2 — recordings with a tappable presigned playback/download link. */}
+          {artifacts.recordings.map((r) => {
+            const mb = r.fileSizeBytes ? ` · ${(r.fileSizeBytes / 1048576).toFixed(1)} MB` : "";
+            const label = `⏺ ${r.kind === "audio-only" ? "Audio" : "Recording"} · ${r.status}${mb}`;
+            return r.downloadUrl ? (
+              <TouchableOpacity key={r.id} onPress={() => Linking.openURL(r.downloadUrl!)}>
+                <Text style={[styles.fieldValue, { fontSize: 12, marginTop: 4, color: "#1976d2" }]} numberOfLines={1}>
+                  {label} · ▶ Play / download
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <Text key={r.id} style={[styles.fieldValue, { fontSize: 12, marginTop: 4 }]} numberOfLines={1}>
+                {label}{r.status === "ACTIVE" ? " · recording…" : ""}
+              </Text>
+            );
+          })}
         </View>
       )}
 

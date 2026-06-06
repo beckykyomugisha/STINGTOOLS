@@ -28,19 +28,22 @@ public class MeetingsController : ControllerBase
     private readonly IPushNotificationService _push;
     private readonly IAuditService _audit;
     private readonly ILogger<MeetingsController> _logger;
+    private readonly IConfiguration _config;   // N2 — egress presign config
 
     public MeetingsController(
         PlanscapeDbContext db,
         IHubContext<NotificationHub> notifHub,
         IPushNotificationService push,
         IAuditService audit,
-        ILogger<MeetingsController> logger)
+        ILogger<MeetingsController> logger,
+        IConfiguration config)
     {
         _db = db;
         _notifHub = notifHub;
         _push = push;
         _audit = audit;
         _logger = logger;
+        _config = config;
     }
 
     // ── List ─────────────────────────────────────────────────────────────────
@@ -971,12 +974,19 @@ public class MeetingsController : ControllerBase
             })
             .ToListAsync(ct);
 
-        // N2 — recordings for this meeting's session(s) (LiveKit Egress → object store).
-        var recordings = await _db.MeetingRecordings
+        // N2 — recordings for this meeting's session(s) (LiveKit Egress → object store),
+        // each with a presigned (browser-reachable) playback/download URL.
+        var recRows = await _db.MeetingRecordings
             .Where(r => sessionIds.Contains(r.SessionId))
             .OrderByDescending(r => r.StartedAt)
             .Select(r => new { r.Id, r.SessionId, r.Kind, r.Status, r.StorageKey, r.FileName, r.FileSizeBytes, r.DurationSeconds, r.StartedAt, r.EndedAt })
             .ToListAsync(ct);
+        var egress = new LiveKitEgressClient(_config);
+        var recordings = recRows.Select(r => new
+        {
+            r.Id, r.SessionId, r.Kind, r.Status, r.StorageKey, r.FileName, r.FileSizeBytes, r.DurationSeconds, r.StartedAt, r.EndedAt,
+            downloadUrl = egress.GetPresignedGetUrl(r.StorageKey, TimeSpan.FromHours(6)),
+        }).ToList();
 
         return Ok(new { meetingId, sessions, snapshots, attendance, recordings });
     }

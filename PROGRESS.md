@@ -125,16 +125,16 @@ are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that fil
 - [ ] 📋 link/create formal meeting (button greens; other tab greens via RoomChanged).
 - [ ] 📋 (linked) add action item; blank → generate minutes (MEETING_MINUTES doc record).
 
-### N2 — meeting recording via LiveKit Egress  · markers `N2-recording` (livekit-av + meeting-sync) + server
-SERVED + COMPILES; the recording artifact is FUNCTIONALLY PENDING (needs egress service + S3 — dev
-`livekit --dev` is in-memory). Verified on the rebuilt container: served `N2-recording` on both bundles;
-`recording/start` → 501 (egress unconfigured); `GET recording` → 204/null + `live-artifacts.recordings`
-→ [] (table queries OK → table created; schema-patch 11 ok/0 failed). Local dotnet build + docker publish 0 err.
-- MeetingRecording entity + table (migration + snapshot block, P3-2-correct → no new drift) + dev-schema-patch.
-- LiveKitEgressClient (Twirp room-composite/audio egress → S3; 501 until configured).
-- Host-gated start/stop/get + RecordingChanged → consent ● REC for everyone; recordings in N5 artifacts.
-- Opt-in `egress` compose service (`--profile egress`) + LiveKit__ServerUrl + Egress S3 env (secrets env-only).
-- [ ] PENDING-HUMAN-VERIFY (egress deployed, 2 tabs): ⏺ → ● REC both tabs → stop → file in bucket + listed in artifacts. Deploy steps in docs/MEETINGS_AUDIT.md → N2.
+### N2 — meeting recording via LiveKit Egress  · markers `N2-recording` + server · FUNCTIONAL + PROVEN LOCALLY
+Wired against in-stack MinIO and proven with a REAL recording (was 501-only). Configured livekit.yaml
+(redis + webhook, replaces --dev) + egress + minio + createbuckets (default-on); room pre-create so egress
+attaches; HMAC webhook finalises COMPLETE/FAILED; presigned http playback; audio-only toggle.
+PROVEN end-to-end (demo media via `livekit-cli --publish-demo`, no browser in sandbox): start→200 ACTIVE →
+egress PLAYING/active → stop → webhook COMPLETE, key `<session>/<ts>.mp4`, 5,738,917 B, 14.48 s; MinIO
+lists the 5.5 MiB .mp4; presigned URL downloads http 200 video/mp4 (ISO MP4, playable); BCC live-artifacts
+lists it with downloadUrl. Local dotnet build + mobile tsc 0 errors.
+- [ ] PENDING-HUMAN-VERIFY (real webcams): 2 InPrivate tabs, cameras on → ⏺ → ● REC both → stop → captures real A/V. (Proof used a synthetic demo publisher.)
+- PROD: swap MinIO→real S3 (EGRESS_S3_* + PublicEndpoint) + public LiveKit; secrets env-only. docs/MEETINGS_AUDIT.md → N2.
 
 ### N5 — BCC meetings ⇄ live meetings (one flow)  · server + mobile (no viewer marker)
 Server FUNCTIONALLY VERIFIED via a logged-in REST run against the rebuilt container (create → live-session

@@ -432,40 +432,55 @@ PENDING-HUMAN-VERIFY (full loop on devices):
 - [ ] End the session → the BCC meeting flips to COMPLETED, attendance lists who joined, and
       `Export Minutes` produces the minutes doc. (Recording row appears once N2 is deployed.)
 
-### N2 — meeting recording via LiveKit Egress · markers `N2-recording` (livekit-av + meeting-sync) · SERVED + COMPILES; recording FUNCTIONALLY PENDING (needs egress infra)
-Server-side recording of a live session to the object store via LiveKit Egress, linked to the session +
-meeting (flows into N5 live-artifacts + minutes). **Host-gated start/stop; a consent `● REC` indicator
-shows for everyone.**
+### N2 — meeting recording via LiveKit Egress · markers `N2-recording` (livekit-av + meeting-sync) · FUNCTIONAL + PROVEN LOCALLY (a real .mp4 was recorded)
+Server-side recording of a live session to MinIO via LiveKit Egress, linked to the session + meeting
+(flows into N5 live-artifacts). **Host-gated start/stop; a consent `● REC` indicator shows for everyone.**
+**Now wired against the in-stack MinIO and proven with a real recording** (was 501-only before).
 
 **What landed**
-- Entity `MeetingRecording` (ITenantScoped, no FK nav) + DbSet + config; table created at runtime via
-  `PatchDevSchemaAsync` CREATE TABLE (idempotent) + manual `dev-schema-patch.sql`. Hand-authored
-  migration `20260607000000_MeetingRecordings` (repo convention — no [Migration]/Designer) **and** the
-  model snapshot block was added in the same commit (P3-2 forward-practice → no NEW snapshot drift).
-- `LiveKitEgressClient` — Twirp `StartRoomCompositeEgress`/`StopEgress` with a raw-HMAC egress JWT
-  (`video.roomRecord`), S3/MinIO output per-request. `IsConfigured` false until LiveKit creds + an S3
-  target are set ⇒ endpoints 501 (ships dark, like livekit-token).
-- `MeetingRoomController`: `POST /{sid}/recording/start` (host-gated, idempotent, 501 unconfigured),
-  `POST /{sid}/recording/stop`, `GET /{sid}/recording`; broadcasts `RecordingChanged` over MeetingHub.
-  N5 `live-artifacts.recordings` now returns real rows.
-- Frontend: host-only ⏺ record toggle + a `● REC` consent indicator shown to ALL participants, driven
-  by the `RecordingChanged` broadcast (meeting-sync relays → `sting:recordingChanged`).
-- Infra: opt-in `egress` service in docker-compose (`--profile egress`) + api env
-  `LiveKit__ServerUrl` + `LiveKit__Egress__S3__*` (**secrets env-only**).
+- Entity `MeetingRecording` (ITenantScoped) + table via `PatchDevSchemaAsync` CREATE TABLE + manual
+  `dev-schema-patch.sql`. Hand-authored migration `20260607000000_MeetingRecordings` (repo convention)
+  + the model snapshot block in the same commit (P3-2 forward-practice → no NEW drift).
+- `LiveKitEgressClient` — Twirp `RoomService.CreateRoom` (pre-create so egress can attach) →
+  `Egress.StartRoomCompositeEgress`/`StopEgress` with a raw-HMAC admin JWT
+  (`roomRecord+roomCreate+roomList+roomAdmin`); S3 output per-request. Audio-only toggle
+  (`{audioOnly:true}` → OGG track egress) for a lightweight audio archive. `GetPresignedGetUrl` returns
+  a **browser-reachable** presigned GET (PublicEndpoint; scheme forced to match http MinIO). `IsConfigured`
+  false ⇒ 501 (ships dark) — but configured-by-default locally now.
+- `MeetingRoomController`: `POST /{sid}/recording/start` (host-gated, idempotent), `/stop`, `GET
+  /{sid}/recording` (returns `downloadUrl`); broadcasts `RecordingChanged`. N5 `live-artifacts.recordings`
+  returns rows **with presigned `downloadUrl`**.
+- `LiveKitWebhookController` `POST /api/livekit/webhook` — HMAC-verified (HS256 + sha256 body claim);
+  on `egress_ended` finalises the row → COMPLETE (only `EGRESS_COMPLETE`; aborted/failed → FAILED) +
+  StorageKey / FileSizeBytes / DurationSeconds (ns→s). Matched by EgressId (IgnoreQueryFilters).
+- Frontend: host-only ⏺ toggle + `● REC` consent indicator for everyone; mobile N5 artifacts card shows
+  recordings with a tappable Play/download link.
+- **Infra (docker-compose, default-on):** `livekit.yaml` replaces `--dev` (keys devkey:secret + redis +
+  egress webhook); `egress` service (shares redis); `minio` (S3 API :9000 + console :9001) + a
+  `createbuckets` one-shot (`recordings` bucket); api env `LiveKit__ServerUrl=http://livekit:7880` +
+  `LiveKit__Egress__S3__*` → MinIO (Endpoint internal `http://minio:9000`, **PublicEndpoint**
+  `http://localhost:9000` for presign). `egress` needs `cap_add: SYS_ADMIN` (headless chrome).
 
-**Verified here** (rebuilt container): served markers `N2-recording` on both bundles; `recording/start`
-→ **501** (egress unconfigured); `GET recording` → 204/null and `live-artifacts.recordings` → `[]`
-(table queries succeed → table exists); schema-patch `11 ok, 0 failed`. Local `dotnet build` + docker
-publish → 0 errors.
+**PROVEN end-to-end here** (rebuilt stack; demo media published into the room via `livekit-cli
+room join --publish-demo`, since the sandbox has no browser/camera):
+- `recording/start` → **200 ACTIVE** (configured, no longer 501); egress pipeline **PLAYING →
+  egress_active**.
+- `stop` → webhook → **status COMPLETE**, key `<session>/<ts>.mp4`, **FileSizeBytes 5,738,917 (5.5 MB)**,
+  **DurationSeconds 14.48**.
+- MinIO `recordings` bucket lists the **5.5 MiB .mp4**; the presigned `downloadUrl`
+  (`http://localhost:9000/recordings/<session>/<ts>.mp4?…`) downloads **http 200, 5,738,917 bytes,
+  content-type video/mp4**, `file` → **ISO Media MP4 v2 (playable)**.
+- BCC meeting `live-artifacts.recordings` → 1 row, COMPLETE, 5.5 MB, `downloadUrl` set (linked + playable
+  in the meeting record).
+- Object key proven: `recordings/<sessionId>/<yyyyMMddHHmmss>.mp4` (e.g. `…/20260606133310.mp4`).
 
-**FUNCTIONALLY PENDING (cannot be verified in this dev stack — `livekit --dev` is in-memory, no egress
-dispatch, no S3):** to produce a real recording —
-1. Run `livekit-server` NOT in `--dev`, configured with the SAME redis as egress + a real key/secret.
-2. Put `EGRESS_S3_*` (+ `LIVEKIT_*`) in `.env` (never commit).
-3. `docker compose --profile egress up -d egress`.
-- [ ] PENDING-HUMAN-VERIFY (2 tabs, egress deployed): host taps ⏺ → both tabs show `● REC`; stop → a
-      playable file lands in the bucket; the meeting's `live-artifacts.recordings` lists it with size; a
-      webhook/`egress_ended` finalises StorageKey + size (webhook handler is a follow-up).
+**PROD swap:** replace MinIO with real S3 (set `EGRESS_S3_*` → bucket/keys/region + `PublicEndpoint` to a
+public host/CDN) and run a public LiveKit (NOT `--dev`; rotate `LIVEKIT_*`). All secrets via `.env` only —
+never commit. Empty `EGRESS_S3_*` ⇒ endpoints 501 (ships dark).
+
+- [ ] PENDING-HUMAN-VERIFY (real browser path): 2 InPrivate tabs on one `?meeting=` with cameras/mics →
+      host ⏺ → both tabs show `● REC` → stop → the recording captures the real participants' A/V (this
+      proof used a synthetic demo publisher, not live webcams).
 
 ### Slice index (all on branch `claude/optimistic-bell-EfjJw`, PR #306 — do not merge)
 | Slice | Marker | Commit | What |
@@ -480,7 +495,7 @@ dispatch, no S3):** to produce a real recording —
 | N3 | `N3-docs` | (this commit) | document presentation: fix `/file`→`/download` (surface never rendered) · discoverable doc picker (searchable list) · drag-drop / upload a local file → persisted then shared |
 | N4 | `N4-layout` | (this commit) | meeting panel movable / minimisable / closeable (full LiveKit+SignalR teardown) · PiP/sidebar/theater layout modes + persistence + sizeRenderer reframe (grid-reflow dock deferred) |
 | N5 | (server+mobile) | (this commit) | BCC⇄live one flow: `POST /meetings/{id}/live-session` (idempotent), `liveSessionId` on meeting DTOs, `GET /meetings/{id}/live-artifacts`, end→roster→attendees + COMPLETED · mobile LIVE badge + Resume + artifacts card. Server functionally verified; mobile tsc-clean. |
-| N2 | `N2-recording` | (this commit) | LiveKit Egress recording: `MeetingRecording` entity+table (migration+snapshot, P3-2-correct), `LiveKitEgressClient` (Twirp, 501 unconfigured), host-gated start/stop/get + `RecordingChanged` consent `● REC`, recordings in live-artifacts, opt-in `egress` compose service. SERVED+COMPILES; recording functionally PENDING (needs egress+S3). |
+| N2 | `N2-recording` | (this commit) | LiveKit Egress recording — **FUNCTIONAL + proven locally** (real 5.5 MB .mp4 → MinIO `recordings`, COMPLETE via HMAC webhook, presigned http playback, linked in BCC live-artifacts). Configured livekit.yaml + egress + minio + createbuckets (default-on); room pre-create; audio-only toggle. Real-webcam 2-tab path PENDING-HUMAN-VERIFY. |
 
 ### Cross-cutting caveats / known follow-ups
 - **Mobile parity:** `live.tsx` covers native A/V + surface-follow + co-presence; the M2 markup,

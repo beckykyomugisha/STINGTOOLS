@@ -348,6 +348,9 @@ public class MeetingRoomController : ControllerBase
         if (existing != null) return Ok(ToRecDto(existing));
 
         var audioOnly = req?.AudioOnly ?? false;
+        // Ensure the LiveKit room exists so RoomComposite egress can attach (records the
+        // shared room; participants' camera/mic appear as they join).
+        await egress.EnsureRoomAsync(sessionId.ToString(), ct);
         var result = await egress.StartAsync(sessionId.ToString(), audioOnly, ct);
         if (result is null) return StatusCode(502, new { error = "egress start failed" });
 
@@ -404,16 +407,20 @@ public class MeetingRoomController : ControllerBase
         if (!owned) return NotFound();
         var rec = await _db.MeetingRecordings.Where(r => r.SessionId == sessionId)
             .OrderByDescending(r => r.StartedAt).FirstOrDefaultAsync(ct);
-        return Ok(rec is null ? null : ToRecDto(rec));
+        if (rec is null) return Ok(null);
+        // N2 — presigned (browser-reachable) playback/download URL for the finished file.
+        var downloadUrl = new LiveKitEgressClient(_config).GetPresignedGetUrl(rec.StorageKey, TimeSpan.FromHours(6));
+        return Ok(ToRecDto(rec, downloadUrl));
     }
 
     public class StartRecordingRequest { public bool AudioOnly { get; set; } }
 
-    private static object ToRecDto(MeetingRecording r) => new
+    private static object ToRecDto(MeetingRecording r, string? downloadUrl = null) => new
     {
         r.Id, r.SessionId, r.MeetingId, r.EgressId, r.Kind, r.Status,
         r.StorageKey, r.FileName, r.FileSizeBytes, r.DurationSeconds,
         r.StartedBy, r.StartedAt, r.EndedAt, r.Error,
+        downloadUrl,
     };
 
     private static object ToDto(MeetingSession s) => new
