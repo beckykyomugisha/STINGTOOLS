@@ -158,6 +158,8 @@
       ghostStyle: { tint: 0x888888, opacity: 0.12 }, // user-tunable ghost look
       vizDiscMode: new Map(),   // DISCIPLINE → 'show' | 'ghost' | 'hide'
       vizCatMode:  new Map(),   // CATEGORY   → 'show' | 'ghost' | 'hide'
+      vizDiscSel:  new Set(),   // P2 — disciplines ticked for multi-isolate
+      vizCatSel:   new Set(),   // P2 — categories ticked for multi-isolate
       vizPreset:   null,        // active discipline appearance preset name
       // WS2 — disciplines/categories kept SOLID (original shaded material) when a
       // global x-ray / ghost render mode is on. The rest go x-ray/ghost; hide still
@@ -292,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD iso-tokens');
+    console.log('[viewer] STING_VIZ_BUILD multi-isolate');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1369,6 +1371,20 @@
       renderVisualizePanel();
       toast(alreadyOnly ? 'Show all' : `Shading ${cat}, ghosting the rest`);
     }
+    // P2 — multi-select isolate: shade every TICKED discipline/category, ghost the rest
+    // (empty selection → show all). Drives the same per-disc/-cat mode maps as the single
+    // quick-isolate, so it composes with the layered model identically.
+    function shadeOnlySet(kind) {
+      const isDisc = kind === 'disc';
+      const all = isDisc ? distinctDisc() : distinctTokens('CAT');
+      const sel = isDisc ? state.vizDiscSel : state.vizCatSel;
+      const modeMap = isDisc ? state.vizDiscMode : state.vizCatMode;
+      modeMap.clear();
+      if (sel.size) all.forEach(v => modeMap.set(v, sel.has(v) ? 'show' : 'ghost'));
+      applyAppearance();
+      renderVisualizePanel();
+      toast(sel.size ? `Shading ${Array.from(sel).join(', ')} — ghosting the rest` : 'Show all (none ticked)');
+    }
 
     // Colour every element by ANY STING token (categorical) — sets a colour
     // descriptor and drives the ONE appearance engine (no separate overlay path).
@@ -1716,9 +1732,17 @@
     // B1 — a discipline/category row: optional colour picker (custom colour for that
     // group, overrides the palette) · label (click = isolate) · show / ghost / hide /
     // isolate buttons. customKey is the value (disc code / category) for the colour map.
-    function vizModeRow(label, count, getMode, setMode, onIsolate, customKey) {
+    function vizModeRow(label, count, getMode, setMode, onIsolate, customKey, selSet, selKey) {
       const row = el('div', { class: 'viz-row',
         style: 'display:flex;align-items:center;gap:5px;padding:3px 0' });
+      // P2 — multi-select tick for "Shade selected, ghost rest".
+      if (selSet) {
+        const ck = el('input', { type: 'checkbox', title: 'Tick for multi-isolate',
+          style: 'width:14px;height:14px;flex:0 0 auto;cursor:pointer;accent-color:#3B82F6' });
+        ck.checked = selSet.has(selKey);
+        ck.addEventListener('change', () => { if (ck.checked) selSet.add(selKey); else selSet.delete(selKey); });
+        row.appendChild(ck);
+      }
       if (customKey != null) {
         const cp = el('input', { type: 'color', value: state.vizCustomColours.get(customKey) || '#888888',
           title: 'Custom colour for ' + label,
@@ -1957,7 +1981,16 @@
         () => state.vizDiscMode.get(d),
         (m) => state.vizDiscMode.set(d, m),
         () => shadeOnlyDiscipline(d),        // label / ◎ click isolates
-        d)));                                 // B1 — custom-colour key
+        d,                                    // B1 — custom-colour key
+        state.vizDiscSel, d)));               // P2 — multi-isolate tick
+      if (discs.length) {
+        const dActions = el('div', { style: 'display:flex;gap:4px;margin-top:4px' });
+        dActions.appendChild(el('button', { class: 'btn sm', style: 'flex:1;white-space:nowrap',
+          onclick: () => shadeOnlySet('disc') }, '◎ Shade ticked, ghost rest'));
+        dActions.appendChild(el('button', { class: 'btn sm subtle',
+          onclick: () => { state.vizDiscSel.clear(); renderVisualizePanel(); } }, 'Clear ticks'));
+        byDisc.appendChild(dActions);
+      }
       wrap.appendChild(byDisc);
 
       // ── BUILD 1 — By category ──
@@ -1971,7 +2004,14 @@
           () => state.vizCatMode.get(c),
           (m) => state.vizCatMode.set(c, m),
           () => shadeOnlyCategory(c),         // label / ◎ click isolates
-          c)));                                // B1 — custom-colour key
+          c,                                   // B1 — custom-colour key
+          state.vizCatSel, c)));               // P2 — multi-isolate tick
+        const cActions = el('div', { style: 'display:flex;gap:4px;margin-top:4px' });
+        cActions.appendChild(el('button', { class: 'btn sm', style: 'flex:1;white-space:nowrap',
+          onclick: () => shadeOnlySet('cat') }, '◎ Shade ticked, ghost rest'));
+        cActions.appendChild(el('button', { class: 'btn sm subtle',
+          onclick: () => { state.vizCatSel.clear(); renderVisualizePanel(); } }, 'Clear ticks'));
+        byCat.appendChild(cActions);
         wrap.appendChild(byCat);
       }
 

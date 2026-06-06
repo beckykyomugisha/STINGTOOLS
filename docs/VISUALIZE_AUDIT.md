@@ -1,5 +1,13 @@
 # Viewer Visualize — audit & change log
 
+### P2 — multi-discipline / multi-category isolate · marker `multi-isolate` (coordination-viewer) · served-verified
+BY DISCIPLINE / BY CATEGORY rows gain a **checkbox**; tick several (E+P, S+E…) then **"◎ Shade ticked, ghost
+rest"** shades exactly the ticked set and ghosts everything else (empty selection → show all). "Clear ticks"
+resets. The single-click quick-isolate (label / ◎) is unchanged. Drives the same `vizDiscMode`/`vizCatMode`
+maps via `shadeOnlySet(kind)`, so it composes with the layered model identically. Served proof: minified
+bundle keeps `vizDiscSel` + "Shade ticked" + marker `multi-isolate`. PENDING-HUMAN-VERIFY (incognito): tick
+E and P → only E+P shaded, all else ghosted.
+
 ### P1 — full 8-token ISO 19650 tag in Properties · marker `iso-tokens` (coordination-viewer) · served + Revit-build verified
 New **"ISO 19650 Tag"** group in the selected-element panel: DISC · LOC · ZONE · LVL · SYS · FUNC · PROD · SEQ
 + the assembled tag string. Present tokens show their value (DISC falls back to the derived discipline);
