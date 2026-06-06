@@ -146,6 +146,7 @@
       clashPins: new Map(),    // clashId → mesh
       clashMarkersVisible: true,  // View menu toggle (default on) — clash wire-box markers
       issueMarkersVisible: true,  // View menu toggle (default on) — issue sphere markers
+      glassMode: false,           // STOPGAP heuristic — glass categories semi-transparent
       photoPins: new Map(),    // Slice 4b — photoId → mesh
       photos: [],              // Slice 4b — list of SitePhotoDto rows
       photoFilters: { reason: 'any', audience: 'any' },
@@ -291,7 +292,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD markers-toggle');
+    console.log('[viewer] STING_VIZ_BUILD realistic-glass');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -591,6 +592,7 @@
         '#vCaps':      () => toggleSectionCaps(),
         '#vClashMarkers': () => toggleClashMarkers(),
         '#vIssueMarkers': () => toggleIssueMarkers(),
+        '#vGlass':        () => toggleGlass(),
         '#vCoords':    () => toggleCoordReadout(),
         '#vExplode':   () => toggleExplodedView(),
         '#vTop':       () => setCameraPreset('top'),
@@ -1132,11 +1134,55 @@
         applyMeshState(o, mode);
       });
       reapplySelection();      // A3 — re-overlay the selection on the new appearance
+      maybeApplyGlass();       // STOPGAP — heuristic glass transparency (after materials settle)
       broadcastAppearance();
       saveVizState();          // B3 — persist appearance inputs per model (guarded)
     }
     // applyAppearance — canonical name; applyVizModes kept for existing callers.
     const applyAppearance = applyVizModes;
+
+    // ── Glass transparency STOPGAP (HEURISTIC) ─────────────────────────────────
+    // The exporter currently writes opaque materials (no alpha), so glazing reads
+    // solid. Until Phase 2 (generic_transparency → alphaMode=BLEND) ships, optionally
+    // make glass-ish CATEGORIES semi-transparent. This is a labelled heuristic, NOT
+    // real model data. Decoupled from the appearance engine: it clones the material
+    // the engine just assigned (per glass mesh, reversible), so it never fights the
+    // layered model / colour-by / ghost / selection.
+    const GLASS_KEYS = ['window', 'curtain panel', 'curtain wall', 'glazing', 'storefront', 'glass'];
+    function isGlassMesh(o) {
+      try {
+        const cat = String((metaForMesh(o) || {}).category || '').toLowerCase();
+        if (!cat || cat.includes('mullion')) return false;   // mullions are frames, not glass
+        return GLASS_KEYS.some(k => cat.includes(k));
+      } catch (_) { return false; }
+    }
+    function maybeApplyGlass() {
+      const on = !!state.glassMode || state.renderMode === 'realistic';
+      const grp = vizGroup(); if (!grp) return;
+      grp.traverse(o => {
+        if (!o.isMesh) return;
+        const isClone = o.material && o.material.userData && o.material.userData._glassClone;
+        if (on && isGlassMesh(o) && o.userData._vizMode !== 'hide') {
+          const base = isClone ? o.userData._glassSrc : o.material;
+          if (!base) return;
+          if (isClone) { try { o.material.dispose(); } catch (_) {} }   // replace stale clone
+          const c = base.clone();
+          c.transparent = true; c.opacity = 0.3; c.depthWrite = false;
+          c.userData = Object.assign({}, c.userData, { _glassClone: true });
+          o.userData._glassSrc = base;
+          o.material = c;
+        } else if (o.userData && o.userData._glassSrc) {
+          if (isClone) { try { o.material.dispose(); } catch (_) {} }   // restore engine material
+          o.material = o.userData._glassSrc;
+          o.userData._glassSrc = null;
+        }
+      });
+    }
+    function toggleGlass() {
+      state.glassMode = !state.glassMode;
+      applyAppearance();   // re-runs materials → maybeApplyGlass applies/restores
+      toast(state.glassMode ? 'Glass: heuristic ON (not real data — export from Revit for true alpha)' : 'Glass: off');
+    }
 
     // Set a single mesh to exactly one appearance state. Dirty-flagged + idempotent
     // (skips redundant material swaps). hide → invisible; ghost → shared ghost mat;

@@ -566,6 +566,7 @@
   <div class="menu-item" id="vXray">◌ X-Ray</div>
   <div class="menu-item" id="vGhost">◑ Ghosted</div>
   <div class="menu-item" id="vRealistic">◐ Realistic</div>
+  <div class="menu-item" id="vGlass">◇ Glass (heuristic)</div>
   <div class="menu-sep"></div>
   <div class="menu-item" id="vEdges">┃ Edge overlay</div>
   <div class="menu-item" id="vCaps">▤ Section caps</div>
@@ -1712,12 +1713,17 @@ THREE.ColorManagement.enabled = false;
         } catch (e) { console.warn('[viewer] Realistic env build failed', e); _realisticEnv = null; }
       }
       scene.environment = _realisticEnv;
+      // Soften IBL + pull exposure down so flat untextured white materials read as LIT,
+      // not blown-out. (Real materials/textures come from the Phase-2 exporter.)
+      try { scene.environmentIntensity = 0.55; } catch (e) {}
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.0;
+      renderer.toneMappingExposure = 0.8;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
     } else {
       scene.environment = null;
+      try { scene.environmentIntensity = 1.0; } catch (e) {}
       renderer.toneMapping = THREE.NoToneMapping;
+      renderer.toneMappingExposure = 1.0;
       renderer.outputColorSpace = THREE.LinearSRGBColorSpace;   // legacy/default look
     }
   }

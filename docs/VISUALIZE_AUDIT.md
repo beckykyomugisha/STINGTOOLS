@@ -17,6 +17,19 @@ Adds **Realistic** to the View menu (alongside Shaded / Wireframe / X-Ray / Ghos
 - PENDING-HUMAN-VERIFY (browser): select Realistic → reflections/lighting appear on MeshStandard materials;
   colour-by/ghost still override; Clear returns to base; pairs with Phase-2 textures once published.
 
+### Realistic exposure tune + glass STOPGAP · marker `realistic-glass` (coordination-viewer) · served-verified
+- **Exposure:** Realistic now sets `toneMappingExposure = 0.8` + `scene.environmentIntensity = 0.55` so flat
+  untextured white materials read as LIT, not blown out (OFF restores 1.0 / NoToneMapping / LinearSRGB).
+- **Glass STOPGAP (heuristic, labelled):** until the exporter ships alpha (Phase 2 `generic_transparency` →
+  `alphaMode=BLEND`), a `◇ Glass (heuristic)` View toggle (and Realistic itself) makes glass-ish CATEGORIES
+  (Windows / Curtain Panel / Curtain Wall / Glazing / Storefront / Glass; mullions excluded) semi-transparent
+  (`transparent`, opacity 0.3, `depthWrite=false`). Decoupled from the appearance engine — `maybeApplyGlass()`
+  runs after `applyVizModes`, clones the material the engine just assigned per glass mesh (reversible via
+  `_glassSrc`), so it never fights the layered model / colour-by / ghost / selection. Toast clearly flags it as
+  "not real data — export from Revit for true alpha".
+- Served proof: viewer.html has `id="vGlass"` + `toneMappingExposure = 0.8` + `environmentIntensity = 0.55`;
+  minified `coordination-viewer.js` keeps `glassMode` + marker `realistic-glass`.
+
 ### Clash / issue marker toggles · marker `markers-toggle` (coordination-viewer) · served-verified
 Two independent View-menu toggles (default ON) to show/hide the clash markers and the issue markers.
 - Clash markers are red (`0xEF4444` hard) / orange (`0xF59E0B` soft) **wire boxes** (`clashPins`); issue
