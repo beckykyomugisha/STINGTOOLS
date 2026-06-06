@@ -10,7 +10,7 @@ Surfaces + SERVED gates per DEPLOY.md. `meetings-core.js` + `dashboard.js` are v
 | W0 shared meetings-core.js | DONE-SERVED | 71cadfc54 | `curl /js/meetings-core.js \| grep "STING_MEETINGS_CORE_BUILD w0-core"`; index.html loads it |
 | W1 web meeting authoring | DONE-SERVED | 48557abb3 | `curl /js/dashboard.js \| grep w1-authoring`. HUMAN(2-tab/role): as Host create meeting + add agenda/action/attendee + edit+save minutes + Generate doc; plain attendee sees only THEIR actions + read-only minutes; client read-only. Role-gating best-effort (server enforces). |
 | W2 web join-live + live notifications | DONE-SERVED | marker w2-livejoin | `curl /js/dashboard.js \| grep w2-livejoin`. HUMAN(2-tab): acct A starts a live meeting → acct B (member) sees top 'Join' banner → click opens viewer ?meeting= (A/V). 🎥 Join on list rows + detail open the viewer. Starter excluded/membership-filtered server-side. |
-| W3 web recordings via core | TODO | — | recordings routed through meetings-core |
+| W3 web recordings via core | DONE-SERVED | marker w3-rec-core | `curl /js/dashboard.js \| grep w3-rec-core`. Recordings (detail tab + project archive + REC badge + Play/Download, Play gated to COMPLETE) all route through MeetingsCore.listRecordings/recordingsByMeeting. REST /recordings 200. HUMAN: Play opens HTML5 modal; FAILED rows show status. |
 | W4 mobile re-point to core | TODO | — | tsc --noEmit clean |
 | W5 role matrix (shared) | TODO | — | one role→cap map both surfaces (in meetings-core) |
 | W6 DEPLOY.md + gates current | TODO | — | DEPLOY.md 4 surfaces |

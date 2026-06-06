@@ -9,7 +9,7 @@
 
   // Deployed-artifact marker for serve path #3 (vanilla web /app). dashboard.js is
   // volume-mounted (wwwroot/js) → reflects on restart/refresh, no docker rebuild.
-  console.log("[dashboard] STING_DASH_BUILD w2-livejoin");
+  console.log("[dashboard] STING_DASH_BUILD w3-rec-core");
 
   // Phase 169 — runtime config. The Mapbox token must be replaced with a
   // real public token from mapbox.com (free account, no credit card
@@ -1745,8 +1745,13 @@
     });
   }
   async function fetchProjectRecordings() {
-    try { const w = await api(`/api/projects/${state.projectId}/recordings`); return (w && w.recordings) || []; }
-    catch (e) { return []; }
+    // W3 — route recordings through the shared meetings-core (single source); fall back to
+    // a direct call only if the module failed to load.
+    try {
+      var core = mcApi();
+      if (core) return await core.listRecordings(state.projectId);
+      const w = await api(`/api/projects/${state.projectId}/recordings`); return (w && w.recordings) || [];
+    } catch (e) { return []; }
   }
 
   // Per-meeting recordings modal (the meeting-detail "Recordings" block).
