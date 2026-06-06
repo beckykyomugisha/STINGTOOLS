@@ -289,7 +289,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD M1-livekit');
+    console.log('[viewer] STING_VIZ_BUILD N6-properties');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -2643,6 +2643,23 @@
       catch (_) { return `${c.currency} ${n.toLocaleString()}`; }
     }
 
+    // N6 — humanise an exporter key into a section heading + a plain-object test.
+    // Exporter element-map shapes vary (psets / classification / type+instance
+    // param bundles), so the panel renders nested groups GENERICALLY rather than
+    // assuming fixed field names.
+    function n6Humanize(k) {
+      const map = {
+        psets: 'Property sets', propertySets: 'Property sets', properties: 'Instance properties',
+        parameters: 'Instance parameters', classification: 'Classification', classifications: 'Classification',
+        typeParams: 'Type parameters', typeParameters: 'Type parameters', typeProperties: 'Type parameters',
+        instanceParams: 'Instance parameters', instanceParameters: 'Instance parameters',
+        relationships: 'Relationships', relations: 'Relationships', quantities: 'Quantities'
+      };
+      if (map[k]) return map[k];
+      return String(k).replace(/[_\-]+/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^\w/, c => c.toUpperCase());
+    }
+    function n6IsObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+
     function renderProperties(guid) {
       const pane = $('#pane-properties');
       // Multi-select branch — show common-properties summary instead of
@@ -2721,7 +2738,11 @@
         ['Type',       meta.type],
         ['Mark',       meta.mark]
       ].filter(([, v]) => v != null && v !== '');
-      const RESERVED = new Set(['name','category','tag','STING_TAG','discipline','system','status','level','family','type','mark','dimensions','performance']);
+      const RESERVED = new Set(['name','category','tag','STING_TAG','discipline','system','status','level','family','type','mark','dimensions','performance',
+        // N6 — these scalars/arrays now have dedicated sections (Quantities / Cost /
+        // Materials / Relationships); keep them out of the generic "Properties" bucket.
+        'materials','cost','costCurrency','area','volume','length','quantity','count',
+        'host','hostName','hostId','hostGuid','assembly','room','space','ifcType','ifcGuid','globalId','guid','revitId','elementId']);
       const isDimKey  = k => /(_mm|_m|width|height|depth|length|diameter|thickness|area)$/i.test(k);
       const isPerfKey = k => /(flow|pressure|capacity|voltage|current|power|temperature|cooling|heating|wattage|kw|lps|cfm|pa)/i.test(k);
       let dims = Object.entries(meta.dimensions  || {}).filter(([, v]) => v != null);
@@ -2757,6 +2778,40 @@
       if (meta.length != null) qty.push(['Length', fmtNum(meta.length) + ' m']);
       if (meta.quantity != null || meta.count != null) qty.push(['Quantity', String(meta.quantity != null ? meta.quantity : meta.count)]);
       const qtyHtml = qty.length ? '<div class="prop-section-label">Quantities</div>' + qty.map(([k, v]) => rowHtml(k, v)).join('') : '';
+      // N6 — Relationships (host / spatial / IFC identity) from whatever scalar
+      // relationship fields the exporter supplied; absent fields just don't show.
+      const relRows = [
+        ['Host', meta.host || meta.hostName],
+        ['Host id', meta.hostId || meta.hostGuid],
+        ['Assembly', meta.assembly],
+        ['Room / space', meta.room || meta.space],
+        ['IFC type', meta.ifcType],
+        ['IFC GUID', meta.ifcGuid || meta.globalId],
+        ['Revit id', meta.revitId || meta.elementId],
+      ].filter(([, v]) => v != null && v !== '');
+      const relHtml = relRows.length
+        ? '<div class="prop-section-label">Relationships</div>' + relRows.map(([k, v]) => rowHtml(k, String(v))).join('')
+        : '';
+      // N6 — nested groups the flat renderer used to DROP (typeof object → skipped):
+      // IFC property sets, classification, type/instance parameter bundles. Rendered
+      // generically so ANY exporter shape surfaces — a "group of objects" (e.g. psets)
+      // gets a sub-head per member; a flat object becomes a key/value section.
+      const GROUP_SKIP = new Set(['dimensions', 'performance']);   // already have dedicated sections
+      const n6SubHead = t => '<div style="font-size:11px;font-weight:600;opacity:0.7;margin:6px 0 2px">' + escapeHtml(t) + '</div>';
+      const n6Scalars = obj => Object.entries(obj)
+        .filter(([, v]) => v != null && typeof v !== 'object')
+        .map(([k, v]) => rowHtml(k, String(v))).join('');
+      const groupsHtml = Object.entries(meta)
+        .filter(([k, v]) => n6IsObj(v) && !GROUP_SKIP.has(k))
+        .map(([k, v]) => {
+          const entries = Object.entries(v).filter(([, vv]) => vv != null);
+          if (!entries.length) return '';
+          const hasSubObjs = entries.some(([, vv]) => n6IsObj(vv));
+          const inner = hasSubObjs
+            ? entries.map(([sk, sv]) => n6IsObj(sv) ? (n6SubHead(sk) + n6Scalars(sv)) : rowHtml(sk, String(sv))).join('')
+            : n6Scalars(v);
+          return inner ? ('<div class="prop-section-label">' + escapeHtml(n6Humanize(k)) + '</div>' + inner) : '';
+        }).filter(Boolean).join('');
       pane.innerHTML = `
         <div class="prop-section-label">Element</div>
         <div class="prop-title">${escapeHtml(meta.name || meta.category || 'Element')}</div>
@@ -2773,6 +2828,8 @@
           ${dims.length ? '<div class="prop-section-label">Dimensions</div>' + dims.map(([k, v]) => rowHtml(k, v)).join('') : ''}
           ${perfs.length ? '<div class="prop-section-label">Performance</div>' + perfs.map(([k, v]) => rowHtml(k, v)).join('') : ''}
           ${others.length ? '<div class="prop-section-label">Properties</div>' + others.map(([k, v]) => rowHtml(k, v)).join('') : ''}
+          ${relHtml}
+          ${groupsHtml}
         </div>
         <div class="prop-section-label">Actions</div>
         <div class="action-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px">

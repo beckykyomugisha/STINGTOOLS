@@ -125,6 +125,16 @@ are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that fil
 - [ ] 📋 link/create formal meeting (button greens; other tab greens via RoomChanged).
 - [ ] 📋 (linked) add action item; blank → generate minutes (MEETING_MINUTES doc record).
 
+### N6 — expanded element properties panel  · marker `N6-properties` (coordination-viewer)
+SERVED-proven (`curl localhost:5000/coordination-viewer.js` 200 + `N6-properties`; "Property sets" /
+"Relationships" / "Instance parameters" labels present on the served **minified** bundle).
+- [ ] Select an element whose element-map has IFC psets → a "Property sets" section appears with a
+      sub-head per pset and its props (previously dropped entirely).
+- [ ] Classification / type-params / instance-params nested groups render as their own sections.
+- [ ] Relationships section shows host / assembly / room-space / IFC type+GUID / Revit id when present.
+- [ ] `Filter properties…` narrows the new rows too; absent groups simply don't show; no double rows
+      for quantities/cost/materials.
+
 ### N1 — multi-participant video + presence roster  · markers `N1-presence` (livekit-av + meeting-sync)
 SERVED-proven (`curl localhost:5000/livekit-av.js` 200 + `N1-presence`; `meeting-sync.js` 200 +
 `N1-presence`; `sting:avState`/`avSuffix` present on the served bundles). 2-tab live A/V is the human's

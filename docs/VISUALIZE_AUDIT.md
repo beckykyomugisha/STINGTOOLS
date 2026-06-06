@@ -314,3 +314,25 @@ interactive first. `state.federationLoading` suppresses the coalesced broadcast 
 the heavy `rebuildGuidIndex` + `applyAppearance` + panel refresh run ONCE at the end, not per model.
 PENDING-HUMAN-VERIFY: loading the 5 models doesn't lock the UI; steady-state orbit on the full
 federation stays ~30–50 fps (low-end target).
+
+### N6 — expanded element properties panel  ✅ served `N6-properties`
+The selected-element panel **dropped every nested value** (`renderProperties` did
+`if (… typeof v === 'object') return;`), so IFC **property sets**, **classification**, and
+**type/instance parameter** bundles never displayed — only flat scalars plus the hand-rolled
+Identity / Dimensions / Performance / Materials / Quantities / Cost groups. The element-map is an
+exporter-produced JSON sidecar (`/models/{id}/element-map`, served as-is + cost merge) whose schema
+is **opaque and varies**, so N6 renders nested groups **generically**: every plain-object key becomes
+its own labelled section (`psets`→"Property sets", `classification`→"Classification",
+`typeParams`→"Type parameters", `parameters`→"Instance parameters", else humanised); a *group of
+objects* (e.g. psets keyed by set name) gets a sub-head per member + its scalar rows; a flat object
+becomes a key/value section. Added a **Relationships** section (host / assembly / room-space / IFC
+type / IFC GUID / Revit id) from whatever scalar relationship fields the exporter supplied. Scalar
+keys that now have dedicated sections (qty / cost / materials / relationship ids) were added to
+`RESERVED` so they don't double-render in the generic "Properties" bucket. Everything stays inside the
+existing `#propRows` scroll + live `propFilter` (new rows carry `data-search`) and degrades to
+omitted/"—" when a field is absent. Real material **textures** still need the Phase-2 exporter
+(baseColorTexture + UVs) — out of scope. Marker `STING_VIZ_BUILD N6-properties` on
+`coordination-viewer.js`; "Property sets" / "Relationships" / "Instance parameters" labels verified
+present on the **served minified** bundle. PENDING-HUMAN-VERIFY: select an element from a model whose
+element-map carries psets/classification → those groups render, filter narrows them, absent groups
+just don't appear.
