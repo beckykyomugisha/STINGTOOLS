@@ -215,3 +215,41 @@ finding is a wide-blast architectural one → proposal). Build: not rebuilt (no 
 **A3 remains OPEN** — R1 covered the security/tenant dimension only; correctness/async/EF-migration/
 DTO-alignment rounds still pending across the 114 controllers.
 
+#### A3 · R1b — CP-2 implemented (user-approved, Option A+C) + VERIFIED
+Closed the A3-R1-1 defense-in-depth gap. Touched only entities that exist on **main**
+(`InformationDeliverable`, `SiteDiaryAttachment`, `MeetingAttendee`, `MeetingAgendaItem`,
+`MeetingActionItem`); **did NOT** touch `MeetingSession`/`MeetingSnapshot` (#306-only — deferred to a
+rebase-after-#306 pass, per the divergence guardrail).
+
+1. **Entities → `ITenantScoped`** (5). They already had `public Guid TenantId`, so the interface is
+   satisfied by adding `: ITenantScoped`. The global filter + auto-stamp + auto-index now cover them.
+   `dotnet build Planscape.API` → **Build succeeded, 0 errors**. No new EF query-filter-mismatch
+   warnings (their parents Project/Meeting/SiteDiary are already `ITenantScoped`, so filters match).
+2. **Migration** `20260606000000_TenantScopeIndexesAndBackfill.cs` — hand-authored DDL matching the
+   repo convention (no `.Designer.cs`, no `[Migration]` attr; see note below): idempotent
+   `CREATE INDEX IF NOT EXISTS IX_<Table>_TenantId` ×5 + the one-time backfill `UPDATE … SET TenantId =
+   parent.TenantId WHERE TenantId = '0000…'` ×5. Down() drops the indexes (backfill not reversed —
+   reverting to empty would re-introduce the hide-by-filter bug).
+3. **Backfill VERIFIED on a throwaway Postgres** (`cp2_verify`, then dropped): seeded 3 legacy
+   empty-tenant child rows under real-tenant parents (T1/T2) + 1 already-stamped row (T3). After
+   backfill → **0 empty-tenant rows remain**, each legacy row took its **parent's** tenant
+   (InfDel/MtgAtt=T1, SdAtt=T2), the T3 row was **untouched**, and the backfilled row is **visible**
+   under the `TenantId == T1` filter (i.e. it does **not** vanish). `ef database update` is the deploy
+   step (not run against a real DB here).
+4. **Regression test (Part C)** `TenantScopedEntityConventionTests.cs` — reflects over
+   `Planscape.Core.Entities` and asserts every type with a writable `Guid TenantId` implements
+   `ITenantScoped`. `dotnet test --filter` → **Passed (0 offenders)** — also confirms no *other* entity
+   on this branch has the gap.
+
+**Note (pre-existing, documented — NOT a new finding):** an attempted `dotnet ef migrations add`
+emitted 345 KB of unrelated destructive ops (drop indexes, rename `Meetings.AttendeesJson→…`) because
+the model snapshot is intentionally stale — the repo hand-authors migration DDL and rebuilds dev schema
+from `OnModelCreating` (documented in `20260602000000_IdempotencyRecords.cs`, backlog **P3-2**). I
+removed the poisoned auto-migration, restored the committed snapshot, and matched the hand-authored
+convention. P3-2 (repair the prod migration pipeline / reconcile the snapshot) is a real but
+pre-existing backlog item; flagged here, not actioned (out of CP-2 scope).
+
+**Scorecard (A3 R1b):** Critical 0 · High 0 · Medium 1 **(A3-R1-1 → CLOSED)** · Low 0. Build: API +
+tests compile (0 errors); CP-2 test green; backfill throwaway-verified. Files: 5 entities + 1 migration
++ 1 test.
+
