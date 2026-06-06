@@ -17,6 +17,19 @@ Adds **Realistic** to the View menu (alongside Shaded / Wireframe / X-Ray / Ghos
 - PENDING-HUMAN-VERIFY (browser): select Realistic → reflections/lighting appear on MeshStandard materials;
   colour-by/ghost still override; Clear returns to base; pairs with Phase-2 textures once published.
 
+### Clash / issue marker toggles · marker `markers-toggle` (coordination-viewer) · served-verified
+Two independent View-menu toggles (default ON) to show/hide the clash markers and the issue markers.
+- Clash markers are red (`0xEF4444` hard) / orange (`0xF59E0B` soft) **wire boxes** (`clashPins`); issue
+  markers are priority-coloured **spheres** (`issuePins`) — both already distinct shapes from the
+  orbit-pivot indicator, and the toggle only flips those two marker groups' `.visible`, never the pivot.
+- `state.clashMarkersVisible` / `state.issueMarkersVisible` flip via `toggleClashMarkers()` /
+  `toggleIssueMarkers()`; `placeClashPins`/`placeIssuePins` re-apply the flag so a data refresh/rebuild
+  keeps the chosen visibility. New menu items `#vClashMarkers` / `#vIssueMarkers`.
+- Served proof: viewer.html carries `id="vClashMarkers"` + `id="vIssueMarkers"`; minified
+  `coordination-viewer.js` keeps the `clashMarkersVisible` state key + marker `markers-toggle`.
+- PENDING-HUMAN-VERIFY (browser): toggle each off/on → the red/orange boxes and the issue spheres
+  hide/show independently; the pivot indicator is unaffected.
+
 ## Phase 2 — real Revit material textures in the glTF exporter · COMPILE-UNVERIFIED (verify in Revit + re-publish)
 `StingTools/BIMManager/RevitGltfExporter.cs` previously wrote only flat `baseColorFactor`. Phase 2 adds a
 real PBR texture path (Revit plugin code — **cannot `dotnet build` in this sandbox**; signature-checked

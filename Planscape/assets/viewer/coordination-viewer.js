@@ -144,6 +144,8 @@
       history: [],
       issuePins: new Map(),    // issueId → mesh
       clashPins: new Map(),    // clashId → mesh
+      clashMarkersVisible: true,  // View menu toggle (default on) — clash wire-box markers
+      issueMarkersVisible: true,  // View menu toggle (default on) — issue sphere markers
       photoPins: new Map(),    // Slice 4b — photoId → mesh
       photos: [],              // Slice 4b — list of SitePhotoDto rows
       photoFilters: { reason: 'any', audience: 'any' },
@@ -289,7 +291,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD realistic-mode');
+    console.log('[viewer] STING_VIZ_BUILD markers-toggle');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -587,6 +589,8 @@
         '#vRealistic': () => setRenderMode('realistic'),
         '#vEdges':     () => toggleEdgeOverlay(),
         '#vCaps':      () => toggleSectionCaps(),
+        '#vClashMarkers': () => toggleClashMarkers(),
+        '#vIssueMarkers': () => toggleIssueMarkers(),
         '#vCoords':    () => toggleCoordReadout(),
         '#vExplode':   () => toggleExplodedView(),
         '#vTop':       () => setCameraPreset('top'),
@@ -3175,6 +3179,7 @@
         wire.renderOrder = 998;
         wire.position.copy(pos);
         wire.userData.clashId = c.id;
+        wire.visible = state.clashMarkersVisible;   // honour the View-menu toggle across rebuilds
         host.add(wire);
         if (V.pinMeta) V.pinMeta.set(wire.uuid, { __coord: 'clash', clashId: c.id });
         state.clashPins.set(c.id, wire);
@@ -4089,6 +4094,7 @@
         sphere.position.set(i.position.x, i.position.y, i.position.z);
         sphere.userData.issueId = i.id;
         sphere.renderOrder = 999;
+        sphere.visible = state.issueMarkersVisible;   // honour the View-menu toggle across rebuilds
         host.add(sphere);
         if (V.pinMeta) V.pinMeta.set(sphere.uuid, { __coord: 'issue', issueId: i.id, priority: i.priority });
         state.issuePins.set(i.id, sphere);
@@ -6281,6 +6287,21 @@
       state.edgeOverlay = !state.edgeOverlay;
       extras.setEdgeOverlay(state.edgeOverlay);
       toast(state.edgeOverlay ? 'Edge overlay ON' : 'Edge overlay OFF');
+    }
+
+    // Clash / issue marker visibility — independent View-menu toggles (default on).
+    // Flip the existing pin meshes' .visible (place*Pins re-applies the flag on rebuild).
+    // The wire-box clash markers + sphere issue markers stay visually distinct from the
+    // orbit-pivot indicator; this only touches the marker groups, never the pivot.
+    function toggleClashMarkers() {
+      state.clashMarkersVisible = !state.clashMarkersVisible;
+      state.clashPins.forEach(m => { m.visible = state.clashMarkersVisible; });
+      toast(state.clashMarkersVisible ? 'Clash markers ON' : 'Clash markers OFF');
+    }
+    function toggleIssueMarkers() {
+      state.issueMarkersVisible = !state.issueMarkersVisible;
+      state.issuePins.forEach(m => { m.visible = state.issueMarkersVisible; });
+      toast(state.issueMarkersVisible ? 'Issue markers ON' : 'Issue markers OFF');
     }
 
     // Section caps — translucent fill at every clipping plane.
