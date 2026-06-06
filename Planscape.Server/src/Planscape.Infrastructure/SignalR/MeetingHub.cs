@@ -120,6 +120,19 @@ public class MeetingHub : Hub
             : Task.CompletedTask;
 
     /// <summary>
+    /// M2 (MeetingMarkup) — collaborative markup on the shared DOCUMENT surface.
+    /// Carries one markup op to the OTHER participants (the sender already drew
+    /// it locally): { op: "add", stroke } · { op: "clear" } · { op: "grant", on }.
+    /// This is co-presence data (the wire) — LiveKit (media plane) is untouched.
+    /// Durable capture (Save-as-Snapshot / Save-as-Issue) is a separate REST call;
+    /// the hub only mirrors live strokes so everyone sees markup as it is drawn.
+    /// </summary>
+    public Task BroadcastDocMarkup(string sessionId, object markup)
+        => Authorized.Contains(sessionId)
+            ? Clients.OthersInGroup(Group(sessionId)).SendAsync("DocMarkupChanged", markup)
+            : Task.CompletedTask;
+
+    /// <summary>
     /// Server-side push (from MeetingRoomController) when host/model/status
     /// changes so late joiners and existing clients re-sync their room state.
     /// </summary>

@@ -27,7 +27,7 @@
 
   // STEP-0 SERVED marker — bumped per slice so a marker grep on the *served*
   // bundle proves the running container has this exact change.
-  var STING_MEETING_BUILD = "M1-polish";
+  var STING_MEETING_BUILD = "M2-markup";
   try { console.log("[livekit] STING_MEETING_BUILD " + STING_MEETING_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -57,6 +57,19 @@
     tiles: new Map(),     // participant.sid → { wrap, video, label }
   };
 
+  // M2 — collaborative document markup. Strokes are stored with NORMALISED
+  // coords (0..1 over the doc pane) so they line up across clients of any size.
+  // The wire is MeetingHub.BroadcastDocMarkup (co-presence), never LiveKit.
+  var MARKUP = {
+    strokes: [],          // [{ id, tool, color, w, pts:[[x,y]…], text, by }]
+    tool: "pen",          // pen | arrow | text | rect | highlight
+    color: "#e8413a",
+    draw: false,          // local drawing mode (canvas captures pointer events)
+    granted: false,       // non-presenter allowed to draw (host granted)
+    cur: null,            // in-progress stroke
+  };
+  function markupAllowed() { return state.isPresenter || MARKUP.granted; }
+
   // WS3d — apply the active surface broadcast by the presenter (via MeetingHub).
   window.addEventListener("sting:surfaceChanged", function (e) {
     var d = e.detail || {}; applySurface(d.surface, d.documentId);
@@ -65,6 +78,8 @@
   // shared surface to 'screen' for everyone; stopping returns to 'model'.
   window.addEventListener("sting:screenShareStarted", function () { if (state.isPresenter) setSurface("screen"); });
   window.addEventListener("sting:screenShareStopped", function () { if (state.isPresenter && state.surface === "screen") setSurface("model"); });
+  // M2 — a markup op (add stroke / clear / grant) arrived from a participant.
+  window.addEventListener("sting:docMarkupChanged", function (e) { onRemoteMarkup(e.detail || {}); });
 
   // ── boot: load livekit-client, fetch a token, show the JOIN lobby ─────────
   // M1 — A/V is gesture-gated: we build the in-meeting pill + a "Join A/V"
@@ -274,15 +289,25 @@
     surface = surface || "model";
     state.surface = surface;
     var screen = document.getElementById("lkScreen");
-    var doc = document.getElementById("lkDoc");
     if (screen) screen.style.display = (surface === "screen") ? "flex" : "none";
-    if (doc)    doc.style.display    = (surface === "document") ? "flex" : "none";
-    if (surface === "document") showDocPane(docId);
+    if (surface === "document") {
+      // Ensure the pane exists BEFORE toggling its display — on the first switch
+      // the element doesn't exist yet, so the old "set display on a null lookup"
+      // left the doc surface permanently hidden.
+      var pane = ensureDocPane();
+      pane.style.display = "flex";
+      showDocPane(docId);
+      sizeMarkupCanvas(); renderMarkup();
+    } else {
+      var doc = document.getElementById("lkDoc");
+      if (doc) doc.style.display = "none";
+    }
+    refreshMarkupUI();   // M2 — show/hide the markup toolbar with the doc surface
     paintSurfaceSwitch(surface);
   }
   function showDocPane(docId) {
     var pane = ensureDocPane();
-    if (!docId) { pane._frame.removeAttribute("src"); pane._msg.textContent = "No document selected"; pane._msg.style.display = "block"; return; }
+    if (!docId) { pane._frame.removeAttribute("src"); pane._msg.textContent = "No document selected"; pane._msg.style.display = "flex"; return; }
     if (pane._docId === docId && pane._frame.getAttribute("src")) return;   // already showing
     pane._docId = docId; pane._msg.style.display = "none";
     // Fetch the doc file with the auth header, show it via a blob URL (PDF/image).
@@ -290,23 +315,231 @@
     fetch(url, { headers: token ? { "Authorization": "Bearer " + token } : {} })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
       .then(function (b) { if (pane._url) URL.revokeObjectURL(pane._url); pane._url = URL.createObjectURL(b); pane._frame.src = pane._url; })
-      .catch(function (e) { pane._msg.textContent = "Could not load document"; pane._msg.style.display = "block"; console.warn("[livekit] doc", e); });
+      .catch(function (e) { pane._msg.textContent = "Could not load document"; pane._msg.style.display = "flex"; console.warn("[livekit] doc", e); });
   }
   function ensureDocPane() {
     var pane = document.getElementById("lkDoc");
     if (pane) return pane;
     pane = el("div", { id: "lkDoc", style:
-      "position:absolute;inset:0 0 120px 0;z-index:13;display:none;flex-direction:column;background:#15171c;padding:8px" });
+      "position:absolute;inset:0 0 120px 0;z-index:13;display:none;flex-direction:column;gap:6px;background:#15171c;padding:8px" });
+    // M2 — markup toolbar sits above a relative "stage" that stacks the document
+    // iframe and the markup canvas; the canvas overlays the doc 1:1.
+    var bar = buildMarkupToolbar();
+    var stage = el("div", { style: "position:relative;flex:1;min-height:0" });
     // P3 — sandbox the shared-document iframe. The src is only ever an auth-fetched
     // blob URL of the document response; allow-same-origin lets the blob render, nothing
     // else (no scripts, forms, top-navigation, or popups).
-    var frame = el("iframe", { sandbox: "allow-same-origin", style: "flex:1;width:100%;border:none;border-radius:6px;background:#fff" });
-    var msg = el("div", { style: "color:#9aa3b2;font:13px sans-serif;text-align:center;padding:20px;display:none" }, "");
-    pane.appendChild(msg); pane.appendChild(frame);
-    pane._frame = frame; pane._msg = msg;
+    var frame = el("iframe", { sandbox: "allow-same-origin", style: "position:absolute;inset:0;width:100%;height:100%;border:none;border-radius:6px;background:#fff" });
+    var cvs = el("canvas", { id: "lkMarkupCanvas", style: "position:absolute;inset:0;pointer-events:none;touch-action:none" });
+    var msg = el("div", { style: "position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#9aa3b2;font:13px sans-serif" }, "");
+    stage.appendChild(frame); stage.appendChild(cvs); stage.appendChild(msg);
+    pane.appendChild(bar); pane.appendChild(stage);
+    pane._frame = frame; pane._msg = msg; pane._cvs = cvs; pane._stage = stage;
     document.body.appendChild(pane);
+    wireMarkupPointer(cvs);
+    window.addEventListener("resize", function () { if (state.surface === "document") { sizeMarkupCanvas(); renderMarkup(); } });
     return pane;
   }
+
+  // ── M2 — collaborative document markup (canvas overlay, MeetingHub wire) ────
+  function sizeMarkupCanvas() {
+    var pane = document.getElementById("lkDoc");
+    if (!pane || !pane._cvs || !pane._stage) return;
+    var r = pane._stage.getBoundingClientRect();
+    var w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+    if (pane._cvs.width !== w) pane._cvs.width = w;
+    if (pane._cvs.height !== h) pane._cvs.height = h;
+  }
+  function renderMarkup() {
+    var pane = document.getElementById("lkDoc");
+    if (!pane || !pane._cvs) return;
+    var ctx = pane._cvs.getContext("2d"); if (!ctx) return;
+    var W = pane._cvs.width, H = pane._cvs.height;
+    ctx.clearRect(0, 0, W, H);
+    MARKUP.strokes.forEach(function (s) { drawStroke(ctx, s, W, H); });
+    if (MARKUP.cur) drawStroke(ctx, MARKUP.cur, W, H);
+  }
+  function drawStroke(ctx, s, W, H) {
+    var pts = (s.pts || []).map(function (p) { return [p[0] * W, p[1] * H]; });
+    ctx.save();
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.strokeStyle = s.color || "#e8413a"; ctx.fillStyle = s.color || "#e8413a";
+    ctx.lineWidth = s.w || 3;
+    if (s.tool === "highlight") { ctx.globalAlpha = 0.35; ctx.lineWidth = (s.w || 3) * 5; }
+    if (s.tool === "pen" || s.tool === "highlight") {
+      if (pts.length) { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke(); }
+    } else if (s.tool === "rect" && pts.length >= 2) {
+      ctx.strokeRect(Math.min(pts[0][0], pts[1][0]), Math.min(pts[0][1], pts[1][1]),
+        Math.abs(pts[1][0] - pts[0][0]), Math.abs(pts[1][1] - pts[0][1]));
+    } else if (s.tool === "arrow" && pts.length >= 2) {
+      var a = pts[0], b = pts[1];
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      var ang = Math.atan2(b[1] - a[1], b[0] - a[0]), hl = Math.max(10, (s.w || 3) * 3);
+      ctx.beginPath(); ctx.moveTo(b[0], b[1]);
+      ctx.lineTo(b[0] - hl * Math.cos(ang - 0.4), b[1] - hl * Math.sin(ang - 0.4));
+      ctx.lineTo(b[0] - hl * Math.cos(ang + 0.4), b[1] - hl * Math.sin(ang + 0.4));
+      ctx.closePath(); ctx.fill();
+    } else if (s.tool === "text" && pts.length) {
+      var fs = Math.max(12, (s.w || 3) * 5);
+      ctx.font = "600 " + fs + "px -apple-system,Segoe UI,sans-serif"; ctx.textBaseline = "top";
+      ctx.fillText(s.text || "", pts[0][0], pts[0][1]);
+    }
+    ctx.restore();
+  }
+  function wireMarkupPointer(cvs) {
+    function norm(e) {
+      var r = cvs.getBoundingClientRect();
+      return [clamp01((e.clientX - r.left) / (r.width || 1)), clamp01((e.clientY - r.top) / (r.height || 1))];
+    }
+    cvs.addEventListener("pointerdown", function (e) {
+      if (!MARKUP.draw || !markupAllowed()) return;
+      e.preventDefault();
+      var p = norm(e);
+      if (MARKUP.tool === "text") {
+        var t = prompt("Text annotation:"); if (!t) return;
+        commitStroke(mkStroke([p], t)); return;
+      }
+      MARKUP.cur = mkStroke([p]);
+      try { cvs.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    cvs.addEventListener("pointermove", function (e) {
+      if (!MARKUP.cur) return;
+      var p = norm(e);
+      if (MARKUP.tool === "pen" || MARKUP.tool === "highlight") MARKUP.cur.pts.push(p);
+      else MARKUP.cur.pts[1] = p;       // arrow / rect — second point tracks the cursor
+      renderMarkup();
+    });
+    function finish() {
+      if (!MARKUP.cur) return;
+      var s = MARKUP.cur; MARKUP.cur = null;
+      if (s.pts.length < 2 && s.tool !== "text") { renderMarkup(); return; }  // drop a dot/degenerate drag
+      commitStroke(s);
+    }
+    cvs.addEventListener("pointerup", finish);
+    cvs.addEventListener("pointercancel", finish);
+  }
+  function mkStroke(pts, text) {
+    return { id: rid(), tool: MARKUP.tool, color: MARKUP.color, w: 3, pts: pts.slice(), text: text || "", by: myName() };
+  }
+  function commitStroke(s) {
+    MARKUP.strokes.push(s); renderMarkup();
+    try { window.STING_MEETING && window.STING_MEETING.broadcastDocMarkup({ op: "add", stroke: s }); } catch (e) {}
+  }
+  function onRemoteMarkup(m) {
+    if (!m || !m.op) return;
+    if (m.op === "add" && m.stroke) { MARKUP.strokes.push(m.stroke); renderMarkup(); }
+    else if (m.op === "clear") { MARKUP.strokes = []; MARKUP.cur = null; renderMarkup(); }
+    else if (m.op === "grant") { MARKUP.granted = !!m.on; refreshMarkupUI(); toast(m.on ? "Host enabled markup for everyone" : "Markup restricted to presenter"); }
+  }
+  function clearMarkup() {
+    MARKUP.strokes = []; MARKUP.cur = null; renderMarkup();
+    try { window.STING_MEETING && window.STING_MEETING.broadcastDocMarkup({ op: "clear" }); } catch (e) {}
+  }
+  function setDrawMode(on) {
+    MARKUP.draw = !!on && markupAllowed();
+    var pane = document.getElementById("lkDoc");
+    if (pane && pane._cvs) pane._cvs.style.pointerEvents = MARKUP.draw ? "auto" : "none";
+    var b = document.getElementById("lkMkDraw");
+    if (b) { b.textContent = MARKUP.draw ? "✏️ Drawing" : "✏️ Markup"; b.style.background = MARKUP.draw ? "rgba(55,194,114,0.9)" : "rgba(255,255,255,0.14)"; }
+  }
+  function toggleGrant() {
+    MARKUP.granted = !MARKUP.granted;       // presenter mirror of what others receive
+    try { window.STING_MEETING && window.STING_MEETING.broadcastDocMarkup({ op: "grant", on: MARKUP.granted }); } catch (e) {}
+    var b = document.getElementById("lkMkGrant"); if (b) b.style.background = MARKUP.granted ? "rgba(55,194,114,0.9)" : "rgba(255,255,255,0.14)";
+    toast(MARKUP.granted ? "Markup enabled for everyone" : "Markup restricted to presenter");
+  }
+  function buildMarkupToolbar() {
+    var bar = el("div", { id: "lkMkBar", style:
+      "display:none;flex-wrap:wrap;align-items:center;gap:5px;pointer-events:auto;" +
+      "background:rgba(0,0,0,0.5);border-radius:8px;padding:5px 7px" });
+    [["pen", "✏︎", "Pen"], ["highlight", "🖍", "Highlighter"], ["arrow", "➟", "Arrow"], ["rect", "▭", "Rectangle"], ["text", "T", "Text"]].forEach(function (t) {
+      bar.appendChild(mkBtn("lkMkTool_" + t[0], t[1], t[2], function () { MARKUP.tool = t[0]; paintTool(); setDrawMode(true); }));
+    });
+    ["#e8413a", "#f4b400", "#37c272", "#3b82f6", "#ffffff", "#111111"].forEach(function (c) {
+      var sw = el("button", { title: "Colour " + c, style:
+        "width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,0.5);cursor:pointer;background:" + c });
+      sw.addEventListener("click", function () { MARKUP.color = c; });
+      bar.appendChild(sw);
+    });
+    bar.appendChild(mkBtn("lkMkDraw", "✏️ Markup", "Toggle drawing mode (off = scroll the document)", function () { setDrawMode(!MARKUP.draw); }));
+    bar.appendChild(mkBtn("lkMkClear", "🗑 Clear", "Clear all markup", clearMarkup));
+    bar.appendChild(mkBtn("lkMkSnap", "📸 Snapshot", "Save markup as a meeting snapshot", saveMarkupSnapshot));
+    bar.appendChild(mkBtn("lkMkIssue", "⚑ Issue", "Save markup as an issue", saveMarkupIssue));
+    bar.appendChild(mkBtn("lkMkGrant", "👥 Grant", "Allow everyone to draw (host only)", toggleGrant));
+    return bar;
+  }
+  function mkBtn(id, glyph, title, fn) {
+    var b = el("button", { id: id, title: title || "", style:
+      "border:none;border-radius:6px;cursor:pointer;font:12px -apple-system,Segoe UI,sans-serif;" +
+      "padding:4px 8px;background:rgba(255,255,255,0.14);color:#fff" }, glyph);
+    b.addEventListener("click", fn); return b;
+  }
+  function paintTool() {
+    ["pen", "highlight", "arrow", "rect", "text"].forEach(function (t) {
+      var b = document.getElementById("lkMkTool_" + t);
+      if (b) b.style.background = (t === MARKUP.tool) ? "rgba(59,130,246,0.85)" : "rgba(255,255,255,0.14)";
+    });
+  }
+  function refreshMarkupUI() {
+    var bar = document.getElementById("lkMkBar"); if (!bar) return;
+    var show = (state.surface === "document") && markupAllowed();
+    bar.style.display = show ? "flex" : "none";
+    var g = document.getElementById("lkMkGrant"); if (g) g.style.display = state.isPresenter ? "inline-block" : "none";
+    if (!show) setDrawMode(false);    // leaving the doc surface / not allowed → stop capturing pointer
+    paintTool();
+  }
+  // ── markup persistence (durable — separate REST, not the hub) ──────────────
+  function saveMarkupSnapshot() {
+    var pane = document.getElementById("lkDoc");
+    var label = prompt("Snapshot label:", "Markup");
+    if (label === null) return;
+    var body = { Label: label || "Markup", StateJson: JSON.stringify({
+      surface: "document", documentId: (pane && pane._docId) || null, strokes: MARKUP.strokes }) };
+    fetch(apiBase + "/api/projects/" + projectId + "/meeting-sessions/" + sessionId + "/snapshots",
+      { method: "POST", headers: jsonHeaders(), body: JSON.stringify(body) })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function () { toast("Snapshot saved"); })
+      .catch(function (e) { toast("Snapshot failed"); console.warn("[markup] snapshot", e); });
+  }
+  function saveMarkupIssue() {
+    var title = prompt("Issue title:", "Markup from meeting"); if (!title) return;
+    var pane = document.getElementById("lkDoc");
+    var ip = apiBase + "/api/projects/" + projectId + "/issues";
+    var desc = "Created from live-meeting markup on the shared document surface."
+      + (pane && pane._docId ? "\nDocument: " + pane._docId : "") + "\nSession: " + sessionId;
+    rasterizeMarkup(pane).then(function (blob) {
+      return fetch(ip, { method: "POST", headers: jsonHeaders(),
+        body: JSON.stringify({ Type: "OBS", Title: title, Description: desc, Priority: "MEDIUM" }) })
+        .then(function (r) { if (!r.ok) throw new Error("issue " + r.status); return r.json(); })
+        .then(function (issue) {
+          if (!blob || !issue || !issue.id) return issue;
+          var fd = new FormData();
+          fd.append("file", blob, "markup-" + (issue.issueCode || "issue") + ".png");
+          return fetch(ip + "/" + issue.id + "/attachments",
+            { method: "POST", headers: token ? { "Authorization": "Bearer " + token } : {}, body: fd })
+            .then(function () { return issue; }).catch(function () { return issue; });
+        });
+    }).then(function (issue) { toast("Issue " + ((issue && issue.issueCode) || "") + " created"); })
+      .catch(function (e) { toast("Issue save failed"); console.warn("[markup] issue", e); });
+  }
+  // Markup is rasterised over a white background (the cross-origin sandboxed
+  // iframe's pixels can't be read into a canvas); the document id is carried in
+  // the issue description so reviewers can re-open the doc beneath the markup.
+  function rasterizeMarkup(pane) {
+    return new Promise(function (resolve) {
+      var src = pane && pane._cvs;
+      var W = (src && src.width) || 800, H = (src && src.height) || 600;
+      var out = document.createElement("canvas"); out.width = W; out.height = H;
+      var ctx = out.getContext("2d");
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+      MARKUP.strokes.forEach(function (s) { drawStroke(ctx, s, W, H); });
+      if (out.toBlob) out.toBlob(function (b) { resolve(b); }, "image/png"); else resolve(null);
+    });
+  }
+  function jsonHeaders() { return token ? { "Authorization": "Bearer " + token, "Content-Type": "application/json" } : { "Content-Type": "application/json" }; }
+  function rid() { rid._n = (rid._n || 0) + 1; return "s" + rid._n + "_" + ((state.room && state.room.localParticipant && state.room.localParticipant.sid) || "x"); }
+  function myName() { try { return (localStorage.getItem("planscape_user") || "Guest").split("@")[0]; } catch (e) { return "Guest"; } }
+  function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
   function paintSurfaceSwitch(surface) {
     ["model", "document", "screen"].forEach(function (s) {
       var b = document.getElementById("lkSurf_" + s); if (!b) return;

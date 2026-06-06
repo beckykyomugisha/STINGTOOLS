@@ -25,7 +25,7 @@ host gets `camera/microphone/screen_share/screen_share_audio`, `url=ws://localho
 Creds documented in `Planscape.Server/docker/.env.template` (LiveKit section): dev falls back to
 `devkey`/`secret` + the local `--dev` server on `:7880`; staging/cloud set `LIVEKIT_*` in `.env`.
 
-### M1-2 (client UX polish, slice) — explicit Join/Leave + in-meeting state  ✅ served `M1-polish`
+### M1-2 (client UX polish, slice) — explicit Join/Leave + in-meeting state  ✅ served `M1-polish` · `39f6a59b0`
 `livekit-av.js` no longer auto-connects the media plane on page-load (an unprompted camera light is
 hostile, and browsers gate `getUserMedia` behind a user gesture anyway). New flow:
 - **Lobby on load:** an always-visible "● In a meeting" pill (dot + status text) + a prominent
@@ -100,3 +100,68 @@ M2–M5 accurately (not claim un-built work as done).
 are each a focused feature pass (hub method + client UI + two-tab human verification) — best built
 and verified one at a time rather than batched. Constraints to hold throughout: LiveKit = media,
 MeetingHub = co-presence/markup/chat/state (no duplicate transports); secrets via env only.
+
+---
+
+## M2 — collaborative document markup on the shared DOCUMENT surface  ✅ served `M2-markup`
+
+The headline net-new feature. Surface *switching* (model | document | screen) already existed; the
+document *renderer* existed (an auth-fetched blob in a sandboxed iframe). M2 adds the **markup** —
+pen / arrow / text / rectangle / highlighter strokes drawn on a canvas that overlays the document,
+broadcast live to every participant, plus durable capture.
+
+**Wire (co-presence, NOT LiveKit):** new `MeetingHub.BroadcastDocMarkup(sessionId, markup)` →
+`DocMarkupChanged` to the OTHER participants. One op per message: `{op:"add",stroke}` ·
+`{op:"clear"}` · `{op:"grant",on}`. `meeting-sync.js` relays it as a `sting:docMarkupChanged`
+event + exposes `STING_MEETING.broadcastDocMarkup`. `livekit-av.js` renders.
+
+**Canvas (`livekit-av.js`):** a `<canvas>` overlays the doc iframe 1:1 inside a relative stage.
+Strokes store **normalised 0..1 coords** so they line up across clients of any pane size. A markup
+toolbar (tools · 6 colours · ✏️ draw-mode toggle · 🗑 Clear · 📸 Snapshot · ⚑ Issue · 👥 Grant) shows
+only on the document surface and only when markup is allowed. **Draw-mode toggle** flips the canvas
+`pointer-events` so the iframe stays scrollable when not drawing.
+
+**Presenter-led + host grant:** by default only the presenter (host) may draw. The presenter's
+👥 **Grant** broadcasts `{op:"grant",on}` so every participant's toolbar enables/disables — one
+transport, no extra state. (Client-side gate; the host owns the surface — markup isn't a security
+boundary.)
+
+**Persistence (durable — separate REST, not the hub):**
+- **📸 Snapshot** → `POST …/meeting-sessions/{sid}/snapshots` with `StateJson =
+  {surface,documentId,strokes}` (replayable via the existing `MeetingSnapshot`).
+- **⚑ Issue** → rasterise the markup (white bg + strokes; the cross-origin sandboxed iframe's
+  pixels can't be read into a canvas, so the document id rides in the issue description) →
+  `POST …/issues` (Type `OBS`) → `POST …/issues/{id}/attachments` (the PNG). Reuses the existing
+  `IssuesController` — no server change beyond the one hub method.
+
+**Latent bug fixed in passing:** the first switch to the document surface set `display` on a
+`getElementById` that returned null (pane not yet created), leaving the doc permanently hidden.
+`applySurface` now ensures the pane, then shows it.
+
+**SERVED proof:** `curl /livekit-av.js` = 200; served bundle greps `STING_MEETING_BUILD = "M2-markup"`
+and `STING_MEETINGSYNC_BUILD = "M2-markup"` (meeting-sync). (Commit recorded below.)
+
+**2-tab test — PENDING-HUMAN-VERIFY** (two InPrivate tabs, both **Joined A/V** per M1; tab 1 = host/
+presenter; the project must have a document — note its id):
+- [ ] Presenter clicks **📄** (share document) → enters a document id → both tabs switch to the
+      **document surface** and render the same PDF/image. (This also proves the first-switch fix.)
+- [ ] Presenter's **markup toolbar** is visible; a non-presenter tab shows **no toolbar** (gated).
+- [ ] Presenter clicks **✏️ Markup** (drawing on) → draws a **pen** scribble, an **arrow**, a **rect**,
+      a **highlight**, and a **text** note → **each appears in the other tab within ~1 s**, aligned to
+      the same spot on the document (normalised coords).
+- [ ] Switch colour → new strokes use it. **🗑 Clear** → both tabs clear.
+- [ ] Presenter clicks **👥 Grant** → the non-presenter tab's toolbar **appears** + a toast; that tab
+      can now draw and the presenter sees it. Grant off → the tab's toolbar disappears.
+- [ ] With drawing **off**, the document still **scrolls** (canvas doesn't eat pointer events).
+- [ ] **📸 Snapshot** → toast "Snapshot saved"; `GET …/snapshots` lists it with the strokes JSON.
+- [ ] **⚑ Issue** → enter a title → toast "Issue OBS-NNNN created"; the issue exists with a PNG
+      attachment of the markup + the document id in its description.
+- [ ] A 3rd tab that joins mid-session sees NEW strokes drawn after it joined (live). (Replay of
+      strokes drawn *before* it joined is a known follow-up — see Caveats.)
+
+**Caveats (M2):**
+- **No stroke replay on late join** — the hub mirrors live ops; a participant who joins after strokes
+  are drawn sees only subsequent ones (and any Snapshot/Issue capture). A full-state resync on join
+  is the natural M2.1 (server-side markup buffer or a "request current markup" hub round-trip).
+- **Issue raster is markup-on-white**, not a composite over the document pixels (sandboxed
+  cross-origin iframe can't be drawn to a canvas). The document id in the description is the bridge.

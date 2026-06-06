@@ -103,3 +103,11 @@ are in `docs/MEETINGS_AUDIT.md` as PENDING-HUMAN-VERIFY. Resume point = that fil
 - [ ] 2nd tab Join → both tabs show 2 tiles + audio. Leave → returns to Join lobby; re-join works.
 - [ ] Deny camera → joins audio-only, control struck-through + toast; no crash.
 - [ ] Token 501 (LiveKit down) → pill **A/V unavailable**, Join disabled; co-presence still works.
+
+### M2 — collaborative document markup  · markers `M2-markup` (livekit-av + meeting-sync)
+- [ ] Presenter shares a doc (📄) → both tabs show the same document (first-switch fix).
+- [ ] Presenter draws pen/arrow/text/rect/highlight → appears live + aligned in the other tab.
+- [ ] Clear → both clear. Colour switch works. Doc still scrolls with drawing off.
+- [ ] 👥 Grant → non-presenter toolbar appears + can draw; off → hidden.
+- [ ] 📸 Snapshot → saved (GET …/snapshots lists strokes). ⚑ Issue → OBS-NNNN with PNG attachment.
+- [ ] New tab joining mid-session sees subsequent strokes (replay of prior = known M2.1 follow-up).

@@ -23,6 +23,10 @@
 (function () {
   "use strict";
 
+  // STEP-0 SERVED marker — bumped per slice that touches this file.
+  var STING_MEETINGSYNC_BUILD = "M2-markup";
+  try { console.log("[meeting] STING_MEETINGSYNC_BUILD " + STING_MEETINGSYNC_BUILD); } catch (e) {}
+
   var params = new URLSearchParams(location.search);
   var sessionId = params.get("meeting") || params.get("session") || "";
   var projectId = params.get("project") || "";
@@ -158,6 +162,9 @@
     // WS3d — presenter switched the active surface (model | document | screen);
     // livekit-av.js applies it so every client shows the same pane.
     conn.on("SurfaceChanged", function (s) { window.dispatchEvent(new CustomEvent("sting:surfaceChanged", { detail: s })); });
+    // M2 — a markup op on the shared DOCUMENT surface (add stroke / clear / grant);
+    // livekit-av.js renders it on the markup canvas so everyone sees it live.
+    conn.on("DocMarkupChanged", function (m) { window.dispatchEvent(new CustomEvent("sting:docMarkupChanged", { detail: m })); });
 
     conn.onreconnected(function () { conn.invoke("JoinSession", sessionId, displayName).catch(noop); });
 
@@ -361,6 +368,10 @@
     // WS2 — push an overlay profile (colour overlay OR a renderMode-tagged
     // x-ray/ghost + keep-solid exclusion) to the group via the existing channel.
     broadcastOverlay: function (profile) { if (state.conn) state.conn.invoke("BroadcastOverlay", sessionId, profile || {}).catch(noop); },
+    // M2 — push one markup op (add stroke / clear / grant) to the other
+    // participants over MeetingHub. livekit-av.js calls this from the markup canvas.
+    broadcastDocMarkup: function (markup) { if (state.conn) state.conn.invoke("BroadcastDocMarkup", sessionId, markup || {}).catch(noop); },
+    get connected() { return !!state.conn; },
     sessionId: sessionId,
   };
 })();
