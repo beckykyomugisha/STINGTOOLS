@@ -1,5 +1,21 @@
 # Viewer Visualize — audit & change log
 
+### Realistic exposure + depth tune · marker `realistic-depth` (coordination-viewer) · served-verified
+Realistic was washing flat white-plaster models out. Tuned for form: `toneMappingExposure` 0.8→**0.7**,
+`environmentIntensity` 0.55→**0.5**, and the flat fill is **dampened** while Realistic is on (hemisphere ×0.35,
+ambient ×0.25, key directional ×1.1 — stored as `_legacyFill` and restored exactly on OFF) so the IBL's soft
+directional variation provides an ambient-occlusion-like depth gradient. An in-app toast on entering Realistic
+sets expectations: **"Realistic — lit view. Full detail needs textures (re-publish with
+PLANSCAPE_EXPORT_TEXTURES)."** colour-only materials are matte by nature.
+- **TODO (postprocessing):** true SSAO / contact shadows need an EffectComposer pass — deferred (the
+  fill-damp + IBL is the low-risk depth improvement; no postprocessing dependency added).
+- **Textures embedding?** The `[tex]` SUMMARY only exists after a Revit re-publish with
+  `PLANSCAPE_EXPORT_TEXTURES=1` (current served models were published with textures OFF, so there's no
+  `[tex]` log yet) — confirm on the Revit machine per `docs/EXPORTER_TEXTURES.md`.
+- Served proof: viewer.html has `toneMappingExposure = 0.7` + `_legacyFill` + the hemi-damp; minified
+  coordination-viewer.js keeps the texture-note + marker `realistic-depth`. PENDING-HUMAN-VERIFY (incognito):
+  white-plaster model reads with form, not washed; OFF restores the legacy look exactly.
+
 ### Navigation — "← Back" + clickable breadcrumb · marker `nav-back` (coordination-viewer) · served-verified
 Added a visible header **`← Back`** button: native `history.back()` when there's a prior entry (dashboard
 restores from bfcache — no forced refresh), else falls back to the project dashboard / projects home (and

@@ -769,10 +769,15 @@ THREE.ColorManagement.enabled = false;
   // non-punctual lights by ~π relative to the legacy model. Scaling by Math.PI
   // is the documented legacy→physical conversion and restores the old viewer's
   // brightness (verified pixel-sampled — see PR feat/viewer-esm-modern).
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x404060, 0.9 * Math.PI));
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x404060, 0.9 * Math.PI);
+  scene.add(hemi);
   const dir = new THREE.DirectionalLight(0xffffff, 0.7 * Math.PI);
   dir.position.set(5, 10, 3); scene.add(dir);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.15 * Math.PI));
+  const amb = new THREE.AmbientLight(0xffffff, 0.15 * Math.PI);
+  scene.add(amb);
+  // E — remember the legacy fill intensities so Realistic can dampen the flat fill for
+  // depth and restore it exactly when turned off.
+  const _legacyFill = { hemi: hemi.intensity, amb: amb.intensity, dir: dir.intensity };
 
   // Near/far set conservatively here; fitCamera() recomputes them
   // from the model bounds so survey-coordinated buildings (Revit's
@@ -1718,18 +1723,23 @@ THREE.ColorManagement.enabled = false;
         } catch (e) { console.warn('[viewer] Realistic env build failed', e); _realisticEnv = null; }
       }
       scene.environment = _realisticEnv;
-      // Soften IBL + pull exposure down so flat untextured white materials read as LIT,
-      // not blown-out. (Real materials/textures come from the Phase-2 exporter.)
-      try { scene.environmentIntensity = 0.55; } catch (e) {}
+      // Soften IBL + pull exposure down so flat untextured white plaster reads as LIT with
+      // form, not washed flat. (Real materials/textures come from the Phase-2 exporter.)
+      try { scene.environmentIntensity = 0.5; } catch (e) {}
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.8;
+      renderer.toneMappingExposure = 0.7;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
+      // E — DEPTH: dampen the flat hemisphere/ambient fill so the IBL's soft directional
+      // variation (a contact-shadow / ambient-occlusion-like gradient) shows; keep the key
+      // directional light for form. (True SSAO/contact shadows = a postprocessing follow-up.)
+      try { hemi.intensity = _legacyFill.hemi * 0.35; amb.intensity = _legacyFill.amb * 0.25; dir.intensity = _legacyFill.dir * 1.1; } catch (e) {}
     } else {
       scene.environment = null;
       try { scene.environmentIntensity = 1.0; } catch (e) {}
       renderer.toneMapping = THREE.NoToneMapping;
       renderer.toneMappingExposure = 1.0;
       renderer.outputColorSpace = THREE.LinearSRGBColorSpace;   // legacy/default look
+      try { hemi.intensity = _legacyFill.hemi; amb.intensity = _legacyFill.amb; dir.intensity = _legacyFill.dir; } catch (e) {}
     }
     // glTF baseColorTexture is tagged SRGBColorSpace by GLTFLoader; the viewer otherwise
     // runs ColorManagement OFF (legacy look), which would render textures un-decoded. Enable

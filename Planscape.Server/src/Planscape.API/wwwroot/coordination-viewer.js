@@ -292,7 +292,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD nav-back');
+    console.log('[viewer] STING_VIZ_BUILD realistic-depth');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -6288,7 +6288,10 @@
       try { if (V.setRealistic) V.setRealistic(mode === 'realistic'); } catch (_) {}
       applyAppearance();
       broadcastVizRenderMode(mode);   // mirror to meeting followers (no-op when solo)
-      toast('View: ' + mode);
+      // E — set expectations: Realistic lights the model, but full surface detail needs
+      // textures (re-publish with PLANSCAPE_EXPORT_TEXTURES). Colour-only materials stay matte.
+      if (mode === 'realistic') toast('Realistic — lit view. Full detail needs textures (re-publish with PLANSCAPE_EXPORT_TEXTURES).');
+      else toast('View: ' + mode);
     }
     function clearRenderMode() {
       if (!V.modelRoot) { state.renderMode = 'shaded'; return; }
