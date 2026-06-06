@@ -1726,6 +1726,20 @@ THREE.ColorManagement.enabled = false;
       renderer.toneMappingExposure = 1.0;
       renderer.outputColorSpace = THREE.LinearSRGBColorSpace;   // legacy/default look
     }
+    // glTF baseColorTexture is tagged SRGBColorSpace by GLTFLoader; the viewer otherwise
+    // runs ColorManagement OFF (legacy look), which would render textures un-decoded. Enable
+    // colour-management while Realistic is on so textures + colours decode correctly; OFF
+    // restores the legacy non-colour-managed look. A CM/colorSpace change needs a shader
+    // recompile on existing materials.
+    try { THREE.ColorManagement.enabled = on; } catch (e) {}
+    try {
+      scene.traverse(o => {
+        if (o.isMesh && o.material) {
+          const ms = Array.isArray(o.material) ? o.material : [o.material];
+          for (let i = 0; i < ms.length; i++) if (ms[i]) ms[i].needsUpdate = true;
+        }
+      });
+    } catch (e) {}
   }
 
   window.STING_VIEWER = {
