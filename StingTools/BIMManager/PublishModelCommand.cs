@@ -495,7 +495,7 @@ namespace StingTools.BIMManager
                         ["category"]  = el.Category?.Name ?? "",
                         // M3 — derive a discipline from the Revit category so the viewer's
                         // BY DISCIPLINE / colour-by-discipline work on as-built (untagged) models.
-                        ["discipline"] = DeriveDisciplineFromCategory(el.Category?.Name),
+                        ["discipline"] = DeriveDisciplineFromCategory(el.Category?.Name ?? ""),
                         ["level"]     = lvlOnly,
                         ["elementId"] = el.Id.Value,
                     };
@@ -517,7 +517,7 @@ namespace StingTools.BIMManager
                     ["name"]       = el.Name ?? "",
                     ["category"]   = el.Category?.Name ?? "",
                     // Fall back to a category-derived discipline if the DISC token is blank.
-                    ["discipline"] = string.IsNullOrWhiteSpace(disc) ? DeriveDisciplineFromCategory(el.Category?.Name) : disc,
+                    ["discipline"] = string.IsNullOrWhiteSpace(disc) ? DeriveDisciplineFromCategory(el.Category?.Name ?? "") : disc,
                     ["location"]   = loc,
                     ["level"]      = lvl,
                     ["system"]     = sys,
