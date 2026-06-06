@@ -1,5 +1,15 @@
 # Meetings (Track B) — audit & build log
 
+### Recordings — meeting-detail section + in-app player (P1/P4/P5-audio) · Expo app · tsc-clean · 2-tab PENDING-HUMAN-VERIFY
+Meeting detail (Overview) gets a dedicated **Recordings** card (the primary home), each row: 🎥/🎙 ·
+date/time · duration · size · status · **▶ Play** · **⬇ Download** (Play gated to `COMPLETE` + a URL;
+ACTIVE shows "recording…"). **▶ Play** opens an in-app `RecordingPlayerModal` — HTML5 `<video>` (mp4) /
+`<audio>` (audio-only egress) on **web** via `React.createElement`, streaming the presigned URL; on native it
+falls back to the device player via `Linking`. Pulls from `getMeetingLiveArtifacts(...).recordings`; the old
+single-link render under "Live artifacts" was replaced. `tsc --noEmit` clean.
+- NOTE: the web `/app` is the Expo export (not rebuilt in the API docker image), so the in-browser play/modal
+  is **PENDING-HUMAN-VERIFY** after an `expo export` redeploy.
+
 ### Recordings — project archive endpoint · `GET /api/projects/{id}/recordings` · server REST-verified
 Members-only (ProjectVisibility gate) project-level recordings archive (newest first), covering BOTH
 scheduled-meeting recordings AND **ad-hoc** live-session recordings with no formal Meeting (labelled

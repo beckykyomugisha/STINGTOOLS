@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView,
   Alert, ActivityIndicator, Platform, KeyboardAvoidingView, FlatList, Share, Linking,
@@ -337,6 +337,90 @@ function MeetingDetailModal({ meeting: initialMeeting, projectId, onClose }: {
 }
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
+// ── Recordings (P1/P4/P5) ───────────────────────────────────────────────────
+type RecordingRow = MeetingLiveArtifacts["recordings"][number];
+function fmtDur(s?: number | null): string {
+  if (!s || s <= 0) return "—";
+  const m = Math.floor(s / 60), ss = Math.round(s % 60);
+  return `${m}:${String(ss).padStart(2, "0")}`;
+}
+function fmtSize(b?: number | null): string {
+  if (!b || b <= 0) return "—";
+  return b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${(b / 1024).toFixed(0)} KB`;
+}
+function isAudioKind(kind: string): boolean { return kind === "audio-only" || kind === "audio"; }
+
+// In-browser player: HTML5 <video> (mp4) / <audio> (audio-only egress) on web; on native
+// fall back to the device player via Linking. Streams the short-lived presigned URL.
+function RecordingPlayerModal({ rec, onClose }: { rec: RecordingRow | null; onClose: () => void }) {
+  if (!rec) return null;
+  const audio = isAudioKind(rec.kind);
+  const url = rec.downloadUrl || "";
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", padding: 16 }}>
+        <View style={{ backgroundColor: "#1a1d24", borderRadius: 10, padding: 14, width: "100%", maxWidth: 720, alignSelf: "center" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+            <Text style={{ color: "#fff", fontWeight: "600", flex: 1 }}>
+              {audio ? "🎙 Audio recording" : "🎥 Recording"} · {new Date(rec.startedAt).toLocaleString()}
+            </Text>
+            <TouchableOpacity onPress={onClose}><Text style={{ color: "#9aa3b2", fontSize: 18 }}>✕</Text></TouchableOpacity>
+          </View>
+          {Platform.OS === "web"
+            ? React.createElement(audio ? "audio" : "video", {
+                src: url, controls: true, autoPlay: true,
+                style: { width: "100%", maxHeight: 440, background: "#000", borderRadius: 8 },
+              } as any)
+            : (
+              <TouchableOpacity onPress={() => Linking.openURL(url)}
+                style={{ backgroundColor: "#1976d2", paddingVertical: 12, borderRadius: 8, alignItems: "center" }}>
+                <Text style={{ color: "#fff", fontWeight: "600" }}>▶ Open in player</Text>
+              </TouchableOpacity>
+            )}
+          <TouchableOpacity onPress={() => url && Linking.openURL(url)} style={{ marginTop: 12 }}>
+            <Text style={{ color: "#1976d2" }}>⬇ Download</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// Recordings section — the primary home for a meeting's recordings (date/time · duration ·
+// size · status · ▶ Play · ⬇ Download). Play opens RecordingPlayerModal.
+function RecordingsCard({ recordings, onPlay }: { recordings: RecordingRow[]; onPlay: (r: RecordingRow) => void }) {
+  if (!recordings || recordings.length === 0) return null;
+  return (
+    <View style={styles.card}>
+      <Text style={styles.fieldLabel}>Recordings</Text>
+      {recordings.map((r) => {
+        const playable = r.status === "COMPLETE" && !!r.downloadUrl;
+        return (
+          <View key={r.id} style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+            <Text style={{ color: "#e6e6e6", fontSize: 12, flex: 1 }} numberOfLines={1}>
+              {isAudioKind(r.kind) ? "🎙" : "🎥"} {new Date(r.startedAt).toLocaleString()} · {fmtDur(r.durationSeconds)} · {fmtSize(r.fileSizeBytes)} · {r.status}
+            </Text>
+            {playable ? (
+              <>
+                <TouchableOpacity onPress={() => onPlay(r)} style={{ marginLeft: 10 }}>
+                  <Text style={{ color: "#1976d2", fontWeight: "600", fontSize: 12 }}>▶ Play</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => Linking.openURL(r.downloadUrl!)} style={{ marginLeft: 12 }}>
+                  <Text style={{ color: "#1976d2", fontSize: 12 }}>⬇</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={{ color: "#9aa3b2", fontSize: 12, marginLeft: 10 }}>
+                {r.status === "ACTIVE" || r.status === "STARTING" ? "recording…" : r.status}
+              </Text>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinutes }: {
   meeting: Meeting; projectId: string; onRefresh: () => void;
   onExportIcs: () => void; onExportMinutes: () => void;
@@ -347,6 +431,7 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
   const [joining, setJoining] = useState(false);
   // N5 — live artifacts (snapshots / attendance) captured against this meeting's session(s).
   const [artifacts, setArtifacts] = useState<MeetingLiveArtifacts | null>(null);
+  const [playRec, setPlayRec] = useState<RecordingRow | null>(null);   // P1 — recording in the player modal
   useEffect(() => {
     let alive = true;
     getMeetingLiveArtifacts(projectId, meeting.id)
@@ -404,9 +489,13 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
         </Text>
       </View>
 
+      {/* P1 — Recordings: the primary home for this meeting's recordings (play in-app). */}
+      <RecordingsCard recordings={artifacts?.recordings ?? []} onPlay={setPlayRec} />
+      <RecordingPlayerModal rec={playRec} onClose={() => setPlayRec(null)} />
+
       {/* N5 — live artifacts that flowed back from the live session(s): viewpoint /
-          markup snapshots + attendance from the live roster. (Recording lands here
-          once N2 / LiveKit Egress is deployed.) */}
+          markup snapshots + attendance from the live roster. (Recordings now have their
+          own card above.) */}
       {artifacts && (artifacts.snapshots.length > 0 || artifacts.attendance.length > 0 || artifacts.sessions.length > 0) && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>Live artifacts</Text>
@@ -423,22 +512,6 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
               📸 {s.label || "Viewpoint"} · {new Date(s.capturedAt).toLocaleString()}
             </Text>
           ))}
-          {/* N2 — recordings with a tappable presigned playback/download link. */}
-          {artifacts.recordings.map((r) => {
-            const mb = r.fileSizeBytes ? ` · ${(r.fileSizeBytes / 1048576).toFixed(1)} MB` : "";
-            const label = `⏺ ${r.kind === "audio-only" ? "Audio" : "Recording"} · ${r.status}${mb}`;
-            return r.downloadUrl ? (
-              <TouchableOpacity key={r.id} onPress={() => Linking.openURL(r.downloadUrl!)}>
-                <Text style={[styles.fieldValue, { fontSize: 12, marginTop: 4, color: "#1976d2" }]} numberOfLines={1}>
-                  {label} · ▶ Play / download
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <Text key={r.id} style={[styles.fieldValue, { fontSize: 12, marginTop: 4 }]} numberOfLines={1}>
-                {label}{r.status === "ACTIVE" ? " · recording…" : ""}
-              </Text>
-            );
-          })}
         </View>
       )}
 
