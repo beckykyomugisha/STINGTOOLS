@@ -1,5 +1,20 @@
 # PROGRESS — viewer visualization
 
+## MARATHON — close all web meeting gaps (W0→W6) · branch claude/optimistic-bell-EfjJw · no PR/merge
+Resume rule: read this table + `git log`, continue from the first non-DONE item; never redo DONE.
+Surfaces + SERVED gates per DEPLOY.md. `meetings-core.js` + `dashboard.js` are volume-mounted (restart, no build);
+`index.html` is baked (needs `docker compose build`).
+
+| Item | Status | Commit | SERVED proof / exact human test |
+|---|---|---|---|
+| W0 shared meetings-core.js | DONE-SERVED | 70de55631 | `curl /js/meetings-core.js \| grep "STING_MEETINGS_CORE_BUILD w0-core"`; index.html loads it |
+| W1 web meeting authoring | TODO | — | create/edit/agenda/actions/attendees/minutes role-aware in dashboard.js |
+| W2 web join-live + live notifications | TODO | — | Join → viewer ?meeting=; live-start banner |
+| W3 web recordings via core | TODO | — | recordings routed through meetings-core |
+| W4 mobile re-point to core | TODO | — | tsc --noEmit clean |
+| W5 role matrix (shared) | TODO | — | one role→cap map both surfaces (in meetings-core) |
+| W6 DEPLOY.md + gates current | TODO | — | DEPLOY.md 4 surfaces |
+
 Branch `claude/optimistic-bell-EfjJw` (PR #306 tracks it — do **not** open a new PR).
 Every item below is committed + STEP-0 gated (SERVED marker + `livekit-av.js` 200 on a freshly
 `--no-cache`-rebuilt container). The deployed bundle is the minified `dist/`, so the marker grep
