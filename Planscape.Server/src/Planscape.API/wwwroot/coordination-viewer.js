@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-colcat');
+    console.log('[viewer] STING_VIZ_BUILD viz-savedviews');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1786,6 +1786,26 @@
     function loadVizState() {
       try { const raw = localStorage.getItem(vizStateKey()); if (raw) applyVizSnapshot(JSON.parse(raw)); } catch (_) {}
     }
+    // V6 — SAVED VIEWS: named Show+Colour combos persisted per project (localStorage),
+    // one-click recall. Reuses serializeViz()/applyVizSnapshot(); recall broadcasts to a meeting.
+    function savedViewsKey() { return vizStateKey() + ':saved'; }
+    function loadSavedViews() { try { return JSON.parse(localStorage.getItem(savedViewsKey()) || '[]') || []; } catch (_) { return []; } }
+    function writeSavedViews(arr) { try { localStorage.setItem(savedViewsKey(), JSON.stringify(arr)); } catch (_) {} }
+    function saveNamedView(name) {
+      name = (name || '').trim(); if (!name) return;
+      const arr = loadSavedViews().filter(v => v.name !== name);   // replace same-name
+      arr.unshift({ name: name, snap: serializeViz(), at: Date.now() });
+      writeSavedViews(arr.slice(0, 50));
+      renderVisualizePanel();
+      toast('Saved view: ' + name);
+    }
+    function recallNamedView(name) {
+      const v = loadSavedViews().find(x => x.name === name); if (!v) return;
+      applyVizSnapshot(v.snap);          // applies + renders (restoringViz guards self-echo)
+      try { broadcastAppearance(); } catch (_) {}   // then mirror the recalled state to a meeting
+      toast('Recalled: ' + name);
+    }
+    function deleteNamedView(name) { writeSavedViews(loadSavedViews().filter(v => v.name !== name)); renderVisualizePanel(); }
 
     // ── Visualize panel UI ───────────────────────────────────────────────────
     // B1 — a discipline/category row: optional colour picker (custom colour for that
@@ -2033,6 +2053,24 @@
         onclick: () => { applyDisciplineVariants(); renderVisualizePanel(); } }, 'Disc + variants'));
       presetBox.appendChild(pRow);
       wrap.appendChild(presetBox);
+
+      // V6 — SAVED VIEWS: compose a Show+Colour combo once, recall instantly (per project).
+      const savedBox = el('div', {});
+      savedBox.appendChild(sectionTitle('Saved views'));
+      const savedRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px' });
+      loadSavedViews().forEach(v => {
+        const b = el('button', { class: 'btn sm', title: 'Recall: ' + v.name, onclick: () => recallNamedView(v.name) }, v.name);
+        const x = el('span', { style: 'cursor:pointer;margin-left:4px;opacity:0.6', title: 'Delete',
+          onclick: (e) => { e.stopPropagation(); deleteNamedView(v.name); } }, '✕');
+        b.appendChild(x); savedRow.appendChild(b);
+      });
+      if (!loadSavedViews().length) savedRow.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2' }, 'No saved views yet — compose a Show + Colour combo, then Save.'));
+      savedBox.appendChild(savedRow);
+      savedBox.appendChild(el('button', { class: 'btn sm', style: 'width:100%', onclick: () => {
+        const name = (typeof window !== 'undefined' && window.prompt) ? window.prompt('Save current view as:', '') : '';
+        if (name) saveNamedView(name);
+      } }, '💾 Save current view'));
+      wrap.appendChild(savedBox);
 
       // ── BUILD 1 — By discipline ──
       const byDisc = el('div', {});
