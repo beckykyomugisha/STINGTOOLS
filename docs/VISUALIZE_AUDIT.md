@@ -1,5 +1,37 @@
 # Viewer Visualize — audit & change log
 
+### Item 9 — flexibility audit (isolate / ghost / colour / level)
+Reviewed after items 1–8. Findings + per-item recommendation (✅ implemented this pass · 🟢 low-risk
+follow-up · 🚩 changes build/deploy or data model — user decision):
+
+1. ✅ Shell-ghosting under colour-by-System (was: shell opaque, hid the pipes) — item 1.
+2. ✅ Multi-isolate + presets + per-system recolour + count badges + search — item 1.
+3. ✅ Global "ghost the rest" across disc/cat/system/param — item 2.
+4. ✅ Click-to-isolate-by-system + shift-add; colour-blind (Okabe-Ito) palette; category search — item 4.
+5. ✅ Saved presets + meeting surface-sync now carry isolate/ghost/colour-blind (+ camera in saved
+   views only) — item 3.
+6. 🟢 Colour-blind palette currently only re-skins the System palette. Generalising it to discipline/
+   category/param schemes is low-risk (swap the palette source in buildValueColors) — deferred to keep
+   this pass focused; no engine change needed.
+7. 🟢 `vizSysIsolate` persists via saved views + surface-sync but not as a per-project localStorage
+   default (unlike the bottom-panel height). Low-risk add (mirror `planscape_bottom_h`); deferred.
+8. 🟢 Per-system opacity: the global ghost-fade slider applies to all ghosts; a per-system opacity
+   (like the per-discipline `vizTransp` slider) isn't exposed in the system legend. The engine already
+   supports `trans:` modes — wiring a per-row slider is low-risk; deferred.
+9. 🚩 Exporter `sysClass` canonicalisation (item 7) picks the FIRST class for a multi-system element.
+   A "primary system by largest connector / flow" heuristic would be more correct but needs Revit-side
+   connector analysis + a re-export — flagged for decision, not done unilaterally.
+10. 🚩 Level-code passthrough (item 6) caps sanitised names at 12 chars. If a project's tag-container
+    schema needs a different cap, that's a data-model choice — flagged (kept 12 as a safe default).
+11. 🚩 SMTP is a single global config (item 8). Per-tenant SMTP (each org sends from its own domain)
+    is a server data-model change — flagged for decision.
+
+Net: the isolate/ghost/colour/level surface is now flexible (multi-isolate, presets, global ghost,
+click-isolate, CB palette, saved+synced presets, real level codes, canonical SYS). The remaining
+🟢 items are safe incremental follow-ups; the 🚩 items change build/deploy or data model and await
+your call.
+
+
 ### Colour-by-System across ALL MEP · marker `viz-allmep` · served-verified (`grep -c colour-by-system` = 1)
 Extended the 🛠 System palette to span the whole MEP spectrum (BS 1710 / CIBSE / ASME A13.1 / HTM 02-01):
 mech air SUP light-blue / RET grey-blue / EA brown; hydronic CHW cyan / LHW orange-red / COND teal / REF purple

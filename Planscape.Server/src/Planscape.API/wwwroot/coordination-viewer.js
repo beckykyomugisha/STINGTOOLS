@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-flex');
+    console.log('[viewer] STING_VIZ_BUILD viz-surface-sync');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1886,6 +1886,12 @@
         keepCat:  Array.from(state.vizKeepSolidCat),
         palette: state.vizPalette,
         renderMode: state.renderMode,
+        // Item 3 — isolate/ghost/colour-blind state so saved presets + meeting surface-sync
+        // carry the full filter, not just the colour mode. (Camera is added by saveNamedView
+        // only — we don't want a live appearance broadcast to yank everyone's camera.)
+        sysIsolate: Array.from(state.vizSysIsolate || []),
+        ghostRest: !!state.vizGhostRest,
+        colourBlind: !!state.vizColourBlind,
         colour: c ? { kind: c.kind, token: c.token, presetName: c.presetName, numeric: !!c.numeric } : null,
         // E3 — the section box (fraction-based, model-relative) rides along.
         section: (typeof window !== 'undefined' && window.STING_VIEWER_EXTRAS && window.STING_VIEWER_EXTRAS.getSectionBox)
@@ -1905,6 +1911,11 @@
         state.vizIsolation = null;
         if (d.palette) state.vizPalette = d.palette;
         state.renderMode = d.renderMode || 'shaded';
+        // Item 3 — restore isolate/ghost/colour-blind BEFORE the colour scheme rebuilds, so
+        // applySystemPalette() picks up the isolated systems + CB palette + ghost state.
+        state.vizSysIsolate = new Set(d.sysIsolate || []);
+        state.vizGhostRest = !!d.ghostRest;
+        state.vizColourBlind = !!d.colourBlind;
         state.vizColour = null;
         if (d.colour) {
           if (d.colour.kind === 'preset' && d.colour.presetName) applyDisciplinePreset(d.colour.presetName);
@@ -1919,6 +1930,15 @@
         // E3 — restore the section box (or clear if the snapshot had none).
         const xx = (typeof window !== 'undefined') && window.STING_VIEWER_EXTRAS;
         if (xx && xx.applySectionState) xx.applySectionState(d.section || { active: false });
+        // Item 3 — restore camera ONLY when the snapshot carries it (saved views do; live
+        // appearance broadcasts don't), so a coordinator's filter change never moves cameras.
+        if (d.camera && V.camera) {
+          try {
+            if (Array.isArray(d.camera.p)) V.camera.position.fromArray(d.camera.p);
+            if (Array.isArray(d.camera.t) && V.controls) V.controls.target.fromArray(d.camera.t);
+            if (V.controls) V.controls.update();
+          } catch (_) {}
+        }
       } catch (_) {}
       restoringViz = false;
       applyAppearance();
@@ -1938,8 +1958,14 @@
     function writeSavedViews(arr) { try { localStorage.setItem(savedViewsKey(), JSON.stringify(arr)); } catch (_) {} }
     function saveNamedView(name) {
       name = (name || '').trim(); if (!name) return;
+      // Item 3 — a saved preset also captures the CAMERA (broadcasts intentionally don't, so a
+      // live appearance change never yanks everyone's view). Camera lives on the saved snap only.
+      const snap = serializeViz();
+      try {
+        if (V.camera) snap.camera = { p: V.camera.position.toArray(), t: (V.controls && V.controls.target) ? V.controls.target.toArray() : null };
+      } catch (_) {}
       const arr = loadSavedViews().filter(v => v.name !== name);   // replace same-name
-      arr.unshift({ name: name, snap: serializeViz(), at: Date.now() });
+      arr.unshift({ name: name, snap: snap, at: Date.now() });
       writeSavedViews(arr.slice(0, 50));
       renderVisualizePanel();
       toast('Saved view: ' + name);
