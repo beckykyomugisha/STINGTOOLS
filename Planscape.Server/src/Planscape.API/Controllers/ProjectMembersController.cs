@@ -225,8 +225,25 @@ public class ProjectMembersController : ControllerBase
         var baseUrl = Planscape.API.PublicUrl.Resolve(_config, Request);
         var linkWarning = InviteLink.UnstableBaseWarning(baseUrl);
 
-        string? rawInviteToken = null;   // set when we mint a new pending user
+        string? rawInviteToken = null;   // set when we mint/reissue a pending invite
         bool emailDispatched = false;    // true only when an invite email was actually attempted
+
+        // Single active invite token per pending user. Stored as the SHA-256
+        // hash in RefreshToken (RESET: prefix → reset-password.html sets the
+        // password AND activates). Re-minting overwrites the prior hash, so the
+        // previous link stops working — exactly one live token at a time.
+        // Expiry defaults to 7 days; override via Auth:InviteTokenExpiryDays.
+        int inviteExpiryDays = int.TryParse(_config["Auth:InviteTokenExpiryDays"], out var ied) && ied > 0 ? ied : 7;
+        string MintInviteToken(AppUser u)
+        {
+            var raw = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
+                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+            var hash = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
+            u.RefreshToken = $"RESET:{hash}";
+            u.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(inviteExpiryDays);
+            return raw;
+        }
 
         var user = await _db.Users.FirstOrDefaultAsync(u =>
             u.Email == req.Email.ToLowerInvariant() && u.TenantId == tenantId);
@@ -239,20 +256,6 @@ public class ProjectMembersController : ControllerBase
             if (tenant != null && userCount >= tenant.MaxUsers)
                 return BadRequest($"User limit ({tenant.MaxUsers}) reached. Upgrade your plan to add more users.");
 
-            // P10 — generate an invitation token the user can exchange for an
-            // access token via POST /api/auth/accept-invitation. Stored in
-            // RefreshToken with "INV:" prefix so AuthController.AcceptInvitation
-            // can distinguish it from refresh / reset tokens.
-            //
-            // Phase 175 — store the SHA-256 of the token, not the raw value.
-            // The raw value goes in the email body; the DB only ever holds
-            // the hash. AcceptInvitation hashes the inbound token before
-            // comparing.
-            var inviteToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
-                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
-            var inviteTokenHash = Convert.ToHexString(
-                System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(inviteToken)));
-
             user = new AppUser
             {
                 TenantId      = tenantId,
@@ -262,12 +265,13 @@ public class ProjectMembersController : ControllerBase
                 Role          = UserRole.Contributor,
                 Iso19650Role  = req.Iso19650Role ?? "M",
                 IsActive      = false,  // awaiting first login / password set
-                // RESET: (not INV:) so the invite link's token validates against
-                // /api/auth/reset-password, which sets the password AND activates
-                // the user. reset-password.html consumes ?token=…&email=….
-                RefreshToken  = $"RESET:{inviteTokenHash}",
-                RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(14),
             };
+            // Mint the single active invite token. RESET: prefix (not INV:) so
+            // the link validates against /api/auth/reset-password, which sets the
+            // password AND activates the user — one complete onboarding step.
+            // The DB only ever holds the SHA-256 hash; the raw value goes in the
+            // email and is single-use (reset-password nulls it on consume).
+            rawInviteToken = MintInviteToken(user);
             _db.Users.Add(user);
 
             var userId5 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid5) ? uid5 : (Guid?)null;
@@ -288,17 +292,35 @@ public class ProjectMembersController : ControllerBase
             // Send invite email with the one-click deep link (token + email +
             // project). baseUrl uses Planscape:PublicBaseUrl when set, so the
             // link a remote guest receives is reachable — never internal localhost.
-            rawInviteToken = inviteToken;
             await _emailService.SendInviteEmailAsync(
                 user.Email, user.DisplayName, GetCurrentUserName(),
-                project.Name, baseUrl, inviteToken, projectId);
+                project.Name, baseUrl, rawInviteToken, projectId);
             emailDispatched = _emailService.IsConfigured;
         }
+        else if (!user.IsActive)
+        {
+            // Re-invite of an existing PENDING (never-activated) user. Reissue a
+            // fresh token — invalidating the prior one — and resend, so the
+            // re-invite isn't a silent no-op. Idempotent: each call replaces the
+            // last token, so repeated re-invites keep working.
+            if (string.IsNullOrWhiteSpace(user.DisplayName) && !string.IsNullOrWhiteSpace(req.DisplayName))
+                user.DisplayName = req.DisplayName!;
+            rawInviteToken = MintInviteToken(user);
+            await _db.SaveChangesAsync();
 
-        // Add to project
+            await _emailService.SendInviteEmailAsync(
+                user.Email, user.DisplayName, GetCurrentUserName(),
+                project.Name, baseUrl, rawInviteToken, projectId);
+            emailDispatched = _emailService.IsConfigured;
+            _logger.LogInformation("[invite] reissued token for {Email} on project {ProjectId}", user.Email, projectId);
+        }
+
+        // Add to project. Only block as a duplicate when the user is a fully
+        // onboarded (active) member — a pending invitee whose member row already
+        // exists must still be re-invitable (token reissued above).
         var existing = await _db.ProjectMembers
             .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == user.Id);
-        if (existing != null && existing.IsActive)
+        if (existing != null && existing.IsActive && user.IsActive)
             return Conflict("User is already a member of this project");
 
         // Phase 177-D — apply named preset baseline; explicit fields override.
