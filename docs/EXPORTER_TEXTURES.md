@@ -72,3 +72,19 @@ Every export with the flag on writes **one `[tex]` line per material** + a SUMMA
 - Texture files resolve only where the material library is installed (or via the env-var dirs).
 - UVs exist only for textured materials; untextured/un-UV'd meshes are skipped (logged).
 - Cost / area / volume (E4) emission is unaffected by the texture toggle.
+
+## MEP system capture (SYS) — same single Publish pass
+Each element's MEP system is resolved at export (no reliance on the often-empty
+`ASS_SYSTEM_TYPE_TXT` token): `MEPCurve.MEPSystem` for pipes/ducts/conduit/tray; fittings/
+fixtures/accessories walk `MEPModel.ConnectorManager.Connectors → Connector.MEPSystem`.
+Element-level `RBS_SYSTEM_CLASSIFICATION_PARAM` (raw class, e.g. Domestic Cold Water / Sanitary
+/ Vent / Supply Air) + `RBS_SYSTEM_NAME_PARAM` (instance name) are read first. The element-map
+gains three fields per element: **`system`** (STING SYS code via `TagConfig.GetMepSystemAwareSysCode`),
+**`sysClass`** (raw classification), **`sysName`** (instance name). Non-MEP elements → empty SYS.
+A `[sys] SUMMARY` line (mirror of `[tex]`) logs coverage to StingTools.log:
+`[sys] SUMMARY resolved=… unresolved=… | DCW=… DHW=… SAN=… VEN=…` + unresolved-by-category.
+ZONE/LOC/SEQ are also emitted on tagged entries (P1). One Publish pass now carries: textures
+(when PLANSCAPE_EXPORT_TEXTURES=1) + full 8-token tag + discipline + SYS/sysClass/sysName.
+Verify on re-publish: a plumbing model's `[sys] SUMMARY` shows resolved>0; the viewer's
+colour-by-System no longer says "No SYS values".
+

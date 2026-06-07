@@ -455,6 +455,10 @@ namespace StingTools.BIMManager
                                           Max = new XYZ(double.MinValue, double.MinValue, double.MinValue) };
             int count = 0;
             int boundsContributors = 0;
+            // A — MEP system capture coverage (mirrors the [tex] SUMMARY).
+            int sysResolved = 0, sysUnresolved = 0;
+            var sysHist = new Dictionary<string, int>();
+            var sysUnresolvedCats = new Dictionary<string, int>();
 
             foreach (var el in elements)
             {
@@ -478,6 +482,22 @@ namespace StingTools.BIMManager
                     boundsContributors++;
                 }
 
+                // A — resolve the element's MEP system ONCE (used by both tagged + untagged
+                // entries). Non-MEP elements → empty SYS (they just won't colour by System).
+                var catName = el.Category?.Name ?? "";
+                var (mepSys, sysClass, sysName, isMep) = ResolveMepSystem(el, catName);
+                if (!string.IsNullOrEmpty(mepSys))
+                {
+                    sysResolved++;
+                    var k = string.IsNullOrEmpty(sysClass) ? mepSys : sysClass;
+                    sysHist[k] = sysHist.TryGetValue(k, out var n) ? n + 1 : 1;
+                }
+                else if (isMep)
+                {
+                    sysUnresolved++;
+                    sysUnresolvedCats[catName] = sysUnresolvedCats.TryGetValue(catName, out var u) ? u + 1 : 1;
+                }
+
                 if (string.IsNullOrEmpty(tag))
                 {
                     // PUBLISH-WHOLE-MODEL — emit a minimal entry for every
@@ -497,6 +517,11 @@ namespace StingTools.BIMManager
                         // BY DISCIPLINE / colour-by-discipline work on as-built (untagged) models.
                         ["discipline"] = DeriveDisciplineFromCategory(el.Category?.Name ?? ""),
                         ["level"]     = lvlOnly,
+                        // A — MEP system (resolved from Revit's MEPSystem at export, since
+                        // untagged/as-built elements carry no ASS_SYSTEM_TYPE_TXT token).
+                        ["system"]    = mepSys,
+                        ["sysClass"]  = sysClass,
+                        ["sysName"]   = sysName,
                         ["elementId"] = el.Id.Value,
                     };
                     AddCost(el, untaggedEntry);   // M3 — per-element cost (rate × measured qty)
@@ -527,7 +552,10 @@ namespace StingTools.BIMManager
                     ["location"]   = loc,
                     ["zone"]       = zone,
                     ["level"]      = lvl,
-                    ["system"]     = sys,
+                    // A — stamped SYS token wins; else the system resolved from Revit's MEPSystem.
+                    ["system"]     = string.IsNullOrWhiteSpace(sys) ? mepSys : sys,
+                    ["sysClass"]   = sysClass,
+                    ["sysName"]    = sysName,
                     ["func"]       = func,
                     ["prod"]       = prod,
                     ["seq"]        = seq,
@@ -539,6 +567,20 @@ namespace StingTools.BIMManager
                 map[guid] = taggedEntry;
                 count++;
             }
+
+            // A — [sys] coverage SUMMARY (mirror of [tex]): so a re-publish shows how many
+            // elements got a SYS, the per-classification histogram, and which categories of
+            // MEP elements fell through unresolved.
+            try
+            {
+                var hist = string.Join(" ", sysHist.OrderByDescending(kv => kv.Value)
+                    .Take(24).Select(kv => kv.Key + "=" + kv.Value));
+                StingLog.Info($"[sys] SUMMARY resolved={sysResolved} unresolved={sysUnresolved} | {hist}");
+                if (sysUnresolved > 0)
+                    StingLog.Info("[sys] unresolved by category: " + string.Join(" ", sysUnresolvedCats
+                        .OrderByDescending(kv => kv.Value).Take(24).Select(kv => kv.Key + "=" + kv.Value)));
+            }
+            catch (Exception ex) { StingLog.Warn($"[sys] summary failed: {ex.Message}"); }
 
             // Convert feet → mm for the bounds (Revit internal units are feet).
             // If nothing contributed bounds (e.g. empty 3D view), send zeros so
@@ -633,6 +675,52 @@ namespace StingTools.BIMManager
         // "Lighting Fixtures" never falls under a bare-"fixture" plumbing rule), Fire
         // protection before Plumbing, Plumbing made SPECIFIC (never bare "fixture"),
         // Toposolid/site → Architectural. Keep this in sync with discOf on changes.
+        // A — resolve an element's MEP system → (STING SYS code, raw classification, instance
+        // name, isMep). MEPCurve uses .MEPSystem; fittings/fixtures/accessories walk connectors.
+        // Element-level RBS_SYSTEM_CLASSIFICATION_PARAM / RBS_SYSTEM_NAME_PARAM are read first
+        // (Revit exposes them directly on MEP elements). Non-MEP → ("","","",false). Never throws.
+        private static (string sys, string sysClass, string sysName, bool isMep) ResolveMepSystem(Element el, string categoryName)
+        {
+            string sysClass = "", sysName = "";
+            try { var pc = el.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM); if (pc != null) sysClass = pc.AsValueString() ?? pc.AsString() ?? ""; } catch { }
+            try { var pn = el.get_Parameter(BuiltInParameter.RBS_SYSTEM_NAME_PARAM); if (pn != null) sysName = pn.AsString() ?? pn.AsValueString() ?? ""; } catch { }
+            bool isMep = el is MEPCurve;
+            if (string.IsNullOrEmpty(sysClass) || string.IsNullOrEmpty(sysName))
+            {
+                try
+                {
+                    MEPSystem mep = null;
+                    if (el is MEPCurve mc) mep = mc.MEPSystem;
+                    else if (el is FamilyInstance fi && fi.MEPModel != null)
+                    {
+                        isMep = true;
+                        var cm = fi.MEPModel.ConnectorManager;
+                        if (cm != null)
+                        {
+                            foreach (Connector c in cm.Connectors)
+                            {
+                                try { if (c.MEPSystem != null) { mep = c.MEPSystem; break; } } catch { }
+                            }
+                        }
+                    }
+                    if (mep != null)
+                    {
+                        isMep = true;
+                        if (string.IsNullOrEmpty(sysName)) sysName = mep.Name ?? "";
+                        if (string.IsNullOrEmpty(sysClass))
+                        {
+                            try { var p = mep.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM); if (p != null) sysClass = p.AsValueString() ?? p.AsString() ?? ""; } catch { }
+                        }
+                    }
+                }
+                catch { }
+            }
+            if (!string.IsNullOrEmpty(sysClass) || !string.IsNullOrEmpty(sysName)) isMep = true;
+            string sys = "";
+            if (isMep) { try { sys = TagConfig.GetMepSystemAwareSysCode(el, categoryName) ?? ""; } catch { } }
+            return (sys, sysClass, sysName, isMep);
+        }
+
         private static string DeriveDisciplineFromCategory(string cat)
         {
             if (string.IsNullOrWhiteSpace(cat)) return "";
