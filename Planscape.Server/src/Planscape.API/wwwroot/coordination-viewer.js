@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-allmep');
+    console.log('[viewer] STING_VIZ_BUILD sys-multi-isolate');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1132,6 +1132,8 @@
           const v = colourValueOf(col, meta, o.userData.elementGuid);
           const key = colourKey(col, v);
           if (col.hidden && col.hidden.has(key)) mode = 'hide';                 // legend shift-click
+          else if (col.isolateSet && col.isolateSet.size && !col.isolateSet.has(key)) mode = 'ghost';  // items 1/2 — multi-isolate: unchecked → ghost
+          else if (col.ghostUnmatched && (key == null || key === '' || key === NOVAL)) mode = 'ghost'; // items 1/2 — ghost-the-rest: no-value/shell
           else if (col.isolate != null && key !== col.isolate) mode = 'ghost';  // legend isolate → ghost rest
           else {
             // P3a — when colouring by DISCIPLINE (preset) or by discipline+variants, a
@@ -1697,20 +1699,83 @@
     function applySystemPalette() {
       if (!V.modelRoot) return;
       if (!restoringViz && state.vizPreset === '__syspalette') { clearColour(); renderVisualizePanel(); toast('System palette cleared'); return; }
-      const counts = {};
-      Object.values(state.elementMap || {}).forEach(m => { const k = sysKeyOf(m); if (k) counts[k] = (counts[k] || 0) + 1; });
+      const counts = {}, discByKey = {};
+      Object.values(state.elementMap || {}).forEach(m => {
+        const k = sysKeyOf(m); if (!k) return;
+        counts[k] = (counts[k] || 0) + 1;
+        if (!discByKey[k]) discByKey[k] = discOf(m) || '?';
+      });
       const keys = Object.keys(counts).sort();
-      if (!keys.length) { toast('No SYS values — re-publish from Revit (MEP systems) to populate', 'warn'); return; }
+      // Degenerate guard — never ghost the whole model when there are no systems.
+      if (!keys.length) { toast('No MEP systems in this model', 'warn'); return; }
+      if (!state.vizSysIsolate) state.vizSysIsolate = new Set();
+      Array.from(state.vizSysIsolate).forEach(k => { if (!counts[k]) state.vizSysIsolate.delete(k); }); // drop stale
       const valueColors = new Map(), legend = [];
       keys.forEach((k, i) => {
-        const hex = SYS_PALETTE[k] || shadeVariant(SYS_PALETTE._other, i, keys.length);
+        const hex = (state.vizCustomColours.has(k) && state.vizCustomColours.get(k)) || SYS_PALETTE[k] || shadeVariant(SYS_PALETTE._other, i, keys.length);
         valueColors.set(k, hex);
-        legend.push({ label: k + ' (' + counts[k] + ')', color: hex });
+        legend.push({ label: k, count: counts[k], color: hex, disc: discByKey[k] });
       });
       state.vizPreset = '__syspalette';
-      state.vizColour = { kind: 'sysPalette', mode: 'colour-by-system', valueColors, isolate: null, hidden: new Set(), noValue: '#3a3f4a', legend };
+      // ghostUnmatched: shell (no system) always ghosts; isolateSet (checked systems) ghosts the rest.
+      state.vizColour = { kind: 'sysPalette', mode: 'colour-by-system', valueColors,
+        isolate: null, isolateSet: state.vizSysIsolate, ghostUnmatched: true, hidden: new Set(), noValue: '#3a3f4a', legend };
       applyAppearance();
-      if (!restoringViz) toast('System palette');
+      if (!restoringViz) toast(state.vizSysIsolate.size ? ('Isolated: ' + Array.from(state.vizSysIsolate).join(', ')) : 'System palette — shell ghosted');
+    }
+    const DISC_LABELS = { M: 'Mechanical', E: 'Electrical', P: 'Plumbing', FP: 'Fire', LV: 'Comms / LV', G: 'Civil', S: 'Structural', A: 'Architectural', '?': 'Other' };
+    function discLabel(d) { return DISC_LABELS[d] || d || 'Other'; }
+    function toHexInput(c) { return (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) ? c : '#888888'; }
+    // Item 1 — interactive system legend: presets + per-discipline groups + checkboxes
+    // (multi-isolate) + click-row-to-isolate + per-system count badge + live recolour + search.
+    function renderSystemLegend(col) {
+      const iso = col.isolateSet || (col.isolateSet = new Set());
+      const have = new Set(col.legend.map(it => it.label));
+      const setIso = (ks) => { iso.clear(); ks.forEach(k => { if (have.has(k)) iso.add(k); }); applyAppearance(); renderVisualizePanel(); };
+      const wrap = el('div', { style: 'display:flex;flex-direction:column;gap:4px;margin-top:6px' });
+      const pr = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px' });
+      [['Hot+Cold', ['DCW', 'DHW']], ['Drainage', ['SAN', 'VEN', 'RWD']],
+       ['All Plumbing', 'P'], ['All HVAC', 'M'], ['All Electrical', 'E']].forEach(p => {
+        const ks = Array.isArray(p[1]) ? p[1] : col.legend.filter(it => it.disc === p[1]).map(it => it.label);
+        if (!ks.some(k => have.has(k))) return;
+        pr.appendChild(el('button', { class: 'btn sm', onclick: () => setIso(ks) }, p[0]));
+      });
+      pr.appendChild(el('button', { class: 'btn sm', onclick: () => setIso(col.legend.map(it => it.label)) }, 'Select all'));
+      pr.appendChild(el('button', { class: 'btn sm subtle', onclick: () => setIso([]) }, 'Clear'));
+      wrap.appendChild(pr);
+      const search = el('input', { type: 'text', placeholder: 'Filter systems…', value: state.vizSysSearch || '',
+        style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px 6px;font-size:11px' });
+      const rowsBox = el('div', { style: 'display:flex;flex-direction:column;gap:1px;max-height:240px;overflow:auto' });
+      const renderRows = () => {
+        rowsBox.innerHTML = '';
+        const q = (state.vizSysSearch || '').toLowerCase();
+        const byDisc = {};
+        col.legend.forEach(it => { if (q && !it.label.toLowerCase().includes(q)) return; (byDisc[it.disc] = byDisc[it.disc] || []).push(it); });
+        Object.keys(byDisc).sort().forEach(d => {
+          rowsBox.appendChild(el('div', { style: 'font-size:10px;color:#9aa3b2;margin-top:4px;text-transform:uppercase' }, discLabel(d)));
+          byDisc[d].forEach(it => {
+            const checked = iso.has(it.label);
+            const row = el('div', { style: 'display:flex;align-items:center;gap:6px;font-size:11px;padding:2px 3px;border-radius:3px;cursor:pointer;' + (checked ? 'background:rgba(59,130,246,0.22);' : '') });
+            const ck = el('input', { type: 'checkbox', style: 'cursor:pointer;accent-color:#3B82F6;flex:0 0 auto' });
+            ck.checked = checked;
+            ck.addEventListener('click', (e) => { e.stopPropagation(); if (ck.checked) iso.add(it.label); else iso.delete(it.label); applyAppearance(); renderVisualizePanel(); });
+            const sw = el('input', { type: 'color', value: toHexInput(it.color), title: 'Recolour ' + it.label,
+              style: 'width:14px;height:14px;padding:0;border:none;background:none;cursor:pointer;flex:0 0 auto' });
+            sw.addEventListener('click', (e) => e.stopPropagation());
+            sw.addEventListener('input', () => { state.vizCustomColours.set(it.label, sw.value); col.valueColors.set(it.label, sw.value); it.color = sw.value; applyAppearance(); });
+            row.appendChild(ck); row.appendChild(sw);
+            row.appendChild(el('span', { style: 'flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' }, it.label));
+            row.appendChild(el('span', { style: 'color:#9aa3b2' }, String(it.count)));
+            row.addEventListener('click', () => { iso.clear(); iso.add(it.label); applyAppearance(); renderVisualizePanel(); });
+            row.addEventListener('mouseenter', () => highlightByColourValue(col, it.label));
+            row.addEventListener('mouseleave', () => clearHoverHighlight());
+            rowsBox.appendChild(row);
+          });
+        });
+      };
+      search.addEventListener('input', () => { state.vizSysSearch = search.value; renderRows(); });
+      wrap.appendChild(search); wrap.appendChild(rowsBox); renderRows();
+      return wrap;
     }
     function applyDisciplinePreset(name) {
       const preset = DISC_PRESETS[name];
@@ -2117,7 +2182,9 @@
       // Legend — rendered by the M1 engine (was the overlay's). M4 makes the
       // swatches interactive (click = isolate, shift-click = hide, hover = highlight).
       if (state.vizColour && state.vizColour.legend && state.vizColour.legend.length) {
-        colBox.appendChild(renderVizLegend(state.vizColour));
+        colBox.appendChild(state.vizColour.kind === 'sysPalette'
+          ? renderSystemLegend(state.vizColour)        // item 1 — interactive multi-isolate legend
+          : renderVizLegend(state.vizColour));
       }
       colourSection.appendChild(colBox);
 

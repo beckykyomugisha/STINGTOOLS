@@ -7,6 +7,19 @@
 | R1 bottom panel unrecoverable | DONE-SERVED | marker viz-bottomclamp | clampBottomPanel() clamps height to [80, 85% of CURRENT viewport] on window-resize + on-load; dragged height persisted (planscape_bottom_h) + re-clamped on restore; dblclick reset clears it. Tabs/collapse already delegated (E1), so the collapse handle stays clickable. HUMAN: drag tall / shrink window / reload → top grab-handle always on-screen, collapse handle restores in one click, no refresh. |
 | R2 toggles dead-until-refresh | DONE-SERVED | marker viz-r2deleg | ROOT-CAUSE: one-time addEventListener on re-rendered nodes. Fix = delegation on stable parents (setupTabs .tab-bar; clash/issue filter bars) + the panel already re-binds on render + bottom delegates (E1). Header toggles bind static nodes once (ok). HUMAN: toggle → switch tab → re-render → toggle again → works every time, no refresh. |
 
+## VIEWER system-isolation + flexibility pass (items 1–9)
+| Item | Status | Marker | Note / human-verify |
+|---|---|---|---|
+| 1 colour-by-System multi-isolate + ghost-rest | DONE-SERVED | sys-multi-isolate | Shell (no system) always ghosts; checked systems opaque, rest ghost. Interactive legend: per-disc groups + checkboxes + Select all/Clear + presets (Hot+Cold/Drainage/All Plumbing/HVAC/Electrical) + count badge + live recolour swatch + click-row-isolate + search. Single _vizMode path. Degenerate guard: 0 systems → toast, no ghosting. HUMAN (plumbing model, incognito): check DCW+DHW → only those show, rest ghosted; presets/counts/recolour work. |
+| 2 global ghost-the-rest toggle | TODO | ghost-rest-global | |
+| 3 save/load presets + meeting surface-sync | TODO | viz-surface-sync | |
+| 4 click-to-isolate + search + colour-blind palette | TODO | viz-flex | |
+| 5 ship SignalR client DLLs | TODO | (plugin) | |
+| 6 non-ISO level names pass-through | TODO | (plugin) | |
+| 7 canonical SYS disc-prefix | TODO | (exporter) | |
+| 8 SMTP invite email | TODO | (server+.env) | |
+| 9 flexibility audit | TODO | (doc) | |
+
 ## VISUALIZE UX overhaul (V1–V7) · viewer = surface #1 (esbuild dist → --no-cache build + curl-grep marker)
 
 | Item | Status | Marker/Commit | Note / human test |
