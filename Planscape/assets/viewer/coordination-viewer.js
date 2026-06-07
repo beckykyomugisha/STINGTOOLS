@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-r2deleg');
+    console.log('[viewer] STING_VIZ_BUILD viz-syspalette');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1264,9 +1264,38 @@
     }
     // The raw value a mesh contributes to the active colour scheme: a number for a
     // numeric/gradient scheme, a discipline for a preset, else the (normalised) token.
+    // Part B — standard MEP system colours (BS 1710 / CIBSE / ASME), keyed by STING SYS code.
+    const SYS_PALETTE = {
+      DCW: '#1565c0', CWS: '#1565c0', DHW: '#e53935', HWS: '#e53935', DHWR: '#ec407a',
+      SAN: '#2e7d32', SOIL: '#2e7d32', WASTE: '#558b2f', FW: '#558b2f',
+      VEN: '#9ccc65', VENT: '#9ccc65', RWD: '#00897b', SW: '#00897b', STORM: '#00897b',
+      GAS: '#fbc02d', FP: '#d32f2f', FLS: '#d32f2f',
+      SUP: '#1565c0', SA: '#1565c0', RET: '#fb8c00', RA: '#fb8c00', EA: '#8d6e63',
+      HVAC: '#1565c0', CHW: '#00bcd4', LHW: '#ff7043', HHW: '#ff7043', LTHW: '#ff7043',
+      COM: '#7e57c2', ICT: '#7e57c2', LV: '#7e57c2', NCL: '#26a69a',
+      _other: '#5b6472',
+    };
+    // raw classification (sysClass) → SYS code, for richer matching when the token is absent.
+    const SYS_CLASS_MAP = [
+      [/cold\s*water|domestic\s*cold|\bdcw\b/i, 'DCW'], [/hot\s*water\s*return|recirc/i, 'DHWR'],
+      [/hot\s*water|domestic\s*hot|\bdhw\b/i, 'DHW'], [/sanitary|soil/i, 'SAN'], [/waste/i, 'WASTE'],
+      [/vent/i, 'VEN'], [/storm|rain/i, 'RWD'], [/\bgas\b|natural\s*gas/i, 'GAS'],
+      [/fire\s*protect|sprinkler|\bfire\b/i, 'FP'], [/supply\s*air/i, 'SUP'], [/return\s*air/i, 'RET'],
+      [/exhaust/i, 'EA'], [/chilled/i, 'CHW'], [/hydronic|heating\s*water|\bhhw\b|\blhw\b/i, 'LHW'],
+    ];
+    // The SYS key for a mesh's meta: prefer the SYS token, else derive from raw classification.
+    function sysKeyOf(meta) {
+      let s = String(tokenValue(meta, 'SYS') || '').trim().toUpperCase();
+      if (s) return s;
+      const cls = String((meta && meta.sysClass) || '').trim();
+      if (cls) { for (const pair of SYS_CLASS_MAP) if (pair[0].test(cls)) return pair[1]; }
+      return '';
+    }
     function colourValueOf(col, meta, guid) {
       // C4 — clash/issue status schemes resolve by element GUID via a precomputed map.
       if (col.byGuid) return (guid && col.byGuid.get(guid)) || col.def;
+      // Part B — System palette keys on the SYS code (token or derived from sysClass).
+      if (col.kind === 'sysPalette') return sysKeyOf(meta);
       if (col.kind === 'preset') return discOf(meta);
       // P3b — discipline + category variants: value keys on the (disc|cat) pair.
       if (col.kind === 'discVariants') return (discOf(meta) || '_other') + '|' + (catKey(meta) || '');
@@ -1288,6 +1317,9 @@
       // palette (checked first, for both categorical + preset schemes).
       if (state.vizCustomColours && (v || v === 0) && state.vizCustomColours.has(v)) return state.vizCustomColours.get(v);
       if (col.kind === 'preset') return col.map[v] || col.map._other || null;
+      // Part B — System palette: custom-per-system wins (checked above), else the precomputed
+      // standard/variant colour for that SYS key.
+      if (col.kind === 'sysPalette') return col.valueColors.get(v) || col.noValue || null;
       // P3b — variant value is "disc|cat"; a custom CATEGORY colour wins, else the
       // precomputed variant shade for that pair.
       if (col.kind === 'discVariants') {
@@ -1645,6 +1677,27 @@
       applyAppearance();
       if (!restoringViz) toast('Discipline + category variants');
     }
+    // Part B — System palette: standard per-classification colours for known SYS codes,
+    // variant shades for unknown, custom-per-system still wins; legend shows system + count.
+    // "No SYS values" toast ONLY when genuinely empty (after a re-publish carries the data).
+    function applySystemPalette() {
+      if (!V.modelRoot) return;
+      if (!restoringViz && state.vizPreset === '__syspalette') { clearColour(); renderVisualizePanel(); toast('System palette cleared'); return; }
+      const counts = {};
+      Object.values(state.elementMap || {}).forEach(m => { const k = sysKeyOf(m); if (k) counts[k] = (counts[k] || 0) + 1; });
+      const keys = Object.keys(counts).sort();
+      if (!keys.length) { toast('No SYS values — re-publish from Revit (MEP systems) to populate', 'warn'); return; }
+      const valueColors = new Map(), legend = [];
+      keys.forEach((k, i) => {
+        const hex = SYS_PALETTE[k] || shadeVariant(SYS_PALETTE._other, i, keys.length);
+        valueColors.set(k, hex);
+        legend.push({ label: k + ' (' + counts[k] + ')', color: hex });
+      });
+      state.vizPreset = '__syspalette';
+      state.vizColour = { kind: 'sysPalette', valueColors, isolate: null, hidden: new Set(), noValue: '#3a3f4a', legend };
+      applyAppearance();
+      if (!restoringViz) toast('System palette');
+    }
     function applyDisciplinePreset(name) {
       const preset = DISC_PRESETS[name];
       if (!preset || !V.modelRoot) return;
@@ -1772,6 +1825,7 @@
         if (d.colour) {
           if (d.colour.kind === 'preset' && d.colour.presetName) applyDisciplinePreset(d.colour.presetName);
           else if (d.colour.kind === 'discVariants') applyDisciplineVariants();   // P3b — rebuild variants
+          else if (d.colour.kind === 'sysPalette') applySystemPalette();          // Part B — rebuild system palette
           else if (d.colour.kind === 'clash') colourByClashStatus();
           else if (d.colour.kind === 'issue') colourByIssueStatus();
           else if (d.colour.numeric && d.colour.token) colourByParam(d.colour.token);
@@ -2022,6 +2076,12 @@
       const tokRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' });
       tokens.forEach(([t, label]) => tokRow.appendChild(
         el('button', { class: 'btn sm', style: pressed(cKind === 'token' && cTok === t), onclick: () => colourByToken(t) }, label)));
+      // Part B — System palette: standard MEP-system colours (vs the generic 'System' token
+      // button which palette-assigns). Shown pressed when active.
+      tokRow.appendChild(el('button', {
+        class: 'btn sm', style: (state.vizPreset === '__syspalette' ? 'border-color:#3B82F6;background:rgba(59,130,246,0.30);color:#fff' : ''),
+        title: 'Standard MEP system colours (DCW/DHW/SAN/VEN/GAS/FP/…)',
+        onclick: () => { applySystemPalette(); renderVisualizePanel(); } }, '🛠 System palette'));
       tokRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => { clearColour(); renderVisualizePanel(); toast('Colour cleared'); } }, 'Clear colour'));
       colBox.appendChild(tokRow);
       // C4 — colour by coordination status (clash / issue).

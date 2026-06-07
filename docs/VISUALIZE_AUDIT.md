@@ -1,5 +1,18 @@
 # Viewer Visualize — audit & change log
 
+### Colour-by-System palette · marker `viz-syspalette` (coordination-viewer) · served-verified (data needs Part-A re-publish)
+New **🛠 System palette** button in ② COLOUR BY: standard MEP-system colours (BS 1710 / CIBSE / ASME) keyed by
+the STING SYS code — DCW/CWS blue, DHW/HWS red, DHWR pink, SAN/SOIL dark-green, VEN light-green, RWD/SW teal,
+GAS yellow, FP red, SUP/HVAC blue, RET orange, CHW cyan, LHW/HHW warm, COM/ICT purple; unknown SYS → variant
+shade; `<No System>` muted; custom-per-system colour still wins. `sysKeyOf(meta)` prefers the SYS token, else
+derives from the raw `sysClass` (Part A). Composes with ① SHOW/FILTER (ghost-precedence): "Show P + System
+palette" → plumbing coloured DCW/DHW/SAN, rest ghosted. Legend shows system + count. "No SYS values" toast ONLY
+when genuinely empty (so after the Part-A re-publish it stops showing). Scheme `kind:'sysPalette'` persists via
+serializeViz/applyVizSnapshot. Served proof: minified bundle keeps `sysPalette` + "System palette" + marker
+`viz-syspalette`. PENDING-HUMAN-VERIFY (after a Part-A re-publish): Show P → System palette → plumbing systems
+distinct + legend; before re-publish the toast correctly reports no SYS data.
+
+
 ### R2 — dead-until-refresh toggles: ROOT-CAUSE via event delegation · marker `viz-r2deleg`
 The "toggle works once, dead after a re-render until refresh" class (same as the E1 cascade) is caused by
 ONE-TIME `addEventListener` on nodes that a later render replaces. **Durable fix (this is the fix for the whole
