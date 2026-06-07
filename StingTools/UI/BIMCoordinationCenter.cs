@@ -4338,22 +4338,99 @@ namespace StingTools.UI
                 {
                     Content = "\ud83d\udce7 Invite Selected", Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0),
                     Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
-                    ToolTip = "Copy an invite email body (link + role) for the highlighted row to the clipboard."
+                    ToolTip = "Email a Planscape invitation to the highlighted row via the server (SMTP). Falls back to copying the invite link if the server is unreachable."
                 };
-                inviteBtn.Click += (s, e) =>
+                inviteBtn.Click += async (s, e) =>
                 {
-                    if (accessGrid.SelectedItem is TeamMemberRow tm && !string.IsNullOrWhiteSpace(tm.Email))
+                    if (!(accessGrid.SelectedItem is TeamMemberRow tm) || string.IsNullOrWhiteSpace(tm.Email))
                     {
-                        string invite =
+                        ShowStatus("Select a row with an email first.");
+                        return;
+                    }
+
+                    var client = BIMManager.PlanscapeServerClient.Instance;
+
+                    // Clipboard fallback body — used only when the server is unreachable.
+                    string invite =
                             $"Subject: Planscape invitation — {_data.ProjectName}\n\n" +
                             $"Hi {tm.Name},\n\n" +
                             $"You've been added to the Planscape project '{_data.ProjectName}' as {tm.Role}.\n" +
                             $"Sign in at {BIMManager.PlanscapeServerClient.Instance.ServerUrl}\n\n" +
                             "\u2014 Sent from BIM Coordination Center";
-                        try { System.Windows.Clipboard.SetText(invite); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        ShowStatus($"Invite copied for {tm.Name}");
+                    // Local helper: copy the invite link and explain why we fell back.
+                    void CopyFallback(string reason)
+                    {
+                        try { System.Windows.Clipboard.SetText(invite); } catch (Exception cex) { StingLog.Warn($"Suppressed: {cex.Message}"); }
+                        ShowStatus($"{reason} - invite link copied for {tm.Name}.");
                     }
-                    else ShowStatus("Select a row with an email first.");
+
+                    if (client == null || !client.IsConnected)
+                    {
+                        CopyFallback("Not connected to Planscape Server");
+                        return;
+                    }
+
+                    try
+                    {
+                        // Resolve the server project GUID; find-or-create by name when the
+                        // session hasn't pinned one yet (matches the rest of the sync flow).
+                        Guid projectGuid = client.CurrentProjectId;
+                        if (projectGuid == Guid.Empty && !string.IsNullOrWhiteSpace(_data.ProjectName))
+                            projectGuid = await client.GetOrCreateProjectAsync(_data.ProjectName, _data.ProjectName).ConfigureAwait(true);
+                        if (projectGuid == Guid.Empty)
+                        {
+                            CopyFallback("No server project linked");
+                            return;
+                        }
+
+                        // Map the grid Role -> projectRole / iso19650Role. The four
+                        // platform rows map to projectRole; ISO rows ("CODE <sep> Name")
+                        // contribute the leading code; the separator header maps to neither.
+                        string role = (tm.Role ?? "").Trim();
+                        string projectRole = null, isoRole = null;
+                        var platformRoles = new[] { "Admin", "Coordinator", "Viewer", "External" };
+                        if (platformRoles.Contains(role, StringComparer.OrdinalIgnoreCase))
+                        {
+                            projectRole = role;
+                        }
+                        else
+                        {
+                            var firstToken = role.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+                            if (firstToken.Length > 0 && firstToken.Length <= 4 && firstToken.All(char.IsLetter))
+                                isoRole = firstToken;
+                        }
+
+                        ShowStatus($"Sending invite to {tm.Email}...");
+                        var result = await client.InviteMemberAsync(
+                            projectGuid, tm.Email.Trim(), tm.Name, projectRole, isoRole).ConfigureAwait(true);
+
+                        if (!result.Reachable)
+                        {
+                            CopyFallback("Planscape Server unreachable");
+                            return;
+                        }
+                        if (!result.Ok)
+                        {
+                            ShowStatus($"Invite failed: {result.Message}");
+                            return;
+                        }
+                        if (result.EmailSent)
+                        {
+                            ShowStatus($"Invite emailed to {tm.Email}");
+                        }
+                        else
+                        {
+                            // Server accepted but SMTP isn't configured — copy the link as
+                            // the server note instructs (this is NOT the unreachable path).
+                            try { System.Windows.Clipboard.SetText(invite); } catch (Exception cex) { StingLog.Warn($"Suppressed: {cex.Message}"); }
+                            ShowStatus(result.Note ?? "Invite recorded - email not configured on the server; link copied.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"[invite] handler error for {tm.Email}: {ex.Message}");
+                        CopyFallback("Invite error");
+                    }
                 };
                 accessToolbar.Children.Add(inviteBtn);
 

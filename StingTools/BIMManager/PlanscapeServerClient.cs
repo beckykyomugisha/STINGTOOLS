@@ -806,6 +806,91 @@ public sealed partial class PlanscapeServerClient : IDisposable
     }
 
     /// <summary>
+    /// Invite a member by email through the server's mail-sending invite
+    /// endpoint (<c>POST /api/projects/{id}/members/invite</c> — the route
+    /// fixed in item 8 that reads SMTP_* from .env). The BCC "Invite
+    /// Selected" button calls this so the invite is actually emailed
+    /// server-side instead of just being copied to the clipboard.
+    ///
+    /// <para><see cref="InviteResult.Reachable"/> distinguishes a transport
+    /// failure (server unreachable → caller should fall back to clipboard)
+    /// from a server-side rejection (reachable but non-2xx → surface
+    /// <see cref="InviteResult.Message"/>). A <c>[invite]</c> line is always
+    /// written to StingTools.log with the HTTP status for traceability.</para>
+    /// </summary>
+    public async Task<InviteResult> InviteMemberAsync(
+        Guid projectId, string email, string? displayName,
+        string? projectRole = null, string? iso19650Role = null)
+    {
+        if (!await EnsureAuthenticatedAsync().ConfigureAwait(false))
+        {
+            StingLog.Warn($"[invite] not authenticated — cannot invite {email}");
+            return new InviteResult { Reachable = false, Message = LastError ?? "Not connected to Planscape server." };
+        }
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/members/invite",
+                new { email, displayName, projectRole, iso19650Role }).ConfigureAwait(false);
+
+            StingLog.Info($"[invite] POST /api/projects/{projectId}/members/invite -> HTTP {resp.status} for {email}");
+
+            if (!resp.ok)
+            {
+                string serverMsg = ExtractServerMessage(resp.body) ?? $"Server returned HTTP {resp.status}.";
+                LastError = serverMsg;
+                return new InviteResult { Reachable = true, Ok = false, Status = resp.status, Message = serverMsg };
+            }
+
+            var json = JObject.Parse(resp.body);
+            bool emailSent = json.Value<bool?>("emailSent") ?? false;
+            StingLog.Info($"[invite] server reported emailSent={emailSent} for {email}");
+            return new InviteResult
+            {
+                Reachable = true,
+                Ok        = true,
+                Status    = resp.status,
+                EmailSent = emailSent,
+                Note      = json.Value<string>("note"),
+                Message   = json.Value<string>("message"),
+            };
+        }
+        catch (Exception ex)
+        {
+            // Transport-level failure (DNS / socket / TLS) → treat as unreachable
+            // so the caller can fall back to copying the invite link.
+            LastError = ex.Message;
+            StingLog.Warn($"[invite] POST .../members/invite failed (unreachable) for {email}: {ex.Message}");
+            return new InviteResult { Reachable = false, Message = ex.Message };
+        }
+    }
+
+    /// <summary>Best-effort extraction of a human-readable message from a
+    /// non-2xx response body — handles both a JSON object (<c>{ "message": … }</c>
+    /// or ASP.NET ProblemDetails <c>{ "title": … }</c>) and a plain-string
+    /// body (e.g. <c>Conflict("User is already a member")</c>).</summary>
+    private static string? ExtractServerMessage(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
+        string trimmed = body.Trim();
+        if (trimmed.StartsWith("{"))
+        {
+            try
+            {
+                var jo = JObject.Parse(trimmed);
+                return jo.Value<string>("message")
+                    ?? jo.Value<string>("note")
+                    ?? jo.Value<string>("title")
+                    ?? jo.Value<string>("detail")
+                    ?? jo.Value<string>("error");
+            }
+            catch { /* fall through to raw body */ }
+        }
+        // Plain-string body — Newtonsoft serialises bare strings with quotes.
+        return trimmed.Trim('"');
+    }
+
+    /// <summary>
     /// Phase 177 — batch-push audit events recorded by the local
     /// <c>Planscape.Docs.Workflow.AuditLog</c> JSONL chain so the server's
     /// AuditLog table has the union, not just server-originated rows.
@@ -2162,6 +2247,30 @@ public sealed class SyncResult
     public double CompliancePercent { get; set; }
     public string RagStatus         { get; set; } = "";
     public string? Error            { get; set; }
+}
+
+/// <summary>Outcome of <see cref="PlanscapeServerClient.InviteMemberAsync"/>.
+/// <see cref="Reachable"/> is the key discriminator: when false the server
+/// could not be contacted and the caller should fall back to copying the
+/// invite link; when true the call completed and <see cref="Ok"/> /
+/// <see cref="EmailSent"/> describe the server-side result.</summary>
+public sealed class InviteResult
+{
+    /// <summary>The server responded (any HTTP status). False ⇒ transport
+    /// failure / not authenticated ⇒ caller should use the clipboard fallback.</summary>
+    public bool    Reachable { get; set; }
+    /// <summary>The server accepted the invite (2xx).</summary>
+    public bool    Ok        { get; set; }
+    /// <summary>HTTP status code (0 when never reached).</summary>
+    public int     Status    { get; set; }
+    /// <summary>True when the server actually sent the invitation email
+    /// (SMTP configured). False ⇒ recorded but mail not dispatched.</summary>
+    public bool    EmailSent { get; set; }
+    /// <summary>Server-supplied explanatory note (e.g. "Email is not
+    /// configured on the server — copy the invitation link…").</summary>
+    public string? Note      { get; set; }
+    /// <summary>Server message on success, or the error/rejection text.</summary>
+    public string? Message   { get; set; }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
