@@ -14,11 +14,22 @@ public class NotificationsController : ControllerBase
 {
     private readonly IPushNotificationService _pushService;
     private readonly PlanscapeDbContext _db;
+    private readonly IEmailService _emailService;
+    private readonly IConfiguration _config;
+    private readonly ILogger<NotificationsController> _logger;
 
-    public NotificationsController(IPushNotificationService pushService, PlanscapeDbContext db)
+    public NotificationsController(
+        IPushNotificationService pushService,
+        PlanscapeDbContext db,
+        IEmailService emailService,
+        IConfiguration config,
+        ILogger<NotificationsController> logger)
     {
         _pushService = pushService;
         _db = db;
+        _emailService = emailService;
+        _config = config;
+        _logger = logger;
     }
 
     /// <summary>
@@ -99,6 +110,60 @@ public class NotificationsController : ControllerBase
         });
 
         return Ok(new { message = "Test notification sent" });
+    }
+
+    /// <summary>
+    /// Send a sample invite-styled email to the signed-in user's own address,
+    /// through the EXACT same render path as a real invite — a true render check
+    /// without having to invite a real member. Returns { sent, message, to }.
+    /// POST /api/notifications/test-email
+    /// </summary>
+    [HttpPost("test-email")]
+    public async Task<ActionResult> TestEmail(CancellationToken ct)
+    {
+        var userId = GetUserId();
+        if (userId == Guid.Empty) return Unauthorized();
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user == null || string.IsNullOrWhiteSpace(user.Email))
+            return BadRequest(new { sent = false, message = "Your account has no email address on file.", to = (string?)null });
+
+        if (!_emailService.IsConfigured)
+        {
+            _logger.LogWarning("[email-test] requested by {Email} but SMTP not configured", user.Email);
+            return Ok(new { sent = false, message = "SMTP is not configured on the server — no email was sent. Set Smtp__Host (and recreate the api container) to enable email.", to = user.Email });
+        }
+
+        // Resolve the public base URL exactly like the invite path so the link in
+        // the test email matches a real invite.
+        var baseUrl = Planscape.API.PublicUrl.Resolve(_config, Request);
+        var displayName = string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email : user.DisplayName;
+
+        // Clearly non-functional sample token: the button renders + is clickable
+        // (lands on reset-password.html) but won't validate — this is a render
+        // check, not a real invitation, so it never mutates the account.
+        const string sampleToken = "SAMPLE-RENDER-CHECK-TOKEN";
+
+        try
+        {
+            await _emailService.SendInviteEmailAsync(
+                toEmail:    user.Email,
+                displayName: displayName,
+                inviterName: "Planscape (test email)",
+                projectName: "Sample Project",
+                serverUrl:   baseUrl,
+                resetToken:  sampleToken,
+                projectId:   Guid.Empty,
+                ct:          ct);
+
+            _logger.LogInformation("[email-test] sent invite-styled test email to {Email}", user.Email);
+            return Ok(new { sent = true, message = $"Test email sent to {user.Email}", to = user.Email });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[email-test] send failed to {Email}", user.Email);
+            return StatusCode(StatusCodes.Status502BadGateway, new { sent = false, message = ex.Message, to = user.Email });
+        }
     }
 
     private Guid GetUserId() =>
