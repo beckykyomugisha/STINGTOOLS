@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.API.Authorization;
@@ -26,16 +27,19 @@ public class ProjectMembersController : ControllerBase
     private readonly IEmailService _emailService;
     private readonly IProjectMembershipNotifier _membershipNotifier;
     private readonly IConfiguration _config;
+    private readonly ILogger<ProjectMembersController> _logger;
 
     public ProjectMembersController(PlanscapeDbContext db,
                                     IEmailService emailService,
                                     IProjectMembershipNotifier membershipNotifier,
-                                    IConfiguration config)
+                                    IConfiguration config,
+                                    ILogger<ProjectMembersController> logger)
     {
         _db = db;
         _emailService = emailService;
         _membershipNotifier = membershipNotifier;
         _config = config;
+        _logger = logger;
     }
 
     // ── GET all members for a project ─────────────────────────────────────────
@@ -197,7 +201,19 @@ public class ProjectMembersController : ControllerBase
     [HttpPost("invite")]
     public async Task<ActionResult> InviteByEmail(Guid projectId, [FromBody] InviteByEmailRequest req)
     {
-        if (!await IsManagerOrAboveAsync(projectId)) return Forbid();
+        // Authorize by PROJECT role (see AuthorizeManageAsync). On denial, log
+        // the reason and return JSON { message } the plugin surfaces — never a
+        // bare 403 (which the user can't act on).
+        var auth = await AuthorizeManageAsync(projectId);
+        if (!auth.ok)
+        {
+            _logger.LogWarning("[invite] denied: caller {UserId} role {Role} on project {ProjectId} — {Reason}",
+                ProjectVisibility.GetUserId(User), auth.callerRole, projectId, auth.reason);
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                message = $"You don't have permission to invite members to this project ({auth.reason})."
+            });
+        }
 
         var tenantId = GetTenantId();
         var project  = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
@@ -524,10 +540,45 @@ public class ProjectMembersController : ControllerBase
     }
 
     private async Task<bool> IsManagerOrAboveAsync(Guid projectId)
+        => (await AuthorizeManageAsync(projectId)).ok;
+
+    /// <summary>
+    /// Authorize a membership-management action (add / invite / update / remove).
+    /// Authorization is by the caller's PROJECT role, NOT the global JWT
+    /// <c>role</c> claim — that earlier check 403'd a project Manager/author
+    /// whose tenant role happened to be Contributor, so they couldn't invite
+    /// to their own project. A caller is allowed when they are:
+    ///   • a tenant Admin / Owner / SecurityOfficer, OR
+    ///   • the project author (<c>Project.CreatedById</c>), OR
+    ///   • an active <c>ProjectMember</c> whose <c>ProjectRole</c> is
+    ///     Owner / Admin / Manager.
+    /// Returns the (denial) reason and the caller's effective role for logging.
+    /// </summary>
+    private async Task<(bool ok, string reason, string callerRole)> AuthorizeManageAsync(Guid projectId)
     {
-        if (!await CanAccessProjectAsync(projectId)) return false;
-        var role = User.FindFirst("role")?.Value ?? "";
-        return role is "Manager" or "Admin" or "Owner";
+        if (!await CanAccessProjectAsync(projectId))
+            return (false, "caller cannot see this project", "(none)");
+
+        if (ProjectVisibility.IsTenantAdmin(User))
+            return (true, "tenant admin", User.FindFirst("role")?.Value ?? "Admin");
+
+        var userId = ProjectVisibility.GetUserId(User);
+
+        var project = await _db.Projects.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == projectId);
+        if (project?.CreatedById is Guid author && author == userId)
+            return (true, "project author", "Author");
+
+        var member = await _db.ProjectMembers.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId && m.IsActive);
+        if (member == null)
+            return (false, "caller is not an active member of this project", "(none)");
+
+        var pr = member.ProjectRole ?? "";
+        if (pr is "Owner" or "Admin" or "Manager")
+            return (true, $"project {pr}", pr);
+
+        return (false, $"project role '{pr}' lacks membership-management permission (need Manager or above)", pr);
     }
 
     // Phase 177 — normalise inbound array → CSV; null/empty array means
