@@ -1,5 +1,12 @@
 # PROGRESS — viewer visualization
 
+
+## ROBUSTNESS (R1, R2)
+| Item | Status | Marker | Note / human test |
+|---|---|---|---|
+| R1 bottom panel unrecoverable | DONE-SERVED | marker viz-bottomclamp | clampBottomPanel() clamps height to [80, 85% of CURRENT viewport] on window-resize + on-load; dragged height persisted (planscape_bottom_h) + re-clamped on restore; dblclick reset clears it. Tabs/collapse already delegated (E1), so the collapse handle stays clickable. HUMAN: drag tall / shrink window / reload → top grab-handle always on-screen, collapse handle restores in one click, no refresh. |
+| R2 toggles dead-until-refresh | IN-PROGRESS | — | audit + delegation/re-bind |
+
 ## VISUALIZE UX overhaul (V1–V7) · viewer = surface #1 (esbuild dist → --no-cache build + curl-grep marker)
 
 | Item | Status | Marker/Commit | Note / human test |

@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-opacity');
+    console.log('[viewer] STING_VIZ_BUILD viz-bottomclamp');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -5748,6 +5748,32 @@
     // ── Bottom panel ───────────────────────────────────────────────────
     function setupBottomPanel() {
       const bottom = $('#bottomPanel');
+      // R1 — the tray must NEVER exceed the current viewport (else the top grab-handle +
+      // collapse button scroll off-screen and there's no way back without a refresh), nor
+      // shrink below a usable minimum. Clamp on every window resize + on load, and persist a
+      // SANE height that's re-clamped to the current viewport when restored.
+      const BP_MIN = 80;
+      const bpMaxH = () => Math.max(120, Math.floor(window.innerHeight * 0.85));
+      function clampBottomPanel() {
+        const bp = $('#bottomPanel'); if (!bp || bp.classList.contains('collapsed')) return;
+        const cur = bp.getBoundingClientRect().height;
+        const clamped = Math.min(bpMaxH(), Math.max(BP_MIN, cur));
+        if (Math.abs(clamped - cur) > 1) {
+          bp.style.height = clamped + 'px';
+          document.documentElement.style.setProperty('--bottom-panel-height', clamped + 'px');
+          onResize();
+        }
+      }
+      try {
+        const savedH = parseInt(localStorage.getItem('planscape_bottom_h') || '', 10);
+        if (savedH && bottom && !bottom.classList.contains('collapsed')) {
+          const c = Math.min(bpMaxH(), Math.max(BP_MIN, savedH));
+          bottom.style.height = c + 'px';
+          document.documentElement.style.setProperty('--bottom-panel-height', c + 'px');
+        }
+      } catch (_) {}
+      window.addEventListener('resize', clampBottomPanel);
+      setTimeout(clampBottomPanel, 0);
       // E1 — DELEGATED click handling on the stable #bottomPanel so the tab buttons
       // (CLASHES/ISSUES/TIMELINE) + the collapse toggle can't lose their bindings.
       if (bottom) bottom.addEventListener('click', (ev) => {
@@ -5812,9 +5838,12 @@
           document.documentElement.style.setProperty('--bottom-panel-height', next + 'px');
         };
         const onUp = () => {
-          $('#bottomPanel').classList.remove('resizing');
+          const bp = $('#bottomPanel');
+          bp.classList.remove('resizing');
           document.removeEventListener('pointermove', onMove);
           document.removeEventListener('pointerup', onUp);
+          clampBottomPanel();                         // R1 — never leave an off-screen height
+          try { localStorage.setItem('planscape_bottom_h', String(parseInt(bp.style.height, 10) || '')); } catch (_) {}
           onResize();                                 // canvas re-fit
         };
         resizeHandle.addEventListener('pointerdown', (ev) => {
@@ -5838,6 +5867,7 @@
         resizeHandle.addEventListener('dblclick', () => {
           $('#bottomPanel').style.removeProperty('height');
           document.documentElement.style.removeProperty('--bottom-panel-height');
+          try { localStorage.removeItem('planscape_bottom_h'); } catch (_) {}   // R1 — reset persisted height
           onResize();
         });
       }
