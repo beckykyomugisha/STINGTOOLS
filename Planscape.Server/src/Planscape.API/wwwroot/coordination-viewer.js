@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-combo');
+    console.log('[viewer] STING_VIZ_BUILD viz-colcat');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1972,7 +1972,7 @@
       // toggle is obvious. cKind/cTok read the single state model (state.vizColour).
       const cKind = state.vizColour && state.vizColour.kind, cTok = state.vizColour && state.vizColour.token;
       const pressed = (on) => on ? 'border-color:#3B82F6;background:rgba(59,130,246,0.30);color:#fff' : '';
-      const tokens = [['DISC', 'Discipline'], ['SYS', 'System'], ['LVL', 'Level'], ['FUNC', 'Function'], ['PROD', 'Product']];
+      const tokens = [['DISC', 'Discipline'], ['CAT', 'Category'], ['SYS', 'System'], ['LVL', 'Level'], ['FUNC', 'Function'], ['PROD', 'Product']];
       const tokRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' });
       tokens.forEach(([t, label]) => tokRow.appendChild(
         el('button', { class: 'btn sm', style: pressed(cKind === 'token' && cTok === t), onclick: () => colourByToken(t) }, label)));

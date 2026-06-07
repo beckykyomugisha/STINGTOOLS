@@ -8,9 +8,9 @@
 | V2 x-ray category filter | NEEDS-INFO | — | NOT a code regression: the "Keep solid under x-ray / ghost" per-category filter IS present + appended (wrap.appendChild(keepBox)) + in the served bundle. P2 diff didn't remove it. Per-category chips render only when models carry CAT tokens — if federated models lack CAT, chips are empty (data, not code). Need which control is "gone". |
 | V3 discipline combo presets | DONE-SERVED | marker viz-combo | All/MEP/M&E/M&P/E&P + per-discipline one-click "show these, ghost rest" (comboPreset → shadeOnlySet). |
 | V4 two-section restructure (Show/Filter × Colour by) | TODO | — | big additive restructure of renderVisualizePanel |
-| V5 colour-by-category distinct shades | TODO | — | each category distinct within shown set (variant engine); custom wins |
+| V5 colour-by-category | DONE-SERVED | marker viz-colcat | `curl /coordination-viewer.js \| grep viz-colcat`. Added 'Category' to the Colour-by-tag list → colourByToken('CAT') gives each category a distinct palette colour (custom per-category wins). Ghost takes precedence over colour, so 'Show MEP'+'Colour by Category' = MEP coloured-by-category, rest ghosted (the V4/V5 scenario). Live legend via existing renderVizLegend. HUMAN: Show MEP → Colour by Category → Pipes/Fittings/Accessories/Water Heaters/Mech Equip all distinct, rest ghosted. |
 | V6 saved view-states | TODO | — | Save/recall named Show+Colour combos, persist per project, broadcastable |
-| V7 View↔Visualize alignment | TODO | — | render mode = global base; colour scheme persists across mode switch; Clear→base |
+| V7 View↔Visualize alignment | DONE (already holds) | architecture | setRenderMode doesn't clear state.vizColour; the render-mode lens applies only UNDER colour (mesh resolved to 'show'), so a colour scheme persists across Shaded/Wire/X-Ray/Ghosted/Realistic switches; clearColour/resetVisualization → base. Functional requirement satisfied; explicit UI note deferred to the V4 restructure. HUMAN: set 'MEP by category' (V5) → switch render mode → colours persist; Reset → clean base. |
 
 NOTE (honest): V1 + V2 as described don't reproduce from the current source (verified served==source). Not
 blind-editing the viewer's layered-model/render code for non-reproducible bugs (regression risk the task forbids).
