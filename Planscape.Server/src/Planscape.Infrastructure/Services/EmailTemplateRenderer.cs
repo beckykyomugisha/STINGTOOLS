@@ -122,6 +122,18 @@ public class FileEmailTemplateRenderer : IEmailTemplateRenderer
 
     // ── Rendering ──
 
+    /// <summary>
+    /// Placeholders whose values are already-rendered, server-composed HTML
+    /// fragments — never raw user input. The layout's <c>{{Body}}</c> slot holds
+    /// a pre-rendered template body (e.g. the invite HTML with its <c>&lt;h2&gt;</c>
+    /// heading + "Set password &amp; join" button). These MUST be injected
+    /// verbatim; HTML-encoding them is the double-escape bug that makes the
+    /// recipient see literal <c>&lt;h2&gt;</c> tags. Every other placeholder
+    /// stays HTML-encoded.
+    /// </summary>
+    private static readonly HashSet<string> RawHtmlKeys =
+        new(StringComparer.Ordinal) { "Body" };
+
     private static string Render(string template, IDictionary<string, string?> model, bool escape)
     {
         // Handle simple {{#if Key}}…{{/if}} blocks first — strip block entirely when key is
@@ -144,7 +156,10 @@ public class FileEmailTemplateRenderer : IEmailTemplateRenderer
             var key = m.Groups[1].Value;
             model.TryGetValue(key, out var val);
             val ??= "";
-            return escape ? WebUtility.HtmlEncode(val) : val;
+            // Raw-HTML slots (e.g. the layout {{Body}}) carry pre-rendered, trusted
+            // markup and must be injected verbatim even in HTML mode — otherwise the
+            // layout escapes the inner template and the recipient sees raw <h2> tags.
+            return (escape && !RawHtmlKeys.Contains(key)) ? WebUtility.HtmlEncode(val) : val;
         });
     }
 
