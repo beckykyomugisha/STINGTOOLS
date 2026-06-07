@@ -11,7 +11,7 @@
 | Item | Status | Marker | Note / human-verify |
 |---|---|---|---|
 | 1 colour-by-System multi-isolate + ghost-rest | DONE-SERVED | sys-multi-isolate | Shell (no system) always ghosts; checked systems opaque, rest ghost. Interactive legend: per-disc groups + checkboxes + Select all/Clear + presets (Hot+Cold/Drainage/All Plumbing/HVAC/Electrical) + count badge + live recolour swatch + click-row-isolate + search. Single _vizMode path. Degenerate guard: 0 systems → toast, no ghosting. HUMAN (plumbing model, incognito): check DCW+DHW → only those show, rest ghosted; presets/counts/recolour work. |
-| 2 global ghost-the-rest toggle | TODO | ghost-rest-global | |
+| 2 global ghost-the-rest toggle | DONE-SERVED | ghost-rest-global | One "Ghost the rest (fade non-matching)" checkbox in COLOUR BY; resolver honours (col.ghostUnmatched || state.vizGhostRest) so it works in discipline/category/system/param. Default ON for system (col.ghostUnmatched). HUMAN: colour by Discipline → tick Ghost the rest → no-discipline elements fade. |
 | 3 save/load presets + meeting surface-sync | TODO | viz-surface-sync | |
 | 4 click-to-isolate + search + colour-blind palette | TODO | viz-flex | |
 | 5 ship SignalR client DLLs | TODO | (plugin) | |

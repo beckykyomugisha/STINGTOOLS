@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD sys-multi-isolate');
+    console.log('[viewer] STING_VIZ_BUILD ghost-rest-global');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1133,7 +1133,7 @@
           const key = colourKey(col, v);
           if (col.hidden && col.hidden.has(key)) mode = 'hide';                 // legend shift-click
           else if (col.isolateSet && col.isolateSet.size && !col.isolateSet.has(key)) mode = 'ghost';  // items 1/2 — multi-isolate: unchecked → ghost
-          else if (col.ghostUnmatched && (key == null || key === '' || key === NOVAL)) mode = 'ghost'; // items 1/2 — ghost-the-rest: no-value/shell
+          else if ((col.ghostUnmatched || state.vizGhostRest) && (key == null || key === '' || key === NOVAL)) mode = 'ghost'; // items 1/2 — ghost-the-rest: no-value/shell (per-scheme OR global toggle)
           else if (col.isolate != null && key !== col.isolate) mode = 'ghost';  // legend isolate → ghost rest
           else {
             // P3a — when colouring by DISCIPLINE (preset) or by discipline+variants, a
@@ -2163,6 +2163,22 @@
         onclick: () => { applySystemPalette(); renderVisualizePanel(); } }, '🛠 System palette'));
       tokRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => { clearColour(); renderVisualizePanel(); toast('Colour cleared'); } }, 'Clear colour'));
       colBox.appendChild(tokRow);
+      // Item 2 — global "Ghost the rest" toggle: fade everything that doesn't match the active
+      // colour filter, in ANY mode (discipline / category / system / param). Default ON for
+      // system (applySystemPalette sets col.ghostUnmatched); available + toggleable elsewhere.
+      if (state.vizColour) {
+        const grOn = !!(state.vizColour.ghostUnmatched || state.vizGhostRest);
+        const grck = el('input', { type: 'checkbox', style: 'cursor:pointer;accent-color:#3B82F6' });
+        grck.checked = grOn;
+        grck.addEventListener('change', () => {
+          state.vizGhostRest = grck.checked;
+          if (state.vizColour) state.vizColour.ghostUnmatched = grck.checked;  // system mode honours the same flag
+          applyAppearance(); renderVisualizePanel();
+        });
+        const grRow = el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:11px;color:#cfd6e4;cursor:pointer;margin-top:4px' },
+          [grck, el('span', {}, 'Ghost the rest (fade non-matching)')]);
+        colBox.appendChild(grRow);
+      }
       // C4 — colour by coordination status (clash / issue).
       colBox.appendChild(el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' }, [
         el('button', { class: 'btn sm', style: pressed(cKind === 'clash'), title: 'Colour by clash status (worst per element)', onclick: () => colourByClashStatus() }, 'Clash status'),
