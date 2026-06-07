@@ -43,7 +43,7 @@ Surfaces + SERVED gates per DEPLOY.md. `meetings-core.js` + `dashboard.js` are v
 | Item | Status | Commit | Proof / human test |
 |---|---|---|---|
 | A mobile role-gating | DONE-SERVED (tsc) | meetings/index.tsx | `cd Planscape && npx tsc --noEmit` clean. Mobile authoring gated by meetingsCore.can(meetingRole): minutes editor+Save (editMinutes), agenda add (editAgenda), action add (assignActions) + Mark-Complete (assign OR own), attendee add/Remove (manageAttendees), list FAB create (schedule). HUMAN: log in as host/secretary/attendee/client → only allowed controls show. |
-| B shared-package collapse | BLOCKED (report) | — | NOT clean — see options below. Stopped per task clause (don't half-collapse). |
+| B shared-package collapse | DONE via Z (parity guard) | tools/meetings-core-parity.js + CI | Chose Z (full collapse X/Y deferred — needs workspace/Metro/build changes). Kept the two lockstep files + a CI guard asserting CAPS (10 roles) + API method names match across web meetings-core.js ↔ mobile meetingsCore.ts; fails the PR on drift. (Guard caught a real drift — web had minutesIcsUrl, mobile didn't — now aligned: 21 methods both.) |
 
 **B — why blocked + options.** A single physical package can't be cleanly consumed by both surfaces today:
 1. No root `package.json`/workspaces; `Planscape/` is a standalone Expo app.

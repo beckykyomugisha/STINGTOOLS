@@ -107,6 +107,7 @@ export const meetingsCore = {
 
   logMinutes: (pid: string, mid: string, minutes: string, status?: string): Promise<Meeting> => apiFetch(`${base(pid)}/${mid}/minutes`, { method: "POST", body: JSON.stringify({ minutes, status }) }),
   generateMinutesDoc: (pid: string, mid: string): Promise<{ documentId: string }> => apiFetch(`${base(pid)}/${mid}/export/minutes`, { method: "POST" }),
+  minutesIcsUrl: (pid: string, mid: string): string => `${base(pid)}/${mid}/export/ics`,   // lockstep with meetings-core.js
 
   startLiveSession: (pid: string, mid: string, body: any = {}) => apiFetch(`${base(pid)}/${mid}/live-session`, { method: "POST", body: JSON.stringify(body) }),
   getLiveArtifacts: (pid: string, mid: string): Promise<MeetingLiveArtifacts> => apiFetch(`${base(pid)}/${mid}/live-artifacts`),

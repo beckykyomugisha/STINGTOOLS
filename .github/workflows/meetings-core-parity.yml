@@ -1,0 +1,42 @@
+# Meetings-core parity guard (option Z).
+#
+# The meeting logic + API + role→capability matrix live in TWO lockstep modules with an
+# identical CONTRACT (they can't be one physical file: there's no monorepo workspace and
+# Metro can't import the served wwwroot UMD across project roots):
+#   web   : Planscape.Server/src/Planscape.API/wwwroot/js/meetings-core.js  (window.MeetingsCore)
+#   mobile: Planscape/src/api/meetingsCore.ts                               (Metro import)
+#
+# This workflow fails the PR when the role matrix (CAPS) or the API method names drift
+# between the two, so the surfaces can't silently diverge. See DEPLOY.md (four surfaces) +
+# PROGRESS.md (recordings "B" → Z). The actual collapse to one file (option X/Y) is deferred.
+
+name: Meetings-core parity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Planscape.Server/src/Planscape.API/wwwroot/js/meetings-core.js'
+      - 'Planscape/src/api/meetingsCore.ts'
+      - 'tools/meetings-core-parity.js'
+      - '.github/workflows/meetings-core-parity.yml'
+  pull_request:
+    paths:
+      - 'Planscape.Server/src/Planscape.API/wwwroot/js/meetings-core.js'
+      - 'Planscape/src/api/meetingsCore.ts'
+      - 'tools/meetings-core-parity.js'
+      - '.github/workflows/meetings-core-parity.yml'
+
+jobs:
+  parity:
+    name: CAPS + API method names in lockstep
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run parity guard
+        run: node tools/meetings-core-parity.js
