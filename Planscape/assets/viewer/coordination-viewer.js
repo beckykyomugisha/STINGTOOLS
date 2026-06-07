@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD ghost-rest-global');
+    console.log('[viewer] STING_VIZ_BUILD viz-flex');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1696,9 +1696,9 @@
     // Part B — System palette: standard per-classification colours for known SYS codes,
     // variant shades for unknown, custom-per-system still wins; legend shows system + count.
     // "No SYS values" toast ONLY when genuinely empty (after a re-publish carries the data).
-    function applySystemPalette() {
+    function applySystemPalette(force) {
       if (!V.modelRoot) return;
-      if (!restoringViz && state.vizPreset === '__syspalette') { clearColour(); renderVisualizePanel(); toast('System palette cleared'); return; }
+      if (!force && !restoringViz && state.vizPreset === '__syspalette') { clearColour(); renderVisualizePanel(); toast('System palette cleared'); return; }
       const counts = {}, discByKey = {};
       Object.values(state.elementMap || {}).forEach(m => {
         const k = sysKeyOf(m); if (!k) return;
@@ -1712,7 +1712,10 @@
       Array.from(state.vizSysIsolate).forEach(k => { if (!counts[k]) state.vizSysIsolate.delete(k); }); // drop stale
       const valueColors = new Map(), legend = [];
       keys.forEach((k, i) => {
-        const hex = (state.vizCustomColours.has(k) && state.vizCustomColours.get(k)) || SYS_PALETTE[k] || shadeVariant(SYS_PALETTE._other, i, keys.length);
+        // Item 4 — colour-blind-safe (Okabe-Ito) palette as an alternate; custom-per-system wins.
+        const hex = (state.vizCustomColours.has(k) && state.vizCustomColours.get(k))
+          || (state.vizColourBlind ? CB_SAFE[i % CB_SAFE.length]
+             : (SYS_PALETTE[k] || shadeVariant(SYS_PALETTE._other, i, keys.length)));
         valueColors.set(k, hex);
         legend.push({ label: k, count: counts[k], color: hex, disc: discByKey[k] });
       });
@@ -1723,6 +1726,8 @@
       applyAppearance();
       if (!restoringViz) toast(state.vizSysIsolate.size ? ('Isolated: ' + Array.from(state.vizSysIsolate).join(', ')) : 'System palette — shell ghosted');
     }
+    // Item 4 — Okabe-Ito colour-blind-safe qualitative palette (deutan/protan/tritan friendly).
+    const CB_SAFE = ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7', '#000000', '#999999'];
     const DISC_LABELS = { M: 'Mechanical', E: 'Electrical', P: 'Plumbing', FP: 'Fire', LV: 'Comms / LV', G: 'Civil', S: 'Structural', A: 'Architectural', '?': 'Other' };
     function discLabel(d) { return DISC_LABELS[d] || d || 'Other'; }
     function toHexInput(c) { return (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) ? c : '#888888'; }
@@ -2178,6 +2183,16 @@
         const grRow = el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:11px;color:#cfd6e4;cursor:pointer;margin-top:4px' },
           [grck, el('span', {}, 'Ghost the rest (fade non-matching)')]);
         colBox.appendChild(grRow);
+        // Item 4 — colour-blind-safe palette toggle (re-applies the System palette in CB colours).
+        const cbck = el('input', { type: 'checkbox', style: 'cursor:pointer;accent-color:#3B82F6' });
+        cbck.checked = !!state.vizColourBlind;
+        cbck.addEventListener('change', () => {
+          state.vizColourBlind = cbck.checked;
+          if (state.vizColour && state.vizColour.kind === 'sysPalette') applySystemPalette(true);  // force rebuild in CB colours
+          else { applyAppearance(); renderVisualizePanel(); }
+        });
+        colBox.appendChild(el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:11px;color:#cfd6e4;cursor:pointer;margin-top:2px' },
+          [cbck, el('span', {}, 'Colour-blind-safe palette')]));
       }
       // C4 — colour by coordination status (clash / issue).
       colBox.appendChild(el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' }, [
@@ -2296,12 +2311,26 @@
         byCat.appendChild(sectionTitle('By category'));
         const catCounts = {};
         Object.values(state.elementMap).forEach(m => { const c = catKey(m); if (c) catCounts[c] = (catCounts[c] || 0) + 1; });
-        cats.forEach(c => byCat.appendChild(vizModeRow(c, catCounts[c],
-          () => state.vizCatMode.get(c),
-          (m) => state.vizCatMode.set(c, m),
-          () => shadeOnlyCategory(c),         // label / ◎ click isolates
-          c,                                   // B1 — custom-colour key
-          state.vizCatSel, c)));               // P2 — multi-isolate tick
+        // Item 4 — category search (local rebuild keeps focus); shown when the list is long.
+        const catRowsBox = el('div', {});
+        const renderCatRows = () => {
+          catRowsBox.innerHTML = '';
+          const q = (state.vizCatSearch || '').toLowerCase();
+          cats.filter(c => !q || String(c).toLowerCase().includes(q)).forEach(c => catRowsBox.appendChild(vizModeRow(c, catCounts[c],
+            () => state.vizCatMode.get(c),
+            (m) => state.vizCatMode.set(c, m),
+            () => shadeOnlyCategory(c),
+            c,
+            state.vizCatSel, c)));
+        };
+        if (cats.length > 6) {
+          const catSearch = el('input', { type: 'text', placeholder: 'Filter categories…', value: state.vizCatSearch || '',
+            style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px 6px;font-size:11px;margin-bottom:4px;width:100%' });
+          catSearch.addEventListener('input', () => { state.vizCatSearch = catSearch.value; renderCatRows(); });
+          byCat.appendChild(catSearch);
+        }
+        renderCatRows();
+        byCat.appendChild(catRowsBox);
         const cActions = el('div', { style: 'display:flex;gap:4px;margin-top:4px' });
         cActions.appendChild(el('button', { class: 'btn sm', style: 'flex:1;white-space:nowrap',
           onclick: () => shadeOnlySet('cat') }, '◎ Shade ticked, ghost rest'));
@@ -6361,6 +6390,21 @@
       renderProperties(state.selectedElementGuid);
       updateRightTabCounts();
       renderSelectionToolbar();
+      // Item 4 — click-to-isolate by system: when colour-by-System is active, a canvas/tree
+      // click on an element isolates its system (mirrors the legend checkboxes); shift/ctrl
+      // (add/toggle) adds its system to the isolate set. No-op for non-system colour modes.
+      if (state.vizColour && state.vizColour.kind === 'sysPalette') {
+        const meta = state.elementMap && state.elementMap[guid];
+        const k = meta ? sysKeyOf(meta) : '';
+        if (k) {
+          if (!state.vizSysIsolate) state.vizSysIsolate = new Set();
+          if (mode === 'replace') { state.vizSysIsolate.clear(); state.vizSysIsolate.add(k); }
+          else if (mode === 'toggle') { state.vizSysIsolate.has(k) ? state.vizSysIsolate.delete(k) : state.vizSysIsolate.add(k); }
+          else { state.vizSysIsolate.add(k); }   // 'add'
+          state.vizColour.isolateSet = state.vizSysIsolate;
+          applyAppearance(); renderVisualizePanel();
+        }
+      }
       // Slice 4b — if Photos tab is active, refetch with the anchor filter
       // applied so the gallery narrows to photos for the selected element.
       if (state.rightTab === 'photos') loadSitePhotos();
