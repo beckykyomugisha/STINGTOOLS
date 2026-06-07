@@ -4372,14 +4372,15 @@ namespace StingTools.UI
 
                     try
                     {
-                        // Resolve the server project GUID; find-or-create by name when the
-                        // session hasn't pinned one yet (matches the rest of the sync flow).
+                        // Use the linked server project only. Never create a project
+                        // implicitly as a side effect of inviting (that POSTed a stray
+                        // /api/projects). With no linked project we can't target the
+                        // invite endpoint, so fall back to copying the link.
                         Guid projectGuid = client.CurrentProjectId;
-                        if (projectGuid == Guid.Empty && !string.IsNullOrWhiteSpace(_data.ProjectName))
-                            projectGuid = await client.GetOrCreateProjectAsync(_data.ProjectName, _data.ProjectName).ConfigureAwait(true);
                         if (projectGuid == Guid.Empty)
                         {
-                            CopyFallback("No server project linked");
+                            try { System.Windows.Clipboard.SetText(invite); } catch (Exception cex) { StingLog.Warn($"Suppressed: {cex.Message}"); }
+                            ShowStatus("No Planscape project linked — invite link copied. Link this model to a Planscape project to send invites by email.");
                             return;
                         }
 
