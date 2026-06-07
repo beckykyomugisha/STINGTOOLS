@@ -4184,6 +4184,21 @@ namespace StingTools.Core
                     Recommendations = recommendations
                 };
 
+                // Planscape project link — read the per-document link so the BCC
+                // header shows the linked project and the invite path has a target.
+                // Also mirror it onto the in-memory CurrentProjectId so a freshly
+                // opened BCC can invite / sync without a separate restore step.
+                try
+                {
+                    var link = StingTools.BIMManager.PlanscapeProjectLink.Load(
+                        StingTools.BIMManager.PlanscapeProjectLink.ConfigPathForModel(doc.PathName));
+                    coordData.LinkedProjectId = link.ProjectId;
+                    coordData.LinkedProjectLabel = link.Label;
+                    if (link.IsLinked)
+                        StingTools.BIMManager.PlanscapeServerClient.Instance.CurrentProjectId = link.ProjectId;
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildCoordData: project-link load failed: {ex.Message}"); }
+
                 // Phase 49: Generate smart suggestions based on model state analysis
                 coordData.SmartSuggestions = WarningsEngine.GenerateSmartSuggestions(coordData, warningReport);
 

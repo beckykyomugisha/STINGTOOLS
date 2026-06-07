@@ -108,6 +108,9 @@ namespace StingTools.UI
         internal CoordData _data;
         private ContentControl _contentArea;
         private TextBlock _statusBar;
+        // Header label showing the linked Planscape project (updated live on
+        // Link / Unlink from the PLATFORM tab without rebuilding the header).
+        private TextBlock _linkedHeaderBlock;
         private StackPanel _navPanel;
         private Button _activeNav;
 
@@ -548,6 +551,13 @@ namespace StingTools.UI
         {
             public string ProjectName = "";
             public string FilePath = "";
+
+            // Planscape server project link (per-document, persisted in
+            // STING_BIM_MANAGER/planscape_connection.json). Populated by
+            // BuildCoordData from PlanscapeProjectLink; empty when the model
+            // isn't linked to a server project yet.
+            public Guid LinkedProjectId = Guid.Empty;
+            public string LinkedProjectLabel = "";
 
             // Compliance
             public double TagPct;
@@ -1218,6 +1228,27 @@ namespace StingTools.UI
         //  HEADER STRIP
         // ════════════════════════════════════════════════════════════════
 
+        /// <summary>Header caption for the linked-project indicator.</summary>
+        private string LinkedHeaderText()
+        {
+            string label = _data?.LinkedProjectLabel;
+            return string.IsNullOrEmpty(label)
+                ? "⛓ Not linked to a Planscape project"
+                : $"🔗 {label}";
+        }
+
+        /// <summary>Update the header linked-project label in place (no full rebuild).</summary>
+        private void RefreshLinkedHeader()
+        {
+            try
+            {
+                if (_linkedHeaderBlock == null) return;
+                _linkedHeaderBlock.Text = LinkedHeaderText();
+                _linkedHeaderBlock.Opacity = string.IsNullOrEmpty(_data?.LinkedProjectLabel) ? 0.55 : 0.85;
+            }
+            catch (Exception ex) { StingLog.Warn($"RefreshLinkedHeader: {ex.Message}"); }
+        }
+
         private UIElement BuildHeader()
         {
             var header = new Border { Background = Br(CHeaderBg), Padding = new Thickness(16, 0, 16, 0) };
@@ -1239,6 +1270,21 @@ namespace StingTools.UI
                 Foreground = Br(CHeaderFg), Opacity = 0.7, FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center
             });
+
+            // Linked Planscape project indicator — makes it obvious at a glance
+            // whether this model is linked and to which server project. Updated
+            // live by Link / Unlink on the PLATFORM tab.
+            _linkedHeaderBlock = new TextBlock
+            {
+                Text = LinkedHeaderText(),
+                Foreground = Br(CHeaderFg),
+                Opacity = string.IsNullOrEmpty(_data?.LinkedProjectLabel) ? 0.55 : 0.85,
+                FontSize = 11, FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(16, 0, 0, 0),
+                ToolTip = "The Planscape server project this model is linked to. Set it from the PLATFORM tab → Planscape → Linked Project, or by publishing the 3D model."
+            };
+            leftStack.Children.Add(_linkedHeaderBlock);
             hGrid.Children.Add(leftStack);
 
             // Right: Refresh + RAG indicator + compliance + date
@@ -4379,6 +4425,19 @@ namespace StingTools.UI
                         Guid projectGuid = client.CurrentProjectId;
                         if (projectGuid == Guid.Empty)
                         {
+                            // Belt-and-suspenders: resolve from the per-document
+                            // link file in case the in-memory CurrentProjectId
+                            // wasn't restored this session.
+                            var link = BIMManager.PlanscapeProjectLink.Load(
+                                BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                            if (link.IsLinked)
+                            {
+                                projectGuid = link.ProjectId;
+                                client.CurrentProjectId = projectGuid;
+                            }
+                        }
+                        if (projectGuid == Guid.Empty)
+                        {
                             try { System.Windows.Clipboard.SetText(invite); } catch (Exception cex) { StingLog.Warn($"Suppressed: {cex.Message}"); }
                             ShowStatus("No Planscape project linked — invite link copied. Link this model to a Planscape project to send invites by email.");
                             return;
@@ -4565,6 +4624,155 @@ namespace StingTools.UI
                     sbConnBtnRow.Children.Add(openWebBtn);
                 }
                 detailStack.Children.Add(sbConnBtnRow);
+
+                // ── Linked Planscape project ──────────────────────────────
+                // The per-document link (STING_BIM_MANAGER/planscape_connection.json)
+                // is the gate for email invites + background sync. Surface it
+                // explicitly so coordinators can pick / change / clear it, and
+                // mirror it onto the in-memory CurrentProjectId so the invite
+                // path + PluginSyncTickBridge use the active document's project.
+                detailStack.Children.Add(new TextBlock
+                {
+                    Text = "LINKED PROJECT", FontWeight = FontWeights.Bold, FontSize = 11,
+                    Foreground = Br(CAccent), Margin = new Thickness(0, 6, 0, 4)
+                });
+                {
+                    string linkCfgPath = BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath);
+                    var curLink = BIMManager.PlanscapeProjectLink.Load(linkCfgPath);
+                    // Keep the in-memory CurrentProjectId in step with the active
+                    // document whenever this tab is shown (covers project switches
+                    // where OnDocumentOpened didn't fire for an already-open model).
+                    BIMManager.PlanscapeServerClient.Instance.CurrentProjectId = curLink.ProjectId;
+                    if (_data != null)
+                    {
+                        _data.LinkedProjectId = curLink.ProjectId;
+                        _data.LinkedProjectLabel = curLink.Label;
+                    }
+                    RefreshLinkedHeader();
+
+                    bool savedModel = !string.IsNullOrEmpty(_data?.FilePath) && !string.IsNullOrEmpty(linkCfgPath);
+
+                    var linkBorder = new Border
+                    {
+                        Background = Br(curLink.IsLinked ? Color.FromRgb(0xE8, 0xF5, 0xE9) : Color.FromRgb(0xFF, 0xF3, 0xE0)),
+                        BorderBrush = Br(curLink.IsLinked ? Color.FromRgb(0xA5, 0xD6, 0xA7) : Color.FromRgb(0xFF, 0xCC, 0x80)),
+                        BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(0, 0, 0, 10)
+                    };
+                    var linkStack = new StackPanel();
+                    linkStack.Children.Add(new TextBlock
+                    {
+                        Text = curLink.IsLinked
+                            ? $"🔗 Linked to: {curLink.Label}"
+                            : (savedModel
+                                ? "⛓ This model is not linked to a Planscape project."
+                                : "⛓ Save the model first, then link it to a Planscape project."),
+                        FontSize = 11, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 0, 0, 6)
+                    });
+                    if (curLink.IsLinked)
+                        linkStack.Children.Add(new TextBlock
+                        {
+                            Text = $"Project id: {curLink.ProjectId}",
+                            FontSize = 10, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                            Margin = new Thickness(0, 0, 0, 6)
+                        });
+
+                    var linkBtnRow = new WrapPanel();
+                    var pickBtn = new Button
+                    {
+                        Content = curLink.IsLinked ? "🔗 Change Project…" : "🔗 Link to Project…",
+                        Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0),
+                        Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                        IsEnabled = sbConnected && savedModel,
+                        ToolTip = sbConnected
+                            ? (savedModel ? "Fetch your Planscape projects and link this model to one." : "Save the .rvt first — the link is stored beside the model.")
+                            : "Connect to Planscape first."
+                    };
+                    pickBtn.Click += async (s, e) =>
+                    {
+                        var client = BIMManager.PlanscapeServerClient.Instance;
+                        if (client == null || !client.IsConnected) { ShowStatus("Connect to Planscape first."); return; }
+                        if (!savedModel) { ShowStatus("Save the model first — the link is stored beside the .rvt."); return; }
+                        try
+                        {
+                            ShowStatus("Fetching your Planscape projects…");
+                            var projects = await client.GetProjectsAsync().ConfigureAwait(true);
+                            if (projects == null || projects.Count == 0)
+                            {
+                                ShowStatus("No Planscape projects are visible to your account.");
+                                return;
+                            }
+                            // Build "Name  ·  CODE" labels parallel to the JArray order.
+                            var rows = projects.Select(p => new
+                            {
+                                Id = p.Value<string>("id") ?? "",
+                                Name = p.Value<string>("name") ?? "",
+                                Code = p.Value<string>("code") ?? "",
+                            }).Where(r => !string.IsNullOrEmpty(r.Id)).ToList();
+                            var labels = rows.Select(r => $"{r.Name}  ·  {r.Code}").ToList();
+                            string picked = Select.StingListPicker.Show(
+                                "Link to Planscape Project",
+                                "Select the server project to link this model to.",
+                                labels);
+                            if (string.IsNullOrEmpty(picked)) { ShowStatus("Link cancelled."); return; }
+                            int idx = labels.IndexOf(picked);
+                            if (idx < 0 || idx >= rows.Count) { ShowStatus("Link cancelled."); return; }
+                            var chosen = rows[idx];
+                            if (!Guid.TryParse(chosen.Id, out var pid) || pid == Guid.Empty)
+                            { ShowStatus("That project has no valid id."); return; }
+
+                            BIMManager.PlanscapeProjectLink.Set(
+                                linkCfgPath, pid, chosen.Name, chosen.Code, client.ConnectedUser);
+                            if (_data != null)
+                            {
+                                _data.LinkedProjectId = pid;
+                                _data.LinkedProjectLabel = new BIMManager.PlanscapeProjectLink.LinkInfo(pid, chosen.Name, chosen.Code).Label;
+                            }
+                            RefreshLinkedHeader();
+                            ShowStatus($"Linked to {chosen.Name} ({chosen.Code}).");
+                            ShowPlatformDetail("Planscape"); // re-render to show Unlink + new state
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"[link] handler error: {ex.Message}");
+                            ShowStatus($"Link failed: {ex.Message}");
+                        }
+                    };
+                    linkBtnRow.Children.Add(pickBtn);
+
+                    if (curLink.IsLinked)
+                    {
+                        var unlinkBtn = new Button
+                        {
+                            Content = "Unlink", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0),
+                            Background = Br(CRed), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                            FontSize = 10, Cursor = Cursors.Hand,
+                            ToolTip = "Remove the Planscape project link from this model (invites fall back to copying a link; background sync stops)."
+                        };
+                        unlinkBtn.Click += (s, e) =>
+                        {
+                            try
+                            {
+                                BIMManager.PlanscapeProjectLink.Unlink(linkCfgPath);
+                                if (_data != null) { _data.LinkedProjectId = Guid.Empty; _data.LinkedProjectLabel = ""; }
+                                RefreshLinkedHeader();
+                                ShowStatus("Model unlinked from Planscape project.");
+                                ShowPlatformDetail("Planscape");
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"[unlink] handler error: {ex.Message}");
+                                ShowStatus($"Unlink failed: {ex.Message}");
+                            }
+                        };
+                        linkBtnRow.Children.Add(unlinkBtn);
+                    }
+                    linkStack.Children.Add(linkBtnRow);
+                    linkBorder.Child = linkStack;
+                    detailStack.Children.Add(linkBorder);
+                }
 
                 // ── Phase 102/103: Server status card (ALWAYS visible) ──
                 // Even when offline the card tells the user what they'll get

@@ -96,7 +96,7 @@ namespace StingTools.BIMManager
             }
 
             // ── Step 2: pick a project ─────────────────────────────────
-            var projectId = PickProject(client);
+            var (projectId, projectName, projectCode) = PickProject(client);
             if (projectId == Guid.Empty) return Result.Cancelled;
 
             // ── Step 3: pick the publish mode up front ─────────────────
@@ -124,7 +124,7 @@ namespace StingTools.BIMManager
                 BuildElementMap(doc, mapPath, out var elementCount, out var bounds);
                 StingLog.Info($"Planscape: element map generated ({elementCount} elements) → {mapPath}");
 
-                return mode switch
+                Result result = mode switch
                 {
                     PublishMode.RefreshMetadataOnly => DoRefreshMetadata(
                         client, projectId, modelPath!, mapPath, doc, elementCount),
@@ -140,6 +140,28 @@ namespace StingTools.BIMManager
                         client, projectId, modelPath!, mapPath, doc, elementCount, bounds, force: false,
                         successHeadline: "Published"),
                 };
+
+                // ── Step 6: link the model to the project it published into ──
+                // Publishing IS an explicit "this model belongs to this project"
+                // statement, so persist the link per-document (and set the
+                // in-memory CurrentProjectId) the moment a publish succeeds. This
+                // is what lets the invite path, PluginSyncTickBridge, BOQ sync and
+                // the BCC header all recognise the model as linked without a
+                // separate "Link to project" step.
+                if (result == Result.Succeeded)
+                {
+                    try
+                    {
+                        PlanscapeProjectLink.Set(
+                            PlanscapeProjectLink.ConfigPathFor(doc),
+                            projectId, projectName, projectCode, client.ConnectedUser);
+                    }
+                    catch (Exception linkEx)
+                    {
+                        StingLog.Warn($"Planscape: publish succeeded but link persist failed: {linkEx.Message}");
+                    }
+                }
+                return result;
             }
             catch (Exception ex)
             {
@@ -324,13 +346,14 @@ namespace StingTools.BIMManager
 
         // ── Project picker ─────────────────────────────────────────────
 
-        private static Guid PickProject(PlanscapeServerClient client)
+        private static (Guid id, string name, string code) PickProject(PlanscapeServerClient client)
         {
+            var none = (Guid.Empty, "", "");
             var projects = Task.Run(() => client.GetProjectsAsync()).GetAwaiter().GetResult();
             if (projects == null || projects.Count == 0)
             {
                 TaskDialog.Show("Publish Model", "No Planscape projects are visible to your account.");
-                return Guid.Empty;
+                return none;
             }
 
             // Reuse StingListPicker via its public surface when present.
@@ -350,8 +373,11 @@ namespace StingTools.BIMManager
                     : r == TaskDialogResult.CommandLink2 ? 1
                     : r == TaskDialogResult.CommandLink3 ? 2
                     : r == TaskDialogResult.CommandLink4 ? 3 : -1;
-            if (idx < 0 || idx >= projects.Count) return Guid.Empty;
-            return Guid.TryParse(projects[idx]["id"]?.Value<string>() ?? "", out var id) ? id : Guid.Empty;
+            if (idx < 0 || idx >= projects.Count) return none;
+            if (!Guid.TryParse(projects[idx]["id"]?.Value<string>() ?? "", out var id)) return none;
+            return (id,
+                    projects[idx]["name"]?.Value<string>() ?? "",
+                    projects[idx]["code"]?.Value<string>() ?? "");
         }
 
         // ── File picker ────────────────────────────────────────────────
