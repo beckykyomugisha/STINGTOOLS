@@ -61,6 +61,12 @@ services:
       - Smtp__FromName=${SMTP_FROM_NAME:-Planscape}
       # Gmail :587 uses STARTTLS ⇒ UseSsl=false. Gmail :465 ⇒ UseSsl=true.
       - Smtp__UseSsl=${SMTP_USE_SSL:-false}
+      # ── Email provider selector (smtp [default] | resend) ──
+      # smtp  ⇒ MailKit transport above (Gmail / Mailpit / Resend-SMTP).
+      # resend ⇒ Resend HTTP API; needs RESEND_API_KEY + a from-address on the
+      #          Resend-verified domain (SMTP_FROM_ADDRESS feeds the From for both).
+      - Email__Provider=${Email__Provider:-smtp}
+      - Resend__ApiKey=${RESEND_API_KEY:-}
       # ── LiveKit (WS3 A/V media plane) ──
       # Url is the BROWSER-reachable signaling URL (ws://localhost:7880 in dev).
       # The dev livekit service below runs with key 'devkey' / secret 'secret'.
