@@ -166,8 +166,12 @@ public class NotificationsController : ControllerBase
         }
     }
 
+    // Resolve via the shared helper: the JWT carries "sub", but .NET's JWT
+    // handler remaps "sub" → ClaimTypes.NameIdentifier, so FindFirst("sub")
+    // returns null and every POST here would 401. ProjectVisibility.GetUserId
+    // checks NameIdentifier → sub → user_id.
     private Guid GetUserId() =>
-        Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : Guid.Empty;
+        Planscape.Infrastructure.Services.ProjectVisibility.GetUserId(User);
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
