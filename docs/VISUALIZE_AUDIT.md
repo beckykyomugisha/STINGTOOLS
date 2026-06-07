@@ -1,5 +1,18 @@
 # Viewer Visualize — audit & change log
 
+### V3 — discipline combo presets · marker `viz-combo` (coordination-viewer) · served-verified
+By-discipline section gains one-click "show these, ghost rest" buttons: **All · MEP · M&E · M&P · E&P** (shown
+only when ≥2 of the codes are present) plus a button per present discipline. Each calls `comboPreset(codes)` →
+sets the multi-isolate selection (`vizDiscSel`) + `shadeOnlySet('disc')`. Extends P2 multi-isolate; layered
+model unchanged. Served proof: minified `coordination-viewer.js` carries marker `viz-combo`.
+PENDING-HUMAN-VERIFY: click MEP → only M+E+P shaded, rest ghosted; single-discipline buttons isolate that one.
+
+### V1/V2 — NOT reproducible from source (served==source @ realistic-bg) — see PROGRESS.md
+V1 opacity sliders map linearly (per-group 0→solid@100; global ghost 2–60%) — no mid-jump/inversion in the
+value mapping. V2 the x-ray "Keep solid under x-ray/ghost" per-category filter is present + served (P2 diff
+didn't remove it). Did NOT blind-edit working render code; need the exact slider / which x-ray control.
+
+
 ### P4 — Realistic background decouple + exposure re-tune · marker `realistic-bg` (coordination-viewer) · served-verified
 Realistic now sets an explicit **dark studio gradient backdrop** (`_realisticBg` CanvasTexture, #1b2027→#0c0e12)
 while `scene.environment` stays the RoomEnvironment for **lighting/reflections only** — the bright IBL is never

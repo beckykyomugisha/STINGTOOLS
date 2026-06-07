@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD realistic-bg');
+    console.log('[viewer] STING_VIZ_BUILD viz-combo');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1402,6 +1402,12 @@
       renderVisualizePanel();
       toast(sel.size ? `Shading ${Array.from(sel).join(', ')} — ghosting the rest` : 'Show all (none ticked)');
     }
+    // V3 — one-click discipline combo: set the multi-isolate selection to the given codes
+    // (intersected with what's present) and shade-only-those. Empty/All → show everything.
+    function comboPreset(codes) {
+      state.vizDiscSel = new Set(codes || []);
+      shadeOnlySet('disc');
+    }
 
     // Colour every element by ANY STING token (categorical) — sets a colour
     // descriptor and drives the ONE appearance engine (no separate overlay path).
@@ -2033,6 +2039,18 @@
       byDisc.appendChild(sectionTitle('By discipline'));
       const discCounts = {};
       Object.values(state.elementMap).forEach(m => { const d = discOf(m); if (d) discCounts[d] = (discCounts[d] || 0) + 1; });
+      // V3 — combo presets: one-click "show these, ghost rest" for common discipline sets.
+      if (discs.length) {
+        const present = new Set(discs);
+        const comboRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px' });
+        comboRow.appendChild(el('button', { class: 'btn sm', onclick: () => comboPreset(discs.slice()) }, 'All'));
+        [['MEP', ['M', 'E', 'P']], ['M&E', ['M', 'E']], ['M&P', ['M', 'P']], ['E&P', ['E', 'P']]].forEach(combo => {
+          const avail = combo[1].filter(c => present.has(c));
+          if (avail.length >= 2) comboRow.appendChild(el('button', { class: 'btn sm', onclick: () => comboPreset(avail) }, combo[0]));
+        });
+        discs.forEach(d => comboRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => comboPreset([d]) }, d)));
+        byDisc.appendChild(comboRow);
+      }
       if (!discs.length) byDisc.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2' }, 'No discipline data'));
       discs.forEach(d => byDisc.appendChild(vizModeRow(d, discCounts[d],
         () => state.vizDiscMode.get(d),

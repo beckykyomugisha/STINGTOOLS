@@ -1,5 +1,21 @@
 # PROGRESS — viewer visualization
 
+## VISUALIZE UX overhaul (V1–V7) · viewer = surface #1 (esbuild dist → --no-cache build + curl-grep marker)
+
+| Item | Status | Marker/Commit | Note / human test |
+|---|---|---|---|
+| V1 opacity slider fix | NEEDS-INFO | — | NOT reproducible from source: served==source (realistic-bg); per-group transparency slider maps 0→solid@100 (monotonic) and the global ghost slider is 2–60% — neither inverts. Need the EXACT slider, or it's a render-order artifact (won't blind-edit working render code). |
+| V2 x-ray category filter | NEEDS-INFO | — | NOT a code regression: the "Keep solid under x-ray / ghost" per-category filter IS present + appended (wrap.appendChild(keepBox)) + in the served bundle. P2 diff didn't remove it. Per-category chips render only when models carry CAT tokens — if federated models lack CAT, chips are empty (data, not code). Need which control is "gone". |
+| V3 discipline combo presets | DONE-SERVED | marker viz-combo | All/MEP/M&E/M&P/E&P + per-discipline one-click "show these, ghost rest" (comboPreset → shadeOnlySet). |
+| V4 two-section restructure (Show/Filter × Colour by) | TODO | — | big additive restructure of renderVisualizePanel |
+| V5 colour-by-category distinct shades | TODO | — | each category distinct within shown set (variant engine); custom wins |
+| V6 saved view-states | TODO | — | Save/recall named Show+Colour combos, persist per project, broadcastable |
+| V7 View↔Visualize alignment | TODO | — | render mode = global base; colour scheme persists across mode switch; Clear→base |
+
+NOTE (honest): V1 + V2 as described don't reproduce from the current source (verified served==source). Not
+blind-editing the viewer's layered-model/render code for non-reproducible bugs (regression risk the task forbids).
+V3 delivered; V4–V7 are a large build-heavy additive overhaul — recommend a focused continuation.
+
 ## MARATHON — close all web meeting gaps (W0→W6) · branch claude/optimistic-bell-EfjJw · no PR/merge
 Resume rule: read this table + `git log`, continue from the first non-DONE item; never redo DONE.
 Surfaces + SERVED gates per DEPLOY.md. `meetings-core.js` + `dashboard.js` are volume-mounted (restart, no build);
