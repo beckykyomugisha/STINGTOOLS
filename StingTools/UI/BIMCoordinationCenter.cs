@@ -4622,6 +4622,38 @@ namespace StingTools.UI
                     };
                     openWebBtn.Click += (s, e) => DispatchAction("PlanscapeOpenWebDashboard");
                     sbConnBtnRow.Children.Add(openWebBtn);
+
+                    // Quick render check — emails a sample invite-styled message to
+                    // your own address through the exact invite render path, so we
+                    // can confirm HTML rendering without inviting a real member.
+                    var testEmailBtn = new Button
+                    {
+                        Content = "📧 Send test email", Height = 28, Padding = new Thickness(12, 0, 12, 0),
+                        Background = Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 0, 6, 0),
+                        ToolTip = "Send a sample invite-styled email to your own account to check rendering. No member is invited — it uses the same email render path as a real invite."
+                    };
+                    testEmailBtn.Click += async (s, e) =>
+                    {
+                        var c = BIMManager.PlanscapeServerClient.Instance;
+                        if (c == null || !c.IsConnected) { ShowStatus("Connect to Planscape first."); return; }
+                        try
+                        {
+                            ShowStatus("Sending test email…");
+                            var r = await c.SendTestEmailAsync().ConfigureAwait(true);
+                            if (!r.Reachable) { ShowStatus($"Test email failed: {r.Message}"); return; }
+                            ShowStatus(r.Sent
+                                ? $"Test email sent to {r.To}"
+                                : (r.Message ?? "Test email not sent."));
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"[email-test] handler error: {ex.Message}");
+                            ShowStatus($"Test email error: {ex.Message}");
+                        }
+                    };
+                    sbConnBtnRow.Children.Add(testEmailBtn);
                 }
                 detailStack.Children.Add(sbConnBtnRow);
 
