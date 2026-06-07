@@ -52,11 +52,12 @@ services:
       - Planscape__PublicBaseUrl=${PUBLIC_BASE_URL:-}
       # ── Real email via SMTP (Gmail app password is the pragmatic default) ──
       # All blank ⇒ NullEmailService logs a LOUD warning and drops mail.
+      # Item 8 — accept short aliases (SMTP_USER/PASS/FROM) as well as the long names.
       - Smtp__Host=${SMTP_HOST:-}
       - Smtp__Port=${SMTP_PORT:-587}
-      - Smtp__Username=${SMTP_USERNAME:-}
-      - Smtp__Password=${SMTP_PASSWORD:-}
-      - Smtp__FromAddress=${SMTP_FROM_ADDRESS:-}
+      - Smtp__Username=${SMTP_USERNAME:-${SMTP_USER:-}}
+      - Smtp__Password=${SMTP_PASSWORD:-${SMTP_PASS:-}}
+      - Smtp__FromAddress=${SMTP_FROM_ADDRESS:-${SMTP_FROM:-}}
       - Smtp__FromName=${SMTP_FROM_NAME:-Planscape}
       # Gmail :587 uses STARTTLS ⇒ UseSsl=false. Gmail :465 ⇒ UseSsl=true.
       - Smtp__UseSsl=${SMTP_USE_SSL:-false}

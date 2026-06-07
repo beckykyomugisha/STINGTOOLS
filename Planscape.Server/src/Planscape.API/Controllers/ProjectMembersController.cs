@@ -311,12 +311,20 @@ public class ProjectMembersController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        // Item 8 — tell the client whether mail actually went out, so the UI can show
+        // "invite emailed" vs "email not configured — link copied instead" rather than
+        // implying an email was sent when SMTP is unconfigured.
+        bool emailSent = _emailService.IsConfigured;
         return Ok(new
         {
             message    = $"Invitation recorded for {req.Email}",
             userId     = user.Id,
             isPending  = !user.IsActive,
-            note       = user.IsActive ? null : "An invitation email has been sent with instructions to set a password."
+            emailSent,
+            note       = !user.IsActive
+                ? (emailSent ? "An invitation email has been sent with instructions to set a password."
+                             : "Email is not configured on the server — copy the invitation link to the invitee instead.")
+                : null
         });
     }
 

@@ -25,6 +25,7 @@ public class SmtpEmailService : IEmailService
         _config[$"Smtp:{key}"] ?? _config[$"Email:{key}"] ?? fallback;
 
     private string Host        => Cfg("Host");
+    public  bool   IsConfigured => !string.IsNullOrWhiteSpace(Host);   // item 8
     private int    Port        => int.TryParse(Cfg("Port", "587"), out var p) ? p : 587;
     private string Username    => Cfg("Username");
     private string Password    => Cfg("Password");
@@ -261,6 +262,7 @@ public class SmtpEmailService : IEmailService
 /// </summary>
 public class NullEmailService : IEmailService
 {
+    public bool IsConfigured => false;   // item 8 — no SMTP host wired
     private readonly ILogger<NullEmailService> _logger;
 
     public NullEmailService(ILogger<NullEmailService> logger)
