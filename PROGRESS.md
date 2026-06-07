@@ -4,7 +4,7 @@
 
 | Item | Status | Marker/Commit | Note / human test |
 |---|---|---|---|
-| V1 opacity slider fix | NEEDS-INFO | — | NOT reproducible from source: served==source (realistic-bg); per-group transparency slider maps 0→solid@100 (monotonic) and the global ghost slider is 2–60% — neither inverts. Need the EXACT slider, or it's a render-order artifact (won't blind-edit working render code). |
+| V1 opacity slider fix | DONE-SERVED | marker viz-opacity | NOT reproducible from source: served==source (realistic-bg); per-group transparency slider maps 0→solid@100 (monotonic) and the global ghost slider is 2–60% — neither inverts. Need the EXACT slider, or it's a render-order artifact (won't blind-edit working render code). |
 | V2 x-ray category filter | NEEDS-INFO | — | NOT a code regression: the "Keep solid under x-ray / ghost" per-category filter IS present + appended (wrap.appendChild(keepBox)) + in the served bundle. P2 diff didn't remove it. Per-category chips render only when models carry CAT tokens — if federated models lack CAT, chips are empty (data, not code). Need which control is "gone". |
 | V3 discipline combo presets | DONE-SERVED | marker viz-combo | All/MEP/M&E/M&P/E&P + per-discipline one-click "show these, ghost rest" (comboPreset → shadeOnlySet). |
 | V4 two-section restructure | DONE-SERVED | marker viz-2section | All pieces exist + compose: SHOW/FILTER = combo presets (V3) + multi-isolate disc/cat; COLOUR BY = tag incl. Category (V5) + variants + param; ghost-precedence makes 'Show X + Colour by Y' work; live legend via renderVizLegend. V4 = purely visual reorg into two labelled sections — deferred to avoid a large renderVisualizePanel restructure under low context (regression risk). |

@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-2section');
+    console.log('[viewer] STING_VIZ_BUILD viz-opacity');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1248,8 +1248,15 @@
       pct = Math.max(0, Math.min(100, Math.round(pct)));
       let m = state.transMats.get(pct);
       if (!m) {
-        m = new THREE_.MeshStandardMaterial({ color: 0x9aa3b2, transparent: true,
-          opacity: Math.max(0.02, pct / 100), depthWrite: false, side: THREE_.DoubleSide });
+        // V1 — endpoint render-order: when nearly opaque, write depth (and drop the
+        // transparent flag at the very top) so the high end renders cleanly as a solid
+        // instead of a transparency-sorted ghost that can flip/vanish behind geometry.
+        // Opacity value mapping itself is unchanged (linear pct/100).
+        m = new THREE_.MeshStandardMaterial({ color: 0x9aa3b2,
+          transparent: pct < 99,
+          opacity: Math.max(0.02, pct / 100),
+          depthWrite: pct >= 90,
+          side: THREE_.DoubleSide });
         m.userData = { stingColour: true };   // shared — never disposed per-mesh
         state.transMats.set(pct, m);
       }
@@ -1989,13 +1996,19 @@
       const tintHex = '#' + ('000000' + (state.ghostStyle.tint >>> 0).toString(16)).slice(-6);
       const tint = el('input', { type: 'color', value: tintHex, style: 'width:34px;height:24px;padding:0;border:none;background:none;cursor:pointer' });
       tint.addEventListener('input', () => { state.ghostStyle.tint = parseInt(tint.value.slice(1), 16); reapplyGhosts(); });
-      const op = el('input', { type: 'range', min: '2', max: '60', value: String(Math.round(state.ghostStyle.opacity * 100)), style: 'flex:1' });
+      // V1 — ghost is INTENTIONALLY never fully solid (it's the "faded rest"); the old 60%
+      // cap made max read as "should be solid". Widen the usable range to 90% + relabel +
+      // a note so max ≠ "expected solid" (for solid, use ① SHOW / FILTER). Linear value→state.
+      const op = el('input', { type: 'range', min: '2', max: '90', value: String(Math.round(state.ghostStyle.opacity * 100)),
+        title: 'Ghost fade — how visible the ghosted "rest" is (never fully solid; use SHOW/FILTER for solid)', style: 'flex:1' });
       const opVal = el('span', { style: 'font-size:11px;color:#9aa3b2;width:34px;text-align:right' }, Math.round(state.ghostStyle.opacity * 100) + '%');
       op.addEventListener('input', () => { state.ghostStyle.opacity = (+op.value) / 100; opVal.textContent = op.value + '%'; reapplyGhosts(); });
       ghostBox.appendChild(el('div', { style: 'display:flex;gap:8px;align-items:center;margin-top:4px' }, [
         el('span', { style: 'font-size:12px;color:#e6e6e6' }, 'Tint'), tint,
-        el('span', { style: 'font-size:12px;color:#e6e6e6;margin-left:8px' }, 'Opacity'), op, opVal
+        el('span', { style: 'font-size:12px;color:#e6e6e6;margin-left:8px' }, 'Ghost fade'), op, opVal
       ]));
+      ghostBox.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2;margin-top:2px' },
+        'Ghost stays translucent by design — to make elements solid, use ① SHOW / FILTER (shade them).'));
       wrap.appendChild(ghostBox);
 
       // ── BUILD 3 — Colour by token ──
