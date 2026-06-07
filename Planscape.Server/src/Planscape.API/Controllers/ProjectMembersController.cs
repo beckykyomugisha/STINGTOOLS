@@ -219,6 +219,15 @@ public class ProjectMembersController : ControllerBase
         var project  = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
 
+        // Resolve the public base URL once (Planscape:PublicBaseUrl when set —
+        // e.g. behind a tunnel/cloud; else the request origin). Used for BOTH
+        // the email link and the link returned to the plugin so they're identical.
+        var baseUrl = Planscape.API.PublicUrl.Resolve(_config, Request);
+        var linkWarning = InviteLink.UnstableBaseWarning(baseUrl);
+
+        string? rawInviteToken = null;   // set when we mint a new pending user
+        bool emailDispatched = false;    // true only when an invite email was actually attempted
+
         var user = await _db.Users.FirstOrDefaultAsync(u =>
             u.Email == req.Email.ToLowerInvariant() && u.TenantId == tenantId);
 
@@ -276,12 +285,14 @@ public class ProjectMembersController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            // Send invite email with password-reset link. PublicUrl.Resolve uses
-            // Planscape:PublicBaseUrl (the tunnel/cloud URL) when set, so the link
-            // a remote guest receives is reachable — never the internal localhost.
+            // Send invite email with the one-click deep link (token + email +
+            // project). baseUrl uses Planscape:PublicBaseUrl when set, so the
+            // link a remote guest receives is reachable — never internal localhost.
+            rawInviteToken = inviteToken;
             await _emailService.SendInviteEmailAsync(
                 user.Email, user.DisplayName, GetCurrentUserName(),
-                project.Name, Planscape.API.PublicUrl.Resolve(_config, Request), inviteToken);
+                project.Name, baseUrl, inviteToken, projectId);
+            emailDispatched = _emailService.IsConfigured;
         }
 
         // Add to project
@@ -327,16 +338,28 @@ public class ProjectMembersController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        // Item 8 — tell the client whether mail actually went out, so the UI can show
-        // "invite emailed" vs "email not configured — link copied instead" rather than
-        // implying an email was sent when SMTP is unconfigured.
-        bool emailSent = _emailService.IsConfigured;
+        // Item 8 — report whether mail ACTUALLY went out (not merely whether SMTP
+        // is configured) so the plugin shows "emailed" vs "copy the link" honestly.
+        // Deep link — return the one-click accept URL so the plugin can show + log
+        // it and copy it as the fallback when mail wasn't sent.
+        bool emailSent = emailDispatched;
+        string? inviteUrl = rawInviteToken != null
+            ? InviteLink.BuildAcceptUrl(baseUrl, req.Email.Trim(), rawInviteToken, projectId)
+            : null;
+
+        _logger.LogInformation(
+            "[invite] sent project={ProjectId} to={Email} emailSent={EmailSent} link={Link}{Warn}",
+            projectId, req.Email, emailSent, inviteUrl ?? "(none)",
+            linkWarning != null ? " WARNING(base-url): " + linkWarning : "");
+
         return Ok(new
         {
             message    = $"Invitation recorded for {req.Email}",
             userId     = user.Id,
             isPending  = !user.IsActive,
             emailSent,
+            inviteLink = inviteUrl,
+            linkWarning,
             note       = !user.IsActive
                 ? (emailSent ? "An invitation email has been sent with instructions to set a password."
                              : "Email is not configured on the server — copy the invitation link to the invitee instead.")

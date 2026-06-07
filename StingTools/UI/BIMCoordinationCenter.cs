@@ -4415,16 +4415,35 @@ namespace StingTools.UI
                             ShowStatus($"Invite failed: {result.Message}");
                             return;
                         }
+                        // Prefer the server's one-click deep link (token + email + project)
+                        // for both the confirmation and any clipboard copy.
+                        string deepLink = result.InviteLink ?? "";
+                        string warnSuffix = string.IsNullOrEmpty(result.LinkWarning)
+                            ? "" : $"\n\n⚠ {result.LinkWarning}";
+
                         if (result.EmailSent)
                         {
                             ShowStatus($"Invite emailed to {tm.Email}");
+                            // Show the resolved link in the confirmation (and flag a rotating
+                            // quick-tunnel base URL, which would break the link on restart).
+                            string body = $"Invite emailed to {tm.Email}.";
+                            if (!string.IsNullOrEmpty(deepLink))
+                                body += $"\n\nOne-click invite link:\n{deepLink}";
+                            body += warnSuffix;
+                            TaskDialog.Show("Planscape Invite", body);
                         }
                         else
                         {
-                            // Server accepted but SMTP isn't configured — copy the link as
-                            // the server note instructs (this is NOT the unreachable path).
-                            try { System.Windows.Clipboard.SetText(invite); } catch (Exception cex) { StingLog.Warn($"Suppressed: {cex.Message}"); }
+                            // Server accepted but SMTP isn't configured — copy the real deep
+                            // link (falling back to the local body) so it can be sent by hand.
+                            // This is NOT the unreachable path.
+                            try { System.Windows.Clipboard.SetText(string.IsNullOrEmpty(deepLink) ? invite : deepLink); }
+                            catch (Exception cex) { StingLog.Warn($"Suppressed: {cex.Message}"); }
                             ShowStatus(result.Note ?? "Invite recorded - email not configured on the server; link copied.");
+                            string body = (result.Note ?? "Email is not configured on the server — copy the invitation link to the invitee.")
+                                        + (string.IsNullOrEmpty(deepLink) ? "" : $"\n\nOne-click invite link (copied to clipboard):\n{deepLink}")
+                                        + warnSuffix;
+                            TaskDialog.Show("Planscape Invite", body);
                         }
                     }
                     catch (Exception ex)

@@ -844,15 +844,20 @@ public sealed partial class PlanscapeServerClient : IDisposable
 
             var json = JObject.Parse(resp.body);
             bool emailSent = json.Value<bool?>("emailSent") ?? false;
-            StingLog.Info($"[invite] server reported emailSent={emailSent} for {email}");
+            string? inviteLink = json.Value<string>("inviteLink");
+            string? linkWarning = json.Value<string>("linkWarning");
+            StingLog.Info($"[invite] server reported emailSent={emailSent} link={inviteLink ?? "(none)"} for {email}"
+                        + (string.IsNullOrEmpty(linkWarning) ? "" : $" WARNING(base-url): {linkWarning}"));
             return new InviteResult
             {
-                Reachable = true,
-                Ok        = true,
-                Status    = resp.status,
-                EmailSent = emailSent,
-                Note      = json.Value<string>("note"),
-                Message   = json.Value<string>("message"),
+                Reachable   = true,
+                Ok          = true,
+                Status      = resp.status,
+                EmailSent   = emailSent,
+                Note        = json.Value<string>("note"),
+                Message     = json.Value<string>("message"),
+                InviteLink  = inviteLink,
+                LinkWarning = linkWarning,
             };
         }
         catch (Exception ex)
@@ -2271,6 +2276,12 @@ public sealed class InviteResult
     public string? Note      { get; set; }
     /// <summary>Server message on success, or the error/rejection text.</summary>
     public string? Message   { get; set; }
+    /// <summary>One-click accept-invite deep link the server minted (token +
+    /// email + project). Null when no token was issued (e.g. existing member).</summary>
+    public string? InviteLink  { get; set; }
+    /// <summary>Set when the server's PUBLIC_BASE_URL is an unstable quick
+    /// tunnel (trycloudflare.com) — the link will break when the tunnel cycles.</summary>
+    public string? LinkWarning { get; set; }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

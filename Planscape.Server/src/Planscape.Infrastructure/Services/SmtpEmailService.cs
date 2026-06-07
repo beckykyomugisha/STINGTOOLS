@@ -45,15 +45,14 @@ public class SmtpEmailService : IEmailService
 
     public async Task SendInviteEmailAsync(
         string toEmail, string displayName, string inviterName,
-        string projectName, string serverUrl, string? resetToken = null, CancellationToken ct = default)
+        string projectName, string serverUrl, string? resetToken = null, Guid projectId = default, CancellationToken ct = default)
     {
-        var baseUrl = serverUrl.TrimEnd('/');
-        // With a reset token the invitee can set their password straight from the
-        // email; without one the link only prefills the email and they must
-        // request a reset link.
-        var acceptUrl = string.IsNullOrWhiteSpace(resetToken)
-            ? $"{baseUrl}/reset-password.html?email={Uri.EscapeDataString(toEmail)}"
-            : $"{baseUrl}/reset-password.html?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(toEmail)}";
+        // One source of truth for the deep link (see InviteLink) so the email
+        // and the controller's response carry the identical URL. With a reset
+        // token the invitee sets their password straight from the email and is
+        // then redirected to the project; without one the link only prefills
+        // the email and they must request a reset.
+        var acceptUrl = InviteLink.BuildAcceptUrl(serverUrl, toEmail, resetToken, projectId);
         var model = new Dictionary<string, string?>
         {
             ["DisplayName"]  = displayName,
@@ -277,7 +276,7 @@ public class NullEmailService : IEmailService
 
     public Task SendInviteEmailAsync(
         string toEmail, string displayName, string inviterName,
-        string projectName, string serverUrl, string? resetToken = null, CancellationToken ct = default)
+        string projectName, string serverUrl, string? resetToken = null, Guid projectId = default, CancellationToken ct = default)
     {
         _logger.LogWarning(
             "[NullEmail] ⚠ INVITE NOT SENT (no SMTP) to={ToEmail}, displayName={DisplayName}, inviter={Inviter}, project={Project}, url={Url}, hasToken={HasToken}",
