@@ -45,6 +45,45 @@ export function parseNotificationEvent(event: string, payload: any): NormalizedM
 }
 export const MEETING_EVENTS = ["Notification", "MeetingScheduled", "MeetingCreated", "MeetingUpdated"];
 
+// ── effective meeting role (mirror of dashboard.js meetingRole) ──
+// Pure base64url decode (no atob/Buffer dependency — safe in RN/Hermes + web).
+function b64urlToStr(b64: string): string {
+  b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let out = "", bc = 0, bs = 0;
+  for (let i = 0; i < b64.length; i++) {
+    const c = b64.charAt(i); if (c === "=") break;
+    const idx = chars.indexOf(c); if (idx < 0) continue;
+    bs = (bs << 6) | idx; bc += 6;
+    if (bc >= 8) { bc -= 8; out += String.fromCharCode((bs >> bc) & 0xff); }
+  }
+  return out;
+}
+export function jwtRole(token?: string | null): string {
+  try { const p = (token || "").split("."); if (p.length < 2) return ""; const j = JSON.parse(b64urlToStr(p[1])); return j.iso_role || j.role || ""; } catch { return ""; }
+}
+function mapRoleKey(r?: string): string {
+  r = (r || "").toString().toLowerCase();
+  if (/host|manager|coordinator|\bbc\b|bim/.test(r)) return "host";
+  if (/chair/.test(r)) return "chair";
+  if (/secretary|minute/.test(r)) return "secretary";
+  if (/client/.test(r)) return "client";
+  if (/lead|author|attendee|discipline/.test(r)) return "attendee";
+  return r;
+}
+// creator → host; else the user's attendee role; else fallbackRole (e.g. jwtRole); unknown → "attendee".
+export function meetingRole(meeting: any, userId?: string | null, fallbackRole?: string): string {
+  if (meeting && userId && (meeting.createdBy === userId || meeting.hostUserId === userId)) return "host";
+  let r = "";
+  if (meeting && meeting.attendees && userId) {
+    const me = meeting.attendees.find((a: any) => a.userId === userId);
+    if (me && me.role) r = me.role;
+  }
+  if (!r) r = fallbackRole || "";
+  const k = mapRoleKey(r);
+  return CAPS[k] ? k : "attendee";
+}
+
 // ── API (same method names as meetings-core.js create()) ──
 const base = (pid: string) => `/api/projects/${pid}/meetings`;
 export const meetingsCore = {

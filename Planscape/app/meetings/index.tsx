@@ -12,7 +12,8 @@ import {
   exportMeetingMinutesDoc, getMeetingIcsUrl, startLiveSession, getMeetingLiveArtifacts,
   type MeetingActionItem, type MeetingAttendee, type MeetingAgendaItem, type MeetingLiveArtifacts,
 } from "@/api/endpoints";
-import { meetingsCore } from "@/api/meetingsCore";
+import { meetingsCore, can as mcCan, meetingRole as mcMeetingRole, jwtRole as mcJwtRole } from "@/api/meetingsCore";
+import { useAuthStore } from "@/stores/authStore";
 import { MemberPicker } from "@/components/MemberPicker";
 import { RecordingPlayerModal, fmtDur, fmtSize, isAudioKind } from "@/components/RecordingPlayer";
 import { useProjectStore } from "@/stores/projectStore";
@@ -30,6 +31,10 @@ export default function MeetingsScreen() {
   const [selected, setSelected] = useState<Meeting | null>(null);
   const [createVisible, setCreateVisible] = useState(false);
   const [recordedIds, setRecordedIds] = useState<Set<string>>(new Set());   // P2 — meetings with ≥1 recording
+  // A — project-level scheduling capability (no meeting context yet → JWT role).
+  const _authToken = useAuthStore((s) => s.token);
+  const _authUid = useAuthStore((s) => s.userId);
+  const canSchedule = mcCan(mcMeetingRole(null, _authUid, mcJwtRole(_authToken)), "schedule");
 
   const load = useCallback(async () => {
     if (!projectId) { setLoading(false); return; }
@@ -125,10 +130,12 @@ export default function MeetingsScreen() {
         )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => setCreateVisible(true)}
-        accessibilityRole="button" accessibilityLabel="Draft a new meeting">
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      {canSchedule && (
+        <TouchableOpacity style={styles.fab} onPress={() => setCreateVisible(true)}
+          accessibilityRole="button" accessibilityLabel="Draft a new meeting">
+          <Text style={styles.fabText}>+</Text>
+        </TouchableOpacity>
+      )}
 
       {selected && (
         <MeetingDetailModal
@@ -228,6 +235,11 @@ function MeetingDetailModal({ meeting: initialMeeting, projectId, onClose }: {
   const [agenda, setAgenda] = useState<MeetingAgendaItem[]>([]);
   const [actions, setActions] = useState<MeetingActionItem[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  // A — role-aware gating (mirror of web mCan): creator→host; else attendee/JWT role.
+  const userId = useAuthStore((s) => s.userId);
+  const token = useAuthStore((s) => s.token);
+  const role = mcMeetingRole(meeting, userId, mcJwtRole(token));
+  const allow = useCallback((cap: string) => mcCan(role, cap), [role]);
 
   const loadDetail = useCallback(async () => {
     setLoadingDetail(true);
@@ -317,6 +329,7 @@ function MeetingDetailModal({ meeting: initialMeeting, projectId, onClose }: {
               onRefresh={loadDetail}
               onExportIcs={handleExportIcs}
               onExportMinutes={handleExportMinutes}
+              allow={allow}
             />
           )}
           {tab === "agenda" && (
@@ -325,6 +338,7 @@ function MeetingDetailModal({ meeting: initialMeeting, projectId, onClose }: {
               projectId={projectId}
               meetingId={meeting.id}
               onRefresh={loadDetail}
+              allow={allow}
             />
           )}
           {tab === "actions" && (
@@ -333,12 +347,15 @@ function MeetingDetailModal({ meeting: initialMeeting, projectId, onClose }: {
               projectId={projectId}
               meetingId={meeting.id}
               onRefresh={loadDetail}
+              allow={allow}
+              userId={userId}
             />
           )}
           {tab === "attendees" && (
             <AttendeesTab
               attendees={attendees}
               projectId={projectId}
+              allow={allow}
               meetingId={meeting.id}
               onRefresh={loadDetail}
             />
@@ -388,9 +405,9 @@ function RecordingsCard({ recordings, onPlay }: { recordings: RecordingRow[]; on
   );
 }
 
-function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinutes }: {
+function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinutes, allow }: {
   meeting: Meeting; projectId: string; onRefresh: () => void;
-  onExportIcs: () => void; onExportMinutes: () => void;
+  onExportIcs: () => void; onExportMinutes: () => void; allow: (cap: string) => boolean;
 }) {
   const [minutes, setMinutes] = useState(meeting.minutes ?? "");
   const [saving, setSaving] = useState(false);
@@ -509,14 +526,17 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
         <TextInput
           style={[styles.input, { minHeight: 140, textAlignVertical: "top" }]}
           multiline
+          editable={allow("editMinutes")}
           placeholder="Key decisions, open points, attendees..."
           value={minutes}
           onChangeText={setMinutes}
         />
-        <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]}
-          onPress={saveMinutes} disabled={saving}>
-          <Text style={styles.saveBtnText}>{saving ? "Saving…" : "Save Minutes & Status"}</Text>
-        </TouchableOpacity>
+        {allow("editMinutes") && (
+          <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+            onPress={saveMinutes} disabled={saving}>
+            <Text style={styles.saveBtnText}>{saving ? "Saving…" : "Save Minutes & Status"}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Export actions */}
@@ -536,8 +556,8 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
 }
 
 // ── Agenda tab ────────────────────────────────────────────────────────────────
-function AgendaTab({ agenda, projectId, meetingId, onRefresh }: {
-  agenda: MeetingAgendaItem[]; projectId: string; meetingId: string; onRefresh: () => void;
+function AgendaTab({ agenda, projectId, meetingId, onRefresh, allow }: {
+  agenda: MeetingAgendaItem[]; projectId: string; meetingId: string; onRefresh: () => void; allow: (cap: string) => boolean;
 }) {
   const [title, setTitle] = useState("");
   const [duration, setDuration] = useState("");
@@ -625,18 +645,19 @@ function AgendaTab({ agenda, projectId, meetingId, onRefresh }: {
             </TouchableOpacity>
           </View>
         </View>
-      ) : (
+      ) : allow("editAgenda") ? (
         <TouchableOpacity style={styles.addRowBtn} onPress={() => setShowAdd(true)}>
           <Text style={styles.addRowBtnText}>+ Add Agenda Item</Text>
         </TouchableOpacity>
-      )}
+      ) : null}
     </View>
   );
 }
 
 // ── Actions tab ───────────────────────────────────────────────────────────────
-function ActionsTab({ actions, projectId, meetingId, onRefresh }: {
+function ActionsTab({ actions, projectId, meetingId, onRefresh, allow, userId }: {
   actions: MeetingActionItem[]; projectId: string; meetingId: string; onRefresh: () => void;
+  allow: (cap: string) => boolean; userId: string | null;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [desc, setDesc] = useState("");
@@ -707,7 +728,7 @@ function ActionsTab({ actions, projectId, meetingId, onRefresh }: {
               {a.dueDate ? ` · due ${new Date(a.dueDate).toLocaleDateString()}` : ""}
               {overdue ? " · OVERDUE" : ""}
             </Text>
-            {a.status !== "COMPLETE" && a.status !== "CLOSED" && (
+            {a.status !== "COMPLETE" && a.status !== "CLOSED" && (allow("assignActions") || a.assigneeUserId === userId) && (
               <TouchableOpacity style={styles.miniActionBtn} onPress={() => closeAction(a)}>
                 <Text style={styles.miniActionBtnText}>✓ Mark Complete</Text>
               </TouchableOpacity>
@@ -760,11 +781,11 @@ function ActionsTab({ actions, projectId, meetingId, onRefresh }: {
             </TouchableOpacity>
           </View>
         </View>
-      ) : (
+      ) : allow("assignActions") ? (
         <TouchableOpacity style={styles.addRowBtn} onPress={() => setShowAdd(true)}>
           <Text style={styles.addRowBtnText}>+ Add Action Item</Text>
         </TouchableOpacity>
-      )}
+      ) : null}
 
       <MemberPicker
         visible={pickerVisible}
@@ -778,8 +799,8 @@ function ActionsTab({ actions, projectId, meetingId, onRefresh }: {
 }
 
 // ── Attendees tab ─────────────────────────────────────────────────────────────
-function AttendeesTab({ attendees, projectId, meetingId, onRefresh }: {
-  attendees: MeetingAttendee[]; projectId: string; meetingId: string; onRefresh: () => void;
+function AttendeesTab({ attendees, projectId, meetingId, onRefresh, allow }: {
+  attendees: MeetingAttendee[]; projectId: string; meetingId: string; onRefresh: () => void; allow: (cap: string) => boolean;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -879,9 +900,9 @@ function AttendeesTab({ attendees, projectId, meetingId, onRefresh }: {
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
-                <TouchableOpacity onPress={() => removeAttendee(a)}>
+                {allow("manageAttendees") && <TouchableOpacity onPress={() => removeAttendee(a)}>
                   <Text style={styles.removeText}>Remove</Text>
-                </TouchableOpacity>
+                </TouchableOpacity>}
               </View>
             </View>
           ))}
@@ -897,9 +918,9 @@ function AttendeesTab({ attendees, projectId, meetingId, onRefresh }: {
                 <Text style={styles.attendeeName}>{a.name}</Text>
                 {a.email && <Text style={styles.attendeeMeta}>{a.email}</Text>}
               </View>
-              <TouchableOpacity onPress={() => removeAttendee(a)}>
+              {allow("manageAttendees") && <TouchableOpacity onPress={() => removeAttendee(a)}>
                 <Text style={styles.removeText}>Remove</Text>
-              </TouchableOpacity>
+              </TouchableOpacity>}
             </View>
           ))}
         </>
@@ -950,9 +971,9 @@ function AttendeesTab({ attendees, projectId, meetingId, onRefresh }: {
           </View>
         </View>
       ) : (
-        <TouchableOpacity style={styles.addRowBtn} onPress={() => setShowAdd(true)}>
+        allow("manageAttendees") ? (<TouchableOpacity style={styles.addRowBtn} onPress={() => setShowAdd(true)}>
           <Text style={styles.addRowBtnText}>+ Add Attendee / BCC</Text>
-        </TouchableOpacity>
+        </TouchableOpacity>) : null
       )}
 
       <MemberPicker

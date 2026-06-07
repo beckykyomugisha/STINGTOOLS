@@ -15,6 +15,14 @@ Surfaces + SERVED gates per DEPLOY.md. `meetings-core.js` + `dashboard.js` are v
 | W5 role matrix (shared) | DONE-SERVED | core marker w5-roles | `curl /js/meetings-core.js \| grep w5-roles`. ONE role→cap matrix (CAPS+can/roleCaps) in meetings-core.js + meetingsCore.ts (parity verified: 10 roles, host=13 caps both). Web gates via dashboard.js mCan(); mobile via meetingsCore.can(); server enforces. HUMAN: per-role control visibility (host full / attendee own-actions / client read-only). Mobile-authoring per-control gating = follow-up (web done). |
 | W6 DEPLOY.md + gates current | DONE-SERVED | DEPLOY.md | 4 surfaces + per-surface SERVED steps current; path #3 now lists meetings-core.js; parity table updated (web gaps closed); MEETINGS_AUDIT updated. |
 
+
+### Follow-ups (post-marathon)
+| Item | Status | Commit | Proof / human test |
+|---|---|---|---|
+| A mobile role-gating | DONE-SERVED (tsc) | meetings/index.tsx | `cd Planscape && npx tsc --noEmit` clean. Mobile authoring gated by meetingsCore.can(meetingRole): minutes editor+Save (editMinutes), agenda add (editAgenda), action add (assignActions) + Mark-Complete (assign OR own), attendee add/Remove (manageAttendees), list FAB create (schedule). HUMAN: log in as host/secretary/attendee/client → only allowed controls show. |
+| B shared-package collapse | TODO | — | one canonical meetings-core source → web bundle + Metro import; delete dup copies |
+
+
 Branch `claude/optimistic-bell-EfjJw` (PR #306 tracks it — do **not** open a new PR).
 Every item below is committed + STEP-0 gated (SERVED marker + `livekit-av.js` 200 on a freshly
 `--no-cache`-rebuilt container). The deployed bundle is the minified `dist/`, so the marker grep
