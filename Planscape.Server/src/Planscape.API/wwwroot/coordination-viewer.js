@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-bottomclamp');
+    console.log('[viewer] STING_VIZ_BUILD viz-r2deleg');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -2591,21 +2591,27 @@
 
     // ── Right-panel tabs ───────────────────────────────────────────────
     function setupTabs() {
-      $$('.tab-bar .tab').forEach(t => {
-        t.addEventListener('click', () => {
-          $$('.tab-bar .tab').forEach(x => x.classList.remove('active'));
-          $$('.tab-pane').forEach(x => x.classList.remove('active'));
-          t.classList.add('active');
-          const pane = $('#pane-' + t.dataset.tab);
-          if (pane) pane.classList.add('active');
-          state.rightTab = t.dataset.tab;
-          if (t.dataset.tab === 'visualize') renderVisualizePanel();
-          if (t.dataset.tab === 'clashes') renderRightClashes();
-          if (t.dataset.tab === 'issues')  renderRightIssues();
-          if (t.dataset.tab === 'photos')  { loadSitePhotos(); renderPhotos(); }
-          if (t.dataset.tab === 'comments') renderComments();
-          if (t.dataset.tab === 'activity') renderActivityTimeline();
-        });
+      // R2 — DELEGATE on the stable .tab-bar (was: one-time addEventListener per .tab — the
+      // E1 anti-pattern that loses handlers if a tab node is ever re-rendered). One listener
+      // resolves the clicked tab via closest(); switching to Visualize re-renders (re-binds)
+      // its panel. Durable fix for the whole "dead-until-refresh" class: re-rendered panes
+      // re-bind on render, and the tab-bar + bottom panel are delegated on stable parents.
+      const bar = $('.tab-bar'); if (!bar) return;
+      bar.addEventListener('click', (ev) => {
+        const t = ev.target.closest('.tab');
+        if (!t || !bar.contains(t)) return;
+        $$('.tab-bar .tab').forEach(x => x.classList.remove('active'));
+        $$('.tab-pane').forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        const pane = $('#pane-' + t.dataset.tab);
+        if (pane) pane.classList.add('active');
+        state.rightTab = t.dataset.tab;
+        if (t.dataset.tab === 'visualize') renderVisualizePanel();
+        if (t.dataset.tab === 'clashes') renderRightClashes();
+        if (t.dataset.tab === 'issues')  renderRightIssues();
+        if (t.dataset.tab === 'photos')  { loadSitePhotos(); renderPhotos(); }
+        if (t.dataset.tab === 'comments') renderComments();
+        if (t.dataset.tab === 'activity') renderActivityTimeline();
       });
     }
 
@@ -5880,24 +5886,21 @@
       $('#btnNewIssue').addEventListener('click', () => openIssueModal());
 
       // X1 — bind status + type axes independently.
-      $$('#clashStatusFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
-        $$('#clashStatusFilters .filter-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        state.clashStatusFilter = b.dataset.status;
-        renderClashes();
-      }));
-      $$('#clashTypeFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
-        $$('#clashTypeFilters .filter-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        state.clashTypeFilter = b.dataset.type;
-        renderClashes();
-      }));
-      $$('#issueFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
-        $$('#issueFilters .filter-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        state.issuesFilter = b.dataset.f;
-        renderIssues();
-      }));
+      // R2 — DELEGATE the filter bars on their stable containers (was one-time per-button
+      // addEventListener — the E1 anti-pattern). One listener per bar reads the clicked
+      // .filter-btn via closest(), so the filters survive any re-render.
+      const delegateFilters = (containerId, apply) => {
+        const c = $('#' + containerId); if (!c) return;
+        c.addEventListener('click', (ev) => {
+          const b = ev.target.closest('.filter-btn'); if (!b || !c.contains(b)) return;
+          $$('#' + containerId + ' .filter-btn').forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+          apply(b);
+        });
+      };
+      delegateFilters('clashStatusFilters', b => { state.clashStatusFilter = b.dataset.status; renderClashes(); });
+      delegateFilters('clashTypeFilters', b => { state.clashTypeFilter = b.dataset.type; renderClashes(); });
+      delegateFilters('issueFilters', b => { state.issuesFilter = b.dataset.f; renderIssues(); });
     }
     function switchBottomTab(name) {
       state.bottomTab = name;

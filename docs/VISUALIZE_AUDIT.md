@@ -1,5 +1,30 @@
 # Viewer Visualize — audit & change log
 
+### R2 — dead-until-refresh toggles: ROOT-CAUSE via event delegation · marker `viz-r2deleg`
+The "toggle works once, dead after a re-render until refresh" class (same as the E1 cascade) is caused by
+ONE-TIME `addEventListener` on nodes that a later render replaces. **Durable fix (this is the fix for the whole
+class):**
+- **Re-rendered panes re-bind on render** — the VISUALIZE panel rebuilds + re-adds its handlers on every
+  `renderVisualizePanel()` (and `setupTabs` calls it on each switch to Visualize). Its combo presets, multi-isolate
+  rows, colour-by buttons, keep-solid chips, saved-views, V4 sections are all freshly bound per render.
+- **Delegation on stable parents** for controls outside that re-render: the bottom-panel tabs/collapse (E1), and
+  now `setupTabs` (the right-panel `.tab-bar`) + the clash/issue **filter bars** (`#clashStatusFilters` /
+  `#clashTypeFilters` / `#issueFilters`) — converted from `$$().forEach(addEventListener)` to a single delegated
+  listener per stable container reading the clicked control via `closest()`.
+- Header toggles (View menu / render mode / clash+issue marker buttons / side-panel collapse) are bound once to
+  STATIC header nodes that are never replaced → already correct.
+Net: a toggle survives switch-tab → re-render → toggle again, every time, no refresh. Served proof: minified
+`coordination-viewer.js` carries marker `viz-r2deleg` + the delegated filter handler. PENDING-HUMAN-VERIFY:
+toggle any control → switch tab → return → toggle again → responds every time across all controls.
+
+### R1 — bottom panel never unrecoverable · marker `viz-bottomclamp`
+`clampBottomPanel()` clamps the tray to [80px, 85% of the CURRENT viewport] on window-resize + on-load; the
+dragged height persists (`planscape_bottom_h`) and is re-clamped on restore; dblclick-reset clears it. So a
+height saved on a big window / a 60vh expand can never push the top grab-handle + collapse button off-screen on
+a smaller viewport. Tabs/collapse are delegated (stay clickable). PENDING-HUMAN-VERIFY: drag tall / shrink window
+/ reload → handle always on-screen, one-click restore, no refresh.
+
+
 ### V3 — discipline combo presets · marker `viz-combo` (coordination-viewer) · served-verified
 By-discipline section gains one-click "show these, ghost rest" buttons: **All · MEP · M&E · M&P · E&P** (shown
 only when ≥2 of the codes are present) plus a button per present discipline. Each calls `comboPreset(codes)` →
