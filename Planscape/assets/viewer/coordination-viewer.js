@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-savedviews');
+    console.log('[viewer] STING_VIZ_BUILD viz-2section');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1970,6 +1970,19 @@
       ]));
       wrap.appendChild(quick);
 
+      // V4 — two clearly-labelled axes (pure visual grouping; the engine is unchanged):
+      // (1) SHOW / FILTER (combo presets + multi-isolate disc/cat → only these shaded) and
+      // (2) COLOUR BY (tag / variants / custom / param) — applied within the shown set.
+      const SECT = 'border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:10px';
+      const showSection = el('div', { style: SECT });
+      showSection.appendChild(sectionTitle('① SHOW / FILTER'));
+      showSection.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2;margin-top:-4px' }, 'Pick a combo or tick disciplines/categories → only those shaded, the rest ghosted.'));
+      const colourSection = el('div', { style: SECT });
+      colourSection.appendChild(sectionTitle('② COLOUR BY'));
+      colourSection.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2;margin-top:-4px' }, 'Colours the SHOWN set (ghosted elements stay ghosted). e.g. Show MEP + Colour by Category.'));
+      wrap.appendChild(showSection);
+      wrap.appendChild(colourSection);
+
       // ── BUILD 2 — Ghost appearance ──
       const ghostBox = el('div', {});
       ghostBox.appendChild(sectionTitle('Ghost appearance'));
@@ -2019,7 +2032,7 @@
       if (state.vizColour && state.vizColour.legend && state.vizColour.legend.length) {
         colBox.appendChild(renderVizLegend(state.vizColour));
       }
-      wrap.appendChild(colBox);
+      colourSection.appendChild(colBox);
 
       // ── C6 — Search → act ──
       const searchBox = el('div', {});
@@ -2052,7 +2065,7 @@
         style: (state.vizPreset === '__variants' ? 'border-color:#3B82F6;background:rgba(59,130,246,0.30);color:#fff' : ''),
         onclick: () => { applyDisciplineVariants(); renderVisualizePanel(); } }, 'Disc + variants'));
       presetBox.appendChild(pRow);
-      wrap.appendChild(presetBox);
+      colourSection.appendChild(presetBox);
 
       // V6 — SAVED VIEWS: compose a Show+Colour combo once, recall instantly (per project).
       const savedBox = el('div', {});
@@ -2104,7 +2117,7 @@
           onclick: () => { state.vizDiscSel.clear(); renderVisualizePanel(); } }, 'Clear ticks'));
         byDisc.appendChild(dActions);
       }
-      wrap.appendChild(byDisc);
+      showSection.appendChild(byDisc);
 
       // ── BUILD 1 — By category ──
       const cats = distinctTokens('CAT');
@@ -2125,7 +2138,7 @@
         cActions.appendChild(el('button', { class: 'btn sm subtle',
           onclick: () => { state.vizCatSel.clear(); renderVisualizePanel(); } }, 'Clear ticks'));
         byCat.appendChild(cActions);
-        wrap.appendChild(byCat);
+        showSection.appendChild(byCat);
       }
 
       // ── WS2 — Keep solid under x-ray / ghost ──
