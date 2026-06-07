@@ -489,7 +489,10 @@ namespace StingTools.BIMManager
                 if (!string.IsNullOrEmpty(mepSys))
                 {
                     sysResolved++;
-                    var k = string.IsNullOrEmpty(sysClass) ? mepSys : sysClass;
+                    // Prefix the histogram key with the discipline so the SUMMARY shows the
+                    // M / E / P split (e.g. "M:SupplyAir", "E:PowerCircuit", "P:DCW").
+                    var dcode = DeriveDisciplineFromCategory(catName);
+                    var k = (string.IsNullOrEmpty(dcode) ? "" : dcode + ":") + (string.IsNullOrEmpty(sysClass) ? mepSys : sysClass);
                     sysHist[k] = sysHist.TryGetValue(k, out var n) ? n + 1 : 1;
                 }
                 else if (isMep)
@@ -715,6 +718,37 @@ namespace StingTools.BIMManager
                 }
                 catch { }
             }
+            // Electrical — devices/fixtures have NO MEPSystem; pull the assigned circuit's
+            // SystemType (PowerCircuit/Data/Telephone/Security/FireAlarm/Communication/Controls)
+            // + name from the electrical system(s).
+            if (string.IsNullOrEmpty(sysClass) && el is FamilyInstance efi && efi.MEPModel != null)
+            {
+                try
+                {
+                    System.Collections.Generic.ISet<Autodesk.Revit.DB.Electrical.ElectricalSystem> esets = null;
+                    try { esets = efi.MEPModel.GetElectricalSystems(); } catch { }
+                    if (esets == null || esets.Count == 0) { try { esets = efi.MEPModel.GetAssignedElectricalSystems(); } catch { } }
+                    if (esets != null)
+                    {
+                        foreach (var es in esets)
+                        {
+                            if (es == null) continue;
+                            isMep = true;
+                            if (string.IsNullOrEmpty(sysName)) sysName = es.Name ?? "";
+                            try { sysClass = es.SystemType.ToString(); } catch { }
+                            break;
+                        }
+                    }
+                }
+                catch { }
+            }
+            // Containment (conduit / cable tray) + other MEP categories carry no system object —
+            // mark them MEP so the category-based SYS code (LV/ICT/…) is emitted, not left blank.
+            if (!isMep && !string.IsNullOrEmpty(categoryName) &&
+                System.Text.RegularExpressions.Regex.IsMatch(categoryName,
+                    @"conduit|cable\s*tray|duct|pipe|plumb|sprinkler|fire\s*alarm|electric|lighting|luminaire|\bdata\b|telephon|communicat|security|nurse\s*call|\bwire\b",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                isMep = true;
             if (!string.IsNullOrEmpty(sysClass) || !string.IsNullOrEmpty(sysName)) isMep = true;
             string sys = "";
             if (isMep) { try { sys = TagConfig.GetMepSystemAwareSysCode(el, categoryName) ?? ""; } catch { } }
