@@ -156,3 +156,63 @@ The tunnel is for ad-hoc reviews. The stable path is the existing Docker deploy
 there is **env-only**: set `PUBLIC_BASE_URL` to the cloud hostname, set the real
 `SMTP_*` Gmail/Postmark values, set a strong `JWT_KEY` + `DB_PASSWORD`. No code or
 image change — `PublicUrl` + the SMTP wiring already read everything from env.
+
+---
+
+## 6. LiveKit media (ICE) — fixing "could not establish pc connection"
+
+Meeting A/V (camera/mic/screen-share) runs through the `livekit` SFU. Signaling is
+WebSocket on `:7880`; the actual media flows over **UDP 50000–50019** (host
+candidates) with **TCP 7881** as a fallback — all published by compose.
+
+**The failure mode.** In Docker **bridge** networking LiveKit auto-detects its IP
+as the container's `172.x` bridge address and advertises that as the ICE *host
+candidate*. A browser on the host can't route to `172.x`, so the peer connection
+never completes — `LiveKit could not establish pc connection` — even though the
+ports are published and the container is healthy.
+
+**The fix — one variable: `LIVEKIT_NODE_IP`.** It feeds the LiveKit server's
+`--node-ip` (`$NODE_IP`) flag, which is the IP LiveKit advertises to clients.
+Compose passes `NODE_IP=${LIVEKIT_NODE_IP:-127.0.0.1}` into the `livekit` service.
+
+| Environment | `LIVEKIT_NODE_IP` | Why |
+|---|---|---|
+| **Local / dev** | unset → `127.0.0.1` (default) | Host browsers reach the published `50000-50019/udp` + `7881/tcp` at loopback. |
+| **Production (VPS)** | the VPS **public IP** | Clients reach the server's real address; deterministic (no bridge auto-detect). |
+
+`use_external_ip` stays `false` in `livekit.yaml` — `NODE_IP` supplies the
+advertised IP explicitly in both modes, which is what avoids the bad `172.x`
+candidate. Setting `node_ip` = public IP is equivalent to `use_external_ip: true`
+but doesn't depend on the metadata/STUN auto-detect path.
+
+### Apply / flip
+```bash
+# local (default — nothing to set), or force it:
+echo 'LIVEKIT_NODE_IP=127.0.0.1' >> .env
+
+# production:
+echo 'LIVEKIT_NODE_IP=203.0.113.10' >> .env     # ← this VPS's public IP
+
+docker compose up -d --force-recreate livekit
+```
+No image rebuild — it's a runtime env var.
+
+### Confirm the advertised IP
+```bash
+docker compose logs livekit | grep -iE "node ?ip|using external|candidate"
+# expect the configured IP (127.0.0.1 locally; the public IP in prod), NOT 172.x
+```
+
+### Verify the call
+Open the same meeting in **two browser tabs/windows on the host**, join A/V in
+both → both peer connections reach `connected` and audio is exchanged. If a
+client is on a restrictive/symmetric-NAT network and even TCP 7881 is blocked,
+front the UDP range with a **TURN server on TCP/TLS 443** (LiveKit's built-in TURN
+or coturn) and point `rtc.turn_servers` / the LiveKit TURN block at your
+`$DOMAIN` cert — that's the production path for locked-down corporate networks.
+
+> **Egress note.** With `LIVEKIT_NODE_IP=127.0.0.1`, the in-compose Egress
+> recorder (a separate container) can't reach LiveKit media at loopback, so
+> recording is disabled in the loopback dev profile. Browser A/V (the priority)
+> works. In production, `LIVEKIT_NODE_IP=<public IP>` is reachable by both
+> browsers and the egress container, so recording works there.

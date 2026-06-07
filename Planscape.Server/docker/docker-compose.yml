@@ -135,6 +135,17 @@ services:
   livekit:
     image: livekit/livekit-server:latest
     command: --config /etc/livekit.yaml
+    environment:
+      # The ONE knob that flips local↔prod media. NODE_IP is the IP LiveKit
+      # advertises to browsers as its ICE host candidate (livekit-server
+      # --node-ip / $NODE_IP). In Docker bridge networking the auto-detected
+      # candidate is the container's 172.x bridge IP, which host browsers can't
+      # reach → "could not establish pc connection".
+      #   • Local/dev: 127.0.0.1 — browsers on the host reach the published
+      #     50000-50019/udp (and 7881/tcp fallback).
+      #   • Production (VPS): set LIVEKIT_NODE_IP to the VPS PUBLIC IP in .env.
+      # See docs/DEPLOYMENT.md → "LiveKit media (ICE)".
+      - NODE_IP=${LIVEKIT_NODE_IP:-127.0.0.1}
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
     ports:

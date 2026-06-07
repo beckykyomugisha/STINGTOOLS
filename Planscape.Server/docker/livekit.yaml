@@ -13,6 +13,18 @@ rtc:
                   # candidates aren't reachable from the browser (same as --dev did).
   port_range_start: 50000
   port_range_end: 50019
+  # Advertised ICE IP is driven by the NODE_IP env var (livekit-server --node-ip),
+  # set from a SINGLE variable LIVEKIT_NODE_IP in .env / docker-compose:
+  #   • Local/dev : LIVEKIT_NODE_IP=127.0.0.1 (default) — host browsers reach the
+  #                 published 50000-50019/udp + 7881/tcp. (Equivalent to
+  #                 use_external_ip:false + node_ip:127.0.0.1.)
+  #   • Production : LIVEKIT_NODE_IP=<VPS public IP>. NODE_IP takes precedence over
+  #                 use_external_ip, so an explicit public IP is the deterministic
+  #                 prod setting. For restrictive client networks also front the
+  #                 UDP range with TURN/TLS on 443 (see docs/DEPLOYMENT.md).
+  # use_external_ip stays false because NODE_IP supplies the advertised IP
+  # explicitly in BOTH modes — bridge-network auto-detection is exactly what
+  # advertised the unreachable 172.x candidate and broke the PC connection.
   use_external_ip: false
 keys:
   devkey: secret
