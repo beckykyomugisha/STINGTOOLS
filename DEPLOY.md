@@ -37,6 +37,13 @@ mobile `Planscape/src/api/meetingsCore.ts`. (Metro can't import the served wwwro
 project roots, so they're two files kept in LOCKSTEP; a future shared package could collapse
 them to one.) Both UIs gate controls via `can(role, capability)`; the server enforces.
 
+**Drift guard (option Z):** `tools/meetings-core-parity.js` — CI `.github/workflows/meetings-core-parity.yml`
+— fails the PR if the role matrix (CAPS) or the API method names diverge between `meetings-core.js`
+(web) and `meetingsCore.ts` (mobile). Run locally: `node tools/meetings-core-parity.js` (expects
+"CAPS (N roles) + M API methods match"). A true single-file collapse — **X** (canonical TS +
+codegen→UMD into `wwwroot/js`) or **Y** (monorepo + Metro watchFolders) — stays deferred; both change
+the build/deploy model.
+
 ## Meeting features — web `/app` (#3) vs Expo (#4) parity (2026-06, post-marathon W0–W6)
 | Feature | Web `/app` (dashboard.js + meetings-core.js) | Expo mobile |
 |---|---|---|
