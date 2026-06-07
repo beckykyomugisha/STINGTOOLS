@@ -380,7 +380,21 @@ if (string.Equals(nlpProvider, "azure-openai", StringComparison.OrdinalIgnoreCas
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpLlmResolver, Planscape.Infrastructure.Services.NullLlmResolver>();
 builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpResolver, Planscape.Infrastructure.Services.NlpResolver>();
-if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
+// ── Email provider (Email:Provider = smtp [default] | resend) ──
+// Both implementations sit behind IEmailService and share the one render path
+// (EmailServiceBase). "resend" uses the Resend HTTP API; "smtp" uses MailKit
+// (Gmail / Mailpit — or Resend's own SMTP endpoint via Smtp__Host=smtp.resend.com).
+var emailProvider = (builder.Configuration["Email:Provider"] ?? "smtp").Trim().ToLowerInvariant();
+if (emailProvider == "resend")
+{
+    builder.Services.AddHttpClient("resend", c =>
+    {
+        c.BaseAddress = new Uri("https://api.resend.com/");
+        c.Timeout = TimeSpan.FromSeconds(30);
+    });
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.ResendEmailService>();
+}
+else if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
     || !string.IsNullOrEmpty(builder.Configuration["Email:Host"]))
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.SmtpEmailService>();
 else
