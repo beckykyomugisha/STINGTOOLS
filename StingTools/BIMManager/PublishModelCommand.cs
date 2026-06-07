@@ -492,7 +492,9 @@ namespace StingTools.BIMManager
                     // Prefix the histogram key with the discipline so the SUMMARY shows the
                     // M / E / P split (e.g. "M:SupplyAir", "E:PowerCircuit", "P:DCW").
                     var dcode = DeriveDisciplineFromCategory(catName);
-                    var k = (string.IsNullOrEmpty(dcode) ? "" : dcode + ":") + (string.IsNullOrEmpty(sysClass) ? mepSys : sysClass);
+                    // Item 7 — UNIFORM disc prefix (use "?" when unknown) so buckets don't split
+                    // into "P:Domestic Cold Water" vs bare "Domestic Cold Water".
+                    var k = (string.IsNullOrEmpty(dcode) ? "?" : dcode) + ":" + (string.IsNullOrEmpty(sysClass) ? mepSys : sysClass);
                     sysHist[k] = sysHist.TryGetValue(k, out var n) ? n + 1 : 1;
                 }
                 else if (isMep)
@@ -750,6 +752,14 @@ namespace StingTools.BIMManager
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                 isMep = true;
             if (!string.IsNullOrEmpty(sysClass) || !string.IsNullOrEmpty(sysName)) isMep = true;
+            // Item 7 — collapse a multi-system classification (comma-joined, possibly duplicated,
+            // e.g. "Power,Domestic Cold Water,Domestic Cold Water") to ONE canonical class so the
+            // viewer palette + [sys] buckets don't fragment.
+            if (!string.IsNullOrEmpty(sysClass) && sysClass.IndexOf(',') >= 0)
+            {
+                var parts = sysClass.Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).Distinct().ToList();
+                if (parts.Count > 0) sysClass = parts[0];
+            }
             string sys = "";
             if (isMep) { try { sys = TagConfig.GetMepSystemAwareSysCode(el, categoryName) ?? ""; } catch { } }
             return (sys, sysClass, sysName, isMep);

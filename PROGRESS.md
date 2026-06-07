@@ -14,9 +14,9 @@
 | 2 global ghost-the-rest toggle | DONE-SERVED | ghost-rest-global | One "Ghost the rest (fade non-matching)" checkbox in COLOUR BY; resolver honours (col.ghostUnmatched || state.vizGhostRest) so it works in discipline/category/system/param. Default ON for system (col.ghostUnmatched). HUMAN: colour by Discipline → tick Ghost the rest → no-discipline elements fade. |
 | 3 save/load presets + meeting surface-sync | TODO | viz-surface-sync | |
 | 4 click-to-isolate + search + colour-blind palette | TODO | viz-flex | |
-| 5 ship SignalR client DLLs | TODO | (plugin) | |
-| 6 non-ISO level names pass-through | TODO | (plugin) | |
-| 7 canonical SYS disc-prefix | TODO | (exporter) | |
+| 5 ship SignalR client DLLs | DONE-BUILT (restart Revit) | csproj | Root cause: RemoveConflictingAssemblies stripped ALL Microsoft.*/System.* copy-local — nuking the SignalR closure. Surgical keep for Microsoft.AspNetCore.* + Microsoft.Extensions.* + System.IO.Pipelines; WPF framework DLLs still removed. bin/Release 28→44 DLLs; copied full set to CompiledPlugin. HUMAN: restart Revit → StingTools.log shows realtime connected, not the assembly-load failure. Runtime-only, no re-export. |
+| 6 non-ISO level names pass-through | DONE-BUILT (restart Revit) | ParameterHelpers | GetLevelCode now sanitizes unrecognized real names (trim+collapse→UPPER, cap 12, e.g. 'Ring beam'→'RING-BEAM') instead of XX; XX only for null/empty/all-symbol. Folds into item-5 rebuild. HUMAN: tag on a 'Ring beam' level → code RING-BEAM not XX. |
+| 7 canonical SYS disc-prefix | DONE-BUILT (re-publish) | PublishModelCommand | sysClass collapsed to ONE canonical class (split/trim/dedupe/first) so multi-system garble ('M:Power,Domestic Cold Water,...') stops fragmenting the palette; [sys] histogram key uses a UNIFORM disc prefix ('?:' when unknown). Needs a re-publish to refresh sysClass. |
 | 8 SMTP invite email | TODO | (server+.env) | |
 | 9 flexibility audit | TODO | (doc) | |
 
