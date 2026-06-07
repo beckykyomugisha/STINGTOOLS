@@ -1,5 +1,18 @@
 # Viewer Visualize — audit & change log
 
+### Colour-by-System across ALL MEP · marker `viz-allmep` · served-verified (`grep -c colour-by-system` = 1)
+Extended the 🛠 System palette to span the whole MEP spectrum (BS 1710 / CIBSE / ASME A13.1 / HTM 02-01):
+mech air SUP light-blue / RET grey-blue / EA brown; hydronic CHW cyan / LHW orange-red / COND teal / REF purple
+/ STM magenta; plumbing DCW blue / DHW red / DHWR pink / SAN green / VEN ochre / RWD dark-green / SW teal; fire
+red, gas yellow; med-gas O2 white / N2O blue / VAC yellow / MA light-blue / AGSS purple; electrical PWR amber /
+DATA·ICT violet / FA crimson / SEC grey / NCL teal / CTL indigo; unknown → deterministic variant. `sysKeyOf`
+now prefers the RAW `sysClass` (so electrical Power/Data/FireAlarm, condenser/refrigerant/steam, and med-gas
+split into DISTINCT colours) and falls back to the SYS token; custom-per-system still wins. Routes through
+`applyAppearance()`/`_vizMode` (layered model intact); composes with SHOW/FILTER. Served proof:
+`curl /coordination-viewer.js | grep -c "colour-by-system"` = 1, marker `viz-allmep`. PENDING-HUMAN (after the
+all-MEP re-publish): Colour by System → M/E/P split into distinct colours; "No SYS values" gone.
+
+
 ### Colour-by-System palette · marker `viz-syspalette` (coordination-viewer) · served-verified (data needs Part-A re-publish)
 New **🛠 System palette** button in ② COLOUR BY: standard MEP-system colours (BS 1710 / CIBSE / ASME) keyed by
 the STING SYS code — DCW/CWS blue, DHW/HWS red, DHWR pink, SAN/SOIL dark-green, VEN light-green, RWD/SW teal,

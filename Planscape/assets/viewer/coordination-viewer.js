@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-syspalette');
+    console.log('[viewer] STING_VIZ_BUILD viz-allmep');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1264,32 +1264,46 @@
     }
     // The raw value a mesh contributes to the active colour scheme: a number for a
     // numeric/gradient scheme, a discipline for a preset, else the (normalised) token.
-    // Part B — standard MEP system colours (BS 1710 / CIBSE / ASME), keyed by STING SYS code.
+    // Part C — colour-by-system: standard colours spanning ALL MEP (BS 1710 / CIBSE /
+    // ASME A13.1 / HTM 02-01), keyed by STING SYS code. ("colour-by-system" literal below is
+    // also the SERVED grep token.)
     const SYS_PALETTE = {
-      DCW: '#1565c0', CWS: '#1565c0', DHW: '#e53935', HWS: '#e53935', DHWR: '#ec407a',
-      SAN: '#2e7d32', SOIL: '#2e7d32', WASTE: '#558b2f', FW: '#558b2f',
-      VEN: '#9ccc65', VENT: '#9ccc65', RWD: '#00897b', SW: '#00897b', STORM: '#00897b',
-      GAS: '#fbc02d', FP: '#d32f2f', FLS: '#d32f2f',
-      SUP: '#1565c0', SA: '#1565c0', RET: '#fb8c00', RA: '#fb8c00', EA: '#8d6e63',
-      HVAC: '#1565c0', CHW: '#00bcd4', LHW: '#ff7043', HHW: '#ff7043', LTHW: '#ff7043',
-      COM: '#7e57c2', ICT: '#7e57c2', LV: '#7e57c2', NCL: '#26a69a',
+      // Mech air
+      SUP: '#42a5f5', SA: '#42a5f5', RET: '#607d8b', RA: '#607d8b', EA: '#6d4c41', EXH: '#6d4c41', HVAC: '#42a5f5',
+      // Hydronic
+      CHW: '#00bcd4', CWS: '#00bcd4', LHW: '#ff5722', HHW: '#ff5722', LTHW: '#ff5722', HTG: '#ff5722',
+      COND: '#009688', CDW: '#009688', REF: '#8e24aa', RFG: '#8e24aa', STM: '#d81b60',
+      // Plumbing
+      DCW: '#1565c0', DHW: '#e53935', HWS: '#e53935', DHWR: '#ec407a', SAN: '#2e7d32', SOIL: '#1b5e20',
+      WASTE: '#558b2f', FW: '#558b2f', VEN: '#b5a000', VENT: '#b5a000', RWD: '#1b5e20', SW: '#00695c', STORM: '#00695c',
+      // Fire / gas / med-gas
+      FP: '#d32f2f', FLS: '#d32f2f', GAS: '#fdd835', O2: '#fafafa', N2O: '#1e88e5', VAC: '#fdd835', MA: '#90caf9', AGSS: '#7e57c2',
+      // Electrical
+      PWR: '#ffb300', LV: '#ffb300', DATA: '#7c4dff', ICT: '#7c4dff', COM: '#7c4dff', FA: '#b71c1c',
+      SEC: '#757575', NCL: '#26a69a', CTL: '#5c6bc0',
       _other: '#5b6472',
     };
-    // raw classification (sysClass) → SYS code, for richer matching when the token is absent.
+    // raw classification / electrical SystemType (sysClass) → SYS code. Specific BEFORE generic.
     const SYS_CLASS_MAP = [
+      [/fire\s*alarm/i, 'FA'], [/security/i, 'SEC'], [/nurse\s*call/i, 'NCL'], [/controls?/i, 'CTL'],
+      [/data|communicat|telephon/i, 'DATA'], [/power\s*circuit|\bpower\b/i, 'PWR'],
+      [/oxygen|\bo2\b/i, 'O2'], [/nitrous|n2o/i, 'N2O'], [/medical\s*air|med\s*air/i, 'MA'],
+      [/vacuum|\bvac\b|agss|scaveng/i, 'VAC'],
+      [/condenser/i, 'COND'], [/refriger/i, 'REF'], [/steam/i, 'STM'], [/chilled/i, 'CHW'],
+      [/hydronic|heating\s*hot|heating\s*water|\bhhw\b|\blhw\b|\blthw\b/i, 'LHW'],
+      [/supply\s*air/i, 'SUP'], [/return\s*air/i, 'RET'], [/exhaust/i, 'EA'],
       [/cold\s*water|domestic\s*cold|\bdcw\b/i, 'DCW'], [/hot\s*water\s*return|recirc/i, 'DHWR'],
       [/hot\s*water|domestic\s*hot|\bdhw\b/i, 'DHW'], [/sanitary|soil/i, 'SAN'], [/waste/i, 'WASTE'],
-      [/vent/i, 'VEN'], [/storm|rain/i, 'RWD'], [/\bgas\b|natural\s*gas/i, 'GAS'],
-      [/fire\s*protect|sprinkler|\bfire\b/i, 'FP'], [/supply\s*air/i, 'SUP'], [/return\s*air/i, 'RET'],
-      [/exhaust/i, 'EA'], [/chilled/i, 'CHW'], [/hydronic|heating\s*water|\bhhw\b|\blhw\b/i, 'LHW'],
+      [/vent/i, 'VEN'], [/storm|rain/i, 'RWD'],
+      [/fire\s*protect|sprinkler|\bfire\b/i, 'FP'], [/natural\s*gas|\bgas\b/i, 'GAS'],
     ];
-    // The SYS key for a mesh's meta: prefer the SYS token, else derive from raw classification.
+    // The SYS key for a mesh's meta: prefer the RAW classification (finer — splits electrical
+    // Power/Data/FireAlarm, condenser/refrigerant/steam, med-gas), else the SYS token.
     function sysKeyOf(meta) {
-      let s = String(tokenValue(meta, 'SYS') || '').trim().toUpperCase();
-      if (s) return s;
       const cls = String((meta && meta.sysClass) || '').trim();
       if (cls) { for (const pair of SYS_CLASS_MAP) if (pair[0].test(cls)) return pair[1]; }
-      return '';
+      const s = String(tokenValue(meta, 'SYS') || '').trim().toUpperCase();
+      return s || '';
     }
     function colourValueOf(col, meta, guid) {
       // C4 — clash/issue status schemes resolve by element GUID via a precomputed map.
@@ -1694,7 +1708,7 @@
         legend.push({ label: k + ' (' + counts[k] + ')', color: hex });
       });
       state.vizPreset = '__syspalette';
-      state.vizColour = { kind: 'sysPalette', valueColors, isolate: null, hidden: new Set(), noValue: '#3a3f4a', legend };
+      state.vizColour = { kind: 'sysPalette', mode: 'colour-by-system', valueColors, isolate: null, hidden: new Set(), noValue: '#3a3f4a', legend };
       applyAppearance();
       if (!restoringViz) toast('System palette');
     }
