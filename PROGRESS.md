@@ -20,7 +20,28 @@ Surfaces + SERVED gates per DEPLOY.md. `meetings-core.js` + `dashboard.js` are v
 | Item | Status | Commit | Proof / human test |
 |---|---|---|---|
 | A mobile role-gating | DONE-SERVED (tsc) | meetings/index.tsx | `cd Planscape && npx tsc --noEmit` clean. Mobile authoring gated by meetingsCore.can(meetingRole): minutes editor+Save (editMinutes), agenda add (editAgenda), action add (assignActions) + Mark-Complete (assign OR own), attendee add/Remove (manageAttendees), list FAB create (schedule). HUMAN: log in as host/secretary/attendee/client → only allowed controls show. |
-| B shared-package collapse | TODO | — | one canonical meetings-core source → web bundle + Metro import; delete dup copies |
+| B shared-package collapse | BLOCKED (report) | — | NOT clean — see options below. Stopped per task clause (don't half-collapse). |
+
+**B — why blocked + options.** A single physical package can't be cleanly consumed by both surfaces today:
+1. No root `package.json`/workspaces; `Planscape/` is a standalone Expo app.
+2. No `metro.config.js` watchFolders → Metro (root=`Planscape/`) can't import a repo-root `packages/`.
+3. `wwwroot/js` is build-free (served verbatim + VOLUME-MOUNTED) — adding a build step breaks the
+   "edit→`docker compose restart`, no rebuild" model every web SERVED gate uses.
+4. The two public APIs diverge (web `MeetingsCore.create(fetchJson)` global vs mobile pre-bound `meetingsCore`).
+
+Options (need a decision):
+- **X (recommended, medium): one canonical TS + codegen, no workspace/Metro change.** Make the canonical
+  transport-injected (`create(fetchJson)`) in `Planscape/src/api/meetingsCore.ts` (mobile: `meetingsCore =
+  create(apiFetch)`); add an esbuild script bundling it → UMD at `wwwroot/js/meetings-core.js`
+  (`window.MeetingsCore.create`). Cost: introduces a build step for a currently-verbatim file (DEPLOY.md path #3
+  changes from restart-only to a meetings-core build); canonical must stay RN-free for the web bundle.
+- **Y (full monorepo): `packages/meetings-core` + npm workspaces + `metro.config.js` watchFolders + web build.**
+  Cleanest "one package" but invasive; highest risk to the working Expo build + web deploy model.
+- **Z (low risk, not a collapse): keep the two LOCKSTEP files + a CI parity check** asserting CAPS + public
+  method names match across both, failing on drift. Zero build/Metro change; drift-protection without collapse.
+
+Recommendation: Z now (safe drift-guard) and/or X if a true single source is required (accepting the new web
+build step). Y only if the repo moves to a monorepo anyway. Awaiting decision — not half-collapsed.
 
 
 Branch `claude/optimistic-bell-EfjJw` (PR #306 tracks it — do **not** open a new PR).
