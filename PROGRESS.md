@@ -1,5 +1,17 @@
 # PROGRESS — viewer visualization
 
+## P1–P5 — meeting invites + recordings + EF reconcile + level passthrough + Firebase doc
+Branch `claude/optimistic-bell-EfjJw` (PR #306, do not merge). Each part its own commit.
+
+| Part | Status | Commit | Verified / human test |
+|---|---|---|---|
+| P3 EF schema-drift reconcile | DONE-VERIFIED | 7d458b641 | `PatchDevSchemaAsync` mints TemplateOpRecords + HealthcarePressureLogs.RoomIfcGlobalId + PenetrationSignoffs.ElementIfcGlobalId; new TemplateOpRecords CreateTable migration. Rebuilt api → boot log `[schema-drift] OK — 132 EF tables match` (was DRIFT ×3); all 3 objects present in Postgres; `dotnet ef migrations add` empty Up/Down (snapshot in sync). |
+| P1 meeting invitations | DONE-VERIFIED (server/web) · runtime-pending (mobile) | b55632510 | `POST …/meetings/{mid}/invite` (3-channel: in-app SignalR + FCM push + optional email; deep link `planscape://meeting/{mid}` + web fallback; project-membership auth; graceful FCM-skip + log). REST: count=1, pushConfigured=false, emailsSent=1, `[email] smtp sent`, durable INVITED attendee, 400 guard. Web served `p1-invite` + "Invite to meeting" picker. Mobile tsc clean + parity guard 22 methods. HUMAN (device): with Firebase set, push arrives → tap → joins live A/V (unactivated → set-password → meeting). In-app toast needs a connected client. |
+| P2 surface recordings | DONE-VERIFIED (surfacing/play) · runtime-pending (stop-on-end of healthy rec) | 8e216ee23 | stop-on-end finalises a running egress when a session ends. GET `…/recordings` lists with presigned MinIO URLs; COMPLETE 5.7MB rec presigned URL → HTTP 206 video/mp4 (plays). Web/app + per-meeting detail already surface (W3). HUMAN: record a real (webcam) meeting → end → appears → plays (sandbox has no media publisher; empty-room egress aborts before End). |
+| P4 non-ISO level passthrough | DONE (source pre-committed) · rebuilt + CompiledPlugin refreshed · runtime-pending (re-publish) | b9e53f283 (source) | `GetLevelCode` sanitises unrecognised real names (`Ring beam`→`RING-BEAM`, cap 12), XX only for null/empty. Publish path (`PublishModelCommand:542`) + tag pipeline use it. Rebuilt Release (Revit 2025, 0 err); CompiledPlugin (44 DLLs) refreshed + verified contains passthrough. HUMAN: restart Revit → tag/publish on a `Ring beam` level → code `RING-BEAM` not XX (already-tagged elements need a re-tag to refresh the stored code). |
+| P5 Firebase plug-and-play + doc | DONE-VERIFIED | 30365867d | `Push__Firebase__ServiceAccountJson` (raw or base64) + auto-derived ProjectId; compose passthrough + `.env.template`; `docs/PUSH_FIREBASE.md` checklist. Verified: base64 SA JSON → invite reports pushConfigured=true; blank → graceful skip. .env gitignored; dev reverted to no-FCM. |
+
+
 
 ## ROBUSTNESS (R1, R2)
 | Item | Status | Marker | Note / human test |
