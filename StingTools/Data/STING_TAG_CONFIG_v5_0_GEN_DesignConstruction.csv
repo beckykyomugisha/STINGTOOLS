@@ -1572,3 +1572,87 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Generic Models / Specialty Equipmen
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_ELC_LPS_NO_CLASS,LPS class missing — set I/II/III/IV per BS EN 62305-2 risk assessment,BS EN 62305-1:2011 §8,Common,Text,⚠ Warning: No LPS Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, """")"
 2,MEDIUM,WARN_ELC_LPS_NO_ZONE,Lightning protection zone (LPZ) not assigned,BS EN 62305-4:2011 §4.1,Common,Text,⚠ Warning: No LPZ Assigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_ZONE, """")"
+
+Tag Family #35: STING - Specialty Equipment Tag Asset
+TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Specialty Equipment
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,ASS_SERIAL_NR_TXT,Ser:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_SERIAL_NR_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,ASS_ID_TXT,ID:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_ID_TXT, """")",NOM,BLACK,2.0,None,None
+6,T3,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_INSTALL_DATE_TXT, """")",NOM,BLACK,2.0,None,None
+7,T3,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",NOM,BLACK,2.0,None,None
+8,T3,ASS_MAINTENANCE_FREQUENCY_MONTHS,Maint:,m,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_MAINTENANCE_FREQUENCY_MONTHS, """")",NOM,BLACK,2.0,None,None
+9,T3,ASS_WARRANTY_TXT,Warr:,,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_WARRANTY_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,ASS_CRITICALITY_RATING_NR,Crit:,,0,,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_CRITICALITY_RATING_NR, """")",NOM,BLACK,2.0,None,None
+11,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ASS_CRITICALITY_SPECIALTY_EQUIP,Criticality rating > 3 without commissioning plan,ISO 55000 / PAS 1192-3,Common,Text,⚠ Warning: Specialty Equipment Criticality,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_CRITICALITY_SPECIALTY_EQUIP, """")"
+2,MEDIUM,WARN_ASS_COMMISSIONING_SPECIALTY_EQUIP,Commissioning requirement not specified for critical asset,BSRIA BG 6 / CIBSE Commissioning Codes,Common,Text,⚠ Warning: Commissioning Not Specified,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_COMMISSIONING_SPECIALTY_EQUIP, """")"
+
+Tag Family #36: STING - Specialty Equipment Tag General
+TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Specialty Equipment
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,ASS_FUNC_TXT,Func:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_FUNC_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,ASS_SYSTEM_TYPE_TXT,,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEM_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+6,T3,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
+7,T3,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_MODEL_NR_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_GEN_SPEC_EQUIP_NO_SYS,ASS_SYSTEM_TYPE_TXT empty — system not assigned,ISO 19650-2 / CIBSE,Common,Text,⚠ Warning: No System Assigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_SYS, """")"
+2,MEDIUM,WARN_GEN_SPEC_EQUIP_NO_COMMISSION,Commissioning requirements not specified,BSRIA BG 8/2009 / CIBSE Commissioning Code,Common,Text,⚠ Warning: No Commissioning Req,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_COMMISSION, """")"
