@@ -220,6 +220,27 @@ public class MeetingRoomController : ControllerBase
         session.Status = "ENDED";
         session.EndedAt = DateTime.UtcNow;
 
+        // Part 2 — stop-on-end: finalise any still-running egress so the recording
+        // lands in the archive even if the host forgot to press stop. The LiveKit
+        // webhook fills file metadata (size/duration → COMPLETE) once egress flushes
+        // to the object store. Best-effort: never block ending the meeting.
+        var liveRec = await _db.MeetingRecordings
+            .FirstOrDefaultAsync(r => r.SessionId == sessionId && (r.Status == "ACTIVE" || r.Status == "STARTING"), ct);
+        if (liveRec != null)
+        {
+            try
+            {
+                var egress = new LiveKitEgressClient(_config);
+                if (egress.IsConfigured && !string.IsNullOrEmpty(liveRec.EgressId))
+                    await egress.StopAsync(liveRec.EgressId, ct);
+            }
+            catch (Exception ex) { Console.WriteLine($"[recording] stop-on-end failed for session {sessionId}: {ex.Message}"); }
+            liveRec.Status = "STOPPING";
+            liveRec.EndedAt = DateTime.UtcNow;
+            await _hub.Clients.Group($"meeting:{sessionId}").SendAsync("RecordingChanged",
+                new { recording = false, recordingId = liveRec.Id }, ct);
+        }
+
         // N5 — when this session backs a formal Meeting, flow the live viewer roster
         // back as ATTENDANCE (so the BCC meeting record reflects who actually attended)
         // and complete the meeting. Action items + snapshots already flow live; minutes
