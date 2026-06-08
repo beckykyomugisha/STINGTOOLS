@@ -22,6 +22,7 @@ import {
 import { Track } from 'livekit-client';
 import { getLiveKitToken } from '@/api/endpoints';
 import { getToken } from '@/api/client';
+import { meetingsCore } from '@/api/meetingsCore';
 
 // Register the WebRTC globals once on module load (required before any room use).
 registerGlobals();
@@ -30,13 +31,28 @@ const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || process.env.EXPO_PUBLIC_PL
 
 export default function LiveMeetingScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ project?: string; session?: string }>();
+  // P1 — a meeting-invite deep link passes ?meeting=<meetingId> (no session yet);
+  // the existing live-join flow passes ?session=<sessionId>. Resolve a meetingId
+  // to its live session (create-or-get) so a tapped invite joins straight away.
+  const params = useLocalSearchParams<{ project?: string; session?: string; meeting?: string }>();
   const projectId = String(params.project || '');
-  const sessionId = String(params.session || '');
+  const paramSession = String(params.session || '');
+  const meetingId = String(params.meeting || '');
+  const [sessionId, setSessionId] = useState(paramSession);
 
   const [conn, setConn] = useState<{ url: string; token: string; isPresenter: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [surface, setSurface] = useState<string>('model');
+
+  // Resolve a meetingId → live session id when arriving via a meeting-invite link.
+  useEffect(() => {
+    if (paramSession || !meetingId || !projectId) return;
+    let active = true;
+    meetingsCore.startLiveSession(projectId, meetingId)
+      .then((r: any) => { if (active && r?.sessionId) setSessionId(String(r.sessionId)); })
+      .catch((e: any) => { if (active) setError(e?.message === '501' ? 'A/V is not enabled for this server.' : 'Could not open the meeting.'); });
+    return () => { active = false; };
+  }, [projectId, meetingId, paramSession]);
 
   // Start the audio session for the duration of the call.
   useEffect(() => {

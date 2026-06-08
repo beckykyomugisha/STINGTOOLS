@@ -9,7 +9,7 @@
 
   // Deployed-artifact marker for serve path #3 (vanilla web /app). dashboard.js is
   // volume-mounted (wwwroot/js) → reflects on restart/refresh, no docker rebuild.
-  console.log("[dashboard] STING_DASH_BUILD w3-rec-core");
+  console.log("[dashboard] STING_DASH_BUILD p1-invite");
 
   // Phase 169 — runtime config. The Mapbox token must be replaced with a
   // real public token from mapbox.com (free account, no credit card
@@ -1918,6 +1918,45 @@
     });
   }
 
+  // P1 — member picker for "Invite to meeting". Fetches the project roster, pre-checks
+  // nobody, lets the host multi-select, and returns { userIds, message, sendEmail }.
+  // Members already on the meeting are flagged so the host doesn't re-invite blindly.
+  async function inviteMembersModal(pid, existingAttendees) {
+    var members = [];
+    try { members = await api("/api/projects/" + pid + "/members"); } catch (e) { toast("Could not load members: " + e); return null; }
+    if (!Array.isArray(members) || !members.length) { toast("No project members to invite."); return null; }
+    var onMeeting = {}; (existingAttendees || []).forEach(function (a) { if (a.userId) onMeeting[a.userId] = true; });
+    return new Promise(function (resolve) {
+      var mount = document.getElementById("modal-mount") || document.body;
+      var wrap = document.createElement("div"); wrap.className = "modal-overlay"; wrap.style.zIndex = "9998";
+      var rows = members.map(function (m) {
+        var label = esc(m.displayName || m.email || m.userId);
+        var sub = (m.projectRole ? esc(m.projectRole) : "") + (onMeeting[m.userId] ? " · already invited" : "");
+        return '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--slate-100,#eee);font-size:13px">' +
+          '<input type="checkbox" class="invm" value="' + esc(m.userId) + '" />' +
+          '<span style="flex:1">' + label + (sub ? ' <span style="color:var(--muted)">— ' + sub + "</span>" : "") + "</span></label>";
+      }).join("");
+      wrap.innerHTML = '<div class="modal-box" style="max-width:520px"><h2>Invite to meeting</h2>' +
+        '<div style="display:flex;gap:8px;margin-bottom:6px"><button type="button" class="ghost" id="invAll">Select all</button><button type="button" class="ghost" id="invNone">Clear</button></div>' +
+        '<div style="max-height:300px;overflow:auto;margin-bottom:8px">' + rows + "</div>" +
+        '<div class="field"><label>Note (optional)</label><input id="invMsg" type="text" placeholder="e.g. Please join the coordination review" /></div>' +
+        '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:6px 0"><input type="checkbox" id="invEmail" /> Also send email</label>' +
+        '<div class="actions"><button type="button" class="btn-cancel" id="invCancel">Cancel</button>' +
+        '<button type="button" class="btn-primary" id="invSend">Send invites</button></div></div>';
+      mount.appendChild(wrap);
+      var close = function (v) { try { wrap.remove(); } catch (e) {} resolve(v); };
+      wrap.querySelector("#invCancel").onclick = function () { close(null); };
+      wrap.onclick = function (e) { if (e.target === wrap) close(null); };
+      wrap.querySelector("#invAll").onclick = function () { wrap.querySelectorAll(".invm").forEach(function (c) { c.checked = true; }); };
+      wrap.querySelector("#invNone").onclick = function () { wrap.querySelectorAll(".invm").forEach(function (c) { c.checked = false; }); };
+      wrap.querySelector("#invSend").onclick = function () {
+        var ids = []; wrap.querySelectorAll(".invm").forEach(function (c) { if (c.checked) ids.push(c.value); });
+        if (!ids.length) { toast("Pick at least one member."); return; }
+        close({ userIds: ids, message: (wrap.querySelector("#invMsg") || {}).value || "", sendEmail: !!(wrap.querySelector("#invEmail") || {}).checked });
+      };
+    });
+  }
+
   var MTYPES = ["MEETING", "COORDINATION", "DESIGN_REVIEW", "PROGRESS", "CLIENT", "SITE", "HANDOVER"];
   function toLocalInput(iso) { if (!iso) return ""; try { var d = new Date(iso); var z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); } catch (e) { return ""; } }
 
@@ -1949,6 +1988,7 @@
       "</div>" +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">' +
         (mCan("join", m) ? '<button class="btn-primary" id="mdJoin">🎥 Join live</button>' : "") +
+        (canAttend ? '<button class="ghost" id="mdInvite">✉ Invite to meeting</button>' : "") +
         (mCan("schedule", m) ? '<button class="ghost" id="mdEdit">✏ Edit meeting</button>' : "") +
       "</div>" +
       '<div class="card"><h3 style="margin-top:0">Overview</h3>' +
@@ -1998,6 +2038,19 @@
     var reload = function () { renderMeetingDetail(main, meetingId); };
     document.getElementById("mdBack").onclick = function () { state.section = "meetings"; render(); };
     var jb = document.getElementById("mdJoin"); if (jb) jb.onclick = function () { window.open(MC().meetingJoinUrl(pid, meetingId), "_blank"); };
+    // P1 — invite project members to THIS meeting (push → tap to join). Distinct
+    // from the project-member invite (which adds someone to the project).
+    var ib = document.getElementById("mdInvite"); if (ib) ib.onclick = async function () {
+      var picked = await inviteMembersModal(pid, attendees);
+      if (!picked) return;
+      try {
+        var res = await core.invite(pid, meetingId, { userIds: picked.userIds, message: picked.message, sendEmail: picked.sendEmail });
+        var note = "Invited " + (res.count || picked.userIds.length) + " member(s)";
+        if (!res.pushConfigured) note += " · push off (in-app/email only)";
+        if (picked.sendEmail) note += res.emailConfigured ? " · email sent" : " · email not configured";
+        toast(note); reload();
+      } catch (e) { toast("Invite failed: " + e); }
+    };
     var eb = document.getElementById("mdEdit"); if (eb) eb.onclick = async function () {
       var v = await formModal("Edit meeting", [
         { key: "title", label: "Title", value: m.title },

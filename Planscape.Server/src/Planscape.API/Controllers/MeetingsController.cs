@@ -30,6 +30,7 @@ public class MeetingsController : ControllerBase
     private readonly ILogger<MeetingsController> _logger;
     private readonly IConfiguration _config;   // N2 — egress presign config
     private readonly Planscape.Core.Interfaces.INotificationService _notifications;   // N — live/scheduled notify
+    private readonly Planscape.Core.Interfaces.IEmailService _email;   // P1 — meeting-invite email channel
 
     public MeetingsController(
         PlanscapeDbContext db,
@@ -38,7 +39,8 @@ public class MeetingsController : ControllerBase
         IAuditService audit,
         ILogger<MeetingsController> logger,
         IConfiguration config,
-        Planscape.Core.Interfaces.INotificationService notifications)
+        Planscape.Core.Interfaces.INotificationService notifications,
+        Planscape.Core.Interfaces.IEmailService email)
     {
         _db = db;
         _notifHub = notifHub;
@@ -47,6 +49,7 @@ public class MeetingsController : ControllerBase
         _logger = logger;
         _config = config;
         _notifications = notifications;
+        _email = email;
     }
 
     // ── List ─────────────────────────────────────────────────────────────────
@@ -452,6 +455,184 @@ public class MeetingsController : ControllerBase
         });
 
         return Ok(new { attendee.Id, attendee.UserId, attendee.Name, attendee.Email, attendee.Role, attendee.AttendanceStatus });
+    }
+
+    // ── Invite to meeting (push → tap to join) ─────────────────────────────────
+
+    /// <summary>
+    /// P1 — Invite specific project members to THIS meeting (distinct from the
+    /// project-member invite, which adds someone to the project). For each invitee
+    /// we (1) ensure a durable meeting-invite record (a MeetingAttendee row,
+    /// status INVITED), then deliver via three channels:
+    ///   (a) in-app — SignalR "Notification" to the per-user group (web + any
+    ///       connected client toast);
+    ///   (b) mobile push — FCM/APNs via the DevicePushToken store;
+    ///   (c) email (optional) — when configured + the member has an address.
+    /// The payload carries a deep link <c>planscape://meeting/{meetingId}?project={projectId}</c>
+    /// plus a web fallback <c>{PublicBaseUrl}/viewer.html?project={projectId}&amp;meeting={meetingId}</c>.
+    /// Authorised by project membership (the same gate the rest of this controller
+    /// and the project-invite flow use). Graceful degradation: when no FCM is
+    /// wired the push fan-out is skipped (still in-app + email) and logged.
+    /// </summary>
+    [HttpPost("{meetingId}/invite")]
+    public async Task<ActionResult> InviteToMeeting(Guid projectId, Guid meetingId, [FromBody] MeetingInviteRequest req, CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        var meeting = await _db.Meetings
+            .FirstOrDefaultAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId, ct);
+        if (meeting == null) return NotFound("Meeting not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
+        var targetIds = (req?.UserIds ?? Array.Empty<Guid>()).Distinct().ToList();
+        if (targetIds.Count == 0) return BadRequest(new { error = "No invitees — supply userIds[] of project members to invite." });
+
+        Guid? inviterId = Guid.TryParse(User.FindFirst("user_id")?.Value ?? User.FindFirst("sub")?.Value, out var iid) ? iid : null;
+        var inviterName = User.FindFirst("display_name")?.Value ?? User.Identity?.Name ?? "A colleague";
+        var projName = await _db.Projects.Where(p => p.Id == projectId).Select(p => p.Name).FirstOrDefaultAsync(ct) ?? "the project";
+
+        // Only invite users who are genuine project members of this tenant.
+        var memberIds = await _db.ProjectMembers
+            .Where(m => m.ProjectId == projectId && targetIds.Contains(m.UserId))
+            .Select(m => m.UserId).Distinct().ToListAsync(ct);
+        var invitees = await _db.Users
+            .Where(u => u.TenantId == tenantId && memberIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName, u.Email })
+            .ToListAsync(ct);
+
+        // Links: app deep link + web fallback. PublicBaseUrl is the single source of
+        // truth for an externally-reachable host (Cloudflare tunnel / cloud).
+        var publicBase = (_config["Planscape:PublicBaseUrl"]
+            ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
+        var deepLink = $"planscape://meeting/{meetingId}?project={projectId}";
+        var webUrl = $"{publicBase}/viewer.html?project={projectId}&meeting={meetingId}";
+
+        var whenText = $"{meeting.ScheduledAt:ddd d MMM HH:mm}{(meeting.Location != null ? " · " + meeting.Location : "")}";
+        var title = $"Meeting invitation: {meeting.Title}";
+        var body = string.IsNullOrWhiteSpace(req?.Message) ? $"{inviterName} invited you · {whenText}" : req!.Message!;
+
+        var pushConfigured = _push.IsConfigured;
+        if (!pushConfigured)
+            _logger.LogInformation("[meeting-invite] push skipped (no FCM); notified in-app/email — meeting {MeetingId}", meetingId);
+
+        var existing = await _db.MeetingAttendees
+            .Where(a => a.MeetingId == meetingId && a.UserId.HasValue)
+            .Select(a => a.UserId!.Value).ToListAsync(ct);
+        var existingSet = new HashSet<Guid>(existing);
+
+        var invitedOut = new List<object>();
+        int emailsSent = 0, pushed = 0;
+        foreach (var u in invitees)
+        {
+            // (1) durable meeting-invite record (idempotent — don't duplicate attendees)
+            if (!existingSet.Contains(u.Id))
+            {
+                _db.MeetingAttendees.Add(new MeetingAttendee
+                {
+                    TenantId = tenantId,
+                    MeetingId = meetingId,
+                    UserId = u.Id,
+                    Name = u.DisplayName ?? u.Email ?? "Member",
+                    Email = u.Email,
+                    Role = "ATTENDEE",
+                    AttendanceStatus = "INVITED",
+                });
+                existingSet.Add(u.Id);
+            }
+
+            // (a) in-app (SignalR) — guaranteed regardless of push/email config
+            _ = _notifHub.Clients.Group($"user_{u.Id}").SendAsync("Notification", new
+            {
+                type = "meeting_invite",
+                meetingId = meetingId.ToString(),
+                projectId = projectId.ToString(),
+                title,
+                body,
+                message = body,
+                deepLink,
+                webUrl,
+            }, ct);
+
+            // (b) mobile push — gated on FCM config (graceful degradation)
+            if (pushConfigured)
+            {
+                _ = _push.SendToUserAsync(u.Id, new PushPayload
+                {
+                    Title = title,
+                    Body = body,
+                    Channel = "meetings",
+                    Priority = "high",
+                    Data = new Dictionary<string, string>
+                    {
+                        ["type"] = "meeting_invite",
+                        ["meetingId"] = meetingId.ToString(),
+                        ["projectId"] = projectId.ToString(),
+                        ["deepLink"] = deepLink,
+                        ["webUrl"] = webUrl,
+                    }
+                }, ct);
+                pushed++;
+            }
+
+            // (c) email (optional)
+            if ((req?.SendEmail ?? false) && _email.IsConfigured && !string.IsNullOrWhiteSpace(u.Email))
+            {
+                try
+                {
+                    await _email.SendNotificationAsync(u.Email!,
+                        title,
+                        BuildInviteEmailHtml(meeting.Title, projName, inviterName, whenText, body, webUrl, deepLink),
+                        ct);
+                    emailsSent++;
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "[meeting-invite] email failed for {Email}", u.Email); }
+            }
+
+            invitedOut.Add(new { userId = u.Id, name = u.DisplayName, email = u.Email });
+        }
+
+        await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("MEETING_INVITE", "Meeting", meetingId.ToString(),
+            System.Text.Json.JsonSerializer.Serialize(new { invited = invitedOut.Count, pushConfigured, emailsSent, by = inviterName }));
+
+        // Surface the roster change to anyone viewing the meeting list/detail.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("MeetingUpdated", new
+        {
+            meetingId, projectId, kind = "invited", count = invitedOut.Count
+        }, ct);
+
+        _logger.LogInformation("[meeting-invite] meeting {MeetingId}: invited {Count} member(s) — push={Pushed} email={Emails}",
+            meetingId, invitedOut.Count, pushed, emailsSent);
+
+        return Ok(new
+        {
+            meetingId,
+            invited = invitedOut,
+            count = invitedOut.Count,
+            pushConfigured,
+            emailConfigured = _email.IsConfigured,
+            emailsSent,
+            deepLink,
+            webUrl,
+        });
+    }
+
+    private static string BuildInviteEmailHtml(string meetingTitle, string projectName, string inviter, string when, string note, string webUrl, string deepLink)
+    {
+        string Esc(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
+        return $@"<div style='font-family:Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto'>
+  <h2 style='color:#1f2937;margin:0 0 4px'>Meeting invitation</h2>
+  <p style='color:#374151;font-size:15px'><strong>{Esc(inviter)}</strong> invited you to a meeting in <strong>{Esc(projectName)}</strong>.</p>
+  <table style='border-collapse:collapse;margin:12px 0;font-size:14px;color:#374151'>
+    <tr><td style='padding:4px 12px 4px 0;color:#6b7280'>Meeting</td><td><strong>{Esc(meetingTitle)}</strong></td></tr>
+    <tr><td style='padding:4px 12px 4px 0;color:#6b7280'>When</td><td>{Esc(when)}</td></tr>
+  </table>
+  {(string.IsNullOrWhiteSpace(note) ? "" : $"<p style='color:#374151;font-size:14px'>{Esc(note)}</p>")}
+  <p style='margin:20px 0'>
+    <a href='{Esc(webUrl)}' style='background:#2563eb;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:15px;display:inline-block'>Join the meeting</a>
+  </p>
+  <p style='color:#6b7280;font-size:12px'>On your phone the Planscape app opens this meeting directly: <code>{Esc(deepLink)}</code></p>
+  <p style='color:#9ca3af;font-size:12px'>If the button doesn't work, paste this link into your browser:<br>{Esc(webUrl)}</p>
+</div>";
     }
 
     [HttpPut("{meetingId}/attendees/{attendeeId}")]
@@ -1202,6 +1383,12 @@ public record AddAttendeeRequest(
     string? Company,
     string? Discipline,
     string? Role);
+
+/// <summary>P1 — invite existing project members to a meeting (push → tap to join).</summary>
+public record MeetingInviteRequest(
+    Guid[]? UserIds,
+    string? Message,
+    bool SendEmail = false);
 
 public record UpdateAttendeeRequest(
     string? AttendanceStatus,

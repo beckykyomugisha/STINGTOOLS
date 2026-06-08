@@ -37,6 +37,8 @@ export function parseNotificationEvent(event: string, payload: any): NormalizedM
   if (event === "Notification") {
     if (data.type === "meeting_live" || data.Type === "meeting_live")
       return { type: "live-start", meetingId: mid, sessionId: data.meetingSessionId || null, title: payload.title || "Meeting started", body: payload.message || payload.body || "Join the live meeting", deepLink: data.deepLink || (mid ? `?meeting=${mid}` : null) };
+    if (data.type === "meeting_invite" || data.Type === "meeting_invite")
+      return { type: "invite", meetingId: mid, sessionId: data.meetingSessionId || null, title: payload.title || data.title || "Meeting invitation", body: payload.message || payload.body || data.body || "You've been invited to a meeting", deepLink: data.webUrl || data.deepLink || (mid ? `?meeting=${mid}` : null) };
     return null;
   }
   if (event === "MeetingScheduled") return { type: "scheduled", meetingId: payload.id || mid, title: "Meeting scheduled", body: payload.title || "", deepLink: null };
@@ -104,6 +106,10 @@ export const meetingsCore = {
   addAttendee: (pid: string, mid: string, body: any): Promise<MeetingAttendee> => apiFetch(`${base(pid)}/${mid}/attendees`, { method: "POST", body: JSON.stringify(body) }),
   updateAttendee: (pid: string, mid: string, attendeeId: string, body: any) => apiFetch(`${base(pid)}/${mid}/attendees/${attendeeId}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteAttendee: (pid: string, mid: string, attendeeId: string) => apiFetch(`${base(pid)}/${mid}/attendees/${attendeeId}`, { method: "DELETE" }),
+
+  // P1 — invite existing project members to a meeting (push → tap to join).
+  invite: (pid: string, mid: string, body: { userIds: string[]; message?: string; sendEmail?: boolean }): Promise<any> =>
+    apiFetch(`${base(pid)}/${mid}/invite`, { method: "POST", body: JSON.stringify(body) }),
 
   logMinutes: (pid: string, mid: string, minutes: string, status?: string): Promise<Meeting> => apiFetch(`${base(pid)}/${mid}/minutes`, { method: "POST", body: JSON.stringify({ minutes, status }) }),
   generateMinutesDoc: (pid: string, mid: string): Promise<{ documentId: string }> => apiFetch(`${base(pid)}/${mid}/export/minutes`, { method: "POST" }),

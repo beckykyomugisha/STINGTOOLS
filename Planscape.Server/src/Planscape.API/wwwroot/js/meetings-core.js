@@ -15,7 +15,7 @@
 }(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var BUILD = "STING_MEETINGS_CORE_BUILD w5-roles";
+  var BUILD = "STING_MEETINGS_CORE_BUILD p1-invite";
 
   // ── Role → capability matrix (W5 — the contract BOTH surfaces share). ──
   // Server enforces; UIs show only allowed controls (web: dashboard.js mCan(); mobile:
@@ -61,6 +61,12 @@
                    body: payload.message || payload.body || "Join the live meeting",
                    deepLink: data.deepLink || (mid ? ("?meeting=" + mid) : null) };
         }
+        if (data.type === "meeting_invite" || data.Type === "meeting_invite") {
+          return { type: "invite", meetingId: mid, sessionId: data.meetingSessionId || null,
+                   title: payload.title || data.title || "Meeting invitation",
+                   body: payload.message || payload.body || data.body || "You've been invited to a meeting",
+                   deepLink: data.webUrl || data.deepLink || (mid ? ("?meeting=" + mid) : null) };
+        }
         return null;
       case "MeetingScheduled":
         return { type: "scheduled", meetingId: payload.id || payload.Id || mid,
@@ -105,6 +111,9 @@
       addAttendee: function (pid, mid, body) { return send(base(pid) + "/" + mid + "/attendees", "POST", body); },
       updateAttendee: function (pid, mid, attendeeId, body) { return send(base(pid) + "/" + mid + "/attendees/" + attendeeId, "PUT", body); },
       deleteAttendee: function (pid, mid, attendeeId) { return send(base(pid) + "/" + mid + "/attendees/" + attendeeId, "DELETE"); },
+
+      // P1 — invite existing project members to a meeting (push → tap to join).
+      invite: function (pid, mid, body) { return send(base(pid) + "/" + mid + "/invite", "POST", body); },
 
       // Minutes
       logMinutes: function (pid, mid, minutes, status) { return send(base(pid) + "/" + mid + "/minutes", "POST", { minutes: minutes, status: status }); },

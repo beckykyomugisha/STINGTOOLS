@@ -40,6 +40,10 @@ public class FirebasePushService : IPushNotificationService
         _expo = expo;
     }
 
+    /// <summary>FCM is usable when both the project id and a service-account JSON are present.</summary>
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(_fcmProjectId) && !string.IsNullOrWhiteSpace(_fcmServiceAccountJson);
+
     /// <summary>
     /// Dispatch a single push to the correct provider based on the token shape.
     /// Expo-prefixed tokens go through Expo's relay; native FCM tokens go direct.
@@ -313,6 +317,8 @@ public class NullPushNotificationService : IPushNotificationService
     private readonly ILogger<NullPushNotificationService> _logger;
 
     public NullPushNotificationService(ILogger<NullPushNotificationService> logger) => _logger = logger;
+
+    public bool IsConfigured => false;
 
     public Task SendToUserAsync(Guid userId, PushPayload payload, CancellationToken ct = default)
     {

@@ -12,6 +12,15 @@ public record PushPayload
 public interface IPushNotificationService
 {
     /// <summary>
+    /// True when a native push provider (FCM via Firebase service account) is
+    /// configured. Callers use this for graceful degradation — e.g. the meeting
+    /// invite skips the push fan-out and logs when no FCM is wired, still
+    /// delivering in-app + email. Expo-relayed dev tokens may still work when
+    /// this is false, but the documented "push works" contract requires FCM.
+    /// </summary>
+    bool IsConfigured { get; }
+
+    /// <summary>
     /// Send push notification to a specific user's registered devices.
     /// </summary>
     Task SendToUserAsync(Guid userId, PushPayload payload, CancellationToken ct = default);
