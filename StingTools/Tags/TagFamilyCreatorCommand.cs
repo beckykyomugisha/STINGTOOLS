@@ -467,7 +467,7 @@ namespace StingTools.Tags
             (BuiltInCategory.OST_PlumbingFixtures,     "Plumbing Fixture Tag.rft",     "Scrub Trough (HBN 26)",                                "Scrub Trough"),
             (BuiltInCategory.OST_PlumbingFixtures,     "Plumbing Fixture Tag.rft",     "Bedpan Washer (HBN 09-03)",                            "Bedpan Washer"),
             (BuiltInCategory.OST_PlumbingFixtures,     "Plumbing Fixture Tag.rft",     "Birth Pool (HBN 09-02)",                               "Birth Pool"),
-            // Specialty Equipment (8)
+            // Specialty Equipment (10) — 8 healthcare variants + 2 base label variants
             (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "Bedhead Trunking (HBN 04-01)",                         "Bedhead Trunking"),
             (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "Pendant (HBN 26)",                                     "Pendant"),
             (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "Crash Cart (NHS resus)",                               "Crash Cart"),
@@ -476,6 +476,8 @@ namespace StingTools.Tags
             (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "PTS Station (HTM 2024)",                               "PTS Station"),
             (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "RTLS Reader",                                          "RTLS Reader"),
             (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "Surgical Robot Bay (HBN 26)",                          "Surgical Robot Bay"),
+            (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "Specialty Equipment — Asset management focus",         "Specialty Equipment Tag Asset"),
+            (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "Specialty Equipment — Lightweight general purpose",    "Specialty Equipment Tag General"),
             // Medical Equipment (16)
             (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Imaging Modality (IPEM 91)",                           "Imaging Modality"),
             (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Dialysis Station (HBN 07-01)",                         "Dialysis Station"),

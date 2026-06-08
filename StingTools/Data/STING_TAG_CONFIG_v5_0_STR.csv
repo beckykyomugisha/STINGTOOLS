@@ -199,16 +199,16 @@ TAG STYLE PARAMETER CATALOG (v5.3) — Type parameters injected into every famil
 126,TextStyle,TAG_3.5BOLDITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC PURPLE
 127,TextStyle,TAG_3.5BOLDITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC GREY
 128,TextStyle,TAG_3.5BOLDITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC WHITE
-129,TierGate,TAG_PARA_STATE_1_BOOL,YESNO,1,Common,Switch,Shows tier 1 rows when true (depth N enables 1..N cumulatively)
-130,TierGate,TAG_PARA_STATE_2_BOOL,YESNO,0,Common,Switch,Shows tier 2 rows when true (depth N enables 1..N cumulatively)
-131,TierGate,TAG_PARA_STATE_3_BOOL,YESNO,0,Common,Switch,Shows tier 3 rows when true (depth N enables 1..N cumulatively)
-132,TierGate,TAG_PARA_STATE_4_BOOL,YESNO,0,Common,Switch,Shows tier 4 rows when true (depth N enables 1..N cumulatively)
-133,TierGate,TAG_PARA_STATE_5_BOOL,YESNO,0,Common,Switch,Shows tier 5 rows when true (depth N enables 1..N cumulatively)
-134,TierGate,TAG_PARA_STATE_6_BOOL,YESNO,0,Common,Switch,Shows tier 6 rows when true (depth N enables 1..N cumulatively)
-135,TierGate,TAG_PARA_STATE_7_BOOL,YESNO,0,Common,Switch,Shows tier 7 rows when true (depth N enables 1..N cumulatively)
-136,TierGate,TAG_PARA_STATE_8_BOOL,YESNO,0,Common,Switch,Shows tier 8 rows when true (depth N enables 1..N cumulatively)
-137,TierGate,TAG_PARA_STATE_9_BOOL,YESNO,0,Common,Switch,Shows tier 9 rows when true (depth N enables 1..N cumulatively)
-138,TierGate,TAG_PARA_STATE_10_BOOL,YESNO,0,Common,Switch,Shows tier 10 rows when true (depth N enables 1..N cumulatively)
+129,TierGate,TAG_PARA_STATE_1_BOOL,TEXT,Yes,Common,Switch,Shows tier 1 rows when true (depth N enables 1..N cumulatively)
+130,TierGate,TAG_PARA_STATE_2_BOOL,TEXT,No,Common,Switch,Shows tier 2 rows when true (depth N enables 1..N cumulatively)
+131,TierGate,TAG_PARA_STATE_3_BOOL,TEXT,No,Common,Switch,Shows tier 3 rows when true (depth N enables 1..N cumulatively)
+132,TierGate,TAG_PARA_STATE_4_BOOL,TEXT,No,Common,Switch,Shows tier 4 rows when true (depth N enables 1..N cumulatively)
+133,TierGate,TAG_PARA_STATE_5_BOOL,TEXT,No,Common,Switch,Shows tier 5 rows when true (depth N enables 1..N cumulatively)
+134,TierGate,TAG_PARA_STATE_6_BOOL,TEXT,No,Common,Switch,Shows tier 6 rows when true (depth N enables 1..N cumulatively)
+135,TierGate,TAG_PARA_STATE_7_BOOL,TEXT,No,Common,Switch,Shows tier 7 rows when true (depth N enables 1..N cumulatively)
+136,TierGate,TAG_PARA_STATE_8_BOOL,TEXT,No,Common,Switch,Shows tier 8 rows when true (depth N enables 1..N cumulatively)
+137,TierGate,TAG_PARA_STATE_9_BOOL,TEXT,No,Common,Switch,Shows tier 9 rows when true (depth N enables 1..N cumulatively)
+138,TierGate,TAG_PARA_STATE_10_BOOL,TEXT,No,Common,Switch,Shows tier 10 rows when true (depth N enables 1..N cumulatively)
 139,Warning,TAG_WARN_VISIBLE_BOOL,YESNO,0,Common,Switch,Shows threshold warnings on the tag
 140,Warning,TAG_WARN_SEVERITY_FILTER_TXT,TEXT,HIGH,Common,Filter,Minimum warning severity to show (LOW | MEDIUM | HIGH | CRITICAL)
 141,Box,TAG_BOX_COLOR_R_INT,INTEGER,0,Common,Colour,Tag box colour — red channel 0-255

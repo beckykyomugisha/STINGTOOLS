@@ -199,16 +199,16 @@ TAG STYLE PARAMETER CATALOG (v5.3) — Type parameters injected into every famil
 126,TextStyle,TAG_3.5BOLDITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC PURPLE
 127,TextStyle,TAG_3.5BOLDITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC GREY
 128,TextStyle,TAG_3.5BOLDITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC WHITE
-129,TierGate,TAG_PARA_STATE_1_BOOL,YESNO,1,Common,Switch,Shows tier 1 rows when true (depth N enables 1..N cumulatively)
-130,TierGate,TAG_PARA_STATE_2_BOOL,YESNO,0,Common,Switch,Shows tier 2 rows when true (depth N enables 1..N cumulatively)
-131,TierGate,TAG_PARA_STATE_3_BOOL,YESNO,0,Common,Switch,Shows tier 3 rows when true (depth N enables 1..N cumulatively)
-132,TierGate,TAG_PARA_STATE_4_BOOL,YESNO,0,Common,Switch,Shows tier 4 rows when true (depth N enables 1..N cumulatively)
-133,TierGate,TAG_PARA_STATE_5_BOOL,YESNO,0,Common,Switch,Shows tier 5 rows when true (depth N enables 1..N cumulatively)
-134,TierGate,TAG_PARA_STATE_6_BOOL,YESNO,0,Common,Switch,Shows tier 6 rows when true (depth N enables 1..N cumulatively)
-135,TierGate,TAG_PARA_STATE_7_BOOL,YESNO,0,Common,Switch,Shows tier 7 rows when true (depth N enables 1..N cumulatively)
-136,TierGate,TAG_PARA_STATE_8_BOOL,YESNO,0,Common,Switch,Shows tier 8 rows when true (depth N enables 1..N cumulatively)
-137,TierGate,TAG_PARA_STATE_9_BOOL,YESNO,0,Common,Switch,Shows tier 9 rows when true (depth N enables 1..N cumulatively)
-138,TierGate,TAG_PARA_STATE_10_BOOL,YESNO,0,Common,Switch,Shows tier 10 rows when true (depth N enables 1..N cumulatively)
+129,TierGate,TAG_PARA_STATE_1_BOOL,TEXT,Yes,Common,Switch,Shows tier 1 rows when true (depth N enables 1..N cumulatively)
+130,TierGate,TAG_PARA_STATE_2_BOOL,TEXT,No,Common,Switch,Shows tier 2 rows when true (depth N enables 1..N cumulatively)
+131,TierGate,TAG_PARA_STATE_3_BOOL,TEXT,No,Common,Switch,Shows tier 3 rows when true (depth N enables 1..N cumulatively)
+132,TierGate,TAG_PARA_STATE_4_BOOL,TEXT,No,Common,Switch,Shows tier 4 rows when true (depth N enables 1..N cumulatively)
+133,TierGate,TAG_PARA_STATE_5_BOOL,TEXT,No,Common,Switch,Shows tier 5 rows when true (depth N enables 1..N cumulatively)
+134,TierGate,TAG_PARA_STATE_6_BOOL,TEXT,No,Common,Switch,Shows tier 6 rows when true (depth N enables 1..N cumulatively)
+135,TierGate,TAG_PARA_STATE_7_BOOL,TEXT,No,Common,Switch,Shows tier 7 rows when true (depth N enables 1..N cumulatively)
+136,TierGate,TAG_PARA_STATE_8_BOOL,TEXT,No,Common,Switch,Shows tier 8 rows when true (depth N enables 1..N cumulatively)
+137,TierGate,TAG_PARA_STATE_9_BOOL,TEXT,No,Common,Switch,Shows tier 9 rows when true (depth N enables 1..N cumulatively)
+138,TierGate,TAG_PARA_STATE_10_BOOL,TEXT,No,Common,Switch,Shows tier 10 rows when true (depth N enables 1..N cumulatively)
 139,Warning,TAG_WARN_VISIBLE_BOOL,YESNO,0,Common,Switch,Shows threshold warnings on the tag
 140,Warning,TAG_WARN_SEVERITY_FILTER_TXT,TEXT,HIGH,Common,Filter,Minimum warning severity to show (LOW | MEDIUM | HIGH | CRITICAL)
 141,Box,TAG_BOX_COLOR_R_INT,INTEGER,0,Common,Colour,Tag box colour — red channel 0-255
@@ -1021,15 +1021,21 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Point Loads
 7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
-10,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
-11,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
-12,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
-13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
-14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
-15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
-16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_PT,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_PT, """")"
@@ -1056,15 +1062,21 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Line Loads
 7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
-10,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
-11,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
-12,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
-13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
-14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
-15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
-16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_LN,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_LN, """")"
@@ -1091,15 +1103,21 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Area Loads
 7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
-10,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
-11,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
-12,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
-13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
-14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
-15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
-16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_AR,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1991-1-1 / EC1,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_AR, """")"
@@ -1127,15 +1145,21 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Members
 7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
 8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
 9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
-10,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
-11,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
-12,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
-13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
-14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
-15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
-16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_ANLYT_NO_HOST,Analytical member has no physical host element,BS EN 1992-1-1 / BS EN 1993-1-1,Common,Text,⚠ Warning: No Physical Host,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_NO_HOST, """")"
@@ -1149,12 +1173,30 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Structural discipline
 5,T2,SHT_NUMBER_TXT,No:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, SHT_NUMBER_TXT, """")",NOM,BLACK,2.0,None,None
 6,T2,SHT_NAME_TXT,Name:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, SHT_NAME_TXT, """")",NOM,BLACK,2.0,None,None
 7,T3,SHT_TAG_7_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, SHT_TAG_7_TXT, """")",NOM,BLACK,2.0,None,None
-1,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
-2,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
-3,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
-4,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-5,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-6,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SHT_NAMING_STR,Sheet name does not match ISO 19650 naming convention for structural drawings,ISO 19650-2 / BS EN ISO 7200,Common,Text,⚠ Warning: Sheet Naming Convention,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_NAMING_STR, """")"
@@ -1181,6 +1223,30 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Structural Foundations / Rebar
 1,T3,ELC_LPS_BOND_TYPE_TXT,Bond:,,0,✓,Common,Text,Bonding Method to Steel,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_BOND_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
 2,T3,ELC_LPS_CERT_REF_TXT,Cert:,,0,✓,Common,Text,Continuity Certificate,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_CERT_REF_TXT, """")",NOM,BLACK,2.0,None,None
 
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,Foundation earth resistance > 10 ohm — supplement with Type-A rod electrodes,BS EN 62305-3:2011 §5.4.1 + Annex E.5.3,Common,Text,⚠ Warning: Foundation Earth Resistance High,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_EARTH_RESISTANCE_HIGH, """")"
