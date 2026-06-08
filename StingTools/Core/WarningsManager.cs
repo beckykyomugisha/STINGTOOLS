@@ -4368,6 +4368,26 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildCoordData: permissions restore failed: {ex.Message}"); }
 
+                // WS2 — restore Access Management / Project Members from the same per-project store
+                // the Save Access path writes to (STING_BIM_MANAGER/team_members.json). Without this,
+                // TeamMembers initialised empty and the grid went blank on every project reopen even
+                // though the JSON on disk held the saved/invited members. Uses the identical path helper
+                // (BIMManagerEngine.GetBIMManagerFilePath) so load and save can never drift.
+                try
+                {
+                    if (doc != null && !string.IsNullOrEmpty(doc.PathName))
+                    {
+                        string membersPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "team_members.json");
+                        if (File.Exists(membersPath))
+                        {
+                            var membersArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(membersPath));
+                            if (membersArr != null && membersArr.Count > 0)
+                                coordData.TeamMembers = membersArr.ToObject<List<UI.BIMCoordinationCenter.TeamMemberRow>>();
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildCoordData: team members restore failed: {ex.Message}"); }
+
                 // Phase 165 (TPL-FOLLOW-03) — populate the user's workflow queue.
                 // Driven by the workflow instance store under _BIM_COORD/workflows/.
                 // Failures are logged and the empty list flows through so the
