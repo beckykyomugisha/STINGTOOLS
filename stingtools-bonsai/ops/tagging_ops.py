@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import bpy
 
-# Module-level sequence counters keyed by (ifc_path, disc, sys, level)
-# so we don't re-scan the whole model on every small batch.
-_SEQ_COUNTERS: dict[tuple, int] = {}
+# Phase A3 — all token-inference + sequence logic lives in
+# stingtools_core.hosts.inference (the shared core), NOT here. This module is a
+# thin Blender adapter that calls core. The boundary lint (Phase A6) enforces
+# that no inference/grammar logic is (re)defined in adapter files like this one.
+from stingtools_core.hosts import inference as _inf
+
+# One sequence allocator per Blender session (keyed internally by
+# ifc_path/disc/sys/level). Replaces the old module-global counter dict.
+_SEQ = _inf.SequenceAllocator()
 
 
 # ---------------------------------------------------------------------------
@@ -36,166 +42,32 @@ def _ifc_path(model) -> str:
 
 
 def _infer_discipline(element) -> str:
-    """Map IFC class to STING discipline code."""
-    cls = element.is_a()
-    mapping = {
-        "IfcFlowTerminal": "M",
-        "IfcAirTerminal": "M",
-        "IfcUnitaryEquipment": "M",
-        "IfcCoil": "M",
-        "IfcDamper": "M",
-        "IfcDuctFitting": "M",
-        "IfcDuctSegment": "M",
-        "IfcDuctSilencer": "M",
-        "IfcFilter": "M",
-        "IfcSpaceHeater": "M",
-        "IfcPipeFitting": "P",
-        "IfcPipeSegment": "P",
-        "IfcSanitaryTerminal": "P",
-        "IfcValve": "P",
-        "IfcElectricAppliance": "E",
-        "IfcElectricDistributionBoard": "E",
-        "IfcElectricFlowStorageDevice": "E",
-        "IfcElectricGenerator": "E",
-        "IfcElectricMotor": "E",
-        "IfcLamp": "E",
-        "IfcLightFixture": "E",
-        "IfcOutlet": "E",
-        "IfcProtectiveDevice": "E",
-        "IfcSwitchingDevice": "E",
-        "IfcTransformer": "E",
-        "IfcCableCarrierFitting": "E",
-        "IfcCableCarrierSegment": "E",
-        "IfcCableFitting": "E",
-        "IfcCableSegment": "E",
-        "IfcWall": "A",
-        "IfcWallStandardCase": "A",
-        "IfcWindow": "A",
-        "IfcDoor": "A",
-        "IfcSlab": "A",
-        "IfcRoof": "A",
-        "IfcCovering": "A",
-        "IfcCurtainWall": "A",
-        "IfcColumn": "S",
-        "IfcBeam": "S",
-        "IfcMember": "S",
-        "IfcPile": "S",
-        "IfcFooting": "S",
-        "IfcFireSuppressionTerminal": "FP",
-        "IfcAlarm": "FP",
-    }
-    return mapping.get(cls, "XX")
+    """Delegates to core (stingtools_core.hosts.inference.infer_discipline)."""
+    return _inf.infer_discipline(element)
 
 
 def _infer_level(element) -> str:
-    """Derive short level code from containing IfcBuildingStorey."""
-    try:
-        import ifcopenshell.util.element as ifc_util  # type: ignore
-        container = ifc_util.get_container(element)
-        if container is None or not container.is_a("IfcBuildingStorey"):
-            return "XX"
-        name = (container.Name or "").strip().upper()
-        if "ROOF" in name or "ROOFTOP" in name:
-            return "RF"
-        if "MEZZANINE" in name or "MEZ" in name:
-            return "MZ"
-        if "PLANT" in name:
-            return "PR"
-        if "BASEMENT" in name or name.startswith("B") and any(c.isdigit() for c in name):
-            digit = next((c for c in name if c.isdigit()), "1")
-            return f"B{digit}"
-        if "GROUND" in name or name in ("GF", "G", "GROUND FLOOR", "0"):
-            return "GF"
-        for token in name.split():
-            if token.isdigit():
-                return f"L{int(token):02d}"
-        if container.Elevation is not None:
-            try:
-                elev = float(container.Elevation)
-                if elev < 0:
-                    return "B1"
-                if elev < 0.5:
-                    return "GF"
-                return f"L{max(1, round(elev / 3)):02d}"
-            except (ValueError, TypeError):
-                pass
-        return "XX"
-    except Exception:
-        return "XX"
+    """Delegates to core (stingtools_core.hosts.inference.infer_level)."""
+    return _inf.infer_level(element)
 
 
 def _infer_system(element) -> str:
-    """Derive system code from IfcSystem group membership."""
-    try:
-        import ifcopenshell.util.element as ifc_util  # type: ignore
-        model = element.wrapped_data.file
-        for rel in model.get_inverse(element):
-            if rel.is_a("IfcRelAssignsToGroup"):
-                grp = rel.RelatingGroup
-                if grp.is_a("IfcSystem"):
-                    name = (grp.Name or "").upper()
-                    if any(k in name for k in ("HVAC", "AIR", "VENT", "DUCT")):
-                        return "HVAC"
-                    if any(k in name for k in ("DRAIN", "SANIT", "WASTE", "SEWAGE")):
-                        return "SAN"
-                    if any(k in name for k in ("COLD", "DCW", "CWS")):
-                        return "DCW"
-                    if any(k in name for k in ("HOT", "DHW", "HWS")):
-                        return "DHW"
-                    if any(k in name for k in ("ELECTRIC", "POWER", "LV")):
-                        return "ELC"
-                    if any(k in name for k in ("FIRE", "SPRINKLER", "FP")):
-                        return "FP"
-                    if any(k in name for k in ("GAS",)):
-                        return "GAS"
-        return "XX"
-    except Exception:
-        return "XX"
+    """Delegates to core (stingtools_core.hosts.inference.infer_system)."""
+    return _inf.infer_system(element)
 
 
 def _infer_product(element) -> str:
-    """Derive product code from element type name (first 3 uppercase chars)."""
-    try:
-        el_type = element.IsDefinedBy
-        for rel in (element.wrapped_data.file.get_inverse(element)):
-            if rel.is_a("IfcRelDefinesByType"):
-                type_obj = rel.RelatingType
-                if type_obj and type_obj.Name:
-                    clean = "".join(c for c in type_obj.Name.upper() if c.isalpha())
-                    if clean:
-                        return clean[:3]
-        return "XX"
-    except Exception:
-        return "XX"
+    """Delegates to core (stingtools_core.hosts.inference.infer_product)."""
+    return _inf.infer_product(element)
 
 
 def _next_seq(path: str, disc: str, sys: str, level: str) -> str:
-    key = (path, disc, sys, level)
-    _SEQ_COUNTERS[key] = _SEQ_COUNTERS.get(key, 0) + 1
-    return str(_SEQ_COUNTERS[key]).zfill(4)
+    return _SEQ.next(path, disc, sys, level)
 
 
 def _seed_counters(model) -> None:
-    """Scan existing Pset_StingTags.Sequence values to initialise counters."""
-    path = _ifc_path(model)
-    try:
-        for el in model.by_type("IfcElement"):
-            pset = _get_pset(el, "Pset_StingTags")
-            if not pset:
-                continue
-            disc = pset.get("Discipline", "XX")
-            sys = pset.get("System", "XX")
-            level = pset.get("Level", "XX")
-            seq_str = pset.get("Sequence", "0000")
-            try:
-                seq_val = int(seq_str)
-            except (ValueError, TypeError):
-                continue
-            key = (path, disc, sys, level)
-            if seq_val > _SEQ_COUNTERS.get(key, 0):
-                _SEQ_COUNTERS[key] = seq_val
-    except Exception:
-        pass
+    """Prime the core sequence allocator from existing Pset_StingTags values."""
+    _SEQ.seed_from_model(model, get_pset=_get_pset)
 
 
 # ---------------------------------------------------------------------------
@@ -532,9 +404,9 @@ class StingAssignSequenceOperator(bpy.types.Operator):
             _write_pset(el, "Pset_StingTags", pset)
             reassigned += 1
 
-        # Sync to module counter cache
+        # Sync the core sequence allocator's high-water marks
         for (disc, sys, level), val in group_counters.items():
-            _SEQ_COUNTERS[(path, disc, sys, level)] = val
+            _SEQ.observe(path, disc, sys, level, val)
 
         self.report({"INFO"}, f"Assigned sequence to {reassigned} element(s)")
         return {"FINISHED"}

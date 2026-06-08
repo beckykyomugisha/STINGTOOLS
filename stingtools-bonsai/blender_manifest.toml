@@ -18,6 +18,11 @@ tags = ["3D View", "Pipeline", "Import-Export"]
 # Compatibility
 blender_version_min = "4.2.0"
 # Tested against Blender 5.1 with Bonsai (BlenderBIM) installed.
+# Phase A5 — HARD DEPENDENCY: Bonsai (>= 0.8.x, which bundles ifcopenshell 0.8.x)
+# must be installed + enabled. The Blender extension schema 1.0.0 has no field to
+# declare a dependency on another extension, so this is enforced at runtime
+# (the N-panel shows a "Bonsai required" banner and STING ops no-op without it).
+# Keep this pin in lockstep with ifcopenshell in StingBridge/requirements.txt.
 
 # Licensing
 license = ["SPDX:MIT"]
@@ -30,9 +35,11 @@ copyright = ["2026 Planscape Limited"]
 #   - Bonsai owns IFC parsing, geometry, ifcopenshell.api mutations.
 #   - StingTools owns ISO 19650 tag grammar, IDS validation against
 #     Pset_Sting*, Planscape federation, audit log.
-# When Bonsai is installed we delegate IFC writes through Bonsai's
-# transaction-aware API. When Bonsai is absent we fall back to direct
-# ifcopenshell.api.run() (degraded but functional).
+# IFC writes are delegated through Bonsai's transaction-aware tool.Ifc.run so
+# Blender's undo + Bonsai's UI stay consistent. There is NO in-Blender
+# standalone mode — without Bonsai there is no ifcopenshell and STING cannot
+# function. Headless/batch tagging runs outside Blender via StingBridge +
+# stingtools-core with a pip-installed ifcopenshell (see the integration plan).
 
 # Permissions
 [permissions]

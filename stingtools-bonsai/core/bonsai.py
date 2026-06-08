@@ -255,59 +255,74 @@ class BonsaiBridge:
     # IFC mutation — delegate through Bonsai when available
     # ------------------------------------------------------------------
 
+    def _tool_ifc(self) -> Optional[Any]:
+        """Return Bonsai's ``tool.Ifc`` if present, else None.
+
+        Phase A2 — IFC mutations MUST route through ``tool.Ifc.run`` when Bonsai
+        is loaded so the write lands on Bonsai's undo stack and refreshes its UI.
+        Bare ``ifcopenshell.api.run`` does NOT register with Bonsai's undo system.
+        """
+        if not self.installed:
+            return None
+        for tool_path in ("bonsai.tool", "bonsai_bim.tool", "blenderbim.tool"):
+            try:
+                mod = __import__(tool_path, fromlist=["Ifc"])
+                ifc_tool = getattr(mod, "Ifc", None)
+                if ifc_tool is not None and hasattr(ifc_tool, "run"):
+                    return ifc_tool
+            except Exception:  # noqa: BLE001 — Bonsai API drift must not break writes
+                continue
+        return None
+
+    def _run(self, command: str, model: Any, **kwargs) -> Any:
+        """Execute an ifcopenshell API command, preferring Bonsai's undo-aware path.
+
+        - Bonsai present  → ``tool.Ifc.run(command, **kwargs)`` (undo + UI refresh).
+        - Bonsai absent / headless → ``ifcopenshell.api.run(command, model, **kwargs)``.
+        """
+        tool_ifc = self._tool_ifc()
+        if tool_ifc is not None:
+            # Bonsai's tool.Ifc.run owns the active file; it does not take ``model``.
+            return tool_ifc.run(command, **kwargs)
+        import ifcopenshell.api  # type: ignore
+        return ifcopenshell.api.run(command, model, **kwargs)
+
     def add_pset(self, element: Any, pset_name: str, properties: dict) -> bool:
         """Add or edit a property set on an element.
 
-        When Bonsai is available, route via ifcopenshell.api.run so
-        Bonsai's undo + UI refresh hook in. Otherwise call the API
-        directly. Returns True on success.
+        Routes through Bonsai's ``tool.Ifc.run`` when Bonsai is loaded (so Ctrl-Z
+        works and Bonsai's property panel refreshes); falls back to direct
+        ``ifcopenshell.api.run`` only in headless/standalone. Returns True on success.
         """
         try:
-            import ifcopenshell.api  # type: ignore
+            import ifcopenshell.api  # type: ignore  # noqa: F401 — ensures API present
         except ImportError:
             return False
-
         try:
             model = self.active_ifc()
             if model is None:
                 return False
-
-            # Find or create the pset
-            pset = ifcopenshell.api.run(
-                "pset.add_pset",
-                model,
-                product=element,
-                name=pset_name,
-            )
-            ifcopenshell.api.run(
-                "pset.edit_pset",
-                model,
-                pset=pset,
-                properties=properties,
-            )
+            pset = self._run("pset.add_pset", model, product=element, name=pset_name)
+            self._run("pset.edit_pset", model, pset=pset, properties=properties)
             return True
         except Exception as e:
-            # In production this'd log to AuditLog; for the scaffold we
-            # surface to the System Console.
             logger.error("add_pset failed: %s", e, exc_info=True)
             return False
 
     def edit_attribute(self, element: Any, attributes: dict) -> bool:
-        """Set built-in IFC attributes (Name, Description, etc) on an element."""
+        """Set built-in IFC attributes (Name, Description, etc) on an element.
+
+        Undo-aware via ``tool.Ifc.run`` when Bonsai is present (see add_pset)."""
         try:
-            import ifcopenshell.api  # type: ignore
+            import ifcopenshell.api  # type: ignore  # noqa: F401
         except ImportError:
             return False
         try:
             model = self.active_ifc()
             if model is None:
                 return False
-            ifcopenshell.api.run(
-                "attribute.edit_attributes",
-                model,
-                product=element,
-                attributes=attributes,
-            )
+            self._run("attribute.edit_attributes", model,
+                      product=element, attributes=attributes)
             return True
         except Exception as e:
             logger.error("edit_attribute failed: %s", e, exc_info=True)

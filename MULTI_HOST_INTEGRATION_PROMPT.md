@@ -293,10 +293,10 @@ abstraction held.
 
 | Check | Phase | ✅/❓/❌ |
 |---|---|---|
-| Bonsai requires Bonsai; standalone removed | A | |
-| STING writes are undo-aware (`tool.Ifc.run`) | A | |
-| Host Adapter Contract + 2 adapters; boundary lint green | A | |
-| Substrate drift-check + version pins | A | |
+| Bonsai requires Bonsai; standalone removed | A | ✅ code · ❓ Blender render |
+| STING writes are undo-aware (`tool.Ifc.run`) | A | ✅ code · ❓ Blender undo |
+| Host Adapter Contract + 2 adapters; boundary lint green | A | ✅ (50 core tests) |
+| Substrate drift-check + version pins | A | ◐ pins ✅ · core hash ✅ · server `/api/substrate/manifest` ❌ (needs .NET) |
 | Core pull + LWW reconcile + chunking | B | |
 | Pull carries issues/BCF/clash review payload (cross-host review) | B | |
 | Any host combination coordinates + reviews via hub; **no pairwise code** | B/E | |
