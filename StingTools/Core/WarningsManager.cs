@@ -4368,25 +4368,67 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildCoordData: permissions restore failed: {ex.Message}"); }
 
-                // WS2 — restore Access Management / Project Members from the same per-project store
-                // the Save Access path writes to (STING_BIM_MANAGER/team_members.json). Without this,
-                // TeamMembers initialised empty and the grid went blank on every project reopen even
-                // though the JSON on disk held the saved/invited members. Uses the identical path helper
-                // (BIMManagerEngine.GetBIMManagerFilePath) so load and save can never drift.
+                // Access Management / Project Members — SERVER is the single source of truth.
+                // Load the canonical roster from /api/projects/{id}/members on every BCC open so
+                // the PLATFORM Access grid + MEETINGS Attendee grid both repopulate from the server
+                // (no drift, no "blank on reopen"). The old per-project team_members.json is now a
+                // DEPRECATED offline fallback only — used solely when we can't reach the server or
+                // the model isn't linked to a Planscape project yet.
                 try
                 {
-                    if (doc != null && !string.IsNullOrEmpty(doc.PathName))
+                    var sbClient = BIMManager.PlanscapeServerClient.Instance;
+
+                    // Resolve the linked server project: live CurrentProjectId, else the per-model link file.
+                    Guid pid = sbClient.CurrentProjectId;
+                    if (pid == Guid.Empty && doc != null && !string.IsNullOrEmpty(doc.PathName))
+                    {
+                        try
+                        {
+                            var link = BIMManager.PlanscapeProjectLink.Load(
+                                BIMManager.PlanscapeProjectLink.ConfigPathForModel(doc.PathName));
+                            if (link.IsLinked) { pid = link.ProjectId; sbClient.CurrentProjectId = pid; }
+                        }
+                        catch (Exception lex) { StingLog.Warn($"BuildCoordData: project-link resolve failed: {lex.Message}"); }
+                    }
+
+                    bool loadedFromServer = false;
+                    if (sbClient.IsConnected && pid != Guid.Empty)
+                    {
+                        // Sync-over-async off the UI thread (Task.Run) so the open path can't deadlock.
+                        var members = System.Threading.Tasks.Task.Run(() => sbClient.GetProjectMembersAsync(pid)).GetAwaiter().GetResult();
+                        if (members != null && members.Count > 0)
+                        {
+                            coordData.TeamMembers = members.Select(m => new UI.BIMCoordinationCenter.TeamMemberRow
+                            {
+                                Name           = m.DisplayName ?? m.Email ?? "Member",
+                                Email          = m.Email,
+                                Role           = string.IsNullOrWhiteSpace(m.ProjectRole) ? m.Iso19650Role : m.ProjectRole,
+                                Active         = true,
+                                ServerUserId   = m.UserId,
+                                ServerMemberId = m.Id,
+                            }).ToList();
+                            loadedFromServer = true;
+                            StingLog.Info($"BuildCoordData: loaded {members.Count} project member(s) from server (project {pid}).");
+                        }
+                    }
+
+                    // DEPRECATED offline fallback — local team_members.json. Only when the server
+                    // is unreachable / unlinked, so a disconnected user still sees the last roster.
+                    if (!loadedFromServer && doc != null && !string.IsNullOrEmpty(doc.PathName))
                     {
                         string membersPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "team_members.json");
                         if (File.Exists(membersPath))
                         {
                             var membersArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(membersPath));
                             if (membersArr != null && membersArr.Count > 0)
+                            {
                                 coordData.TeamMembers = membersArr.ToObject<List<UI.BIMCoordinationCenter.TeamMemberRow>>();
+                                StingLog.Info("BuildCoordData: server unreachable/unlinked — used deprecated team_members.json fallback.");
+                            }
                         }
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"BuildCoordData: team members restore failed: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"BuildCoordData: project members restore failed: {ex.Message}"); }
 
                 // Phase 165 (TPL-FOLLOW-03) — populate the user's workflow queue.
                 // Driven by the workflow instance store under _BIM_COORD/workflows/.
