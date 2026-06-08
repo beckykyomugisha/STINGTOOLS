@@ -34,8 +34,17 @@ public class FirebasePushService : IPushNotificationService
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
-        _fcmProjectId = config["Firebase:ProjectId"];
-        _fcmServiceAccountJson = config["Firebase:ServiceAccountJson"];
+        // P5 — config key is Push:Firebase:* (env Push__Firebase__ServiceAccountJson),
+        // with the legacy Firebase:* kept as a fallback. The service-account JSON may be
+        // supplied RAW or BASE64-encoded (base64 dodges .env quoting/newline pain — see
+        // docs/PUSH_FIREBASE.md). ProjectId is auto-derived from the JSON's project_id
+        // when not set explicitly, so dropping ONE env var is enough to turn FCM on.
+        // NOTE: an env var set to empty (Push__Firebase__ProjectId=) binds to "" not null,
+        // so plain ?? would stop at the empty string — coalesce on non-empty instead.
+        _fcmServiceAccountJson = DecodeServiceAccount(
+            FirstNonEmpty(config["Push:Firebase:ServiceAccountJson"], config["Firebase:ServiceAccountJson"]));
+        _fcmProjectId = FirstNonEmpty(config["Push:Firebase:ProjectId"], config["Firebase:ProjectId"])
+            ?? ExtractProjectId(_fcmServiceAccountJson);
         _httpClient = httpClientFactory.CreateClient("FCM");
         _expo = expo;
     }
@@ -43,6 +52,44 @@ public class FirebasePushService : IPushNotificationService
     /// <summary>FCM is usable when both the project id and a service-account JSON are present.</summary>
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(_fcmProjectId) && !string.IsNullOrWhiteSpace(_fcmServiceAccountJson);
+
+    /// <summary>First non-blank value, or null — so an empty env var coalesces like null.</summary>
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var v in values) if (!string.IsNullOrWhiteSpace(v)) return v;
+        return null;
+    }
+
+    /// <summary>
+    /// Accept the service-account JSON either RAW (starts with '{') or BASE64-encoded.
+    /// Base64 is the recommended .env form — one line, no quoting/escaping of the
+    /// multi-line JSON or its embedded "\n" private key.
+    /// </summary>
+    private static string? DecodeServiceAccount(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var t = value.Trim();
+        if (t.StartsWith("{")) return t;                         // already raw JSON
+        try
+        {
+            var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(t)).Trim();
+            if (decoded.StartsWith("{")) return decoded;         // base64 → JSON
+        }
+        catch { /* not base64 — fall through */ }
+        return t;   // last resort: hand it on so the OAuth parse surfaces a clear error
+    }
+
+    /// <summary>Pull project_id out of the service-account JSON so ProjectId is optional.</summary>
+    private static string? ExtractProjectId(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("project_id", out var pid) ? pid.GetString() : null;
+        }
+        catch { return null; }
+    }
 
     /// <summary>
     /// Dispatch a single push to the correct provider based on the token shape.

@@ -67,6 +67,12 @@ services:
       #          Resend-verified domain (SMTP_FROM_ADDRESS feeds the From for both).
       - Email__Provider=${Email__Provider:-smtp}
       - Resend__ApiKey=${RESEND_API_KEY:-}
+      # ── Push (FCM / APNs via Firebase — meeting invites) ──
+      # Drop the Firebase service-account JSON here to turn mobile push on. Base64 the
+      # JSON to avoid .env quoting/newline pain (the server accepts raw OR base64).
+      # ProjectId is auto-derived from the JSON's project_id. See docs/PUSH_FIREBASE.md.
+      - Push__Firebase__ServiceAccountJson=${PUSH_FIREBASE_SERVICE_ACCOUNT_JSON:-}
+      - Push__Firebase__ProjectId=${PUSH_FIREBASE_PROJECT_ID:-}
       # ── LiveKit (WS3 A/V media plane) ──
       # Url is the BROWSER-reachable signaling URL (ws://localhost:7880 in dev).
       # The dev livekit service below runs with key 'devkey' / secret 'secret'.
