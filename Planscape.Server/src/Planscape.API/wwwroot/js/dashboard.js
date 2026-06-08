@@ -1898,7 +1898,12 @@
       var inner = fields.map(function (f) {
         var id = "fm_" + f.key;
         if (f.type === "select") {
-          var opts = (f.options || []).map(function (o) { return '<option value="' + esc(o) + '"' + (o === f.value ? " selected" : "") + ">" + esc(o) + "</option>"; }).join("");
+          // WS1c — options may be plain strings OR { value, label } objects (member dropdowns).
+          var opts = (f.options || []).map(function (o) {
+            var ov = (o && typeof o === "object") ? o.value : o;
+            var ol = (o && typeof o === "object") ? o.label : o;
+            return '<option value="' + esc(ov) + '"' + (String(ov) === String(f.value) ? " selected" : "") + ">" + esc(ol) + "</option>";
+          }).join("");
           return '<div class="field"><label>' + esc(f.label) + '</label><select id="' + id + '">' + opts + "</select></div>";
         }
         if (f.type === "textarea") return '<div class="field"><label>' + esc(f.label) + '</label><textarea id="' + id + '" rows="5">' + esc(f.value || "") + "</textarea></div>";
@@ -1955,6 +1960,20 @@
         close({ userIds: ids, message: (wrap.querySelector("#invMsg") || {}).value || "", sendEmail: !!(wrap.querySelector("#invEmail") || {}).checked });
       };
     });
+  }
+
+  // WS1c — shared project-member dropdown source. Returns the raw members plus a formModal
+  // select option list ({value:userId,label:name}). `includeManual` prepends a "type manually"
+  // sentinel (value ""); `taken` flags members already on the meeting.
+  async function projectMemberOptions(pid, includeManual, taken) {
+    var members = [];
+    try { members = await api("/api/projects/" + pid + "/members"); } catch (e) { members = []; }
+    if (!Array.isArray(members)) members = [];
+    var opts = includeManual ? [{ value: "", label: "— enter manually below —" }] : [];
+    members.forEach(function (mm) {
+      opts.push({ value: mm.userId, label: (mm.displayName || mm.email || mm.userId) + (taken && taken[mm.userId] ? " · already added" : "") });
+    });
+    return { members: members, options: opts };
   }
 
   var MTYPES = ["MEETING", "COORDINATION", "DESIGN_REVIEW", "PROGRESS", "CLIENT", "SITE", "HANDOVER"];
@@ -2021,7 +2040,7 @@
             '<span style="flex:1;font-size:13px">' + esc(a.name || a.email || "") +
             (a.role ? ' <span class="chip">' + esc(a.role) + "</span>" : "") +
             (a.attendanceStatus ? ' <span style="color:var(--muted)">' + esc(a.attendanceStatus) + "</span>" : "") + "</span>" +
-            (canAttend ? '<button class="ghost md-ed-attendee" data-id="' + esc(a.id) + '">edit</button>' : "") + "</div>";
+            (canAttend ? '<button class="ghost md-ed-attendee" data-id="' + esc(a.id) + '">edit</button><button class="ghost md-del-attendee" data-id="' + esc(a.id) + '">✕</button>' : "") + "</div>";
         }).join("") : '<div class="empty">No attendees.</div>') +
       '<div class="card"><div style="display:flex;align-items:center;gap:8px"><h3 style="margin:0;flex:1">Minutes</h3>' +
         (canMinutes ? '<button class="ghost" id="mdGenDoc">📄 Generate doc</button>' : "") + "</div>" +
@@ -2075,8 +2094,14 @@
     }; });
     main.querySelectorAll(".md-del-agenda").forEach(function (b) { b.onclick = async function () { if (!confirm("Delete this agenda item?")) return; try { await core.deleteAgendaItem(pid, meetingId, b.dataset.id); reload(); } catch (e) { toast("Failed: " + e); } }; });
     var ac = document.getElementById("mdAddAction"); if (ac) ac.onclick = async function () {
-      var v = await formModal("Add action", [{ key: "description", label: "Description" }, { key: "assignee", label: "Assignee (name)" }, { key: "dueDate", label: "Due", type: "date" }, { key: "priority", label: "Priority", type: "select", options: ["LOW", "MEDIUM", "HIGH"], value: "MEDIUM" }]);
-      if (!v || !v.description) return; try { await core.addAction(pid, meetingId, { description: v.description, assignee: v.assignee, dueDate: v.dueDate || null, priority: v.priority }); reload(); } catch (e) { toast("Failed: " + e); }
+      // WS1c — assignee is a known set (project members) → dropdown + manual fallback.
+      var amem = await projectMemberOptions(pid, true, null);
+      var v = await formModal("Add action", [{ key: "description", label: "Description" }, { key: "assignee", label: "Assignee (member)", type: "select", options: amem.options, value: "" }, { key: "assigneeManual", label: "Assignee (if external)", value: "" }, { key: "dueDate", label: "Due", type: "date" }, { key: "priority", label: "Priority", type: "select", options: ["LOW", "MEDIUM", "HIGH"], value: "MEDIUM" }]);
+      if (!v || !v.description) return;
+      var body = { description: v.description, dueDate: v.dueDate || null, priority: v.priority };
+      if (v.assignee) { var am = amem.members.find(function (x) { return String(x.userId) === String(v.assignee); }) || {}; body.assignee = am.displayName || am.email || ""; body.assigneeUserId = v.assignee; }
+      else if (v.assigneeManual) body.assignee = v.assigneeManual;
+      try { await core.addAction(pid, meetingId, body); reload(); } catch (e) { toast("Failed: " + e); }
     };
     main.querySelectorAll(".md-ed-action").forEach(function (b) { b.onclick = async function () {
       var it = actions.find(function (x) { return x.id === b.dataset.id; }) || {};
@@ -2084,14 +2109,29 @@
       if (!v) return; try { await core.updateAction(pid, meetingId, b.dataset.id, v); reload(); } catch (e) { toast("Failed: " + e); }
     }; });
     var ad = document.getElementById("mdAddAttendee"); if (ad) ad.onclick = async function () {
-      var v = await formModal("Add attendee", [{ key: "name", label: "Name" }, { key: "email", label: "Email" }, { key: "role", label: "Role", type: "select", options: ["Attendee", "Chair", "Secretary", "Client", "Discipline-lead"], value: "Attendee" }]);
-      if (!v || (!v.name && !v.email)) return; try { await core.addAttendee(pid, meetingId, v); reload(); } catch (e) { toast("Failed: " + e); }
+      // WS1c — Name is a dropdown of project members (sourced from the Project Members tab);
+      // role/attendance are dropdowns; manual entry stays as a fallback for external guests.
+      var taken = {}; attendees.forEach(function (a) { if (a.userId) taken[a.userId] = true; });
+      var mem = await projectMemberOptions(pid, true, taken);
+      var v = await formModal("Add attendee", [
+        { key: "member", label: "Project member", type: "select", options: mem.options, value: "" },
+        { key: "name", label: "Name (external guest)", value: "" },
+        { key: "email", label: "Email (external guest)", value: "" },
+        { key: "role", label: "Role", type: "select", options: ["Attendee", "Chair", "Secretary", "Client", "Discipline-lead"], value: "Attendee" },
+      ]);
+      if (!v) return;
+      var body = { role: v.role };
+      if (v.member) { var mm = mem.members.find(function (x) { return String(x.userId) === String(v.member); }) || {}; body.userId = v.member; body.name = mm.displayName || mm.email || ""; body.email = mm.email || ""; }
+      else { body.name = v.name; body.email = v.email; }
+      if (!body.userId && !body.name && !body.email) { toast("Pick a member or enter a name/email."); return; }
+      try { await core.addAttendee(pid, meetingId, body); reload(); } catch (e) { toast("Failed: " + e); }
     };
     main.querySelectorAll(".md-ed-attendee").forEach(function (b) { b.onclick = async function () {
       var it = attendees.find(function (x) { return x.id === b.dataset.id; }) || {};
       var v = await formModal("Edit attendee", [{ key: "role", label: "Role", type: "select", options: ["Attendee", "Chair", "Secretary", "Client", "Discipline-lead"], value: it.role || "Attendee" }, { key: "attendanceStatus", label: "Attendance", type: "select", options: ["INVITED", "ACCEPTED", "DECLINED", "ATTENDED", "ABSENT"], value: it.attendanceStatus || "INVITED" }]);
       if (!v) return; try { await core.updateAttendee(pid, meetingId, b.dataset.id, v); reload(); } catch (e) { toast("Failed: " + e); }
     }; });
+    main.querySelectorAll(".md-del-attendee").forEach(function (b) { b.onclick = async function () { if (!confirm("Remove this attendee?")) return; try { await core.deleteAttendee(pid, meetingId, b.dataset.id); reload(); } catch (e) { toast("Failed: " + e); } }; });
     var sm = document.getElementById("mdSaveMinutes"); if (sm) sm.onclick = async function () { try { await core.logMinutes(pid, meetingId, document.getElementById("mdMinutes").value, m.status); toast("Minutes saved"); } catch (e) { toast("Failed: " + e); } };
     var gd = document.getElementById("mdGenDoc"); if (gd) gd.onclick = async function () { try { await core.generateMinutesDoc(pid, meetingId); toast("Minutes doc generated → Documents"); } catch (e) { toast("Failed: " + e); } };
     wireRecPlay(main);
