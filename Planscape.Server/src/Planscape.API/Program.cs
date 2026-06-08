@@ -1643,6 +1643,33 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         "CREATE INDEX IF NOT EXISTS \"IX_MeetingRecordings_SessionId\" ON \"MeetingRecordings\" (\"SessionId\")",
         "CREATE INDEX IF NOT EXISTS \"IX_MeetingRecordings_ProjectId_MeetingId\" ON \"MeetingRecordings\" (\"ProjectId\", \"MeetingId\")",
         "CREATE INDEX IF NOT EXISTS \"IX_MeetingRecordings_EgressId\" ON \"MeetingRecordings\" (\"EgressId\")",
+        // P3-2 — boot-time schema drift reconcile (see docs/adr/0001-schema-management.md).
+        // These three objects live in the EF model + ModelSnapshot but were never
+        // materialised on pre-existing DBs (EnsureCreated short-circuits once Tenants
+        // exists, and Migrate() is a no-op against the un-attributed migration set).
+        // DDL mirrors PlanscapeDbContextModelSnapshot exactly so SchemaDriftChecker
+        // reports OK after the patch.
+        // (a) TemplateOpRecords — Template Manager op log (no creating migration existed).
+        "CREATE TABLE IF NOT EXISTS \"TemplateOpRecords\" (" +
+            "\"Id\" uuid NOT NULL PRIMARY KEY, \"TenantId\" uuid NOT NULL, \"ProjectId\" uuid NOT NULL, " +
+            "\"Operation\" character varying(64) NOT NULL DEFAULT '', \"OperationLabel\" text NOT NULL DEFAULT '', " +
+            "\"Severity\" character varying(16) NOT NULL DEFAULT 'Info', \"Headline\" character varying(1024) NOT NULL DEFAULT '', " +
+            "\"SubHeadline\" text NULL, \"CompletedUtc\" timestamp with time zone NOT NULL DEFAULT now(), " +
+            "\"DurationMs\" double precision NOT NULL DEFAULT 0, \"CapturedBy\" text NOT NULL DEFAULT '', " +
+            "\"DocumentPath\" text NULL, \"DocumentTitle\" text NULL, " +
+            "\"CreatedCount\" integer NOT NULL DEFAULT 0, \"SkippedCount\" integer NOT NULL DEFAULT 0, " +
+            "\"FailedCount\" integer NOT NULL DEFAULT 0, \"SectionCount\" integer NOT NULL DEFAULT 0, " +
+            "\"CountersJson\" text NULL)",
+        "CREATE INDEX IF NOT EXISTS \"IX_TemplateOpRecords_TenantId\" ON \"TemplateOpRecords\" (\"TenantId\")",
+        "CREATE INDEX IF NOT EXISTS \"IX_TemplateOpRecords_ProjectId_CompletedUtc\" ON \"TemplateOpRecords\" (\"ProjectId\", \"CompletedUtc\")",
+        "CREATE INDEX IF NOT EXISTS \"IX_TemplateOpRecords_ProjectId_Operation\" ON \"TemplateOpRecords\" (\"ProjectId\", \"Operation\")",
+        "CREATE INDEX IF NOT EXISTS \"IX_TemplateOpRecords_TenantId_CompletedUtc\" ON \"TemplateOpRecords\" (\"TenantId\", \"CompletedUtc\")",
+        // (b) HealthcarePressureLogs.RoomIfcGlobalId — K1 cross-host identity column.
+        "ALTER TABLE \"HealthcarePressureLogs\" ADD COLUMN IF NOT EXISTS \"RoomIfcGlobalId\" character varying(22) NULL",
+        "CREATE INDEX IF NOT EXISTS \"IX_HealthcarePressureLogs_ProjectId_RoomIfcGlobalId\" ON \"HealthcarePressureLogs\" (\"ProjectId\", \"RoomIfcGlobalId\")",
+        // (c) PenetrationSignoffs.ElementIfcGlobalId — K1 cross-host identity column.
+        "ALTER TABLE \"PenetrationSignoffs\" ADD COLUMN IF NOT EXISTS \"ElementIfcGlobalId\" character varying(22) NULL",
+        "CREATE INDEX IF NOT EXISTS \"IX_PenetrationSignoffs_ProjectId_ElementIfcGlobalId\" ON \"PenetrationSignoffs\" (\"ProjectId\", \"ElementIfcGlobalId\")",
     };
     int applied = 0, failed = 0;
     foreach (var sql in patches)
