@@ -1,32 +1,46 @@
-version: '3.9'
-
-# Production overlay — adds nginx TLS termination, MinIO object storage,
-# and a nightly database backup sidecar. Use with:
+# Planscape — PRODUCTION overlay (Caddy + Let's Encrypt + persistent state).
+#
+# Layers on top of the base stack — run BOTH files:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #
-# Prerequisites before first `up`:
-#   1) echo "JWT_KEY=$(openssl rand -base64 48)"     >> .env
-#   2) echo "DB_PASSWORD=$(openssl rand -base64 24)" >> .env
-#   3) echo "MINIO_ROOT_PASSWORD=$(openssl rand -base64 24)" >> .env
-#   4) Put your TLS cert + key at ./nginx/certs/server.crt and server.key
-#      (see ./nginx/generate-selfsigned.sh for dev, or use certbot for prod)
+# What this overlay does (everything DOMAIN-driven — no hardcoded hosts):
+#   • Fronts the API with Caddy, which obtains + renews Let's Encrypt certs
+#     automatically for app.${DOMAIN}. The API no longer binds a host port.
+#   • livekit.${DOMAIN} is DNS-ONLY (an A record straight to this VPS's public
+#     IP) — LiveKit terminates its own TLS/TURN on :443, Caddy does NOT proxy it.
+#   • Persists every piece of state on NAMED volumes: postgres (pgdata, base),
+#     MinIO recordings (miniodata, base), Caddy's LE certs (caddy_data), and the
+#     ASP.NET DataProtection key ring (dpkeys) — the last fixes the "keys not
+#     persisted" warning so auth/antiforgery survive restarts.
+#
+# Prerequisites (see docs/DEPLOYMENT.md):
+#   1) cp .env.production.template .env  and fill DOMAIN, DB_PASSWORD, JWT_KEY,
+#      MINIO_ROOT_PASSWORD, LIVEKIT_API_KEY/SECRET, LIVEKIT_NODE_IP (public IP),
+#      RESEND_API_KEY (or SMTP_*).  .env is gitignored — never commit it.
+#   2) Point app.${DOMAIN} (and, separately, livekit.${DOMAIN}) A records at the
+#      VPS public IP. Open 80/443 TCP (Caddy) and 443/tcp + 3478/udp (LiveKit TURN).
 
 services:
   api:
-    # API no longer binds 5000 to the host — nginx fronts it.
+    # Caddy fronts the API — drop the dev 5000 host binding, expose only on the
+    # internal compose network for Caddy to reverse_proxy.
     ports: []
     expose:
       - "8080"
     environment:
-      - Storage__Provider=S3
-      - Storage__S3__ServiceUrl=http://minio:9000
-      - Storage__S3__BucketName=planscape-attachments
-      - Storage__S3__Region=us-east-1
-      - Storage__S3__AccessKey=planscape
-      - Storage__S3__SecretKey=${MINIO_ROOT_PASSWORD:-PlanscapeMinio2026!}
-      - Storage__S3__ForcePathStyle=true
-      - Cors__Origins__0=https://${PUBLIC_HOST:-planscape.local}
-      - Cors__Origins__1=https://${PUBLIC_HOST:-planscape.local}:443
+      - ASPNETCORE_ENVIRONMENT=Production
+      # Single source of truth for every outward link + CORS (invites, resets,
+      # share/QR, deep links). Derived purely from DOMAIN.
+      - Planscape__PublicBaseUrl=${PUBLIC_BASE_URL:-https://app.${DOMAIN}}
+      - Cors__Origins__0=https://app.${DOMAIN}
+      # WS5 — persist the DataProtection key ring on the dpkeys named volume.
+      - DataProtection__KeysPath=/app/keys
+      # Recordings playback URLs must be BROWSER-reachable in prod (presigned
+      # against the public MinIO/S3 host, not the internal compose host).
+      - LiveKit__Url=${LIVEKIT_URL:-wss://livekit.${DOMAIN}}
+      - LiveKit__Egress__S3__PublicEndpoint=${EGRESS_S3_PUBLIC_ENDPOINT:-https://recordings.${DOMAIN}}
+    volumes:
+      - dpkeys:/app/keys
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,53 +49,53 @@ services:
       minio:
         condition: service_healthy
 
-  nginx:
-    image: nginx:1.27-alpine
+  # Caddy — automatic HTTPS (Let's Encrypt) reverse proxy. The Caddyfile reads
+  # {$DOMAIN} from the environment, so the same image serves any domain.
+  caddy:
+    image: caddy:2-alpine
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN:?Set DOMAIN in .env (your live domain, e.g. example.com)}
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data       # LE certs + ACME account — MUST persist
+      - caddy_config:/config
     depends_on:
       - api
     restart: unless-stopped
 
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
+  # LiveKit prod note: NODE_IP MUST be this VPS's PUBLIC IP (set LIVEKIT_NODE_IP
+  # in .env) or browsers can't reach the media plane. TURN/TLS on :443 for clients
+  # behind restrictive firewalls is configured in livekit.yaml (turn: block) — see
+  # docs/DEPLOYMENT.md → "LiveKit media (ICE + TURN/TLS-443)".
+  livekit:
     environment:
-      MINIO_ROOT_USER: planscape
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-PlanscapeMinio2026!}
-    volumes:
-      - miniodata:/data
-    ports:
-      - "9001:9001"   # management console (bind to 127.0.0.1 in real prod)
-    expose:
-      - "9000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+      - NODE_IP=${LIVEKIT_NODE_IP:?Set LIVEKIT_NODE_IP to this VPS public IP}
 
-  # Nightly pg_dump to a dedicated backup volume. Retention = 14 dumps.
+  # MinIO console should NOT be world-exposed in prod — bind it to loopback only.
+  minio:
+    ports:
+      - "127.0.0.1:9001:9001"
+
+  # Nightly pg_dump to a dedicated backup volume (retention handled in backup.sh).
   pgbackup:
     image: postgres:16-alpine
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      PGPASSWORD: ${DB_PASSWORD:-Planscape2026!}
+      PGPASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
     volumes:
       - pgbackups:/backups
       - ./backup/backup.sh:/usr/local/bin/backup.sh:ro
     entrypoint: ["/bin/sh", "-c", "crond -f -d 8"]
     command: []
-    # Cron registered on image: 15 02 * * * /usr/local/bin/backup.sh
     restart: unless-stopped
 
 volumes:
-  miniodata:
+  caddy_data:    # Let's Encrypt certs + ACME account — survives restarts.
+  caddy_config:
+  dpkeys:        # WS5 — ASP.NET DataProtection key ring (auth/antiforgery).
   pgbackups:

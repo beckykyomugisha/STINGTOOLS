@@ -1,0 +1,31 @@
+# Planscape production Caddyfile — automatic HTTPS via Let's Encrypt.
+#
+# {$DOMAIN} is supplied by the caddy service environment (from .env DOMAIN), so
+# this file is domain-agnostic. Caddy obtains + renews the cert for app.${DOMAIN}
+# automatically (HTTP-01 / TLS-ALPN over the published :80/:443) and stores it on
+# the caddy_data named volume.
+#
+# livekit.${DOMAIN} is intentionally NOT handled here — it is DNS-ONLY (an A
+# record straight to the VPS) and LiveKit terminates its own TLS/TURN on :443.
+
+app.{$DOMAIN} {
+	encode zstd gzip
+
+	# WebSockets (SignalR /hubs/*, LiveKit token negotiation) upgrade
+	# transparently through reverse_proxy — no extra config needed.
+	reverse_proxy api:8080 {
+		# Preserve the original host + scheme so the API builds correct
+		# outward URLs and honours forwarded-proto for secure cookies.
+		header_up Host {host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Real-IP {remote_host}
+	}
+
+	# Reasonable security headers; tune CSP per your asset origins.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

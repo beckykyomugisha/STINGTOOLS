@@ -216,3 +216,83 @@ or coturn) and point `rtc.turn_servers` / the LiveKit TURN block at your
 > recording is disabled in the loopback dev profile. Browser A/V (the priority)
 > works. In production, `LIVEKIT_NODE_IP=<public IP>` is reachable by both
 > browsers and the egress container, so recording works there.
+
+---
+
+## 7. Phase 1 — VPS production (Caddy + Let's Encrypt)
+
+§1–6 cover **Phase 0**: a laptop + a named/quick cloudflared tunnel for ad-hoc
+remote review. **Phase 1** is the durable home: a VPS with a real domain, HTTPS,
+and persistent state. Everything is **DOMAIN-driven** — no hardcoded hosts.
+
+### What the prod overlay adds (`docker-compose.prod.yml`)
+Run both files together:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+- **Caddy** fronts the API and obtains/renews a **Let's Encrypt** cert for
+  `app.${DOMAIN}` automatically (HTTP-01 / TLS-ALPN on :80/:443). The API stops
+  binding a host port — only Caddy is exposed. LE certs persist on the
+  `caddy_data` named volume.
+- **`app.${DOMAIN}` is proxied** through Caddy; **`livekit.${DOMAIN}` is DNS-only**
+  — an A record straight to the VPS, LiveKit terminates its own TLS/TURN on :443.
+- **Persistent named volumes** for every piece of state, so a redeploy keeps it:
+  `pgdata` (Postgres), `miniodata` (recordings/attachments), `caddy_data`
+  (certs), and `dpkeys` (the **ASP.NET DataProtection key ring**).
+- The MinIO console binds to **loopback only** (`127.0.0.1:9001`) — never
+  world-exposed.
+
+### DataProtection keys — fixing "keys not persisted"
+The API now persists its DataProtection key ring when `DataProtection:KeysPath`
+is set (the overlay sets `DataProtection__KeysPath=/app/keys`, mounted on the
+`dpkeys` volume). Without this, ASP.NET regenerates an **ephemeral** key ring on
+every boot — logging *"No XML encryptor … keys not persisted"* and invalidating
+anything protected by the prior key (auth cookies, antiforgery tokens, share
+links) on each restart. Unset (dev) keeps the default ephemeral behaviour.
+
+### Secrets — env-only, nothing in the image
+```bash
+cp .env.production.template .env      # gitignored; never commit a populated .env
+# fill: DOMAIN, DB_PASSWORD, JWT_KEY, MINIO_ROOT_PASSWORD,
+#       LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_NODE_IP (VPS public IP),
+#       RESEND_API_KEY (or SMTP_*), PUSH_FIREBASE_SERVICE_ACCOUNT_JSON
+```
+The dev LiveKit `devkey:secret` pair is **only a `${…:-default}` fallback** in
+`docker-compose.yml`. Setting `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` in `.env`
+**rotates it out** — the api mints tokens with, and LiveKit + egress validate
+against, the env values. Generate strong ones:
+```bash
+echo "LIVEKIT_API_KEY=$(openssl rand -hex 16)"    >> .env
+echo "LIVEKIT_API_SECRET=$(openssl rand -base64 32)" >> .env
+```
+
+### DNS + firewall
+| Record | Points at | Proxied? |
+|---|---|---|
+| `app.${DOMAIN}` (A) | VPS public IP | Caddy (80/443) |
+| `livekit.${DOMAIN}` (A) | VPS public IP | **DNS-only** (LiveKit owns 443) |
+| `recordings.${DOMAIN}` (A, optional) | MinIO/S3/CDN host | as needed |
+
+Open **80/443 TCP** (Caddy), **443/tcp + 3478/udp** (LiveKit TURN), and the
+**50000–50019/udp** media range.
+
+### LiveKit media (ICE + TURN/TLS-443)
+Set `LIVEKIT_NODE_IP` to the **VPS public IP** (§6). For clients behind
+restrictive/symmetric NAT where even TCP 7881 is blocked, enable LiveKit's
+built-in **TURN over TLS on :443** in `livekit.yaml`:
+```yaml
+turn:
+  enabled: true
+  domain: livekit.${DOMAIN}
+  tls_port: 443
+  # cert/key: point at an LE cert for livekit.${DOMAIN} (certbot / a Caddy
+  # sidecar issuing to a shared volume), or terminate TLS at LiveKit directly.
+```
+`livekit.${DOMAIN}` stays DNS-only precisely so LiveKit can own :443 for TURN/TLS.
+
+### Drift check (no hardcoded hosts)
+Every outward URL derives from `DOMAIN` / `PUBLIC_BASE_URL`. The prod overlay and
+Caddyfile contain **no** hardcoded `localhost` / `trycloudflare` / quick-tunnel
+hosts (the only `127.0.0.1` is the deliberate MinIO-console loopback bind). The
+base compose's `localhost` values are dev `${VAR:-default}` fallbacks, all
+overridden by `.env` in prod.

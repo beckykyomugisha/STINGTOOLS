@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -399,6 +400,24 @@ else if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.SmtpEmailService>();
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.NullEmailService>();
+
+// ── DataProtection key ring (WS5) ──
+// When DataProtection:KeysPath is set (prod mounts a persistent named volume at
+// /app/keys), persist the key ring to disk + pin the application name so keys
+// survive container restarts/redeploys. Without this, ASP.NET regenerates an
+// ephemeral in-memory key ring on every boot — logging the "No XML encryptor /
+// keys not persisted" warning and invalidating anything protected by the prior
+// key (auth cookies, antiforgery tokens, share links) on each restart. Unset
+// (dev) keeps the default ephemeral behaviour, so a bare `docker compose up`
+// is unchanged.
+var dpKeysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(dpKeysPath))
+{
+    try { Directory.CreateDirectory(dpKeysPath); } catch { /* dir may already exist / be a mount */ }
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(dpKeysPath))
+        .SetApplicationName("Planscape");
+}
 
 // ── Push Notifications ──
 // Supports both raw FCM tokens (via Firebase Project) and ExponentPushToken[…]
