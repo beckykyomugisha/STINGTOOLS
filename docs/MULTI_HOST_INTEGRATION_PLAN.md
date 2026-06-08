@@ -13,6 +13,11 @@
 4. **Coordinate alignment of the federated model must be automatic.** Models authored
    in four different tools, in four different workspaces, must combine in Planscape
    into one correctly-positioned federation with minimal human intervention.
+5. **Any combination of hosts must coordinate *and* do model reviews through Planscape.**
+   A team running Revit + Bonsai, or Revit + ArchiCAD, or all four, or any subset, must be
+   able to federate, clash, and run issue/BCF model reviews together — with changes and issues
+   flowing **bidirectionally** to every host involved. This is a *hub-and-spoke* guarantee, not
+   a set of point-to-point integrations (see §1.0).
 
 This plan has three parts:
 
@@ -52,6 +57,48 @@ of 2-way sync**. Parts 2 and 3 target exactly those.
 ---
 
 # Part 1 — Integration architecture
+
+## 1.0 Topology — hub-and-spoke, not host pairs (the load-bearing principle)
+
+**Planscape is the hub; every host is a spoke.** We make each host ↔ Planscape link
+bidirectional **once**, and then *every* combination of hosts coordinates and reviews together
+for free — because they all meet at the hub.
+
+```
+                 Revit ⇅
+                        ╲
+          Bonsai ⇅ ──────  PLANSCAPE (hub)  ────── ⇅ Tekla
+                        ╱   federation + identity + issues/BCF
+              ArchiCAD ⇅
+```
+
+- "**Revit ⇅ Bonsai** bidirectional" = Revit⇅Planscape **+** Bonsai⇅Planscape. No Revit↔Bonsai code.
+- "**Revit ⇅ ArchiCAD** bidirectional" = Revit⇅Planscape **+** ArchiCAD⇅Planscape. No Revit↔ArchiCAD code.
+- Any subset, any combination, mixed teams (one designer on Revit, one on Bonsai, one on ArchiCAD)
+  → identical mechanism, **zero extra integrations**.
+
+This is **N spokes (4 integrations), never N×N pairs (12+ brittle links)**. Building pairwise
+host-to-host links is an explicit anti-goal — it is the trap that makes interop unmaintainable.
+The contract abstraction (§1.1) exists precisely so a host only ever talks to the hub.
+
+**The three things that flow through the hub** — all keyed on the IFC **GlobalId** so they
+resolve across every host — are the entire "coordination currency":
+
+1. **Federation transforms** — *where* each model sits (Part 2).
+2. **Cross-host identity** — *which* element is which across hosts (`ExternalElementMapping`,
+   `GlobalIdRegistry`).
+3. **Issues / BCF / clash / markup** — *the review itself*: an issue or clash raised on element X
+   in Revit surfaces in Bonsai and ArchiCAD on the same GlobalId, and resolutions flow back.
+
+**Model review is a first-class outcome, not a side effect.** Planscape already ships much of the
+review surface — federated 3D viewer (`FederatedModelController`/`Hub`, discipline-aware
+shade/ghost/hide, colour-by-tag, clash focus), issues (`IssuesController` + comments + audio
+notes + heatmap), BCF/OpenCDE round-trip (`BcfController`/`BcfApiController`/`OpenCdeController`),
+clash detection + automation rules (`ClashesController`), model markups (`ModelMarkupsController`),
+and meeting rooms with snapshots/actions (`MeetingsController`). The job is to make all of it
+**flow across any combination of hosts**, keyed on GlobalId — *not* to rebuild it. Concretely
+that means the **pull half of 2-way sync (§1.4) carries issues/BCF, not just tag data**, so a
+review action taken in the hub (or any host) round-trips to every other host on the project.
 
 ## 1.1 The one abstraction that prevents future rework
 
@@ -108,8 +155,11 @@ native-wheel packaging entirely.
 
 ## 1.4 Bidirectional sync (push exists; build pull + reconcile in core)
 
-- **1.4.1 Pull client** in `stingtools-core/planscape`: `GET /ifc/mappings` + issues/changes
-  since a cursor. Host-agnostic.
+- **1.4.1 Pull client** in `stingtools-core/planscape`: `GET /ifc/mappings` + issues/BCF/clash
+  changes since a cursor. Host-agnostic. **This is what makes model review cross-host**: the pull
+  must carry the review payload (issue created/updated/closed, BCF topic + viewpoint, clash
+  status), not only tag data — so an issue raised in any host or in the hub viewer surfaces in
+  every other host on the project, resolved on the matching GlobalId.
 - **1.4.2 Reconciliation engine** in core: diff remote vs local, resolve by
   **last-writer-wins on `LastModifiedUtc`** (the server already enforces stale-write
   protection — reuse that contract). Emits `apply_remote_change` deltas the adapter executes.

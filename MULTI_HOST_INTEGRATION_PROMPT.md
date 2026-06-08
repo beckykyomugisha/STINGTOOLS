@@ -26,6 +26,17 @@ directly. Re-enumerate the live codebase — trust the tree, not this doc's line
    plugin.** Their "adapters" are server/StingBridge IFC-ingest profiles, not in-app plugins.
 5. **Coordinate alignment must be automatic**, degrading gracefully to a one-click manual
    point-pick — never to "manually align everything."
+6. **Hub-and-spoke, never host pairs.** Each host ⇅ Planscape is bidirectional **once**; any
+   combination of hosts (Revit+Bonsai, Revit+ArchiCAD, all four, any subset, mixed teams) then
+   coordinates **and runs model reviews** through the hub for free. Building any pairwise
+   host-to-host link is a **failure** — a host only ever talks to Planscape. The currency through
+   the hub, all keyed on IFC **GlobalId**: federation transforms + identity mapping +
+   **issues/BCF/clash round-trip**.
+7. **Model review is a first-class outcome.** Planscape already has the review surface
+   (`FederatedModelController`/`Hub`, `IssuesController` + comments/audio/heatmap,
+   `BcfController`/`BcfApiController`/`OpenCdeController`, `ClashesController`,
+   `ModelMarkupsController`, `MeetingsController`, `GlobalIdRegistryController`). **Extend it to
+   flow across any host combination — do not rebuild it.**
 
 ---
 
@@ -146,7 +157,12 @@ adapters; drift-check live; pins in place; boundary lint green.
 
 **B1. Pull client** — `stingtools-core/python/stingtools_core/planscape/`
 - `pull_changes(project_id, since_cursor) -> list[ChangeDelta]` over `GET /ifc/mappings` +
-  issues/changes. Stdlib `urllib` only (match existing `client.py`). Host-agnostic.
+  **issues/BCF/clash** changes. Stdlib `urllib` only (match existing `client.py`). Host-agnostic.
+- **Carry the review payload, not just tags** — issue create/update/close, BCF topic + viewpoint,
+  clash status — all keyed on GlobalId. This is what makes model review work across *any*
+  combination of hosts: a review action in the hub or any host round-trips to every other host.
+  Reuse existing server controllers (`IssuesController`, `BcfApiController`/`OpenCdeController`,
+  `ClashesController`); do **not** add pairwise host-to-host paths.
 
 **B2. Reconciliation engine** — core
 - `reconcile(adapter, remote_deltas) -> list[apply]`, resolving by **last-writer-wins on
@@ -169,7 +185,9 @@ adapters; drift-check live; pins in place; boundary lint green.
   `ifcopenshell.api.run` and writes the `.ifc` back.
 
 **Phase B DoD:** a change made in one host (or by a coordinator) reaches another host
-automatically; conflicts surface as issues; chunking handles large models.
+automatically; an **issue/BCF/clash raised in one host or in the hub viewer surfaces in every
+other host on the project** (keyed on GlobalId); conflicts surface as issues; chunking handles
+large models. No pairwise host-to-host code exists — everything routes through Planscape.
 
 ---
 
@@ -280,6 +298,8 @@ abstraction held.
 | Host Adapter Contract + 2 adapters; boundary lint green | A | |
 | Substrate drift-check + version pins | A | |
 | Core pull + LWW reconcile + chunking | B | |
+| Pull carries issues/BCF/clash review payload (cross-host review) | B | |
+| Any host combination coordinates + reviews via hub; **no pairwise code** | B/E | |
 | GlobalId stability fixture | B | |
 | Bonsai modal-timer pull + StingBridge `sync` | B | |
 | LoGeoRef 20/30/40 resolvers (ifcopenshell) | C | |
