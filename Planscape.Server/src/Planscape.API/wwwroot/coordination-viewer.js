@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-surface-sync');
+    console.log('[viewer] STING_VIZ_BUILD viz-surface-sync ws1d-syncbutton');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -1422,6 +1422,21 @@
       const since = Date.now() - _bcastAt;
       if (since >= BCAST_THROTTLE_MS) _doBroadcastAppearance();                 // leading — live
       else if (!_bcastTimer) _bcastTimer = setTimeout(_doBroadcastAppearance, BCAST_THROTTLE_MS - since);  // trailing — latest
+    }
+    // WS1d — explicit, presenter-driven "Sync my view to participants". The auto-broadcast
+    // above mirrors appearance changes best-effort; this forces an immediate push (bypassing
+    // the throttle) so the host can deliberately sync the current isolate/ghost/colour state
+    // on demand. Returns true only when a meeting transport actually accepted the overlay.
+    function syncViewToParticipants() {
+      if (state.applyingRemoteViz || restoringViz || state.federationLoading) return false;
+      const m = (typeof window !== 'undefined') && window.STING_MEETING;
+      if (!(m && typeof m.broadcastOverlay === 'function')) return false;
+      try { m.broadcastOverlay({ source: 'appearance', viz: serializeViz() }); _bcastAt = Date.now(); return true; }
+      catch (_) { return false; }
+    }
+    if (typeof window !== 'undefined') {
+      window.STING_VIEWER_VIZ = window.STING_VIEWER_VIZ || {};
+      window.STING_VIEWER_VIZ.syncToParticipants = syncViewToParticipants;
     }
     // One-click "shade only X, ghost the rest" — BUG 2: idempotent TOGGLE (clicking the
     // already-isolated row clears back to show-all).
