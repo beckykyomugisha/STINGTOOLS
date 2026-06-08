@@ -1,5 +1,27 @@
 # Meetings (Track B) — audit & build log
 
+### WS1 closeout (PR #306) — invites + recordings + attendees + surface-sync · SERVED-verified
+
+The end-to-end meeting flow — create → invite → join → A/V → record → minutes/
+actions/attendees → recordings — is wired and SERVED. This round closed the
+last UI gaps:
+
+| Item | State | SERVED proof (`localhost:5000`) | Human-verify (runtime) |
+|---|---|---|---|
+| **WS1a invitations** | DONE (server/web) · mobile runtime-pending | `POST .../meetings/{id}/invite` 3-channel (in-app SignalR + FCM push + optional email; deep link `planscape://meeting/{id}` + web fallback; graceful FCM-skip). Web "✉ Invite to meeting" picker. | With Firebase set: push arrives → tap → joins live A/V (unactivated → set-password → meeting). |
+| **WS1b recordings** | DONE (web viewer + /app) | viewer `livekit-av.js` host-gated `⏺ Record`/`⏹ Stop` (`toggleRecording` → `/recording/start|stop`); `/app` Recordings list (presigned MinIO, Play/Download, COMPLETE-gated). | Real webcam meeting → record → end → COMPLETE row plays `.mp4`. |
+| **WS1c attendee grid** | DONE-SERVED | `dashboard.js` `projectMemberOptions` (member dropdown) + `md-del-attendee` (remove row); role/attendance dropdowns; same pattern on action-item assignee. | Add attendee → pick from member dropdown; ✕ removes; external guest via manual fallback. |
+| **WS1d surface-sync** | DONE-SERVED | `meeting-sync.js` `ws1d-syncview` + host-gated `🔗 Sync view`; viewer `coordination-viewer.js` `ws1d-syncbutton` + `window.STING_VIEWER_VIZ.syncToParticipants`. | Host isolates/ghosts/colours → clicks 🔗 → follower (Follow-presenter on) view updates. |
+
+**Caveats / follow-ups (honest):**
+- BCC (WPF) is a local-first surface; its MEETINGS-tab recordings list + attendee-
+  grid dropdowns are tracked follow-ups (unbuildable in this sandbox — no Revit
+  API). The web is the canonical live-meeting + recordings surface.
+- WS1d gates on the SignalR session host (`isHost()`), same gate as mute-all.
+- Recording end-to-end was proven earlier with a synthetic demo publisher (N2);
+  a real-webcam capture is the remaining human test.
+
+
 ### Marathon W0–W6 — web meeting gaps CLOSED (parity) · markers w1-authoring/w2-livejoin/w3-rec-core/w5-roles
 Shared `meetings-core.js` (web) + `meetingsCore.ts` (mobile) now back BOTH surfaces (one contract + role matrix).
 Web `/app` gained: role-aware authoring (create/edit/agenda/actions/attendees/minutes+doc), Join-live (viewer
