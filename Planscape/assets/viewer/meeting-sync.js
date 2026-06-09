@@ -24,7 +24,7 @@
   "use strict";
 
   // STEP-0 SERVED marker — bumped per slice that touches this file.
-  var STING_MEETINGSYNC_BUILD = "N2-recording";
+  var STING_MEETINGSYNC_BUILD = "ws1d-syncview";
   try { console.log("[meeting] STING_MEETINGSYNC_BUILD " + STING_MEETINGSYNC_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -554,6 +554,12 @@
       .then(function (r) { if (r.ok) toast("Host changed"); else toast("Make-host failed"); }).catch(noop);
   }
   function removeParticipant(cid) { if (state.conn && cid) state.conn.invoke("RemoveParticipant", sessionId, cid).catch(noop); }
+  // WS1d — push the host's current viewer appearance (isolate/ghost/colour) to followers now.
+  function syncMyView() {
+    var viz = (typeof window !== "undefined") && window.STING_VIEWER_VIZ;
+    if (!viz || typeof viz.syncToParticipants !== "function") { toast("Viewer not ready to sync"); return; }
+    toast(viz.syncToParticipants() ? "View synced to participants 🔗" : "Nothing to sync (no active view state)");
+  }
 
   function buildConferenceUI() {
     if (document.getElementById("meetTools")) return;
@@ -567,6 +573,13 @@
     var mute = toolBtn("meetMuteAll", "🔇", "Mute everyone (host)", muteAll);
     mute.setAttribute("data-host", "1");
     tools.appendChild(mute);
+    // WS1d — explicit "Sync my view to participants": pushes the host's current
+    // isolate / ghost / colour state to every follower on demand (host/presenter-gated).
+    // Followers with "Follow presenter" on apply it; the viewer module owns the actual
+    // broadcast (window.STING_VIEWER_VIZ.syncToParticipants).
+    var sync = toolBtn("meetSyncView", "🔗", "Sync my view to participants (host)", syncMyView);
+    sync.setAttribute("data-host", "1");
+    tools.appendChild(sync);
     panel.appendChild(tools);
 
     var chat = document.createElement("div");
