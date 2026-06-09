@@ -294,7 +294,7 @@
     _si('photoFab', setupPhotoFab);
     _si('photoRealtime', setupPhotoRealtime);
     console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
-    console.log('[viewer] STING_VIZ_BUILD viz-surface-sync ws1d-syncbutton');
+    console.log('[viewer] STING_VIZ_BUILD viz-surface-sync ws1d-syncbutton viz-stable-reset');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -886,12 +886,23 @@
     // L5 — track materials we've cloned/replaced so we can dispose them.
     // Each entry is { original, replacement } so we restore the original
     // and free the replacement's GPU resources on clear.
+    // viz-stable-reset — a material the engine MADE (selection / ghost / colour / trans /
+    // glass clone) must never be captured as the pristine baseline.
+    function isEngineClone(m) { return !!(m && m.userData && (m.userData.stingSel || m.userData.stingGhost || m.userData.stingColour || m.userData._glassClone)); }
+    // viz-stable-reset — capture the PRISTINE baseline EXACTLY once, never from an engine
+    // clone, never overwritten. Called by EVERY mutator before it touches mesh.material,
+    // so _trueOrig is the load-time original even if selection/colour happened first.
+    function ensureBaseline(mesh) {
+      if (!mesh || !mesh.isMesh || mesh.userData._trueOrig) return;
+      const cur = mesh.material;
+      if (cur && !isEngineClone(cur)) mesh.userData._trueOrig = cur;
+    }
     function rememberOriginal(mesh) {
       if (!state.elementMaterials.has(mesh.uuid)) {
-        // A1 — the original is ALWAYS the load-time true original, never the
-        // mesh's current (possibly already-swapped) material.
-        if (!mesh.userData._trueOrig) mesh.userData._trueOrig = mesh.material;
-        state.elementMaterials.set(mesh.uuid, { original: mesh.userData._trueOrig, replacement: null });
+        // A1 — the original is ALWAYS the load-time true original, never the mesh's
+        // current (possibly already-swapped) material. ensureBaseline refuses clones.
+        ensureBaseline(mesh);
+        state.elementMaterials.set(mesh.uuid, { original: mesh.userData._trueOrig || mesh.material, replacement: null });
       }
     }
     // Materials the appearance engine SHARES across many meshes must never be
@@ -963,6 +974,7 @@
     // and add emissive. Re-clones only when the underlying appearance changed.
     function addSelHighlight(o) {
       if (!o) return;
+      ensureBaseline(o);                            // viz-stable-reset: never let selection poison _trueOrig
       const base = appearanceMaterialOf(o);
       let clone = o.userData._selClone;
       if (!clone || o.userData._selSrc !== base) {
@@ -1106,8 +1118,12 @@
     // mesh gets exactly one base state: hidden | ghost | colour:hex | rmode:lens |
     // original. The render mode (View menu) is a GLOBAL lens that COMPOSES here
     // rather than via its own traversal/store. Selection is re-overlaid at the end.
+    let _vizApplying = false;   // viz-stable-reset — re-entrancy guard
     function applyVizModes() {
       if (!V.modelRoot) return;
+      if (_vizApplying) return;   // an apply is in flight; its full traverse already covers the latest state
+      _vizApplying = true;
+      try {
       if (V.activeOverlaySource && V.clearOverlay) { V.clearOverlay(); }   // retire any legacy overlay store
       // 'realistic' is a renderer-global (env+tonemap), NOT a per-mesh lens → treat as
       // 'shaded' here so meshes keep their real (base) materials for the IBL to light.
@@ -1171,6 +1187,8 @@
       maybeApplyGlass();       // STOPGAP — heuristic glass transparency (after materials settle)
       broadcastAppearance();
       saveVizState();          // B3 — persist appearance inputs per model (guarded)
+      } catch (err) { console.warn('[viewer] applyAppearance error (state preserved):', err); }
+      finally { _vizApplying = false; }
     }
     // applyAppearance — canonical name; applyVizModes kept for existing callers.
     const applyAppearance = applyVizModes;
@@ -1222,6 +1240,7 @@
     // (skips redundant material swaps). hide → invisible; ghost → shared ghost mat;
     // colour:<hex> → shared coloured mat; show → original.
     function applyMeshState(o, mode) {
+      ensureBaseline(o);                            // viz-stable-reset: pristine capture before any change
       if (o.userData._vizMode === mode) return;     // idempotent
       o.userData._vizMode = mode;
       o.userData._paintKey = undefined;             // appearance changed → selection re-clones
@@ -1858,9 +1877,19 @@
     // Deterministic reset to the TRUE original — clears every appearance input
     // (disc/cat modes, colour scheme, custom colours, keep-solid, render mode) AND
     // the selection, then restores each mesh to its load-time original material.
+    // viz-stable-reset — the ALWAYS-WORKS escape hatch: returns the model to pristine
+    // from ANY corrupted state. Clears EVERY appearance input + selection/isolate sets,
+    // hard-restores each mesh to its _trueOrig (independent of slot/_vizMode bookkeeping),
+    // and disposes every cloned override material so nothing leaks or lingers.
     function resetVisualization() {
+      _vizApplying = false;                                  // release any stuck re-entrancy guard
       state.vizDiscMode.clear(); state.vizCatMode.clear();
       state.vizKeepSolidDisc.clear(); state.vizKeepSolidCat.clear();
+      if (state.vizDiscSel && state.vizDiscSel.clear) state.vizDiscSel.clear();
+      if (state.vizCatSel && state.vizCatSel.clear) state.vizCatSel.clear();
+      if (state.vizSysIsolate && state.vizSysIsolate.clear) state.vizSysIsolate.clear();
+      state.vizGhostRest = false; state.glassMode = false;
+      state.vizSysSearch = ''; state.vizCatSearch = ''; state.vizSearchQuery = '';
       state.vizPreset = null; state.vizColour = null;
       state.vizCustomColours.clear();
       state.vizTransp.clear();
@@ -1869,12 +1898,35 @@
       try { if (V.setRealistic) V.setRealistic(false); } catch (_) {}   // Clear returns to base look
       state.selectedElementGuid = null; state.selectedElementGuids.clear();
       clearClashSection();
-      if (V.clearOverlay) V.clearOverlay();
+      if (V.clearOverlay) { try { V.clearOverlay(); } catch (_) {} }
       clearAllHighlights();            // selection + appearance → true original, flags reset
+
+      // Hard per-mesh restore — does NOT rely on the elementMaterials slot or _vizMode,
+      // so it recovers even if those desynced. Drops selection + glass clones too.
+      if (V.modelRoot) vizGroup().traverse(o => {
+        if (!o.isMesh) return;
+        if (o.userData._selClone && !isSharedMat(o.userData._selClone) && o.userData._selClone.dispose) { try { o.userData._selClone.dispose(); } catch (_) {} }
+        o.userData._selClone = null; o.userData._selSrc = null;
+        if (o.material && o.material.userData && o.material.userData._glassClone && o.material.dispose) { try { o.material.dispose(); } catch (_) {} }
+        o.userData._glassSrc = null;
+        if (o.userData._trueOrig) o.material = o.userData._trueOrig;
+        o.visible = true;
+        o.userData._vizMode = undefined; o.userData._paintKey = undefined;
+      });
+      state.elementMaterials.clear();
+      if (state.selMeshes && state.selMeshes.clear) state.selMeshes.clear();
+
+      // Dispose the SHARED override-material caches (safe now — no mesh references them).
+      try { state.colourMats.forEach(m => m && m.dispose && m.dispose()); state.colourMats.clear(); } catch (_) {}
+      try { state.transMats.forEach(m => m && m.dispose && m.dispose()); state.transMats.clear(); } catch (_) {}
+      try { Object.keys(_rmodeMats).forEach(k => { try { _rmodeMats[k] && _rmodeMats[k].dispose && _rmodeMats[k].dispose(); } catch (_) {} delete _rmodeMats[k]; }); } catch (_) {}
+      if (ghostSharedMat) { try { ghostSharedMat.dispose(); } catch (_) {} ghostSharedMat = null; }
+
       showAllElements();
       try { localStorage.removeItem(vizStateKey()); } catch (_) {}   // B3 — wipe persisted state
+      try { $$('.disc-chip').forEach(c => c.classList.remove('active')); } catch (_) {}
       renderVisualizePanel();
-      toast('Visualization reset');
+      toast('Visualization reset — pristine');
     }
 
     // ── B3 — per-MODEL visualize persistence ──────────────────────────────────
@@ -2151,9 +2203,15 @@
       ]);
       quick.appendChild(qRow);
       quick.appendChild(el('div', { style: 'display:flex;gap:6px;margin-top:6px' }, [
-        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => { state.vizDiscMode.forEach((_, k) => state.vizDiscMode.set(k, 'show')); state.vizCatMode.forEach((_, k) => state.vizCatMode.set(k, 'show')); state.vizColour = null; if (V.modelRoot) vizGroup().traverse(o => { if (o.isMesh) o.userData._vizMode = undefined; }); applyAppearance(); renderVisualizePanel(); } }, 'Show all'),
-        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => resetVisualization() }, 'Reset')
+        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => { state.vizDiscMode.forEach((_, k) => state.vizDiscMode.set(k, 'show')); state.vizCatMode.forEach((_, k) => state.vizCatMode.set(k, 'show')); state.vizColour = null; if (V.modelRoot) vizGroup().traverse(o => { if (o.isMesh) o.userData._vizMode = undefined; }); applyAppearance(); renderVisualizePanel(); } }, 'Show all')
       ]));
+      // viz-stable-reset — PROMINENT always-works escape hatch on its own full-width row.
+      quick.appendChild(el('button', {
+        style: 'width:100%;margin-top:6px;padding:7px 0;font-size:12px;font-weight:700;cursor:pointer;'
+          + 'border:1px solid #ef4444;border-radius:6px;background:rgba(239,68,68,0.18);color:#fecaca',
+        title: 'Restore the model to its original appearance — works from any state',
+        onclick: () => resetVisualization()
+      }, '⟲ Reset appearance'));
       wrap.appendChild(quick);
 
       // V4 — two clearly-labelled axes (pure visual grouping; the engine is unchanged):
