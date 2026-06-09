@@ -533,15 +533,28 @@ namespace StingTools.UI
             var card = NewSection("PDF — Combine, Bookmarks, Watermark");
             var sp = (StackPanel)card.Child;
 
-            // Combine mode
+            // Combine mode — friendly labels so the "merge everything into a single
+            // PDF" option is actually discoverable (raw enum names like "OnePerSet"
+            // told the user nothing).
+            var combineLabels = new (PdfCombineMode Mode, string Label)[]
+            {
+                (PdfCombineMode.OnePerSheet,      "Separate PDF per sheet"),
+                (PdfCombineMode.OnePerSet,        "Single combined PDF (all selected sheets)"),
+                (PdfCombineMode.OnePerDiscipline, "Combined PDF per discipline"),
+                (PdfCombineMode.CustomGroups,     "Combined PDF per custom group"),
+            };
             var combineBox = new ComboBox { Margin = new Thickness(0, 4, 0, 6) };
-            foreach (var v in Enum.GetNames(typeof(PdfCombineMode))) combineBox.Items.Add(v);
-            combineBox.SelectedItem = _profile.Pdf.CombineMode.ToString();
+            foreach (var pair in combineLabels)
+                combineBox.Items.Add(new ComboBoxItem { Content = pair.Label, Tag = pair.Mode });
+            combineBox.SelectedIndex = Array.FindIndex(combineLabels, p => p.Mode == _profile.Pdf.CombineMode);
+            if (combineBox.SelectedIndex < 0) combineBox.SelectedIndex = 0;
             combineBox.SelectionChanged += (_, __) =>
             {
-                Enum.TryParse<PdfCombineMode>(combineBox.SelectedItem?.ToString(), out var m);
-                _profile.Pdf.CombineMode = m;
-                UpdateStatusLine();
+                if ((combineBox.SelectedItem as ComboBoxItem)?.Tag is PdfCombineMode m)
+                {
+                    _profile.Pdf.CombineMode = m;
+                    UpdateStatusLine();
+                }
             };
             sp.Children.Add(LabelFor("Output mode", combineBox));
 
