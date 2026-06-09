@@ -164,6 +164,30 @@ namespace StingTools.Docs
             }
         }
 
+        /// <summary>
+        /// Output-verification probe used by the robust export path: opens the
+        /// PDF read-only and reports its page count. A file that fails to open is
+        /// corrupt; 0 pages means an empty render. Returns false (with a reason)
+        /// in either case so the engine can fail the row rather than silently
+        /// publishing a bad drawing.
+        /// </summary>
+        internal static bool TryReadPdfInfo(string pdfPath, out int pageCount, out string error)
+        {
+            pageCount = 0; error = null;
+            try
+            {
+                using var d = PdfReader.Open(pdfPath, PdfDocumentOpenMode.InformationOnly);
+                pageCount = d.PageCount;
+                if (pageCount <= 0) { error = "PDF reports 0 pages"; return false; }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = "PDF failed to open (corrupt): " + ex.Message;
+                return false;
+            }
+        }
+
         // ── Helpers ─────────────────────────────────────────────────────────────
 
         private static string ResolveLevelLabel(View v)
