@@ -3522,4 +3522,288 @@ namespace StingTools.Tags
             }
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Augment Tag Families — reinject T4-T10 into existing .rfa files
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Reinjects T4-T10 shared parameters and visibility formulas into
+    /// existing STING tag family .rfa files without touching any already-
+    /// configured T1-T3 label rows.
+    ///
+    /// Safe by design:
+    ///   • <c>FamilyManager.AddParameter</c> is additive-only — if a shared
+    ///     parameter is already bound, the call is a no-op. T1-T3 parameters
+    ///     and their label elements are never removed or repositioned.
+    ///   • <c>FamilyLabelAuthor.AuthorLabelsMulti</c> only processes rows
+    ///     declared in T4..T10 of the CSV tier plans. T1-T3 label elements are
+    ///     completely outside its scope.
+    ///   • When <c>preserveHandEdits</c> is true (default), families where ANY
+    ///     text/annotation element has been manually positioned have their
+    ///     formula re-writes skipped — only the param bindings are added.
+    ///
+    /// Use case: you ran CreateTagFamilies and configured T1-T3 labels in the
+    /// Revit family editor. Later the CSV files gained T4-T10 content (or the
+    /// CSVs were updated). Run AugmentTagFamilies to bring every .rfa up to
+    /// date with the current CSV tier definitions without losing your label work.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AugmentTagFamiliesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            UIApplication uiApp = ParameterHelpers.GetApp(commandData);
+            Document doc = uiApp.ActiveUIDocument?.Document;
+            var app = uiApp.Application;
+
+            // ── Step 1: Shared param file ──────────────────────────────
+            string sharedParamFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+            if (string.IsNullOrEmpty(sharedParamFile))
+            {
+                TaskDialog.Show("Augment Tag Families",
+                    "Cannot find MR_PARAMETERS.txt.\nRun 'Check Data' to verify data files.");
+                return Result.Failed;
+            }
+
+            // ── Step 2: Load tier plans from CSVs ─────────────────────
+            Dictionary<string, Dictionary<string, TierPlan>> plansByMode;
+            Dictionary<string, TierPlan> plansByFamily;
+            bool preserveHandEdits;
+            try
+            {
+                plansByMode = TagConfigPlanResolver.LoadAllPerMode(doc);
+                plansByFamily = TagConfigPlanResolver.LoadAll(doc);
+                preserveHandEdits = TagConfigPlanResolver.ReadPreserveHandEdits(doc);
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Augment Tag Families",
+                    $"Failed to load tier plans from CSVs:\n{ex.Message}");
+                return Result.Failed;
+            }
+
+            if (plansByFamily.Count == 0 && (plansByMode == null || plansByMode.Count == 0))
+            {
+                TaskDialog.Show("Augment Tag Families",
+                    "No tier plans found in tag config CSVs.\n\n" +
+                    "Ensure the STING_TAG_CONFIG_v5_0_*.csv files are present in the data folder " +
+                    "and contain T4..T10 tier rows.");
+                return Result.Cancelled;
+            }
+
+            // ── Step 3: Locate .rfa output folder ─────────────────────
+            string outputDir = TagFamilyConfig.GetOutputDirectory();
+            if (!Directory.Exists(outputDir))
+            {
+                TaskDialog.Show("Augment Tag Families",
+                    $"Tag family output directory does not exist:\n{outputDir}\n\n" +
+                    "Run 'Create Tag Families' first to generate the .rfa files.");
+                return Result.Failed;
+            }
+
+            string[] rfaFiles = Directory.GetFiles(outputDir, "STING - *.rfa");
+            if (rfaFiles.Length == 0)
+            {
+                TaskDialog.Show("Augment Tag Families",
+                    $"No STING tag family .rfa files found in:\n{outputDir}\n\n" +
+                    "Run 'Create Tag Families' first to generate the .rfa files.");
+                return Result.Failed;
+            }
+
+            // ── Step 4: Confirm with user ──────────────────────────────
+            var confirm = TaskDialog.Show("Augment Tag Families",
+                $"Found {rfaFiles.Length} STING .rfa files in:\n{outputDir}\n\n" +
+                "This will:\n" +
+                "  • Add any missing T4-T10 shared parameters (additive-only)\n" +
+                "  • Apply/update T4-T10 visibility formulas from the CSV tier definitions\n" +
+                "  • Leave ALL existing T1-T3 label rows completely untouched\n\n" +
+                $"Preserve hand-edited label positions: {(preserveHandEdits ? "YES" : "NO")}\n\n" +
+                "Continue?",
+                TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
+            if (confirm == TaskDialogResult.No) return Result.Cancelled;
+
+            // ── Step 5: Process each .rfa ──────────────────────────────
+            var report = new StringBuilder();
+            int success = 0, noplan = 0, failed = 0;
+
+            foreach (string rfaPath in rfaFiles)
+            {
+                string famName = Path.GetFileNameWithoutExtension(rfaPath);
+
+                // Build mode plans for this family from the loaded tier data
+                var modePlans = BuildModePlans(plansByMode, plansByFamily, famName);
+                if (modePlans.Count == 0)
+                {
+                    report.AppendLine($"  [SKIP] {famName} — no T4..T10 plan in CSVs");
+                    noplan++;
+                    continue;
+                }
+
+                Document famDoc = null;
+                try
+                {
+                    famDoc = app.OpenDocumentFile(rfaPath);
+                    if (famDoc == null)
+                    {
+                        report.AppendLine($"  [FAIL] {famName} — OpenDocumentFile returned null");
+                        failed++;
+                        continue;
+                    }
+
+                    var opts = new FamilyLabelAuthor.Options
+                    {
+                        App = app,
+                        SharedParamFile = sharedParamFile,
+                        PreserveHandEdits = preserveHandEdits,
+                        FamilyName = famName,
+                    };
+
+                    FamilyLabelAuthor.Result r = FamilyLabelAuthor.AuthorLabelsMulti(
+                        famDoc, modePlans, opts);
+
+                    // Save in-place (same path, overwrite)
+                    var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                    famDoc.SaveAs(rfaPath, saveOpts);
+
+                    report.AppendLine($"  [OK]   {famName} — " +
+                        $"bound={r.ParamsBound} formulas={r.FormulasApplied} " +
+                        $"skipped={r.FormulasSkipped} preserved={r.TiersPreserved}");
+                    foreach (var w in r.Warnings)
+                        StingLog.Warn($"AugmentTagFamilies {famName}: {w}");
+                    success++;
+                }
+                catch (Exception ex)
+                {
+                    report.AppendLine($"  [FAIL] {famName} — {ex.Message}");
+                    StingLog.Error($"AugmentTagFamilies: {famName}", ex);
+                    failed++;
+                }
+                finally
+                {
+                    try { famDoc?.Close(false); } catch { }
+                }
+            }
+
+            // ── Step 6: Optionally reload augmented families into project ─
+            if (success > 0 && doc != null)
+            {
+                var reload = TaskDialog.Show("Augment Tag Families — Reload?",
+                    $"Augmented {success} families successfully.\n\n" +
+                    "Reload all augmented .rfa files into the current project?\n" +
+                    "(Families already loaded will be overwritten with the updated version.)",
+                    TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
+
+                if (reload == TaskDialogResult.Yes)
+                {
+                    int reloaded = 0, reloadFailed = 0;
+                    foreach (string rfaPath in rfaFiles)
+                    {
+                        string famName = Path.GetFileNameWithoutExtension(rfaPath);
+                        try
+                        {
+                            Family existingFamily = null;
+                            foreach (Family f in new FilteredElementCollector(doc)
+                                .OfClass(typeof(Family)).Cast<Family>())
+                            {
+                                if (string.Equals(f.Name, famName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    existingFamily = f;
+                                    break;
+                                }
+                            }
+                            if (existingFamily == null) continue; // only reload what's already loaded
+
+                            using (Transaction tx = new Transaction(doc, $"STING Reload {famName}"))
+                            {
+                                tx.Start();
+                                doc.LoadFamily(rfaPath, new OverwriteLoadOptions(), out Family _);
+                                tx.Commit();
+                            }
+                            reloaded++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"AugmentTagFamilies reload {famName}: {ex.Message}");
+                            reloadFailed++;
+                        }
+                    }
+                    report.AppendLine();
+                    report.AppendLine($"Reloaded {reloaded} into project ({reloadFailed} failed).");
+                }
+            }
+
+            // ── Step 7: Summary ────────────────────────────────────────
+            string summary =
+                $"Augmented: {success}   No plan: {noplan}   Failed: {failed}\n" +
+                $"Source: {outputDir}\n\n" +
+                report.ToString();
+
+            TaskDialog.Show("Augment Tag Families — Complete", summary);
+
+            return failed == 0 ? Result.Succeeded : Result.Succeeded; // always Succeeded so caller sees the report
+        }
+
+        /// <summary>
+        /// Build the list of mode plans for a given family name by consulting
+        /// both the per-mode and the flat family maps (same logic as
+        /// <see cref="CreateTagFamiliesCommand.AuthorFromPlanIfAvailable"/>).
+        /// </summary>
+        private static List<FamilyLabelAuthor.ModePlan> BuildModePlans(
+            Dictionary<string, Dictionary<string, TierPlan>> plansByMode,
+            Dictionary<string, TierPlan> plansByFamily,
+            string famName)
+        {
+            var modePlans = new List<FamilyLabelAuthor.ModePlan>();
+
+            if (plansByMode != null)
+            {
+                foreach (var kv in plansByMode)
+                {
+                    if (kv.Value == null) continue;
+                    TierPlan plan = TagFamilyConfig.TryGetTierPlan(kv.Value, famName);
+                    if (plan == null) continue;
+                    modePlans.Add(new FamilyLabelAuthor.ModePlan
+                    {
+                        Mode = kv.Key,
+                        GateParam = HandoverModeHelper.GetSelectorBool(kv.Key),
+                        Plan = plan,
+                    });
+                }
+            }
+
+            if (modePlans.Count == 0 && plansByFamily != null)
+            {
+                TierPlan plan = TagFamilyConfig.TryGetTierPlan(plansByFamily, famName);
+                if (plan != null)
+                {
+                    modePlans.Add(new FamilyLabelAuthor.ModePlan
+                    {
+                        Mode = "", GateParam = null, Plan = plan,
+                    });
+                }
+            }
+
+            return modePlans;
+        }
+
+        /// <summary>IFamilyLoadOptions that always overwrites existing types.</summary>
+        private sealed class OverwriteLoadOptions : IFamilyLoadOptions
+        {
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+            {
+                overwriteParameterValues = false; // preserve instance param values on placed tags
+                return true;
+            }
+            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse,
+                out FamilySource source, out bool overwriteParameterValues)
+            {
+                source = FamilySource.Family;
+                overwriteParameterValues = false;
+                return true;
+            }
+        }
+    }
 }
