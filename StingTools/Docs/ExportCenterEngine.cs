@@ -264,10 +264,22 @@ namespace StingTools.Docs
         /// for sanitising disallowed characters and appending the format extension.
         /// </summary>
         public static string ResolveNaming(Document doc, View view, string template, OutputSettings outSettings)
+            => ResolveNaming(doc, view, template, outSettings, null);
+
+        /// <summary>
+        /// As <see cref="ResolveNaming(Document, View, string, OutputSettings)"/> but lets the
+        /// caller override individual tokens — used by the combined-PDF path so the
+        /// ISO 19650 filename carries set-level identity (e.g. the sheet-number slot
+        /// holds the set label) instead of the first sheet's specifics.
+        /// </summary>
+        public static string ResolveNaming(Document doc, View view, string template,
+            OutputSettings outSettings, Dictionary<string, string> overrides)
         {
             if (string.IsNullOrEmpty(template)) template = "{SheetNumber} - {SheetTitle}";
 
             var tokens = BuildTokenContext(doc, view);
+            if (overrides != null)
+                foreach (var kv in overrides) tokens[kv.Key] = kv.Value;
             return Regex.Replace(template, @"\{(?<key>[A-Za-z0-9_]+)(?::(?<fmt>[^}]+))?\}", m =>
             {
                 string key = m.Groups["key"].Value;
@@ -704,14 +716,14 @@ namespace StingTools.Docs
                     foreach (var g in groups)
                     {
                         if (cancel != null && cancel()) return;
-                        ExportCombinedPdf(doc, g.ToList<View>(), profile, result, g.Key);
+                        ExportCombinedPdf(doc, g.ToList<View>(), profile, result, g.Key, PdfCombineMode.OnePerDiscipline);
                         tick?.Invoke($"PDF (combined): {g.Key}");
                     }
                     break;
                 }
 
                 case PdfCombineMode.OnePerSet:
-                    ExportCombinedPdf(doc, sheets, profile, result, "All");
+                    ExportCombinedPdf(doc, sheets, profile, result, "All", PdfCombineMode.OnePerSet);
                     tick?.Invoke("PDF (combined): All");
                     break;
 
@@ -722,7 +734,7 @@ namespace StingTools.Docs
                             .Select(idText => long.TryParse(idText, out var n) ? doc.GetElement(new ElementId(n)) : null)
                             .OfType<View>().ToList();
                         if (groupSheets.Count == 0) continue;
-                        ExportCombinedPdf(doc, groupSheets, profile, result, kv.Key);
+                        ExportCombinedPdf(doc, groupSheets, profile, result, kv.Key, PdfCombineMode.CustomGroups);
                         tick?.Invoke($"PDF (custom): {kv.Key}");
                     }
                     break;
@@ -784,7 +796,8 @@ namespace StingTools.Docs
         }
 
         private static void ExportCombinedPdf(Document doc, List<View> views,
-            ExportProfile profile, ExportRunResult result, string groupName)
+            ExportProfile profile, ExportRunResult result, string groupName,
+            PdfCombineMode mode)
         {
             var row = new ExportResultRow
             {
@@ -796,9 +809,30 @@ namespace StingTools.Docs
             try
             {
                 string folder = SubFolderFor(profile, "PDF", profile.Output.SplitByDisciplineSubFolder ? groupName : null);
+
+                // Combined PDFs carry SET-level identity rather than the first
+                // sheet's specifics. The sheet-number slot of the ISO 19650 name
+                // becomes a set label, the level becomes "XX" (spans levels), and
+                // discipline/role reflect the group — so we get a clean
+                // "…-XX-DR-A-ALL-S2-P01.pdf" instead of "…-A002-S2-P01_All.pdf".
+                string repl = profile.Output.IllegalCharReplacement;
+                bool isAllSet = mode == PdfCombineMode.OnePerSet;
+                bool isDisc   = mode == PdfCombineMode.OnePerDiscipline;
+                string setLabel = (isAllSet || isDisc) ? "ALL" : Sanitise(groupName, repl);
+                var nameOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["SheetNumber"]   = setLabel,
+                    ["DrawingNumber"] = setLabel,
+                    ["SheetTitle"]    = isAllSet ? "All Sheets" : groupName,
+                    ["DrawingTitle"]  = isAllSet ? "All Sheets" : groupName,
+                    ["Level"]         = "XX",
+                };
+                if (isDisc) { nameOverrides["Discipline"] = groupName; nameOverrides["Role"] = groupName; }
+                else if (isAllSet) { nameOverrides["Discipline"] = "Z"; nameOverrides["Role"] = "Z"; }
+
                 string stem = Sanitise(
-                    ResolveNaming(doc, views[0], profile.Output.NamingTemplate, profile.Output) + "_" + groupName,
-                    profile.Output.IllegalCharReplacement);
+                    ResolveNaming(doc, views[0], profile.Output.NamingTemplate, profile.Output, nameOverrides),
+                    repl);
                 stem = ResolveConflict(folder, stem, "pdf", profile.Output.ConflictMode, out bool skip);
                 if (skip) { row.Success = false; row.Error = "Skipped — file exists"; return; }
 
