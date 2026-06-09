@@ -1026,6 +1026,7 @@ namespace StingTools.UI
                     case "ExportSheetRegister": RunCommand<Docs.ExportSheetRegisterCommand>(app); break;
                     case "ExportCenter": RunCommand<Docs.ExportCenterCommand>(app); break;
                     case "ExportCenterPDF": RunCommand<Docs.ExportCenterPdfCommand>(app); break;
+                    case "ExportCenterRunSchedules": RunCommand<Docs.ExportCenterRunSchedulesCommand>(app); break;
 
                     // ── Sheet Manager Live Operations (modeless dialog dispatch) ──
                     case "SM_PlaceViewOnSheet":

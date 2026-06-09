@@ -184,6 +184,34 @@ namespace StingTools.Docs
                     return ids;
                 }
 
+                case "Changed Since Last Export":
+                {
+                    // Issue-driven delta: a sheet is "changed" when it has never been
+                    // exported, or its current revision differs from the last-exported
+                    // revision recorded in state. The single biggest automation win for
+                    // an ISO 19650 re-issue — only the drawings that moved go out.
+                    var state = LoadState();
+                    var byUid = state.LastExports
+                        .GroupBy(r => r.SheetUniqueId)
+                        .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.ExportedUtc).First());
+                    var ids = new List<ElementId>();
+                    foreach (var s in sheets)
+                    {
+                        var (rev, _) = GetCurrentRevision(doc, s);
+                        if (!byUid.TryGetValue(s.UniqueId, out var rec) ||
+                            !string.Equals(rec.Revision ?? "", rev ?? "", StringComparison.OrdinalIgnoreCase))
+                            ids.Add(s.Id);
+                    }
+                    return ids;
+                }
+
+                case "Resume Last Failed":
+                {
+                    var state = LoadState();
+                    var failed = new HashSet<string>(state.LastRunFailedSheetIds ?? new List<string>());
+                    return sheets.Where(s => failed.Contains(s.UniqueId)).Select(s => s.Id).ToList();
+                }
+
                 case "Currently Opened":
                 {
                     // We can only inspect the active UI app from the dialog layer;
@@ -603,7 +631,7 @@ namespace StingTools.Docs
                     RunPdf(doc, profile, selectedIds, result,
                         (label) => progress?.Invoke(++done, total, label),
                         cancelRequested);
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(profile, result); }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(doc, profile, result); }
                 }
 
                 // DWG
@@ -612,7 +640,7 @@ namespace StingTools.Docs
                     RunDwg(doc, profile, selectedIds, result,
                         (label) => progress?.Invoke(++done, total, label),
                         cancelRequested);
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(profile, result); }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(doc, profile, result); }
                 }
 
                 // IFC
@@ -621,14 +649,14 @@ namespace StingTools.Docs
                     RunIfc(doc, profile, selectedIds, result,
                         (label) => progress?.Invoke(++done, total, label),
                         cancelRequested);
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(profile, result); }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(doc, profile, result); }
                 }
 
                 if ((profile.Formats & ExportFormats.NWC) != 0)
                 {
                     RunNwc(doc, profile, result,
                         (label) => progress?.Invoke(++done, total, label));
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(profile, result); }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(doc, profile, result); }
                 }
                 if ((profile.Formats & ExportFormats.Image) != 0)
                     RunImage(doc, profile, selectedIds, result,
@@ -648,19 +676,146 @@ namespace StingTools.Docs
                 StingLog.Error("ExportCenterEngine.Run failed", ex);
                 result.Warnings.Add("Run failed: " + ex.Message);
             }
-            return Finalize(profile, result);
+            return Finalize(doc, profile, result);
         }
 
         /// <summary>
         /// Common cleanup path — was the body of a finally block guarded
         /// by a "Done:" label, but C# doesn't allow goto-into-finally.
         /// </summary>
-        private static ExportRunResult Finalize(ExportProfile profile, ExportRunResult result)
+        private static ExportRunResult Finalize(Document doc, ExportProfile profile, ExportRunResult result)
         {
             result.FinishedUtc = DateTime.UtcNow;
+            try { PostRun(doc, profile, result); }
+            catch (Exception ex) { StingLog.Warn($"ExportCenter PostRun: {ex.Message}"); }
             if (profile.Output.GenerateReport)
                 WriteReport(profile, result);
             return result;
+        }
+
+        // ── Post-run automation (delta stamping / failed tracking / manifest / hook) ──
+
+        private static void PostRun(Document doc, ExportProfile profile, ExportRunResult result)
+        {
+            var ok = result.Rows.Where(r => r.Success && !string.IsNullOrEmpty(r.OutputPath)).ToList();
+
+            // 1) Persist per-sheet last-export records + this run's failed sheets so the
+            //    "Changed Since Last Export" and "Resume Last Failed" sets work next time.
+            if (doc != null && profile.Output.StampLastExport)
+            {
+                try
+                {
+                    var state = LoadState();
+                    var byUid = state.LastExports.ToDictionary(r => r.SheetUniqueId + "|" + r.Format, r => r);
+
+                    foreach (var r in ok)
+                    {
+                        var sheet = ResolveSheet(doc, r.SheetId);
+                        if (sheet == null) continue; // combined rows don't map to one sheet
+                        var (rev, _) = GetCurrentRevision(doc, sheet);
+                        var rec = new SheetExportRecord
+                        {
+                            SheetUniqueId = sheet.UniqueId, SheetNumber = sheet.SheetNumber,
+                            Revision = rev, Format = r.Format, Path = r.OutputPath, ExportedUtc = DateTime.UtcNow,
+                        };
+                        byUid[rec.SheetUniqueId + "|" + rec.Format] = rec;
+                    }
+                    state.LastExports = byUid.Values.ToList();
+
+                    state.LastRunFailedSheetIds = result.Rows
+                        .Where(r => !r.Success)
+                        .Select(r => ResolveSheet(doc, r.SheetId)?.UniqueId)
+                        .Where(u => !string.IsNullOrEmpty(u))
+                        .Distinct().ToList();
+
+                    SaveState(state);
+                }
+                catch (Exception ex) { StingLog.Warn($"Last-export stamp: {ex.Message}"); }
+            }
+
+            // 2) SHA-256 manifest of every produced file (CDE integrity / ISO 19650 record).
+            string manifestPath = null;
+            if (profile.Output.WriteChecksumManifest && ok.Count > 0)
+            {
+                try { manifestPath = WriteChecksumManifest(profile, result, ok); }
+                catch (Exception ex) { result.Warnings.Add("Checksum manifest failed: " + ex.Message); }
+            }
+
+            // 3) Post-export shell hook (copy to network / notify / zip). Best-effort.
+            if (!string.IsNullOrWhiteSpace(profile.Output.PostExportCommand))
+            {
+                try { RunPostExportHook(profile, result, manifestPath); }
+                catch (Exception ex) { result.Warnings.Add("Post-export hook failed: " + ex.Message); }
+            }
+        }
+
+        private static ViewSheet ResolveSheet(Document doc, string sheetIdText)
+        {
+            if (doc == null || string.IsNullOrEmpty(sheetIdText)) return null;
+            if (!long.TryParse(sheetIdText, out long raw)) return null;
+            return doc.GetElement(new ElementId(raw)) as ViewSheet;
+        }
+
+        private static string WriteChecksumManifest(ExportProfile profile, ExportRunResult result, List<ExportResultRow> ok)
+        {
+            string folder = profile.Output.LocalFolder;
+            if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) return null;
+            string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string path = Path.Combine(folder, $"STING_Export_Manifest_{stamp}.json");
+
+            var entries = new List<object>();
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+            {
+                foreach (var r in ok)
+                {
+                    if (!File.Exists(r.OutputPath)) continue;
+                    string hash;
+                    try { using var fs = File.OpenRead(r.OutputPath); hash = Convert.ToHexString(sha.ComputeHash(fs)); }
+                    catch (Exception ex) { StingLog.Warn($"Hash {r.OutputPath}: {ex.Message}"); continue; }
+                    entries.Add(new
+                    {
+                        r.Format, r.SheetNumber, r.SheetTitle,
+                        File = Path.GetFileName(r.OutputPath), Bytes = r.FileSizeBytes,
+                        Sha256 = hash.ToLowerInvariant(),
+                    });
+                }
+            }
+
+            var manifest = new
+            {
+                generated = DateTime.UtcNow.ToString("o"),
+                profile = profile.Name,
+                project = StingTools.Core.TagConfig.ConfigSource,
+                fileCount = entries.Count,
+                algorithm = "SHA-256",
+                files = entries,
+            };
+            File.WriteAllText(path, JsonConvert.SerializeObject(manifest, Formatting.Indented));
+            StingLog.Info($"Export checksum manifest written: {path}");
+            return path;
+        }
+
+        private static void RunPostExportHook(ExportProfile profile, ExportRunResult result, string manifestPath)
+        {
+            string cmd = profile.Output.PostExportCommand
+                .Replace("{manifest}", manifestPath ?? "")
+                .Replace("{folder}",   profile.Output.LocalFolder ?? "")
+                .Replace("{count}",    result.Success.ToString())
+                .Replace("{report}",   ""); // report path is written after this; left blank by design
+
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/c " + cmd,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Directory.Exists(profile.Output.LocalFolder) ? profile.Output.LocalFolder : Environment.CurrentDirectory,
+            };
+            using var p = System.Diagnostics.Process.Start(psi);
+            // Don't block the UI indefinitely on a runaway hook.
+            if (p != null && !p.WaitForExit(30000))
+                result.Warnings.Add("Post-export hook still running after 30s — left detached.");
+            StingLog.Info($"Post-export hook executed: {cmd}");
         }
 
         private static int CountFormatPasses(ExportProfile p)
@@ -774,14 +929,9 @@ namespace StingTools.Docs
                 var singleView = new List<View> { view };
                 bool ok = RobustPdfExport(doc, new List<ElementId> { view.Id }, folder, stem, opts,
                     out string finalPath, out long bytes, out int pageCount, out string err,
-                    tmp =>
-                    {
-                        // Post-process the verified temp file BEFORE the atomic move,
-                        // so a configured watermark / bookmark lands on every
-                        // OnePerSheet output and the published PDF is final in one step.
-                        if (profile.Pdf.AddBookmarks)  TryInjectBookmarks(tmp, singleView, profile, result);
-                        if (profile.Pdf.ApplyWatermark) TryInjectWatermark(tmp, profile.Pdf, result);
-                    });
+                    // Post-process the verified temp file BEFORE the atomic move so the
+                    // watermark / bookmark / cover land on the published PDF in one step.
+                    tmp => ExportCenterPdfPostProcess.PostProcessExport(tmp, singleView, profile, result));
                 row.OutputPath = finalPath;
                 row.Success = ok;
                 if (ok)
@@ -841,7 +991,7 @@ namespace StingTools.Docs
                 stem = ResolveConflict(folder, stem, "pdf", profile.Output.ConflictMode, out bool skip);
                 if (skip) { row.Success = false; row.Error = "Skipped — file exists"; return; }
 
-                var ordered = OrderForMerge(views, profile.Pdf.MergeOrderSheetIds);
+                var ordered = OrderForMerge(views, profile.Pdf.MergeOrderSheetIds, profile.Pdf.MergeOrder);
 
                 var opts = new PDFExportOptions
                 {
@@ -854,11 +1004,7 @@ namespace StingTools.Docs
 
                 bool ok = RobustPdfExport(doc, ordered.Select(v => v.Id).ToList(), folder, stem, opts,
                     out string finalPath, out long bytes, out int pageCount, out string err,
-                    tmp =>
-                    {
-                        if (profile.Pdf.AddBookmarks)  TryInjectBookmarks(tmp, ordered, profile, result);
-                        if (profile.Pdf.ApplyWatermark) TryInjectWatermark(tmp, profile.Pdf, result);
-                    });
+                    tmp => ExportCenterPdfPostProcess.PostProcessExport(tmp, ordered, profile, result));
                 row.OutputPath = finalPath;
                 row.Success = ok;
                 if (ok)
@@ -881,35 +1027,29 @@ namespace StingTools.Docs
             }
         }
 
-        private static List<View> OrderForMerge(List<View> views, List<string> mergeOrder)
+        private static List<View> OrderForMerge(List<View> views, List<string> mergeOrder, string mergeMode = "SheetNumber")
         {
-            if (mergeOrder == null || mergeOrder.Count == 0)
-                return views.OrderBy(v => v is ViewSheet s ? s.SheetNumber : v.Name).ToList();
-
-            var index = mergeOrder.Select((id, i) => new { id, i }).ToDictionary(x => x.id, x => x.i);
-            return views.OrderBy(v => index.TryGetValue(v.Id.ToString(), out int i) ? i : int.MaxValue).ToList();
-        }
-
-        private static void TryInjectBookmarks(string pdfPath, List<View> views,
-            ExportProfile profile, ExportRunResult result)
-        {
-            // Backed by PDFsharp 6.x (added as a NuGet package). Best-effort —
-            // a bookmark failure must not abort the export.
-            try { ExportCenterPdfPostProcess.InjectBookmarks(pdfPath, views, profile); }
-            catch (Exception ex)
+            // An explicit per-sheet order (saved drag-to-reorder) always wins.
+            if (mergeOrder != null && mergeOrder.Count > 0)
             {
-                result.Warnings.Add($"Bookmark injection failed for '{Path.GetFileName(pdfPath)}': {ex.Message}");
+                var index = mergeOrder.Select((id, i) => new { id, i }).ToDictionary(x => x.id, x => x.i);
+                return views.OrderBy(v => index.TryGetValue(v.Id.ToString(), out int i) ? i : int.MaxValue).ToList();
+            }
+
+            string Num(View v) => v is ViewSheet s ? s.SheetNumber ?? "" : v.Name ?? "";
+            switch (mergeMode)
+            {
+                case "IssueDate":
+                    return views.OrderBy(v => v is ViewSheet s ? (ReadParam(s, "Sheet Issue Date") ?? "") : "")
+                                .ThenBy(Num).ToList();
+                case "Discipline":
+                    return views.OrderBy(v => v is ViewSheet s ? GetDisciplinePrefix(s.SheetNumber) : "")
+                                .ThenBy(Num).ToList();
+                default: // SheetNumber
+                    return views.OrderBy(Num).ToList();
             }
         }
 
-        private static void TryInjectWatermark(string pdfPath, PdfExportSettings pdf, ExportRunResult result)
-        {
-            try { ExportCenterPdfPostProcess.InjectWatermark(pdfPath, pdf); }
-            catch (Exception ex)
-            {
-                result.Warnings.Add($"Watermark injection failed for '{Path.GetFileName(pdfPath)}': {ex.Message}");
-            }
-        }
 
         // PDFExportOptions.RasterQuality is RasterQualityType in Revit
         // 2025+; the legacy DPI-buckets enum was retired.

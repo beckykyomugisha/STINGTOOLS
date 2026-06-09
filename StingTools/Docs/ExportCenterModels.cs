@@ -104,6 +104,21 @@ namespace StingTools.Docs
         public int WatermarkFontSize { get; set; } = 96;
         public string WatermarkColourHex { get; set; } = "#999999";
 
+        // ── Watermark & combine polish (Phase: Export Centre roadmap bundle C) ──
+        /// <summary>Derive the watermark phrase from each sheet's suitability
+        /// (WIP/S0/S1 → PRELIMINARY, S2 → FOR INFORMATION, S3 → FOR REVIEW,
+        /// S4 → FOR CONSTRUCTION, …). Overrides WatermarkText per page.</summary>
+        public bool AutoWatermarkBySuitability { get; set; }
+        /// <summary>Tile the watermark diagonally across the whole page rather than
+        /// stamping it once at the centre.</summary>
+        public bool WatermarkTile { get; set; }
+        /// <summary>Prepend an auto-generated drawing-register cover page to a
+        /// combined PDF (sheet number / title / revision table).</summary>
+        public bool PrependCoverSheet { get; set; }
+        /// <summary>Combined-PDF page order when no explicit MergeOrderSheetIds is
+        /// set: "SheetNumber" (default) / "IssueDate" / "Discipline".</summary>
+        public string MergeOrder { get; set; } = "SheetNumber";
+
         /// <summary>User-defined groups (CustomGroups mode). Map of group name → list of sheet ids (as strings).</summary>
         public Dictionary<string, List<string>> CustomGroups { get; set; } = new();
 
@@ -220,6 +235,16 @@ namespace StingTools.Docs
         public bool GenerateReport { get; set; } = true;
         public string ReportFormat { get; set; } = "XLSX";       // XLSX / CSV
         public bool OpenReportWhenDone { get; set; }
+
+        // ── Automation & integrity (Phase: Export Centre roadmap bundle D) ──
+        /// <summary>Write a SHA-256 manifest of every produced file (CDE integrity / ISO 19650 record).</summary>
+        public bool WriteChecksumManifest { get; set; }
+        /// <summary>Optional shell command run once after a successful run. Tokens:
+        /// {manifest} {folder} {count} {report}. Best-effort, never blocks.</summary>
+        public string PostExportCommand { get; set; } = "";
+        /// <summary>Record per-sheet last-exported revision + path so the
+        /// "Changed Since Last Export" delta set works. On by default.</summary>
+        public bool StampLastExport { get; set; } = true;
     }
 
     /// <summary>Persistent saved selection — names + a list of sheet/view ElementIds (as strings to survive across docs).</summary>
@@ -261,6 +286,17 @@ namespace StingTools.Docs
         public string DefaultSetName { get; set; } = "All Sheets";
     }
 
+    /// <summary>Per-sheet last-export record for delta / issue-driven export.</summary>
+    public class SheetExportRecord
+    {
+        public string SheetUniqueId { get; set; }
+        public string SheetNumber { get; set; }
+        public string Revision { get; set; }
+        public string Format { get; set; }
+        public string Path { get; set; }
+        public DateTime ExportedUtc { get; set; } = DateTime.UtcNow;
+    }
+
     /// <summary>A scheduled export job persisted in project_config.json.</summary>
     public class ScheduledExport
     {
@@ -288,6 +324,17 @@ namespace StingTools.Docs
         public string LastNamingTemplate { get; set; }
         public string OdaLibraryPath { get; set; }
         public bool? AutocadComAvailable { get; set; }
+
+        // ── Automation tracking (Phase: Export Centre roadmap bundles B + D) ──
+        /// <summary>Per-sheet last-export records keyed by sheet UniqueId — drives the
+        /// "Changed Since Last Export" delta set.</summary>
+        public List<SheetExportRecord> LastExports { get; set; } = new();
+        /// <summary>Sheet UniqueIds that failed in the most recent run — drives the
+        /// "Resume Last Failed" set.</summary>
+        public List<string> LastRunFailedSheetIds { get; set; } = new();
+        /// <summary>Opt-in: run any due ScheduledExports when a document is saved.
+        /// Off by default so files never appear unexpectedly.</summary>
+        public bool EnableSaveTriggeredSchedules { get; set; }
 
         // ── Built-in profile factory ────────────────────────────────────────────
 
@@ -382,6 +429,8 @@ namespace StingTools.Docs
             S("By Discipline: Structural");
             S("Issued Sheets");
             S("Revised This Week");
+            S("Changed Since Last Export");
+            S("Resume Last Failed");
             S("Currently Opened");
             return built;
         }

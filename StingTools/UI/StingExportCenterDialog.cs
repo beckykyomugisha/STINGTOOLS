@@ -586,7 +586,20 @@ namespace StingTools.UI
             sp.Children.Add(BindCheck("Apply watermark", () => _profile.Pdf.ApplyWatermark, v => _profile.Pdf.ApplyWatermark = v));
             var wmText = new TextBox { Text = _profile.Pdf.WatermarkText };
             wmText.TextChanged += (_, __) => _profile.Pdf.WatermarkText = wmText.Text;
-            sp.Children.Add(LabelFor("Watermark text", wmText));
+            sp.Children.Add(LabelFor("Watermark text  (tokens: {Suitability} {Revision} {SheetNumber} {Date})", wmText));
+            sp.Children.Add(BindCheck("Auto text by suitability (WIP→PRELIMINARY, S4→FOR CONSTRUCTION)",
+                () => _profile.Pdf.AutoWatermarkBySuitability, v => _profile.Pdf.AutoWatermarkBySuitability = v));
+            sp.Children.Add(BindCheck("Tile watermark diagonally across page",
+                () => _profile.Pdf.WatermarkTile, v => _profile.Pdf.WatermarkTile = v));
+
+            // Combine polish
+            sp.Children.Add(BindCheck("Prepend drawing-register cover (combined PDFs)",
+                () => _profile.Pdf.PrependCoverSheet, v => _profile.Pdf.PrependCoverSheet = v));
+            var mergeOrder = new ComboBox();
+            mergeOrder.Items.Add("SheetNumber"); mergeOrder.Items.Add("IssueDate"); mergeOrder.Items.Add("Discipline");
+            mergeOrder.SelectedItem = _profile.Pdf.MergeOrder;
+            mergeOrder.SelectionChanged += (_, __) => _profile.Pdf.MergeOrder = mergeOrder.SelectedItem?.ToString() ?? "SheetNumber";
+            sp.Children.Add(LabelFor("Combine order", mergeOrder));
 
             return card;
         }
@@ -948,6 +961,42 @@ namespace StingTools.UI
             rSp.Children.Add(BindCheck("Generate report", () => _profile.Output.GenerateReport, v => _profile.Output.GenerateReport = v));
             rSp.Children.Add(BindCheck("Open report when done", () => _profile.Output.OpenReportWhenDone, v => _profile.Output.OpenReportWhenDone = v));
             sp.Children.Add(report);
+
+            // Automation & integrity
+            var auto = NewSection("Automation & integrity");
+            var aSp = (StackPanel)auto.Child;
+            aSp.Children.Add(BindCheck("Write SHA-256 checksum manifest",
+                () => _profile.Output.WriteChecksumManifest, v => _profile.Output.WriteChecksumManifest = v));
+            aSp.Children.Add(BindCheck("Track last-exported revision (enables 'Changed Since Last Export')",
+                () => _profile.Output.StampLastExport, v => _profile.Output.StampLastExport = v));
+            var hook = new TextBox { Text = _profile.Output.PostExportCommand };
+            hook.TextChanged += (_, __) => _profile.Output.PostExportCommand = hook.Text;
+            aSp.Children.Add(LabelFor("Post-export command  (tokens: {manifest} {folder} {count})", hook));
+            aSp.Children.Add(BindCheck("Run due scheduled exports on document save (opt-in)",
+                () => _state.EnableSaveTriggeredSchedules,
+                v => { _state.EnableSaveTriggeredSchedules = v; ExportCenterEngine.SaveState(_state); }));
+            var runNow = new Button
+            {
+                Content = "Run due scheduled exports now",
+                Margin = new Thickness(0, 6, 0, 0),
+                Padding = new Thickness(8, 3, 8, 3),
+                HorizontalAlignment = HorizontalAlignment.Left,
+            };
+            runNow.Click += (_, __) =>
+            {
+                try
+                {
+                    int n = ScheduledExportRunner.RunDue(_doc, fromSave: false);
+                    Autodesk.Revit.UI.TaskDialog.Show("STING Export Centre",
+                        n == 0 ? "No scheduled export jobs were due." : $"Ran {n} scheduled export job(s).");
+                }
+                catch (Exception ex)
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show("STING Export Centre", "Failed: " + ex.Message);
+                }
+            };
+            aSp.Children.Add(runNow);
+            sp.Children.Add(auto);
 
             return new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         }
