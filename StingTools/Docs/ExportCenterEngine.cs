@@ -743,10 +743,17 @@ namespace StingTools.Docs
                 stem = ResolveConflict(folder, stem, "pdf", profile.Output.ConflictMode, out bool skip);
                 if (skip) { row.Success = false; row.Error = "Skipped — file exists"; return; }
 
+                // NOTE: In Revit 2022+ the PDFExportOptions.FileName property is
+                // ONLY honoured when Combine == true. With Combine == false Revit
+                // names every file via its own naming rule (e.g. "Sheet - <name>"),
+                // so File.Exists(stem.pdf) was always false and the export was
+                // reported as a failure even though a PDF had been written. Export
+                // the single view with Combine == true so the requested filename is
+                // produced exactly. (A single-view "combine" is just a 1-page PDF.)
                 var opts = new PDFExportOptions
                 {
                     FileName = stem,
-                    Combine = false,
+                    Combine = true,
                     AlwaysUseRaster = profile.Pdf.HiddenLineMode == "Raster",
                     RasterQuality = MapRasterQuality(profile.Pdf.RasterDpi),
                     ColorDepth = MapColorDepth(profile.Pdf.ColourScheme),
@@ -755,7 +762,17 @@ namespace StingTools.Docs
                 bool ok = doc.Export(folder, new List<ElementId> { view.Id }, opts);
                 row.OutputPath = Path.Combine(folder, stem + ".pdf");
                 row.Success = ok && File.Exists(row.OutputPath);
-                if (row.Success) row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
+                if (row.Success)
+                {
+                    row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
+                    // Per-sheet PDFs get the same post-processing as combined ones,
+                    // so a configured watermark / bookmark actually lands on every
+                    // OnePerSheet output instead of only on combined sets.
+                    if (profile.Pdf.AddBookmarks)
+                        TryInjectBookmarks(row.OutputPath, new List<View> { view }, profile, result);
+                    if (profile.Pdf.ApplyWatermark)
+                        TryInjectWatermark(row.OutputPath, profile.Pdf, result);
+                }
                 else row.Error = "PDF export returned false";
             }
             catch (Exception ex)
