@@ -8,6 +8,7 @@ from .enums import EnumRegistry, Enum, EnumValue, EnumScope, EnumOrigin
 from .psets import PsetRegistry, Pset, PsetProperty, ValidationRule
 from .tag_grammar import TagGrammar, Tag, TagValidationResult
 from .spatial import SpatialChecker, SpatialMismatch
+from .hosts import HostAdapter, IfcFileHostAdapter, GeorefDescriptor, ChangeDelta
 from .exceptions import (
     StingError,
     SubstrateError,
@@ -24,6 +25,8 @@ __all__ = [
     "PsetRegistry", "Pset", "PsetProperty", "ValidationRule",
     "TagGrammar", "Tag", "TagValidationResult",
     "SpatialChecker", "SpatialMismatch",
+    # host adapter layer
+    "HostAdapter", "IfcFileHostAdapter", "GeorefDescriptor", "ChangeDelta",
     # exception hierarchy
     "StingError",
     "SubstrateError",

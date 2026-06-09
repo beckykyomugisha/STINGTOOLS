@@ -33,15 +33,27 @@ class StingMainPanel(bpy.types.Panel):
         except ImportError:
             box.label(text="core: NOT LOADED — check PYTHONPATH", icon="ERROR")
 
+        bonsai_ok = False
         try:
             from ..core import bonsai as _bridge
             caps = _bridge.bonsai.capabilities
-            if caps.installed:
+            bonsai_ok = caps.installed
+            if bonsai_ok:
                 box.label(text=f"Bonsai v{caps.version}", icon="CHECKMARK")
-            else:
-                box.label(text="Bonsai: standalone mode", icon="INFO")
         except Exception:
             pass
+
+        # Phase A1 — StingTools requires Bonsai (it provides ifcopenshell + the
+        # undo-aware IFC layer). There is no in-Blender standalone mode: surface a
+        # clear call-to-action and stop, rather than rendering ops that would no-op.
+        if not bonsai_ok:
+            warn = layout.box()
+            warn.alert = True
+            warn.label(text="Bonsai is required", icon="ERROR")
+            warn.label(text="Install + enable the Bonsai add-on,")
+            warn.label(text="then reopen this panel.")
+            warn.operator("sting.bonsai_probe", text="Re-check for Bonsai", icon="FILE_REFRESH")
+            return
 
         layout.separator()
         col = layout.column(align=True)
