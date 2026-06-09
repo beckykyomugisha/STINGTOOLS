@@ -230,7 +230,7 @@ STING Tag Configuration v5.0 - GEN (COMPLETE with Warnings)
 Tag Family #1: STING - Generic Model Tag
 TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Generic Models
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_PRODCT_COD_TXT,Prod:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_PRODCT_COD_TXT, """")",NOM,BLACK,2.0,None,None
@@ -272,7 +272,7 @@ TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Generic Models
 Tag Family #2: STING - Specialty Equipment Tag
 TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Specialty Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_PRODCT_COD_TXT,Prod:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_PRODCT_COD_TXT, """")",NOM,BLACK,2.0,None,None
@@ -315,7 +315,7 @@ TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Specialty Equipment
 Tag Family #3: STING - Site Tag
 TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Site
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_LOC_TXT,Loc:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_LOC_TXT, """")",NOM,BLACK,2.0,None,None
@@ -357,7 +357,7 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Site
 Tag Family #4: STING - Planting Tag
 TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Planting
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,GEN_SPECIES_TXT,Species:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, GEN_SPECIES_TXT, """")",NOM,BLACK,2.0,None,None
@@ -396,7 +396,7 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Planting
 Tag Family #5: STING - Hardscape Tag
 TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Hardscape
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_WALL_EXTERIOR_FINISH_TXT,Fin:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_EXTERIOR_FINISH_TXT, """")",NOM,BLACK,2.0,None,None
@@ -435,7 +435,7 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Hardscape
 Tag Family #6: STING - Roads Tag
 TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Roads
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,GEN_ROAD_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, GEN_ROAD_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -474,7 +474,7 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Roads
 Tag Family #7: STING - Pads Tag
 TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Pads
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_WALL_THICKNESS_MM,Thickness:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_THICKNESS_MM, """")",NOM,BLACK,2.0,None,None
@@ -513,7 +513,7 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Pads
 Tag Family #8: STING - Toposolid Tag
 TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Toposolid
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_MAT_ELEM_TYPE_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_MAT_ELEM_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -551,7 +551,7 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Toposolid
 Tag Family #9: STING - Parts Tag
 TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Parts
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_PRODCT_COD_TXT,Prod:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_PRODCT_COD_TXT, """")",NOM,BLACK,2.0,None,None
@@ -589,7 +589,7 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Parts
 Tag Family #10: STING - Assemblies Tag
 TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Assemblies
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_PRODCT_COD_TXT,Code:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_PRODCT_COD_TXT, """")",NOM,BLACK,2.0,None,None
@@ -628,7 +628,7 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Assemblies
 Tag Family #11: STING - Detail Items Tag
 TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Detail Items
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T3,GEN_TAG_7_PARA_MISC_TXT,,,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, GEN_TAG_7_PARA_MISC_TXT, """")",NOM,BLACK,2.0,None,None
@@ -664,7 +664,7 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Detail Items
 Tag Family #12: STING - Profiles Tag
 TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Profiles
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T3,GEN_TAG_7_PARA_MISC_TXT,,,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, GEN_TAG_7_PARA_MISC_TXT, """")",NOM,BLACK,2.0,None,None
@@ -700,7 +700,7 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Profiles
 Tag Family #13: STING - Materials Tag
 TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T1,MAT_NAME,,,0,✓,Common,Text,Show Tier 1 - 2,Add directly,NOM,BLACK,2.5,None,None
 3,T1,MAT_CATEGORY,,,0,✓,Common,Text,Show Tier 1 - 3,Add directly,NOM,BLACK,2.5,None,None
 4,T2,MAT_MANUFACTURER,Mfr:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MAT_MANUFACTURER, """")",NOM,BLACK,2.0,None,None
@@ -754,7 +754,7 @@ TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 Tag Family #14: STING - Point Loads Tag
 TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Point Loads
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,STR_POINT_LOAD_KN,,kN,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_POINT_LOAD_KN, """")",NOM,BLACK,2.0,None,None
@@ -793,7 +793,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Point Loads
 Tag Family #15: STING - Line Loads Tag
 TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Line Loads
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,STR_LINE_LOAD_KN_M,,kN/m,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_LINE_LOAD_KN_M, """")",NOM,BLACK,2.0,None,None
@@ -832,7 +832,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Line Loads
 Tag Family #16: STING - Area Loads Tag
 TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Area Loads
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,STR_AREA_LOAD_KN_M2,,kN/m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_AREA_LOAD_KN_M2, """")",NOM,BLACK,2.0,None,None
@@ -871,7 +871,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Area Loads
 Tag Family #17: STING - Internal Point Loads Tag
 TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Point Loads
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,STR_POINT_LOAD_KN,,kN,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_POINT_LOAD_KN, """")",NOM,BLACK,2.0,None,None
@@ -910,7 +910,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Point Loads
 Tag Family #18: STING - Internal Line Loads Tag
 TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Line Loads
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,STR_LINE_LOAD_KN_M,,kN/m,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_LINE_LOAD_KN_M, """")",NOM,BLACK,2.0,None,None
@@ -949,7 +949,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Line Loads
 Tag Family #19: STING - Internal Area Loads Tag
 TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Area Loads
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,STR_AREA_LOAD_KN_M2,,kN/m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_AREA_LOAD_KN_M2, """")",NOM,BLACK,2.0,None,None
@@ -989,7 +989,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Area Loads
 Tag Family #20: STING - Analytical Members Tag
 TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Members
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,STR_SECTION_PROFILE_TXT,Section:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_SECTION_PROFILE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1028,7 +1028,7 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Members
 Tag Family #21: STING - Analytical Nodes Tag
 TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Nodes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T3,STR_TAG_7_PARA_ANLYT_TXT,,,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_ANLYT_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1065,7 +1065,7 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Nodes
 Tag Family #22: STING - Analytical Panels Tag
 TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Panels
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,STR_MATERIAL_GRADE_TXT,Grade:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_MATERIAL_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1103,7 +1103,7 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Panels
 Tag Family #23: STING - Analytical Openings Tag
 TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Openings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T3,STR_TAG_7_PARA_ANLYT_TXT,,,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_ANLYT_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1140,7 +1140,7 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Openings
 Tag Family #24: STING - Analytical Links Tag
 TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Links
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T3,STR_TAG_7_PARA_ANLYT_TXT,,,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_ANLYT_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1178,7 +1178,7 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Links
 Tag Family #25: STING - Model Groups Tag
 TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Model Groups
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T3,GEN_TAG_7_PARA_MISC_TXT,,,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, GEN_TAG_7_PARA_MISC_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1215,7 +1215,7 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Model Groups
 Tag Family #26: STING - RVT Links Tag
 TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: RVT Links
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T3,GEN_TAG_7_PARA_MISC_TXT,,,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, GEN_TAG_7_PARA_MISC_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1252,7 +1252,7 @@ TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: RVT Links
 Tag Family #27: STING - Property Lines Tag
 TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Property Lines
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,RGL_PLOT_AREA_SQ_M,,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, RGL_PLOT_AREA_SQ_M, """")",NOM,BLACK,2.0,None,None
@@ -1290,7 +1290,7 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Property Lines
 Tag Family #28: STING - Property Line Segments Tag
 TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Property Line Segments
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T3,ARCH_TAG_7_PARA_SITE_TXT,,,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SITE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1327,7 +1327,7 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Property Line Segments
 Tag Family #29: STING - Bolt Tag
 TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Bolt
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,STR_BOLT_GRADE_TXT,Grade:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_BOLT_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1367,7 +1367,7 @@ TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Bolt
 Tag Family #30: STING - Toposolid Links Tag
 TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Toposolid Links
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T3,ARCH_TAG_7_PARA_SITE_TXT,,,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SITE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1404,7 +1404,7 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Toposolid Links
 Tag Family #31: STING - Weld Tag
 TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Weld
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,STR_WELD_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_WELD_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1444,7 +1444,7 @@ TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Weld
 Tag Family #32: STING - Wire Tag
 TAG7: ELC_TAG_7_PARA_CIRC_TXT  •  Category: Wire
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ELC_WIRE_SIZE_TXT,Size:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_WIRE_SIZE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1484,7 +1484,7 @@ TAG7: ELC_TAG_7_PARA_CIRC_TXT  •  Category: Wire
 Tag Family #33: STING - Sheet Document Tag
 TAG7: SHT_TAG_7_TXT  •  Category: Sheets (ViewSheet)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,SHT_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,SHT_FORM_TXT,Form:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SHT_FORM_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,SHT_LEVEL_TXT,Level:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, SHT_LEVEL_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1536,7 +1536,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Generic Models / Specialty Equipmen
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLUE,2.5,None,None
 
 ★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -1576,7 +1576,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Generic Models / Specialty Equipmen
 Tag Family #35: STING - Specialty Equipment Tag Asset
 TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Specialty Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_SERIAL_NR_TXT,Ser:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_SERIAL_NR_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1619,7 +1619,7 @@ TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Specialty Equipment
 Tag Family #36: STING - Specialty Equipment Tag General
 TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Specialty Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_FUNC_TXT,Func:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_FUNC_TXT, """")",NOM,BLACK,2.0,None,None

@@ -230,7 +230,7 @@ STING Tag Configuration v5.0 - ARCH (COMPLETE with Warnings)
 Tag Family #1: STING - Wall Tag
 TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Walls
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_WALL_TYPE_CLASSIFICATION_TXT,Type:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_TYPE_CLASSIFICATION_TXT, """")",NOM,BLACK,2.0,None,None
@@ -301,7 +301,7 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Walls
 Tag Family #2: STING - Floor Tag
 TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Floors
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_FLR_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -369,7 +369,7 @@ TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Floors
 Tag Family #3: STING - Ceiling Tag
 TAG7: ARCH_TAG_7_PARA_CEIL_TXT  •  Category: Ceilings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_CEILING_TYPE_CLASSIFICATION_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_CEILING_TYPE_CLASSIFICATION_TXT, """")",NOM,BLACK,2.0,None,None
@@ -430,7 +430,7 @@ TAG7: ARCH_TAG_7_PARA_CEIL_TXT  •  Category: Ceilings
 Tag Family #4: STING - Roof Tag
 TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roofs
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_ROOF_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -496,7 +496,7 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roofs
 Tag Family #5: STING - Door Tag
 TAG7: ARCH_TAG_7_PARA_DOOR_TXT  •  Category: Doors
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_DOOR_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_DOOR_WIDTH_MM, """")",NOM,BLACK,2.0,None,None
@@ -562,7 +562,7 @@ TAG7: ARCH_TAG_7_PARA_DOOR_TXT  •  Category: Doors
 Tag Family #6: STING - Window Tag
 TAG7: ARCH_TAG_7_PARA_WIN_TXT  •  Category: Windows
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_WINDOW_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_WIDTH_MM, """")",NOM,BLACK,2.0,None,None
@@ -626,7 +626,7 @@ TAG7: ARCH_TAG_7_PARA_WIN_TXT  •  Category: Windows
 Tag Family #7: STING - Room Tag
 TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Rooms
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_ROOM_AREA_SQ_M,Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")",NOM,BLACK,2.0,None,None
@@ -684,7 +684,7 @@ TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Rooms
 Tag Family #8: STING - Stair Tag
 TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stairs
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_STAIR_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_WIDTH_MM, """")",NOM,BLACK,2.0,None,None
@@ -747,7 +747,7 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stairs
 Tag Family #9: STING - Ramp Tag
 TAG7: ARCH_TAG_7_PARA_RAMP_TXT  •  Category: Ramps
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_RAMP_SLOPE_PCT,Slope:,%,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAMP_SLOPE_PCT, """")",NOM,BLACK,2.0,None,None
@@ -805,7 +805,7 @@ TAG7: ARCH_TAG_7_PARA_RAMP_TXT  •  Category: Ramps
 Tag Family #10: STING - Railing Tag
 TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Railings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_RAILING_HEIGHT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_HEIGHT_MM, """")",NOM,BLACK,2.0,None,None
@@ -862,7 +862,7 @@ TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Railings
 Tag Family #11: STING - Furniture Tag
 TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
@@ -919,7 +919,7 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture
 Tag Family #12: STING - Casework Tag
 TAG7: ARCH_TAG_7_PARA_CASEWORK_TXT  •  Category: Casework
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_CASEWORK_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_CASEWORK_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -976,7 +976,7 @@ TAG7: ARCH_TAG_7_PARA_CASEWORK_TXT  •  Category: Casework
 Tag Family #13: STING - Curtain Panel Tag
 TAG7: ARCH_TAG_7_PARA_CURTAIN_TXT  •  Category: Curtain Panels
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_PANEL_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_PANEL_WIDTH_MM, """")",NOM,BLACK,2.0,None,None
@@ -1033,7 +1033,7 @@ TAG7: ARCH_TAG_7_PARA_CURTAIN_TXT  •  Category: Curtain Panels
 Tag Family #14: STING - Curtain Wall Mullion Tag
 TAG7: ARCH_TAG_7_PARA_MULLION_TXT  •  Category: Curtain Wall Mullions
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_MULLION_DEPTH_MM,D:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_MULLION_DEPTH_MM, """")",NOM,BLACK,2.0,None,None
@@ -1092,7 +1092,7 @@ TAG7: ARCH_TAG_7_PARA_MULLION_TXT  •  Category: Curtain Wall Mullions
 Tag Family #15: STING - Signage Tag
 TAG7: ARCH_TAG_7_PARA_SIGNAGE_TXT  •  Category: Signage
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_SIGN_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_SIGN_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1147,7 +1147,7 @@ TAG7: ARCH_TAG_7_PARA_SIGNAGE_TXT  •  Category: Signage
 Tag Family #16: STING - Parking Tag
 TAG7: ARCH_TAG_7_PARA_PARKING_TXT  •  Category: Parking
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_PARK_BAY_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_PARK_BAY_WIDTH_MM, """")",NOM,BLACK,2.0,None,None
@@ -1205,7 +1205,7 @@ TAG7: ARCH_TAG_7_PARA_PARKING_TXT  •  Category: Parking
 Tag Family #17: STING - Areas Tag
 TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Areas
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_ROOM_AREA_SQ_M,Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")",NOM,BLACK,2.0,None,None
@@ -1252,7 +1252,7 @@ TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Areas
 Tag Family #18: STING - Wall Sweeps Tag
 TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Wall Sweeps
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_WALL_TYPE_CLASSIFICATION_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_TYPE_CLASSIFICATION_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1305,7 +1305,7 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Wall Sweeps
 Tag Family #19: STING - Slab Edges Tag
 TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Slab Edges
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_FLR_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1359,7 +1359,7 @@ TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Slab Edges
 Tag Family #20: STING - Roof Soffits Tag
 TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roof Soffits
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_CEILING_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_CEILING_MAT_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1412,7 +1412,7 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roof Soffits
 Tag Family #21: STING - Fascia Tag
 TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Fascia
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_ROOF_COVERING_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_COVERING_MAT_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1465,7 +1465,7 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Fascia
 Tag Family #22: STING - Gutter Tag
 TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Gutters
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Drain:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1519,7 +1519,7 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Gutters
 Tag Family #23: STING - Mass Tag
 TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Mass
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_ROOM_AREA_SQ_M,GIA:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")",NOM,BLACK,2.0,None,None
@@ -1571,7 +1571,7 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Mass
 Tag Family #24: STING - Furniture Systems Tag
 TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture Systems
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1626,7 +1626,7 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture Systems
 Tag Family #25: STING - Food Service Equipment Tag
 TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Food Service Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1681,7 +1681,7 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Food Service Equipment
 Tag Family #26: STING - Medical Equipment Tag
 TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Medical Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1736,7 +1736,7 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Medical Equipment
 Tag Family #27: STING - Entourage Tag
 TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Entourage
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1788,7 +1788,7 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Entourage
 Tag Family #28: STING - Stair Runs Tag
 TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Runs
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_STAIR_RISE_MM,R:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_RISE_MM, """")",NOM,BLACK,2.0,None,None
@@ -1845,7 +1845,7 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Runs
 Tag Family #29: STING - Stair Landings Tag
 TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Landings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_STAIR_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_WIDTH_MM, """")",NOM,BLACK,2.0,None,None
@@ -1899,7 +1899,7 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Landings
 Tag Family #30: STING - Stair Supports Tag
 TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Supports
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_RAILING_MATERIAL_TXT,Mat:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1952,7 +1952,7 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Supports
 Tag Family #31: STING - Top Rails Tag
 TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Top Rails
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_RAILING_HEIGHT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_HEIGHT_MM, """")",NOM,BLACK,2.0,None,None
@@ -2006,7 +2006,7 @@ TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Top Rails
 Tag Family #32: STING - Handrails Tag
 TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Handrails
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_RAILING_HEIGHT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_HEIGHT_MM, """")",NOM,BLACK,2.0,None,None
@@ -2060,7 +2060,7 @@ TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Handrails
 Tag Family #33: STING - Vertical Circulation Tag
 TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Vertical Circulation
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2113,7 +2113,7 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Vertical Circulation
 Tag Family #34: STING - Architectural Sheet Tag
 TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Architectural discipline
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,SHT_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,SHT_FORM_TXT,Form:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SHT_FORM_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,SHT_LEVEL_TXT,Level:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, SHT_LEVEL_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2145,7 +2145,7 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Architectural discipline
 Tag Family #35: STING - Architectural Column Tag
 TAG7: ARCH_TAG_7_PARA_COLUMNS_TXT  •  Category: Columns — Architectural discipline
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,BLE_STRUCT_COLUMN_SZ_TXT,Size:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STRUCT_COLUMN_SZ_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2212,7 +2212,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Roofs / Walls / Curtain Wall
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ELC_LPS_AIRTERM_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+1,T1,ELC_LPS_AIRTERM_TAG_TXT,,,0,✓,Common,Text,LPS Air Terminal Tag,ELC_LPS_AIRTERM_TAG_TXT,BOLD,BLUE,2.5,None,None
 
 ★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
