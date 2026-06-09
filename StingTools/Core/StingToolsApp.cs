@@ -1413,6 +1413,18 @@ namespace StingTools.Core
                 {
                     StingLog.Warn($"DocumentSaved geometry sync trigger: {geoEx.Message}");
                 }
+
+                // Unattended export — run any due scheduled-export jobs. No-op unless the
+                // user opted in (ExportCenterState.EnableSaveTriggeredSchedules) and a job
+                // is actually due; never throws out of the save handler.
+                try
+                {
+                    StingTools.Docs.ScheduledExportRunner.RunDue(doc, fromSave: true);
+                }
+                catch (Exception schEx)
+                {
+                    StingLog.Warn($"DocumentSaved scheduled export: {schEx.Message}");
+                }
             }
             catch (Exception ex)
             {
