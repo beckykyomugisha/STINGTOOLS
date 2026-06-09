@@ -7,6 +7,10 @@
 (function () {
   "use strict";
 
+  // Deployed-artifact marker for serve path #3 (vanilla web /app). dashboard.js is
+  // volume-mounted (wwwroot/js) → reflects on restart/refresh, no docker rebuild.
+  console.log("[dashboard] STING_DASH_BUILD p1-invite");
+
   // Phase 169 — runtime config. The Mapbox token must be replaced with a
   // real public token from mapbox.com (free account, no credit card
   // required). When left as the placeholder, the dashboard renders a
@@ -168,7 +172,11 @@
   // Hub.on(event, handler). WarningsReported is the first consumer; add
   // IssueCreated / TransmittalUpdated / ComplianceChanged the same way
   // (they are pre-registered below, so a one-line Hub.on() is all it takes).
-  const SIGNALR_CDN = "https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js";
+  // STING_DASH_SIGNALR_VENDORED — load SignalR from our OWN origin, not a third-party
+  // CDN. Edge/Firefox Tracking Prevention blocks cdn.jsdelivr.net in InPrivate ("blocked
+  // access to storage") and it fails offline; vendored locally (pinned 8.0.7), mirroring
+  // the viewer + livekit-client.
+  const SIGNALR_CDN = "/vendor/signalr.min.js";
   const Hub = (function () {
     const subs = new Map();
     let conn = null;
@@ -187,8 +195,16 @@
       "ComplianceChanged", "ComplianceUpdated", "TagsUpdated",
       "DocumentUpdated", "ApprovalDecided",
       "MeetingCreated", "MeetingUpdated",
+      // W2 — live-meeting start (per-user "Notification" with data.type=meeting_live) +
+      // scheduled-meeting surface. Parsed via MeetingsCore.parseNotificationEvent.
+      "Notification", "MeetingScheduled",
       "WorkflowRunCompleted",
       "ModelUpdated",
+      // NotificationHub.JoinProject replies with these to the caller + the project
+      // group; register them so SignalR doesn't warn "No client method with the name
+      // 'joinedproject'/'presencechanged'". Subscribers can listen via Hub.on(); the
+      // default registration just routes them through emit() (no-op when unobserved).
+      "JoinedProject", "PresenceChanged",
     ];
 
     function emit(event, payload) {
@@ -239,6 +255,40 @@
     }
     return { start, join, on };
   })();
+
+  // W2 — live-meeting "Join" banner (top, dismissible). The server only sends the
+  // live-start Notification to OTHER project members (starter excluded, membership-filtered),
+  // so just surfacing it here is correct.
+  function showJoinBanner(text, joinUrl) {
+    var ex = document.getElementById("liveJoinBanner"); if (ex) ex.remove();
+    var b = document.createElement("div");
+    b.id = "liveJoinBanner";
+    b.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:10001;background:#1976d2;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.3);font-size:14px";
+    b.innerHTML = '<span style="flex:1">🎥 ' + esc(text) + "</span>" +
+      (joinUrl ? '<button id="ljbJoin" style="background:#fff;color:#1976d2;border:none;border-radius:5px;padding:6px 14px;font-weight:600;cursor:pointer">Join</button>' : "") +
+      '<button id="ljbX" style="background:transparent;color:#fff;border:none;font-size:18px;cursor:pointer">✕</button>';
+    document.body.appendChild(b);
+    var x = document.getElementById("ljbX"); if (x) x.onclick = function () { b.remove(); };
+    var j = document.getElementById("ljbJoin"); if (j) j.onclick = function () { window.open(joinUrl, "_blank"); b.remove(); };
+    setTimeout(function () { try { b.remove(); } catch (e) {} }, 30000);
+  }
+  // W2 — live-start: "{user} started a meeting — Join" with a ?meeting= deep-link into the viewer.
+  Hub.on("Notification", function (payload) {
+    var MCx = (typeof window !== "undefined") && window.MeetingsCore; if (!MCx) return;
+    var ev = MCx.parseNotificationEvent("Notification", payload); if (!ev || ev.type !== "live-start") return;
+    var data = (payload && payload.data) || payload || {};
+    var pid = data.projectId || state.projectId;
+    var id = ev.sessionId || ev.meetingId;
+    var url = id ? MCx.meetingJoinUrl(pid, id) : null;
+    showJoinBanner((payload && (payload.title || payload.message)) || "A meeting started", url);
+  });
+  // W2 — scheduled meeting: light surface + refresh the list if it's open.
+  Hub.on("MeetingScheduled", function (payload) {
+    var MCx = (typeof window !== "undefined") && window.MeetingsCore; if (!MCx) return;
+    var ev = MCx.parseNotificationEvent("MeetingScheduled", payload); if (!ev) return;
+    toast("📅 Meeting scheduled: " + (ev.body || ""));
+    if (state.section === "meetings") { var main = document.getElementById("main"); if (main) renderMeetings(main); }
+  });
 
   // Update / create the live count badge on the Warnings nav link.
   function setWarnBadge(total, delta) {
@@ -308,7 +358,7 @@
   // Views that can appear in the URL hash. project-dashboard is reachable by
   // deep-link only (no nav button).
   const KNOWN_VIEWS = new Set([
-    "overview", "issues", "documents", "transmittals", "meetings", "workflows",
+    "overview", "issues", "documents", "transmittals", "meetings", "recordings", "workflows",
     "warnings", "models", "photos", "schedule", "cost", "tenant-keywords",
     "tenant-bim-manager-roles", "project-dashboard",
   ]);
@@ -448,7 +498,8 @@
         case "issues":       await renderList(main, `Issues`, `/api/projects/${state.projectId}/issues`, issueColumns); break;
         case "documents":    await renderList(main, `Documents`, `/api/projects/${state.projectId}/documents`, docColumns); break;
         case "transmittals": await renderList(main, `Transmittals`, `/api/projects/${state.projectId}/transmittals`, tmxColumns); break;
-        case "meetings":     await renderList(main, `Meetings`, `/api/projects/${state.projectId}/meetings`, meetingColumns); break;
+        case "meetings":     await renderMeetings(main); break;
+        case "recordings":   await renderRecordings(main); break;
         case "workflows":    await renderList(main, `Workflow runs`, `/api/projects/${state.projectId}/workflows/history`, workflowColumns); break;
         case "warnings":     await renderList(main, `Warnings`, `/api/projects/${state.projectId}/warnings/trend`, warningColumns); break;
         case "models":       await renderModels(main); break;
@@ -788,7 +839,7 @@
   // it's clear whose Issues / Documents / etc. you're navigating.
   const PROJECT_SCOPED_VIEWS = new Set([
     "project-dashboard", "issues", "documents", "transmittals",
-    "meetings", "workflows", "warnings", "models", "schedule", "cost",
+    "meetings", "recordings", "workflows", "warnings", "models", "schedule", "cost",
   ]);
   function syncSidebarScope() {
     const inProject = PROJECT_SCOPED_VIEWS.has(state.view);
@@ -911,6 +962,7 @@
             <button data-jump="issues">⚠ Issues (${d.openIssues || 0})</button>
             <button data-jump="transmittals">📤 Transmittals</button>
             <button data-jump="meetings">📅 Meetings</button>
+            <button data-jump="recordings">🎬 Recordings</button>
             <button data-jump="warnings">🚧 Warnings (${d.warningCount || 0})</button>
             <button data-jump="models">🧊 3D models</button>
             <button data-jump="schedule">📊 Schedule</button>
@@ -1644,6 +1696,450 @@
     { k: "durationMinutes", label: "Duration (m)" },
     { k: "location",      label: "Location" },
   ];
+
+  // ── Recordings (web /app — mirrors the mobile Expo recordings UI) ──────────
+  function fmtDur(s) { if (!s || s <= 0) return "—"; const m = Math.floor(s / 60), ss = Math.round(s % 60); return m + ":" + String(ss).padStart(2, "0"); }
+  function fmtSize(b) { if (!b || b <= 0) return "—"; return b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : (b / 1024).toFixed(0) + " KB"; }
+  function fmtDateTime(v) { if (!v) return ""; try { return new Date(v).toLocaleString(); } catch { return v; } }
+  function isAudio(k) { return k === "audio-only" || k === "audio"; }
+
+  // In-browser player: HTML5 <video> (mp4) / <audio> (audio-only egress) over the
+  // short-lived presigned URL (self-authenticating — no Bearer needed). Body-level
+  // overlay so it never clobbers an open recordings modal.
+  function openRecordingPlayer(rec) {
+    const audio = isAudio(rec.kind);
+    const url = rec.downloadUrl || "";
+    const ov = document.createElement("div");
+    ov.className = "modal-overlay";
+    ov.style.zIndex = "9999";
+    ov.innerHTML =
+      '<div class="modal-box" style="max-width:760px">' +
+        '<h2 style="margin-bottom:10px">' + (audio ? "🎙 Audio recording" : "🎥 Recording") + "</h2>" +
+        (audio
+          ? '<audio src="' + esc(url) + '" controls autoplay style="width:100%"></audio>'
+          : '<video src="' + esc(url) + '" controls autoplay style="width:100%;max-height:60vh;background:#000;border-radius:8px"></video>') +
+        '<div class="actions" style="margin-top:12px">' +
+          '<a class="ghost" href="' + esc(url) + '" target="_blank" rel="noopener" style="text-decoration:none">⬇ Download</a>' +
+          '<button type="button" class="btn-cancel" id="recPlayClose">Close</button>' +
+        "</div>" +
+      "</div>";
+    document.body.appendChild(ov);
+    const close = () => { try { ov.remove(); } catch (e) {} };
+    ov.querySelector("#recPlayClose").onclick = close;
+    ov.onclick = (e) => { if (e.target === ov) close(); };
+  }
+
+  // A recording row's action cell: ▶ Play (COMPLETE + url only) + ⬇ Download; else status.
+  function recActionsHtml(r) {
+    if (r.status === "COMPLETE" && r.downloadUrl) {
+      return '<button class="ghost rec-play" data-url="' + esc(r.downloadUrl) + '" data-kind="' + esc(r.kind) + '" ' +
+        'style="color:var(--primary);border-color:var(--primary)">▶ Play</button> ' +
+        '<a class="ghost" href="' + esc(r.downloadUrl) + '" target="_blank" rel="noopener" style="text-decoration:none">⬇ Download</a>';
+    }
+    return '<span style="color:var(--muted);font-size:12px">' +
+      (r.status === "ACTIVE" || r.status === "STARTING" ? "recording…" : esc(r.status)) + "</span>";
+  }
+  function wireRecPlay(scope) {
+    scope.querySelectorAll(".rec-play").forEach((b) => {
+      b.onclick = () => openRecordingPlayer({ downloadUrl: b.dataset.url, kind: b.dataset.kind });
+    });
+  }
+  async function fetchProjectRecordings() {
+    // W3 — route recordings through the shared meetings-core (single source); fall back to
+    // a direct call only if the module failed to load.
+    try {
+      var core = mcApi();
+      if (core) return await core.listRecordings(state.projectId);
+      const w = await api(`/api/projects/${state.projectId}/recordings`); return (w && w.recordings) || [];
+    } catch (e) { return []; }
+  }
+
+  // Per-meeting recordings modal (the meeting-detail "Recordings" block).
+  function openMeetingRecordings(main, meeting, recs) {
+    const mount = main.querySelector("#modal-mount") || document.getElementById("modal-mount");
+    if (!mount) return;
+    const rows = recs.length
+      ? '<table><tbody>' + recs.map((r) =>
+          '<tr><td style="font-size:13px">' + (isAudio(r.kind) ? "🎙" : "🎥") + " " + fmtDateTime(r.startedAt) +
+          " · " + fmtDur(r.durationSeconds) + " · " + fmtSize(r.fileSizeBytes) + " · " + esc(r.status) +
+          '</td><td style="text-align:right;white-space:nowrap">' + recActionsHtml(r) + "</td></tr>").join("") + "</tbody></table>"
+      : '<div class="empty">No recordings for this meeting.</div>';
+    mount.innerHTML =
+      '<div class="modal-overlay" id="recMeetOverlay"><div class="modal-box" style="max-width:580px">' +
+        "<h2>" + esc((meeting && meeting.title) || "Meeting") + " — Recordings</h2>" + rows +
+        '<div class="actions"><button type="button" class="btn-cancel" id="recMeetClose">Close</button></div>' +
+      "</div></div>";
+    document.getElementById("recMeetClose").onclick = () => { mount.innerHTML = ""; };
+    const ov = document.getElementById("recMeetOverlay");
+    ov.onclick = (e) => { if (e.target === ov) mount.innerHTML = ""; };
+    wireRecPlay(mount);
+  }
+
+  // Meetings view — table with a ▶ REC badge on recorded rows; click a row to see its
+  // recordings. (Replaces the generic renderList for meetings.)
+  async function renderMeetings(main) {
+    const [mRaw, recs] = await Promise.all([
+      api(`/api/projects/${state.projectId}/meetings`),
+      fetchProjectRecordings(),
+    ]);
+    const meetings = Array.isArray(mRaw) ? mRaw : (mRaw?.items || []);
+    const byMeeting = {};
+    recs.forEach((r) => { if (r.meetingId) (byMeeting[r.meetingId] = byMeeting[r.meetingId] || []).push(r); });
+    const body = meetings.map((m) => {
+      const badge = byMeeting[m.id]
+        ? ' <span class="chip" style="background:rgba(25,118,210,0.15);color:#1976d2">▶ REC</span>' : "";
+      return '<tr data-meeting-id="' + esc(m.id) + '" style="cursor:pointer">' +
+        "<td>" + esc(m.title || "(untitled)") + badge + "</td>" +
+        "<td>" + esc(m.type || m.meetingType || "") + "</td>" +
+        "<td>" + fmtDate(m.scheduledAt) + "</td>" +
+        "<td>" + (m.durationMinutes == null ? "" : esc(String(m.durationMinutes))) + "</td>" +
+        "<td>" + esc(m.location || "") + "</td>" +
+        '<td style="text-align:right"><button class="ghost m-join-list" data-id="' + esc(m.id) + '" style="color:var(--primary);border-color:var(--primary)">🎥 Join</button></td></tr>';
+    }).join("");
+    var canNew = mCan("schedule", null);
+    main.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><h1 style="margin:0;flex:1">Meetings</h1>' +
+      (canNew ? '<button class="btn-primary" id="mNew">+ New meeting</button>' : "") + "</div>" +
+      '<p style="color:var(--muted);font-size:13px;margin:-2px 0 12px">Click a meeting to open it (overview · agenda · actions · attendees · minutes · recordings).</p>' +
+      '<div class="card">' + (meetings.length
+        ? "<table><thead><tr><th>Title</th><th>Type</th><th>When</th><th>Duration (m)</th><th>Location</th><th></th></tr></thead><tbody>" + body + "</tbody></table>"
+        : '<div class="empty">No meetings yet.</div>') + "</div>" +
+      '<div id="modal-mount"></div>';
+    main.querySelectorAll("tr[data-meeting-id]").forEach((tr) => {
+      tr.onclick = () => { renderMeetingDetail(main, tr.dataset.meetingId); };
+    });
+    main.querySelectorAll(".m-join-list").forEach((b) => {
+      b.onclick = (e) => { e.stopPropagation(); window.open(MC().meetingJoinUrl(state.projectId, b.dataset.id), "_blank"); };
+    });
+    var nb = document.getElementById("mNew");
+    if (nb) nb.onclick = async function () {
+      var core = mcApi(); if (!core) return;
+      var v = await formModal("New meeting", [
+        { key: "title", label: "Title" },
+        { key: "meetingType", label: "Type", type: "select", options: MTYPES, value: "MEETING" },
+        { key: "scheduledAt", label: "When", type: "datetime-local" },
+        { key: "durationMinutes", label: "Duration (min)", type: "number", value: 60 },
+        { key: "location", label: "Location" },
+      ]);
+      if (!v || !v.title) return;
+      try {
+        await core.createMeeting(state.projectId, { title: v.title, meetingType: v.meetingType, scheduledAt: v.scheduledAt ? new Date(v.scheduledAt).toISOString() : new Date().toISOString(), durationMinutes: v.durationMinutes ? parseInt(v.durationMinutes, 10) : 60, location: v.location });
+        toast("Meeting created"); renderMeetings(main);
+      } catch (e) { toast("Create failed: " + e); }
+    };
+  }
+
+  // Project Recordings archive — ALL recordings newest-first (label/date/duration/size/
+  // status/Play/Download + AD-HOC chip). Covers scheduled-meeting + ad-hoc sessions.
+  async function renderRecordings(main) {
+    const recs = await fetchProjectRecordings();
+    const body = recs.map((r) =>
+      "<tr><td>" + (isAudio(r.kind) ? "🎙" : "🎥") + " " + esc(r.label || "") +
+        (r.adHoc ? ' <span class="chip" style="background:rgba(230,81,0,0.15);color:#e65100">AD-HOC</span>' : "") + "</td>" +
+      "<td>" + fmtDateTime(r.startedAt) + "</td>" +
+      "<td>" + fmtDur(r.durationSeconds) + "</td>" +
+      "<td>" + fmtSize(r.fileSizeBytes) + "</td>" +
+      "<td>" + esc(r.status) + "</td>" +
+      '<td style="text-align:right;white-space:nowrap">' + recActionsHtml(r) + "</td></tr>").join("");
+    main.innerHTML = "<h1>Recordings</h1>" +
+      '<p style="color:var(--muted);font-size:13px;margin:-4px 0 12px">All meeting &amp; ad-hoc session recordings in this project (newest first).</p>' +
+      (recs.length === 0
+        ? '<div class="empty">No recordings yet. Record a live meeting and it will appear here.</div>'
+        : '<div class="card"><table><thead><tr><th>Recording</th><th>When</th><th>Duration</th><th>Size</th><th>Status</th><th></th></tr></thead><tbody>' + body + "</tbody></table></div>") +
+      '<div id="modal-mount"></div>';
+    wireRecPlay(main);
+  }
+
+  // ── W0/W1 — meetings-core client + role helpers (web consumes the shared module) ──
+  function MC() { return (typeof window !== "undefined" && window.MeetingsCore) || null; }
+  function mcApi() { return MC() ? MC().create((p, o) => api(p, o)) : null; }
+  function toast(msg) {
+    var t = document.createElement("div");
+    t.textContent = msg;
+    t.style.cssText = "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1d24;color:#fff;padding:10px 16px;border-radius:6px;z-index:10000;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.4)";
+    document.body.appendChild(t); setTimeout(() => { try { t.remove(); } catch (e) {} }, 3000);
+  }
+  function b64urlJson(s) { try { return JSON.parse(atob(s.replace(/-/g, "+").replace(/_/g, "/"))); } catch (e) { return {}; } }
+  function jwtClaims() { var t = getToken(); if (!t) return {}; var p = t.split("."); return p.length >= 2 ? b64urlJson(p[1]) : {}; }
+  function currentUserId() { var c = jwtClaims(); return c.sub || c.nameid || c.user_id || c.uid || c["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || null; }
+  function claimRole() { var c = jwtClaims(); return c.iso_role || c.role || c["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || ""; }
+  // Map an arbitrary role string to a CAPS key the shared matrix understands.
+  function mapRole(r) {
+    r = (r || "").toString().toLowerCase();
+    if (/host|manager|coordinator|\bbc\b|bim/.test(r)) return "host";
+    if (/chair/.test(r)) return "chair";
+    if (/secretary|minute/.test(r)) return "secretary";
+    if (/client/.test(r)) return "client";
+    if (/lead|author|attendee|discipline/.test(r)) return "attendee";
+    return r;
+  }
+  // Effective meeting role: creator → host; else the user's attendee role; else JWT role;
+  // unknown → "attendee" (safe non-destructive default — server still enforces).
+  function meetingRole(meeting) {
+    var uid = currentUserId();
+    if (meeting && uid && (meeting.createdBy === uid || meeting.hostUserId === uid)) return "host";
+    var r = "";
+    if (meeting && meeting.attendees && uid) {
+      var me = meeting.attendees.find(function (a) { return a.userId === uid; });
+      if (me && me.role) r = me.role;
+    }
+    if (!r) r = claimRole();
+    var k = mapRole(r);
+    return (MC() && MC().CAPS[k]) ? k : "attendee";
+  }
+  function mCan(cap, meeting) { return MC() ? MC().can(meetingRole(meeting), cap) : false; }
+
+  // Generic form modal → resolves to a values object (or null on cancel).
+  function formModal(title, fields) {
+    return new Promise((resolve) => {
+      var mount = document.getElementById("modal-mount") || document.body;
+      var wrap = document.createElement("div");
+      wrap.className = "modal-overlay"; wrap.style.zIndex = "9998";
+      var inner = fields.map(function (f) {
+        var id = "fm_" + f.key;
+        if (f.type === "select") {
+          // WS1c — options may be plain strings OR { value, label } objects (member dropdowns).
+          var opts = (f.options || []).map(function (o) {
+            var ov = (o && typeof o === "object") ? o.value : o;
+            var ol = (o && typeof o === "object") ? o.label : o;
+            return '<option value="' + esc(ov) + '"' + (String(ov) === String(f.value) ? " selected" : "") + ">" + esc(ol) + "</option>";
+          }).join("");
+          return '<div class="field"><label>' + esc(f.label) + '</label><select id="' + id + '">' + opts + "</select></div>";
+        }
+        if (f.type === "textarea") return '<div class="field"><label>' + esc(f.label) + '</label><textarea id="' + id + '" rows="5">' + esc(f.value || "") + "</textarea></div>";
+        return '<div class="field"><label>' + esc(f.label) + '</label><input id="' + id + '" type="' + (f.type || "text") + '" value="' + esc(f.value == null ? "" : String(f.value)) + '" /></div>';
+      }).join("");
+      wrap.innerHTML = '<div class="modal-box" style="max-width:520px"><h2>' + esc(title) + "</h2>" + inner +
+        '<div class="actions"><button type="button" class="btn-cancel" id="fmCancel">Cancel</button>' +
+        '<button type="button" class="btn-primary" id="fmSave">Save</button></div></div>';
+      mount.appendChild(wrap);
+      var close = function (v) { try { wrap.remove(); } catch (e) {} resolve(v); };
+      wrap.querySelector("#fmCancel").onclick = function () { close(null); };
+      wrap.onclick = function (e) { if (e.target === wrap) close(null); };
+      wrap.querySelector("#fmSave").onclick = function () {
+        var out = {}; fields.forEach(function (f) { out[f.key] = (document.getElementById("fm_" + f.key) || {}).value; });
+        close(out);
+      };
+    });
+  }
+
+  // P1 — member picker for "Invite to meeting". Fetches the project roster, pre-checks
+  // nobody, lets the host multi-select, and returns { userIds, message, sendEmail }.
+  // Members already on the meeting are flagged so the host doesn't re-invite blindly.
+  async function inviteMembersModal(pid, existingAttendees) {
+    var members = [];
+    try { members = await api("/api/projects/" + pid + "/members"); } catch (e) { toast("Could not load members: " + e); return null; }
+    if (!Array.isArray(members) || !members.length) { toast("No project members to invite."); return null; }
+    var onMeeting = {}; (existingAttendees || []).forEach(function (a) { if (a.userId) onMeeting[a.userId] = true; });
+    return new Promise(function (resolve) {
+      var mount = document.getElementById("modal-mount") || document.body;
+      var wrap = document.createElement("div"); wrap.className = "modal-overlay"; wrap.style.zIndex = "9998";
+      var rows = members.map(function (m) {
+        var label = esc(m.displayName || m.email || m.userId);
+        var sub = (m.projectRole ? esc(m.projectRole) : "") + (onMeeting[m.userId] ? " · already invited" : "");
+        return '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--slate-100,#eee);font-size:13px">' +
+          '<input type="checkbox" class="invm" value="' + esc(m.userId) + '" />' +
+          '<span style="flex:1">' + label + (sub ? ' <span style="color:var(--muted)">— ' + sub + "</span>" : "") + "</span></label>";
+      }).join("");
+      wrap.innerHTML = '<div class="modal-box" style="max-width:520px"><h2>Invite to meeting</h2>' +
+        '<div style="display:flex;gap:8px;margin-bottom:6px"><button type="button" class="ghost" id="invAll">Select all</button><button type="button" class="ghost" id="invNone">Clear</button></div>' +
+        '<div style="max-height:300px;overflow:auto;margin-bottom:8px">' + rows + "</div>" +
+        '<div class="field"><label>Note (optional)</label><input id="invMsg" type="text" placeholder="e.g. Please join the coordination review" /></div>' +
+        '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:6px 0"><input type="checkbox" id="invEmail" /> Also send email</label>' +
+        '<div class="actions"><button type="button" class="btn-cancel" id="invCancel">Cancel</button>' +
+        '<button type="button" class="btn-primary" id="invSend">Send invites</button></div></div>';
+      mount.appendChild(wrap);
+      var close = function (v) { try { wrap.remove(); } catch (e) {} resolve(v); };
+      wrap.querySelector("#invCancel").onclick = function () { close(null); };
+      wrap.onclick = function (e) { if (e.target === wrap) close(null); };
+      wrap.querySelector("#invAll").onclick = function () { wrap.querySelectorAll(".invm").forEach(function (c) { c.checked = true; }); };
+      wrap.querySelector("#invNone").onclick = function () { wrap.querySelectorAll(".invm").forEach(function (c) { c.checked = false; }); };
+      wrap.querySelector("#invSend").onclick = function () {
+        var ids = []; wrap.querySelectorAll(".invm").forEach(function (c) { if (c.checked) ids.push(c.value); });
+        if (!ids.length) { toast("Pick at least one member."); return; }
+        close({ userIds: ids, message: (wrap.querySelector("#invMsg") || {}).value || "", sendEmail: !!(wrap.querySelector("#invEmail") || {}).checked });
+      };
+    });
+  }
+
+  // WS1c — shared project-member dropdown source. Returns the raw members plus a formModal
+  // select option list ({value:userId,label:name}). `includeManual` prepends a "type manually"
+  // sentinel (value ""); `taken` flags members already on the meeting.
+  async function projectMemberOptions(pid, includeManual, taken) {
+    var members = [];
+    try { members = await api("/api/projects/" + pid + "/members"); } catch (e) { members = []; }
+    if (!Array.isArray(members)) members = [];
+    var opts = includeManual ? [{ value: "", label: "— enter manually below —" }] : [];
+    members.forEach(function (mm) {
+      opts.push({ value: mm.userId, label: (mm.displayName || mm.email || mm.userId) + (taken && taken[mm.userId] ? " · already added" : "") });
+    });
+    return { members: members, options: opts };
+  }
+
+  var MTYPES = ["MEETING", "COORDINATION", "DESIGN_REVIEW", "PROGRESS", "CLIENT", "SITE", "HANDOVER"];
+  function toLocalInput(iso) { if (!iso) return ""; try { var d = new Date(iso); var z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); } catch (e) { return ""; } }
+
+  // W1 — full role-aware meeting detail (Overview / Agenda / Actions / Attendees / Minutes /
+  // Recordings). Everything routes through meetings-core; controls gated by mCan(); server enforces.
+  async function renderMeetingDetail(main, meetingId) {
+    var core = mcApi();
+    if (!core) { main.innerHTML = '<div class="empty">Meeting module not loaded.</div>'; return; }
+    var pid = state.projectId;
+    var m, recsByMeeting = {};
+    try {
+      m = await core.getMeeting(pid, meetingId);
+      try { recsByMeeting = (await core.recordingsByMeeting(pid)).byMeeting; } catch (e) {}
+    } catch (e) { main.innerHTML = '<div class="empty">Could not load meeting: ' + esc(String(e)) + "</div>"; return; }
+    var recs = recsByMeeting[meetingId] || [];
+    var role = meetingRole(m);
+    var canEdit = mCan("editAgenda", m), canMinutes = mCan("editMinutes", m), canAttend = mCan("manageAttendees", m), canAssign = mCan("assignActions", m);
+    var agenda = m.agendaItems || m.agenda || [];
+    var actions = m.actionItems || m.actions || [];
+    var attendees = m.attendees || [];
+
+    main.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+        '<button class="ghost" id="mdBack">← Meetings</button>' +
+        "<h1 style=\"margin:0\">" + esc(m.title || "(untitled)") + "</h1>" +
+        '<span class="chip">' + esc(m.status || "") + '</span>' +
+        (recs.length ? ' <span class="chip" style="background:rgba(25,118,210,0.15);color:#1976d2">▶ REC</span>' : "") +
+        '<span style="margin-left:auto;color:var(--muted);font-size:12px">your role: ' + esc(role) + "</span>" +
+      "</div>" +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">' +
+        (mCan("join", m) ? '<button class="btn-primary" id="mdJoin">🎥 Join live</button>' : "") +
+        (canAttend ? '<button class="ghost" id="mdInvite">✉ Invite to meeting</button>' : "") +
+        (mCan("schedule", m) ? '<button class="ghost" id="mdEdit">✏ Edit meeting</button>' : "") +
+      "</div>" +
+      '<div class="card"><h3 style="margin-top:0">Overview</h3>' +
+        '<div style="font-size:13px;color:var(--muted)">' + esc(m.meetingType || m.type || "MEETING") + " · " +
+        (m.scheduledAt ? new Date(m.scheduledAt).toLocaleString() : "Unscheduled") +
+        (m.durationMinutes ? " · " + m.durationMinutes + " min" : "") + (m.location ? " · " + esc(m.location) : "") + "</div></div>" +
+      sectionCard("Agenda", canEdit ? '<button class="ghost" id="mdAddAgenda">+ Item</button>' : "",
+        agenda.length ? agenda.map(function (i, ix) {
+          return '<div class="md-row" style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--slate-100,#eee)">' +
+            '<span style="flex:1;font-size:13px"><strong>' + (ix + 1) + ".</strong> " + esc(i.title || "") +
+            (i.status ? ' <span class="chip">' + esc(i.status) + "</span>" : "") +
+            (i.decision ? '<br><span style="color:var(--muted);font-size:12px">Decision: ' + esc(i.decision) + "</span>" : "") + "</span>" +
+            (canEdit ? '<button class="ghost md-ed-agenda" data-id="' + esc(i.id) + '">edit</button><button class="ghost md-del-agenda" data-id="' + esc(i.id) + '">✕</button>' : "") + "</div>";
+        }).join("") : '<div class="empty">No agenda items.</div>') +
+      sectionCard("Action items", "",
+        actions.length ? actions.map(function (a) {
+          var mine = a.assigneeUserId && a.assigneeUserId === currentUserId();
+          var canRow = canAssign || mine;
+          return '<div class="md-row" style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--slate-100,#eee)">' +
+            '<span style="flex:1;font-size:13px">' + esc(a.description || "") +
+            (a.assignee ? ' <span style="color:var(--muted)">→ ' + esc(a.assignee) + "</span>" : "") +
+            (a.priority ? ' <span class="chip">' + esc(a.priority) + "</span>" : "") +
+            ' <span class="chip">' + esc(a.status || "OPEN") + "</span></span>" +
+            (canRow ? '<button class="ghost md-ed-action" data-id="' + esc(a.id) + '">edit</button>' : "") + "</div>";
+        }).join("") : '<div class="empty">No action items.</div>',
+        canAssign ? '<button class="ghost" id="mdAddAction">+ Action</button>' : "") +
+      sectionCard("Attendees", canAttend ? '<button class="ghost" id="mdAddAttendee">+ Attendee</button>' : "",
+        attendees.length ? attendees.map(function (a) {
+          return '<div class="md-row" style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--slate-100,#eee)">' +
+            '<span style="flex:1;font-size:13px">' + esc(a.name || a.email || "") +
+            (a.role ? ' <span class="chip">' + esc(a.role) + "</span>" : "") +
+            (a.attendanceStatus ? ' <span style="color:var(--muted)">' + esc(a.attendanceStatus) + "</span>" : "") + "</span>" +
+            (canAttend ? '<button class="ghost md-ed-attendee" data-id="' + esc(a.id) + '">edit</button><button class="ghost md-del-attendee" data-id="' + esc(a.id) + '">✕</button>' : "") + "</div>";
+        }).join("") : '<div class="empty">No attendees.</div>') +
+      '<div class="card"><div style="display:flex;align-items:center;gap:8px"><h3 style="margin:0;flex:1">Minutes</h3>' +
+        (canMinutes ? '<button class="ghost" id="mdGenDoc">📄 Generate doc</button>' : "") + "</div>" +
+        (canMinutes
+          ? '<textarea id="mdMinutes" rows="6" style="width:100%;margin-top:8px">' + esc(m.minutes || "") + '</textarea><div class="actions"><button class="btn-primary" id="mdSaveMinutes">Save minutes</button></div>'
+          : '<div style="white-space:pre-wrap;font-size:13px;margin-top:8px">' + esc(m.minutes || "—") + "</div>") + "</div>" +
+      sectionCard("Recordings", "",
+        recs.length ? '<table><tbody>' + recs.map(function (r) {
+          return "<tr><td style=\"font-size:13px\">" + (isAudio(r.kind) ? "🎙" : "🎥") + " " + fmtDateTime(r.startedAt) + " · " + fmtDur(r.durationSeconds) + " · " + fmtSize(r.fileSizeBytes) + " · " + esc(r.status) +
+            "</td><td style=\"text-align:right;white-space:nowrap\">" + recActionsHtml(r) + "</td></tr>";
+        }).join("") + "</tbody></table>" : '<div class="empty">No recordings for this meeting.</div>') +
+      '<div id="modal-mount"></div>';
+
+    var reload = function () { renderMeetingDetail(main, meetingId); };
+    document.getElementById("mdBack").onclick = function () { state.section = "meetings"; render(); };
+    var jb = document.getElementById("mdJoin"); if (jb) jb.onclick = function () { window.open(MC().meetingJoinUrl(pid, meetingId), "_blank"); };
+    // P1 — invite project members to THIS meeting (push → tap to join). Distinct
+    // from the project-member invite (which adds someone to the project).
+    var ib = document.getElementById("mdInvite"); if (ib) ib.onclick = async function () {
+      var picked = await inviteMembersModal(pid, attendees);
+      if (!picked) return;
+      try {
+        var res = await core.invite(pid, meetingId, { userIds: picked.userIds, message: picked.message, sendEmail: picked.sendEmail });
+        var note = "Invited " + (res.count || picked.userIds.length) + " member(s)";
+        if (!res.pushConfigured) note += " · push off (in-app/email only)";
+        if (picked.sendEmail) note += res.emailConfigured ? " · email sent" : " · email not configured";
+        toast(note); reload();
+      } catch (e) { toast("Invite failed: " + e); }
+    };
+    var eb = document.getElementById("mdEdit"); if (eb) eb.onclick = async function () {
+      var v = await formModal("Edit meeting", [
+        { key: "title", label: "Title", value: m.title },
+        { key: "meetingType", label: "Type", type: "select", options: MTYPES, value: m.meetingType || m.type || "MEETING" },
+        { key: "scheduledAt", label: "When", type: "datetime-local", value: toLocalInput(m.scheduledAt) },
+        { key: "durationMinutes", label: "Duration (min)", type: "number", value: m.durationMinutes },
+        { key: "location", label: "Location", value: m.location },
+      ]);
+      if (!v) return;
+      try { await core.updateMeeting(pid, meetingId, { title: v.title, meetingType: v.meetingType, scheduledAt: v.scheduledAt ? new Date(v.scheduledAt).toISOString() : m.scheduledAt, durationMinutes: v.durationMinutes ? parseInt(v.durationMinutes, 10) : null, location: v.location }); toast("Saved"); reload(); }
+      catch (e) { toast("Save failed: " + e); }
+    };
+    var aa = document.getElementById("mdAddAgenda"); if (aa) aa.onclick = async function () {
+      var v = await formModal("Add agenda item", [{ key: "title", label: "Title" }, { key: "description", label: "Description", type: "textarea" }, { key: "durationMinutes", label: "Duration (min)", type: "number" }]);
+      if (!v || !v.title) return;
+      try { await core.addAgendaItem(pid, meetingId, { title: v.title, description: v.description, durationMinutes: v.durationMinutes ? parseInt(v.durationMinutes, 10) : null }); reload(); } catch (e) { toast("Failed: " + e); }
+    };
+    main.querySelectorAll(".md-ed-agenda").forEach(function (b) { b.onclick = async function () {
+      var it = agenda.find(function (x) { return x.id === b.dataset.id; }) || {};
+      var v = await formModal("Edit agenda item", [{ key: "title", label: "Title", value: it.title }, { key: "status", label: "Status", type: "select", options: ["", "OPEN", "DISCUSSED", "CLOSED"], value: it.status || "" }, { key: "outcome", label: "Outcome", type: "textarea", value: it.outcome }, { key: "decision", label: "Decision", type: "textarea", value: it.decision }]);
+      if (!v) return; try { await core.updateAgendaItem(pid, meetingId, b.dataset.id, v); reload(); } catch (e) { toast("Failed: " + e); }
+    }; });
+    main.querySelectorAll(".md-del-agenda").forEach(function (b) { b.onclick = async function () { if (!confirm("Delete this agenda item?")) return; try { await core.deleteAgendaItem(pid, meetingId, b.dataset.id); reload(); } catch (e) { toast("Failed: " + e); } }; });
+    var ac = document.getElementById("mdAddAction"); if (ac) ac.onclick = async function () {
+      // WS1c — assignee is a known set (project members) → dropdown + manual fallback.
+      var amem = await projectMemberOptions(pid, true, null);
+      var v = await formModal("Add action", [{ key: "description", label: "Description" }, { key: "assignee", label: "Assignee (member)", type: "select", options: amem.options, value: "" }, { key: "assigneeManual", label: "Assignee (if external)", value: "" }, { key: "dueDate", label: "Due", type: "date" }, { key: "priority", label: "Priority", type: "select", options: ["LOW", "MEDIUM", "HIGH"], value: "MEDIUM" }]);
+      if (!v || !v.description) return;
+      var body = { description: v.description, dueDate: v.dueDate || null, priority: v.priority };
+      if (v.assignee) { var am = amem.members.find(function (x) { return String(x.userId) === String(v.assignee); }) || {}; body.assignee = am.displayName || am.email || ""; body.assigneeUserId = v.assignee; }
+      else if (v.assigneeManual) body.assignee = v.assigneeManual;
+      try { await core.addAction(pid, meetingId, body); reload(); } catch (e) { toast("Failed: " + e); }
+    };
+    main.querySelectorAll(".md-ed-action").forEach(function (b) { b.onclick = async function () {
+      var it = actions.find(function (x) { return x.id === b.dataset.id; }) || {};
+      var v = await formModal("Edit action", [{ key: "description", label: "Description", value: it.description }, { key: "assignee", label: "Assignee", value: it.assignee }, { key: "dueDate", label: "Due", type: "date", value: (it.dueDate || "").slice(0, 10) }, { key: "priority", label: "Priority", type: "select", options: ["LOW", "MEDIUM", "HIGH"], value: it.priority || "MEDIUM" }, { key: "status", label: "Status", type: "select", options: ["OPEN", "IN_PROGRESS", "CLOSED"], value: it.status || "OPEN" }]);
+      if (!v) return; try { await core.updateAction(pid, meetingId, b.dataset.id, v); reload(); } catch (e) { toast("Failed: " + e); }
+    }; });
+    var ad = document.getElementById("mdAddAttendee"); if (ad) ad.onclick = async function () {
+      // WS1c — Name is a dropdown of project members (sourced from the Project Members tab);
+      // role/attendance are dropdowns; manual entry stays as a fallback for external guests.
+      var taken = {}; attendees.forEach(function (a) { if (a.userId) taken[a.userId] = true; });
+      var mem = await projectMemberOptions(pid, true, taken);
+      var v = await formModal("Add attendee", [
+        { key: "member", label: "Project member", type: "select", options: mem.options, value: "" },
+        { key: "name", label: "Name (external guest)", value: "" },
+        { key: "email", label: "Email (external guest)", value: "" },
+        { key: "role", label: "Role", type: "select", options: ["Attendee", "Chair", "Secretary", "Client", "Discipline-lead"], value: "Attendee" },
+      ]);
+      if (!v) return;
+      var body = { role: v.role };
+      if (v.member) { var mm = mem.members.find(function (x) { return String(x.userId) === String(v.member); }) || {}; body.userId = v.member; body.name = mm.displayName || mm.email || ""; body.email = mm.email || ""; }
+      else { body.name = v.name; body.email = v.email; }
+      if (!body.userId && !body.name && !body.email) { toast("Pick a member or enter a name/email."); return; }
+      try { await core.addAttendee(pid, meetingId, body); reload(); } catch (e) { toast("Failed: " + e); }
+    };
+    main.querySelectorAll(".md-ed-attendee").forEach(function (b) { b.onclick = async function () {
+      var it = attendees.find(function (x) { return x.id === b.dataset.id; }) || {};
+      var v = await formModal("Edit attendee", [{ key: "role", label: "Role", type: "select", options: ["Attendee", "Chair", "Secretary", "Client", "Discipline-lead"], value: it.role || "Attendee" }, { key: "attendanceStatus", label: "Attendance", type: "select", options: ["INVITED", "ACCEPTED", "DECLINED", "ATTENDED", "ABSENT"], value: it.attendanceStatus || "INVITED" }]);
+      if (!v) return; try { await core.updateAttendee(pid, meetingId, b.dataset.id, v); reload(); } catch (e) { toast("Failed: " + e); }
+    }; });
+    main.querySelectorAll(".md-del-attendee").forEach(function (b) { b.onclick = async function () { if (!confirm("Remove this attendee?")) return; try { await core.deleteAttendee(pid, meetingId, b.dataset.id); reload(); } catch (e) { toast("Failed: " + e); } }; });
+    var sm = document.getElementById("mdSaveMinutes"); if (sm) sm.onclick = async function () { try { await core.logMinutes(pid, meetingId, document.getElementById("mdMinutes").value, m.status); toast("Minutes saved"); } catch (e) { toast("Failed: " + e); } };
+    var gd = document.getElementById("mdGenDoc"); if (gd) gd.onclick = async function () { try { await core.generateMinutesDoc(pid, meetingId); toast("Minutes doc generated → Documents"); } catch (e) { toast("Failed: " + e); } };
+    wireRecPlay(main);
+  }
+  function sectionCard(title, headerBtn, bodyHtml, headerBtn2) {
+    return '<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><h3 style="margin:0;flex:1">' + esc(title) + "</h3>" + (headerBtn || "") + (headerBtn2 || "") + "</div>" + bodyHtml + "</div>";
+  }
+
   const workflowColumns = [
     { k: "preset",          label: "Preset" },
     { k: "stepsPassed",     label: "✓", render: v => `<span style="color:var(--green)">${v}</span>` },

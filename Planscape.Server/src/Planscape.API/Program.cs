@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -380,11 +381,43 @@ if (string.Equals(nlpProvider, "azure-openai", StringComparison.OrdinalIgnoreCas
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpLlmResolver, Planscape.Infrastructure.Services.NullLlmResolver>();
 builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpResolver, Planscape.Infrastructure.Services.NlpResolver>();
-if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
+// ── Email provider (Email:Provider = smtp [default] | resend) ──
+// Both implementations sit behind IEmailService and share the one render path
+// (EmailServiceBase). "resend" uses the Resend HTTP API; "smtp" uses MailKit
+// (Gmail / Mailpit — or Resend's own SMTP endpoint via Smtp__Host=smtp.resend.com).
+var emailProvider = (builder.Configuration["Email:Provider"] ?? "smtp").Trim().ToLowerInvariant();
+if (emailProvider == "resend")
+{
+    builder.Services.AddHttpClient("resend", c =>
+    {
+        c.BaseAddress = new Uri("https://api.resend.com/");
+        c.Timeout = TimeSpan.FromSeconds(30);
+    });
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.ResendEmailService>();
+}
+else if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
     || !string.IsNullOrEmpty(builder.Configuration["Email:Host"]))
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.SmtpEmailService>();
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.NullEmailService>();
+
+// ── DataProtection key ring (WS5) ──
+// When DataProtection:KeysPath is set (prod mounts a persistent named volume at
+// /app/keys), persist the key ring to disk + pin the application name so keys
+// survive container restarts/redeploys. Without this, ASP.NET regenerates an
+// ephemeral in-memory key ring on every boot — logging the "No XML encryptor /
+// keys not persisted" warning and invalidating anything protected by the prior
+// key (auth cookies, antiforgery tokens, share links) on each restart. Unset
+// (dev) keeps the default ephemeral behaviour, so a bare `docker compose up`
+// is unchanged.
+var dpKeysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(dpKeysPath))
+{
+    try { Directory.CreateDirectory(dpKeysPath); } catch { /* dir may already exist / be a mount */ }
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(dpKeysPath))
+        .SetApplicationName("Planscape");
+}
 
 // ── Push Notifications ──
 // Supports both raw FCM tokens (via Firebase Project) and ExponentPushToken[…]
@@ -1054,6 +1087,7 @@ app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
          || name == "coordination-viewer.js"
          || name == "viewer-extras.js"
          || name == "meeting-sync.js"
+         || name == "livekit-av.js"
          || name == "signalr-shim.js"
          || name == "coordination-viewer.css")
         {
@@ -1615,6 +1649,46 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"Country\" text",
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"CoverImageUrl\" text",
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"IsPinned\" boolean NOT NULL DEFAULT false",
+        // N2 — LiveKit Egress meeting recordings (table not covered by the discovered
+        // EF migration set; idempotent CREATE so the running dev/container DB gets it).
+        "CREATE TABLE IF NOT EXISTS \"MeetingRecordings\" (" +
+            "\"Id\" uuid NOT NULL PRIMARY KEY, \"TenantId\" uuid NOT NULL, \"ProjectId\" uuid NOT NULL, " +
+            "\"SessionId\" uuid NOT NULL, \"MeetingId\" uuid NULL, \"EgressId\" character varying(128) NOT NULL DEFAULT '', " +
+            "\"Kind\" character varying(24) NOT NULL DEFAULT 'room-composite', \"Status\" character varying(16) NOT NULL DEFAULT 'STARTING', " +
+            "\"StorageKey\" text NULL, \"FileName\" text NULL, \"FileSizeBytes\" bigint NULL, \"DurationSeconds\" double precision NULL, " +
+            "\"Error\" text NULL, \"StartedBy\" text NOT NULL DEFAULT '', \"StartedByUserId\" uuid NULL, " +
+            "\"StartedAt\" timestamp with time zone NOT NULL DEFAULT now(), \"EndedAt\" timestamp with time zone NULL)",
+        "CREATE INDEX IF NOT EXISTS \"IX_MeetingRecordings_TenantId\" ON \"MeetingRecordings\" (\"TenantId\")",
+        "CREATE INDEX IF NOT EXISTS \"IX_MeetingRecordings_SessionId\" ON \"MeetingRecordings\" (\"SessionId\")",
+        "CREATE INDEX IF NOT EXISTS \"IX_MeetingRecordings_ProjectId_MeetingId\" ON \"MeetingRecordings\" (\"ProjectId\", \"MeetingId\")",
+        "CREATE INDEX IF NOT EXISTS \"IX_MeetingRecordings_EgressId\" ON \"MeetingRecordings\" (\"EgressId\")",
+        // P3-2 — boot-time schema drift reconcile (see docs/adr/0001-schema-management.md).
+        // These three objects live in the EF model + ModelSnapshot but were never
+        // materialised on pre-existing DBs (EnsureCreated short-circuits once Tenants
+        // exists, and Migrate() is a no-op against the un-attributed migration set).
+        // DDL mirrors PlanscapeDbContextModelSnapshot exactly so SchemaDriftChecker
+        // reports OK after the patch.
+        // (a) TemplateOpRecords — Template Manager op log (no creating migration existed).
+        "CREATE TABLE IF NOT EXISTS \"TemplateOpRecords\" (" +
+            "\"Id\" uuid NOT NULL PRIMARY KEY, \"TenantId\" uuid NOT NULL, \"ProjectId\" uuid NOT NULL, " +
+            "\"Operation\" character varying(64) NOT NULL DEFAULT '', \"OperationLabel\" text NOT NULL DEFAULT '', " +
+            "\"Severity\" character varying(16) NOT NULL DEFAULT 'Info', \"Headline\" character varying(1024) NOT NULL DEFAULT '', " +
+            "\"SubHeadline\" text NULL, \"CompletedUtc\" timestamp with time zone NOT NULL DEFAULT now(), " +
+            "\"DurationMs\" double precision NOT NULL DEFAULT 0, \"CapturedBy\" text NOT NULL DEFAULT '', " +
+            "\"DocumentPath\" text NULL, \"DocumentTitle\" text NULL, " +
+            "\"CreatedCount\" integer NOT NULL DEFAULT 0, \"SkippedCount\" integer NOT NULL DEFAULT 0, " +
+            "\"FailedCount\" integer NOT NULL DEFAULT 0, \"SectionCount\" integer NOT NULL DEFAULT 0, " +
+            "\"CountersJson\" text NULL)",
+        "CREATE INDEX IF NOT EXISTS \"IX_TemplateOpRecords_TenantId\" ON \"TemplateOpRecords\" (\"TenantId\")",
+        "CREATE INDEX IF NOT EXISTS \"IX_TemplateOpRecords_ProjectId_CompletedUtc\" ON \"TemplateOpRecords\" (\"ProjectId\", \"CompletedUtc\")",
+        "CREATE INDEX IF NOT EXISTS \"IX_TemplateOpRecords_ProjectId_Operation\" ON \"TemplateOpRecords\" (\"ProjectId\", \"Operation\")",
+        "CREATE INDEX IF NOT EXISTS \"IX_TemplateOpRecords_TenantId_CompletedUtc\" ON \"TemplateOpRecords\" (\"TenantId\", \"CompletedUtc\")",
+        // (b) HealthcarePressureLogs.RoomIfcGlobalId — K1 cross-host identity column.
+        "ALTER TABLE \"HealthcarePressureLogs\" ADD COLUMN IF NOT EXISTS \"RoomIfcGlobalId\" character varying(22) NULL",
+        "CREATE INDEX IF NOT EXISTS \"IX_HealthcarePressureLogs_ProjectId_RoomIfcGlobalId\" ON \"HealthcarePressureLogs\" (\"ProjectId\", \"RoomIfcGlobalId\")",
+        // (c) PenetrationSignoffs.ElementIfcGlobalId — K1 cross-host identity column.
+        "ALTER TABLE \"PenetrationSignoffs\" ADD COLUMN IF NOT EXISTS \"ElementIfcGlobalId\" character varying(22) NULL",
+        "CREATE INDEX IF NOT EXISTS \"IX_PenetrationSignoffs_ProjectId_ElementIfcGlobalId\" ON \"PenetrationSignoffs\" (\"ProjectId\", \"ElementIfcGlobalId\")",
     };
     int applied = 0, failed = 0;
     foreach (var sql in patches)

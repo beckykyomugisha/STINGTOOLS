@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView,
-  Alert, ActivityIndicator, Platform, KeyboardAvoidingView, FlatList, Share,
+  Alert, ActivityIndicator, Platform, KeyboardAvoidingView, FlatList, Share, Linking,
 } from "react-native";
 import { router } from "expo-router";
 import {
@@ -9,10 +9,13 @@ import {
   logMeetingMinutes, addMeetingAction, updateMeetingAction, listOpenMeetingActions,
   listMeetingAttendees, addMeetingAttendee, updateMeetingAttendee, deleteMeetingAttendee,
   addMeetingAgendaItem, updateMeetingAgendaItem, deleteMeetingAgendaItem,
-  exportMeetingMinutesDoc, getMeetingIcsUrl,
-  type MeetingActionItem, type MeetingAttendee, type MeetingAgendaItem,
+  exportMeetingMinutesDoc, getMeetingIcsUrl, startLiveSession, getMeetingLiveArtifacts,
+  type MeetingActionItem, type MeetingAttendee, type MeetingAgendaItem, type MeetingLiveArtifacts,
 } from "@/api/endpoints";
+import { meetingsCore, can as mcCan, meetingRole as mcMeetingRole, jwtRole as mcJwtRole } from "@/api/meetingsCore";
+import { useAuthStore } from "@/stores/authStore";
 import { MemberPicker } from "@/components/MemberPicker";
+import { RecordingPlayerModal, fmtDur, fmtSize, isAudioKind } from "@/components/RecordingPlayer";
 import { useProjectStore } from "@/stores/projectStore";
 import type { Meeting, ProjectMember } from "@/types/api";
 
@@ -27,6 +30,11 @@ export default function MeetingsScreen() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Meeting | null>(null);
   const [createVisible, setCreateVisible] = useState(false);
+  const [recordedIds, setRecordedIds] = useState<Set<string>>(new Set());   // P2 — meetings with ≥1 recording
+  // A — project-level scheduling capability (no meeting context yet → JWT role).
+  const _authToken = useAuthStore((s) => s.token);
+  const _authUid = useAuthStore((s) => s.userId);
+  const canSchedule = mcCan(mcMeetingRole(null, _authUid, mcJwtRole(_authToken)), "schedule");
 
   const load = useCallback(async () => {
     if (!projectId) { setLoading(false); return; }
@@ -37,6 +45,10 @@ export default function MeetingsScreen() {
       ]);
       setMeetings(m);
       setOpenActions(a);
+      // P2/W4 — one cheap project-level fetch (via shared meetingsCore) → which meetings have a recording.
+      meetingsCore.listRecordings(projectId)
+        .then((recs) => setRecordedIds(new Set(recs.filter((x) => x.meetingId).map((x) => x.meetingId as string))))
+        .catch(() => { /* none / not configured */ });
     } catch (err) {
       Alert.alert("Load failed", err instanceof Error ? err.message : String(err));
     } finally {
@@ -104,7 +116,7 @@ export default function MeetingsScreen() {
           {upcoming.length === 0 ? (
             <Text style={styles.emptyBody}>No meetings scheduled. Tap + to draft one.</Text>
           ) : upcoming.map((m) => (
-            <MeetingRow key={m.id} meeting={m} onPress={() => setSelected(m)} />
+            <MeetingRow key={m.id} meeting={m} onPress={() => setSelected(m)} hasRecording={recordedIds.has(m.id)} />
           ))}
         </View>
 
@@ -112,16 +124,18 @@ export default function MeetingsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Past ({past.length})</Text>
             {past.slice(0, 20).map((m) => (
-              <MeetingRow key={m.id} meeting={m} onPress={() => setSelected(m)} isPast />
+              <MeetingRow key={m.id} meeting={m} onPress={() => setSelected(m)} isPast hasRecording={recordedIds.has(m.id)} />
             ))}
           </View>
         )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => setCreateVisible(true)}
-        accessibilityRole="button" accessibilityLabel="Draft a new meeting">
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      {canSchedule && (
+        <TouchableOpacity style={styles.fab} onPress={() => setCreateVisible(true)}
+          accessibilityRole="button" accessibilityLabel="Draft a new meeting">
+          <Text style={styles.fabText}>+</Text>
+        </TouchableOpacity>
+      )}
 
       {selected && (
         <MeetingDetailModal
@@ -141,8 +155,8 @@ export default function MeetingsScreen() {
 }
 
 // ── Meeting list row ──────────────────────────────────────────────────────────
-function MeetingRow({ meeting, onPress, isPast = false }: {
-  meeting: Meeting; onPress: () => void; isPast?: boolean;
+function MeetingRow({ meeting, onPress, isPast = false, hasRecording = false }: {
+  meeting: Meeting; onPress: () => void; isPast?: boolean; hasRecording?: boolean;
 }) {
   const type = meeting.meetingType ?? meeting.type ?? "MEETING";
   const t = meeting.scheduledAt;
@@ -158,6 +172,15 @@ function MeetingRow({ meeting, onPress, isPast = false }: {
           <Text style={styles.typeText}>{type.replace(/_/g, " ").toUpperCase()}</Text>
         </View>
         <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+        {meeting.liveSessionId && (
+          <View style={styles.liveBadge}><Text style={styles.liveBadgeText}>● LIVE</Text></View>
+        )}
+        {/* P2 — recorded-meeting indicator: obvious at a glance which meetings have recordings. */}
+        {hasRecording && (
+          <View style={{ backgroundColor: "rgba(25,118,210,0.18)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1, marginLeft: 6 }}>
+            <Text style={{ color: "#1976d2", fontSize: 10, fontWeight: "700" }}>▶ REC</Text>
+          </View>
+        )}
         {typeof meeting.actionItemCount === "number" && meeting.actionItemCount > 0 && (
           <Text style={styles.actionCount}>{meeting.actionItemCount} actions</Text>
         )}
@@ -212,6 +235,11 @@ function MeetingDetailModal({ meeting: initialMeeting, projectId, onClose }: {
   const [agenda, setAgenda] = useState<MeetingAgendaItem[]>([]);
   const [actions, setActions] = useState<MeetingActionItem[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  // A — role-aware gating (mirror of web mCan): creator→host; else attendee/JWT role.
+  const userId = useAuthStore((s) => s.userId);
+  const token = useAuthStore((s) => s.token);
+  const role = mcMeetingRole(meeting, userId, mcJwtRole(token));
+  const allow = useCallback((cap: string) => mcCan(role, cap), [role]);
 
   const loadDetail = useCallback(async () => {
     setLoadingDetail(true);
@@ -301,6 +329,7 @@ function MeetingDetailModal({ meeting: initialMeeting, projectId, onClose }: {
               onRefresh={loadDetail}
               onExportIcs={handleExportIcs}
               onExportMinutes={handleExportMinutes}
+              allow={allow}
             />
           )}
           {tab === "agenda" && (
@@ -309,6 +338,7 @@ function MeetingDetailModal({ meeting: initialMeeting, projectId, onClose }: {
               projectId={projectId}
               meetingId={meeting.id}
               onRefresh={loadDetail}
+              allow={allow}
             />
           )}
           {tab === "actions" && (
@@ -317,12 +347,15 @@ function MeetingDetailModal({ meeting: initialMeeting, projectId, onClose }: {
               projectId={projectId}
               meetingId={meeting.id}
               onRefresh={loadDetail}
+              allow={allow}
+              userId={userId}
             />
           )}
           {tab === "attendees" && (
             <AttendeesTab
               attendees={attendees}
               projectId={projectId}
+              allow={allow}
               meetingId={meeting.id}
               onRefresh={loadDetail}
             />
@@ -334,13 +367,79 @@ function MeetingDetailModal({ meeting: initialMeeting, projectId, onClose }: {
 }
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
-function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinutes }: {
+// ── Recordings (P1/P4/P5) — player + helpers shared with the project archive ──
+type RecordingRow = MeetingLiveArtifacts["recordings"][number];
+
+// Recordings section — the primary home for a meeting's recordings (date/time · duration ·
+// size · status · ▶ Play · ⬇ Download). Play opens RecordingPlayerModal.
+function RecordingsCard({ recordings, onPlay }: { recordings: RecordingRow[]; onPlay: (r: RecordingRow) => void }) {
+  if (!recordings || recordings.length === 0) return null;
+  return (
+    <View style={styles.card}>
+      <Text style={styles.fieldLabel}>Recordings</Text>
+      {recordings.map((r) => {
+        const playable = r.status === "COMPLETE" && !!r.downloadUrl;
+        return (
+          <View key={r.id} style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+            <Text style={{ color: "#e6e6e6", fontSize: 12, flex: 1 }} numberOfLines={1}>
+              {isAudioKind(r.kind) ? "🎙" : "🎥"} {new Date(r.startedAt).toLocaleString()} · {fmtDur(r.durationSeconds)} · {fmtSize(r.fileSizeBytes)} · {r.status}
+            </Text>
+            {playable ? (
+              <>
+                <TouchableOpacity onPress={() => onPlay(r)} style={{ marginLeft: 10 }}>
+                  <Text style={{ color: "#1976d2", fontWeight: "600", fontSize: 12 }}>▶ Play</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => Linking.openURL(r.downloadUrl!)} style={{ marginLeft: 12 }}>
+                  <Text style={{ color: "#1976d2", fontSize: 12 }}>⬇</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={{ color: "#9aa3b2", fontSize: 12, marginLeft: 10 }}>
+                {r.status === "ACTIVE" || r.status === "STARTING" ? "recording…" : r.status}
+              </Text>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinutes, allow }: {
   meeting: Meeting; projectId: string; onRefresh: () => void;
-  onExportIcs: () => void; onExportMinutes: () => void;
+  onExportIcs: () => void; onExportMinutes: () => void; allow: (cap: string) => boolean;
 }) {
   const [minutes, setMinutes] = useState(meeting.minutes ?? "");
   const [saving, setSaving] = useState(false);
   const [editStatus, setEditStatus] = useState(meeting.status);
+  const [joining, setJoining] = useState(false);
+  // N5 — live artifacts (snapshots / attendance) captured against this meeting's session(s).
+  const [artifacts, setArtifacts] = useState<MeetingLiveArtifacts | null>(null);
+  const [playRec, setPlayRec] = useState<RecordingRow | null>(null);   // P1 — recording in the player modal
+  useEffect(() => {
+    let alive = true;
+    getMeetingLiveArtifacts(projectId, meeting.id)
+      .then((a) => { if (alive) setArtifacts(a); })
+      .catch(() => { /* none yet */ });
+    return () => { alive = false; };
+  }, [projectId, meeting.id]);
+
+  // N5 — start/join the LIVE A/V session bound to this scheduled meeting, then open
+  // the live screen. Idempotent server-side: the FIRST join creates the session +
+  // flips the meeting to IN_PROGRESS; everyone after joins the SAME session, so all
+  // live artifacts (snapshots / actions / attendance) flow back to this one meeting.
+  async function joinLive() {
+    setJoining(true);
+    try {
+      const session = await startLiveSession(projectId, meeting.id);
+      onRefresh();   // pick up IN_PROGRESS + liveSessionId
+      router.push({ pathname: "/meetings/live", params: { project: projectId, session: session.sessionId } });
+    } catch (err) {
+      Alert.alert("Could not join", err instanceof Error ? err.message : String(err));
+    } finally {
+      setJoining(false);
+    }
+  }
 
   async function saveMinutes() {
     setSaving(true);
@@ -359,6 +458,47 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
 
   return (
     <View>
+      {/* WS3e — live A/V meeting (camera/mic/screen-share). Replaces the
+          "nothing to show yet" disconnect: scheduled meetings can go live. */}
+      <View style={styles.card}>
+        <Text style={styles.fieldLabel}>Live meeting{meeting.liveSessionId ? "  ● IN PROGRESS" : ""}</Text>
+        <TouchableOpacity onPress={joinLive} disabled={joining}
+          style={[styles.pillActive, { marginTop: 8, paddingVertical: 12, alignItems: "center", borderRadius: 8, opacity: joining ? 0.6 : 1 }]}>
+          <Text style={{ color: "#fff", fontWeight: "600" }}>
+            {joining ? "Starting…" : meeting.liveSessionId ? "🎥 Resume live A/V" : "🎥 Join live A/V"}
+          </Text>
+        </TouchableOpacity>
+        <Text style={[styles.fieldValue, { color: "#9aa3b2", fontSize: 12, marginTop: 6 }]}>
+          Camera, mic + screen-share over LiveKit. Needs a dev build on mobile (not Expo Go).
+        </Text>
+      </View>
+
+      {/* P1 — Recordings: the primary home for this meeting's recordings (play in-app). */}
+      <RecordingsCard recordings={artifacts?.recordings ?? []} onPlay={setPlayRec} />
+      <RecordingPlayerModal rec={playRec} onClose={() => setPlayRec(null)} />
+
+      {/* N5 — live artifacts that flowed back from the live session(s): viewpoint /
+          markup snapshots + attendance from the live roster. (Recordings now have their
+          own card above.) */}
+      {artifacts && (artifacts.snapshots.length > 0 || artifacts.attendance.length > 0 || artifacts.sessions.length > 0) && (
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Live artifacts</Text>
+          <Text style={[styles.fieldValue, { fontSize: 12, color: "#666", marginTop: 2 }]}>
+            {artifacts.sessions.length} session(s) · {artifacts.snapshots.length} snapshot(s) · {artifacts.attendance.length} attended
+          </Text>
+          {artifacts.attendance.length > 0 && (
+            <Text style={[styles.fieldValue, { fontSize: 12, marginTop: 6 }]} numberOfLines={2}>
+              👥 {artifacts.attendance.map((a) => a.displayName).join(", ")}
+            </Text>
+          )}
+          {artifacts.snapshots.slice(0, 5).map((s) => (
+            <Text key={s.id} style={[styles.fieldValue, { fontSize: 12, marginTop: 4 }]} numberOfLines={1}>
+              📸 {s.label || "Viewpoint"} · {new Date(s.capturedAt).toLocaleString()}
+            </Text>
+          ))}
+        </View>
+      )}
+
       {/* Meeting URL */}
       {meeting.meetingUrl && (
         <View style={styles.card}>
@@ -386,14 +526,17 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
         <TextInput
           style={[styles.input, { minHeight: 140, textAlignVertical: "top" }]}
           multiline
+          editable={allow("editMinutes")}
           placeholder="Key decisions, open points, attendees..."
           value={minutes}
           onChangeText={setMinutes}
         />
-        <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]}
-          onPress={saveMinutes} disabled={saving}>
-          <Text style={styles.saveBtnText}>{saving ? "Saving…" : "Save Minutes & Status"}</Text>
-        </TouchableOpacity>
+        {allow("editMinutes") && (
+          <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+            onPress={saveMinutes} disabled={saving}>
+            <Text style={styles.saveBtnText}>{saving ? "Saving…" : "Save Minutes & Status"}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Export actions */}
@@ -413,8 +556,8 @@ function OverviewTab({ meeting, projectId, onRefresh, onExportIcs, onExportMinut
 }
 
 // ── Agenda tab ────────────────────────────────────────────────────────────────
-function AgendaTab({ agenda, projectId, meetingId, onRefresh }: {
-  agenda: MeetingAgendaItem[]; projectId: string; meetingId: string; onRefresh: () => void;
+function AgendaTab({ agenda, projectId, meetingId, onRefresh, allow }: {
+  agenda: MeetingAgendaItem[]; projectId: string; meetingId: string; onRefresh: () => void; allow: (cap: string) => boolean;
 }) {
   const [title, setTitle] = useState("");
   const [duration, setDuration] = useState("");
@@ -502,18 +645,19 @@ function AgendaTab({ agenda, projectId, meetingId, onRefresh }: {
             </TouchableOpacity>
           </View>
         </View>
-      ) : (
+      ) : allow("editAgenda") ? (
         <TouchableOpacity style={styles.addRowBtn} onPress={() => setShowAdd(true)}>
           <Text style={styles.addRowBtnText}>+ Add Agenda Item</Text>
         </TouchableOpacity>
-      )}
+      ) : null}
     </View>
   );
 }
 
 // ── Actions tab ───────────────────────────────────────────────────────────────
-function ActionsTab({ actions, projectId, meetingId, onRefresh }: {
+function ActionsTab({ actions, projectId, meetingId, onRefresh, allow, userId }: {
   actions: MeetingActionItem[]; projectId: string; meetingId: string; onRefresh: () => void;
+  allow: (cap: string) => boolean; userId: string | null;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [desc, setDesc] = useState("");
@@ -584,7 +728,7 @@ function ActionsTab({ actions, projectId, meetingId, onRefresh }: {
               {a.dueDate ? ` · due ${new Date(a.dueDate).toLocaleDateString()}` : ""}
               {overdue ? " · OVERDUE" : ""}
             </Text>
-            {a.status !== "COMPLETE" && a.status !== "CLOSED" && (
+            {a.status !== "COMPLETE" && a.status !== "CLOSED" && (allow("assignActions") || a.assigneeUserId === userId) && (
               <TouchableOpacity style={styles.miniActionBtn} onPress={() => closeAction(a)}>
                 <Text style={styles.miniActionBtnText}>✓ Mark Complete</Text>
               </TouchableOpacity>
@@ -637,11 +781,11 @@ function ActionsTab({ actions, projectId, meetingId, onRefresh }: {
             </TouchableOpacity>
           </View>
         </View>
-      ) : (
+      ) : allow("assignActions") ? (
         <TouchableOpacity style={styles.addRowBtn} onPress={() => setShowAdd(true)}>
           <Text style={styles.addRowBtnText}>+ Add Action Item</Text>
         </TouchableOpacity>
-      )}
+      ) : null}
 
       <MemberPicker
         visible={pickerVisible}
@@ -655,8 +799,8 @@ function ActionsTab({ actions, projectId, meetingId, onRefresh }: {
 }
 
 // ── Attendees tab ─────────────────────────────────────────────────────────────
-function AttendeesTab({ attendees, projectId, meetingId, onRefresh }: {
-  attendees: MeetingAttendee[]; projectId: string; meetingId: string; onRefresh: () => void;
+function AttendeesTab({ attendees, projectId, meetingId, onRefresh, allow }: {
+  attendees: MeetingAttendee[]; projectId: string; meetingId: string; onRefresh: () => void; allow: (cap: string) => boolean;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -756,9 +900,9 @@ function AttendeesTab({ attendees, projectId, meetingId, onRefresh }: {
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
-                <TouchableOpacity onPress={() => removeAttendee(a)}>
+                {allow("manageAttendees") && <TouchableOpacity onPress={() => removeAttendee(a)}>
                   <Text style={styles.removeText}>Remove</Text>
-                </TouchableOpacity>
+                </TouchableOpacity>}
               </View>
             </View>
           ))}
@@ -774,9 +918,9 @@ function AttendeesTab({ attendees, projectId, meetingId, onRefresh }: {
                 <Text style={styles.attendeeName}>{a.name}</Text>
                 {a.email && <Text style={styles.attendeeMeta}>{a.email}</Text>}
               </View>
-              <TouchableOpacity onPress={() => removeAttendee(a)}>
+              {allow("manageAttendees") && <TouchableOpacity onPress={() => removeAttendee(a)}>
                 <Text style={styles.removeText}>Remove</Text>
-              </TouchableOpacity>
+              </TouchableOpacity>}
             </View>
           ))}
         </>
@@ -827,9 +971,9 @@ function AttendeesTab({ attendees, projectId, meetingId, onRefresh }: {
           </View>
         </View>
       ) : (
-        <TouchableOpacity style={styles.addRowBtn} onPress={() => setShowAdd(true)}>
+        allow("manageAttendees") ? (<TouchableOpacity style={styles.addRowBtn} onPress={() => setShowAdd(true)}>
           <Text style={styles.addRowBtnText}>+ Add Attendee / BCC</Text>
-        </TouchableOpacity>
+        </TouchableOpacity>) : null
       )}
 
       <MemberPicker
@@ -1012,6 +1156,8 @@ const styles = StyleSheet.create({
   typeChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   typeText: { color: "#fff", fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
+  liveBadge: { backgroundColor: "#d32f2f", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 },
+  liveBadgeText: { color: "#fff", fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
   actionCount: { marginLeft: "auto", fontSize: 11, color: "#E8912D", fontWeight: "700" },
   meetingTitle: { fontSize: 15, fontWeight: "600", color: "#222" },
   meta: { fontSize: 12, color: "#666", marginTop: 2 },

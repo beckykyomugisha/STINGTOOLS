@@ -1,0 +1,65 @@
+name: Multi-Host Core
+
+# Phase A of docs/MULTI_HOST_INTEGRATION_PLAN.md. Guards the shared core and the
+# host-adapter boundary:
+#   - stingtools-core unit tests (pure Python, no Blender / no ifcopenshell)
+#   - adapter-boundary lint: adapters must not re-implement core logic (§1.1 / A6)
+#   - syntax-check the Bonsai add-on modules (they import bpy, so run py_compile
+#     only — full Blender-headless smoke is a later CI job)
+
+on:
+  push:
+    paths:
+      - 'stingtools-core/**'
+      - 'stingtools-bonsai/**'
+      - 'StingBridge/**'
+      - 'tools/ci/**'
+      - '.github/workflows/multi-host-core.yml'
+  pull_request:
+    paths:
+      - 'stingtools-core/**'
+      - 'stingtools-bonsai/**'
+      - 'StingBridge/**'
+      - 'tools/ci/**'
+      - '.github/workflows/multi-host-core.yml'
+  workflow_dispatch:
+
+jobs:
+  core:
+    name: Core tests + adapter boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test deps
+        run: python -m pip install --upgrade pip pytest
+
+      - name: stingtools-core unit tests
+        working-directory: stingtools-core/python
+        run: python -m pytest -q
+
+      - name: Adapter-boundary lint (A6)
+        run: python tools/ci/check_adapter_boundary.py
+
+      - name: Syntax-check Bonsai add-on modules
+        run: |
+          python - <<'PY'
+          import py_compile, pathlib, sys
+          errs = []
+          for p in pathlib.Path("stingtools-bonsai").rglob("*.py"):
+              try:
+                  py_compile.compile(str(p), doraise=True)
+              except py_compile.PyCompileError as e:
+                  errs.append(str(e))
+          if errs:
+              print("\n".join(errs)); sys.exit(1)
+          print("Bonsai add-on: all modules compile")
+          PY

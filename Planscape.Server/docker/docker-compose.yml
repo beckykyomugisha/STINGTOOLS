@@ -52,14 +52,46 @@ services:
       - Planscape__PublicBaseUrl=${PUBLIC_BASE_URL:-}
       # ── Real email via SMTP (Gmail app password is the pragmatic default) ──
       # All blank ⇒ NullEmailService logs a LOUD warning and drops mail.
+      # Item 8 — accept short aliases (SMTP_USER/PASS/FROM) as well as the long names.
       - Smtp__Host=${SMTP_HOST:-}
       - Smtp__Port=${SMTP_PORT:-587}
-      - Smtp__Username=${SMTP_USERNAME:-}
-      - Smtp__Password=${SMTP_PASSWORD:-}
-      - Smtp__FromAddress=${SMTP_FROM_ADDRESS:-}
+      - Smtp__Username=${SMTP_USERNAME:-${SMTP_USER:-}}
+      - Smtp__Password=${SMTP_PASSWORD:-${SMTP_PASS:-}}
+      - Smtp__FromAddress=${SMTP_FROM_ADDRESS:-${SMTP_FROM:-}}
       - Smtp__FromName=${SMTP_FROM_NAME:-Planscape}
       # Gmail :587 uses STARTTLS ⇒ UseSsl=false. Gmail :465 ⇒ UseSsl=true.
       - Smtp__UseSsl=${SMTP_USE_SSL:-false}
+      # ── Email provider selector (smtp [default] | resend) ──
+      # smtp  ⇒ MailKit transport above (Gmail / Mailpit / Resend-SMTP).
+      # resend ⇒ Resend HTTP API; needs RESEND_API_KEY + a from-address on the
+      #          Resend-verified domain (SMTP_FROM_ADDRESS feeds the From for both).
+      - Email__Provider=${Email__Provider:-smtp}
+      - Resend__ApiKey=${RESEND_API_KEY:-}
+      # ── Push (FCM / APNs via Firebase — meeting invites) ──
+      # Drop the Firebase service-account JSON here to turn mobile push on. Base64 the
+      # JSON to avoid .env quoting/newline pain (the server accepts raw OR base64).
+      # ProjectId is auto-derived from the JSON's project_id. See docs/PUSH_FIREBASE.md.
+      - Push__Firebase__ServiceAccountJson=${PUSH_FIREBASE_SERVICE_ACCOUNT_JSON:-}
+      - Push__Firebase__ProjectId=${PUSH_FIREBASE_PROJECT_ID:-}
+      # ── LiveKit (WS3 A/V media plane) ──
+      # Url is the BROWSER-reachable signaling URL (ws://localhost:7880 in dev).
+      # The dev livekit service below runs with key 'devkey' / secret 'secret'.
+      # Override all three via .env for staging/cloud; never commit real secrets.
+      - LiveKit__Url=${LIVEKIT_URL:-ws://localhost:7880}
+      - LiveKit__ApiKey=${LIVEKIT_API_KEY:-devkey}
+      - LiveKit__ApiSecret=${LIVEKIT_API_SECRET:-secret}
+      # N2 — server→livekit http endpoint for Egress Twirp calls (internal compose host).
+      - LiveKit__ServerUrl=${LIVEKIT_SERVER_URL:-http://livekit:7880}
+      # N2 — LiveKit Egress recording target → in-stack MinIO (functional locally).
+      # Endpoint is the INTERNAL compose host (egress + api write/sign against it);
+      # PublicEndpoint is BROWSER-reachable (presigned playback URLs). PROD: swap both
+      # for the real S3 + a public CDN/host; secrets env-only (never commit prod keys).
+      - LiveKit__Egress__S3__Endpoint=${EGRESS_S3_ENDPOINT:-http://minio:9000}
+      - LiveKit__Egress__S3__PublicEndpoint=${EGRESS_S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      - LiveKit__Egress__S3__Bucket=${EGRESS_S3_BUCKET:-recordings}
+      - LiveKit__Egress__S3__Region=${EGRESS_S3_REGION:-us-east-1}
+      - LiveKit__Egress__S3__AccessKey=${EGRESS_S3_ACCESS_KEY:-planscape}
+      - LiveKit__Egress__S3__Secret=${EGRESS_S3_SECRET:-PlanscapeMinio2026!}
     depends_on:
       # NB: pgbouncer is intentionally NOT listed here. It lives behind the
       # optional `pool` profile (see below), and Compose rejects the whole
@@ -97,6 +129,96 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # LiveKit — WS3 A/V media SFU (camera/mic/screen-share). Dev mode ships a fixed
+  # key/secret (devkey/secret) and binds signaling on :7880. The api mints LiveKit
+  # JWTs (MeetingRoomController .../livekit-token) using the SAME key/secret. For
+  # staging/cloud, run a real LiveKit deployment + set LIVEKIT_* in .env (never
+  # commit secrets). UDP 50000-50019 + TCP 7881 carry media (TURN/TCP fallback).
+  # N2 — CONFIGURED LiveKit (not --dev): shares Redis with the egress worker so
+  # recording dispatch works, and posts egress webhooks back to the api. Same dev
+  # keys (devkey:secret) so the A/V bar + livekit-token are unchanged.
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --config /etc/livekit.yaml
+    environment:
+      # The ONE knob that flips local↔prod media. NODE_IP is the IP LiveKit
+      # advertises to browsers as its ICE host candidate (livekit-server
+      # --node-ip / $NODE_IP). In Docker bridge networking the auto-detected
+      # candidate is the container's 172.x bridge IP, which host browsers can't
+      # reach → "could not establish pc connection".
+      #   • Local/dev: 127.0.0.1 — browsers on the host reach the published
+      #     50000-50019/udp (and 7881/tcp fallback).
+      #   • Production (VPS): set LIVEKIT_NODE_IP to the VPS PUBLIC IP in .env.
+      # See docs/DEPLOYMENT.md → "LiveKit media (ICE)".
+      - NODE_IP=${LIVEKIT_NODE_IP:-127.0.0.1}
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7880:7880"               # signaling (ws) — the browser LiveKit:Url
+      - "7881:7881"               # ICE/TCP fallback (carries media on localhost)
+      - "50000-50019:50000-50019/udp"  # RTC media (small dev range)
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # N2 — LiveKit Egress: records meeting rooms (room-composite A/V or audio-only) to
+  # MinIO. Shares Redis with the livekit server (dispatch). The S3 target is sent
+  # per-request by the api (LiveKitEgressClient → LiveKit:Egress:S3:*), so this
+  # service only needs redis + the api creds + the internal ws_url. Default-on for
+  # local proof; for prod, point at a real LiveKit + S3 (secrets env-only).
+  egress:
+    image: livekit/egress:latest
+    environment:
+      EGRESS_CONFIG_BODY: |
+        redis:
+          address: redis:6379
+        api_key: ${LIVEKIT_API_KEY:-devkey}
+        api_secret: ${LIVEKIT_API_SECRET:-secret}
+        ws_url: ws://livekit:7880
+    # Egress (chrome-based room-composite) needs SYS_ADMIN for the headless browser
+    # sandbox. Documented LiveKit requirement for the egress container.
+    cap_add:
+      - SYS_ADMIN
+    depends_on:
+      - redis
+      - livekit
+    restart: unless-stopped
+
+  # N2 — MinIO object store for meeting recordings (dev). Prod overlay
+  # (docker-compose.prod.yml) already runs MinIO for attachments; this brings it into
+  # the dev stack too so egress has a real S3 target. Console on :9001, S3 API on
+  # :9000 (published so the api can presign BROWSER-reachable playback URLs).
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-planscape}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-PlanscapeMinio2026!}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "9000:9000"   # S3 API → presigned playback URLs (http://localhost:9000/...)
+      - "9001:9001"   # web console → http://localhost:9001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # N2 — one-shot: create the "recordings" bucket on first boot (idempotent).
+  createbuckets:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-planscape} ${MINIO_ROOT_PASSWORD:-PlanscapeMinio2026!} &&
+      mc mb -p local/${EGRESS_S3_BUCKET:-recordings} ;
+      echo 'bucket ready' "
+    restart: "no"
 
   # Mailpit — local SMTP capture (dev/proof). Catches every outbound email so the
   # full send path + link can be PROVEN without real creds. Web UI on :8025, SMTP
@@ -325,3 +447,4 @@ volumes:
   grafanadata:
   clamavdb:
   storage:   # MODEL-VIEWER — uploaded model bytes; survives rebuilds.
+  miniodata: # N2 — meeting-recording object store (MinIO); survives rebuilds.

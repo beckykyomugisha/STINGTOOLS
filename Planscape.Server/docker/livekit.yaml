@@ -1,0 +1,39 @@
+# N2 — LiveKit server config (replaces `--dev`, which is in-memory and CANNOT
+# dispatch Egress jobs). Egress requires the server + egress worker to share Redis,
+# so this config wires redis + keys + the egress webhook back to the API.
+#
+# Keys are the SAME dev pair the api mints tokens with (devkey:secret) so the
+# surfaced A/V bar + livekit-token keep working unchanged. For staging/prod, run a
+# real LiveKit deployment with rotated keys (env-only) — do NOT ship this file's keys.
+port: 7880
+bind_addresses:
+  - ""            # all interfaces
+rtc:
+  tcp_port: 7881  # ICE/TCP fallback — carries media on localhost when UDP host
+                  # candidates aren't reachable from the browser (same as --dev did).
+  port_range_start: 50000
+  port_range_end: 50019
+  # Advertised ICE IP is driven by the NODE_IP env var (livekit-server --node-ip),
+  # set from a SINGLE variable LIVEKIT_NODE_IP in .env / docker-compose:
+  #   • Local/dev : LIVEKIT_NODE_IP=127.0.0.1 (default) — host browsers reach the
+  #                 published 50000-50019/udp + 7881/tcp. (Equivalent to
+  #                 use_external_ip:false + node_ip:127.0.0.1.)
+  #   • Production : LIVEKIT_NODE_IP=<VPS public IP>. NODE_IP takes precedence over
+  #                 use_external_ip, so an explicit public IP is the deterministic
+  #                 prod setting. For restrictive client networks also front the
+  #                 UDP range with TURN/TLS on 443 (see docs/DEPLOYMENT.md).
+  # use_external_ip stays false because NODE_IP supplies the advertised IP
+  # explicitly in BOTH modes — bridge-network auto-detection is exactly what
+  # advertised the unreachable 172.x candidate and broke the PC connection.
+  use_external_ip: false
+keys:
+  devkey: secret
+redis:
+  address: redis:6379
+# Egress completion → the API finalises the MeetingRecording row (StorageKey/size/
+# duration). The webhook is signed with the api key/secret (HS256 JWT + sha256 body
+# claim); LiveKitWebhookController verifies it.
+webhook:
+  api_key: devkey
+  urls:
+    - http://api:8080/api/livekit/webhook

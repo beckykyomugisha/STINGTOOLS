@@ -21,11 +21,13 @@ export {
   AmbientLight, Box3, BufferGeometry, Clock, Color, DirectionalLight,
   Euler, Group, HemisphereLight, Line, LineBasicMaterial, Mesh,
   MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
-  PerspectiveCamera, Plane, Raycaster, Scene, SphereGeometry, Sprite,
-  SpriteMaterial, Vector2, Vector3, WebGLRenderer,
+  OrthographicCamera, PerspectiveCamera, Plane, PlaneGeometry, Quaternion,
+  Raycaster, Scene, SphereGeometry, Sprite, SpriteMaterial, Vector2, Vector3,
+  WebGLRenderer,
 } from 'three';
 export { GLTFLoader }    from 'three/examples/jsm/loaders/GLTFLoader.js';
 export { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+export { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 export { DRACOLoader }   from 'three/examples/jsm/loaders/DRACOLoader.js';
 export { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 `;
@@ -61,7 +63,7 @@ console.log('✓ dist/coordination-viewer.css');
 
 // ── 4. Stub files for GLTFLoader.js etc. — already bundled into three.min.js ──
 // These stubs prevent 404 errors for the <script onerror> tags in viewer.html.
-for (const stub of ['GLTFLoader.js', 'OrbitControls.js', 'DRACOLoader.js', 'MeshoptDecoder.js']) {
+for (const stub of ['GLTFLoader.js', 'OrbitControls.js', 'TransformControls.js', 'DRACOLoader.js', 'MeshoptDecoder.js']) {
   writeFileSync(`dist/${stub}`, `/* bundled into three.min.js */`);
 }
 console.log('✓ stubs written');

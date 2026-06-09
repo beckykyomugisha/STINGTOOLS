@@ -108,6 +108,9 @@ namespace StingTools.UI
         internal CoordData _data;
         private ContentControl _contentArea;
         private TextBlock _statusBar;
+        // Header label showing the linked Planscape project (updated live on
+        // Link / Unlink from the PLATFORM tab without rebuilding the header).
+        private TextBlock _linkedHeaderBlock;
         private StackPanel _navPanel;
         private Button _activeNav;
 
@@ -549,6 +552,13 @@ namespace StingTools.UI
             public string ProjectName = "";
             public string FilePath = "";
 
+            // Planscape server project link (per-document, persisted in
+            // STING_BIM_MANAGER/planscape_connection.json). Populated by
+            // BuildCoordData from PlanscapeProjectLink; empty when the model
+            // isn't linked to a server project yet.
+            public Guid LinkedProjectId = Guid.Empty;
+            public string LinkedProjectLabel = "";
+
             // Compliance
             public double TagPct;
             public double StrictPct;
@@ -910,6 +920,25 @@ namespace StingTools.UI
             public bool   CanApprove  { get; set; }
             public bool   CanIssue    { get; set; }
             public bool   Active      { get; set; } = true;
+            // Server-canonical identity (set when the row came from
+            // /api/projects/{id}/members). ServerUserId drives meeting-invite
+            // userIds[]; a null ServerUserId marks a not-yet-on-server row
+            // (external attendee / freshly added) that Save Access invites.
+            public Guid?  ServerUserId   { get; set; }
+            public Guid?  ServerMemberId { get; set; }
+        }
+
+        /// <summary>Display row for the MEETINGS → Recordings grid (server-sourced, presigned MinIO).</summary>
+        internal class RecordingDisplayRow
+        {
+            public string Label    { get; set; }
+            public string Kind     { get; set; }
+            public string Status   { get; set; }
+            public string Started  { get; set; }
+            public string Duration { get; set; }
+            public string Size     { get; set; }
+            public string DownloadUrl { get; set; }   // presigned GET; empty until COMPLETE
+            public bool   Playable    { get; set; }
         }
 
         /// <summary>ISO 19650 folder permission definition.</summary>
@@ -1218,6 +1247,27 @@ namespace StingTools.UI
         //  HEADER STRIP
         // ════════════════════════════════════════════════════════════════
 
+        /// <summary>Header caption for the linked-project indicator.</summary>
+        private string LinkedHeaderText()
+        {
+            string label = _data?.LinkedProjectLabel;
+            return string.IsNullOrEmpty(label)
+                ? "⛓ Not linked to a Planscape project"
+                : $"🔗 {label}";
+        }
+
+        /// <summary>Update the header linked-project label in place (no full rebuild).</summary>
+        private void RefreshLinkedHeader()
+        {
+            try
+            {
+                if (_linkedHeaderBlock == null) return;
+                _linkedHeaderBlock.Text = LinkedHeaderText();
+                _linkedHeaderBlock.Opacity = string.IsNullOrEmpty(_data?.LinkedProjectLabel) ? 0.55 : 0.85;
+            }
+            catch (Exception ex) { StingLog.Warn($"RefreshLinkedHeader: {ex.Message}"); }
+        }
+
         private UIElement BuildHeader()
         {
             var header = new Border { Background = Br(CHeaderBg), Padding = new Thickness(16, 0, 16, 0) };
@@ -1239,6 +1289,21 @@ namespace StingTools.UI
                 Foreground = Br(CHeaderFg), Opacity = 0.7, FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center
             });
+
+            // Linked Planscape project indicator — makes it obvious at a glance
+            // whether this model is linked and to which server project. Updated
+            // live by Link / Unlink on the PLATFORM tab.
+            _linkedHeaderBlock = new TextBlock
+            {
+                Text = LinkedHeaderText(),
+                Foreground = Br(CHeaderFg),
+                Opacity = string.IsNullOrEmpty(_data?.LinkedProjectLabel) ? 0.55 : 0.85,
+                FontSize = 11, FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(16, 0, 0, 0),
+                ToolTip = "The Planscape server project this model is linked to. Set it from the PLATFORM tab → Planscape → Linked Project, or by publishing the 3D model."
+            };
+            leftStack.Children.Add(_linkedHeaderBlock);
             hGrid.Children.Add(leftStack);
 
             // Right: Refresh + RAG indicator + compliance + date
@@ -4309,14 +4374,45 @@ namespace StingTools.UI
                 // Previously both were merged into a single "Name / Email"
                 // column bound only to Name, so the email field on each
                 // TeamMemberRow was invisible on this grid.
+                // Member column = DataGridComboBoxColumn of the canonical SERVER project
+                // members (DisplayName). Editable so a new invitee's name can be typed for a
+                // freshly-added row; picking an existing member auto-fills Email + server ids.
+                var memberNameList = _data.TeamMembers
+                    .Select(m => m.Name).Where(n => !string.IsNullOrWhiteSpace(n))
+                    .Distinct().OrderBy(n => n).ToList();
+                var memberNameStyle = new Style(typeof(ComboBox));
+                memberNameStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+
                 var accessGrid = MakeExcelDataGrid(130);
                 accessGrid.IsReadOnly = false;
-                accessGrid.Columns.Add(new DataGridTextColumn     { Header = "Name",    Binding = new System.Windows.Data.Binding("Name"),    Width = new DataGridLength(1.4, DataGridLengthUnitType.Star) });
+                accessGrid.Columns.Add(new DataGridComboBoxColumn { Header = "Name",    ItemsSource = memberNameList, SelectedItemBinding = new System.Windows.Data.Binding("Name"), Width = new DataGridLength(1.4, DataGridLengthUnitType.Star), EditingElementStyle = memberNameStyle });
                 accessGrid.Columns.Add(new DataGridTextColumn     { Header = "Email",   Binding = new System.Windows.Data.Binding("Email"),   Width = new DataGridLength(1.8, DataGridLengthUnitType.Star) });
                 accessGrid.Columns.Add(new DataGridTextColumn     { Header = "Company", Binding = new System.Windows.Data.Binding("Company"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
                 accessGrid.Columns.Add(new DataGridComboBoxColumn { Header = "Role",    ItemsSource = accessRoleList, SelectedItemBinding = new System.Windows.Data.Binding("Role"), Width = 160, EditingElementStyle = accessRoleStyle });
                 accessGrid.Columns.Add(new DataGridCheckBoxColumn { Header = "Active",  Binding = new System.Windows.Data.Binding("Active"),  Width = 55 });
                 accessGrid.ItemsSource = _data.TeamMembers;
+                // Picking an existing server member by name fills the rest of the row from the
+                // canonical roster (so Save Access can skip an already-on-server member).
+                accessGrid.CellEditEnding += (s, e) =>
+                {
+                    if (e.EditAction != DataGridEditAction.Commit) return;
+                    if (!(e.Row?.Item is TeamMemberRow row)) return;
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        var match = _data.TeamMembers.FirstOrDefault(m =>
+                            m != row && m.ServerUserId.HasValue &&
+                            string.Equals(m.Name, row.Name, StringComparison.OrdinalIgnoreCase));
+                        if (match != null)
+                        {
+                            if (string.IsNullOrWhiteSpace(row.Email))   row.Email   = match.Email;
+                            if (string.IsNullOrWhiteSpace(row.Company)) row.Company = match.Company;
+                            if (string.IsNullOrWhiteSpace(row.Role))    row.Role    = match.Role;
+                            row.ServerUserId   = match.ServerUserId;
+                            row.ServerMemberId = match.ServerMemberId;
+                            accessGrid.Items.Refresh();
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+                };
                 detailStack.Children.Add(accessGrid);
 
                 // Phase 102 — quick actions on the access grid
@@ -4338,22 +4434,132 @@ namespace StingTools.UI
                 {
                     Content = "\ud83d\udce7 Invite Selected", Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0),
                     Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
-                    ToolTip = "Copy an invite email body (link + role) for the highlighted row to the clipboard."
+                    ToolTip = "Email a Planscape invitation to the highlighted row via the server (SMTP). Falls back to copying the invite link if the server is unreachable."
                 };
-                inviteBtn.Click += (s, e) =>
+                inviteBtn.Click += async (s, e) =>
                 {
-                    if (accessGrid.SelectedItem is TeamMemberRow tm && !string.IsNullOrWhiteSpace(tm.Email))
+                    if (!(accessGrid.SelectedItem is TeamMemberRow tm) || string.IsNullOrWhiteSpace(tm.Email))
                     {
-                        string invite =
+                        ShowStatus("Select a row with an email first.");
+                        return;
+                    }
+
+                    var client = BIMManager.PlanscapeServerClient.Instance;
+
+                    // Clipboard fallback body — used only when the server is unreachable.
+                    string invite =
                             $"Subject: Planscape invitation — {_data.ProjectName}\n\n" +
                             $"Hi {tm.Name},\n\n" +
                             $"You've been added to the Planscape project '{_data.ProjectName}' as {tm.Role}.\n" +
                             $"Sign in at {BIMManager.PlanscapeServerClient.Instance.ServerUrl}\n\n" +
                             "\u2014 Sent from BIM Coordination Center";
-                        try { System.Windows.Clipboard.SetText(invite); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        ShowStatus($"Invite copied for {tm.Name}");
+                    // Local helper: copy the invite link and explain why we fell back.
+                    void CopyFallback(string reason)
+                    {
+                        try { System.Windows.Clipboard.SetText(invite); } catch (Exception cex) { StingLog.Warn($"Suppressed: {cex.Message}"); }
+                        ShowStatus($"{reason} - invite link copied for {tm.Name}.");
                     }
-                    else ShowStatus("Select a row with an email first.");
+
+                    if (client == null || !client.IsConnected)
+                    {
+                        CopyFallback("Not connected to Planscape Server");
+                        return;
+                    }
+
+                    try
+                    {
+                        // Use the linked server project only. Never create a project
+                        // implicitly as a side effect of inviting (that POSTed a stray
+                        // /api/projects). With no linked project we can't target the
+                        // invite endpoint, so fall back to copying the link.
+                        Guid projectGuid = client.CurrentProjectId;
+                        if (projectGuid == Guid.Empty)
+                        {
+                            // Belt-and-suspenders: resolve from the per-document
+                            // link file in case the in-memory CurrentProjectId
+                            // wasn't restored this session.
+                            var link = BIMManager.PlanscapeProjectLink.Load(
+                                BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                            if (link.IsLinked)
+                            {
+                                projectGuid = link.ProjectId;
+                                client.CurrentProjectId = projectGuid;
+                            }
+                        }
+                        if (projectGuid == Guid.Empty)
+                        {
+                            try { System.Windows.Clipboard.SetText(invite); } catch (Exception cex) { StingLog.Warn($"Suppressed: {cex.Message}"); }
+                            ShowStatus("No Planscape project linked — invite link copied. Link this model to a Planscape project to send invites by email.");
+                            return;
+                        }
+
+                        // Map the grid Role -> projectRole / iso19650Role. The four
+                        // platform rows map to projectRole; ISO rows ("CODE <sep> Name")
+                        // contribute the leading code; the separator header maps to neither.
+                        string role = (tm.Role ?? "").Trim();
+                        string projectRole = null, isoRole = null;
+                        var platformRoles = new[] { "Admin", "Coordinator", "Viewer", "External" };
+                        if (platformRoles.Contains(role, StringComparer.OrdinalIgnoreCase))
+                        {
+                            projectRole = role;
+                        }
+                        else
+                        {
+                            var firstToken = role.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+                            if (firstToken.Length > 0 && firstToken.Length <= 4 && firstToken.All(char.IsLetter))
+                                isoRole = firstToken;
+                        }
+
+                        ShowStatus($"Sending invite to {tm.Email}...");
+                        var result = await client.InviteMemberAsync(
+                            projectGuid, tm.Email.Trim(), tm.Name, projectRole, isoRole).ConfigureAwait(true);
+
+                        if (!result.Reachable)
+                        {
+                            CopyFallback("Planscape Server unreachable");
+                            return;
+                        }
+                        if (!result.Ok)
+                        {
+                            ShowStatus($"Invite failed: {result.Message}");
+                            return;
+                        }
+                        // Prefer the server's one-click deep link (token + email + project)
+                        // for both the confirmation and any clipboard copy.
+                        string deepLink = result.InviteLink ?? "";
+                        string warnSuffix = string.IsNullOrEmpty(result.LinkWarning)
+                            ? "" : $"\n\n⚠ {result.LinkWarning}";
+
+                        if (result.EmailSent)
+                        {
+                            ShowStatus($"Invite emailed to {tm.Email}");
+                            // Show the resolved link in the confirmation (and flag a rotating
+                            // quick-tunnel base URL, which would break the link on restart).
+                            string body = $"Invite emailed to {tm.Email}.";
+                            if (!string.IsNullOrEmpty(deepLink))
+                                body += $"\n\nOne-click invite link:\n{deepLink}";
+                            body += warnSuffix;
+                            TaskDialog.Show("Planscape Invite", body);
+                        }
+                        else
+                        {
+                            // Server accepted but SMTP isn't configured — copy the real deep
+                            // link (falling back to the local body) so it can be sent by hand.
+                            // This is NOT the unreachable path.
+                            try { System.Windows.Clipboard.SetText(string.IsNullOrEmpty(deepLink) ? invite : deepLink); }
+                            catch (Exception cex) { StingLog.Warn($"Suppressed: {cex.Message}"); }
+                            ShowStatus(result.Note ?? "Invite recorded - email not configured on the server; link copied.");
+                            string body = (result.Note ?? "Email is not configured on the server — copy the invitation link to the invitee.")
+                                        + (string.IsNullOrEmpty(deepLink) ? "" : $"\n\nOne-click invite link (copied to clipboard):\n{deepLink}")
+                                        + warnSuffix;
+                            TaskDialog.Show("Planscape Invite", body);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"[invite] handler error for {tm.Email}: {ex.Message}");
+                        CopyFallback("Invite error");
+                    }
                 };
                 accessToolbar.Children.Add(inviteBtn);
 
@@ -4361,9 +4567,82 @@ namespace StingTools.UI
                 {
                     Content = "\ud83d\udcbe Save Access", Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0),
                     Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
-                    ToolTip = "Persist the access roster to _bim_manager/team_members.json"
+                    ToolTip = "Write the roster back to the Planscape server. Rows with an email that aren't yet project members are invited (creating the membership + sending the invite). The server is the source of truth \u2014 the grid reloads from it on reopen."
                 };
-                savePlBtn.Click += (s, e) => DispatchAction("SaveProjectMembers");
+                // Server-canonical Save Access: invite any new (email, not-yet-member) rows
+                // to the linked project, then reload the canonical roster from the server.
+                // The deprecated team_members.json write path is no longer used.
+                savePlBtn.Click += async (s, e) =>
+                {
+                    var client = BIMManager.PlanscapeServerClient.Instance;
+                    if (client == null || !client.IsConnected)
+                    {
+                        ShowStatus("Not connected to Planscape Server \u2014 connect below to manage access.");
+                        return;
+                    }
+
+                    Guid projectGuid = client.CurrentProjectId;
+                    if (projectGuid == Guid.Empty)
+                    {
+                        var link = BIMManager.PlanscapeProjectLink.Load(
+                            BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                        if (link.IsLinked) { projectGuid = link.ProjectId; client.CurrentProjectId = projectGuid; }
+                    }
+                    if (projectGuid == Guid.Empty)
+                    {
+                        ShowStatus("No Planscape project linked \u2014 link this model on the PLATFORM tab to manage server access.");
+                        return;
+                    }
+
+                    // Map a grid Role -> (projectRole, iso19650Role), same convention as Invite Selected.
+                    (string projectRole, string isoRole) MapRole(string role)
+                    {
+                        role = (role ?? "").Trim();
+                        var platformRoles = new[] { "Admin", "Coordinator", "Viewer", "External" };
+                        if (platformRoles.Contains(role, StringComparer.OrdinalIgnoreCase)) return (role, null);
+                        var firstToken = role.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+                        if (firstToken.Length > 0 && firstToken.Length <= 4 && firstToken.All(char.IsLetter)) return (null, firstToken);
+                        return (null, null);
+                    }
+
+                    var toInvite = _data.TeamMembers
+                        .Where(m => !m.ServerUserId.HasValue && !string.IsNullOrWhiteSpace(m.Email))
+                        .ToList();
+
+                    int invited = 0, failed = 0;
+                    foreach (var tm in toInvite)
+                    {
+                        try
+                        {
+                            var (pr, iso) = MapRole(tm.Role);
+                            ShowStatus($"Inviting {tm.Email} to the project\u2026");
+                            var res = await client.InviteMemberAsync(projectGuid, tm.Email.Trim(), tm.Name, pr, iso).ConfigureAwait(true);
+                            if (res.Reachable && res.Ok) invited++;
+                            else { failed++; StingLog.Warn($"[access] invite failed for {tm.Email}: {res.Message}"); }
+                        }
+                        catch (Exception iex) { failed++; StingLog.Warn($"[access] invite error for {tm.Email}: {iex.Message}"); }
+                    }
+
+                    // Reload the canonical roster from the server so the grid reflects server truth.
+                    var fresh = await client.GetProjectMembersAsync(projectGuid).ConfigureAwait(true);
+                    if (fresh != null && fresh.Count > 0)
+                    {
+                        _data.TeamMembers = fresh.Select(m => new TeamMemberRow
+                        {
+                            Name = m.DisplayName ?? m.Email ?? "Member",
+                            Email = m.Email,
+                            Role = string.IsNullOrWhiteSpace(m.ProjectRole) ? m.Iso19650Role : m.ProjectRole,
+                            Active = true,
+                            ServerUserId = m.UserId,
+                            ServerMemberId = m.Id,
+                        }).ToList();
+                        accessGrid.ItemsSource = null;
+                        accessGrid.ItemsSource = _data.TeamMembers;
+                    }
+                    ShowStatus(invited > 0
+                        ? $"Saved to server \u2014 invited {invited} new member(s){(failed > 0 ? $", {failed} failed" : "")}. Roster reloaded from server."
+                        : (failed > 0 ? $"{failed} invite(s) failed \u2014 see log." : "Roster is in sync with the server."));
+                };
                 accessToolbar.Children.Add(savePlBtn);
                 detailStack.Children.Add(accessToolbar);
 
@@ -4466,8 +4745,189 @@ namespace StingTools.UI
                     };
                     openWebBtn.Click += (s, e) => DispatchAction("PlanscapeOpenWebDashboard");
                     sbConnBtnRow.Children.Add(openWebBtn);
+
+                    // Quick render check — emails a sample invite-styled message to
+                    // your own address through the exact invite render path, so we
+                    // can confirm HTML rendering without inviting a real member.
+                    var testEmailBtn = new Button
+                    {
+                        Content = "📧 Send test email", Height = 28, Padding = new Thickness(12, 0, 12, 0),
+                        Background = Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 0, 6, 0),
+                        ToolTip = "Send a sample invite-styled email to your own account to check rendering. No member is invited — it uses the same email render path as a real invite."
+                    };
+                    testEmailBtn.Click += async (s, e) =>
+                    {
+                        var c = BIMManager.PlanscapeServerClient.Instance;
+                        if (c == null || !c.IsConnected) { ShowStatus("Connect to Planscape first."); return; }
+                        try
+                        {
+                            ShowStatus("Sending test email…");
+                            var r = await c.SendTestEmailAsync().ConfigureAwait(true);
+                            if (!r.Reachable) { ShowStatus($"Test email failed: {r.Message}"); return; }
+                            ShowStatus(r.Sent
+                                ? $"Test email sent to {r.To}"
+                                : (r.Message ?? "Test email not sent."));
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"[email-test] handler error: {ex.Message}");
+                            ShowStatus($"Test email error: {ex.Message}");
+                        }
+                    };
+                    sbConnBtnRow.Children.Add(testEmailBtn);
                 }
                 detailStack.Children.Add(sbConnBtnRow);
+
+                // ── Linked Planscape project ──────────────────────────────
+                // The per-document link (STING_BIM_MANAGER/planscape_connection.json)
+                // is the gate for email invites + background sync. Surface it
+                // explicitly so coordinators can pick / change / clear it, and
+                // mirror it onto the in-memory CurrentProjectId so the invite
+                // path + PluginSyncTickBridge use the active document's project.
+                detailStack.Children.Add(new TextBlock
+                {
+                    Text = "LINKED PROJECT", FontWeight = FontWeights.Bold, FontSize = 11,
+                    Foreground = Br(CAccent), Margin = new Thickness(0, 6, 0, 4)
+                });
+                {
+                    string linkCfgPath = BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath);
+                    var curLink = BIMManager.PlanscapeProjectLink.Load(linkCfgPath);
+                    // Keep the in-memory CurrentProjectId in step with the active
+                    // document whenever this tab is shown (covers project switches
+                    // where OnDocumentOpened didn't fire for an already-open model).
+                    BIMManager.PlanscapeServerClient.Instance.CurrentProjectId = curLink.ProjectId;
+                    if (_data != null)
+                    {
+                        _data.LinkedProjectId = curLink.ProjectId;
+                        _data.LinkedProjectLabel = curLink.Label;
+                    }
+                    RefreshLinkedHeader();
+
+                    bool savedModel = !string.IsNullOrEmpty(_data?.FilePath) && !string.IsNullOrEmpty(linkCfgPath);
+
+                    var linkBorder = new Border
+                    {
+                        Background = Br(curLink.IsLinked ? Color.FromRgb(0xE8, 0xF5, 0xE9) : Color.FromRgb(0xFF, 0xF3, 0xE0)),
+                        BorderBrush = Br(curLink.IsLinked ? Color.FromRgb(0xA5, 0xD6, 0xA7) : Color.FromRgb(0xFF, 0xCC, 0x80)),
+                        BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(0, 0, 0, 10)
+                    };
+                    var linkStack = new StackPanel();
+                    linkStack.Children.Add(new TextBlock
+                    {
+                        Text = curLink.IsLinked
+                            ? $"🔗 Linked to: {curLink.Label}"
+                            : (savedModel
+                                ? "⛓ This model is not linked to a Planscape project."
+                                : "⛓ Save the model first, then link it to a Planscape project."),
+                        FontSize = 11, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 0, 0, 6)
+                    });
+                    if (curLink.IsLinked)
+                        linkStack.Children.Add(new TextBlock
+                        {
+                            Text = $"Project id: {curLink.ProjectId}",
+                            FontSize = 10, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                            Margin = new Thickness(0, 0, 0, 6)
+                        });
+
+                    var linkBtnRow = new WrapPanel();
+                    var pickBtn = new Button
+                    {
+                        Content = curLink.IsLinked ? "🔗 Change Project…" : "🔗 Link to Project…",
+                        Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0),
+                        Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                        IsEnabled = sbConnected && savedModel,
+                        ToolTip = sbConnected
+                            ? (savedModel ? "Fetch your Planscape projects and link this model to one." : "Save the .rvt first — the link is stored beside the model.")
+                            : "Connect to Planscape first."
+                    };
+                    pickBtn.Click += async (s, e) =>
+                    {
+                        var client = BIMManager.PlanscapeServerClient.Instance;
+                        if (client == null || !client.IsConnected) { ShowStatus("Connect to Planscape first."); return; }
+                        if (!savedModel) { ShowStatus("Save the model first — the link is stored beside the .rvt."); return; }
+                        try
+                        {
+                            ShowStatus("Fetching your Planscape projects…");
+                            var projects = await client.GetProjectsAsync().ConfigureAwait(true);
+                            if (projects == null || projects.Count == 0)
+                            {
+                                ShowStatus("No Planscape projects are visible to your account.");
+                                return;
+                            }
+                            // Build "Name  ·  CODE" labels parallel to the JArray order.
+                            var rows = projects.Select(p => new
+                            {
+                                Id = p.Value<string>("id") ?? "",
+                                Name = p.Value<string>("name") ?? "",
+                                Code = p.Value<string>("code") ?? "",
+                            }).Where(r => !string.IsNullOrEmpty(r.Id)).ToList();
+                            var labels = rows.Select(r => $"{r.Name}  ·  {r.Code}").ToList();
+                            string picked = Select.StingListPicker.Show(
+                                "Link to Planscape Project",
+                                "Select the server project to link this model to.",
+                                labels);
+                            if (string.IsNullOrEmpty(picked)) { ShowStatus("Link cancelled."); return; }
+                            int idx = labels.IndexOf(picked);
+                            if (idx < 0 || idx >= rows.Count) { ShowStatus("Link cancelled."); return; }
+                            var chosen = rows[idx];
+                            if (!Guid.TryParse(chosen.Id, out var pid) || pid == Guid.Empty)
+                            { ShowStatus("That project has no valid id."); return; }
+
+                            BIMManager.PlanscapeProjectLink.Set(
+                                linkCfgPath, pid, chosen.Name, chosen.Code, client.ConnectedUser);
+                            if (_data != null)
+                            {
+                                _data.LinkedProjectId = pid;
+                                _data.LinkedProjectLabel = new BIMManager.PlanscapeProjectLink.LinkInfo(pid, chosen.Name, chosen.Code).Label;
+                            }
+                            RefreshLinkedHeader();
+                            ShowStatus($"Linked to {chosen.Name} ({chosen.Code}).");
+                            ShowPlatformDetail("Planscape"); // re-render to show Unlink + new state
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"[link] handler error: {ex.Message}");
+                            ShowStatus($"Link failed: {ex.Message}");
+                        }
+                    };
+                    linkBtnRow.Children.Add(pickBtn);
+
+                    if (curLink.IsLinked)
+                    {
+                        var unlinkBtn = new Button
+                        {
+                            Content = "Unlink", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0),
+                            Background = Br(CRed), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                            FontSize = 10, Cursor = Cursors.Hand,
+                            ToolTip = "Remove the Planscape project link from this model (invites fall back to copying a link; background sync stops)."
+                        };
+                        unlinkBtn.Click += (s, e) =>
+                        {
+                            try
+                            {
+                                BIMManager.PlanscapeProjectLink.Unlink(linkCfgPath);
+                                if (_data != null) { _data.LinkedProjectId = Guid.Empty; _data.LinkedProjectLabel = ""; }
+                                RefreshLinkedHeader();
+                                ShowStatus("Model unlinked from Planscape project.");
+                                ShowPlatformDetail("Planscape");
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"[unlink] handler error: {ex.Message}");
+                                ShowStatus($"Unlink failed: {ex.Message}");
+                            }
+                        };
+                        linkBtnRow.Children.Add(unlinkBtn);
+                    }
+                    linkStack.Children.Add(linkBtnRow);
+                    linkBorder.Child = linkStack;
+                    detailStack.Children.Add(linkBorder);
+                }
 
                 // ── Phase 102/103: Server status card (ALWAYS visible) ──
                 // Even when offline the card tells the user what they'll get
@@ -9831,52 +10291,163 @@ namespace StingTools.UI
             attMtgTypeRow.Children.Add(attTypeCb);
             attPanel.Children.Add(attMtgTypeRow);
 
-            // Attendee grid
+            // Attendee grid — EDITABLE. Bound to a per-meeting attendee collection seeded from
+            // the canonical SERVER members (_data.TeamMembers, loaded in BuildCoordData). The user
+            // adds/removes rows and edits cells; the Name column is a combo of server members so an
+            // attendee can be picked (which fills email + carries the server userId used for the
+            // real meeting-invite). External (non-member) guests can still be added by name+email.
+            var attendeeSource = new System.Collections.ObjectModel.ObservableCollection<TeamMemberRow>(_data.TeamMembers);
+            var attMemberNames = _data.TeamMembers
+                .Select(m => m.Name).Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct().OrderBy(n => n).ToList();
+            var attNameStyle = new Style(typeof(ComboBox));
+            attNameStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+
             var attDg = MakeExcelDataGrid(200);
             attDg.IsReadOnly = false;
-            attDg.Columns.Add(new DataGridCheckBoxColumn { Header = "✓", Binding = new System.Windows.Data.Binding("CanApprove"), Width = 28 });
-            attDg.Columns.Add(new DataGridTextColumn { Header = "Name", Binding = new System.Windows.Data.Binding("Name"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star), IsReadOnly = true });
-            attDg.Columns.Add(new DataGridTextColumn { Header = "Company", Binding = new System.Windows.Data.Binding("Company"), Width = new DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly = true });
-            attDg.Columns.Add(new DataGridTextColumn { Header = "Role", Binding = new System.Windows.Data.Binding("Role"), Width = new DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly = true });
-            attDg.Columns.Add(new DataGridTextColumn { Header = "Discipline", Binding = new System.Windows.Data.Binding("Discipline"), Width = 80, IsReadOnly = true });
-            attDg.Columns.Add(new DataGridTextColumn { Header = "Email", Binding = new System.Windows.Data.Binding("Email"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star), IsReadOnly = true });
-            attDg.ItemsSource = _data.TeamMembers.Count > 0
-                ? (System.Collections.IEnumerable)_data.TeamMembers
-                : new List<TeamMemberRow> {
-                    new() { Name = "BIM Manager", Company = "STING", Role = "Lead", Discipline = "BIM", CanApprove = true },
-                    new() { Name = "Project Manager", Company = "Client", Role = "PM", Discipline = "—", CanApprove = false },
-                    new() { Name = "Lead Architect", Company = "Architect", Role = "Design Lead", Discipline = "Architecture", CanApprove = false }
-                };
+            attDg.CanUserAddRows = true;
+            attDg.CanUserDeleteRows = true;
+            attDg.Columns.Add(new DataGridCheckBoxColumn { Header = "Invite", Binding = new System.Windows.Data.Binding("Active"), Width = 48 });
+            attDg.Columns.Add(new DataGridComboBoxColumn { Header = "Name", ItemsSource = attMemberNames, SelectedItemBinding = new System.Windows.Data.Binding("Name"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star), EditingElementStyle = attNameStyle });
+            attDg.Columns.Add(new DataGridTextColumn { Header = "Company", Binding = new System.Windows.Data.Binding("Company"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            attDg.Columns.Add(new DataGridTextColumn { Header = "Role", Binding = new System.Windows.Data.Binding("Role"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            attDg.Columns.Add(new DataGridTextColumn { Header = "Discipline", Binding = new System.Windows.Data.Binding("Discipline"), Width = 80 });
+            attDg.Columns.Add(new DataGridTextColumn { Header = "Email", Binding = new System.Windows.Data.Binding("Email"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            attDg.ItemsSource = attendeeSource;
+            // Picking an existing server member by name fills the rest of the row (incl. the
+            // server userId that the meeting-invite needs).
+            attDg.CellEditEnding += (s, e) =>
+            {
+                if (e.EditAction != DataGridEditAction.Commit) return;
+                if (!(e.Row?.Item is TeamMemberRow row)) return;
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    var match = _data.TeamMembers.FirstOrDefault(m =>
+                        m.ServerUserId.HasValue &&
+                        string.Equals(m.Name, row.Name, StringComparison.OrdinalIgnoreCase));
+                    if (match != null)
+                    {
+                        if (string.IsNullOrWhiteSpace(row.Email))      row.Email      = match.Email;
+                        if (string.IsNullOrWhiteSpace(row.Company))    row.Company    = match.Company;
+                        if (string.IsNullOrWhiteSpace(row.Role))       row.Role       = match.Role;
+                        if (string.IsNullOrWhiteSpace(row.Discipline)) row.Discipline = match.Discipline;
+                        row.ServerUserId   = match.ServerUserId;
+                        row.ServerMemberId = match.ServerMemberId;
+                        attDg.Items.Refresh();
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            };
 
-            // Add external attendee row
+            // Add external (non-member) attendee row → adds to the editable attendee grid.
             var extRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
             extRow.Children.Add(new TextBlock { Text = "Add external:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
-            var extNameTb = new System.Windows.Controls.TextBox { Width = 140, Height = 26, FontSize = 11, Margin = new Thickness(0, 0, 4, 0) };
+            var extNameTb = new System.Windows.Controls.TextBox { Width = 140, Height = 26, FontSize = 11, Margin = new Thickness(0, 0, 4, 0), ToolTip = "Name (non-member guest)" };
             var extEmailTb = new System.Windows.Controls.TextBox { Width = 180, Height = 26, FontSize = 11, Margin = new Thickness(0, 0, 4, 0), ToolTip = "Email address" };
             var extCompTb = new System.Windows.Controls.TextBox { Width = 120, Height = 26, FontSize = 11, Margin = new Thickness(0, 0, 4, 0), ToolTip = "Company" };
             var addExtBtn = new Button { Content = "+ Add", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand };
             addExtBtn.Click += (s, e) => {
                 if (!string.IsNullOrWhiteSpace(extNameTb.Text)) {
-                    _data.TeamMembers.Add(new TeamMemberRow { Name = extNameTb.Text, Email = extEmailTb.Text, Company = extCompTb.Text, Role = "External", Active = true });
-                    attDg.ItemsSource = null; attDg.ItemsSource = _data.TeamMembers;
+                    // External guest — no ServerUserId, so the meeting-invite endpoint won't target
+                    // them (it only invites project members). They show in the grid + copy-list.
+                    attendeeSource.Add(new TeamMemberRow { Name = extNameTb.Text, Email = extEmailTb.Text, Company = extCompTb.Text, Role = "External", Active = true });
                     extNameTb.Text = ""; extEmailTb.Text = ""; extCompTb.Text = "";
                 }
             };
             extRow.Children.Add(extNameTb); extRow.Children.Add(extEmailTb); extRow.Children.Add(extCompTb); extRow.Children.Add(addExtBtn);
 
+            // ── Real meeting-invite row (server) ───────────────────────────
+            // Resolve the linked server project (live, else per-model link file).
+            var attClient = BIMManager.PlanscapeServerClient.Instance;
+            Guid attPid = attClient.CurrentProjectId;
+            if (attPid == Guid.Empty)
+            {
+                try
+                {
+                    var lk = BIMManager.PlanscapeProjectLink.Load(
+                        BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                    if (lk.IsLinked) { attPid = lk.ProjectId; attClient.CurrentProjectId = attPid; }
+                }
+                catch (Exception lex) { StingLog.Warn($"[attendees] project-link resolve failed: {lex.Message}"); }
+            }
+
+            var inviteRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+            inviteRow.Children.Add(new TextBlock { Text = "Invite to meeting:", Width = 110, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+            var meetingPicker = new System.Windows.Controls.ComboBox { Width = 260, Height = 26, FontSize = 11, Margin = new Thickness(0, 0, 4, 0), ToolTip = "Pick the server meeting to invite the checked attendees to." };
+            void LoadServerMeetings()
+            {
+                meetingPicker.Items.Clear();
+                if (attClient.IsConnected && attPid != Guid.Empty)
+                {
+                    try
+                    {
+                        var arr = System.Threading.Tasks.Task.Run(() => attClient.GetMeetingsAsync(attPid, false)).GetAwaiter().GetResult();
+                        if (arr != null)
+                            foreach (var m in arr)
+                            {
+                                if (!Guid.TryParse((string)m["id"], out var g)) continue;
+                                string title = (string)m["title"] ?? "(untitled)";
+                                DateTime? when = (DateTime?)m["scheduledAt"];
+                                meetingPicker.Items.Add(new ComboBoxItem { Content = title + (when.HasValue ? " · " + when.Value.ToString("yyyy-MM-dd HH:mm") : ""), Tag = g });
+                            }
+                    }
+                    catch (Exception mex) { StingLog.Warn($"[attendees] load meetings failed: {mex.Message}"); }
+                }
+                if (meetingPicker.Items.Count > 0) meetingPicker.SelectedIndex = 0;
+            }
+            LoadServerMeetings();
+            var refreshMtgBtn = new Button { Content = "⟳", Height = 26, Width = 28, Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0), ToolTip = "Reload meetings from the server" };
+            refreshMtgBtn.Click += (s, e) => LoadServerMeetings();
+            var newSrvMtgBtn = new Button { Content = "＋ Meeting", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0), ToolTip = "Create a meeting on the server so it can be invited to." };
+            newSrvMtgBtn.Click += async (s, e) =>
+            {
+                if (!attClient.IsConnected || attPid == Guid.Empty) { ShowStatus("Connect + link a Planscape project first."); return; }
+                var id = await attClient.CreateMeetingAsync(attPid, "Coordination meeting", "BIM_COORD", DateTime.Now.AddDays(1)).ConfigureAwait(true);
+                if (!string.IsNullOrEmpty(id)) { ShowStatus($"Created server meeting {id}."); LoadServerMeetings(); }
+                else ShowStatus("Create meeting failed — see log.");
+            };
+            inviteRow.Children.Add(meetingPicker); inviteRow.Children.Add(refreshMtgBtn); inviteRow.Children.Add(newSrvMtgBtn);
+
             var attBtnRow = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
-            var saveAttBtn = new Button { Content = "Save Template", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
-            var sendInvBtn = new Button { Content = "📧 Send Invites", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0), ToolTip = "Generate email invites / calendar entries for all checked attendees" };
+            var removeAttBtn = new Button { Content = "✕ Remove", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(CRed), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0), ToolTip = "Remove the selected attendee row" };
+            var sendInvBtn = new Button { Content = "📧 Send Invites", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0), ToolTip = "Send a real meeting invitation (in-app + email) with a tap-to-join deep link to every checked project-member attendee." };
             var copyListBtn = new Button { Content = "Copy List", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand };
-            saveAttBtn.Click += (s, e) => DispatchAction("SaveProjectMembers");
-            sendInvBtn.Click += (s, e) => DispatchAction("SendMeetingInvites");
+            removeAttBtn.Click += (s, e) => { if (attDg.SelectedItem is TeamMemberRow ar) attendeeSource.Remove(ar); };
+            sendInvBtn.Click += async (s, e) =>
+            {
+                if (!(meetingPicker.SelectedItem is ComboBoxItem mi && mi.Tag is Guid meetingId))
+                { ShowStatus("Pick a server meeting (or ＋ Meeting to create one)."); return; }
+                if (!attClient.IsConnected || attPid == Guid.Empty)
+                { ShowStatus("Connect + link a Planscape project to send invites."); return; }
+
+                var memberIds = attendeeSource.Where(a => a.Active && a.ServerUserId.HasValue)
+                    .Select(a => a.ServerUserId.Value).Distinct().ToList();
+                int externalCount = attendeeSource.Count(a => a.Active && !a.ServerUserId.HasValue);
+                if (memberIds.Count == 0)
+                { ShowStatus("No checked project-member attendees. External guests must be added to the project first (PLATFORM → Access → Save)."); return; }
+
+                ShowStatus($"Inviting {memberIds.Count} attendee(s) to the meeting…");
+                var res = await attClient.InviteToMeetingAsync(attPid, meetingId, memberIds, null, true).ConfigureAwait(true);
+                if (!res.Reachable) { ShowStatus($"Server unreachable: {res.Message}"); return; }
+                if (!res.Ok) { ShowStatus($"Invite failed: {res.Message}"); return; }
+
+                string body =
+                    $"POST /api/projects/{attPid}/meetings/{meetingId}/invite\n\n" +
+                    $"Invited {res.Count} project member(s).\n" +
+                    $"  • in-app (SignalR): yes\n" +
+                    $"  • email sent: {res.EmailsSent} (email {(res.EmailConfigured ? "configured" : "not configured")})\n" +
+                    $"  • push: {(res.PushConfigured ? "sent" : "skipped — no FCM configured")}\n" +
+                    (externalCount > 0 ? $"  • {externalCount} external guest(s) skipped (not project members)\n" : "") +
+                    $"\nTap-to-join deep link:\n{res.DeepLink}\n\nWeb fallback:\n{res.WebUrl}";
+                ShowStatus($"Invited {res.Count} attendee(s) — deep link: {res.DeepLink}");
+                TaskDialog.Show("Meeting Invitations Sent", body);
+            };
             copyListBtn.Click += (s, e) => {
-                var names = _data.TeamMembers.Where(m => m.Active).Select(m => m.Email ?? m.Name);
+                var names = attendeeSource.Where(m => m.Active).Select(m => m.Email ?? m.Name);
                 Clipboard.SetText(string.Join("; ", names));
             };
-            attBtnRow.Children.Add(saveAttBtn); attBtnRow.Children.Add(sendInvBtn); attBtnRow.Children.Add(copyListBtn);
+            attBtnRow.Children.Add(removeAttBtn); attBtnRow.Children.Add(sendInvBtn); attBtnRow.Children.Add(copyListBtn);
 
-            attPanel.Children.Add(attDg); attPanel.Children.Add(extRow); attPanel.Children.Add(attBtnRow);
+            attPanel.Children.Add(attDg); attPanel.Children.Add(extRow); attPanel.Children.Add(inviteRow); attPanel.Children.Add(attBtnRow);
             var sv6B = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = attPanel };
 
             // ── Sub-tab C: Action Items ────────────────────────────────────
@@ -10054,9 +10625,85 @@ namespace StingTools.UI
             }
             var sv6F = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = autoPanel };
 
+            // ── Sub-tab G: Recordings ──────────────────────────────────────
+            // Lists every meeting recording for the project via the SAME server endpoint
+            // the web uses (GET /api/projects/{id}/recordings → presigned MinIO URLs).
+            var recPanel = new StackPanel { Margin = new Thickness(12) };
+            recPanel.Children.Add(MakeSectionHeader("MEETING RECORDINGS"));
+            recPanel.Children.Add(new TextBlock { Text = "Recordings captured via LiveKit Egress (camera/mic/screen), newest first. Open plays the presigned MinIO URL in your browser.", FontSize = 11, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
+
+            var recSource = new System.Collections.ObjectModel.ObservableCollection<RecordingDisplayRow>();
+            var recDg = MakeExcelDataGrid(260);
+            recDg.IsReadOnly = true;
+            recDg.CanUserAddRows = false;
+            recDg.Columns.Add(new DataGridTextColumn { Header = "Recording", Binding = new System.Windows.Data.Binding("Label"),    Width = new DataGridLength(1.6, DataGridLengthUnitType.Star) });
+            recDg.Columns.Add(new DataGridTextColumn { Header = "Kind",      Binding = new System.Windows.Data.Binding("Kind"),     Width = 70 });
+            recDg.Columns.Add(new DataGridTextColumn { Header = "Status",    Binding = new System.Windows.Data.Binding("Status"),   Width = 90 });
+            recDg.Columns.Add(new DataGridTextColumn { Header = "Started",   Binding = new System.Windows.Data.Binding("Started"),  Width = 130 });
+            recDg.Columns.Add(new DataGridTextColumn { Header = "Duration",  Binding = new System.Windows.Data.Binding("Duration"), Width = 80 });
+            recDg.Columns.Add(new DataGridTextColumn { Header = "Size",      Binding = new System.Windows.Data.Binding("Size"),     Width = 80 });
+            recDg.ItemsSource = recSource;
+
+            var recClient = BIMManager.PlanscapeServerClient.Instance;
+            Guid recPid = recClient.CurrentProjectId;
+            if (recPid == Guid.Empty)
+            {
+                try
+                {
+                    var lk = BIMManager.PlanscapeProjectLink.Load(
+                        BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                    if (lk.IsLinked) { recPid = lk.ProjectId; recClient.CurrentProjectId = recPid; }
+                }
+                catch (Exception lex) { StingLog.Warn($"[recordings] project-link resolve failed: {lex.Message}"); }
+            }
+
+            string FmtDur(double? s) => !s.HasValue || s <= 0 ? "—" : TimeSpan.FromSeconds(s.Value).ToString(s.Value >= 3600 ? @"h\:mm\:ss" : @"m\:ss");
+            string FmtSize(long? b) => !b.HasValue || b <= 0 ? "—" : b >= 1048576 ? $"{b.Value / 1048576.0:0.0} MB" : $"{b.Value / 1024.0:0.0} KB";
+
+            async System.Threading.Tasks.Task LoadRecordingsAsync()
+            {
+                if (!recClient.IsConnected || recPid == Guid.Empty)
+                { ShowStatus("Connect + link a Planscape project to list recordings."); return; }
+                ShowStatus("Loading recordings from server…");
+                var rows = await recClient.GetProjectRecordingsAsync(recPid).ConfigureAwait(true);
+                recSource.Clear();
+                foreach (var r in rows)
+                    recSource.Add(new RecordingDisplayRow
+                    {
+                        Label    = r.Label ?? r.MeetingTitle ?? (r.AdHoc ? "Ad-hoc session" : "Recording"),
+                        Kind     = r.Kind ?? "video",
+                        Status   = r.Status ?? "",
+                        Started  = r.StartedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "",
+                        Duration = FmtDur(r.DurationSeconds),
+                        Size     = FmtSize(r.FileSizeBytes),
+                        DownloadUrl = r.DownloadUrl ?? "",
+                        Playable = !string.IsNullOrEmpty(r.DownloadUrl) &&
+                                   string.Equals(r.Status, "COMPLETE", StringComparison.OrdinalIgnoreCase),
+                    });
+                ShowStatus($"Loaded {recSource.Count} recording(s).");
+            }
+
+            var recToolbar = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var recRefreshBtn = new Button { Content = "⟳ Refresh", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var recOpenBtn = new Button { Content = "▶ Open / Play", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0), ToolTip = "Open the selected recording's presigned URL in your browser." };
+            recRefreshBtn.Click += async (s, e) => { try { await LoadRecordingsAsync(); } catch (Exception ex) { StingLog.Warn($"[recordings] refresh: {ex.Message}"); ShowStatus("Failed to load recordings — see log."); } };
+            recOpenBtn.Click += (s, e) =>
+            {
+                if (!(recDg.SelectedItem is RecordingDisplayRow row)) { ShowStatus("Select a recording row first."); return; }
+                if (!row.Playable || string.IsNullOrEmpty(row.DownloadUrl)) { ShowStatus($"Not playable yet (status {row.Status})."); return; }
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(row.DownloadUrl) { UseShellExecute = true }); }
+                catch (Exception ex) { StingLog.Warn($"[recordings] open failed: {ex.Message}"); ShowStatus("Couldn't open the recording URL."); }
+            };
+            recToolbar.Children.Add(recRefreshBtn); recToolbar.Children.Add(recOpenBtn);
+            recPanel.Children.Add(recToolbar); recPanel.Children.Add(recDg);
+            // Eager first load (best-effort; refresh button re-pulls).
+            _ = LoadRecordingsAsync();
+            var sv6G = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = recPanel };
+
             // Build sub-tabs
             outerTabs.Items.Add(new TabItem { Header = "Meetings Register", Content = sv6A });
             outerTabs.Items.Add(new TabItem { Header = "Attendee Manager",  Content = sv6B });
+            outerTabs.Items.Add(new TabItem { Header = "Recordings",        Content = sv6G });
             outerTabs.Items.Add(new TabItem { Header = "Action Items",      Content = sv6C });
             outerTabs.Items.Add(new TabItem { Header = "Minutes Editor",    Content = sv6D });
             outerTabs.Items.Add(new TabItem { Header = "Analytics",         Content = sv6E });

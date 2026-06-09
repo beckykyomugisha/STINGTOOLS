@@ -28,19 +28,28 @@ public class MeetingsController : ControllerBase
     private readonly IPushNotificationService _push;
     private readonly IAuditService _audit;
     private readonly ILogger<MeetingsController> _logger;
+    private readonly IConfiguration _config;   // N2 — egress presign config
+    private readonly Planscape.Core.Interfaces.INotificationService _notifications;   // N — live/scheduled notify
+    private readonly Planscape.Core.Interfaces.IEmailService _email;   // P1 — meeting-invite email channel
 
     public MeetingsController(
         PlanscapeDbContext db,
         IHubContext<NotificationHub> notifHub,
         IPushNotificationService push,
         IAuditService audit,
-        ILogger<MeetingsController> logger)
+        ILogger<MeetingsController> logger,
+        IConfiguration config,
+        Planscape.Core.Interfaces.INotificationService notifications,
+        Planscape.Core.Interfaces.IEmailService email)
     {
         _db = db;
         _notifHub = notifHub;
         _push = push;
         _audit = audit;
         _logger = logger;
+        _config = config;
+        _notifications = notifications;
+        _email = email;
     }
 
     // ── List ─────────────────────────────────────────────────────────────────
@@ -81,6 +90,12 @@ public class MeetingsController : ControllerBase
                 ActionItemCount = m.ActionItems.Count,
                 OpenActions = m.ActionItems.Count(a => a.Status == "OPEN" || a.Status == "IN_PROGRESS"),
                 HasMinutes = m.Minutes != null || m.MinutesDocumentId != null,
+                // N5 — the live (LiveKit/SignalR) session currently backing this scheduled
+                // meeting, if any. Non-null ⇒ the /app Meetings page shows an in-progress
+                // badge + "Join live". Correlated by MeetingSession.MeetingId == meeting.Id.
+                LiveSessionId = _db.MeetingSessions
+                    .Where(s => s.MeetingId == m.Id && s.Status == "ACTIVE")
+                    .Select(s => (Guid?)s.Id).FirstOrDefault(),
             })
             .ToListAsync();
 
@@ -100,6 +115,11 @@ public class MeetingsController : ControllerBase
             .FirstOrDefaultAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId);
         if (meeting == null) return NotFound();
 
+        // N5 — the active live session backing this meeting (in-progress badge + Join).
+        var liveSessionId = await _db.MeetingSessions
+            .Where(s => s.MeetingId == meetingId && s.ProjectId == projectId && s.Status == "ACTIVE")
+            .Select(s => (Guid?)s.Id).FirstOrDefaultAsync();
+
         return Ok(new
         {
             meeting.Id, meeting.Title, meeting.MeetingType, meeting.ScheduledAt,
@@ -107,6 +127,7 @@ public class MeetingsController : ControllerBase
             meeting.Minutes, meeting.MinutesDocumentId, meeting.NotifiedUserIds,
             meeting.RecurrenceRule, meeting.SeriesId,
             meeting.CreatedBy, meeting.CreatedByUserId, meeting.CreatedAt,
+            LiveSessionId = liveSessionId,
             Attendees = meeting.Attendees.OrderBy(a => a.Role).ThenBy(a => a.Name).Select(a => new
             {
                 a.Id, a.UserId, a.Name, a.Email, a.Company, a.Discipline,
@@ -221,6 +242,10 @@ public class MeetingsController : ControllerBase
 
         // Send push notifications to each invited user (registered members only)
         await PushMeetingInvitesAsync(meeting, projectId, creatorId, "New Meeting");
+        // N — surface the scheduled meeting in-app on the dashboard (lightweight SignalR
+        // refresh event to the project group; no push — invitees already got the push above).
+        _ = _notifications.NotifyProjectEventAsync(projectId, "MeetingScheduled",
+            new { meeting.Id, meeting.Title, meeting.ScheduledAt, meeting.MeetingType, projectId });
 
         return CreatedAtAction(nameof(GetMeeting), new { projectId, meetingId = meeting.Id }, meeting);
     }
@@ -430,6 +455,184 @@ public class MeetingsController : ControllerBase
         });
 
         return Ok(new { attendee.Id, attendee.UserId, attendee.Name, attendee.Email, attendee.Role, attendee.AttendanceStatus });
+    }
+
+    // ── Invite to meeting (push → tap to join) ─────────────────────────────────
+
+    /// <summary>
+    /// P1 — Invite specific project members to THIS meeting (distinct from the
+    /// project-member invite, which adds someone to the project). For each invitee
+    /// we (1) ensure a durable meeting-invite record (a MeetingAttendee row,
+    /// status INVITED), then deliver via three channels:
+    ///   (a) in-app — SignalR "Notification" to the per-user group (web + any
+    ///       connected client toast);
+    ///   (b) mobile push — FCM/APNs via the DevicePushToken store;
+    ///   (c) email (optional) — when configured + the member has an address.
+    /// The payload carries a deep link <c>planscape://meeting/{meetingId}?project={projectId}</c>
+    /// plus a web fallback <c>{PublicBaseUrl}/viewer.html?project={projectId}&amp;meeting={meetingId}</c>.
+    /// Authorised by project membership (the same gate the rest of this controller
+    /// and the project-invite flow use). Graceful degradation: when no FCM is
+    /// wired the push fan-out is skipped (still in-app + email) and logged.
+    /// </summary>
+    [HttpPost("{meetingId}/invite")]
+    public async Task<ActionResult> InviteToMeeting(Guid projectId, Guid meetingId, [FromBody] MeetingInviteRequest req, CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        var meeting = await _db.Meetings
+            .FirstOrDefaultAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId, ct);
+        if (meeting == null) return NotFound("Meeting not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
+        var targetIds = (req?.UserIds ?? Array.Empty<Guid>()).Distinct().ToList();
+        if (targetIds.Count == 0) return BadRequest(new { error = "No invitees — supply userIds[] of project members to invite." });
+
+        Guid? inviterId = Guid.TryParse(User.FindFirst("user_id")?.Value ?? User.FindFirst("sub")?.Value, out var iid) ? iid : null;
+        var inviterName = User.FindFirst("display_name")?.Value ?? User.Identity?.Name ?? "A colleague";
+        var projName = await _db.Projects.Where(p => p.Id == projectId).Select(p => p.Name).FirstOrDefaultAsync(ct) ?? "the project";
+
+        // Only invite users who are genuine project members of this tenant.
+        var memberIds = await _db.ProjectMembers
+            .Where(m => m.ProjectId == projectId && targetIds.Contains(m.UserId))
+            .Select(m => m.UserId).Distinct().ToListAsync(ct);
+        var invitees = await _db.Users
+            .Where(u => u.TenantId == tenantId && memberIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName, u.Email })
+            .ToListAsync(ct);
+
+        // Links: app deep link + web fallback. PublicBaseUrl is the single source of
+        // truth for an externally-reachable host (Cloudflare tunnel / cloud).
+        var publicBase = (_config["Planscape:PublicBaseUrl"]
+            ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
+        var deepLink = $"planscape://meeting/{meetingId}?project={projectId}";
+        var webUrl = $"{publicBase}/viewer.html?project={projectId}&meeting={meetingId}";
+
+        var whenText = $"{meeting.ScheduledAt:ddd d MMM HH:mm}{(meeting.Location != null ? " · " + meeting.Location : "")}";
+        var title = $"Meeting invitation: {meeting.Title}";
+        var body = string.IsNullOrWhiteSpace(req?.Message) ? $"{inviterName} invited you · {whenText}" : req!.Message!;
+
+        var pushConfigured = _push.IsConfigured;
+        if (!pushConfigured)
+            _logger.LogInformation("[meeting-invite] push skipped (no FCM); notified in-app/email — meeting {MeetingId}", meetingId);
+
+        var existing = await _db.MeetingAttendees
+            .Where(a => a.MeetingId == meetingId && a.UserId.HasValue)
+            .Select(a => a.UserId!.Value).ToListAsync(ct);
+        var existingSet = new HashSet<Guid>(existing);
+
+        var invitedOut = new List<object>();
+        int emailsSent = 0, pushed = 0;
+        foreach (var u in invitees)
+        {
+            // (1) durable meeting-invite record (idempotent — don't duplicate attendees)
+            if (!existingSet.Contains(u.Id))
+            {
+                _db.MeetingAttendees.Add(new MeetingAttendee
+                {
+                    TenantId = tenantId,
+                    MeetingId = meetingId,
+                    UserId = u.Id,
+                    Name = u.DisplayName ?? u.Email ?? "Member",
+                    Email = u.Email,
+                    Role = "ATTENDEE",
+                    AttendanceStatus = "INVITED",
+                });
+                existingSet.Add(u.Id);
+            }
+
+            // (a) in-app (SignalR) — guaranteed regardless of push/email config
+            _ = _notifHub.Clients.Group($"user_{u.Id}").SendAsync("Notification", new
+            {
+                type = "meeting_invite",
+                meetingId = meetingId.ToString(),
+                projectId = projectId.ToString(),
+                title,
+                body,
+                message = body,
+                deepLink,
+                webUrl,
+            }, ct);
+
+            // (b) mobile push — gated on FCM config (graceful degradation)
+            if (pushConfigured)
+            {
+                _ = _push.SendToUserAsync(u.Id, new PushPayload
+                {
+                    Title = title,
+                    Body = body,
+                    Channel = "meetings",
+                    Priority = "high",
+                    Data = new Dictionary<string, string>
+                    {
+                        ["type"] = "meeting_invite",
+                        ["meetingId"] = meetingId.ToString(),
+                        ["projectId"] = projectId.ToString(),
+                        ["deepLink"] = deepLink,
+                        ["webUrl"] = webUrl,
+                    }
+                }, ct);
+                pushed++;
+            }
+
+            // (c) email (optional)
+            if ((req?.SendEmail ?? false) && _email.IsConfigured && !string.IsNullOrWhiteSpace(u.Email))
+            {
+                try
+                {
+                    await _email.SendNotificationAsync(u.Email!,
+                        title,
+                        BuildInviteEmailHtml(meeting.Title, projName, inviterName, whenText, body, webUrl, deepLink),
+                        ct);
+                    emailsSent++;
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "[meeting-invite] email failed for {Email}", u.Email); }
+            }
+
+            invitedOut.Add(new { userId = u.Id, name = u.DisplayName, email = u.Email });
+        }
+
+        await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("MEETING_INVITE", "Meeting", meetingId.ToString(),
+            System.Text.Json.JsonSerializer.Serialize(new { invited = invitedOut.Count, pushConfigured, emailsSent, by = inviterName }));
+
+        // Surface the roster change to anyone viewing the meeting list/detail.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("MeetingUpdated", new
+        {
+            meetingId, projectId, kind = "invited", count = invitedOut.Count
+        }, ct);
+
+        _logger.LogInformation("[meeting-invite] meeting {MeetingId}: invited {Count} member(s) — push={Pushed} email={Emails}",
+            meetingId, invitedOut.Count, pushed, emailsSent);
+
+        return Ok(new
+        {
+            meetingId,
+            invited = invitedOut,
+            count = invitedOut.Count,
+            pushConfigured,
+            emailConfigured = _email.IsConfigured,
+            emailsSent,
+            deepLink,
+            webUrl,
+        });
+    }
+
+    private static string BuildInviteEmailHtml(string meetingTitle, string projectName, string inviter, string when, string note, string webUrl, string deepLink)
+    {
+        string Esc(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
+        return $@"<div style='font-family:Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto'>
+  <h2 style='color:#1f2937;margin:0 0 4px'>Meeting invitation</h2>
+  <p style='color:#374151;font-size:15px'><strong>{Esc(inviter)}</strong> invited you to a meeting in <strong>{Esc(projectName)}</strong>.</p>
+  <table style='border-collapse:collapse;margin:12px 0;font-size:14px;color:#374151'>
+    <tr><td style='padding:4px 12px 4px 0;color:#6b7280'>Meeting</td><td><strong>{Esc(meetingTitle)}</strong></td></tr>
+    <tr><td style='padding:4px 12px 4px 0;color:#6b7280'>When</td><td>{Esc(when)}</td></tr>
+  </table>
+  {(string.IsNullOrWhiteSpace(note) ? "" : $"<p style='color:#374151;font-size:14px'>{Esc(note)}</p>")}
+  <p style='margin:20px 0'>
+    <a href='{Esc(webUrl)}' style='background:#2563eb;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:15px;display:inline-block'>Join the meeting</a>
+  </p>
+  <p style='color:#6b7280;font-size:12px'>On your phone the Planscape app opens this meeting directly: <code>{Esc(deepLink)}</code></p>
+  <p style='color:#9ca3af;font-size:12px'>If the button doesn't work, paste this link into your browser:<br>{Esc(webUrl)}</p>
+</div>";
     }
 
     [HttpPut("{meetingId}/attendees/{attendeeId}")]
@@ -847,6 +1050,209 @@ public class MeetingsController : ControllerBase
         });
     }
 
+    // ── N5 — BCC meeting ⇄ live meeting bridge ────────────────────────────────
+
+    /// <summary>
+    /// N5 — "Join live" from a scheduled BCC meeting. Returns the ACTIVE live
+    /// <see cref="MeetingSession"/> bound to this Meeting, creating one (and making
+    /// the caller host) if none exists. Idempotent: a second caller joins the SAME
+    /// session. Flips the meeting to IN_PROGRESS on first start. The client then
+    /// opens the viewer at <c>?meeting={sessionId}</c> (web) or the native meeting
+    /// screen — the same session the formal Meeting's artifacts flow back into.
+    /// </summary>
+    [HttpPost("{meetingId}/live-session")]
+    public async Task<ActionResult> StartOrJoinLiveSession(Guid projectId, Guid meetingId, [FromBody] StartLiveSessionRequest? req, CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        var meeting = await _db.Meetings
+            .FirstOrDefaultAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId, ct);
+        if (meeting == null) return NotFound("Meeting not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        Guid? userId = Guid.TryParse(User.FindFirst("user_id")?.Value ?? User.FindFirst("sub")?.Value, out var uid) ? uid : null;
+
+        var session = await _db.MeetingSessions
+            .FirstOrDefaultAsync(s => s.MeetingId == meetingId && s.ProjectId == projectId && s.Status == "ACTIVE", ct);
+        var isNew = false;
+        if (session == null)
+        {
+            session = new MeetingSession
+            {
+                TenantId = tenantId,
+                ProjectId = projectId,
+                MeetingId = meetingId,
+                ModelId = req?.ModelId,
+                HostUserId = userId,
+                Status = "ACTIVE",
+                CreatedBy = User.FindFirst("display_name")?.Value ?? User.Identity?.Name ?? "",
+                CreatedByUserId = userId,
+            };
+            _db.MeetingSessions.Add(session);
+            if (userId is { } hostId)
+            {
+                _db.MeetingViewerParticipants.Add(new MeetingViewerParticipant
+                {
+                    TenantId = tenantId,
+                    SessionId = session.Id,
+                    UserId = hostId,
+                    DisplayName = req?.DisplayName ?? User.FindFirst("display_name")?.Value ?? User.Identity?.Name ?? "Host",
+                    IsHost = true,
+                    IsFollowingHost = false,
+                    Surface = req?.Surface ?? "web",
+                });
+            }
+            // First Join Live flips the scheduled meeting to in-progress.
+            if (meeting.Status == "SCHEDULED") meeting.Status = "IN_PROGRESS";
+            await _db.SaveChangesAsync(ct);
+            isNew = true;
+            await _audit.LogAsync("LIVE_START", "Meeting", meeting.Id.ToString(),
+                System.Text.Json.JsonSerializer.Serialize(new { sessionId = session.Id }));
+            // N — notify the other project members the live meeting started (in-app + push).
+            await NotifyLiveMeetingStartedAsync(projectId, session.Id, userId, ct);
+        }
+
+        return Ok(new
+        {
+            sessionId = session.Id,
+            meetingId,
+            isNew,
+            status = session.Status,
+            modelId = session.ModelId,
+            hostUserId = session.HostUserId,
+        });
+    }
+
+    /// <summary>
+    /// N5 — live artifacts captured against this meeting's session(s): viewpoint /
+    /// markup snapshots, attendance (from the live viewer roster), and the linked
+    /// sessions themselves. Action items already live on the Meeting (added live via
+    /// the meeting link). Recordings land here once N2 (LiveKit Egress) is deployed —
+    /// returned empty until then.
+    /// </summary>
+    [HttpGet("{meetingId}/live-artifacts")]
+    public async Task<ActionResult> GetLiveArtifacts(Guid projectId, Guid meetingId, CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        var owned = await _db.Meetings.AnyAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId, ct);
+        if (!owned) return NotFound();
+
+        var sessionIds = await _db.MeetingSessions
+            .Where(s => s.MeetingId == meetingId && s.ProjectId == projectId)
+            .Select(s => s.Id).ToListAsync(ct);
+
+        var sessions = await _db.MeetingSessions
+            .Where(s => s.MeetingId == meetingId && s.ProjectId == projectId)
+            .OrderByDescending(s => s.CreatedAt)
+            .Select(s => new { s.Id, s.Status, s.HostUserId, s.ModelId, s.CreatedAt, s.EndedAt })
+            .ToListAsync(ct);
+
+        var snapshots = await _db.MeetingSnapshots
+            .Where(x => sessionIds.Contains(x.SessionId))
+            .OrderByDescending(x => x.CapturedAt)
+            .Select(x => new { x.Id, x.SessionId, x.Label, x.CapturedBy, x.CapturedByUserId, x.CapturedAt })
+            .ToListAsync(ct);
+
+        var attendance = await _db.MeetingViewerParticipants
+            .Where(p => sessionIds.Contains(p.SessionId))
+            .GroupBy(p => new { p.UserId, p.DisplayName })
+            .Select(g => new
+            {
+                g.Key.UserId,
+                g.Key.DisplayName,
+                FirstJoinedAt = g.Min(p => p.JoinedAt),
+                LastSeenAt = g.Max(p => p.LastSeenAt),
+            })
+            .ToListAsync(ct);
+
+        // N2 — recordings for this meeting's session(s) (LiveKit Egress → object store),
+        // each with a presigned (browser-reachable) playback/download URL.
+        var recRows = await _db.MeetingRecordings
+            .Where(r => sessionIds.Contains(r.SessionId))
+            .OrderByDescending(r => r.StartedAt)
+            .Select(r => new { r.Id, r.SessionId, r.Kind, r.Status, r.StorageKey, r.FileName, r.FileSizeBytes, r.DurationSeconds, r.StartedAt, r.EndedAt })
+            .ToListAsync(ct);
+        var egress = new LiveKitEgressClient(_config);
+        var recordings = recRows.Select(r => new
+        {
+            r.Id, r.SessionId, r.Kind, r.Status, r.StorageKey, r.FileName, r.FileSizeBytes, r.DurationSeconds, r.StartedAt, r.EndedAt,
+            downloadUrl = egress.GetPresignedGetUrl(r.StorageKey, TimeSpan.FromHours(6)),
+        }).ToList();
+
+        return Ok(new { meetingId, sessions, snapshots, attendance, recordings });
+    }
+
+    /// <summary>
+    /// Project-level recordings archive (newest first) — EVERY meeting recording in the
+    /// project, covering BOTH scheduled-meeting recordings AND ad-hoc live-session
+    /// recordings not tied to a formal Meeting (labelled by session date/host so nothing
+    /// is orphaned). Each COMPLETE recording carries a short-lived presigned playback/
+    /// download URL. Members-only (ProjectVisibility gate). Absolute route so it sits at
+    /// /api/projects/{id}/recordings (beside Meetings), not under …/meetings.
+    /// </summary>
+    [HttpGet("~/api/projects/{projectId}/recordings")]
+    public async Task<ActionResult> GetProjectRecordings(Guid projectId, CancellationToken ct)
+    {
+        if (!await Planscape.Infrastructure.Services.ProjectVisibility.CanSeeProjectAsync(_db, projectId, User)) return NotFound();
+
+        var rows = await _db.MeetingRecordings
+            .Where(r => r.ProjectId == projectId)
+            .OrderByDescending(r => r.StartedAt)
+            .Select(r => new { r.Id, r.SessionId, r.MeetingId, r.Kind, r.Status, r.StorageKey,
+                r.FileName, r.FileSizeBytes, r.DurationSeconds, r.StartedAt, r.EndedAt, r.StartedBy })
+            .ToListAsync(ct);
+
+        var meetingIds = rows.Where(r => r.MeetingId != null).Select(r => r.MeetingId!.Value).Distinct().ToList();
+        var titles = await _db.Meetings.Where(m => meetingIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.Title }).ToDictionaryAsync(m => m.Id, m => m.Title, ct);
+
+        var egress = new LiveKitEgressClient(_config);
+        var recordings = rows.Select(r =>
+        {
+            var hasTitle = r.MeetingId != null && titles.ContainsKey(r.MeetingId.Value);
+            return new
+            {
+                r.Id, r.SessionId, r.MeetingId, r.Kind, r.Status, r.FileName, r.FileSizeBytes,
+                r.DurationSeconds, r.StartedAt, r.EndedAt,
+                meetingTitle = hasTitle ? titles[r.MeetingId!.Value] : null,
+                adHoc = r.MeetingId == null,
+                // P4 — ad-hoc sessions (no formal Meeting) labelled by date/host so they
+                // still surface in the archive instead of being orphaned.
+                label = hasTitle ? titles[r.MeetingId!.Value]
+                    : $"Ad-hoc session · {r.StartedAt:yyyy-MM-dd HH:mm}" + (string.IsNullOrWhiteSpace(r.StartedBy) ? "" : $" · {r.StartedBy}"),
+                downloadUrl = string.IsNullOrEmpty(r.StorageKey) ? null : egress.GetPresignedGetUrl(r.StorageKey, TimeSpan.FromHours(6)),
+            };
+        }).ToList();
+
+        return Ok(new { projectId, recordings });
+    }
+
+    public class StartLiveSessionRequest
+    {
+        public Guid? ModelId { get; set; }
+        public string? DisplayName { get; set; }
+        public string? Surface { get; set; }
+    }
+
+    // N — notify project members a LIVE meeting started (in-app + push, per-user prefs),
+    // excl. the starter; membership-filtered; deep link ?meeting={sessionId}. Best-effort.
+    private async Task NotifyLiveMeetingStartedAsync(Guid projectId, Guid sessionId, Guid? starterUserId, CancellationToken ct)
+    {
+        try
+        {
+            var projName = await _db.Projects.Where(p => p.Id == projectId).Select(p => p.Name).FirstOrDefaultAsync(ct) ?? "the project";
+            var starter = User.FindFirst("display_name")?.Value ?? User.Identity?.Name ?? "Someone";
+            var members = await _db.ProjectMembers.Where(m => m.ProjectId == projectId).Select(m => m.UserId).Distinct().ToListAsync(ct);
+            var data = new { type = "meeting_live", meetingSessionId = sessionId, projectId, deepLink = $"?meeting={sessionId}" };
+            foreach (var uid in members)
+            {
+                if (starterUserId.HasValue && uid == starterUserId.Value) continue;
+                await _notifications.NotifyUserAsync(uid, $"{starter} started a meeting",
+                    $"Join the live meeting in {projName}", data, ct);
+            }
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "[meeting-notify] live notify failed"); }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private async Task PushMeetingInvitesAsync(Meeting meeting, Guid projectId, Guid? skipUserId, string subject)
@@ -977,6 +1383,12 @@ public record AddAttendeeRequest(
     string? Company,
     string? Discipline,
     string? Role);
+
+/// <summary>P1 — invite existing project members to a meeting (push → tap to join).</summary>
+public record MeetingInviteRequest(
+    Guid[]? UserIds,
+    string? Message,
+    bool SendEmail = false);
 
 public record UpdateAttendeeRequest(
     string? AttendanceStatus,

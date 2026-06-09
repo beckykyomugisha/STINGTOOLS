@@ -45,6 +45,23 @@
   function initCoordination() {
     const V = window.STING_VIEWER;
     const THREE_ = window.THREE;
+    // FEDERATION — the group holding EVERY loaded model root. The viz layer (resolver,
+    // index, picking, aggregation) traverses this so appearance/isolate/colour span all
+    // loaded models, not just the active one. Falls back to the single root pre-pivot.
+    function vizGroup() { return (V && V.modelGroup) || (V && V.modelRoot) || null; }
+    // V1 — keep only PICKABLE intersections: a mesh whose self + ancestors are visible AND
+    // whose appearance state isn't ghost / x-ray / transparent. Mirrors the engine's
+    // isPickableMesh so a click passes through ghosted/x-rayed elements to the solid behind.
+    function pickableHits(hits) {
+      return (hits || []).filter(h => {
+        const o = h.object; if (!o) return false;
+        for (let p = o; p; p = p.parent) { if (p.visible === false) return false; }
+        const vm = o.userData && o.userData._vizMode;
+        if (vm === 'ghost') return false;
+        if (typeof vm === 'string' && (vm.indexOf('trans:') === 0 || vm === 'rmode:xray' || vm === 'rmode:ghost')) return false;
+        return true;
+      });
+    }
     const params = new URLSearchParams(location.search);
     const projectId = params.get('project') || '';
     const modelId   = params.get('model')   || '';
@@ -95,6 +112,8 @@
       issues: [],
       clashes: [],
       elementMap: {},
+      meshMeta: new Map(),     // mesh.uuid → meta (M0 resolver — verified at load)
+      guidMeshes: new Map(),   // guid → mesh[] (multi-mesh elements)
       members: [{ id: 'me', name: 'You', initials: 'YO' },
                 { id: 'sd', name: 'Sting Davis', initials: 'SD' },
                 { id: 'se', name: 'Sentongo E.', initials: 'SE' }],
@@ -106,11 +125,14 @@
                                       // ctrl/cmd-click toggle, shift-click
                                       // range, and tree-multi-select.
       selectedElementMesh: null,
+      selMeshes: new Set(),           // PART A — meshes currently carrying a
+                                      // selection-highlight overlay (≠ appearance).
       selectedClashId: null,
       selectedIssueId: null,
       activeLevels: new Set(),
       levelBands: [],
       activeNav: 'orbit',
+      activeTool: 'orbit',   // exclusive tool: orbit | pick | measure | markup | section
       issuesFilter: 'all',
       // X1 — clash filters are now two independent axes.
       clashStatusFilter: 'any',  // any | NEW | OPEN | RESOLVED
@@ -122,6 +144,9 @@
       history: [],
       issuePins: new Map(),    // issueId → mesh
       clashPins: new Map(),    // clashId → mesh
+      clashMarkersVisible: true,  // View menu toggle (default on) — clash wire-box markers
+      issueMarkersVisible: true,  // View menu toggle (default on) — issue sphere markers
+      glassMode: false,           // STOPGAP heuristic — glass categories semi-transparent
       photoPins: new Map(),    // Slice 4b — photoId → mesh
       photos: [],              // Slice 4b — list of SitePhotoDto rows
       photoFilters: { reason: 'any', audience: 'any' },
@@ -133,7 +158,28 @@
       ghostStyle: { tint: 0x888888, opacity: 0.12 }, // user-tunable ghost look
       vizDiscMode: new Map(),   // DISCIPLINE → 'show' | 'ghost' | 'hide'
       vizCatMode:  new Map(),   // CATEGORY   → 'show' | 'ghost' | 'hide'
+      vizDiscSel:  new Set(),   // P2 — disciplines ticked for multi-isolate
+      vizCatSel:   new Set(),   // P2 — categories ticked for multi-isolate
       vizPreset:   null,        // active discipline appearance preset name
+      // WS2 — disciplines/categories kept SOLID (original shaded material) when a
+      // global x-ray / ghost render mode is on. The rest go x-ray/ghost; hide still
+      // wins. Persisted alongside the viz maps.
+      vizKeepSolidDisc: new Set(),
+      vizKeepSolidCat:  new Set(),
+      vizColour:   null,        // M1/M4 colour descriptor (token | preset | param) or null
+      vizPalette:  'STING',     // M4 active palette set name
+      vizCustomColours: new Map(), // B1 value/discipline → custom hex (overrides palette)
+      vizTransp:   new Map(),   // C1 disc/cat → opacity 0..1 (continuous transparency)
+      vizIsolation: null,       // C2 { mode:'isolate'|'hideOthers'|'hideSel', guids:Set } (transient)
+      vizSearchQuery: '',       // C6 search text (kept across panel re-renders)
+      vizSearchField: '*',      // C6 search field ('*' = any value, else token/param)
+      federatedLoaded: false,   // FEDERATION — guard so we co-load the project once
+      federationLoading: false, // V4 — true while sibling models stream in (suppress heavy work)
+      modelVisible: new Map(),  // FEDERATION — modelId → shown? (checkbox state)
+      colourMats:  new Map(),   // hex → shared coloured material (no per-mesh leak)
+      transMats:   new Map(),   // opacity% → shared transparent material (C1)
+      renderMode: 'shaded',
+      applyingRemoteViz: false, // guard so a broadcast render-mode doesn't echo
       clashSection: { active: false, saved: null, onFocus: false }, // clip-plane section box
       apiBase, projectId, modelId, token
     };
@@ -220,24 +266,35 @@
     }
 
     // ── Initial render of static UI bits ───────────────────────────────
-    setupHeader();
-    setupPanelToggles();
-    setupTabs();
-    setupBottomPanel();
-    setupViewportOverlays();
-    setupKeyboardShortcuts();
-    setupKeyNav();
-    setupModalHandlers();
-    setupNavControls();
-    setupSectionCard();
-    setupHelp();
-    setupHeartbeat();
-    setupSelectionToolbar();
-    setupRowContextMenu();
-    setupPhotoCaptureModal();
-    setupPhotoReviewModal();
-    setupPhotoFab();
-    setupPhotoRealtime();
+    // E1 — FAULT-ISOLATED init (STING_VIZ_E1_INIT). Previously these ran as a bare
+    // sequence: the FIRST one to throw (e.g. an unguarded $('#x').addEventListener on
+    // a missing element, or V.controls not ready) silently killed EVERY setup after
+    // it — which is why the nav-mode buttons + bottom-ribbon toggles all went dead at
+    // once. Each is now wrapped so one failure can't cascade, and the culprit is logged.
+    function _si(name, fn) { try { fn(); } catch (e) { console.warn('[viewer init] "' + name + '" threw (others still run):', e); } }
+    _si('header', setupHeader);
+    _si('panelToggles', setupPanelToggles);
+    _si('tabs', setupTabs);
+    _si('bottomPanel', setupBottomPanel);
+    _si('viewportOverlays', setupViewportOverlays);
+    _si('keyboardShortcuts', setupKeyboardShortcuts);
+    _si('keyNav', setupKeyNav);
+    _si('modalHandlers', setupModalHandlers);
+    _si('navControls', setupNavControls);
+    _si('sectionCard', setupSectionCard);
+    _si('help', setupHelp);
+    _si('heartbeat', setupHeartbeat);
+    _si('selectionToolbar', setupSelectionToolbar);
+    _si('rowContextMenu', setupRowContextMenu);
+    _si('canvasContextMenu', setupCanvasContextMenu);
+    _si('viewCube', setupViewCube);
+    _si('panelHandles', setupPanelHandles);
+    _si('photoCaptureModal', setupPhotoCaptureModal);
+    _si('photoReviewModal', setupPhotoReviewModal);
+    _si('photoFab', setupPhotoFab);
+    _si('photoRealtime', setupPhotoRealtime);
+    console.log('[viewer] STING_VIZ_E1_INITGUARD nav+ribbon delegated, fault-isolated init');
+    console.log('[viewer] STING_VIZ_BUILD viz-surface-sync ws1d-syncbutton viz-stable-reset');
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -436,7 +493,7 @@
           // engine places it in shared world space. Absent / identity → no-op.
           let transform = null;
           try { transform = await api(`/api/projects/${projectId}/models/${modelId}/transform`); } catch (_) {}
-          handleHostCommand({ type: 'load', payload: { url: blobUrl, transform } });
+          handleHostCommand({ type: 'load', payload: { url: blobUrl, transform, modelId } });
         } catch (err) {
           const aborted = err && err.name === 'AbortError';
           console.warn('[coord] GLB fetch failed', aborted ? 'timeout' : err.message);
@@ -505,11 +562,11 @@
     function setupHeader() {
       $('#btnToggleLeft').addEventListener('click', () => {
         document.querySelector('.app-shell').classList.toggle('left-collapsed');
-        onResize();
+        savePanelState(); onResize(); updatePanelHandles();
       });
       $('#btnToggleRight').addEventListener('click', () => {
         document.querySelector('.app-shell').classList.toggle('right-collapsed');
-        onResize();
+        savePanelState(); onResize(); updatePanelHandles();
       });
 
       // Dropdown menus
@@ -532,8 +589,12 @@
         '#vWire':      () => setRenderMode('wire'),
         '#vXray':      () => setRenderMode('xray'),
         '#vGhost':     () => setRenderMode('ghost'),
+        '#vRealistic': () => setRenderMode('realistic'),
         '#vEdges':     () => toggleEdgeOverlay(),
         '#vCaps':      () => toggleSectionCaps(),
+        '#vClashMarkers': () => toggleClashMarkers(),
+        '#vIssueMarkers': () => toggleIssueMarkers(),
+        '#vGlass':        () => toggleGlass(),
         '#vCoords':    () => toggleCoordReadout(),
         '#vExplode':   () => toggleExplodedView(),
         '#vTop':       () => setCameraPreset('top'),
@@ -543,6 +604,12 @@
         '#vBmSave':    () => saveBookmark(1),
         '#vBmRestore': () => restoreBookmark(1),
       });
+      // B — labelled toolbar toggles for clash / issue markers (in addition to the View ▾
+      // items); reflect the on/off state on the button. Default on (markers visible).
+      $('#tbClashMarkers')?.addEventListener('click', () => toggleClashMarkers());
+      $('#tbIssueMarkers')?.addEventListener('click', () => toggleIssueMarkers());
+      paintMarkerBtn('tbClashMarkers', state.clashMarkersVisible);
+      paintMarkerBtn('tbIssueMarkers', state.issueMarkersVisible);
       bindMenu('#btnIssues', '#menuIssues', {
         '#iCreate': () => openIssueModal(),
         '#iMine':   () => { state.issuesFilter = 'mine'; switchBottomTab('issues'); renderIssues(); },
@@ -551,12 +618,12 @@
       bindMenu('#btnMarkup', '#menuMarkup', {
         '#mkScreenshot': () => takeScreenshot(),
         '#mkShare':      () => shareCurrentView(),
-        '#mkText':    () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'text'    } }); toast('Markup: click a surface to place text'); },
-        '#mkArrow':   () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'arrow'   } }); toast('Markup: drag from tail to head'); },
-        '#mkDraw':    () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'draw'    } }); toast('Markup: drag to draw freehand'); },
-        '#mkCloud':   () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'cloud'   } }); toast('Markup: drag a box for a revision cloud'); },
-        '#mkDim':     () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'dim'     } }); toast('Markup: click two points for a dimension'); },
-        '#mkCallout': () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'callout' } }); toast('Markup: click a point, then a label spot'); },
+        '#mkText':    () => { startMarkupTool('text');    toast('Markup: click a surface to place text'); },
+        '#mkArrow':   () => { startMarkupTool('arrow');   toast('Markup: drag from tail to head'); },
+        '#mkDraw':    () => { startMarkupTool('draw');    toast('Markup: drag to draw freehand'); },
+        '#mkCloud':   () => { startMarkupTool('cloud');   toast('Markup: drag a box for a revision cloud'); },
+        '#mkDim':     () => { startMarkupTool('dim');     toast('Markup: click two points for a dimension'); },
+        '#mkCallout': () => { startMarkupTool('callout'); toast('Markup: click a point, then a label spot'); },
         '#mkClear':   () => { handleHostCommand({ type: 'clearMarkup' }); toast('Markups cleared'); },
       });
       bindMenu('#btnMeet', '#menuMeet', {
@@ -575,6 +642,18 @@
       // of the wider Planscape app instead of a leaf page. They link to
       // the parent shell (the static planscape-site / API "/app" route)
       // when one is reachable, and otherwise fall back gracefully.
+      // C — explicit "← Back" that always works: native history.back() when there's a
+      // prior entry (no forced refresh — the dashboard restores from bfcache), else fall
+      // back to the project dashboard / projects home. Opening the viewer is a normal
+      // navigation (location.href), so a history entry exists and browser Back works too.
+      const backBtn = $('#btnBack');
+      if (backBtn) backBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'navigateBack' })); return; }
+        if (window.history.length > 1) { window.history.back(); return; }
+        location.href = projectId ? (apiBase ? `${apiBase}/app/projects/${projectId}` : `/app/projects/${projectId}`)
+                                  : (apiBase ? `${apiBase}/app/projects` : '/app/projects');
+      });
       const brand = $('#brandHome');
       if (brand) brand.addEventListener('click', (e) => {
         e.preventDefault();
@@ -788,9 +867,9 @@
       state.activeDisciplines = new Set(active);
       const filterAll = active.length === 0;
       if (!V.modelRoot || !state.elementMap) return;
-      V.modelRoot.traverse(obj => {
+      vizGroup().traverse(obj => {
         if (!obj.isMesh) return;
-        const meta = state.elementMap[obj.userData.elementGuid];
+        const meta = metaForMesh(obj);
         const disc = meta?.discipline ? String(meta.discipline).toUpperCase().slice(0, 4) : null;
         if (filterAll) {
           obj.visible = true;
@@ -807,50 +886,148 @@
     // L5 — track materials we've cloned/replaced so we can dispose them.
     // Each entry is { original, replacement } so we restore the original
     // and free the replacement's GPU resources on clear.
+    // viz-stable-reset — a material the engine MADE (selection / ghost / colour / trans /
+    // glass clone) must never be captured as the pristine baseline.
+    function isEngineClone(m) { return !!(m && m.userData && (m.userData.stingSel || m.userData.stingGhost || m.userData.stingColour || m.userData._glassClone)); }
+    // viz-stable-reset — capture the PRISTINE baseline EXACTLY once, never from an engine
+    // clone, never overwritten. Called by EVERY mutator before it touches mesh.material,
+    // so _trueOrig is the load-time original even if selection/colour happened first.
+    function ensureBaseline(mesh) {
+      if (!mesh || !mesh.isMesh || mesh.userData._trueOrig) return;
+      const cur = mesh.material;
+      if (cur && !isEngineClone(cur)) mesh.userData._trueOrig = cur;
+    }
     function rememberOriginal(mesh) {
       if (!state.elementMaterials.has(mesh.uuid)) {
-        state.elementMaterials.set(mesh.uuid, { original: mesh.material, replacement: null });
+        // A1 — the original is ALWAYS the load-time true original, never the mesh's
+        // current (possibly already-swapped) material. ensureBaseline refuses clones.
+        ensureBaseline(mesh);
+        state.elementMaterials.set(mesh.uuid, { original: mesh.userData._trueOrig || mesh.material, replacement: null });
       }
     }
+    // Materials the appearance engine SHARES across many meshes must never be
+    // disposed per-mesh: the single ghost material (M2) + the per-hex colour
+    // materials (M1). Disposing one would blank every other mesh using it.
+    function isSharedMat(m) { return !!(m && m.userData && (m.userData.stingGhost || m.userData.stingColour)); }
     function setReplacement(mesh, mat) {
       rememberOriginal(mesh);
       const slot = state.elementMaterials.get(mesh.uuid);
-      // Dispose any previous replacement (avoids GPU leak when the same
-      // mesh gets ghosted then highlighted then ghosted again).
-      if (slot.replacement && typeof slot.replacement.dispose === 'function') {
+      // Dispose any previous replacement (avoids GPU leak when the same mesh gets
+      // ghosted then highlighted then ghosted again) — but NOT shared materials.
+      if (slot.replacement && slot.replacement !== mat && !isSharedMat(slot.replacement) && typeof slot.replacement.dispose === 'function') {
         try { slot.replacement.dispose(); } catch (_) {}
       }
       slot.replacement = mat;
       mesh.material = mat;
     }
-    function ghostMaterial(mesh) {
-      // Tint + opacity are user-tunable via the Visualize panel.
-      const gs = state.ghostStyle || { tint: 0x888888, opacity: 0.12 };
-      const mat = new THREE_.MeshStandardMaterial({
-        color: gs.tint, transparent: true, opacity: gs.opacity,
-        depthWrite: false, side: THREE_.DoubleSide
-      });
-      mat.userData = { stingGhost: true };   // tag so live tint/opacity edits can find ghosts
-      setReplacement(mesh, mat);
+    // M2 — ONE shared ghost material for the whole scene. Tint/opacity edits mutate
+    // it in place (instant, no traverse, no per-mesh leak).
+    let ghostSharedMat = null;
+    function getGhostMaterial() {
+      if (!ghostSharedMat) {
+        const gs = state.ghostStyle || { tint: 0x888888, opacity: 0.12 };
+        ghostSharedMat = new THREE_.MeshStandardMaterial({
+          color: gs.tint, transparent: true, opacity: gs.opacity,
+          depthWrite: false, side: THREE_.DoubleSide,
+        });
+        ghostSharedMat.userData = { stingGhost: true };
+      }
+      return ghostSharedMat;
     }
+    function ghostMaterial(mesh) { setReplacement(mesh, getGhostMaterial()); }
     function restoreOriginalMaterial(mesh) {
       const slot = state.elementMaterials.get(mesh.uuid);
-      if (!slot) return;
-      mesh.material = slot.original;
-      if (slot.replacement && typeof slot.replacement.dispose === 'function') {
+      mesh.material = mesh.userData._trueOrig || (slot && slot.original) || mesh.material;
+      if (slot && slot.replacement && !isSharedMat(slot.replacement) && typeof slot.replacement.dispose === 'function') {
         try { slot.replacement.dispose(); } catch (_) {}
       }
       state.elementMaterials.delete(mesh.uuid);
     }
-    // L6 — wipe every active highlight / ghost across the scene. Called
-    // whenever the user focuses a different clash or issue.
+    // ════════════════════════════════════════════════════════════════════════
+    // PART A — SELECTION LAYER (an OVERLAY on the appearance layer, never clobbers
+    // it). The highlight is a CLONE of the mesh's current appearance-resolved
+    // material + emissive; tracked in its own set; never routed through
+    // state.elementMaterials. STING_VIZ_LAYERED_A — served-artifact marker.
+    // ════════════════════════════════════════════════════════════════════════
+    // Render-mode "lens" materials (View menu) — shared + cached so they compose
+    // through applyAppearance without per-mesh leaks.
+    const _rmodeMats = {};
+    function renderModeMaterial(m) {
+      if (_rmodeMats[m]) return _rmodeMats[m];
+      let mat;
+      if (m === 'wire')       mat = new THREE_.MeshBasicMaterial({ color: 0x60A5FA, wireframe: true });
+      else if (m === 'xray')  mat = new THREE_.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.25, depthWrite: false });
+      else if (m === 'ghost') mat = new THREE_.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false });
+      else return null;
+      mat.userData = { stingColour: true };   // shared — isSharedMat protects it
+      _rmodeMats[m] = mat;
+      return mat;
+    }
+    // The mesh's current BASE appearance material (what it shows when NOT selected):
+    // its appearance replacement (ghost/colour/render-mode) or the true original.
+    function appearanceMaterialOf(o) {
+      const slot = state.elementMaterials.get(o.uuid);
+      if (slot && slot.replacement) return slot.replacement;
+      return o.userData._trueOrig || o.material;
+    }
+    // Add / refresh the selection overlay on a mesh: clone its appearance material
+    // and add emissive. Re-clones only when the underlying appearance changed.
+    function addSelHighlight(o) {
+      if (!o) return;
+      ensureBaseline(o);                            // viz-stable-reset: never let selection poison _trueOrig
+      const base = appearanceMaterialOf(o);
+      let clone = o.userData._selClone;
+      if (!clone || o.userData._selSrc !== base) {
+        if (clone && !isSharedMat(clone) && typeof clone.dispose === 'function') { try { clone.dispose(); } catch (_) {} }
+        clone = base.clone();
+        if (clone.emissive) { clone.emissive.setHex(0xF97316); clone.emissiveIntensity = 0.5; }
+        clone.userData = { stingSel: true };
+        o.userData._selClone = clone;
+        o.userData._selSrc = base;
+      }
+      o.material = clone;
+      state.selMeshes.add(o);
+    }
+    function removeSelHighlight(o) {
+      if (!o) return;
+      o.material = appearanceMaterialOf(o);          // back to the appearance material
+      const clone = o.userData._selClone;
+      if (clone && !isSharedMat(clone) && typeof clone.dispose === 'function') { try { clone.dispose(); } catch (_) {} }
+      o.userData._selClone = null; o.userData._selSrc = null;
+      state.selMeshes.delete(o);
+    }
+    // Re-overlay the selection on the CURRENT appearance: drop highlights from
+    // de-selected meshes, (re)add to selected ones. Cheap — touches only the
+    // selection set, not the whole scene. Called by selection changes AND at the
+    // end of applyAppearance so a viz change re-clones on the new base material.
+    function reapplySelection() {
+      const want = state.selectedElementGuids;
+      Array.from(state.selMeshes).forEach(o => {
+        if (!want.has(o.userData.elementGuid)) removeSelHighlight(o);
+      });
+      want.forEach(g => {
+        const meshes = (state.guidMeshes && state.guidMeshes.get(g)) || [findMeshByGuid(g)].filter(Boolean);
+        meshes.forEach(m => addSelHighlight(m));
+      });
+    }
+
+    // A2 — full reset to the true original (used by clash/issue FOCUS, which then
+    // applies its own materials). Clears BOTH the selection overlay AND the
+    // appearance replacements, and resets the dirty-flags so the next
+    // applyAppearance re-evaluates every mesh. (Selection alone uses
+    // reapplySelection, which never wipes the appearance — that was the
+    // "click resets to shaded" bug.)
     function clearAllHighlights() {
+      Array.from(state.selMeshes).forEach(o => removeSelHighlight(o));
+      state.selMeshes.clear();
       if (!V.modelRoot) { state.elementMaterials.clear(); return; }
       const ids = Array.from(state.elementMaterials.keys());
-      V.modelRoot.traverse(o => {
-        if (o.isMesh && state.elementMaterials.has(o.uuid)) restoreOriginalMaterial(o);
+      vizGroup().traverse(o => {
+        if (!o.isMesh) return;
+        o.userData._vizMode = undefined;
+        o.userData._paintKey = undefined;
+        if (state.elementMaterials.has(o.uuid)) restoreOriginalMaterial(o);
       });
-      // Anything left (e.g., disposed mesh) — drop it.
       ids.forEach(id => state.elementMaterials.delete(id));
     }
 
@@ -863,6 +1040,30 @@
     const VIZ_PALETTE = ['#3B82F6','#22C55E','#F59E0B','#A855F7','#EC4899','#14B8A6',
                          '#F97316','#EF4444','#84CC16','#06B6D4','#8B5CF6','#F43F5E',
                          '#10B981','#EAB308','#6366F1','#D946EF','#0EA5E9','#65A30D'];
+    const NOVAL = '<No Value>';
+    // M4 — named palette sets. Categorical schemes cycle the list; numeric/gradient
+    // schemes interpolate across it. RAG + Viridis (colourblind-safe) + Spectral + Mono.
+    const PALETTE_SETS = {
+      'STING':      ['#3498db','#e67e22','#f1c40f','#2ecc71','#9b59b6','#e74c3c','#1abc9c','#95a5a6','#e84393','#00b894','#fdcb6e','#6c5ce7'],
+      'RAG':        ['#2ecc71','#f1c40f','#e74c3c'],
+      'Spectral':   ['#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#e6f598','#abdda4','#66c2a5','#3288bd','#5e4fa2'],
+      'Viridis':    ['#440154','#482878','#3e4a89','#31688e','#26828e','#1f9e89','#35b779','#6ece58','#b5de2b','#fde725'],
+      'Monochrome': ['#2b2b2b','#444','#5f5f5f','#7a7a7a','#969696','#b3b3b3','#d0d0d0','#ededed'],
+    };
+    function hexToRgb(h) { const n = parseInt(String(h).replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+    function rgbToHex(r, g, b) { return '#' + [r, g, b].map(x => ('0' + Math.round(x).toString(16)).slice(-2)).join(''); }
+    function lerpHex(a, b, f) { const pa = hexToRgb(a), pb = hexToRgb(b); return rgbToHex(pa[0] + (pb[0] - pa[0]) * f, pa[1] + (pb[1] - pa[1]) * f, pa[2] + (pb[2] - pa[2]) * f); }
+    function lerpRamp(stops, t) {
+      if (!stops || !stops.length) return '#888';
+      if (t <= 0) return stops[0];
+      if (t >= 1) return stops[stops.length - 1];
+      const seg = t * (stops.length - 1), i = Math.floor(seg);
+      return lerpHex(stops[i], stops[i + 1], seg - i);
+    }
+    function rampColour(col, v) {
+      const t = (col.max > col.min) ? Math.max(0, Math.min(1, (v - col.min) / (col.max - col.min))) : 0;
+      return lerpRamp(col.ramp || PALETTE_SETS.Viridis, t);
+    }
     // BUILD 5 — per-discipline appearance presets (GLB textures are limited, so
     // these give a clean discipline read). _other = everything not listed.
     const DISC_PRESETS = {
@@ -876,15 +1077,30 @@
       if (!meta) return '';
       switch (token) {
         case 'DISC': return meta.discipline || meta.disc || meta.DISC || '';
+        case 'LOC':  return meta.loc || meta.location || meta.LOC || '';
+        case 'ZONE': return meta.zone || meta.ZONE || '';
         case 'SYS':  return meta.system || meta.sys || meta.SYS || '';
         case 'LVL':  return meta.level || meta.lvl || meta.LVL || '';
         case 'FUNC': return meta.func || meta.function || meta.FUNC || '';
         case 'PROD': return meta.prod || meta.product || meta.PROD || '';
+        case 'SEQ':  return meta.seq || meta.sequence || meta.SEQ || '';
+        case 'TAG':  return meta.tag || meta.assTag || meta.ASS_TAG_1 || meta.tag1 || '';
         case 'CAT':  return meta.category || '';
         default: return '';
       }
     }
     function discKey(meta) { return String(tokenValue(meta, 'DISC') || '').toUpperCase().slice(0, 4); }
+    // M4 — distinct scalar meta keys (for "colour by parameter"). Skips objects +
+    // the keys already exposed as dedicated colour-by-tag buttons.
+    function paramKeys() {
+      const skip = new Set(['name', 'tag', 'STING_TAG', 'elementId', 'discipline', 'category', 'system', 'level', 'func', 'prod']);
+      const keys = new Set();
+      Object.values(state.elementMap || {}).forEach(m => {
+        if (!m || typeof m !== 'object') return;
+        Object.keys(m).forEach(k => { if (!skip.has(k) && m[k] != null && typeof m[k] !== 'object') keys.add(k); });
+      });
+      return Array.from(keys).sort();
+    }
     function distinctTokens(token) {
       const s = new Set();
       if (state.elementMap) Object.values(state.elementMap).forEach(m => {
@@ -898,87 +1114,726 @@
 
     // BUILD 1 — apply the per-discipline + per-category show/ghost/hide modes.
     // Most-restrictive wins (hide > ghost > show).
+    // PART A — the SINGLE appearance resolver. One traverse, dirty-flagged. Each
+    // mesh gets exactly one base state: hidden | ghost | colour:hex | rmode:lens |
+    // original. The render mode (View menu) is a GLOBAL lens that COMPOSES here
+    // rather than via its own traversal/store. Selection is re-overlaid at the end.
+    let _vizApplying = false;   // viz-stable-reset — re-entrancy guard
     function applyVizModes() {
       if (!V.modelRoot) return;
-      // Ghost/show/hide owns materials via state.elementMaterials; the engine
-      // colour overlay owns them via its own map. Keep them mutually exclusive
-      // so neither captures the other's material as "original".
-      if (V.activeOverlaySource && V.clearOverlay) { V.clearOverlay(); state.vizPreset = null; }
-      V.modelRoot.traverse(o => {
+      if (_vizApplying) return;   // an apply is in flight; its full traverse already covers the latest state
+      _vizApplying = true;
+      try {
+      if (V.activeOverlaySource && V.clearOverlay) { V.clearOverlay(); }   // retire any legacy overlay store
+      // 'realistic' is a renderer-global (env+tonemap), NOT a per-mesh lens → treat as
+      // 'shaded' here so meshes keep their real (base) materials for the IBL to light.
+      const rmode = (state.renderMode && state.renderMode !== 'shaded' && state.renderMode !== 'realistic') ? state.renderMode : null;
+      const iso = state.vizIsolation;   // C2 selection-driven isolation (or null)
+      vizGroup().traverse(o => {
         if (!o.isMesh) return;
-        const meta = state.elementMap[o.userData.elementGuid];
-        const m1 = state.vizDiscMode.get(discKey(meta));
-        const m2 = state.vizCatMode.get(String(tokenValue(meta, 'CAT') || ''));
-        let mode = 'show';
-        [m1, m2].forEach(m => {
-          if (m === 'hide') mode = 'hide';
-          else if (m === 'ghost' && mode !== 'hide') mode = 'ghost';
-        });
-        if (mode === 'hide') { o.visible = false; restoreOriginalMaterial(o); }
-        else if (mode === 'ghost') { o.visible = true; ghostMaterial(o); }
-        else { o.visible = true; restoreOriginalMaterial(o); }
+        const meta = metaForMesh(o);
+        const disc = discOf(meta), cat = catKey(meta);
+        const dm = state.vizDiscMode.get(disc);
+        const cm = state.vizCatMode.get(cat);
+        // Precedence: hide > transparency(slider) > ghost(button) > colour > show.
+        let mode;
+        // C1 — a per-discipline/category transparency slider (< 100%) overrides ghost.
+        const tv = state.vizTransp.has(disc) ? state.vizTransp.get(disc)
+                 : (state.vizTransp.has(cat) ? state.vizTransp.get(cat) : null);
+        if (dm === 'hide' || cm === 'hide') mode = 'hide';
+        else if (tv != null && tv < 1) mode = 'trans:' + Math.round(tv * 100);
+        else if (dm === 'ghost' || cm === 'ghost') mode = 'ghost';
+        else if (state.vizColour) {
+          const col = state.vizColour;
+          const v = colourValueOf(col, meta, o.userData.elementGuid);
+          const key = colourKey(col, v);
+          if (col.hidden && col.hidden.has(key)) mode = 'hide';                 // legend shift-click
+          else if (col.isolateSet && col.isolateSet.size && !col.isolateSet.has(key)) mode = 'ghost';  // items 1/2 — multi-isolate: unchecked → ghost
+          else if ((col.ghostUnmatched || state.vizGhostRest) && (key == null || key === '' || key === NOVAL)) mode = 'ghost'; // items 1/2 — ghost-the-rest: no-value/shell (per-scheme OR global toggle)
+          else if (col.isolate != null && key !== col.isolate) mode = 'ghost';  // legend isolate → ghost rest
+          else {
+            // P3a — when colouring by DISCIPLINE (preset) or by discipline+variants, a
+            // custom CATEGORY colour OVERRIDES the discipline/variant colour (was: discipline
+            // won). Other schemes (system/param/status) keep their own resolution.
+            let c;
+            if ((col.kind === 'preset' || col.kind === 'discVariants') && state.vizCustomColours.has(cat)) c = state.vizCustomColours.get(cat);
+            else c = colourForValue(col, v);
+            mode = c ? ('colour:' + c) : 'show';
+          }
+        } else {
+          // B1 — a per-discipline/category custom colour applies directly even with
+          // no active colour scheme (the scheme path already honours it via colourForValue).
+          const custom = state.vizCustomColours.get(disc) || state.vizCustomColours.get(cat);
+          mode = custom ? ('colour:' + custom) : 'show';
+        }
+        // A4 — global render-mode lens applies UNDER colour/ghost/hide: only meshes
+        // that resolved to plain 'show' (and aren't kept-solid) take the lens.
+        if (mode === 'show' && rmode) {
+          const keepSolid = state.vizKeepSolidDisc.has(disc) || state.vizKeepSolidCat.has(cat);
+          if (!keepSolid) mode = 'rmode:' + rmode;
+        }
+        // C2 — selection-driven isolation composes ON TOP: in-set elements keep their
+        // resolved appearance (colour/transparency/show); out-of-set get ghosted (isolate)
+        // or hidden (hide-others); hide-selection hides the in-set ones.
+        if (iso) {
+          const inSet = iso.guids.has(o.userData.elementGuid);
+          if (iso.mode === 'isolate' && !inSet && mode !== 'hide') mode = 'ghost';
+          else if (iso.mode === 'hideOthers' && !inSet) mode = 'hide';
+          else if (iso.mode === 'hideSel' && inSet) mode = 'hide';
+        }
+        applyMeshState(o, mode);
+      });
+      reapplySelection();      // A3 — re-overlay the selection on the new appearance
+      maybeApplyGlass();       // STOPGAP — heuristic glass transparency (after materials settle)
+      broadcastAppearance();
+      saveVizState();          // B3 — persist appearance inputs per model (guarded)
+      } catch (err) { console.warn('[viewer] applyAppearance error (state preserved):', err); }
+      finally { _vizApplying = false; }
+    }
+    // applyAppearance — canonical name; applyVizModes kept for existing callers.
+    const applyAppearance = applyVizModes;
+
+    // ── Glass transparency STOPGAP (HEURISTIC) ─────────────────────────────────
+    // The exporter currently writes opaque materials (no alpha), so glazing reads
+    // solid. Until Phase 2 (generic_transparency → alphaMode=BLEND) ships, optionally
+    // make glass-ish CATEGORIES semi-transparent. This is a labelled heuristic, NOT
+    // real model data. Decoupled from the appearance engine: it clones the material
+    // the engine just assigned (per glass mesh, reversible), so it never fights the
+    // layered model / colour-by / ghost / selection.
+    const GLASS_KEYS = ['window', 'curtain panel', 'curtain wall', 'glazing', 'storefront', 'glass'];
+    function isGlassMesh(o) {
+      try {
+        const cat = String((metaForMesh(o) || {}).category || '').toLowerCase();
+        if (!cat || cat.includes('mullion')) return false;   // mullions are frames, not glass
+        return GLASS_KEYS.some(k => cat.includes(k));
+      } catch (_) { return false; }
+    }
+    function maybeApplyGlass() {
+      const on = !!state.glassMode || state.renderMode === 'realistic';
+      const grp = vizGroup(); if (!grp) return;
+      grp.traverse(o => {
+        if (!o.isMesh) return;
+        const isClone = o.material && o.material.userData && o.material.userData._glassClone;
+        if (on && isGlassMesh(o) && o.userData._vizMode !== 'hide') {
+          const base = isClone ? o.userData._glassSrc : o.material;
+          if (!base) return;
+          if (isClone) { try { o.material.dispose(); } catch (_) {} }   // replace stale clone
+          const c = base.clone();
+          c.transparent = true; c.opacity = 0.3; c.depthWrite = false;
+          c.userData = Object.assign({}, c.userData, { _glassClone: true });
+          o.userData._glassSrc = base;
+          o.material = c;
+        } else if (o.userData && o.userData._glassSrc) {
+          if (isClone) { try { o.material.dispose(); } catch (_) {} }   // restore engine material
+          o.material = o.userData._glassSrc;
+          o.userData._glassSrc = null;
+        }
       });
     }
-    // One-click "shade only X, ghost the rest".
-    function shadeOnlyDiscipline(disc) {
-      state.vizDiscMode.clear();
-      distinctTokens('DISC').forEach(d => state.vizDiscMode.set(d, d === disc ? 'show' : 'ghost'));
-      applyVizModes();
-      renderVisualizePanel();
-      toast(disc ? `Shading ${disc}, ghosting the rest` : 'Show all');
+    function toggleGlass() {
+      state.glassMode = !state.glassMode;
+      applyAppearance();   // re-runs materials → maybeApplyGlass applies/restores
+      toast(state.glassMode ? 'Glass: heuristic ON (not real data — export from Revit for true alpha)' : 'Glass: off');
     }
 
-    // BUILD 3 — colour every element by ANY STING token, with a legend, via the
-    // existing overlay engine. "Clear overlay" restores materials.
+    // Set a single mesh to exactly one appearance state. Dirty-flagged + idempotent
+    // (skips redundant material swaps). hide → invisible; ghost → shared ghost mat;
+    // colour:<hex> → shared coloured mat; show → original.
+    function applyMeshState(o, mode) {
+      ensureBaseline(o);                            // viz-stable-reset: pristine capture before any change
+      if (o.userData._vizMode === mode) return;     // idempotent
+      o.userData._vizMode = mode;
+      o.userData._paintKey = undefined;             // appearance changed → selection re-clones
+      if (mode === 'hide') { o.visible = false; restoreOriginalMaterial(o); return; }
+      o.visible = true;
+      if (mode === 'ghost') { ghostMaterial(o); return; }
+      if (mode.indexOf('colour:') === 0) { setReplacement(o, colourMaterial(mode.slice(7))); return; }
+      if (mode.indexOf('trans:') === 0)  { setReplacement(o, transMaterial(parseInt(mode.slice(6), 10))); return; }   // C1
+      if (mode.indexOf('rmode:') === 0)  { setReplacement(o, renderModeMaterial(mode.slice(6))); return; }
+      restoreOriginalMaterial(o);                   // show → true original
+    }
+    // Shared coloured material per hex (cached — no per-mesh leak).
+    function colourMaterial(hex) {
+      let m = state.colourMats.get(hex);
+      if (!m) {
+        const n = parseInt(String(hex).replace('#', ''), 16);
+        m = new THREE_.MeshStandardMaterial({ color: isFinite(n) ? n : 0x888888, metalness: 0.0, roughness: 0.85 });
+        m.userData = { stingColour: true };
+        state.colourMats.set(hex, m);
+      }
+      return m;
+    }
+    // C1 — shared transparent material per opacity% (cached). A continuous version of
+    // ghost: the group's elements render at the slider's opacity over a neutral tint.
+    function transMaterial(pct) {
+      pct = Math.max(0, Math.min(100, Math.round(pct)));
+      let m = state.transMats.get(pct);
+      if (!m) {
+        // V1 — endpoint render-order: when nearly opaque, write depth (and drop the
+        // transparent flag at the very top) so the high end renders cleanly as a solid
+        // instead of a transparency-sorted ghost that can flip/vanish behind geometry.
+        // Opacity value mapping itself is unchanged (linear pct/100).
+        m = new THREE_.MeshStandardMaterial({ color: 0x9aa3b2,
+          transparent: pct < 99,
+          opacity: Math.max(0.02, pct / 100),
+          depthWrite: pct >= 90,
+          side: THREE_.DoubleSide });
+        m.userData = { stingColour: true };   // shared — never disposed per-mesh
+        state.transMats.set(pct, m);
+      }
+      return m;
+    }
+    // The raw value a mesh contributes to the active colour scheme: a number for a
+    // numeric/gradient scheme, a discipline for a preset, else the (normalised) token.
+    // Part C — colour-by-system: standard colours spanning ALL MEP (BS 1710 / CIBSE /
+    // ASME A13.1 / HTM 02-01), keyed by STING SYS code. ("colour-by-system" literal below is
+    // also the SERVED grep token.)
+    const SYS_PALETTE = {
+      // Mech air
+      SUP: '#42a5f5', SA: '#42a5f5', RET: '#607d8b', RA: '#607d8b', EA: '#6d4c41', EXH: '#6d4c41', HVAC: '#42a5f5',
+      // Hydronic
+      CHW: '#00bcd4', CWS: '#00bcd4', LHW: '#ff5722', HHW: '#ff5722', LTHW: '#ff5722', HTG: '#ff5722',
+      COND: '#009688', CDW: '#009688', REF: '#8e24aa', RFG: '#8e24aa', STM: '#d81b60',
+      // Plumbing
+      DCW: '#1565c0', DHW: '#e53935', HWS: '#e53935', DHWR: '#ec407a', SAN: '#2e7d32', SOIL: '#1b5e20',
+      WASTE: '#558b2f', FW: '#558b2f', VEN: '#b5a000', VENT: '#b5a000', RWD: '#1b5e20', SW: '#00695c', STORM: '#00695c',
+      // Fire / gas / med-gas
+      FP: '#d32f2f', FLS: '#d32f2f', GAS: '#fdd835', O2: '#fafafa', N2O: '#1e88e5', VAC: '#fdd835', MA: '#90caf9', AGSS: '#7e57c2',
+      // Electrical
+      PWR: '#ffb300', LV: '#ffb300', DATA: '#7c4dff', ICT: '#7c4dff', COM: '#7c4dff', FA: '#b71c1c',
+      SEC: '#757575', NCL: '#26a69a', CTL: '#5c6bc0',
+      _other: '#5b6472',
+    };
+    // raw classification / electrical SystemType (sysClass) → SYS code. Specific BEFORE generic.
+    const SYS_CLASS_MAP = [
+      [/fire\s*alarm/i, 'FA'], [/security/i, 'SEC'], [/nurse\s*call/i, 'NCL'], [/controls?/i, 'CTL'],
+      [/data|communicat|telephon/i, 'DATA'], [/power\s*circuit|\bpower\b/i, 'PWR'],
+      [/oxygen|\bo2\b/i, 'O2'], [/nitrous|n2o/i, 'N2O'], [/medical\s*air|med\s*air/i, 'MA'],
+      [/vacuum|\bvac\b|agss|scaveng/i, 'VAC'],
+      [/condenser/i, 'COND'], [/refriger/i, 'REF'], [/steam/i, 'STM'], [/chilled/i, 'CHW'],
+      [/hydronic|heating\s*hot|heating\s*water|\bhhw\b|\blhw\b|\blthw\b/i, 'LHW'],
+      [/supply\s*air/i, 'SUP'], [/return\s*air/i, 'RET'], [/exhaust/i, 'EA'],
+      [/cold\s*water|domestic\s*cold|\bdcw\b/i, 'DCW'], [/hot\s*water\s*return|recirc/i, 'DHWR'],
+      [/hot\s*water|domestic\s*hot|\bdhw\b/i, 'DHW'], [/sanitary|soil/i, 'SAN'], [/waste/i, 'WASTE'],
+      [/vent/i, 'VEN'], [/storm|rain/i, 'RWD'],
+      [/fire\s*protect|sprinkler|\bfire\b/i, 'FP'], [/natural\s*gas|\bgas\b/i, 'GAS'],
+    ];
+    // The SYS key for a mesh's meta: prefer the RAW classification (finer — splits electrical
+    // Power/Data/FireAlarm, condenser/refrigerant/steam, med-gas), else the SYS token.
+    function sysKeyOf(meta) {
+      const cls = String((meta && meta.sysClass) || '').trim();
+      if (cls) { for (const pair of SYS_CLASS_MAP) if (pair[0].test(cls)) return pair[1]; }
+      const s = String(tokenValue(meta, 'SYS') || '').trim().toUpperCase();
+      return s || '';
+    }
+    function colourValueOf(col, meta, guid) {
+      // C4 — clash/issue status schemes resolve by element GUID via a precomputed map.
+      if (col.byGuid) return (guid && col.byGuid.get(guid)) || col.def;
+      // Part B — System palette keys on the SYS code (token or derived from sysClass).
+      if (col.kind === 'sysPalette') return sysKeyOf(meta);
+      if (col.kind === 'preset') return discOf(meta);
+      // P3b — discipline + category variants: value keys on the (disc|cat) pair.
+      if (col.kind === 'discVariants') return (discOf(meta) || '_other') + '|' + (catKey(meta) || '');
+      if (col.numeric) { const raw = tokenValue(meta, col.token); const n = parseFloat(raw); return isFinite(n) ? n : null; }
+      let v = String(tokenValue(meta, col.token) || '').trim();
+      if (col.token === 'DISC') v = discOf(meta);
+      return v;
+    }
+    // Stable legend KEY for a value (numeric → '<No Value>' or the raw number string;
+    // categorical → the value or '<No Value>').
+    function colourKey(col, v) {
+      if (col.numeric) return (v == null) ? NOVAL : String(v);
+      return (v === '' || v == null) ? NOVAL : v;
+    }
+    // Value → hex for the active scheme. Numeric uses the min→max ramp; categorical
+    // uses the per-value palette; missing values get the distinct <No Value> colour.
+    function colourForValue(col, v) {
+      // B1 — a user-assigned custom colour for this value/discipline overrides the
+      // palette (checked first, for both categorical + preset schemes).
+      if (state.vizCustomColours && (v || v === 0) && state.vizCustomColours.has(v)) return state.vizCustomColours.get(v);
+      if (col.kind === 'preset') return col.map[v] || col.map._other || null;
+      // Part B — System palette: custom-per-system wins (checked above), else the precomputed
+      // standard/variant colour for that SYS key.
+      if (col.kind === 'sysPalette') return col.valueColors.get(v) || col.noValue || null;
+      // P3b — variant value is "disc|cat"; a custom CATEGORY colour wins, else the
+      // precomputed variant shade for that pair.
+      if (col.kind === 'discVariants') {
+        const cat = String(v).split('|')[1] || '';
+        if (cat && state.vizCustomColours.has(cat)) return state.vizCustomColours.get(cat);
+        return col.valueColors.get(v) || col.noValue || null;
+      }
+      if (col.numeric) return (v == null) ? col.noValue : rampColour(col, v);
+      if (v === '' || v == null) return col.noValue || null;
+      return col.valueColors ? (col.valueColors.get(v) || col.noValue || null) : null;
+    }
+    // Derive a discipline even when the DISC token is absent (as-built models):
+    // map the Revit category to a discipline code (DiscMap-style).
+    function discOf(meta) {
+      // BUG 1(a) — the REAL DISC token wins when present (exporter-authored truth)…
+      const d = discKey(meta);
+      // …EXCEPT A2 SAFETY-NET: the old exporter stamped some categories with the WRONG
+      // DISC (Lighting Fixtures → P, Toposolid → S, etc.). For those KNOWN-misclassified
+      // categories the category-derived discipline OVERRIDES a stale stamp, so existing
+      // exports read right WITHOUT a re-publish. Every other category trusts the stamp.
+      const c0 = catKey(meta).toLowerCase();
+      if (c0) { const ov = categoryOverrideDisc(c0); if (ov && ov !== d) return ov; }
+      if (d) return d;
+      // Derived fallback for metadata-poor / as-built models. ORDER MATTERS (first match
+      // wins): Electrical BEFORE Plumbing so "Lighting Fixtures" / "Electrical Fixtures"
+      // never fall under the old bare-"fixture" plumbing rule; Fire-protection before
+      // Plumbing (sprinklers ≠ plumbing); Plumbing made SPECIFIC (never bare "fixture").
+      const c = catKey(meta).toLowerCase();
+      if (!c) return '';
+      const RULES = [
+        // Mechanical / HVAC
+        [/duct|air\s*terminal|diffuser|grille|hvac|\bvav\b|\bahu\b|\bfcu\b|mechanical|\bfan\b|damper|air\s*handl|chiller|\bboiler\b|cooling\s*tower/, 'M'],
+        // Electrical (incl. lighting + comms/data + fire-alarm) — BEFORE plumbing.
+        [/electric|lighting|luminaire|light\s*fixture|\bconduit|cable\s*tray|\bcable\b|\bwire\b|\bdata\b|fire\s*alarm|communicat|security\s*device|nurse\s*call|telephon|\bswitch\b|socket|receptacle|panelboard|distribution\s*board|busway|bus\s*duct/, 'E'],
+        // Fire protection — BEFORE plumbing (sprinklers / standpipes / hydrants).
+        [/sprinkler|fire\s*protect|fire\s*supp|fire\s*pump|standpipe|hydrant/, 'FP'],
+        // Plumbing / public health — SPECIFIC; never bare "fixture".
+        [/plumb|sanitary|water\s*closet|\bwc\b|lavatory|urinal|\bbasin\b|\bsink\b|cistern|\bsoil\b|\bwaste\b|drainage|\bpipe|\bvalve\b|\btap\b|cold\s*water|hot\s*water|rainwater|\bgully\b/, 'P'],
+        // Structural
+        [/column|\bbeam\b|brace|footing|foundation|framing|structural|rebar|truss|slab\s*edge|\bpile\b/, 'S'],
+        // Architectural (building-element catch-all)
+        [/wall|floor|ceiling|roof|door|window|stair|railing|handrail|furniture|casework|\broom\b|curtain|generic\s*model|topograph|planting|\bsite\b|\bmass\b|parking|\bramp\b/, 'A'],
+      ];
+      for (const [re, disc] of RULES) if (re.test(c)) return disc;
+      return '';
+    }
+    // A2 — strong category→discipline ONLY for the categories the exporter historically
+    // mis-stamped: lighting/electrical devices → E, toposolid/site → A. Returns '' for
+    // anything else (so the stamped DISC is trusted). These overrides are always correct
+    // (a Lighting Fixture is electrical no matter what a bad stamp said).
+    function categoryOverrideDisc(c) {
+      if (/lighting|luminaire|light\s*fixture|electric|\bconduit\b|cable\s*tray|\bcable\b|\bdata\b|fire\s*alarm|\bswitch\b|socket|receptacle|panelboard|distribution\s*board|busway|bus\s*duct/.test(c)) return 'E';
+      if (/toposolid|topograph|\bsite\b|\bpad\b|grading|sub-?region/.test(c)) return 'A';
+      return '';
+    }
+    // Distinct disciplines across the model (derived where the token is absent).
+    function distinctDisc() {
+      const s = new Set();
+      if (state.elementMap) Object.values(state.elementMap).forEach(m => { const d = discOf(m); if (d) s.add(d); });
+      return Array.from(s).sort();
+    }
+    // Broadcast the live appearance state to a meeting (echo-guarded), reusing the
+    // overlay channel established in WS2.
+    // C5 — mirror the FULL visualize state to meeting followers via the WS2 overlay
+    // channel (echo-guarded). The whole appearance (modes + scheme + custom colours +
+    // transparency + render mode) travels as one snapshot; followers re-derive colours
+    // deterministically. restoringViz/applyingRemoteViz prevent self-echo + reload churn.
+    // Item 3 — COALESCED near-real-time broadcast: leading-edge immediate, then at most
+    // one send per 100 ms carrying the LATEST snapshot (intermediate states dropped, the
+    // final always sent). Effectively live during a slider drag without flooding SignalR.
+    // Echo-guarded by applyingRemoteViz/restoringViz so a received snapshot can't loop.
+    let _bcastTimer = null, _bcastAt = 0;
+    const BCAST_THROTTLE_MS = 100;
+    function _doBroadcastAppearance() {
+      _bcastTimer = null; _bcastAt = Date.now();
+      if (state.applyingRemoteViz || restoringViz) return;
+      const m = (typeof window !== 'undefined') && window.STING_MEETING;
+      if (m && typeof m.broadcastOverlay === 'function') {
+        try { m.broadcastOverlay({ source: 'appearance', viz: serializeViz() }); } catch (_) {}
+      }
+    }
+    function broadcastAppearance() {
+      if (state.applyingRemoteViz || restoringViz || state.federationLoading) return;   // V4 — no broadcast while streaming models
+      const since = Date.now() - _bcastAt;
+      if (since >= BCAST_THROTTLE_MS) _doBroadcastAppearance();                 // leading — live
+      else if (!_bcastTimer) _bcastTimer = setTimeout(_doBroadcastAppearance, BCAST_THROTTLE_MS - since);  // trailing — latest
+    }
+    // WS1d — explicit, presenter-driven "Sync my view to participants". The auto-broadcast
+    // above mirrors appearance changes best-effort; this forces an immediate push (bypassing
+    // the throttle) so the host can deliberately sync the current isolate/ghost/colour state
+    // on demand. Returns true only when a meeting transport actually accepted the overlay.
+    function syncViewToParticipants() {
+      if (state.applyingRemoteViz || restoringViz || state.federationLoading) return false;
+      const m = (typeof window !== 'undefined') && window.STING_MEETING;
+      if (!(m && typeof m.broadcastOverlay === 'function')) return false;
+      try { m.broadcastOverlay({ source: 'appearance', viz: serializeViz() }); _bcastAt = Date.now(); return true; }
+      catch (_) { return false; }
+    }
+    if (typeof window !== 'undefined') {
+      window.STING_VIEWER_VIZ = window.STING_VIEWER_VIZ || {};
+      window.STING_VIEWER_VIZ.syncToParticipants = syncViewToParticipants;
+    }
+    // One-click "shade only X, ghost the rest" — BUG 2: idempotent TOGGLE (clicking the
+    // already-isolated row clears back to show-all).
+    function shadeOnlyDiscipline(disc) {
+      const all = distinctDisc();
+      const alreadyOnly = state.vizDiscMode.get(disc) === 'show' && all.filter(d => d !== disc).every(d => state.vizDiscMode.get(d) === 'ghost');
+      state.vizDiscMode.clear();
+      if (!alreadyOnly) all.forEach(d => state.vizDiscMode.set(d, d === disc ? 'show' : 'ghost'));
+      applyAppearance();
+      renderVisualizePanel();
+      toast(alreadyOnly ? 'Show all' : `Shading ${disc}, ghosting the rest`);
+    }
+    function shadeOnlyCategory(cat) {
+      const all = distinctTokens('CAT');
+      const alreadyOnly = state.vizCatMode.get(cat) === 'show' && all.filter(c => c !== cat).every(c => state.vizCatMode.get(c) === 'ghost');
+      state.vizCatMode.clear();
+      if (!alreadyOnly) all.forEach(c => state.vizCatMode.set(c, c === cat ? 'show' : 'ghost'));
+      applyAppearance();
+      renderVisualizePanel();
+      toast(alreadyOnly ? 'Show all' : `Shading ${cat}, ghosting the rest`);
+    }
+    // P2 — multi-select isolate: shade every TICKED discipline/category, ghost the rest
+    // (empty selection → show all). Drives the same per-disc/-cat mode maps as the single
+    // quick-isolate, so it composes with the layered model identically.
+    function shadeOnlySet(kind) {
+      const isDisc = kind === 'disc';
+      const all = isDisc ? distinctDisc() : distinctTokens('CAT');
+      const sel = isDisc ? state.vizDiscSel : state.vizCatSel;
+      const modeMap = isDisc ? state.vizDiscMode : state.vizCatMode;
+      modeMap.clear();
+      if (sel.size) all.forEach(v => modeMap.set(v, sel.has(v) ? 'show' : 'ghost'));
+      applyAppearance();
+      renderVisualizePanel();
+      toast(sel.size ? `Shading ${Array.from(sel).join(', ')} — ghosting the rest` : 'Show all (none ticked)');
+    }
+    // V3 — one-click discipline combo: set the multi-isolate selection to the given codes
+    // (intersected with what's present) and shade-only-those. Empty/All → show everything.
+    function comboPreset(codes) {
+      state.vizDiscSel = new Set(codes || []);
+      shadeOnlySet('disc');
+    }
+
+    // Colour every element by ANY STING token (categorical) — sets a colour
+    // descriptor and drives the ONE appearance engine (no separate overlay path).
+    function activePalette() { return PALETTE_SETS[state.vizPalette] || VIZ_PALETTE; }
+    // A5 — assign palette colours DETERMINISTICALLY from the SORTED distinct values,
+    // so a given value always maps to the same hex across re-renders / selections /
+    // reloads. Cached on state.vizColour.valueColors; never reassigned on interaction.
+    function buildValueColors(sortedValues, pal) {
+      const m = new Map();
+      sortedValues.forEach((v, i) => m.set(v, pal[i % pal.length]));
+      return m;
+    }
     function colourByToken(token) {
       if (!V.modelRoot || !state.elementMap) return toast('No model / element map', 'warn');
-      // Restore any host-managed ghost/highlight materials first so the engine
-      // overlay captures TRUE originals (visibility is preserved — hidden
-      // elements stay hidden).
-      clearAllHighlights();
-      const values = new Map(); // value → colour
-      const guidColorMap = {};
-      let idx = 0;
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        const guid = o.userData.elementGuid;
-        const v = String(tokenValue(state.elementMap[guid], token) || '').trim();
-        if (!v) return;
-        if (!values.has(v)) values.set(v, VIZ_PALETTE[idx++ % VIZ_PALETTE.length]);
-        guidColorMap[guid] = values.get(v);
+      // BUG 2 — idempotent TOGGLE: clicking the active scheme again clears it (→ base).
+      if (!restoringViz && state.vizColour && state.vizColour.kind === 'token' && state.vizColour.token === token) {
+        clearColour(); renderVisualizePanel(); toast('Colour cleared'); return;
+      }
+      const distinct = (token === 'DISC') ? distinctDisc() : distinctTokens(token);   // SORTED
+      if (!distinct.length) return toast(`No ${token} values on this model`, 'warn');
+      const values = buildValueColors(distinct, activePalette());
+      const counts = new Map();
+      Object.values(state.elementMap).forEach(m => {
+        let v = String(tokenValue(m, token) || '').trim();
+        if (token === 'DISC') v = discOf(m);
+        if (v) counts.set(v, (counts.get(v) || 0) + 1);
       });
-      if (!values.size) return toast(`No ${token} tokens on this model`, 'warn');
-      const legend = Array.from(values.entries())
-        .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
-        .map(([label, color]) => ({ label, color }));
-      V.applyOverlay({ source: 'tokens:' + token, mode: 'map', guidColorMap,
-                       defaultColor: '#444b57', opacity: 1,
-                       title: 'Colour by ' + token, legend });
-      toast(`Coloured by ${token} — ${values.size} value${values.size === 1 ? '' : 's'}`);
+      state.vizColour = {
+        kind: 'token', token, valueColors: values, counts, noValue: '#3a3f4a',
+        isolate: null, hidden: new Set(),
+        legend: distinct.map(v => ({ label: v, color: values.get(v), count: counts.get(v) || 0 })),
+      };
+      state.vizPreset = null;
+      applyAppearance();
+      renderVisualizePanel();
+      if (!restoringViz) toast(`Coloured by ${token} — ${values.size} value${values.size === 1 ? '' : 's'}`);
     }
 
-    // BUILD 5 — apply a discipline appearance preset (solid colour per
-    // discipline) through the same overlay path.
+    // M4 — colour by ANY meta parameter. ≥80% numeric values ⇒ a min→max gradient
+    // (with a value-range + unit legend); otherwise a categorical palette. Missing
+    // values get the distinct <No Value> colour for QA.
+    function colourByParam(key) {
+      if (!V.modelRoot || !state.elementMap) return toast('No model / element map', 'warn');
+      if (!restoringViz && state.vizColour && state.vizColour.kind === 'param' && state.vizColour.token === key) {
+        clearColour(); renderVisualizePanel(); toast('Colour cleared'); return;   // BUG 2 toggle
+      }
+      const raws = [];
+      Object.values(state.elementMap).forEach(m => { const r = m[key]; if (r != null && typeof r !== 'object') raws.push(r); });
+      if (!raws.length) return toast(`No "${key}" values`, 'warn');
+      const nums = raws.map(x => parseFloat(x)).filter(n => isFinite(n));
+      const numeric = nums.length >= raws.length * 0.8;
+      if (numeric) {
+        // C4 — reduce, NOT Math.min(...nums): a 12k-element spread overflows the call stack.
+        let min = Infinity, max = -Infinity;
+        for (let i = 0; i < nums.length; i++) { const n = nums[i]; if (n < min) min = n; if (n > max) max = n; }
+        const ramp = (state.vizPalette === 'STING') ? PALETTE_SETS.Viridis : activePalette();
+        const unit = paramUnit(key);
+        state.vizColour = {
+          kind: 'param', token: key, numeric: true, min, max, ramp, unit, noValue: '#3a3f4a',
+          isolate: null, hidden: new Set(),
+          legend: [0, 0.25, 0.5, 0.75, 1].map(t => ({
+            label: fmtNum(min + (max - min) * t) + (unit ? ' ' + unit : ''),
+            color: lerpRamp(ramp, t),
+          })),
+        };
+      } else {
+        const distinct = Array.from(new Set(raws.map(r => String(r).trim()).filter(Boolean))).sort();   // SORTED
+        if (!distinct.length) return toast(`No "${key}" values`, 'warn');
+        const values = buildValueColors(distinct, activePalette());   // A5 deterministic
+        const counts = new Map();
+        Object.values(state.elementMap).forEach(m => { const v = String(m[key] != null ? m[key] : '').trim(); if (v) counts.set(v, (counts.get(v) || 0) + 1); });
+        state.vizColour = { kind: 'param', token: key, valueColors: values, counts, noValue: '#3a3f4a', isolate: null, hidden: new Set(),
+          legend: distinct.map(v => ({ label: v, color: values.get(v), count: counts.get(v) || 0 })) };
+      }
+      state.vizPreset = null;
+      applyAppearance();
+      renderVisualizePanel();
+      if (!restoringViz) toast(`Coloured by ${key}`);
+    }
+    // C4 — colour by CLASH status. Each clashing element gets its worst clash status;
+    // the rest are "Clear" (muted). Resolves by guid via col.byGuid (colourValueOf).
+    function colourByClashStatus() {
+      if (!V.modelRoot) return toast('No model', 'warn');
+      if (!restoringViz && state.vizColour && state.vizColour.kind === 'clash') { clearColour(); renderVisualizePanel(); toast('Colour cleared'); return; }
+      const COLOURS = { NEW: '#e74c3c', OPEN: '#f39c12', RESOLVED: '#2ecc71', Clear: '#3a3f4a' };
+      const RANK = { Clear: 0, RESOLVED: 1, OPEN: 2, NEW: 3 };
+      const byGuid = new Map();
+      (state.clashes || []).forEach(c => {
+        const st = c.status || 'NEW';
+        [c.elementA && c.elementA.guid, c.elementB && c.elementB.guid].forEach(g => {
+          if (!g) return;
+          const cur = byGuid.get(g);
+          if (!cur || (RANK[st] || 0) > (RANK[cur] || 0)) byGuid.set(g, st);
+        });
+      });
+      if (!byGuid.size) return toast('No clashes to colour by', 'warn');
+      const counts = { Clear: 0 }; byGuid.forEach(s => counts[s] = (counts[s] || 0) + 1);
+      const present = ['NEW', 'OPEN', 'RESOLVED', 'Clear'].filter(s => s === 'Clear' || counts[s]);
+      state.vizColour = {
+        kind: 'clash', byGuid, def: 'Clear', valueColors: new Map(present.map(s => [s, COLOURS[s]])),
+        counts, noValue: COLOURS.Clear, isolate: null, hidden: new Set(),
+        legend: present.map(s => ({ label: s, color: COLOURS[s], count: counts[s] || 0 })),
+      };
+      state.vizPreset = null; applyAppearance(); renderVisualizePanel();
+      if (!restoringViz) toast(`Coloured by clash status — ${byGuid.size} clashing element${byGuid.size === 1 ? '' : 's'}`);
+    }
+    // C4 — colour by ISSUE status (Open / Resolved / No issue), via elementGuids[].
+    function colourByIssueStatus() {
+      if (!V.modelRoot) return toast('No model', 'warn');
+      if (!restoringViz && state.vizColour && state.vizColour.kind === 'issue') { clearColour(); renderVisualizePanel(); toast('Colour cleared'); return; }
+      const COLOURS = { Open: '#f39c12', Resolved: '#2ecc71', 'No issue': '#3a3f4a' };
+      const byGuid = new Map();
+      (state.issues || []).forEach(i => {
+        const st = (i.status === 'RESOLVED') ? 'Resolved' : 'Open';
+        (Array.isArray(i.elementGuids) ? i.elementGuids : []).forEach(g => {
+          if (!g) return;
+          if (byGuid.get(g) !== 'Open') byGuid.set(g, st);   // Open wins over Resolved
+        });
+      });
+      if (!byGuid.size) return toast('No issues linked to elements', 'warn');
+      const counts = { 'No issue': 0 }; byGuid.forEach(s => counts[s] = (counts[s] || 0) + 1);
+      const present = ['Open', 'Resolved', 'No issue'].filter(s => s === 'No issue' || counts[s]);
+      state.vizColour = {
+        kind: 'issue', byGuid, def: 'No issue', valueColors: new Map(present.map(s => [s, COLOURS[s]])),
+        counts, noValue: COLOURS['No issue'], isolate: null, hidden: new Set(),
+        legend: present.map(s => ({ label: s, color: COLOURS[s], count: counts[s] || 0 })),
+      };
+      state.vizPreset = null; applyAppearance(); renderVisualizePanel();
+      if (!restoringViz) toast(`Coloured by issue status — ${byGuid.size} flagged element${byGuid.size === 1 ? '' : 's'}`);
+    }
+    // C6 — search/filter → act. Find element guids whose chosen field (or ANY scalar
+    // value when field='*') contains the query, then isolate / hide / colour / select
+    // them — all through the layered model.
+    const SEARCH_TOKENS = ['DISC', 'SYS', 'LVL', 'FUNC', 'PROD', 'CAT'];
+    function searchElementGuids(query, field) {
+      const q = String(query || '').trim().toLowerCase();
+      const out = new Set();
+      if (!q || !state.elementMap) return out;
+      Object.entries(state.elementMap).forEach(([guid, m]) => {
+        if (!m || typeof m !== 'object') return;
+        let hit = false;
+        if (field && field !== '*') {
+          // BUG 3 — use the SAME normalisation the resolver + colour-by use, so search
+          // matches the displayed values: DISC → discOf (derived), CAT → catKey.
+          let v;
+          if (field === 'DISC') v = discOf(m);
+          else if (field === 'CAT') v = catKey(m);
+          else v = SEARCH_TOKENS.includes(field) ? tokenValue(m, field) : m[field];
+          hit = String(v == null ? '' : v).toLowerCase().includes(q);
+        } else {
+          for (const k in m) { const v = m[k]; if (v != null && typeof v !== 'object' && String(v).toLowerCase().includes(q)) { hit = true; break; } }
+        }
+        if (hit) out.add(guid);
+      });
+      return out;
+    }
+    function colourBySearch(matched) {
+      const C = { Match: '#f39c12', Other: '#3a3f4a' };
+      state.vizColour = {
+        kind: 'search', byGuid: new Map(Array.from(matched).map(g => [g, 'Match'])), def: 'Other',
+        valueColors: new Map([['Match', C.Match], ['Other', C.Other]]), counts: { Match: matched.size, Other: 0 },
+        noValue: C.Other, isolate: null, hidden: new Set(),
+        legend: [{ label: 'Match', color: C.Match, count: matched.size }, { label: 'Other', color: C.Other, count: 0 }],
+      };
+      state.vizPreset = null; applyAppearance(); renderVisualizePanel();
+    }
+    function searchAct(action) {
+      const matched = searchElementGuids(state.vizSearchQuery, state.vizSearchField);
+      if (!matched.size) return toast('No matches', 'warn');
+      if (action === 'isolate')      { state.vizIsolation = { mode: 'isolate', guids: matched }; applyAppearance(); }
+      else if (action === 'hide')    { state.vizIsolation = { mode: 'hideSel', guids: matched }; applyAppearance(); }
+      else if (action === 'colour')  { colourBySearch(matched); }
+      else if (action === 'select')  {
+        state.selectedElementGuids = new Set(matched);
+        state.selectedElementGuid = matched.values().next().value;
+        reapplySelection(); renderProperties(state.selectedElementGuid);
+        renderSelectionToolbar(); updateRightTabCounts();
+      }
+      toast(`${matched.size} match${matched.size === 1 ? '' : 'es'} — ${action}`);
+    }
+    function fmtNum(n) { return Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : (Math.round(n * 100) / 100).toString(); }
+    function paramUnit(key) {
+      const k = String(key).toLowerCase();
+      if (/_mm$|width|height|depth|length|diameter|thickness/.test(k)) return 'mm';
+      if (/area/.test(k)) return 'm²';
+      if (/volume/.test(k)) return 'm³';
+      if (/cost|price|rate/.test(k)) return (state.currency || '');
+      if (/flow|lps/.test(k)) return 'L/s';
+      if (/pressure|pa$/.test(k)) return 'Pa';
+      if (/power|wattage|kw/.test(k)) return 'kW';
+      if (/voltage/.test(k)) return 'V';
+      return '';
+    }
+
+    // Discipline appearance preset (solid colour per discipline) — same engine.
+    // P3b — derive a distinguishable shade of a discipline base colour for the i-th of n
+    // categories: spread lightness across roughly ±28% (mix toward white/black) so the
+    // categories read apart while still clearly belonging to that discipline.
+    function shadeVariant(baseHex, i, n) {
+      if (n <= 1) return baseHex;
+      const f = (i / (n - 1) - 0.5) * 0.56;   // -0.28 … +0.28
+      return f >= 0 ? lerpHex(baseHex, '#ffffff', f) : lerpHex(baseHex, '#1a1a1a', -f);
+    }
+    // P3b — "Discipline + category variants": each discipline keeps its base colour;
+    // categories within it get auto variant shades (legend grouped by discipline). Custom
+    // category colours still win (handled in colourForValue). Idempotent toggle.
+    function applyDisciplineVariants() {
+      if (!V.modelRoot) return;
+      if (!restoringViz && state.vizPreset === '__variants') { clearColour(); renderVisualizePanel(); toast('Variants cleared'); return; }
+      const base = DISC_PRESETS['Discipline'];
+      const catsByDisc = {};
+      Object.values(state.elementMap || {}).forEach(m => {
+        const d = discOf(m) || '_other', c = catKey(m) || '';
+        (catsByDisc[d] = catsByDisc[d] || new Set()).add(c);
+      });
+      const valueColors = new Map(), legend = [];
+      Object.keys(catsByDisc).sort().forEach(d => {
+        const bcol = base[d] || base._other || '#5b6472';
+        const cats = Array.from(catsByDisc[d]).sort();
+        cats.forEach((c, i) => {
+          const hex = shadeVariant(bcol, i, cats.length);
+          valueColors.set(d + '|' + c, hex);
+          legend.push({ label: d + ' · ' + (c || '—'), color: hex });
+        });
+      });
+      state.vizPreset = '__variants';
+      state.vizColour = { kind: 'discVariants', valueColors, isolate: null, hidden: new Set(), noValue: '#3a3f4a', legend };
+      applyAppearance();
+      if (!restoringViz) toast('Discipline + category variants');
+    }
+    // Part B — System palette: standard per-classification colours for known SYS codes,
+    // variant shades for unknown, custom-per-system still wins; legend shows system + count.
+    // "No SYS values" toast ONLY when genuinely empty (after a re-publish carries the data).
+    function applySystemPalette(force) {
+      if (!V.modelRoot) return;
+      if (!force && !restoringViz && state.vizPreset === '__syspalette') { clearColour(); renderVisualizePanel(); toast('System palette cleared'); return; }
+      const counts = {}, discByKey = {};
+      Object.values(state.elementMap || {}).forEach(m => {
+        const k = sysKeyOf(m); if (!k) return;
+        counts[k] = (counts[k] || 0) + 1;
+        if (!discByKey[k]) discByKey[k] = discOf(m) || '?';
+      });
+      const keys = Object.keys(counts).sort();
+      // Degenerate guard — never ghost the whole model when there are no systems.
+      if (!keys.length) { toast('No MEP systems in this model', 'warn'); return; }
+      if (!state.vizSysIsolate) state.vizSysIsolate = new Set();
+      Array.from(state.vizSysIsolate).forEach(k => { if (!counts[k]) state.vizSysIsolate.delete(k); }); // drop stale
+      const valueColors = new Map(), legend = [];
+      keys.forEach((k, i) => {
+        // Item 4 — colour-blind-safe (Okabe-Ito) palette as an alternate; custom-per-system wins.
+        const hex = (state.vizCustomColours.has(k) && state.vizCustomColours.get(k))
+          || (state.vizColourBlind ? CB_SAFE[i % CB_SAFE.length]
+             : (SYS_PALETTE[k] || shadeVariant(SYS_PALETTE._other, i, keys.length)));
+        valueColors.set(k, hex);
+        legend.push({ label: k, count: counts[k], color: hex, disc: discByKey[k] });
+      });
+      state.vizPreset = '__syspalette';
+      // ghostUnmatched: shell (no system) always ghosts; isolateSet (checked systems) ghosts the rest.
+      state.vizColour = { kind: 'sysPalette', mode: 'colour-by-system', valueColors,
+        isolate: null, isolateSet: state.vizSysIsolate, ghostUnmatched: true, hidden: new Set(), noValue: '#3a3f4a', legend };
+      applyAppearance();
+      if (!restoringViz) toast(state.vizSysIsolate.size ? ('Isolated: ' + Array.from(state.vizSysIsolate).join(', ')) : 'System palette — shell ghosted');
+    }
+    // Item 4 — Okabe-Ito colour-blind-safe qualitative palette (deutan/protan/tritan friendly).
+    const CB_SAFE = ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7', '#000000', '#999999'];
+    const DISC_LABELS = { M: 'Mechanical', E: 'Electrical', P: 'Plumbing', FP: 'Fire', LV: 'Comms / LV', G: 'Civil', S: 'Structural', A: 'Architectural', '?': 'Other' };
+    function discLabel(d) { return DISC_LABELS[d] || d || 'Other'; }
+    function toHexInput(c) { return (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) ? c : '#888888'; }
+    // Item 1 — interactive system legend: presets + per-discipline groups + checkboxes
+    // (multi-isolate) + click-row-to-isolate + per-system count badge + live recolour + search.
+    function renderSystemLegend(col) {
+      const iso = col.isolateSet || (col.isolateSet = new Set());
+      const have = new Set(col.legend.map(it => it.label));
+      const setIso = (ks) => { iso.clear(); ks.forEach(k => { if (have.has(k)) iso.add(k); }); applyAppearance(); renderVisualizePanel(); };
+      const wrap = el('div', { style: 'display:flex;flex-direction:column;gap:4px;margin-top:6px' });
+      const pr = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px' });
+      [['Hot+Cold', ['DCW', 'DHW']], ['Drainage', ['SAN', 'VEN', 'RWD']],
+       ['All Plumbing', 'P'], ['All HVAC', 'M'], ['All Electrical', 'E']].forEach(p => {
+        const ks = Array.isArray(p[1]) ? p[1] : col.legend.filter(it => it.disc === p[1]).map(it => it.label);
+        if (!ks.some(k => have.has(k))) return;
+        pr.appendChild(el('button', { class: 'btn sm', onclick: () => setIso(ks) }, p[0]));
+      });
+      pr.appendChild(el('button', { class: 'btn sm', onclick: () => setIso(col.legend.map(it => it.label)) }, 'Select all'));
+      pr.appendChild(el('button', { class: 'btn sm subtle', onclick: () => setIso([]) }, 'Clear'));
+      wrap.appendChild(pr);
+      const search = el('input', { type: 'text', placeholder: 'Filter systems…', value: state.vizSysSearch || '',
+        style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px 6px;font-size:11px' });
+      const rowsBox = el('div', { style: 'display:flex;flex-direction:column;gap:1px;max-height:240px;overflow:auto' });
+      const renderRows = () => {
+        rowsBox.innerHTML = '';
+        const q = (state.vizSysSearch || '').toLowerCase();
+        const byDisc = {};
+        col.legend.forEach(it => { if (q && !it.label.toLowerCase().includes(q)) return; (byDisc[it.disc] = byDisc[it.disc] || []).push(it); });
+        Object.keys(byDisc).sort().forEach(d => {
+          rowsBox.appendChild(el('div', { style: 'font-size:10px;color:#9aa3b2;margin-top:4px;text-transform:uppercase' }, discLabel(d)));
+          byDisc[d].forEach(it => {
+            const checked = iso.has(it.label);
+            const row = el('div', { style: 'display:flex;align-items:center;gap:6px;font-size:11px;padding:2px 3px;border-radius:3px;cursor:pointer;' + (checked ? 'background:rgba(59,130,246,0.22);' : '') });
+            const ck = el('input', { type: 'checkbox', style: 'cursor:pointer;accent-color:#3B82F6;flex:0 0 auto' });
+            ck.checked = checked;
+            ck.addEventListener('click', (e) => { e.stopPropagation(); if (ck.checked) iso.add(it.label); else iso.delete(it.label); applyAppearance(); renderVisualizePanel(); });
+            const sw = el('input', { type: 'color', value: toHexInput(it.color), title: 'Recolour ' + it.label,
+              style: 'width:14px;height:14px;padding:0;border:none;background:none;cursor:pointer;flex:0 0 auto' });
+            sw.addEventListener('click', (e) => e.stopPropagation());
+            sw.addEventListener('input', () => { state.vizCustomColours.set(it.label, sw.value); col.valueColors.set(it.label, sw.value); it.color = sw.value; applyAppearance(); });
+            row.appendChild(ck); row.appendChild(sw);
+            row.appendChild(el('span', { style: 'flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' }, it.label));
+            row.appendChild(el('span', { style: 'color:#9aa3b2' }, String(it.count)));
+            row.addEventListener('click', () => { iso.clear(); iso.add(it.label); applyAppearance(); renderVisualizePanel(); });
+            row.addEventListener('mouseenter', () => highlightByColourValue(col, it.label));
+            row.addEventListener('mouseleave', () => clearHoverHighlight());
+            rowsBox.appendChild(row);
+          });
+        });
+      };
+      search.addEventListener('input', () => { state.vizSysSearch = search.value; renderRows(); });
+      wrap.appendChild(search); wrap.appendChild(rowsBox); renderRows();
+      return wrap;
+    }
     function applyDisciplinePreset(name) {
       const preset = DISC_PRESETS[name];
-      if (!preset || !V.modelRoot || !state.elementMap) return;
-      clearAllHighlights();   // capture true originals (see colourByToken)
-      const guidColorMap = {};
+      if (!preset || !V.modelRoot) return;
+      if (!restoringViz && state.vizPreset === name) { clearColour(); renderVisualizePanel(); toast('Preset cleared'); return; }   // BUG 2 toggle
       const used = new Set();
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        const guid = o.userData.elementGuid;
-        const d = discKey(state.elementMap[guid]);
-        const col = preset[d] || preset._other;
-        if (col) { guidColorMap[guid] = col; if (preset[d]) used.add(d); }
-      });
-      const legend = Array.from(used).sort().map(d => ({ label: d, color: preset[d] }));
-      if (preset._other) legend.push({ label: 'Other', color: preset._other });
+      Object.values(state.elementMap || {}).forEach(m => { const d = discOf(m); if (preset[d]) used.add(d); });
       state.vizPreset = name;
-      V.applyOverlay({ source: 'preset:' + name, mode: 'map', guidColorMap,
-                       defaultColor: preset._other || null, opacity: 1,
-                       title: name, legend });
-      toast(`Applied ${name}`);
+      state.vizColour = {
+        kind: 'preset', map: preset, presetName: name, isolate: null, hidden: new Set(),
+        legend: Array.from(used).sort().map(d => ({ label: d, color: preset[d] }))
+          .concat(preset._other ? [{ label: 'Other', color: preset._other }] : []),
+      };
+      applyAppearance();
+      if (!restoringViz) toast(`Applied ${name}`);
+    }
+    function clearColour() {
+      state.vizColour = null; state.vizPreset = null;
+      applyAppearance();
     }
 
     // BUILD 4 (section) — a clip-plane section box around an arbitrary AABB.
@@ -1019,38 +1874,305 @@
       state.clashSection.active = false;
     }
 
+    // Deterministic reset to the TRUE original — clears every appearance input
+    // (disc/cat modes, colour scheme, custom colours, keep-solid, render mode) AND
+    // the selection, then restores each mesh to its load-time original material.
+    // viz-stable-reset — the ALWAYS-WORKS escape hatch: returns the model to pristine
+    // from ANY corrupted state. Clears EVERY appearance input + selection/isolate sets,
+    // hard-restores each mesh to its _trueOrig (independent of slot/_vizMode bookkeeping),
+    // and disposes every cloned override material so nothing leaks or lingers.
     function resetVisualization() {
-      state.vizDiscMode.clear(); state.vizCatMode.clear(); state.vizPreset = null;
+      _vizApplying = false;                                  // release any stuck re-entrancy guard
+      state.vizDiscMode.clear(); state.vizCatMode.clear();
+      state.vizKeepSolidDisc.clear(); state.vizKeepSolidCat.clear();
+      if (state.vizDiscSel && state.vizDiscSel.clear) state.vizDiscSel.clear();
+      if (state.vizCatSel && state.vizCatSel.clear) state.vizCatSel.clear();
+      if (state.vizSysIsolate && state.vizSysIsolate.clear) state.vizSysIsolate.clear();
+      state.vizGhostRest = false; state.glassMode = false;
+      state.vizSysSearch = ''; state.vizCatSearch = ''; state.vizSearchQuery = '';
+      state.vizPreset = null; state.vizColour = null;
+      state.vizCustomColours.clear();
+      state.vizTransp.clear();
+      state.vizIsolation = null;
+      state.renderMode = 'shaded';
+      try { if (V.setRealistic) V.setRealistic(false); } catch (_) {}   // Clear returns to base look
+      state.selectedElementGuid = null; state.selectedElementGuids.clear();
       clearClashSection();
-      if (V.clearOverlay) V.clearOverlay();
-      clearAllHighlights();
+      if (V.clearOverlay) { try { V.clearOverlay(); } catch (_) {} }
+      clearAllHighlights();            // selection + appearance → true original, flags reset
+
+      // Hard per-mesh restore — does NOT rely on the elementMaterials slot or _vizMode,
+      // so it recovers even if those desynced. Drops selection + glass clones too.
+      if (V.modelRoot) vizGroup().traverse(o => {
+        if (!o.isMesh) return;
+        if (o.userData._selClone && !isSharedMat(o.userData._selClone) && o.userData._selClone.dispose) { try { o.userData._selClone.dispose(); } catch (_) {} }
+        o.userData._selClone = null; o.userData._selSrc = null;
+        if (o.material && o.material.userData && o.material.userData._glassClone && o.material.dispose) { try { o.material.dispose(); } catch (_) {} }
+        o.userData._glassSrc = null;
+        if (o.userData._trueOrig) o.material = o.userData._trueOrig;
+        o.visible = true;
+        o.userData._vizMode = undefined; o.userData._paintKey = undefined;
+      });
+      state.elementMaterials.clear();
+      if (state.selMeshes && state.selMeshes.clear) state.selMeshes.clear();
+
+      // Dispose the SHARED override-material caches (safe now — no mesh references them).
+      try { state.colourMats.forEach(m => m && m.dispose && m.dispose()); state.colourMats.clear(); } catch (_) {}
+      try { state.transMats.forEach(m => m && m.dispose && m.dispose()); state.transMats.clear(); } catch (_) {}
+      try { Object.keys(_rmodeMats).forEach(k => { try { _rmodeMats[k] && _rmodeMats[k].dispose && _rmodeMats[k].dispose(); } catch (_) {} delete _rmodeMats[k]; }); } catch (_) {}
+      if (ghostSharedMat) { try { ghostSharedMat.dispose(); } catch (_) {} ghostSharedMat = null; }
+
       showAllElements();
+      try { localStorage.removeItem(vizStateKey()); } catch (_) {}   // B3 — wipe persisted state
+      try { $$('.disc-chip').forEach(c => c.classList.remove('active')); } catch (_) {}
       renderVisualizePanel();
-      toast('Visualization reset');
+      toast('Visualization reset — pristine');
     }
 
+    // ── B3 — per-MODEL visualize persistence ──────────────────────────────────
+    // Saves the appearance INPUTS (not per-mesh state) keyed by model id; colours are
+    // re-derived deterministically on restore, so nothing drifts. Selection is NOT
+    // persisted (it's transient). restoringViz suppresses re-save churn during load.
+    let restoringViz = false;
+    // FEDERATION — viz now spans EVERY loaded model in the project, so persist the
+    // appearance per PROJECT (not per model id) — otherwise the federation state would
+    // fragment across the individual models. (Supersédes the D-fix per-model key, which
+    // was correct only while the viewer was single-model.)
+    function vizStateKey() { return 'planscape_viz_proj_' + (projectId || modelId || 'default'); }
+    // C5 — one serializer for the appearance inputs, reused by per-model persistence (B3)
+    // AND named visualize presets in Saved Views. Colours are stored as a descriptor and
+    // re-derived deterministically (A5), so a snapshot reproduces identical colours.
+    function serializeViz() {
+      const c = state.vizColour;
+      return {
+        disc: Array.from(state.vizDiscMode.entries()),
+        cat:  Array.from(state.vizCatMode.entries()),
+        custom: Array.from(state.vizCustomColours.entries()),
+        transp: Array.from(state.vizTransp.entries()),
+        keepDisc: Array.from(state.vizKeepSolidDisc),
+        keepCat:  Array.from(state.vizKeepSolidCat),
+        palette: state.vizPalette,
+        renderMode: state.renderMode,
+        // Item 3 — isolate/ghost/colour-blind state so saved presets + meeting surface-sync
+        // carry the full filter, not just the colour mode. (Camera is added by saveNamedView
+        // only — we don't want a live appearance broadcast to yank everyone's camera.)
+        sysIsolate: Array.from(state.vizSysIsolate || []),
+        ghostRest: !!state.vizGhostRest,
+        colourBlind: !!state.vizColourBlind,
+        colour: c ? { kind: c.kind, token: c.token, presetName: c.presetName, numeric: !!c.numeric } : null,
+        // E3 — the section box (fraction-based, model-relative) rides along.
+        section: (typeof window !== 'undefined' && window.STING_VIEWER_EXTRAS && window.STING_VIEWER_EXTRAS.getSectionBox)
+          ? window.STING_VIEWER_EXTRAS.getSectionBox() : null,
+      };
+    }
+    function applyVizSnapshot(d) {
+      if (!d) return;
+      restoringViz = true;
+      try {
+        state.vizDiscMode = new Map(d.disc || []);
+        state.vizCatMode  = new Map(d.cat || []);
+        state.vizCustomColours = new Map(d.custom || []);
+        state.vizTransp   = new Map(d.transp || []);
+        state.vizKeepSolidDisc = new Set(d.keepDisc || []);
+        state.vizKeepSolidCat  = new Set(d.keepCat || []);
+        state.vizIsolation = null;
+        if (d.palette) state.vizPalette = d.palette;
+        state.renderMode = d.renderMode || 'shaded';
+        // Item 3 — restore isolate/ghost/colour-blind BEFORE the colour scheme rebuilds, so
+        // applySystemPalette() picks up the isolated systems + CB palette + ghost state.
+        state.vizSysIsolate = new Set(d.sysIsolate || []);
+        state.vizGhostRest = !!d.ghostRest;
+        state.vizColourBlind = !!d.colourBlind;
+        state.vizColour = null;
+        if (d.colour) {
+          if (d.colour.kind === 'preset' && d.colour.presetName) applyDisciplinePreset(d.colour.presetName);
+          else if (d.colour.kind === 'discVariants') applyDisciplineVariants();   // P3b — rebuild variants
+          else if (d.colour.kind === 'sysPalette') applySystemPalette();          // Part B — rebuild system palette
+          else if (d.colour.kind === 'clash') colourByClashStatus();
+          else if (d.colour.kind === 'issue') colourByIssueStatus();
+          else if (d.colour.numeric && d.colour.token) colourByParam(d.colour.token);
+          else if (d.colour.kind === 'token' && d.colour.token) colourByToken(d.colour.token);
+          else if (d.colour.kind === 'param' && d.colour.token) colourByParam(d.colour.token);
+        }
+        // E3 — restore the section box (or clear if the snapshot had none).
+        const xx = (typeof window !== 'undefined') && window.STING_VIEWER_EXTRAS;
+        if (xx && xx.applySectionState) xx.applySectionState(d.section || { active: false });
+        // Item 3 — restore camera ONLY when the snapshot carries it (saved views do; live
+        // appearance broadcasts don't), so a coordinator's filter change never moves cameras.
+        if (d.camera && V.camera) {
+          try {
+            if (Array.isArray(d.camera.p)) V.camera.position.fromArray(d.camera.p);
+            if (Array.isArray(d.camera.t) && V.controls) V.controls.target.fromArray(d.camera.t);
+            if (V.controls) V.controls.update();
+          } catch (_) {}
+        }
+      } catch (_) {}
+      restoringViz = false;
+      applyAppearance();
+      renderVisualizePanel();
+    }
+    function saveVizState() {
+      if (state.applyingRemoteViz || restoringViz) return;
+      try { localStorage.setItem(vizStateKey(), JSON.stringify(serializeViz())); } catch (_) {}
+    }
+    function loadVizState() {
+      try { const raw = localStorage.getItem(vizStateKey()); if (raw) applyVizSnapshot(JSON.parse(raw)); } catch (_) {}
+    }
+    // V6 — SAVED VIEWS: named Show+Colour combos persisted per project (localStorage),
+    // one-click recall. Reuses serializeViz()/applyVizSnapshot(); recall broadcasts to a meeting.
+    function savedViewsKey() { return vizStateKey() + ':saved'; }
+    function loadSavedViews() { try { return JSON.parse(localStorage.getItem(savedViewsKey()) || '[]') || []; } catch (_) { return []; } }
+    function writeSavedViews(arr) { try { localStorage.setItem(savedViewsKey(), JSON.stringify(arr)); } catch (_) {} }
+    function saveNamedView(name) {
+      name = (name || '').trim(); if (!name) return;
+      // Item 3 — a saved preset also captures the CAMERA (broadcasts intentionally don't, so a
+      // live appearance change never yanks everyone's view). Camera lives on the saved snap only.
+      const snap = serializeViz();
+      try {
+        if (V.camera) snap.camera = { p: V.camera.position.toArray(), t: (V.controls && V.controls.target) ? V.controls.target.toArray() : null };
+      } catch (_) {}
+      const arr = loadSavedViews().filter(v => v.name !== name);   // replace same-name
+      arr.unshift({ name: name, snap: snap, at: Date.now() });
+      writeSavedViews(arr.slice(0, 50));
+      renderVisualizePanel();
+      toast('Saved view: ' + name);
+    }
+    function recallNamedView(name) {
+      const v = loadSavedViews().find(x => x.name === name); if (!v) return;
+      applyVizSnapshot(v.snap);          // applies + renders (restoringViz guards self-echo)
+      try { broadcastAppearance(); } catch (_) {}   // then mirror the recalled state to a meeting
+      toast('Recalled: ' + name);
+    }
+    function deleteNamedView(name) { writeSavedViews(loadSavedViews().filter(v => v.name !== name)); renderVisualizePanel(); }
+
     // ── Visualize panel UI ───────────────────────────────────────────────────
-    function vizModeRow(label, count, getMode, setMode) {
+    // B1 — a discipline/category row: optional colour picker (custom colour for that
+    // group, overrides the palette) · label (click = isolate) · show / ghost / hide /
+    // isolate buttons. customKey is the value (disc code / category) for the colour map.
+    function vizModeRow(label, count, getMode, setMode, onIsolate, customKey, selSet, selKey) {
       const row = el('div', { class: 'viz-row',
-        style: 'display:flex;align-items:center;gap:6px;padding:3px 0' });
-      row.appendChild(el('span', {
+        style: 'display:flex;align-items:center;gap:5px;padding:3px 0' });
+      // P2 — multi-select tick for "Shade selected, ghost rest".
+      if (selSet) {
+        const ck = el('input', { type: 'checkbox', title: 'Tick for multi-isolate',
+          style: 'width:14px;height:14px;flex:0 0 auto;cursor:pointer;accent-color:#3B82F6' });
+        ck.checked = selSet.has(selKey);
+        ck.addEventListener('change', () => { if (ck.checked) selSet.add(selKey); else selSet.delete(selKey); });
+        row.appendChild(ck);
+      }
+      if (customKey != null) {
+        const cp = el('input', { type: 'color', value: state.vizCustomColours.get(customKey) || '#888888',
+          title: 'Custom colour for ' + label,
+          style: 'width:18px;height:18px;padding:0;border:none;background:none;cursor:pointer;flex:0 0 auto' });
+        cp.addEventListener('input', () => { state.vizCustomColours.set(customKey, cp.value); applyAppearance(); });
+        row.appendChild(cp);
+      }
+      const lbl = el('span', {
+        title: onIsolate ? 'Click to isolate (shade only, ghost rest)' : '',
         style: 'flex:1;font-size:12px;color:var(--text,#e6e6e6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
-      }, count != null ? `${label} (${count})` : label));
+          + (onIsolate ? ';cursor:pointer' : '')
+      }, count != null ? `${label} (${count})` : label);
+      if (onIsolate) lbl.addEventListener('click', () => onIsolate());
+      row.appendChild(lbl);
       const group = el('div', { style: 'display:flex;gap:2px' });
-      [['show', '◐'], ['ghost', '○'], ['hide', '∅']].forEach(([m, glyph]) => {
+      const mkBtn = (m, glyph, title, fn) => {
         const cur = getMode() || 'show';
+        const active = (m === '_iso') ? false : (cur === m);
         const b = el('button', {
-          class: 'viz-mode-btn', title: m,
-          style: 'width:26px;height:22px;border-radius:4px;cursor:pointer;font-size:12px;'
-            + 'border:1px solid ' + (cur === m ? '#3B82F6' : 'rgba(255,255,255,0.15)') + ';'
-            + 'background:' + (cur === m ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.04)') + ';'
+          class: 'viz-mode-btn', title: title || m,
+          style: 'width:24px;height:22px;border-radius:4px;cursor:pointer;font-size:12px;'
+            + 'border:1px solid ' + (active ? '#3B82F6' : 'rgba(255,255,255,0.15)') + ';'
+            + 'background:' + (active ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.04)') + ';'
             + 'color:#e6e6e6'
         }, glyph);
-        b.addEventListener('click', () => { setMode(m); applyVizModes(); renderVisualizePanel(); });
+        b.addEventListener('click', fn);
         group.appendChild(b);
-      });
+      };
+      [['show', '◐', 'Show'], ['ghost', '○', 'Ghost'], ['hide', '∅', 'Hide']].forEach(([m, glyph, title]) =>
+        mkBtn(m, glyph, title, () => { setMode(m); applyAppearance(); renderVisualizePanel(); }));
+      if (onIsolate) mkBtn('_iso', '◎', 'Isolate (shade only, ghost the rest)', () => onIsolate());
       row.appendChild(group);
+      // C1 — continuous transparency slider (100% = opaque/no override; < 100% renders
+      // the group at that opacity, overriding the binary ghost).
+      if (customKey != null) {
+        const cur = state.vizTransp.has(customKey) ? Math.round(state.vizTransp.get(customKey) * 100) : 100;
+        const sl = el('input', { type: 'range', min: '0', max: '100', step: '5', value: String(cur),
+          title: 'Opacity ' + cur + '%', class: 'viz-transp',
+          style: 'width:46px;flex:0 0 auto;cursor:pointer;accent-color:#3B82F6' });
+        sl.addEventListener('input', () => {
+          const v = parseInt(sl.value, 10);
+          sl.title = 'Opacity ' + v + '%';
+          if (v >= 100) state.vizTransp.delete(customKey); else state.vizTransp.set(customKey, v / 100);
+          applyAppearance();
+        });
+        row.appendChild(sl);
+      }
       return row;
+    }
+
+    // Colour legend (swatch · label · count) with M4 interactivity:
+    //   click       → isolate this value (ghost the rest)   [toggle]
+    //   shift-click → hide this value                        [toggle]
+    //   hover       → highlight matching meshes
+    // Numeric/gradient legends are read-only stops (no per-value isolation).
+    function renderVizLegend(col) {
+      const box = el('div', { class: 'viz-legend', style: 'margin-top:6px;display:flex;flex-direction:column;gap:2px;max-height:200px;overflow:auto' });
+      const interactive = !col.numeric;
+      col.legend.forEach(it => {
+        const isIso = col.isolate === it.label;
+        const isHid = col.hidden && col.hidden.has(it.label);
+        const row = el('div', { class: 'viz-legend-row', 'data-value': it.label, style:
+          'display:flex;align-items:center;gap:6px;font-size:11px;padding:2px 3px;border-radius:3px;' +
+          (interactive ? 'cursor:pointer;' : '') +
+          'color:' + (isHid ? '#6b7280' : '#cfd6e4') + ';' +
+          (isIso ? 'background:rgba(59,130,246,0.25);' : '') +
+          (isHid ? 'text-decoration:line-through;opacity:0.6;' : '') }, [
+          el('span', { style: `width:12px;height:12px;border-radius:2px;background:${it.color};flex:0 0 auto` }),
+          el('span', { style: 'flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' }, String(it.label)),
+          el('span', { style: 'color:#9aa3b2' }, it.count != null ? String(it.count) : ''),
+        ]);
+        if (interactive) {
+          row.addEventListener('click', (e) => {
+            if (e.shiftKey) {                              // shift-click → toggle hide
+              if (col.hidden.has(it.label)) col.hidden.delete(it.label); else col.hidden.add(it.label);
+              col.isolate = null;
+            } else {                                       // click → toggle isolate
+              col.isolate = (col.isolate === it.label) ? null : it.label;
+              col.hidden.clear();
+            }
+            applyAppearance(); renderVisualizePanel();
+          });
+          row.addEventListener('mouseenter', () => highlightByColourValue(col, it.label));
+          row.addEventListener('mouseleave', () => clearHoverHighlight());
+        }
+        box.appendChild(row);
+      });
+      return box;
+    }
+    // Transient hover highlight — emissive boost on the (shared) materials of meshes
+    // matching a legend value. Track MATERIALS (not meshes) so a shared material is
+    // touched once; restore to black (these engine materials default to no emissive).
+    let _hoverMats = [];
+    function clearHoverHighlight() {
+      // C3 — restore the material's PRIOR emissive (captured below), not a forced
+      // black: a true-original GLTF material may have its own emissive, and selected
+      // meshes carry the orange selection emissive — neither must be stomped.
+      _hoverMats.forEach(({ mat, hex }) => { if (mat && mat.emissive) mat.emissive.setHex(hex); });
+      _hoverMats = [];
+    }
+    function highlightByColourValue(col, label) {
+      clearHoverHighlight();
+      if (!V.modelRoot) return;
+      const seen = new Set();
+      vizGroup().traverse(o => {
+        if (!o.isMesh || !o.visible || !o.material || !o.material.emissive) return;
+        const key = colourKey(col, colourValueOf(col, metaForMesh(o), o.userData.elementGuid));
+        if (key === label && !seen.has(o.material.uuid)) {
+          seen.add(o.material.uuid);
+          _hoverMats.push({ mat: o.material, hex: o.material.emissive.getHex() });
+          o.material.emissive.setHex(0x2244aa);
+        }
+      });
     }
 
     function renderVisualizePanel() {
@@ -1071,7 +2193,7 @@
       // ── Quick actions ──
       const quick = el('div', {});
       quick.appendChild(sectionTitle('Quick'));
-      const discs = distinctTokens('DISC');
+      const discs = distinctDisc();   // derived where the DISC token is absent
       const sel = el('select', { style: 'flex:1;background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:4px' });
       sel.appendChild(el('option', { value: '' }, 'Pick discipline…'));
       discs.forEach(d => sel.appendChild(el('option', { value: d }, d)));
@@ -1081,10 +2203,29 @@
       ]);
       quick.appendChild(qRow);
       quick.appendChild(el('div', { style: 'display:flex;gap:6px;margin-top:6px' }, [
-        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => { state.vizDiscMode.forEach((_, k) => state.vizDiscMode.set(k, 'show')); state.vizCatMode.forEach((_, k) => state.vizCatMode.set(k, 'show')); showAllElements(); clearAllHighlights(); renderVisualizePanel(); } }, 'Show all'),
-        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => resetVisualization() }, 'Reset')
+        el('button', { class: 'btn sm subtle', style: 'flex:1', onclick: () => { state.vizDiscMode.forEach((_, k) => state.vizDiscMode.set(k, 'show')); state.vizCatMode.forEach((_, k) => state.vizCatMode.set(k, 'show')); state.vizColour = null; if (V.modelRoot) vizGroup().traverse(o => { if (o.isMesh) o.userData._vizMode = undefined; }); applyAppearance(); renderVisualizePanel(); } }, 'Show all')
       ]));
+      // viz-stable-reset — PROMINENT always-works escape hatch on its own full-width row.
+      quick.appendChild(el('button', {
+        style: 'width:100%;margin-top:6px;padding:7px 0;font-size:12px;font-weight:700;cursor:pointer;'
+          + 'border:1px solid #ef4444;border-radius:6px;background:rgba(239,68,68,0.18);color:#fecaca',
+        title: 'Restore the model to its original appearance — works from any state',
+        onclick: () => resetVisualization()
+      }, '⟲ Reset appearance'));
       wrap.appendChild(quick);
+
+      // V4 — two clearly-labelled axes (pure visual grouping; the engine is unchanged):
+      // (1) SHOW / FILTER (combo presets + multi-isolate disc/cat → only these shaded) and
+      // (2) COLOUR BY (tag / variants / custom / param) — applied within the shown set.
+      const SECT = 'border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:10px';
+      const showSection = el('div', { style: SECT });
+      showSection.appendChild(sectionTitle('① SHOW / FILTER'));
+      showSection.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2;margin-top:-4px' }, 'Pick a combo or tick disciplines/categories → only those shaded, the rest ghosted.'));
+      const colourSection = el('div', { style: SECT });
+      colourSection.appendChild(sectionTitle('② COLOUR BY'));
+      colourSection.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2;margin-top:-4px' }, 'Colours the SHOWN set (ghosted elements stay ghosted). e.g. Show MEP + Colour by Category.'));
+      wrap.appendChild(showSection);
+      wrap.appendChild(colourSection);
 
       // ── BUILD 2 — Ghost appearance ──
       const ghostBox = el('div', {});
@@ -1092,44 +2233,175 @@
       const tintHex = '#' + ('000000' + (state.ghostStyle.tint >>> 0).toString(16)).slice(-6);
       const tint = el('input', { type: 'color', value: tintHex, style: 'width:34px;height:24px;padding:0;border:none;background:none;cursor:pointer' });
       tint.addEventListener('input', () => { state.ghostStyle.tint = parseInt(tint.value.slice(1), 16); reapplyGhosts(); });
-      const op = el('input', { type: 'range', min: '2', max: '60', value: String(Math.round(state.ghostStyle.opacity * 100)), style: 'flex:1' });
+      // V1 — ghost is INTENTIONALLY never fully solid (it's the "faded rest"); the old 60%
+      // cap made max read as "should be solid". Widen the usable range to 90% + relabel +
+      // a note so max ≠ "expected solid" (for solid, use ① SHOW / FILTER). Linear value→state.
+      const op = el('input', { type: 'range', min: '2', max: '90', value: String(Math.round(state.ghostStyle.opacity * 100)),
+        title: 'Ghost fade — how visible the ghosted "rest" is (never fully solid; use SHOW/FILTER for solid)', style: 'flex:1' });
       const opVal = el('span', { style: 'font-size:11px;color:#9aa3b2;width:34px;text-align:right' }, Math.round(state.ghostStyle.opacity * 100) + '%');
       op.addEventListener('input', () => { state.ghostStyle.opacity = (+op.value) / 100; opVal.textContent = op.value + '%'; reapplyGhosts(); });
       ghostBox.appendChild(el('div', { style: 'display:flex;gap:8px;align-items:center;margin-top:4px' }, [
         el('span', { style: 'font-size:12px;color:#e6e6e6' }, 'Tint'), tint,
-        el('span', { style: 'font-size:12px;color:#e6e6e6;margin-left:8px' }, 'Opacity'), op, opVal
+        el('span', { style: 'font-size:12px;color:#e6e6e6;margin-left:8px' }, 'Ghost fade'), op, opVal
       ]));
+      ghostBox.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2;margin-top:2px' },
+        'Ghost stays translucent by design — to make elements solid, use ① SHOW / FILTER (shade them).'));
       wrap.appendChild(ghostBox);
 
       // ── BUILD 3 — Colour by token ──
       const colBox = el('div', {});
       colBox.appendChild(sectionTitle('Colour by tag'));
-      const tokens = [['DISC', 'Discipline'], ['SYS', 'System'], ['LVL', 'Level'], ['FUNC', 'Function'], ['PROD', 'Product']];
+      // BUG 2 — buttons reflect the ACTIVE scheme (pressed) so state is visible + the
+      // toggle is obvious. cKind/cTok read the single state model (state.vizColour).
+      const cKind = state.vizColour && state.vizColour.kind, cTok = state.vizColour && state.vizColour.token;
+      const pressed = (on) => on ? 'border-color:#3B82F6;background:rgba(59,130,246,0.30);color:#fff' : '';
+      const tokens = [['DISC', 'Discipline'], ['CAT', 'Category'], ['SYS', 'System'], ['LVL', 'Level'], ['FUNC', 'Function'], ['PROD', 'Product']];
       const tokRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' });
       tokens.forEach(([t, label]) => tokRow.appendChild(
-        el('button', { class: 'btn sm', onclick: () => colourByToken(t) }, label)));
-      tokRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => { if (V.clearOverlay) V.clearOverlay(); state.vizPreset = null; toast('Overlay cleared'); } }, 'Clear overlay'));
+        el('button', { class: 'btn sm', style: pressed(cKind === 'token' && cTok === t), onclick: () => colourByToken(t) }, label)));
+      // Part B — System palette: standard MEP-system colours (vs the generic 'System' token
+      // button which palette-assigns). Shown pressed when active.
+      tokRow.appendChild(el('button', {
+        class: 'btn sm', style: (state.vizPreset === '__syspalette' ? 'border-color:#3B82F6;background:rgba(59,130,246,0.30);color:#fff' : ''),
+        title: 'Standard MEP system colours (DCW/DHW/SAN/VEN/GAS/FP/…)',
+        onclick: () => { applySystemPalette(); renderVisualizePanel(); } }, '🛠 System palette'));
+      tokRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => { clearColour(); renderVisualizePanel(); toast('Colour cleared'); } }, 'Clear colour'));
       colBox.appendChild(tokRow);
-      wrap.appendChild(colBox);
+      // Item 2 — global "Ghost the rest" toggle: fade everything that doesn't match the active
+      // colour filter, in ANY mode (discipline / category / system / param). Default ON for
+      // system (applySystemPalette sets col.ghostUnmatched); available + toggleable elsewhere.
+      if (state.vizColour) {
+        const grOn = !!(state.vizColour.ghostUnmatched || state.vizGhostRest);
+        const grck = el('input', { type: 'checkbox', style: 'cursor:pointer;accent-color:#3B82F6' });
+        grck.checked = grOn;
+        grck.addEventListener('change', () => {
+          state.vizGhostRest = grck.checked;
+          if (state.vizColour) state.vizColour.ghostUnmatched = grck.checked;  // system mode honours the same flag
+          applyAppearance(); renderVisualizePanel();
+        });
+        const grRow = el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:11px;color:#cfd6e4;cursor:pointer;margin-top:4px' },
+          [grck, el('span', {}, 'Ghost the rest (fade non-matching)')]);
+        colBox.appendChild(grRow);
+        // Item 4 — colour-blind-safe palette toggle (re-applies the System palette in CB colours).
+        const cbck = el('input', { type: 'checkbox', style: 'cursor:pointer;accent-color:#3B82F6' });
+        cbck.checked = !!state.vizColourBlind;
+        cbck.addEventListener('change', () => {
+          state.vizColourBlind = cbck.checked;
+          if (state.vizColour && state.vizColour.kind === 'sysPalette') applySystemPalette(true);  // force rebuild in CB colours
+          else { applyAppearance(); renderVisualizePanel(); }
+        });
+        colBox.appendChild(el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:11px;color:#cfd6e4;cursor:pointer;margin-top:2px' },
+          [cbck, el('span', {}, 'Colour-blind-safe palette')]));
+      }
+      // C4 — colour by coordination status (clash / issue).
+      colBox.appendChild(el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' }, [
+        el('button', { class: 'btn sm', style: pressed(cKind === 'clash'), title: 'Colour by clash status (worst per element)', onclick: () => colourByClashStatus() }, 'Clash status'),
+        el('button', { class: 'btn sm', style: pressed(cKind === 'issue'), title: 'Colour by issue status (open / resolved)', onclick: () => colourByIssueStatus() }, 'Issue status'),
+      ]));
+      // M4 — palette set + colour-by-ANY-parameter (categorical or numeric gradient).
+      const palSel = el('select', { style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px;font-size:11px;flex:1' });
+      Object.keys(PALETTE_SETS).forEach(p => { const o = el('option', { value: p }, p); if (p === state.vizPalette) o.selected = true; palSel.appendChild(o); });
+      palSel.addEventListener('change', () => { state.vizPalette = palSel.value; if (state.vizColour) { if (state.vizColour.kind === 'param') colourByParam(state.vizColour.token); else if (state.vizColour.kind === 'token') colourByToken(state.vizColour.token); } });
+      const paramSel = el('select', { style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px;font-size:11px;flex:1' });
+      paramSel.appendChild(el('option', { value: '' }, 'Colour by parameter…'));
+      paramKeys().forEach(k => paramSel.appendChild(el('option', { value: k }, k)));
+      paramSel.addEventListener('change', () => { if (paramSel.value) colourByParam(paramSel.value); });
+      colBox.appendChild(el('div', { style: 'display:flex;gap:4px;margin-top:5px' }, [
+        el('span', { style: 'font-size:11px;color:#9aa3b2;align-self:center' }, 'Palette'), palSel, paramSel,
+      ]));
+      // Legend — rendered by the M1 engine (was the overlay's). M4 makes the
+      // swatches interactive (click = isolate, shift-click = hide, hover = highlight).
+      if (state.vizColour && state.vizColour.legend && state.vizColour.legend.length) {
+        colBox.appendChild(state.vizColour.kind === 'sysPalette'
+          ? renderSystemLegend(state.vizColour)        // item 1 — interactive multi-isolate legend
+          : renderVizLegend(state.vizColour));
+      }
+      colourSection.appendChild(colBox);
+
+      // ── C6 — Search → act ──
+      const searchBox = el('div', {});
+      searchBox.appendChild(sectionTitle('Search → act'));
+      const sInput = el('input', { type: 'text', value: state.vizSearchQuery, placeholder: 'Find by value…',
+        style: 'flex:1;background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:4px;font-size:11px' });
+      sInput.addEventListener('input', () => { state.vizSearchQuery = sInput.value; });
+      sInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchAct('isolate'); });
+      const sField = el('select', { style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px;font-size:11px;flex:0 0 auto' });
+      sField.appendChild(el('option', { value: '*' }, 'Any'));
+      SEARCH_TOKENS.concat(paramKeys()).forEach(f => { const o = el('option', { value: f }, f); if (f === state.vizSearchField) o.selected = true; sField.appendChild(o); });
+      sField.addEventListener('change', () => { state.vizSearchField = sField.value; });
+      searchBox.appendChild(el('div', { style: 'display:flex;gap:4px;margin-top:4px' }, [sInput, sField]));
+      searchBox.appendChild(el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:5px' }, [
+        el('button', { class: 'btn sm', title: 'Isolate matches (ghost the rest)', onclick: () => searchAct('isolate') }, 'Isolate'),
+        el('button', { class: 'btn sm', title: 'Hide matches', onclick: () => searchAct('hide') }, 'Hide'),
+        el('button', { class: 'btn sm', title: 'Colour matches', onclick: () => searchAct('colour') }, 'Colour'),
+        el('button', { class: 'btn sm', title: 'Select matches', onclick: () => searchAct('select') }, 'Select'),
+      ]));
+      wrap.appendChild(searchBox);
 
       // ── BUILD 5 — Discipline presets ──
       const presetBox = el('div', {});
       presetBox.appendChild(sectionTitle('Discipline presets'));
       const pRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px' });
       Object.keys(DISC_PRESETS).forEach(name => pRow.appendChild(
-        el('button', { class: 'btn sm' + (state.vizPreset === name ? '' : ' subtle'), onclick: () => { applyDisciplinePreset(name); renderVisualizePanel(); } }, name)));
+        el('button', { class: 'btn sm', style: (state.vizPreset === name ? 'border-color:#3B82F6;background:rgba(59,130,246,0.30);color:#fff' : ''), onclick: () => { applyDisciplinePreset(name); renderVisualizePanel(); } }, name)));
+      // P3b — discipline base colour + per-category variant shades.
+      pRow.appendChild(el('button', { class: 'btn sm',
+        style: (state.vizPreset === '__variants' ? 'border-color:#3B82F6;background:rgba(59,130,246,0.30);color:#fff' : ''),
+        onclick: () => { applyDisciplineVariants(); renderVisualizePanel(); } }, 'Disc + variants'));
       presetBox.appendChild(pRow);
-      wrap.appendChild(presetBox);
+      colourSection.appendChild(presetBox);
+
+      // V6 — SAVED VIEWS: compose a Show+Colour combo once, recall instantly (per project).
+      const savedBox = el('div', {});
+      savedBox.appendChild(sectionTitle('Saved views'));
+      const savedRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px' });
+      loadSavedViews().forEach(v => {
+        const b = el('button', { class: 'btn sm', title: 'Recall: ' + v.name, onclick: () => recallNamedView(v.name) }, v.name);
+        const x = el('span', { style: 'cursor:pointer;margin-left:4px;opacity:0.6', title: 'Delete',
+          onclick: (e) => { e.stopPropagation(); deleteNamedView(v.name); } }, '✕');
+        b.appendChild(x); savedRow.appendChild(b);
+      });
+      if (!loadSavedViews().length) savedRow.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2' }, 'No saved views yet — compose a Show + Colour combo, then Save.'));
+      savedBox.appendChild(savedRow);
+      savedBox.appendChild(el('button', { class: 'btn sm', style: 'width:100%', onclick: () => {
+        const name = (typeof window !== 'undefined' && window.prompt) ? window.prompt('Save current view as:', '') : '';
+        if (name) saveNamedView(name);
+      } }, '💾 Save current view'));
+      wrap.appendChild(savedBox);
 
       // ── BUILD 1 — By discipline ──
       const byDisc = el('div', {});
       byDisc.appendChild(sectionTitle('By discipline'));
       const discCounts = {};
-      Object.values(state.elementMap).forEach(m => { const d = discKey(m); if (d) discCounts[d] = (discCounts[d] || 0) + 1; });
+      Object.values(state.elementMap).forEach(m => { const d = discOf(m); if (d) discCounts[d] = (discCounts[d] || 0) + 1; });
+      // V3 — combo presets: one-click "show these, ghost rest" for common discipline sets.
+      if (discs.length) {
+        const present = new Set(discs);
+        const comboRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px' });
+        comboRow.appendChild(el('button', { class: 'btn sm', onclick: () => comboPreset(discs.slice()) }, 'All'));
+        [['MEP', ['M', 'E', 'P']], ['M&E', ['M', 'E']], ['M&P', ['M', 'P']], ['E&P', ['E', 'P']]].forEach(combo => {
+          const avail = combo[1].filter(c => present.has(c));
+          if (avail.length >= 2) comboRow.appendChild(el('button', { class: 'btn sm', onclick: () => comboPreset(avail) }, combo[0]));
+        });
+        discs.forEach(d => comboRow.appendChild(el('button', { class: 'btn sm subtle', onclick: () => comboPreset([d]) }, d)));
+        byDisc.appendChild(comboRow);
+      }
+      if (!discs.length) byDisc.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2' }, 'No discipline data'));
       discs.forEach(d => byDisc.appendChild(vizModeRow(d, discCounts[d],
         () => state.vizDiscMode.get(d),
-        (m) => state.vizDiscMode.set(d, m))));
-      wrap.appendChild(byDisc);
+        (m) => state.vizDiscMode.set(d, m),
+        () => shadeOnlyDiscipline(d),        // label / ◎ click isolates
+        d,                                    // B1 — custom-colour key
+        state.vizDiscSel, d)));               // P2 — multi-isolate tick
+      if (discs.length) {
+        const dActions = el('div', { style: 'display:flex;gap:4px;margin-top:4px' });
+        dActions.appendChild(el('button', { class: 'btn sm', style: 'flex:1;white-space:nowrap',
+          onclick: () => shadeOnlySet('disc') }, '◎ Shade ticked, ghost rest'));
+        dActions.appendChild(el('button', { class: 'btn sm subtle',
+          onclick: () => { state.vizDiscSel.clear(); renderVisualizePanel(); } }, 'Clear ticks'));
+        byDisc.appendChild(dActions);
+      }
+      showSection.appendChild(byDisc);
 
       // ── BUILD 1 — By category ──
       const cats = distinctTokens('CAT');
@@ -1137,12 +2409,61 @@
         const byCat = el('div', {});
         byCat.appendChild(sectionTitle('By category'));
         const catCounts = {};
-        Object.values(state.elementMap).forEach(m => { const c = String(tokenValue(m, 'CAT') || ''); if (c) catCounts[c] = (catCounts[c] || 0) + 1; });
-        cats.forEach(c => byCat.appendChild(vizModeRow(c, catCounts[c],
-          () => state.vizCatMode.get(c),
-          (m) => state.vizCatMode.set(c, m))));
-        wrap.appendChild(byCat);
+        Object.values(state.elementMap).forEach(m => { const c = catKey(m); if (c) catCounts[c] = (catCounts[c] || 0) + 1; });
+        // Item 4 — category search (local rebuild keeps focus); shown when the list is long.
+        const catRowsBox = el('div', {});
+        const renderCatRows = () => {
+          catRowsBox.innerHTML = '';
+          const q = (state.vizCatSearch || '').toLowerCase();
+          cats.filter(c => !q || String(c).toLowerCase().includes(q)).forEach(c => catRowsBox.appendChild(vizModeRow(c, catCounts[c],
+            () => state.vizCatMode.get(c),
+            (m) => state.vizCatMode.set(c, m),
+            () => shadeOnlyCategory(c),
+            c,
+            state.vizCatSel, c)));
+        };
+        if (cats.length > 6) {
+          const catSearch = el('input', { type: 'text', placeholder: 'Filter categories…', value: state.vizCatSearch || '',
+            style: 'background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px 6px;font-size:11px;margin-bottom:4px;width:100%' });
+          catSearch.addEventListener('input', () => { state.vizCatSearch = catSearch.value; renderCatRows(); });
+          byCat.appendChild(catSearch);
+        }
+        renderCatRows();
+        byCat.appendChild(catRowsBox);
+        const cActions = el('div', { style: 'display:flex;gap:4px;margin-top:4px' });
+        cActions.appendChild(el('button', { class: 'btn sm', style: 'flex:1;white-space:nowrap',
+          onclick: () => shadeOnlySet('cat') }, '◎ Shade ticked, ghost rest'));
+        cActions.appendChild(el('button', { class: 'btn sm subtle',
+          onclick: () => { state.vizCatSel.clear(); renderVisualizePanel(); } }, 'Clear ticks'));
+        byCat.appendChild(cActions);
+        showSection.appendChild(byCat);
       }
+
+      // ── WS2 — Keep solid under x-ray / ghost ──
+      const keepBox = el('div', {});
+      keepBox.appendChild(sectionTitle('Keep solid under x-ray / ghost'));
+      keepBox.appendChild(el('div', { style: 'font-size:11px;color:#9aa3b2;margin-bottom:4px' },
+        'Selected disciplines/categories stay solid while View → X-ray / Ghost fades the rest.'));
+      const mkKeepChip = (label, isOn, toggle) =>
+        el('button', { class: 'btn sm' + (isOn ? '' : ' subtle'),
+          onclick: () => { toggle(); applyKeepSolidLive(); renderVisualizePanel(); } }, label);
+      const kdRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px' });
+      discs.forEach(d => kdRow.appendChild(mkKeepChip(d, state.vizKeepSolidDisc.has(d),
+        () => { state.vizKeepSolidDisc.has(d) ? state.vizKeepSolidDisc.delete(d) : state.vizKeepSolidDisc.add(d); })));
+      keepBox.appendChild(kdRow);
+      if (cats.length) {
+        const kcRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:4px' });
+        cats.forEach(c => kcRow.appendChild(mkKeepChip(c, state.vizKeepSolidCat.has(c),
+          () => { state.vizKeepSolidCat.has(c) ? state.vizKeepSolidCat.delete(c) : state.vizKeepSolidCat.add(c); })));
+        keepBox.appendChild(kcRow);
+      }
+      keepBox.appendChild(el('div', { style: 'display:flex;gap:6px;margin-top:6px' }, [
+        el('button', { class: 'btn sm subtle', onclick: () => {
+          state.vizKeepSolidDisc.clear(); state.vizKeepSolidCat.clear(); applyKeepSolidLive(); renderVisualizePanel();
+        } }, 'Clear keep-solid'),
+        el('button', { class: 'btn sm subtle', onclick: () => { clearRenderMode(); renderVisualizePanel(); } }, 'Reset view (shaded)'),
+      ]));
+      wrap.appendChild(keepBox);
 
       // ── Clash focus options ──
       const clashBox = el('div', {});
@@ -1159,17 +2480,22 @@
       pane.appendChild(wrap);
     }
 
+    // WS2 — if a global x-ray/ghost/wire mode is active, re-apply it so a change
+    // to the keep-solid exclusion set takes effect immediately.
+    function applyKeepSolidLive() {
+      if (state.renderMode && state.renderMode !== 'shaded') setRenderMode(state.renderMode);
+    }
+
     // Re-apply ghost styling to whatever is currently ghosted (tint/opacity live update).
+    // M2 — live tint/opacity: mutate the ONE shared ghost material. Instant; no
+    // traverse, no rebuild. Every ghosted mesh already points at this material.
     function reapplyGhosts() {
-      if (!V.modelRoot) return;
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        const slot = state.elementMaterials.get(o.uuid);
-        // Only re-tint meshes whose current replacement is a STING ghost.
-        if (slot && slot.replacement && slot.replacement.userData && slot.replacement.userData.stingGhost) {
-          ghostMaterial(o);
-        }
-      });
+      const gs = state.ghostStyle;
+      const mat = getGhostMaterial();
+      mat.color.set(gs.tint);
+      mat.opacity = gs.opacity;
+      mat.transparent = true;
+      mat.needsUpdate = true;
     }
 
     function renderModels() {
@@ -1190,14 +2516,19 @@
           el('span', { class: 'timestamp' }, relativeTime(m.uploadedAt))
         ]);
         const cb = $('input[type=checkbox]', row);
+        if (state.modelVisible.has(m.id)) cb.checked = state.modelVisible.get(m.id);
         cb.addEventListener('change', () => {
-          // Use per-model visibility from extras if available; fall back to full-scene toggle.
-          const label = m.name || m.fileName || '';
-          const extras = window.STING_VIEWER_EXTRAS;
-          if (extras && extras.setModelVisible && label) {
-            extras.setModelVisible(label, cb.checked);
-          } else if (V.modelRoot) {
-            V.modelRoot.traverse(obj => { if (obj.isMesh) obj.visible = cb.checked; });
+          // FEDERATION — toggle THIS model root by id (three.js gates its meshes via
+          // the root's visibility), then re-apply the active appearance across the
+          // federation so a newly-shown model picks up the current scheme.
+          state.modelVisible.set(m.id, cb.checked);
+          if (V.setModelVisibleById && V.setModelVisibleById(m.id, cb.checked)) {
+            applyAppearance();
+          } else {
+            const extras = window.STING_VIEWER_EXTRAS;
+            const label = m.name || m.fileName || '';
+            if (extras && extras.setModelVisible && label) extras.setModelVisible(label, cb.checked);
+            else if (V.modelRoot) vizGroup().traverse(obj => { if (obj.isMesh) obj.visible = cb.checked; });
           }
         });
         list.appendChild(row);
@@ -1440,12 +2771,12 @@
       const active = $$('.level-pill.active').map(p => p.dataset.lvl);
       if (!active.length) {
         V.renderer.clippingPlanes = [];
-        if (V.modelRoot) V.modelRoot.traverse(o => { if (o.isMesh) o.visible = true; });
+        if (V.modelRoot) vizGroup().traverse(o => { if (o.isMesh) o.visible = true; });
         return;
       }
       const wanted = state.levelBands.filter(b => active.includes(b.level));
       if (!V.modelRoot || !wanted.length) return;
-      V.modelRoot.traverse(obj => {
+      vizGroup().traverse(obj => {
         if (!obj.isMesh) return;
         const cy = getCentroidY(obj);
         obj.visible = wanted.some(w => cy >= w.min - 0.01 && cy <= w.max + 0.01);
@@ -1475,7 +2806,8 @@
         camPos: cam.position.toArray(),
         camTarget: V.controls.target.toArray(),
         disciplines: Array.from(state.activeDisciplines),
-        levels: $$('.level-pill.active').map(p => p.dataset.lvl)
+        levels: $$('.level-pill.active').map(p => p.dataset.lvl),
+        viz: serializeViz(),   // C5 — full visualize state (scheme + modes + custom colours)
       };
     }
     function restoreViewState(s) {
@@ -1494,6 +2826,8 @@
         $$('.level-pill').forEach(p => p.classList.toggle('active', s.levels.includes(p.dataset.lvl)));
         applyLevelFilter();
       }
+      // C5 — restore the full visualize appearance, then mirror it to a live meeting.
+      if (s.viz) { applyVizSnapshot(s.viz); broadcastAppearance(); }
     }
     function renderSavedViews() {
       const list = $('#savedViewsList');
@@ -1542,21 +2876,27 @@
 
     // ── Right-panel tabs ───────────────────────────────────────────────
     function setupTabs() {
-      $$('.tab-bar .tab').forEach(t => {
-        t.addEventListener('click', () => {
-          $$('.tab-bar .tab').forEach(x => x.classList.remove('active'));
-          $$('.tab-pane').forEach(x => x.classList.remove('active'));
-          t.classList.add('active');
-          const pane = $('#pane-' + t.dataset.tab);
-          if (pane) pane.classList.add('active');
-          state.rightTab = t.dataset.tab;
-          if (t.dataset.tab === 'visualize') renderVisualizePanel();
-          if (t.dataset.tab === 'clashes') renderRightClashes();
-          if (t.dataset.tab === 'issues')  renderRightIssues();
-          if (t.dataset.tab === 'photos')  { loadSitePhotos(); renderPhotos(); }
-          if (t.dataset.tab === 'comments') renderComments();
-          if (t.dataset.tab === 'activity') renderActivityTimeline();
-        });
+      // R2 — DELEGATE on the stable .tab-bar (was: one-time addEventListener per .tab — the
+      // E1 anti-pattern that loses handlers if a tab node is ever re-rendered). One listener
+      // resolves the clicked tab via closest(); switching to Visualize re-renders (re-binds)
+      // its panel. Durable fix for the whole "dead-until-refresh" class: re-rendered panes
+      // re-bind on render, and the tab-bar + bottom panel are delegated on stable parents.
+      const bar = $('.tab-bar'); if (!bar) return;
+      bar.addEventListener('click', (ev) => {
+        const t = ev.target.closest('.tab');
+        if (!t || !bar.contains(t)) return;
+        $$('.tab-bar .tab').forEach(x => x.classList.remove('active'));
+        $$('.tab-pane').forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        const pane = $('#pane-' + t.dataset.tab);
+        if (pane) pane.classList.add('active');
+        state.rightTab = t.dataset.tab;
+        if (t.dataset.tab === 'visualize') renderVisualizePanel();
+        if (t.dataset.tab === 'clashes') renderRightClashes();
+        if (t.dataset.tab === 'issues')  renderRightIssues();
+        if (t.dataset.tab === 'photos')  { loadSitePhotos(); renderPhotos(); }
+        if (t.dataset.tab === 'comments') renderComments();
+        if (t.dataset.tab === 'activity') renderActivityTimeline();
       });
     }
 
@@ -1844,6 +3184,43 @@
       };
     }
 
+    // M3 — element cost. Reads meta.cost / estimatedCost / totalCost / any CST_* key.
+    // Returns { value, currency } or null. Never fabricates — absent ⇒ null ⇒ "—".
+    function findCost(meta) {
+      if (!meta) return null;
+      let v = null;
+      if (meta.cost != null) v = meta.cost;
+      else if (meta.estimatedCost != null) v = meta.estimatedCost;
+      else if (meta.totalCost != null) v = meta.totalCost;
+      else { for (const k in meta) { if (/^CST_.*|.*cost$/i.test(k) && meta[k] != null && typeof meta[k] !== 'object') { v = meta[k]; break; } } }
+      if (v == null) return null;
+      return { value: v, currency: meta.costCurrency || meta.currency || state.currency || 'USD' };
+    }
+    function formatCurrency(c) {
+      if (!c || c.value == null) return '—';
+      const n = typeof c.value === 'number' ? c.value : parseFloat(String(c.value).replace(/[^0-9.\-]/g, ''));
+      if (!isFinite(n)) return String(c.value);
+      try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: c.currency, maximumFractionDigits: 0 }).format(n); }
+      catch (_) { return `${c.currency} ${n.toLocaleString()}`; }
+    }
+
+    // N6 — humanise an exporter key into a section heading + a plain-object test.
+    // Exporter element-map shapes vary (psets / classification / type+instance
+    // param bundles), so the panel renders nested groups GENERICALLY rather than
+    // assuming fixed field names.
+    function n6Humanize(k) {
+      const map = {
+        psets: 'Property sets', propertySets: 'Property sets', properties: 'Instance properties',
+        parameters: 'Instance parameters', classification: 'Classification', classifications: 'Classification',
+        typeParams: 'Type parameters', typeParameters: 'Type parameters', typeProperties: 'Type parameters',
+        instanceParams: 'Instance parameters', instanceParameters: 'Instance parameters',
+        relationships: 'Relationships', relations: 'Relationships', quantities: 'Quantities'
+      };
+      if (map[k]) return map[k];
+      return String(k).replace(/[_\-]+/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^\w/, c => c.toUpperCase());
+    }
+    function n6IsObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+
     function renderProperties(guid) {
       const pane = $('#pane-properties');
       // Multi-select branch — show common-properties summary instead of
@@ -1922,7 +3299,11 @@
         ['Type',       meta.type],
         ['Mark',       meta.mark]
       ].filter(([, v]) => v != null && v !== '');
-      const RESERVED = new Set(['name','category','tag','STING_TAG','discipline','system','status','level','family','type','mark','dimensions','performance']);
+      const RESERVED = new Set(['name','category','tag','STING_TAG','discipline','system','status','level','family','type','mark','dimensions','performance',
+        // N6 — these scalars/arrays now have dedicated sections (Quantities / Cost /
+        // Materials / Relationships); keep them out of the generic "Properties" bucket.
+        'materials','cost','costCurrency','area','volume','length','quantity','count',
+        'host','hostName','hostId','hostGuid','assembly','room','space','ifcType','ifcGuid','globalId','guid','revitId','elementId']);
       const isDimKey  = k => /(_mm|_m|width|height|depth|length|diameter|thickness|area)$/i.test(k);
       const isPerfKey = k => /(flow|pressure|capacity|voltage|current|power|temperature|cooling|heating|wattage|kw|lps|cfm|pa)/i.test(k);
       let dims = Object.entries(meta.dimensions  || {}).filter(([, v]) => v != null);
@@ -1940,27 +3321,144 @@
         if (!claimedDims.has(k) && !claimedPerfs.has(k)) others.push([k, v]);
       });
 
+      const cost = findCost(meta);
+      // Generic identity (category is shown in the title) — include category too for completeness.
+      const fullId = [['Category', meta.category]].concat(idCard).filter(([, v]) => v != null && v !== '');
+      const rowHtml = (k, v) => `<div class="prop-row" data-search="${escapeHtml((k + ' ' + v).toLowerCase())}"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`;
+      // E4 — Materials (per-material name + area/volume) + Quantities (area/volume/length/
+      // count), rendered only when the exporter supplied them; absent fields just don't show.
+      const mats = Array.isArray(meta.materials) ? meta.materials : [];
+      const matsHtml = mats.length ? '<div class="prop-section-label">Materials</div>' + mats.map(m => {
+        const nm = m.name || m.material || '—';
+        const ex = [m.area != null ? fmtNum(m.area) + ' m²' : '', m.volume != null ? fmtNum(m.volume) + ' m³' : ''].filter(Boolean).join(' · ');
+        return rowHtml(nm, ex);
+      }).join('') : '';
+      const qty = [];
+      if (meta.area != null)   qty.push(['Area', fmtNum(meta.area) + ' m²']);
+      if (meta.volume != null) qty.push(['Volume', fmtNum(meta.volume) + ' m³']);
+      if (meta.length != null) qty.push(['Length', fmtNum(meta.length) + ' m']);
+      if (meta.quantity != null || meta.count != null) qty.push(['Quantity', String(meta.quantity != null ? meta.quantity : meta.count)]);
+      const qtyHtml = qty.length ? '<div class="prop-section-label">Quantities</div>' + qty.map(([k, v]) => rowHtml(k, v)).join('') : '';
+      // N6 — Relationships (host / spatial / IFC identity) from whatever scalar
+      // relationship fields the exporter supplied; absent fields just don't show.
+      const relRows = [
+        ['Host', meta.host || meta.hostName],
+        ['Host id', meta.hostId || meta.hostGuid],
+        ['Assembly', meta.assembly],
+        ['Room / space', meta.room || meta.space],
+        ['IFC type', meta.ifcType],
+        ['IFC GUID', meta.ifcGuid || meta.globalId],
+        ['Revit id', meta.revitId || meta.elementId],
+      ].filter(([, v]) => v != null && v !== '');
+      const relHtml = relRows.length
+        ? '<div class="prop-section-label">Relationships</div>' + relRows.map(([k, v]) => rowHtml(k, String(v))).join('')
+        : '';
+      // N6 — nested groups the flat renderer used to DROP (typeof object → skipped):
+      // IFC property sets, classification, type/instance parameter bundles. Rendered
+      // generically so ANY exporter shape surfaces — a "group of objects" (e.g. psets)
+      // gets a sub-head per member; a flat object becomes a key/value section.
+      const GROUP_SKIP = new Set(['dimensions', 'performance']);   // already have dedicated sections
+      const n6SubHead = t => '<div style="font-size:11px;font-weight:600;opacity:0.7;margin:6px 0 2px">' + escapeHtml(t) + '</div>';
+      const n6Scalars = obj => Object.entries(obj)
+        .filter(([, v]) => v != null && typeof v !== 'object')
+        .map(([k, v]) => rowHtml(k, String(v))).join('');
+      const groupsHtml = Object.entries(meta)
+        .filter(([k, v]) => n6IsObj(v) && !GROUP_SKIP.has(k))
+        .map(([k, v]) => {
+          const entries = Object.entries(v).filter(([, vv]) => vv != null);
+          if (!entries.length) return '';
+          const hasSubObjs = entries.some(([, vv]) => n6IsObj(vv));
+          const inner = hasSubObjs
+            ? entries.map(([sk, sv]) => n6IsObj(sv) ? (n6SubHead(sk) + n6Scalars(sv)) : rowHtml(sk, String(sv))).join('')
+            : n6Scalars(v);
+          return inner ? ('<div class="prop-section-label">' + escapeHtml(n6Humanize(k)) + '</div>' + inner) : '';
+        }).filter(Boolean).join('');
+      // Item 3 — "no data" hints: when a standard group is ABSENT from the element-map,
+      // show a muted hint so it's clear it's a DATA GAP (export from Revit), not a viewer
+      // bug. Present fields are already rendered above (Identity / Dimensions / Performance /
+      // Properties / Relationships / psets via the generic N6 path).
+      const dataHint = (label, what) =>
+        '<div class="prop-section-label">' + label + '</div>' +
+        '<div class="prop-row" style="opacity:0.5"><span class="v">— ' + escapeHtml(what) + '</span></div>';
+      const matsBlock = matsHtml || dataHint('Materials', 'no material data — re-export from Revit with PLANSCAPE_EXPORT_TEXTURES to populate');
+      const qtyBlock  = qtyHtml  || dataHint('Quantities', 'no area/volume/quantity — re-export from Revit with quantities to populate');
+      const psetBlock = groupsHtml ? '' : dataHint('Property sets', 'no IFC psets / classification — re-export from Revit to populate');
+      // P1 — full 8-token ISO 19650 tag. Present tokens show their value; absent ones
+      // (commonly LOC/ZONE/SEQ until a re-publish that includes the ASS_* params) show the
+      // "re-export" hint. DISC falls back to the derived discipline (disc-safetynet).
+      const ISO_TOKENS = [['DISC', 'Discipline'], ['LOC', 'Location'], ['ZONE', 'Zone'], ['LVL', 'Level'], ['SYS', 'System'], ['FUNC', 'Function'], ['PROD', 'Product'], ['SEQ', 'Sequence']];
+      const isoVals = ISO_TOKENS.map(([t, label]) => {
+        let v = String(tokenValue(meta, t) || '').trim();
+        if (t === 'DISC' && !v) v = discOf(meta) || '';
+        return [t, label, v];
+      });
+      const isoAssembled = String(tokenValue(meta, 'TAG') || '').trim() ||
+        (isoVals.every(([, , v]) => v) ? isoVals.map(([, , v]) => v).join('-') : '');
+      const isoBlock = '<div class="prop-section-label">ISO 19650 Tag</div>' +
+        (isoAssembled ? `<div class="prop-row"><span class="v mono">${escapeHtml(isoAssembled)}</span><span class="copy" data-copy="${escapeHtml(isoAssembled)}" title="Copy">📋</span></div>` : '') +
+        isoVals.map(([t, label, v]) => v
+          ? rowHtml(label + ' (' + t + ')', v)
+          : `<div class="prop-row" style="opacity:0.5"><span class="k">${label} (${t})</span><span class="v">— re-export from Revit</span></div>`).join('');
       pane.innerHTML = `
         <div class="prop-section-label">Element</div>
         <div class="prop-title">${escapeHtml(meta.name || meta.category || 'Element')}</div>
         ${tag ? `<div class="prop-section-label">STING Tag</div>
           <div class="prop-row"><span class="v mono">${escapeHtml(tag)}</span>
             <span class="copy" data-copy="${escapeHtml(tag)}" title="Copy">📋</span></div>` : ''}
-        ${idCard.length ? '<div class="prop-section-label">Identity</div>' +
-          idCard.map(([k, v]) => `<div class="prop-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
-        ${dims.length ? '<div class="prop-section-label">Dimensions</div>' +
-          dims.map(([k, v]) => `<div class="prop-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
-        ${perfs.length ? '<div class="prop-section-label">Performance</div>' +
-          perfs.map(([k, v]) => `<div class="prop-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
-        ${others.length ? '<div class="prop-section-label">Properties</div>' +
-          others.map(([k, v]) => `<div class="prop-row"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
-        <div class="action-stack">
+        <div class="prop-section-label">Cost</div>
+        <div class="prop-row" data-search="cost"><span class="k">Estimated cost</span><span class="v" style="${cost ? 'color:#37c272;font-weight:600' : 'opacity:0.6'}" title="${cost ? '' : 'No cost data — set CST_UNIT_RATE_NR on the type, or attach a cost sidecar'}">${escapeHtml(cost ? formatCurrency(cost) : '— no cost data')}</span></div>
+        <input id="propFilter" placeholder="Filter properties…" style="width:100%;margin:8px 0 4px;background:#1a1d24;color:#e6e6e6;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:5px 8px;font-size:12px" />
+        <div id="propRows" style="max-height:42vh;overflow:auto">
+          ${fullId.length ? '<div class="prop-section-label">Identity</div>' + fullId.map(([k, v]) => rowHtml(k, v)).join('') : ''}
+          ${isoBlock}
+          ${matsBlock}
+          ${qtyBlock}
+          ${dims.length ? '<div class="prop-section-label">Dimensions</div>' + dims.map(([k, v]) => rowHtml(k, v)).join('') : ''}
+          ${perfs.length ? '<div class="prop-section-label">Performance</div>' + perfs.map(([k, v]) => rowHtml(k, v)).join('') : ''}
+          ${others.length ? '<div class="prop-section-label">Properties</div>' + others.map(([k, v]) => rowHtml(k, v)).join('') : ''}
+          ${relHtml}
+          ${groupsHtml}
+          ${psetBlock}
+        </div>
+        <div class="prop-section-label">Actions</div>
+        <div class="action-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px">
+          <button class="btn sm" id="actIsolate">◎ Isolate</button>
+          <button class="btn sm" id="actHide">⊘ Hide</button>
+          <button class="btn sm" id="actHideOthers">⊝ Hide others</button>
+          <button class="btn sm" id="actShowAll">⊙ Show all</button>
+          <button class="btn sm" id="actFit">⌖ Fit</button>
+          <button class="btn sm" id="actZoom">🔎 Zoom</button>
+          <button class="btn sm" id="actPivot">⊕ Set pivot</button>
+          <button class="btn sm" id="actSection">⊟ Section box</button>
+          <button class="btn sm" id="actMeasure">📏 Measure</button>
+          <button class="btn sm" id="actColourLike">🎨 Colour like</button>
+        </div>
+        <div class="action-stack" style="margin-top:6px">
           <button class="btn full" id="actCreateIssue">🚩 Create issue</button>
           <button class="btn ghost full" id="actFindClashes">🔍 Find clashes for this</button>
           <button class="btn subtle full" id="actCopyTag">📋 Copy STING tag</button>
           <button class="btn subtle full" id="actLinkSheet">📌 Link to sheet</button>
         </div>
       `;
+      // E4 — actions, all composing with the layered model. Each ensures THIS element
+      // is the selection so the selection-driven ops act on it.
+      const ensureSel = () => { if (!state.selectedElementGuids.has(guid)) { state.selectedElementGuids = new Set([guid]); state.selectedElementGuid = guid; reapplySelection(); } };
+      const centreOf = () => { const m = findMeshByGuid(guid); if (!m) return null; return new THREE_.Box3().setFromObject(m).getCenter(new THREE_.Vector3()); };
+      $('#actIsolate', pane)?.addEventListener('click', () => { ensureSel(); isolateSelection(); });
+      $('#actHide', pane)?.addEventListener('click', () => { ensureSel(); hideSelection(); });
+      $('#actHideOthers', pane)?.addEventListener('click', () => { ensureSel(); hideOthers(); });
+      $('#actShowAll', pane)?.addEventListener('click', () => showAllElements());
+      $('#actFit', pane)?.addEventListener('click', () => { ensureSel(); fitToSelection(); });
+      $('#actZoom', pane)?.addEventListener('click', () => { const m = findMeshByGuid(guid); if (m && V.fitCamera) V.fitCamera(new THREE_.Box3().setFromObject(m)); });
+      $('#actPivot', pane)?.addEventListener('click', () => { const c = centreOf(); if (c) { V.controls.target.copy(c); V.controls.update(); toast('Orbit pivot set'); } });
+      $('#actSection', pane)?.addEventListener('click', () => { ensureSel(); sectionBoxFromSelection(); });
+      $('#actMeasure', pane)?.addEventListener('click', () => { const x = window.STING_VIEWER_EXTRAS; const c = centreOf(); if (x && x.startMeasureFrom && c) x.startMeasureFrom(c); else setActiveTool('measure'); });
+      $('#actColourLike', pane)?.addEventListener('click', () => {
+        const catv = String(tokenValue(meta, 'CAT') || meta.category || '').trim();
+        if (!catv) return toast('No category to match', 'warn');
+        const matched = new Set(Object.entries(state.elementMap || {}).filter(([, m]) => String((m && (m.category)) || '').trim() === catv).map(([g]) => g));
+        colourBySearch(matched); toast(`Coloured ${matched.size} like "${catv}"`);
+      });
       $('#actCreateIssue', pane)?.addEventListener('click', () => openIssueModal({ guid, meta }));
       $('#actFindClashes', pane)?.addEventListener('click', () => {
         switchBottomTab('clashes'); state.selectedElementGuid = guid; renderClashes();
@@ -1968,6 +3466,14 @@
       $('#actCopyTag', pane)?.addEventListener('click', () => copyText(tag));
       $('#actLinkSheet', pane)?.addEventListener('click', () => openSheetLinkPicker({ guid, meta }));
       $$('.copy', pane).forEach(c => c.addEventListener('click', () => copyText(c.dataset.copy)));
+      // M3 — live property filter (no re-render).
+      const pf = $('#propFilter', pane);
+      if (pf) pf.addEventListener('input', () => {
+        const q = pf.value.trim().toLowerCase();
+        $$('#propRows .prop-row', pane).forEach(r => {
+          r.style.display = (!q || (r.dataset.search || '').includes(q)) ? '' : 'none';
+        });
+      });
     }
 
     // U7 — clipboard.writeText is unavailable in non-secure contexts
@@ -2254,6 +3760,7 @@
         wire.renderOrder = 998;
         wire.position.copy(pos);
         wire.userData.clashId = c.id;
+        wire.visible = state.clashMarkersVisible;   // honour the View-menu toggle across rebuilds
         host.add(wire);
         if (V.pinMeta) V.pinMeta.set(wire.uuid, { __coord: 'clash', clashId: c.id });
         state.clashPins.set(c.id, wire);
@@ -2280,15 +3787,115 @@
     // 12-clash × 4000-mesh placement cost from ~96k traversals to ~24
     // hash lookups.
     const guidIndex = new Map();
+    // M0 — VERIFIED mesh→meta resolver. Builds three maps in one traverse:
+    //   guidIndex      guid → first mesh   (legacy single-mesh lookups)
+    //   guidMeshes     guid → mesh[]       (multi-mesh Revit elements)
+    //   meshMeta       mesh.uuid → meta    (the appearance/properties hot path)
+    // Resolves a mesh's guid from its own userData, then ancestors, then name,
+    // accepting only a guid that exists in elementMap. Logs the hit-rate so a
+    // bad export (meshes with no resolvable guid) is visible immediately.
+    // FEDERATION — co-load every OTHER project model into the same scene so the viz
+    // layer spans the whole federation (3×MBALWA + 2×Tendo …). Each model's GLB is
+    // added via the engine's addModel (shared recenter → relative positions) and its
+    // element-map merged into state.elementMap (guids are globally unique Revit ids).
+    // Best-effort + sequential so a slow/missing model can't block the rest.
+    async function loadFederatedModels() {
+      if (state.federatedLoaded) return;
+      state.federatedLoaded = true;
+      state.modelVisible.set(modelId, true);
+      const others = (state.models || []).filter(m => m && m.id && m.id !== modelId);
+      if (!others.length) return;
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
+      if (tenantId) headers['X-Tenant'] = tenantId;
+      // V4 — STREAM the models in ONE AT A TIME: wait for each model's GLTF parse to
+      // land before fetching the next, with a short breather so the render loop keeps
+      // delivering frames (the primary stays orbitable, siblings pop in). This replaces
+      // the old "fire all addModel then poll" which let 5 parses pile onto one frame and
+      // crashed FPS to ~0.2. `federationLoading` suppresses the per-change broadcast while
+      // streaming. Heavy re-index/re-apply runs ONCE at the end, not per model.
+      state.federationLoading = true;
+      const hasRoot = (id) => (V.modelRoots || []).some(r => r.userData && r.userData.stingModelId === id);
+      const waitForRoot = (id, ms) => new Promise(res => {
+        if (hasRoot(id)) return res();
+        let t = 0; const iv = setInterval(() => { t += 100; if (hasRoot(id) || t >= ms) { clearInterval(iv); res(); } }, 100);
+      });
+      const breather = (ms) => new Promise(r => setTimeout(r, ms));
+      for (const m of others) {
+        try {
+          const res = await fetch(`${apiBase}/api/projects/${projectId}/models/${m.id}/file`, { headers, cache: 'no-store' });
+          if (!res.ok) continue;
+          const blobUrl = URL.createObjectURL(await res.blob());
+          let transform = null;
+          try { transform = await api(`/api/projects/${projectId}/models/${m.id}/transform`); } catch (_) {}
+          try { const map = await api(`/api/projects/${projectId}/models/${m.id}/element-map`); if (map && typeof map === 'object') Object.assign(state.elementMap, map); } catch (_) {}
+          handleHostCommand({ type: 'addModel', payload: { url: blobUrl, transform, modelId: m.id } });
+          state.modelVisible.set(m.id, true);
+          await waitForRoot(m.id, 20000);   // let THIS model's parse finish before the next
+          await breather(250);              // yield frames to the render loop
+        } catch (e) { console.warn('[fed] model load failed', m.id, e); }
+      }
+      state.federationLoading = false;
+      rebuildGuidIndex();
+      applyAppearance();
+      renderVisualizePanel();
+      if (typeof renderModels === 'function') renderModels();
+      console.log(`[fed] STING_VIZ_FEDERATION ${(V.modelRoots || []).length} model roots co-rendered`);
+    }
+
     function rebuildGuidIndex() {
       guidIndex.clear();
+      state.meshMeta = new Map();
+      state.guidMeshes = new Map();
       if (!V.modelRoot) return;
-      V.modelRoot.traverse(obj => {
-        if (obj.isMesh && obj.userData.elementGuid) {
-          guidIndex.set(obj.userData.elementGuid, obj);
+      const map = state.elementMap || {};
+      let total = 0, hit = 0;
+      vizGroup().traverse(obj => {
+        if (!obj.isMesh) return;
+        total++;
+        // PART A / A1 — THE single true-original store. Captured ONCE at load,
+        // before any appearance/render swap, so the appearance + selection +
+        // render-mode layers all restore from the same source and never fight.
+        if (!obj.userData._trueOrig) obj.userData._trueOrig = obj.material;
+        const ud = obj.userData || {};
+        let guid = ud.elementGuid || ud.uniqueId || (ud.extras && ud.extras.uniqueId);
+        if (!guid || !map[guid]) {
+          // walk ancestors for a guid/uniqueId present in the element map
+          let p = obj.parent;
+          while (p) {
+            const pu = p.userData || {}, pe = pu.extras || {};
+            const pg = pu.elementGuid || pu.guid || pu.uniqueId || pe.guid || pe.uniqueId;
+            if (pg && map[pg]) { guid = pg; break; }
+            p = p.parent;
+          }
         }
+        if ((!guid || !map[guid]) && obj.name && map[obj.name]) guid = obj.name;   // name fallback
+        if (guid) {
+          obj.userData.elementGuid = guid;                 // normalise back onto the mesh
+          if (!guidIndex.has(guid)) guidIndex.set(guid, obj);
+          if (!state.guidMeshes.has(guid)) state.guidMeshes.set(guid, []);
+          state.guidMeshes.get(guid).push(obj);
+        }
+        const meta = guid ? map[guid] : null;
+        if (meta) { state.meshMeta.set(obj.uuid, meta); hit++; }
       });
+      const pct = total ? Math.round(hit / total * 100) : 0;
+      console.log(`[viz] mesh→meta resolver: ${hit}/${total} meshes resolved (${pct}%)`);
+      console.log('[viz] STING_VIZ_LAYERED_AB rows+deselect+persist');   // STEP-0 served-artifact marker
+      if (total && pct < 50) console.warn('[viz] LOW resolver hit-rate — check the exporter writes per-mesh guids matching the element map');
     }
+    // Fast meta lookup for a mesh (resolver map first, then a guid fallback).
+    function metaForMesh(o) {
+      if (!o) return null;
+      const m = state.meshMeta && state.meshMeta.get(o.uuid);
+      if (m) return m;
+      const g = o.userData && o.userData.elementGuid;
+      return (g && state.elementMap) ? (state.elementMap[g] || null) : null;
+    }
+    // Normalised category key — trimmed, used identically on the UI-build AND
+    // lookup sides so a toggle key always equals its lookup key.
+    function catKey(meta) { return String(tokenValue(meta, 'CAT') || '').trim(); }
     function findMeshByGuid(guid) {
       if (!guid) return null;
       const cached = guidIndex.get(guid);
@@ -2297,7 +3904,7 @@
       // a glTF added meshes (e.g., federation deferred-load).
       if (!V.modelRoot) return null;
       let found = null;
-      V.modelRoot.traverse(obj => {
+      vizGroup().traverse(obj => {
         if (!found && obj.isMesh && obj.userData.elementGuid === guid) found = obj;
       });
       if (found) guidIndex.set(guid, found);
@@ -2424,7 +4031,7 @@
       const b = findMeshByGuid(c.elementB?.guid);
       const keep = new Set([a, b].filter(Boolean).map(m => m.uuid));
       if (V.modelRoot && keep.size) {
-        V.modelRoot.traverse(o => {
+        vizGroup().traverse(o => {
           if (!o.isMesh) return;
           o.visible = true;
           if (!keep.has(o.uuid)) ghostMaterial(o);   // ghost the context
@@ -2452,10 +4059,28 @@
     // the token; the previous animation sees the bump and bails on its
     // next frame.
     let flyToken = 0;
-    function flyTo(pos) {
+    // flyTo a POINT, preserving the current view direction and landing at a
+    // FRAMING distance (FOV-aware) — not a fixed offset. `radius` (optional) is the
+    // region to frame; default ~8% of the model sphere so a point-only call (photo,
+    // issue fallback, minimap) lands at a sensible zoom regardless of current zoom.
+    function flyTo(pos, radius) {
+      const cam = V.camera;
+      let r = radius;
+      if (r == null) {
+        // STING_VIEWER_FITFIX — radius from box size (Sphere is tree-shaken from the bundle).
+        const ms = (V.modelBounds && !V.modelBounds.isEmpty())
+          ? 0.5 * V.modelBounds.getSize(new THREE_.Vector3()).length() : 0;
+        r = ms > 0 ? ms * 0.08 : V.controls.target.distanceTo(cam.position) * 0.3;
+      }
+      const vFov = (cam.fov || 50) * Math.PI / 180;
+      const hFov = 2 * Math.atan(Math.tan(vFov / 2) * (cam.aspect || 1));
+      const dist = (r / Math.sin(Math.min(vFov, hFov) / 2)) * 1.1;
+      let dir = new THREE_.Vector3().subVectors(cam.position, V.controls.target);
+      if (dir.lengthSq() < 1e-9) dir.set(0, 0.55, 0.85);
+      dir.normalize();
       const myToken = ++flyToken;
-      const start = V.camera.position.clone();
-      const targetCam = pos.clone().add(new THREE_.Vector3(8, 6, 8));
+      const start = cam.position.clone();
+      const targetCam = pos.clone().addScaledVector(dir, dist);
       const startTgt = V.controls.target.clone();
       const t0 = performance.now();
       const dur = 600;
@@ -2483,41 +4108,49 @@
       return out;
     }
 
+    // Item 2 — Fit/Home frame only the VISIBLE geometry; no-op + toast when nothing
+    // is shown (e.g. everything hidden / all models toggled off).
+    function fitVisibleOrToast() {
+      const vb = (V.visibleModelBounds && V.visibleModelBounds());
+      if (vb && !vb.isEmpty()) { if (V.fitCamera) V.fitCamera(); return; }
+      toast('Nothing visible to frame', 'warn');
+    }
     function fitToSelection() {
       const meshes = selectedMeshes();
       if (!meshes.length) return toast('Nothing selected', 'warn');
       const bb = new THREE_.Box3();
       meshes.forEach(m => bb.expandByObject(m));
       if (bb.isEmpty()) return;
-      const c = bb.getCenter(new THREE_.Vector3());
-      flyTo(c);
+      // Frame the selection bbox edge-to-edge (FOV-aware), preserving view dir.
+      if (V.fitCamera) { try { V.fitCamera(bb); return; } catch (_) {} }
+      flyTo(bb.getCenter(new THREE_.Vector3()));
     }
 
+    // C2 — selection-driven visibility, routed through the appearance layer so it
+    // COMPOSES with colour / ghost / transparency (was a raw o.visible traversal that
+    // a subsequent applyAppearance would clobber).
     function isolateSelection() {
-      if (!V.modelRoot) return;
       const set = state.selectedElementGuids;
       if (!set.size) return toast('Nothing selected', 'warn');
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        o.visible = set.has(o.userData.elementGuid);
-      });
-      toast(`Isolated ${set.size} element${set.size === 1 ? '' : 's'}`);
+      state.vizIsolation = { mode: 'isolate', guids: new Set(set) };
+      applyAppearance();
+      toast(`Isolated ${set.size} element${set.size === 1 ? '' : 's'} (rest ghosted)`);
     }
-
     function hideSelection() {
-      if (!V.modelRoot) return;
       const set = state.selectedElementGuids;
       if (!set.size) return toast('Nothing selected', 'warn');
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        if (set.has(o.userData.elementGuid)) o.visible = false;
-      });
+      state.vizIsolation = { mode: 'hideSel', guids: new Set(set) };
+      applyAppearance();
       toast(`Hid ${set.size} element${set.size === 1 ? '' : 's'}`);
     }
-
     function showAllElements() {
-      if (!V.modelRoot) return;
-      V.modelRoot.traverse(o => { if (o.isMesh) o.visible = true; });
+      // Show-all clears selection isolation AND any per-group hide so nothing stays
+      // hidden; ghost/colour/transparency are left intact.
+      state.vizIsolation = null;
+      state.vizDiscMode.forEach((m, k) => { if (m === 'hide') state.vizDiscMode.delete(k); });
+      state.vizCatMode.forEach((m, k) => { if (m === 'hide') state.vizCatMode.delete(k); });
+      applyAppearance();
+      renderVisualizePanel();
       toast('All elements visible');
     }
 
@@ -2540,7 +4173,7 @@
       const bGuid = c.elementB?.guid;
       const set = new Set([aGuid, bGuid].filter(Boolean));
       if (!set.size) return;
-      V.modelRoot.traverse(o => {
+      vizGroup().traverse(o => {
         if (!o.isMesh) return;
         o.visible = set.has(o.userData.elementGuid);
       });
@@ -2634,6 +4267,200 @@
       activeRowMenu = menu;
     }
 
+    // ── 3D viewport right-click context menu ──────────────────────────────────
+    // Reuses the #rowMenu framework. A right CLICK (movement < 4px) opens the menu;
+    // a right DRAG still PANS (OrbitControls RIGHT=PAN) — we only suppress the
+    // browser's native menu. Raycasts the element under the cursor.
+    function setupCanvasContextMenu() {
+      const dom = V && V.renderer && V.renderer.domElement;
+      if (!dom) return;
+      let menu = document.getElementById('rowMenu');
+      if (!menu) { menu = el('div', { class: 'row-menu', id: 'rowMenu' }); document.body.appendChild(menu); }
+      let rcDown = null;
+      dom.addEventListener('pointerdown', (e) => { if (e.button === 2) rcDown = { x: e.clientX, y: e.clientY }; });
+      dom.addEventListener('contextmenu', (e) => {
+        e.preventDefault();                  // always suppress the browser menu
+        const moved = rcDown ? Math.hypot(e.clientX - rcDown.x, e.clientY - rcDown.y) : 0;
+        rcDown = null;
+        if (moved > 4) return;               // that was a right-drag PAN
+        openCanvasContextMenu(menu, e.clientX, e.clientY);
+      });
+    }
+
+    function openCanvasContextMenu(menu, x, y) {
+      const dom = V.renderer.domElement;
+      const r = dom.getBoundingClientRect();
+      const ptr = new THREE_.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
+      const ray = new THREE_.Raycaster();
+      ray.setFromCamera(ptr, V.camera);
+      const hits = V.modelRoot ? pickableHits(ray.intersectObject(vizGroup(), true)) : [];   // V1 — skip ghost/x-ray
+      if (hits.length && hits[0].object && hits[0].object.isMesh) {
+        const mesh = hits[0].object;
+        const guid = mesh.userData && mesh.userData.elementGuid;
+        const bb = new THREE_.Box3().setFromObject(mesh);
+        const centre = bb.getCenter(new THREE_.Vector3());
+        // Select the right-clicked element (unless it's already in the selection)
+        // so Isolate / Hide / Properties / Create issue act on it.
+        if (guid && !state.selectedElementGuids.has(guid)) selectElementByGuid(guid, 'replace');
+        const meta = guid ? (state.elementMap[guid] || {}) : {};
+        const tag = meta.tag || meta.STING_TAG || meta.tag1 || '';
+        showRowMenuAt(menu, [
+          { glyph: '◎', label: 'Isolate',              run: () => isolateSelection() },
+          { glyph: '⊘', label: 'Hide',                 run: () => hideSelection() },
+          { glyph: '⊝', label: 'Hide others',          run: () => hideOthers() },
+          { glyph: '⊙', label: 'Show all',             run: () => showAllElements() },
+          '-',
+          { glyph: '⌖', label: 'Fit element',          run: () => { if (V.fitCamera) V.fitCamera(bb); } },
+          { glyph: '⊕', label: 'Set pivot here',       run: () => { V.controls.target.copy(centre); V.controls.update(); toast('Orbit pivot set'); } },
+          { glyph: '⊟', label: 'Section box from selection', run: () => sectionBoxFromSelection() },
+          '-',
+          { glyph: 'ℹ', label: 'Properties',           run: () => { $('.tab-bar .tab[data-tab=properties]')?.click(); renderProperties(state.selectedElementGuid); } },
+          { glyph: '🚩', label: 'Create issue',         run: () => openIssueModal({ guid, meta }) },
+          tag ? { glyph: '🏷', label: 'Copy STING tag', run: () => { copyToClipboard(String(tag)); toast('Tag copied'); } } : null,
+          '-',
+          { glyph: '✕', label: 'Deselect',             run: () => selectElementByGuid(null) },   // B2
+        ].filter(Boolean), x, y);
+      } else {
+        showRowMenuAt(menu, [
+          { glyph: '✕', label: 'Deselect / clear selection', run: () => selectElementByGuid(null) },  // B2
+          { glyph: '⊙', label: 'Show all',  run: () => showAllElements() },
+          { glyph: '⌖', label: 'Fit model', run: () => { if (V.fitCamera) V.fitCamera(); } },
+          '-',
+          { glyph: '◳', label: 'Exit markup / section', run: () => setActiveTool('orbit') },
+        ], x, y);
+      }
+    }
+
+    // ── ViewCube / orientation gizmo + perspective↔ortho toggle (Commit 5) ──
+    function setupViewCube() {
+      const cube = $('#viewCube'); if (!cube) return;
+      cube.querySelectorAll('.vc-btn[data-snap]').forEach(b => {
+        b.addEventListener('click', () => {
+          const v = b.dataset.snap;
+          if (v === 'home') { if (V.fitCamera) V.fitCamera(); return; }
+          if (v === 'eye') { const x = window.STING_VIEWER_EXTRAS; if (x && x.humanEyeView) { x.humanEyeView(); toast('Human eye view'); } return; }
+          if (V.snapView) V.snapView(v);
+        });
+      });
+      const ortho = $('#orthoToggle');
+      if (ortho) {
+        ortho.addEventListener('click', () => {
+          const toOrtho = !(V.isOrtho);
+          if (V.setCameraMode) V.setCameraMode(toOrtho ? 'ortho' : 'persp');
+          ortho.textContent = (V.isOrtho ? 'Ortho' : 'Persp');
+          ortho.classList.toggle('active', !!V.isOrtho);
+          toast(V.isOrtho ? 'Orthographic projection' : 'Perspective projection');
+        });
+      }
+    }
+
+    // ── Collapsible panels ("Xpand") — edge handles + localStorage persistence ──
+    const PANEL_KEY = 'planscape_panels';
+    function savePanelState() {
+      const shell = document.querySelector('.app-shell'); if (!shell) return;
+      try {
+        const rs = document.documentElement.style;
+        localStorage.setItem(PANEL_KEY, JSON.stringify({
+          l: shell.classList.contains('left-collapsed'),
+          r: shell.classList.contains('right-collapsed'),
+          b: !!$('#bottomPanel')?.classList.contains('collapsed'),
+          lw: rs.getPropertyValue('--panel-left-width').trim() || undefined,   // V2 — persist width
+          rw: rs.getPropertyValue('--panel-right-width').trim() || undefined,
+        }));
+      } catch (e) {}
+    }
+    function updatePanelHandles() {
+      const shell = document.querySelector('.app-shell'); if (!shell) return;
+      const lh = $('#railHandleLeft'), rh = $('#railHandleRight');
+      if (lh) lh.textContent = shell.classList.contains('left-collapsed') ? '›' : '‹';
+      if (rh) rh.textContent = shell.classList.contains('right-collapsed') ? '‹' : '›';
+    }
+    function setupPanelHandles() {
+      const shell = document.querySelector('.app-shell');
+      const wrap = $('.viewport-wrap');
+      if (!shell || !wrap) return;
+      // Restore persisted collapse state + widths on load.
+      try {
+        const s = JSON.parse(localStorage.getItem(PANEL_KEY) || '{}');
+        if (s.lw) document.documentElement.style.setProperty('--panel-left-width', s.lw);    // V2
+        if (s.rw) document.documentElement.style.setProperty('--panel-right-width', s.rw);
+        if (s.l) shell.classList.add('left-collapsed');
+        if (s.r) shell.classList.add('right-collapsed');
+        if (s.b) $('#bottomPanel')?.classList.add('collapsed');
+        if (s.l || s.r || s.b || s.lw || s.rw) onResize();
+      } catch (e) {}
+      // V2 — each rail handle: DRAG to resize the panel's width live (clamped), CLICK (no
+      // drag) to collapse/expand. Width persists; the canvas + camera resize live via the
+      // ortho-aware sizeRenderer so 3D framing stays correct as the viewport reclaims space.
+      const mk = (id, cls, side) => {
+        const varName = side === 'left' ? '--panel-left-width' : '--panel-right-width';
+        const h = el('div', { id, class: 'rail-handle rail-' + side, title: 'Drag to resize · click to collapse/expand' });
+        let down = null, moved = false;
+        h.addEventListener('pointerdown', (e) => {
+          down = { x: e.clientX }; moved = false;
+          try { h.setPointerCapture(e.pointerId); } catch (_) {}
+          shell.classList.add('resizing');
+          e.preventDefault();
+        });
+        h.addEventListener('pointermove', (e) => {
+          if (!down) return;
+          if (!moved && Math.abs(e.clientX - down.x) > 3) moved = true;
+          if (!moved) return;
+          let w = (side === 'left') ? e.clientX : (window.innerWidth - e.clientX);
+          w = Math.max(180, Math.min(560, w));
+          shell.classList.remove(cls);                 // a resize implies expanded
+          document.documentElement.style.setProperty(varName, w + 'px');
+          if (V.sizeRenderer) V.sizeRenderer();         // live canvas + camera
+        });
+        const end = (e) => {
+          if (!down) return;
+          try { h.releasePointerCapture(e.pointerId); } catch (_) {}
+          shell.classList.remove('resizing');
+          if (!moved) { shell.classList.toggle(cls); onResize(); }   // click → collapse toggle
+          down = null;
+          savePanelState(); updatePanelHandles();
+        };
+        h.addEventListener('pointerup', end);
+        h.addEventListener('pointercancel', end);
+        wrap.appendChild(h);
+        return h;
+      };
+      mk('railHandleLeft',  'left-collapsed',  'left');
+      mk('railHandleRight', 'right-collapsed', 'right');
+      updatePanelHandles();
+    }
+
+    // Hide every mesh that is NOT in the current selection (C2 — through the layer).
+    function hideOthers() {
+      const keep = state.selectedElementGuids;
+      if (!keep.size) return toast('Nothing selected', 'warn');
+      state.vizIsolation = { mode: 'hideOthers', guids: new Set(keep) };
+      applyAppearance();
+      toast(`Hid all but ${keep.size}`);
+    }
+
+    // Section box around the current selection's bbox (no-op clip until Commit 4
+    // wires setSectionBox in viewer-extras; the menu item is then fully live).
+    function sectionBoxFromSelection() {
+      const meshes = selectedMeshes();
+      if (!meshes.length) return toast('Select an element first', 'warn');
+      const bb = new THREE_.Box3();
+      meshes.forEach(m => bb.expandByObject(m));
+      if (bb.isEmpty()) return;
+      // Pad slightly so the selection isn't flush with the cut.
+      const pad = bb.getSize(new THREE_.Vector3()).length() * 0.06 || 0.5;
+      bb.min.addScalar(-pad); bb.max.addScalar(pad);
+      setActiveTool('section');
+      const x = window.STING_VIEWER_EXTRAS;
+      if (x && x.setSectionBox) {
+        x.setSectionBox({ min: [bb.min.x, bb.min.y, bb.min.z], max: [bb.max.x, bb.max.y, bb.max.z], enabled: true });
+        if (x.onSectionChange) x.onSectionChange(syncSectionBoxSliders);
+      }
+      $('#sectionCard').style.display = 'block';
+      renderSectionBoxPanel();
+      toast('Section box from selection');
+    }
+
     function openClashRowMenu(menu, c, x, y) {
       const aGuid = c.elementA?.guid, bGuid = c.elementB?.guid;
       showRowMenuAt(menu, [
@@ -2641,7 +4468,7 @@
         { glyph: '◎',  label: 'Isolate pair',      run: () => isolateClashPair(c) },
         { glyph: '⊘',  label: 'Hide both',         run: () => {
             if (!V.modelRoot) return;
-            V.modelRoot.traverse(o => { if (o.isMesh && (o.userData.elementGuid === aGuid || o.userData.elementGuid === bGuid)) o.visible = false; });
+            vizGroup().traverse(o => { if (o.isMesh && (o.userData.elementGuid === aGuid || o.userData.elementGuid === bGuid)) o.visible = false; });
             toast('Hid clash pair');
         }},
         { glyph: '⊙',  label: 'Show all',          run: () => showAllElements() },
@@ -2665,7 +4492,7 @@
         { glyph: '◎',  label: 'Isolate linked elements', run: () => {
             if (!V.modelRoot || !Array.isArray(i.elementGuids)) return;
             const set = new Set(i.elementGuids);
-            V.modelRoot.traverse(o => {
+            vizGroup().traverse(o => {
               if (!o.isMesh) return;
               o.visible = set.has(o.userData.elementGuid);
             });
@@ -2848,6 +4675,7 @@
         sphere.position.set(i.position.x, i.position.y, i.position.z);
         sphere.userData.issueId = i.id;
         sphere.renderOrder = 999;
+        sphere.visible = state.issueMarkersVisible;   // honour the View-menu toggle across rebuilds
         host.add(sphere);
         if (V.pinMeta) V.pinMeta.set(sphere.uuid, { __coord: 'issue', issueId: i.id, priority: i.priority });
         state.issuePins.set(i.id, sphere);
@@ -3137,11 +4965,22 @@
     function focusIssue(i) {
       state.selectedIssueId = i.id;
       clearAllHighlights();              // L6
-      if (i.position) flyTo(new THREE_.Vector3(i.position.x, i.position.y, i.position.z));
+      // Frame the issue's LINKED element(s) — build their bbox and fitCamera it
+      // (mirrors focusClash). Only fall back to a point fly-to when the issue has
+      // a bare GPS/model point and no resolvable element.
+      const bb = new THREE_.Box3();
+      let any = false;
       if (Array.isArray(i.elementGuids)) {
         i.elementGuids.forEach(g => {
-          const m = findMeshByGuid(g); if (m) emissive(m, 0xF97316);
+          const m = findMeshByGuid(g);
+          if (m) { emissive(m, 0xF97316); bb.expandByObject(m); any = true; }
         });
+      }
+      if (any && !bb.isEmpty() && V.fitCamera) {
+        try { V.fitCamera(bb); }
+        catch (_) { if (i.position) flyTo(new THREE_.Vector3(i.position.x, i.position.y, i.position.z)); }
+      } else if (i.position) {
+        flyTo(new THREE_.Vector3(i.position.x, i.position.y, i.position.z));
       }
       // switch right panel
       const tab = $('.tab-bar .tab[data-tab=issues]'); tab?.click();
@@ -4199,15 +6038,45 @@
 
     // ── Bottom panel ───────────────────────────────────────────────────
     function setupBottomPanel() {
-      $$('.btab').forEach(t => {
-        t.addEventListener('click', () => switchBottomTab(t.dataset.tab));
-      });
-      $('#bottomCollapse').addEventListener('click', () => {
-        const bp = $('#bottomPanel');
-        bp.classList.toggle('collapsed');
-        bp.classList.remove('expanded');
-        $('.viewport-wrap')?.classList.toggle('bp-collapsed', bp.classList.contains('collapsed'));
-        onResize();
+      const bottom = $('#bottomPanel');
+      // R1 — the tray must NEVER exceed the current viewport (else the top grab-handle +
+      // collapse button scroll off-screen and there's no way back without a refresh), nor
+      // shrink below a usable minimum. Clamp on every window resize + on load, and persist a
+      // SANE height that's re-clamped to the current viewport when restored.
+      const BP_MIN = 80;
+      const bpMaxH = () => Math.max(120, Math.floor(window.innerHeight * 0.85));
+      function clampBottomPanel() {
+        const bp = $('#bottomPanel'); if (!bp || bp.classList.contains('collapsed')) return;
+        const cur = bp.getBoundingClientRect().height;
+        const clamped = Math.min(bpMaxH(), Math.max(BP_MIN, cur));
+        if (Math.abs(clamped - cur) > 1) {
+          bp.style.height = clamped + 'px';
+          document.documentElement.style.setProperty('--bottom-panel-height', clamped + 'px');
+          onResize();
+        }
+      }
+      try {
+        const savedH = parseInt(localStorage.getItem('planscape_bottom_h') || '', 10);
+        if (savedH && bottom && !bottom.classList.contains('collapsed')) {
+          const c = Math.min(bpMaxH(), Math.max(BP_MIN, savedH));
+          bottom.style.height = c + 'px';
+          document.documentElement.style.setProperty('--bottom-panel-height', c + 'px');
+        }
+      } catch (_) {}
+      window.addEventListener('resize', clampBottomPanel);
+      setTimeout(clampBottomPanel, 0);
+      // E1 — DELEGATED click handling on the stable #bottomPanel so the tab buttons
+      // (CLASHES/ISSUES/TIMELINE) + the collapse toggle can't lose their bindings.
+      if (bottom) bottom.addEventListener('click', (ev) => {
+        const tab = ev.target.closest('.btab');
+        if (tab && bottom.contains(tab)) { switchBottomTab(tab.dataset.tab); return; }
+        const col = ev.target.closest('#bottomCollapse');
+        if (col) {
+          bottom.classList.toggle('collapsed');
+          bottom.classList.remove('expanded');
+          $('.viewport-wrap')?.classList.toggle('bp-collapsed', bottom.classList.contains('collapsed'));
+          savePanelState(); onResize();
+        }
       });
 
       // ── Expand button (max state — toggles 60vh) ─────────────────────
@@ -4260,9 +6129,12 @@
           document.documentElement.style.setProperty('--bottom-panel-height', next + 'px');
         };
         const onUp = () => {
-          $('#bottomPanel').classList.remove('resizing');
+          const bp = $('#bottomPanel');
+          bp.classList.remove('resizing');
           document.removeEventListener('pointermove', onMove);
           document.removeEventListener('pointerup', onUp);
+          clampBottomPanel();                         // R1 — never leave an off-screen height
+          try { localStorage.setItem('planscape_bottom_h', String(parseInt(bp.style.height, 10) || '')); } catch (_) {}
           onResize();                                 // canvas re-fit
         };
         resizeHandle.addEventListener('pointerdown', (ev) => {
@@ -4286,6 +6158,7 @@
         resizeHandle.addEventListener('dblclick', () => {
           $('#bottomPanel').style.removeProperty('height');
           document.documentElement.style.removeProperty('--bottom-panel-height');
+          try { localStorage.removeItem('planscape_bottom_h'); } catch (_) {}   // R1 — reset persisted height
           onResize();
         });
       }
@@ -4298,24 +6171,21 @@
       $('#btnNewIssue').addEventListener('click', () => openIssueModal());
 
       // X1 — bind status + type axes independently.
-      $$('#clashStatusFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
-        $$('#clashStatusFilters .filter-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        state.clashStatusFilter = b.dataset.status;
-        renderClashes();
-      }));
-      $$('#clashTypeFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
-        $$('#clashTypeFilters .filter-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        state.clashTypeFilter = b.dataset.type;
-        renderClashes();
-      }));
-      $$('#issueFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
-        $$('#issueFilters .filter-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        state.issuesFilter = b.dataset.f;
-        renderIssues();
-      }));
+      // R2 — DELEGATE the filter bars on their stable containers (was one-time per-button
+      // addEventListener — the E1 anti-pattern). One listener per bar reads the clicked
+      // .filter-btn via closest(), so the filters survive any re-render.
+      const delegateFilters = (containerId, apply) => {
+        const c = $('#' + containerId); if (!c) return;
+        c.addEventListener('click', (ev) => {
+          const b = ev.target.closest('.filter-btn'); if (!b || !c.contains(b)) return;
+          $$('#' + containerId + ' .filter-btn').forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+          apply(b);
+        });
+      };
+      delegateFilters('clashStatusFilters', b => { state.clashStatusFilter = b.dataset.status; renderClashes(); });
+      delegateFilters('clashTypeFilters', b => { state.clashTypeFilter = b.dataset.type; renderClashes(); });
+      delegateFilters('issueFilters', b => { state.issuesFilter = b.dataset.f; renderIssues(); });
     }
     function switchBottomTab(name) {
       state.bottomTab = name;
@@ -4394,7 +6264,7 @@
         ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
         ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
         ray.setFromCamera(ptr, V.camera);
-        const hits = ray.intersectObject(V.modelRoot, true);
+        const hits = ray.intersectObject(vizGroup(), true);
         if (hits.length) {
           const p = hits[0].point;
           readout.innerHTML = `<span class="x">X</span> ${p.x.toFixed(2)}m  <span class="y">Y</span> ${p.y.toFixed(2)}m  <span class="z">Z</span> ${p.z.toFixed(2)}m`;
@@ -4458,54 +6328,41 @@
           const pinHits = ray.intersectObject(V.pinGroup, true);
           if (pinHits.length) return;
         }
-        const hits = ray.intersectObject(V.modelRoot, true);
+        const hits = ray.intersectObject(vizGroup(), true);
         if (hits.length) {
           lastClickPoint = hits[0].point.clone();
-          // Focus / Pivot mode — clicking the model sets the orbit pivot
-          // (ACC-style). Subsequent wheel-zoom + drag-rotate happen
-          // around that point. Plain pick-mode handlers keep their job
-          // (element selection, properties tab, etc.).
-          if (state.activeNav === 'focus') {
+          // Pivot mode — a single click sets the orbit centre (controls.target)
+          // WITHOUT zooming (ACC-style). Subsequent wheel-zoom + drag-rotate happen
+          // around that point. (Was checking the stale 'focus' mode name; the nav
+          // button now sets 'pivot'.) Plain pick-mode keeps selecting elements.
+          if (state.activeNav === 'pivot') {
             V.controls.target.copy(lastClickPoint);
             V.controls.update();
-            toast('Orbit pivot set', 'success');
+            toast('Orbit pivot set — click to move it', 'success');
           }
         }
       });
 
-      // Double-click anywhere on the model — set orbit pivot regardless
-      // of the active nav mode. Mirrors the Navisworks "F" / ACC dbl-tap
-      // pattern. Frame-fit on dblclick of an element bounding box is
-      // routed through the engine's existing fit() command for
-      // consistency with the keyboard 'F' shortcut.
+      // ACC-style: PLAIN double-click ZOOMS-TO-FIT the clicked element (and, via
+      // fitCamera, sets the orbit pivot to its centre). A double-click that misses
+      // the model is a no-op. (Single click only selects — see selectElementByGuid.)
       dom.addEventListener('dblclick', (e) => {
         if (!V.modelRoot) return;
         const r = dom.getBoundingClientRect();
         ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
         ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
         ray.setFromCamera(ptr, V.camera);
-        const hits = ray.intersectObject(V.modelRoot, true);
+        const hits = ray.intersectObject(vizGroup(), true);
         if (!hits.length) return;
-        // Shift+dblclick → fit camera to the clicked element's bounding
-        // box (instead of just setting pivot). Useful for jumping to
-        // small components inside a huge model.
-        if (e.shiftKey) {
-          const m = hits[0].object;
-          if (m && m.isMesh) {
-            const bb = new THREE_.Box3().setFromObject(m);
-            // Re-use the engine's fitCamera by calling it through the
-            // bridge with a synthetic 'fit' command — the engine reads
-            // modelBounds, so we temporarily widen it. Cleaner: call
-            // fitCamera(bb) directly via the exposed STING_VIEWER if
-            // available.
-            try { (window.STING_VIEWER && window.STING_VIEWER.fitCamera ? window.STING_VIEWER.fitCamera : null)?.(bb); }
-            catch (_) {}
-            return;
-          }
+        const m = hits[0].object;
+        if (m && m.isMesh) {
+          const bb = new THREE_.Box3().setFromObject(m);
+          try { window.STING_VIEWER && window.STING_VIEWER.fitCamera && window.STING_VIEWER.fitCamera(bb); } catch (_) {}
+          return;
         }
+        // Non-mesh hit — fall back to setting the pivot at the hit point.
         V.controls.target.copy(hits[0].point);
         V.controls.update();
-        toast('Orbit pivot set', 'success');
       });
       // R13 — drop the standalone pin-click raycaster. The engine already
       // raycasts pinGroup on every click and emits 'pinTap' via the
@@ -4596,7 +6453,7 @@
       if (!guid) {
         state.selectedElementGuid = null;
         state.selectedElementGuids.clear();
-        clearAllHighlights();
+        reapplySelection();          // A3 — drop highlights ONLY; appearance stays put
         renderProperties(null);
         updateRightTabCounts();
         renderSelectionToolbar();
@@ -4622,27 +6479,31 @@
         state.selectedElementGuids.clear();
         state.selectedElementGuids.add(guid);
       }
-      // Re-paint highlights from scratch so removed elements lose their
-      // emissive material.
-      clearAllHighlights();
-      let lastCentre = null;
-      state.selectedElementGuids.forEach(g => {
-        const m = findMeshByGuid(g);
-        if (m) {
-          emissive(m, 0xF97316);
-          // R-R12 — only fly to the union centre when selection size
-          // changes via tree (mode != toggle). For toggle (incremental),
-          // skip the camera move so the user keeps spatial context.
-          if (g === state.selectedElementGuid) {
-            const bb = new THREE_.Box3().setFromObject(m);
-            lastCentre = bb.getCenter(new THREE_.Vector3());
-          }
-        }
-      });
-      if (mode !== 'toggle' && lastCentre) flyTo(lastCentre);
+      // A3 — selection is an OVERLAY on the appearance layer: clone the current
+      // appearance material + emissive, never wipe ghost/colour. Selecting does NOT
+      // touch any _vizMode or the render mode. (Was clearAllHighlights + emissive,
+      // which reset every mesh to shaded — the "click resets to shaded" bug.)
+      reapplySelection();
+      // ACC-style interaction — a single click SELECTS ONLY; the camera does NOT
+      // move. Double-click frames the element (see the dblclick handler).
       renderProperties(state.selectedElementGuid);
       updateRightTabCounts();
       renderSelectionToolbar();
+      // Item 4 — click-to-isolate by system: when colour-by-System is active, a canvas/tree
+      // click on an element isolates its system (mirrors the legend checkboxes); shift/ctrl
+      // (add/toggle) adds its system to the isolate set. No-op for non-system colour modes.
+      if (state.vizColour && state.vizColour.kind === 'sysPalette') {
+        const meta = state.elementMap && state.elementMap[guid];
+        const k = meta ? sysKeyOf(meta) : '';
+        if (k) {
+          if (!state.vizSysIsolate) state.vizSysIsolate = new Set();
+          if (mode === 'replace') { state.vizSysIsolate.clear(); state.vizSysIsolate.add(k); }
+          else if (mode === 'toggle') { state.vizSysIsolate.has(k) ? state.vizSysIsolate.delete(k) : state.vizSysIsolate.add(k); }
+          else { state.vizSysIsolate.add(k); }   // 'add'
+          state.vizColour.isolateSet = state.vizSysIsolate;
+          applyAppearance(); renderVisualizePanel();
+        }
+      }
       // Slice 4b — if Photos tab is active, refetch with the anchor filter
       // applied so the gallery narrows to photos for the selected element.
       if (state.rightTab === 'photos') loadSitePhotos();
@@ -4651,42 +6512,91 @@
     function setupMinimap() {
       const wrap = $('#minimap');
       const canvas = $('#minimapCanvas');
-      if (!canvas) return;
-      const renderer = new THREE_.WebGLRenderer({ canvas, antialias: false });
-      renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-      const cam = new THREE_.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
-      cam.up.set(0, 0, 1);
+      if (!wrap) return;
+      // M6 — drop the second WebGL context (couldn't share the scene's GPU buffers →
+      // rendered empty). The minimap is now a scissored inset of the ONE main renderer,
+      // drawn behind this transparent frame.
+      if (canvas) canvas.style.display = 'none';
+      wrap.style.background = 'transparent';
+      const cam = new THREE_.OrthographicCamera(-1, 1, 1, -1, 0.1, 1e6);
+      cam.up.set(0, 0, -1);   // top-down looking down rendered -Y; +Z is "down" on the map
 
-      $('#minimapToggle').addEventListener('click', () => wrap.classList.toggle('collapsed'));
+      $('#minimapToggle')?.addEventListener('click', () => wrap.classList.toggle('collapsed'));
 
-      function updateMinimap() {
-        if (!V.modelRoot || V.modelBounds.isEmpty()) return;
+      // "You are here" marker (HTML overlay on the transparent frame).
+      const marker = el('div', { style:
+        'position:absolute;width:9px;height:9px;border-radius:50%;background:#3b82f6;' +
+        'border:1.5px solid #fff;transform:translate(-50%,-50%);pointer-events:none;z-index:3' });
+      wrap.appendChild(marker);
+
+      let curPad = 1, curCentre = new THREE_.Vector3();
+      // Render the inset every frame, after the main scene, via the shared renderer.
+      V.onAfterRender = () => {
+        if (!V.modelRoot || V.modelBounds.isEmpty() || wrap.classList.contains('collapsed')) { marker.style.display = 'none'; return; }
         const c = V.modelBounds.getCenter(new THREE_.Vector3());
         const s = V.modelBounds.getSize(new THREE_.Vector3());
-        const pad = Math.max(s.x, s.z) * 0.55;
+        const pad = Math.max(s.x, s.z) * 0.55 || 1;
+        curPad = pad; curCentre = c;
         cam.left = -pad; cam.right = pad; cam.top = pad; cam.bottom = -pad;
-        cam.position.set(c.x, c.y + s.y * 4 + 10, c.z);
+        cam.position.set(c.x, V.modelBounds.max.y + s.y + 10, c.z);   // above, looking down -Y
         cam.lookAt(c);
+        cam.near = 0.1; cam.far = s.y * 4 + 200;
         cam.updateProjectionMatrix();
-        try { renderer.render(V.scene, cam); } catch (_) {}
-      }
-      setInterval(updateMinimap, 250);
+        const host = V.renderer.domElement.getBoundingClientRect();
+        const mr = wrap.getBoundingClientRect();
+        V.renderInset(cam, mr.left - host.left, mr.top - host.top, mr.width, mr.height);
+        // place the marker at the main camera's ground position within the map
+        const camPos = V.camera.position;
+        const mx = (camPos.x - c.x) / pad;            // -1..1 → world X (screen-right)
+        const my = -((camPos.z - c.z) / pad);         // world Z maps to screen via -Z up
+        marker.style.display = '';
+        marker.style.left = ((mx + 1) / 2 * mr.width) + 'px';
+        marker.style.top  = ((1 - my) / 2 * mr.height) + 'px';
+      };
 
-      canvas.addEventListener('click', (e) => {
-        const r = canvas.getBoundingClientRect();
-        const nx = (e.clientX - r.left) / r.width * 2 - 1;
-        const ny = -((e.clientY - r.top) / r.height * 2 - 1);
-        const c = V.modelBounds.getCenter(new THREE_.Vector3());
-        const s = V.modelBounds.getSize(new THREE_.Vector3());
-        const tgt = new THREE_.Vector3(c.x + nx * s.x * 0.5, V.controls.target.y, c.z - ny * s.z * 0.5);
-        flyTo(tgt);
+      // Map a minimap pixel to a horizontal world point (inverse of the marker map).
+      function mapToWorld(clientX, clientY) {
+        const mr = wrap.getBoundingClientRect();
+        const nx = (clientX - mr.left) / mr.width * 2 - 1;
+        const ny = -((clientY - mr.top) / mr.height * 2 - 1);
+        return new THREE_.Vector3(curCentre.x + nx * curPad, V.controls.target.y, curCentre.z - ny * curPad);
+      }
+
+      // M6 — drag leak fix: capture pointer events on the frame + stopPropagation so a
+      // minimap drag never reaches the main OrbitControls. Drag = pan/recenter the main
+      // view; a click (< 4px) = flyTo.
+      let dragging = false, downX = 0, downY = 0, moved = 0;
+      wrap.addEventListener('pointerdown', (e) => {
+        if (e.target === $('#minimapToggle')) return;       // let the collapse button work
+        dragging = true; downX = e.clientX; downY = e.clientY; moved = 0;
+        try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
+        e.stopPropagation(); e.preventDefault();
       });
+      wrap.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        e.stopPropagation();
+        moved += Math.hypot(e.clientX - downX, e.clientY - downY);
+        downX = e.clientX; downY = e.clientY;
+        const w = mapToWorld(e.clientX, e.clientY);
+        const delta = w.clone().sub(V.controls.target); delta.y = 0;   // horizontal recenter
+        V.camera.position.add(delta); V.controls.target.add(delta); V.controls.update();
+      });
+      const endDrag = (e) => {
+        if (!dragging) return;
+        dragging = false; e.stopPropagation();
+        try { wrap.releasePointerCapture(e.pointerId); } catch (_) {}
+        if (moved < 4) flyTo(mapToWorld(e.clientX, e.clientY));   // treat as a click
+      };
+      wrap.addEventListener('pointerup', endDrag);
+      wrap.addEventListener('pointercancel', endDrag);
+      wrap.addEventListener('contextmenu', (e) => e.preventDefault());
+      wrap.addEventListener('wheel', (e) => e.stopPropagation());   // don't zoom the main view
     }
 
     function setupNavControls() {
       // Capture OrbitControls' default mouse-button bindings so Pan ↔ Orbit
       // toggling can restore them.
-      const defaultButtons = V.controls.mouseButtons
+      const defaultButtons = (V.controls && V.controls.mouseButtons)
         ? Object.assign({}, V.controls.mouseButtons)
         : null;
       // Brief visual flash for one-shot nav buttons (home / level / fit).
@@ -4695,20 +6605,22 @@
         setTimeout(() => btn.classList.remove('flash'), 300);
       }
       const navEl = $('#navControls');
-      $$('.nav-btn').forEach(b => b.addEventListener('click', () => {
+      // E1 — DELEGATED click handler on the stable #navControls container (one
+      // listener) so the nav-mode buttons can never lose their binding on a re-render.
+      if (!navEl) return;
+      navEl.addEventListener('click', (ev) => {
+        const b = ev.target.closest('.nav-btn');
+        if (!b || !navEl.contains(b)) return;
         const m = b.dataset.mode;
         // One-shot actions: fire and return without changing active mode.
         if (m === 'fit') {
           if (state.selectedElementGuids.size) fitToSelection();
-          else if (V.modelBounds && !V.modelBounds.isEmpty()) {
-            flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
-          }
+          else fitVisibleOrToast();              // Item 2 — frame only what's visible
           flashNavBtn(b);
           return;
         }
         if (m === 'home') {
-          // Reset to the default opening camera position (fitCamera).
-          if (V.fitCamera) V.fitCamera();
+          fitVisibleOrToast();                   // Item 2 — frame only what's visible
           flashNavBtn(b);
           return;
         }
@@ -4718,9 +6630,21 @@
           flashNavBtn(b);
           return;
         }
+        // E2 — raise / lower the eye (altitude only; heading + pitch fixed). Moves
+        // camera.position AND controls.target by the same delta along the rendered up
+        // axis (+Y), model-scaled, via the camera GETTER inside ext.elevateCamera.
+        if (m === 'elevUp' || m === 'elevDown') {
+          const x = window.STING_VIEWER_EXTRAS;
+          if (x && x.elevateCamera) x.elevateCamera(m === 'elevUp' ? 1 : -1);
+          flashNavBtn(b);
+          return;
+        }
         $$('.nav-btn').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
         state.activeNav = m;
+        // Selecting a navigation mode exits any active exclusive tool
+        // (markup / measure / section) — restoring pick + OrbitControls.
+        if (state.activeTool !== 'orbit' && state.activeTool !== 'pick') setActiveTool('orbit');
         // Walk mode delegates to viewer-extras' first-person controls.
         handleHostCommand({ type: 'setWalkthrough', payload: { enabled: m === 'walk' } });
         // Toggle navControls.walking class so the speed-wheel highlights.
@@ -4736,13 +6660,19 @@
             V.controls.mouseButtons.RIGHT  = defaultButtons.RIGHT;
           }
         }
-        // Pivot = orbit camera around the selected element (or its centre).
-        // Was previously labelled "focus"; we keep the underlying behaviour
-        // and just expose a clearer label.
-        if (m === 'pivot' && state.selectedElementGuid) {
-          selectElementByGuid(state.selectedElementGuid, 'replace');
+        // Pivot mode — orbit around a point you click (handled in the pointerdown
+        // handler above). If something's already selected, seed the pivot at its
+        // centre immediately (no zoom). Then click anywhere to move the pivot.
+        if (m === 'pivot') {
+          const sel = findMeshByGuid(state.selectedElementGuid);
+          if (sel) {
+            const bb = new THREE_.Box3().setFromObject(sel);
+            V.controls.target.copy(bb.getCenter(new THREE_.Vector3()));
+            V.controls.update();
+          }
+          toast('Pivot mode — click to set the orbit centre', 'info');
         }
-      }));
+      });
 
       // ── Walk-speed widget ─────────────────────────────────────────────
       // Three input paths into the same multiplier:
@@ -4824,42 +6754,156 @@
       }, { passive: false });
     }
 
+    // ── One mutually-exclusive tool state: orbit | pick | measure | markup | section.
+    // The engine's pick raycaster only fires in 'pick'/'orbit'; markup/measure/section
+    // own the pointer. Switching tools (or Exit) cleanly tears down the previous one
+    // and restores OrbitControls + pick.
     function setActiveTool(t) {
-      handleHostCommand({ type: 'setTool', payload: { tool: t } });
+      const prev = state.activeTool;
+      state.activeTool = t;                       // set FIRST so teardown sees the new state
+      if (prev === 'markup' && t !== 'markup') {
+        const x = window.STING_VIEWER_EXTRAS;
+        if (x && x.stopMarkup) { try { x.stopMarkup(); } catch (_) {} }   // restores rotate + detaches markup input
+        showMarkupBar(false);
+      }
+      if (prev === 'section' && t !== 'section') {
+        if (typeof exitSectionTool === 'function') { try { exitSectionTool(); } catch (_) {} }  // Commit 4
+      }
+      // Gate the engine pick raycaster.
+      const engineTool = (t === 'measure' || t === 'markup' || t === 'section') ? t : 'pick';
+      handleHostCommand({ type: 'setTool', payload: { tool: engineTool } });
     }
 
+    // Enter markup with a specific tool — sets the exclusive tool state, then starts
+    // the markup gesture in the engine and shows the markup toolbar.
+    function startMarkupTool(mode) {
+      setActiveTool('markup');
+      handleHostCommand({ type: 'startMarkup', payload: { mode } });
+      showMarkupBar(true);
+    }
+
+    // Floating markup toolbar: Undo · Clear all · Exit. (Escape also exits, handled
+    // in viewer-extras which fires sting:markupStopped → we tidy the host state.)
+    function showMarkupBar(show) {
+      let bar = document.getElementById('markupBar');
+      if (!show) { if (bar) bar.remove(); return; }
+      if (bar) return;
+      bar = el('div', { id: 'markupBar', style:
+        'position:absolute;top:64px;left:50%;transform:translateX(-50%);z-index:14;display:flex;gap:6px;' +
+        'background:rgba(0,0,0,0.62);padding:6px 10px;border-radius:8px;backdrop-filter:blur(4px)' }, [
+        el('span', { style: 'color:#ffcc33;font:12px sans-serif;align-self:center;margin-right:4px' }, '✏ Markup'),
+        el('button', { class: 'btn sm subtle', onclick: () => { const x = window.STING_VIEWER_EXTRAS; if (x && x.undoMarkup) x.undoMarkup(); } }, '↩ Undo'),
+        el('button', { class: 'btn sm subtle', onclick: () => { handleHostCommand({ type: 'clearMarkup' }); toast('Markups cleared'); } }, '🗑 Clear all'),
+        el('button', { class: 'btn sm', style: 'background:rgba(208,80,80,0.85);color:#fff', onclick: () => setActiveTool('orbit') }, '✕ Exit'),
+      ]);
+      document.body.appendChild(bar);
+    }
+    // Escape (or any internal markup exit) in viewer-extras → tidy the host tool state.
+    if (typeof window !== 'undefined') {
+      window.addEventListener('sting:markupStopped', () => {
+        if (state.activeTool === 'markup') {
+          state.activeTool = 'orbit';
+          handleHostCommand({ type: 'setTool', payload: { tool: 'pick' } });
+          showMarkupBar(false);
+        }
+      });
+    }
+
+    // A4 — render mode is now a GLOBAL appearance state. setRenderMode just records
+    // it and lets applyAppearance compose it with the per-discipline/category/colour
+    // resolution (keep-solid + hide honoured there) and re-overlay the selection.
     function setRenderMode(mode) {
       if (!V.modelRoot) return;
-      // B8 — dispose the previous replacement before swapping in a new
-      // one, otherwise toggling shaded → wire → xray → ghost a few times
-      // leaks N MeshStandardMaterial allocations on the GPU per cycle.
-      V.modelRoot.traverse(o => {
-        if (!o.isMesh) return;
-        if (!o.userData._origMat) o.userData._origMat = o.material;
-        const orig = o.userData._origMat;
-        const prev = o.material;
-        let next;
-        if (mode === 'shaded') next = orig;
-        else if (mode === 'wire')  next = new THREE_.MeshBasicMaterial({ color: 0x60A5FA, wireframe: true });
-        else if (mode === 'xray')  next = new THREE_.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.25, depthWrite: false });
-        else if (mode === 'ghost') next = new THREE_.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false });
-        else next = orig;
-        if (prev && prev !== orig && prev !== next && typeof prev.dispose === 'function') {
-          try { prev.dispose(); } catch (_) {}
-        }
-        o.material = next;
-      });
       state.renderMode = mode;
-      toast('View: ' + mode);
+      // Realistic is a RENDERER-global (env + tonemap), not a per-mesh lens. Toggle it
+      // here; applyAppearance treats 'realistic' like 'shaded' for per-mesh resolution
+      // so colour-by / ghost / hide still override on top.
+      try { if (V.setRealistic) V.setRealistic(mode === 'realistic'); } catch (_) {}
+      applyAppearance();
+      broadcastVizRenderMode(mode);   // mirror to meeting followers (no-op when solo)
+      // E — set expectations: Realistic lights the model, but full surface detail needs
+      // textures (re-publish with PLANSCAPE_EXPORT_TEXTURES). Colour-only materials stay matte.
+      if (mode === 'realistic') toast('Realistic — lit view. Full detail needs textures (re-publish with PLANSCAPE_EXPORT_TEXTURES).');
+      else toast('View: ' + mode);
+    }
+    function clearRenderMode() {
+      if (!V.modelRoot) { state.renderMode = 'shaded'; return; }
+      state.renderMode = 'shaded';
+      try { if (V.setRealistic) V.setRealistic(false); } catch (_) {}
+      applyAppearance();
     }
 
-    // Exploded view — requires a federated model. Toggles between 0 and 1.
+    // WS2 — mirror the global render mode + keep-solid exclusion to meeting
+    // followers through the existing overlay channel (a renderMode-tagged profile;
+    // meeting-sync routes it to sting:remoteRenderMode instead of applyOverlay).
+    function broadcastVizRenderMode(mode) {
+      if (state.applyingRemoteViz) return;
+      const m = (typeof window !== 'undefined') && window.STING_MEETING;
+      if (!m || typeof m.broadcastOverlay !== 'function') return;
+      try {
+        m.broadcastOverlay({
+          source: 'renderMode',
+          renderMode: mode,
+          keepSolidDisc: Array.from(state.vizKeepSolidDisc),
+          keepSolidCat:  Array.from(state.vizKeepSolidCat),
+        });
+      } catch (_) {}
+    }
+    // Apply a render mode + exclusion received from the meeting presenter.
+    function applyRemoteVizRenderMode(p) {
+      if (!p) return;
+      state.applyingRemoteViz = true;
+      try {
+        state.vizKeepSolidDisc = new Set(p.keepSolidDisc || []);
+        state.vizKeepSolidCat  = new Set(p.keepSolidCat || []);
+        setRenderMode(p.renderMode || 'shaded');
+        if (state.rightTab === 'visualize') renderVisualizePanel();
+      } catch (_) {}
+      state.applyingRemoteViz = false;
+    }
+    // C5 — apply a FULL appearance snapshot received from the meeting presenter.
+    function applyRemoteVizSnapshot(viz) {
+      if (!viz) return;
+      state.applyingRemoteViz = true;
+      try { applyVizSnapshot(viz); } catch (_) {}
+      state.applyingRemoteViz = false;
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('sting:remoteRenderMode', (e) => applyRemoteVizRenderMode(e.detail));
+      window.addEventListener('sting:remoteAppearance', (e) => applyRemoteVizSnapshot(e.detail && e.detail.viz));
+    }
+
+    // 3D Explode — works on ANY model. Toggles an Explode control panel (factor
+    // slider 0..N + grouping: Radial | By level | By discipline). Factor 0 =
+    // collapsed. Visual only — coexists with section + selection.
     function toggleExplodedView() {
-      const extras = window.STING_VIEWER_EXTRAS;
-      if (!extras || !extras.setExplodeFactor) { toast('Explode requires a federated model', 'warn'); return; }
-      state.explodeFactor = state.explodeFactor > 0 ? 0 : 1;
-      extras.setExplodeFactor(state.explodeFactor);
-      toast(state.explodeFactor > 0 ? 'Exploded view — click View → Explode to collapse' : 'Exploded view: collapsed');
+      const x = window.STING_VIEWER_EXTRAS;
+      if (!x || !x.setExplodeFactor) { toast('Explode unavailable', 'warn'); return; }
+      const existing = $('#explodePanel');
+      if (existing) { existing.remove(); x.setExplodeFactor(0); state.explodeFactor = 0; toast('Explode off'); return; }
+      const panel = el('div', { id: 'explodePanel', style:
+        'position:absolute;top:120px;right:12px;z-index:13;width:200px;background:rgba(20,22,28,0.92);' +
+        'padding:10px;border-radius:8px;backdrop-filter:blur(4px)' });
+      panel.appendChild(el('div', { style: 'display:flex;justify-content:space-between;align-items:center;font:600 11px sans-serif;color:#cfd6e4;margin-bottom:6px' }, [
+        el('span', {}, '💥 EXPLODE'),
+        el('button', { style: 'background:none;border:none;color:#9aa3b2;cursor:pointer;font-size:14px', onclick: () => toggleExplodedView() }, '✕'),
+      ]));
+      panel.appendChild(el('div', { style: 'font:11px sans-serif;color:#9aa3b2;margin-bottom:2px' }, 'Factor'));
+      const fl = el('input', { type: 'range', min: '0', max: '100', value: String(Math.round((state.explodeFactor || 0) / 2 * 100)), style: 'width:100%;accent-color:var(--accent)' });
+      fl.addEventListener('input', () => { state.explodeFactor = parseInt(fl.value, 10) / 100 * 2; x.setExplodeFactor(state.explodeFactor); });
+      panel.appendChild(fl);
+      const modes = el('div', { style: 'display:flex;gap:4px;margin-top:8px' });
+      [['radial', 'Radial'], ['level', 'By level'], ['discipline', 'By disc.']].forEach(([m, lbl], i) => {
+        const b = el('button', { class: 'btn sm subtle' + (i === 0 ? ' active' : ''), onclick: () => {
+          modes.querySelectorAll('button').forEach(o => o.classList.remove('active')); b.classList.add('active');
+          if (x.setExplodeMode) x.setExplodeMode(m);
+        } }, lbl);
+        modes.appendChild(b);
+      });
+      panel.appendChild(modes);
+      $('.viewport-wrap')?.appendChild(panel);
+      if (state.explodeFactor > 0) x.setExplodeFactor(state.explodeFactor);
+      toast('Explode — drag the factor (0 = collapsed)');
     }
 
     // Edge-silhouette overlay — wireframe-on-shaded for depth perception.
@@ -4869,6 +6913,29 @@
       state.edgeOverlay = !state.edgeOverlay;
       extras.setEdgeOverlay(state.edgeOverlay);
       toast(state.edgeOverlay ? 'Edge overlay ON' : 'Edge overlay OFF');
+    }
+
+    // Clash / issue marker visibility — independent View-menu toggles (default on).
+    // Flip the existing pin meshes' .visible (place*Pins re-applies the flag on rebuild).
+    // The wire-box clash markers + sphere issue markers stay visually distinct from the
+    // orbit-pivot indicator; this only touches the marker groups, never the pivot.
+    // B — reflect marker on/off on the labelled toolbar button (dim + strike when off).
+    function paintMarkerBtn(id, on) {
+      const b = $('#' + id); if (!b) return;
+      b.style.opacity = on ? '1' : '0.45';
+      b.style.textDecoration = on ? 'none' : 'line-through';
+    }
+    function toggleClashMarkers() {
+      state.clashMarkersVisible = !state.clashMarkersVisible;
+      state.clashPins.forEach(m => { m.visible = state.clashMarkersVisible; });
+      paintMarkerBtn('tbClashMarkers', state.clashMarkersVisible);
+      toast(state.clashMarkersVisible ? 'Clash markers ON' : 'Clash markers OFF');
+    }
+    function toggleIssueMarkers() {
+      state.issueMarkersVisible = !state.issueMarkersVisible;
+      state.issuePins.forEach(m => { m.visible = state.issueMarkersVisible; });
+      paintMarkerBtn('tbIssueMarkers', state.issueMarkersVisible);
+      toast(state.issueMarkersVisible ? 'Issue markers ON' : 'Issue markers OFF');
     }
 
     // Section caps — translucent fill at every clipping plane.
@@ -4922,33 +6989,94 @@
     }
 
     function setupSectionCard() {
-      $('#sectionClose').addEventListener('click', () => $('#sectionCard').style.display = 'none');
-      $('#sectionAddX').addEventListener('click', () => addSectionPlane('x'));
-      $('#sectionAddY').addEventListener('click', () => addSectionPlane('y'));
-      $('#sectionAddZ').addEventListener('click', () => addSectionPlane('z'));
-      $('#sectionClear').addEventListener('click', () => clearSection());
+      // E5 — optional-chain every binding so one missing element can't abort the rest
+      // of the section card's wiring (the E1 fragility class, contained per-control).
+      $('#sectionClose')?.addEventListener('click', () => { const c = $('#sectionCard'); if (c) c.style.display = 'none'; });
+      $('#sectionAddX')?.addEventListener('click', () => addSectionPlane('x'));
+      $('#sectionAddY')?.addEventListener('click', () => addSectionPlane('y'));
+      $('#sectionAddZ')?.addEventListener('click', () => addSectionPlane('z'));
+      $('#sectionClear')?.addEventListener('click', () => clearSection());
     }
 
     function openSectionPlane(axis) {
       $('#sectionCard').style.display = 'block';
+      if (axis === 'box') return enterSectionBox();
       addSectionPlane(axis);
     }
-    function addSectionPlane(axis) {
-      if (axis === 'box') {
-        // Section box: 6-plane AABB clip. Slight inset so edges are visible.
-        handleHostCommand({ type: 'setSectionBox', payload: { inset: 0 } });
-        toast('Section box active — drag faces in the Section card to adjust');
-        renderSectionCard();
-        return;
+    // Section BOX — 6-plane AABB clip with sliders + an optional draggable gizmo.
+    function enterSectionBox() {
+      setActiveTool('section');
+      const x = window.STING_VIEWER_EXTRAS;
+      if (x && x.setSectionBox) {
+        x.setSectionBox({});                       // default to whole-model bounds
+        if (x.onSectionChange) x.onSectionChange(syncSectionBoxSliders);  // gizmo → sliders
       }
+      $('#sectionCard').style.display = 'block';
+      renderSectionBoxPanel();
+      toast('Section box — drag the sliders, or enable the gizmo to drag faces');
+    }
+    function addSectionPlane(axis) {
       handleHostCommand({ type: 'addSectionPlaneAxis', payload: { axis, offset: 0.5 } });
       renderSectionCard();
     }
     function clearSection() {
+      exitSectionTool();
       handleHostCommand({ type: 'clearSectionPlanes' });
-      handleHostCommand({ type: 'clearSectionBox' });
       $('#sectionCard').style.display = 'none';
       state.sectionPlanes = [];
+    }
+    // Tear down the section box (clip + caps + gizmo) — also called by
+    // setActiveTool when switching away from 'section'.
+    function exitSectionTool() {
+      const x = window.STING_VIEWER_EXTRAS;
+      if (x && x.clearSectionBox) try { x.clearSectionBox(); } catch (_) {}
+      $('#sectionCard').style.display = 'none';
+    }
+    function renderSectionBoxPanel() {
+      const body = $('#sectionCard .body');
+      if (!body) return;
+      body.innerHTML = '';
+      const x = window.STING_VIEWER_EXTRAS;
+      const box = (x && x.getSectionBox) ? x.getSectionBox() : { active: false };
+      const fr = box.fractions || { minX: 0, maxX: 1, minY: 0, maxY: 1, minZ: 0, maxZ: 1 };
+      [['X', 'x', 'min', 'minX'], ['X', 'x', 'max', 'maxX'],
+       ['Y', 'y', 'min', 'minY'], ['Y', 'y', 'max', 'maxY'],
+       ['Z', 'z', 'min', 'minZ'], ['Z', 'z', 'max', 'maxZ']].forEach(([lbl, axis, end, key]) => {
+        const row = el('div', { style: 'display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);margin-top:3px' });
+        row.appendChild(el('span', { style: 'min-width:30px' }, (end === 'min' ? '−' : '+') + lbl));
+        const s = el('input', { type: 'range', min: '0', max: '100', value: String(Math.round((fr[key] || 0) * 100)),
+          'data-sbkey': key, style: 'flex:1;accent-color:var(--accent)' });
+        s.addEventListener('input', () => { if (x && x.setSectionBoxFace) x.setSectionBoxFace(axis, end, parseInt(s.value, 10) / 100); });
+        row.appendChild(s);
+        body.appendChild(row);
+      });
+      const mkChk = (label, checked, fn) => {
+        const c = el('input', { type: 'checkbox' }); c.checked = !!checked;
+        c.addEventListener('change', () => fn(c));
+        return el('label', { style: 'display:flex;gap:4px;align-items:center;font-size:11px;color:var(--text-muted)' }, [c, label]);
+      };
+      const toolRow = el('div', { style: 'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px' }, [
+        mkChk('Caps', box.caps, (c) => { if (x && x.setSectionCaps) x.setSectionCaps(c.checked); }),
+        mkChk('Flip (show outside)', box.invert, (c) => { if (x && x.setSectionInvert) x.setSectionInvert(c.checked); }),   // E3
+        mkChk('Gizmo', false, (c) => {
+          if (!x) return;
+          if (c.checked) { if (!x.attachSectionGizmo || !x.attachSectionGizmo()) { c.checked = false; toast('Drag-gizmo unavailable — use sliders', 'warn'); } }
+          else if (x.detachSectionGizmo) x.detachSectionGizmo();
+        }),
+      ]);
+      body.appendChild(toolRow);
+      body.appendChild(el('div', { style: 'display:flex;gap:4px;margin-top:6px' }, [
+        el('button', { class: 'btn sm subtle', onclick: () => sectionBoxFromSelection() }, 'From selection'),
+        el('button', { class: 'btn sm danger', onclick: () => clearSection() }, 'Clear'),
+      ]));
+    }
+    // Engine → UI: when the gizmo drags a face, push the new fractions to the sliders.
+    function syncSectionBoxSliders(info) {
+      if (!info || !info.fractions) return;
+      $$('#sectionCard input[data-sbkey]').forEach(s => {
+        const k = s.dataset.sbkey;
+        if (info.fractions[k] != null) s.value = String(Math.round(info.fractions[k] * 100));
+      });
     }
 
     // Render the section card plane list with per-plane offset sliders.
@@ -5004,6 +7132,7 @@
     function setupKeyNav() {
       const held = new Set();
       let shiftDown = false;
+      let ctrlDown = false;     // M5 — Ctrl+Arrow raises/lowers the eye (elevation)
       const NAV_KEYS = new Set([
         'ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown'
       ]);
@@ -5011,19 +7140,22 @@
         if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
         if ($('#issueModal')?.classList.contains('open')) return;
         if (e.key === 'Shift') { shiftDown = true; return; }
+        if (e.key === 'Control' || e.key === 'Meta') { ctrlDown = true; return; }
         if (e.key === 'Home')  { handleHostCommand({ type: 'fit' }); e.preventDefault(); return; }
         if (NAV_KEYS.has(e.key)) {
           held.add(e.key);
+          // Ctrl+Arrow is our elevation gesture — don't let the browser hijack it.
           e.preventDefault();          // stop the page scrolling under us
         }
       });
       window.addEventListener('keyup', (e) => {
         if (e.key === 'Shift') { shiftDown = false; return; }
+        if (e.key === 'Control' || e.key === 'Meta') { ctrlDown = false; return; }
         held.delete(e.key);
       });
       // Clear held keys if the user alt-tabs away — otherwise the camera
       // drifts forever in the direction last pressed.
-      window.addEventListener('blur', () => { held.clear(); shiftDown = false; });
+      window.addEventListener('blur', () => { held.clear(); shiftDown = false; ctrlDown = false; });
 
       function tick() {
         if (held.size) {
@@ -5040,14 +7172,17 @@
           const right = new THREE_.Vector3().crossVectors(forward, cam.up).normalize();
           const up    = new THREE_.Vector3().crossVectors(right, forward).normalize();
 
-          let panX = 0, panY = 0, dolly = 0, orbX = 0, orbY = 0;
+          const elevStep = dist * 0.02;        // M5 — eye-elevation per frame
+          let panX = 0, panY = 0, dolly = 0, orbX = 0, orbY = 0, elevY = 0;
           if (held.has('ArrowLeft'))  { if (shiftDown) orbX -= orbitStep; else panX -= panStep; }
           if (held.has('ArrowRight')) { if (shiftDown) orbX += orbitStep; else panX += panStep; }
-          if (held.has('ArrowUp'))    { if (shiftDown) orbY -= orbitStep; else panY += panStep; }
-          if (held.has('ArrowDown'))  { if (shiftDown) orbY += orbitStep; else panY -= panStep; }
+          // Ctrl+Up/Down → raise/lower the eye along rendered +Y (heading + pitch kept).
+          if (held.has('ArrowUp'))    { if (ctrlDown) elevY += elevStep; else if (shiftDown) orbY -= orbitStep; else panY += panStep; }
+          if (held.has('ArrowDown'))  { if (ctrlDown) elevY -= elevStep; else if (shiftDown) orbY += orbitStep; else panY -= panStep; }
           if (held.has('PageUp'))     dolly -= dollyStep;
           if (held.has('PageDown'))   dolly += dollyStep;
 
+          if (elevY) { cam.position.y += elevY; target.y += elevY; }
           if (panX || panY || dolly) {
             const offset = new THREE_.Vector3()
               .addScaledVector(right, panX)
@@ -5085,10 +7220,14 @@
         if ($('#issueModal')?.classList.contains('open')) return;
         if ($('#photoCaptureModal')?.classList.contains('open')) return;
         if ($('#photoReviewModal')?.classList.contains('open')) return;
-        // P = open the photo capture modal — fast keyboard shortcut for
-        // coordinators who want to grab a screenshot/upload without
-        // reaching for the FAB.
-        if (k === 'p' || k === 'P') {
+        // p = toggle PIVOT nav mode (ACC/Navisworks parity) — then a single click
+        // sets the orbit centre without zooming. Shift+P keeps the photo-capture
+        // shortcut (it used to own plain P).
+        if (k === 'p') {
+          const piv = $('.nav-btn[data-mode=pivot]');
+          if (piv) { piv.click(); e.preventDefault(); return; }
+        }
+        if (k === 'P') {   // Shift+P — open the photo capture modal
           if (state.modelName || state.elementMap) {
             openPhotoCaptureModal();
             e.preventDefault();
@@ -5110,21 +7249,20 @@
           if (rowMenu && rowMenu.classList.contains('open')) {
             return;     // setupRowContextMenu's own keydown handler closes it
           }
+          // B2 — Esc clears the SELECTION only; the visualize appearance stays put.
           handleHostCommand({ type: 'clearHighlight' });
-          clearAllHighlights();          // L6
           state.selectedElementGuid = null;
           state.selectedElementGuids.clear();
           state.selectedIssueId = null;
+          reapplySelection();            // drop selection overlays, keep appearance
           renderProperties(null);
           updateRightTabCounts();        // X2
           renderSelectionToolbar();
         } else if (k === 'f' || k === 'F') {
           // F = fit selection (multi-aware). With nothing selected, fit the
-          // whole model. Matches the new "Fit" button in nav-controls.
+          // whole model edge-to-edge. Matches the "Fit" button in nav-controls.
           if (state.selectedElementGuids.size) fitToSelection();
-          else if (V.modelBounds && !V.modelBounds.isEmpty()) {
-            flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
-          }
+          else if (V.fitCamera) V.fitCamera();
         } else if (k === 'h' || k === 'H') {
           // H = hide selected. Multi-aware: hides every mesh in the
           // selection set, not just the primary.
@@ -5144,6 +7282,10 @@
           $('.nav-btn[data-mode=orbit]')?.click();
         } else if (k === 'm' || k === 'M') {
           setActiveTool('measure');
+        } else if (k === 'e' || k === 'E') {
+          // E = human eye view (drop to eye height, look horizontal, keep heading).
+          const x = window.STING_VIEWER_EXTRAS;
+          if (x && x.humanEyeView) { x.humanEyeView(); toast('Human eye view'); }
         } else if (k === ' ') {
           handleHostCommand({ type: 'fit' });
           e.preventDefault();
@@ -5317,15 +7459,17 @@
     }
 
     function onResize() {
-      // give the layout a tick to settle, then nudge the renderer
+      // Let the 0.18s panel transition settle, then resize. Prefer the engine's
+      // ortho-aware sizeRenderer so the orthographic frustum stays correct too.
       setTimeout(() => {
+        if (V.sizeRenderer) { V.sizeRenderer(); return; }
         const wrap = $('.viewport-wrap');
         if (!wrap || !V.renderer) return;
         const w = wrap.clientWidth, h = wrap.clientHeight;
-        V.camera.aspect = Math.max(0.001, w / Math.max(1, h));
+        if (!V.camera.isOrthographicCamera) V.camera.aspect = Math.max(0.001, w / Math.max(1, h));
         V.camera.updateProjectionMatrix();
         V.renderer.setSize(w, h, false);
-      }, 16);
+      }, 200);
     }
 
     // ── Hide the boot loader once the scene has a model ───────────────
@@ -5340,6 +7484,10 @@
         $('#bootLoader')?.style.setProperty('display', 'none');
         invalidateCentroidCache();   // L7 — fresh model, fresh cache
         rebuildGuidIndex();          // B7 — GUID→mesh map for fast lookups
+        loadVizState();              // B3 — restore this PROJECT's saved visualize state
+        // V4 — DEFER federation co-load so the PRIMARY model is interactive first; start
+        // on idle (fallback timer) rather than racing the primary's first frames.
+        (window.requestIdleCallback || ((fn) => setTimeout(fn, 1500)))(() => loadFederatedModels(), { timeout: 3000 });
         placeIssuePins();
         placeClashPins();
         placePhotoPins();             // Slice 4b — photo pins after model bounds known

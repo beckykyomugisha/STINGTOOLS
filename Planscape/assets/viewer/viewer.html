@@ -45,6 +45,7 @@
   <!-- HEADER -->
   <header class="header">
     <button class="tbtn" id="btnToggleLeft" title="Toggle left panel">☰</button>
+    <button class="tbtn" id="btnBack" title="Back to the previous page">← Back</button>
     <a class="brand" id="brandHome" href="#" title="Back to projects">
       <span class="logo">P</span>PLANSCAPE
     </a>
@@ -65,6 +66,10 @@
       </div>
       <div class="toolbar-group">
         <button class="tbtn" id="btnView" title="View mode">👁 View <span class="caret">▾</span></button>
+      </div>
+      <div class="toolbar-group">
+        <button class="tbtn" id="tbClashMarkers" title="Show / hide clash markers (red/orange boxes)">▣ Clashes</button>
+        <button class="tbtn" id="tbIssueMarkers" title="Show / hide issue markers">⬤ Issues</button>
       </div>
       <div class="toolbar-group">
         <button class="tbtn" id="btnIssues" title="Issues">🚩 Issues <span class="caret">▾</span></button>
@@ -183,8 +188,10 @@
       <div class="nav-controls" id="navControls">
         <button class="nav-btn active" data-mode="orbit" title="Orbit mode (O) — drag to rotate" aria-label="Orbit mode">◯ Orbit</button>
         <button class="nav-btn" data-mode="pan"  title="Pan mode — drag to translate"             aria-label="Pan mode">↖ Pan</button>
+        <button class="nav-btn" data-mode="elevUp"   title="Raise camera elevation (Ctrl+↑) — altitude only, heading + pitch fixed" aria-label="Raise elevation">⤒ Up</button>
+        <button class="nav-btn" data-mode="elevDown" title="Lower camera elevation (Ctrl+↓) — altitude only, heading + pitch fixed" aria-label="Lower elevation">⤓ Down</button>
         <button class="nav-btn" data-mode="walk" title="Walk mode (W) — first-person navigation"  aria-label="Walk mode">🚶 Walk</button>
-        <button class="nav-btn" data-mode="pivot" title="Pivot mode — orbit around selection"     aria-label="Pivot mode">⊕ Pivot</button>
+        <button class="nav-btn" data-mode="pivot" title="Pivot mode (P) — click to set the orbit centre (no zoom)" aria-label="Pivot mode">⊕ Pivot</button>
         <button class="nav-btn" data-mode="fit"  title="Fit selection or model (F)"               aria-label="Fit camera">⌖ Fit</button>
         <button class="nav-btn" data-mode="home"  title="Default eye view — reset to opening camera position"  aria-label="Default eye view">⌂ Home</button>
         <button class="nav-btn" data-mode="level" title="Level camera — make view horizontal (remove tilt)"     aria-label="Level camera">— Level</button>
@@ -194,6 +201,22 @@
           <span class="val" id="walkSpeedVal" aria-live="polite">1.0×</span>
           <button id="walkSpeedUp"   aria-label="Increase walk speed" title="Increase walk speed">+</button>
         </span>
+      </div>
+
+      <!-- ViewCube / orientation gizmo — snap to standard views + Home + ortho toggle.
+           Top-right of the viewport. (Commit 5) -->
+      <div class="view-cube" id="viewCube" style="position:absolute;top:12px;right:12px;z-index:12;
+           display:grid;grid-template-columns:repeat(3,1fr);gap:3px;background:rgba(20,22,28,0.72);
+           padding:5px;border-radius:8px;backdrop-filter:blur(4px)">
+        <button class="vc-btn" data-snap="top"    title="Top view">Top</button>
+        <button class="vc-btn" data-snap="front"  title="Front view">Frnt</button>
+        <button class="vc-btn" data-snap="right"  title="Right view">Rght</button>
+        <button class="vc-btn" data-snap="left"   title="Left view">Left</button>
+        <button class="vc-btn" data-snap="iso"    title="Isometric view">Iso</button>
+        <button class="vc-btn" data-snap="eye"    title="Human eye view (E) — drop to eye height, look horizontal">👁</button>
+        <button class="vc-btn" data-snap="home"   title="Fit whole model">⌂</button>
+        <button class="vc-btn" id="orthoToggle" title="Toggle perspective / orthographic projection"
+                style="grid-column:1 / span 3">Persp</button>
       </div>
 
       <!-- Minimap -->
@@ -547,9 +570,13 @@
   <div class="menu-item" id="vWire">▦ Wireframe</div>
   <div class="menu-item" id="vXray">◌ X-Ray</div>
   <div class="menu-item" id="vGhost">◑ Ghosted</div>
+  <div class="menu-item" id="vRealistic">◐ Realistic</div>
+  <div class="menu-item" id="vGlass">◇ Glass (heuristic)</div>
   <div class="menu-sep"></div>
   <div class="menu-item" id="vEdges">┃ Edge overlay</div>
   <div class="menu-item" id="vCaps">▤ Section caps</div>
+  <div class="menu-item" id="vClashMarkers">▣ Clash markers</div>
+  <div class="menu-item" id="vIssueMarkers">⬤ Issue markers</div>
   <div class="menu-item" id="vCoords">⌖ Coordinates readout</div>
   <div class="menu-item" id="vExplode">⊕ Exploded view</div>
   <div class="menu-sep"></div>
@@ -665,9 +692,11 @@
 <script type="module">
 import * as THREE         from 'three';
 import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { GLTFLoader }     from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader }    from 'three/addons/loaders/DRACOLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';   // Realistic mode (procedural IBL)
 
 // ── Compatibility bridge ─────────────────────────────────────────────────
 // viewer-extras.js + coordination-viewer.js are classic (non-module) scripts
@@ -682,6 +711,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 // using the real `THREE` namespace for its own `new THREE.*` calls.
 const THREEGlobal = Object.assign({}, THREE);
 THREEGlobal.OrbitControls = OrbitControls;
+THREEGlobal.TransformControls = TransformControls;   // section-box gizmo (Commit 4)
 THREEGlobal.GLTFLoader    = GLTFLoader;
 THREEGlobal.DRACOLoader   = DRACOLoader;
 window.THREE          = THREEGlobal;
@@ -706,13 +736,21 @@ THREE.ColorManagement.enabled = false;
       else console.log('[viewer→rn]', msg);
     }
   };
-  window.addEventListener('message', (ev) => {
-    try { handleCommand(JSON.parse(ev.data)); }
-    catch (err) { console.warn('[viewer] bad command:', ev.data, err); }
-  });
-  document.addEventListener('message', (ev) => {
-    try { handleCommand(JSON.parse(ev.data)); } catch (err) {}
-  });
+  // STING_VIEWER_CMDFILTER — the window receives postMessages from many sources
+  // (libraries, the host page, extensions), most of which are NOT viewer commands —
+  // e.g. a bare version string "s2.8.1,…" that JSON.parse choked on, spamming the
+  // console. Only strings that look like a command envelope ({...}/[...]) are parsed;
+  // everything else is ignored silently, and only a malformed envelope is warned.
+  function dispatchBridgeMessage(data) {
+    if (typeof data !== 'string') return;
+    const t = data.trim();
+    if (t[0] !== '{' && t[0] !== '[') return;        // not a command — ignore quietly
+    let cmd;
+    try { cmd = JSON.parse(t); } catch (err) { console.warn('[viewer] ignored malformed command JSON:', data); return; }
+    handleCommand(cmd);
+  }
+  window.addEventListener('message', (ev) => dispatchBridgeMessage(ev.data));
+  document.addEventListener('message', (ev) => dispatchBridgeMessage(ev.data));
 
   if (typeof THREE === 'undefined') {
     const e = document.createElement('div');
@@ -731,16 +769,23 @@ THREE.ColorManagement.enabled = false;
   // non-punctual lights by ~π relative to the legacy model. Scaling by Math.PI
   // is the documented legacy→physical conversion and restores the old viewer's
   // brightness (verified pixel-sampled — see PR feat/viewer-esm-modern).
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x404060, 0.9 * Math.PI));
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x404060, 0.9 * Math.PI);
+  scene.add(hemi);
   const dir = new THREE.DirectionalLight(0xffffff, 0.7 * Math.PI);
   dir.position.set(5, 10, 3); scene.add(dir);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.15 * Math.PI));
+  const amb = new THREE.AmbientLight(0xffffff, 0.15 * Math.PI);
+  scene.add(amb);
+  // E — remember the legacy fill intensities so Realistic can dampen the flat fill for
+  // depth and restore it exactly when turned off.
+  const _legacyFill = { hemi: hemi.intensity, amb: amb.intensity, dir: dir.intensity };
 
   // Near/far set conservatively here; fitCamera() recomputes them
   // from the model bounds so survey-coordinated buildings (Revit's
   // huge true-north offsets) don't get clipped.
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1e7);
+  // `let` (not const) — Commit 5 swaps this between perspective + orthographic.
+  let camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1e7);
   camera.position.set(10, 10, 10);
+  let orthoHalfHeight = 10;   // current ortho vertical half-extent (world units)
 
   const renderer = new THREE.WebGLRenderer({
     antialias: true, alpha: false,
@@ -767,11 +812,79 @@ THREE.ColorManagement.enabled = false;
   function sizeRenderer() {
     const w = host.clientWidth || window.innerWidth;
     const h = host.clientHeight || window.innerHeight;
-    camera.aspect = w / Math.max(1, h);
+    const aspect = w / Math.max(1, h);
+    if (camera.isOrthographicCamera) {
+      camera.left = -orthoHalfHeight * aspect; camera.right = orthoHalfHeight * aspect;
+      camera.top  =  orthoHalfHeight;          camera.bottom = -orthoHalfHeight;
+    } else {
+      camera.aspect = aspect;
+    }
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
   }
   sizeRenderer();
+
+  // Recompute the ortho frustum to frame a sphere of `radius` (called by fitCamera
+  // when orthographic — perspective distance doesn't set ortho size, the frustum does).
+  function updateOrthoFrustum(radius) {
+    orthoHalfHeight = (radius || 1) * 1.1;
+    const w = host.clientWidth || window.innerWidth;
+    const h = host.clientHeight || window.innerHeight;
+    const aspect = w / Math.max(1, h);
+    if (camera.isOrthographicCamera) {
+      camera.left = -orthoHalfHeight * aspect; camera.right = orthoHalfHeight * aspect;
+      camera.top  =  orthoHalfHeight;          camera.bottom = -orthoHalfHeight;
+    }
+  }
+
+  // Perspective ↔ Orthographic. Preserves eye position, target + framing. Sections
+  // read cleanly in ortho, so this pairs with the section box (Commit 4).
+  function setCameraMode(mode) {
+    const toOrtho = (mode === 'ortho');
+    if (toOrtho === !!camera.isOrthographicCamera) return;
+    const w = host.clientWidth || window.innerWidth;
+    const h = host.clientHeight || window.innerHeight;
+    const aspect = w / Math.max(1, h);
+    const pos = camera.position.clone();
+    const tgt = controls.target.clone();
+    const up  = camera.up.clone();
+    const dist = pos.distanceTo(tgt) || 1;
+    const far = camera.far;
+    let cam;
+    if (toOrtho) {
+      // Half-height that matches the perspective image at the orbit distance.
+      orthoHalfHeight = dist * Math.tan((camera.fov * Math.PI / 180) / 2);
+      cam = new THREE.OrthographicCamera(-orthoHalfHeight * aspect, orthoHalfHeight * aspect,
+                                          orthoHalfHeight, -orthoHalfHeight, -far, far);
+    } else {
+      cam = new THREE.PerspectiveCamera(50, aspect, 0.01, far);
+    }
+    cam.position.copy(pos); cam.up.copy(up); cam.lookAt(tgt);
+    camera = cam;
+    controls.object = camera;        // re-point OrbitControls at the swapped camera
+    controls.update();
+    sizeRenderer();
+    bridge.send('cameraModeChanged', { ortho: toOrtho });
+  }
+
+  // ViewCube — snap to a standard orientation around the current target, keeping
+  // the distance + camera.up=(0,1,0) (so the orbit fix stays intact). Top/Bottom use
+  // a hair of tilt so up isn't degenerate.
+  function snapView(name) {
+    let dist = camera.position.distanceTo(controls.target);
+    if (!(dist > 1e-3)) dist = modelBounds.isEmpty() ? 10 : (modelBounds.getSize(new THREE.Vector3()).length() || 10);
+    const dirs = {
+      top:    new THREE.Vector3(0,  1, 0.0001), bottom: new THREE.Vector3(0, -1, 0.0001),
+      front:  new THREE.Vector3(0,  0, 1),      back:   new THREE.Vector3(0,  0, -1),
+      right:  new THREE.Vector3(1,  0, 0),      left:   new THREE.Vector3(-1, 0, 0),
+      iso:    new THREE.Vector3(1,  0.8, 1),
+    };
+    const d = (dirs[name] || dirs.iso).clone().normalize();
+    camera.up.set(0, 1, 0);
+    camera.position.copy(controls.target).addScaledVector(d, dist);
+    camera.lookAt(controls.target);
+    controls.update();
+  }
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -781,14 +894,11 @@ THREE.ColorManagement.enabled = false;
   // the screen plane regardless of camera tilt.
   controls.zoomToCursor      = true;
   controls.screenSpacePanning = true;
-  // NEGATIVE rotateSpeed — natural Z-up orbit sense. With camera.up=(0,0,1)
-  // OrbitControls builds _quat = setFromUnitVectors((0,0,1),(0,1,0)) — a
-  // −90°-about-X mapping — which inverts BOTH the polar and azimuth drag sense
-  // (drag-up dropped the camera to the horizon i.e. tilted DOWN; drag-left spun
-  // the wrong way). The rotate delta is multiplied by rotateSpeed, so a negative
-  // value flips both _rotateLeft + _rotateUp: drag-up now tilts up, drag-left
-  // spins left — natural. Magnitude unchanged.
-  controls.rotateSpeed = -0.9;
+  // ORBIT FIX — with the model rendered Y-up and camera.up at the OrbitControls
+  // default (0,1,0), the drag sense is naturally correct, so rotateSpeed is a
+  // plain positive magnitude again (the previous negative value was a workaround
+  // for the camera.up=(0,0,1) quaternion inversion that we've now removed).
+  controls.rotateSpeed = 0.9;
   controls.zoomSpeed   = 1.2;
   controls.panSpeed    = 1.0;
   // Stop the user from rolling the camera under the model.
@@ -806,6 +916,8 @@ THREE.ColorManagement.enabled = false;
   const measureGroup = new THREE.Group(); scene.add(measureGroup);
 
   let modelRoot = null;
+  let modelRoots = [];      // FEDERATION — every loaded model root (children of modelPivot)
+  let modelPivot = null;    // ORBIT FIX — Y-up rotation wrapper around modelRoot
   let modelReady = false;   // BLK-5 — meeting co-presence waits on this
   let modelBounds = new THREE.Box3();
   // BUG 1 — recenter offset. On load the model root is translated by
@@ -817,8 +929,34 @@ THREE.ColorManagement.enabled = false;
   // (toScene, for IN placements). The host therefore still works entirely in
   // true world coordinates — the recenter is invisible to it.
   const modelOffset = new THREE.Vector3(0, 0, 0);
-  const toWorld = (a) => [a[0] + modelOffset.x, a[1] + modelOffset.y, a[2] + modelOffset.z];
-  const toScene = (a) => [a[0] - modelOffset.x, a[1] - modelOffset.y, a[2] - modelOffset.z];
+  // ORBIT FIX — definitive. Revit/IFC GLBs are Z-up, but stock OrbitControls is
+  // only rock-solid with the DEFAULT up (0,1,0); forcing camera.up to world-Z
+  // rolls/gimbals the camera near the up axis (the "drag-up rotates anti-clockwise
+  // + drift" symptom). Instead we rotate the RENDERED model Z-up → Y-up (a -90°
+  // turn about X, so Z→Y) via a parent pivot and let OrbitControls run at its
+  // native (0,1,0). The model root itself keeps its federation transform + the
+  // recenter UNCHANGED, in true Z-up world space, so the host bridge below is
+  // untouched apart from the rotation round-trip.
+  const Z_UP_TO_Y_UP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  const Y_UP_TO_Z_UP = Z_UP_TO_Y_UP.clone().invert();
+  // rendered (Y-up) → true world (Z-up): un-rotate, then add the recenter offset.
+  const toWorld = (a) => {
+    const v = new THREE.Vector3(a[0], a[1], a[2]).applyQuaternion(Y_UP_TO_Z_UP).add(modelOffset);
+    return [v.x, v.y, v.z];
+  };
+  // true world (Z-up) → rendered (Y-up): subtract the offset, then rotate.
+  const toScene = (a) => {
+    const v = new THREE.Vector3(a[0] - modelOffset.x, a[1] - modelOffset.y, a[2] - modelOffset.z)
+      .applyQuaternion(Z_UP_TO_Y_UP);
+    return [v.x, v.y, v.z];
+  };
+  // Direction-only variants (no translation) — for section-plane normals etc.
+  // that are expressed in true Z-up world axes and must align with the rendered
+  // scene. Exposed on STING_VIEWER so viewer-extras can reuse them.
+  const worldDirToScene = (a) => {
+    const v = new THREE.Vector3(a[0], a[1], a[2]).applyQuaternion(Z_UP_TO_Y_UP);
+    return [v.x, v.y, v.z];
+  };
   let elementMap = null;
   let pinMeta = new Map();
   let measurePoints = [];
@@ -826,7 +964,7 @@ THREE.ColorManagement.enabled = false;
   let lastPickEl = null;
   let pressTimer = null;
 
-  function loadModel(url, transform) {
+  function loadModel(url, transform, modelId) {
     const loader = new GLTFLoader();
     try {
       const v = window.STING_VIEWER;
@@ -836,8 +974,10 @@ THREE.ColorManagement.enabled = false;
     loader.load(
       url,
       (gltf) => {
-        if (modelRoot) scene.remove(modelRoot);
+        if (modelPivot) scene.remove(modelPivot);
+        modelRoots = [];
         modelRoot = gltf.scene;
+        modelRoot.userData.stingModelId = modelId || 'primary';   // FEDERATION tag
         assignElementIds(modelRoot);
         // BLK-2 — federation: apply the project-stored coordinate transform
         // (survey origin / true-north / scale) so this model lands in the
@@ -845,27 +985,39 @@ THREE.ColorManagement.enabled = false;
         // transform is absent / unconfirmed / identity (the common single-
         // model case), so existing projects are unaffected.
         applyModelTransform(modelRoot, transform);
-        scene.add(modelRoot);
-        modelBounds.setFromObject(modelRoot);
         // BUG 1 — recenter the model to the origin. Survey-coordinated
         // buildings can sit tens of km from 0,0,0 (e.g. X 6557m Y 10940m
         // Z 6803m); at that distance float depth precision fails and faces
-        // flicker. Translate the root by -centre and remember the centre as
-        // modelOffset so true world coords are recovered at the host bridge.
+        // flicker. The recenter happens in TRUE Z-up world space (modelRoot is
+        // not yet parented to the Y-up pivot), so modelOffset stays a true-world
+        // Z-up vector and the host bridge (toWorld/toScene) is unaffected.
+        modelRoot.updateMatrixWorld(true);
+        modelBounds.setFromObject(modelRoot);   // true Z-up world bounds
         const _centre = modelBounds.getCenter(new THREE.Vector3());
         modelRoot.position.sub(_centre);
         modelRoot.updateMatrixWorld(true);
         modelOffset.copy(_centre);
-        modelBounds.setFromObject(modelRoot);   // recompute: now origin-centred
+        // ORBIT FIX — wrap the recentred Z-up model in a pivot rotated to Y-up
+        // so stock OrbitControls runs at its native (0,1,0). modelRoot stays
+        // Z-up internally; only the rendered orientation changes.
+        modelPivot = new THREE.Group();
+        modelPivot.name = 'sting-modelPivot';
+        modelPivot.quaternion.copy(Z_UP_TO_Y_UP);
+        modelPivot.add(modelRoot);
+        modelPivot.updateMatrixWorld(true);
+        scene.add(modelPivot);
+        modelRoots = [modelRoot];               // FEDERATION — primary is root 0
+        modelBounds.setFromObject(modelRoot);   // recompute: now Y-up, origin-centred
         fitCamera();
         const el = document.getElementById('bootLoader');
         if (el) el.style.display = 'none';
         markModelReady();
         bridge.send('loaded', {
           elementCount: countMeshes(modelRoot),
-          // Report TRUE world bounds (add the offset back) so the host's
-          // extent display stays in survey coordinates.
-          bounds: bbToArray(modelBounds, modelOffset)
+          // Report TRUE world (Z-up) bounds so the host's extent display stays in
+          // survey coordinates. modelBounds is now the rendered (Y-up) AABB, so map
+          // its 8 corners through toWorld and re-AABB them.
+          bounds: trueWorldBounds(modelBounds)
         });
       },
       (progress) => {
@@ -884,6 +1036,46 @@ THREE.ColorManagement.enabled = false;
         markModelReady();
       }
     );
+  }
+
+  // FEDERATION — add an ADDITIONAL model into the SAME pivot, sharing the primary's
+  // recenter offset so the project transforms keep models in their relative positions.
+  // Co-renders the whole project so the viz layer operates across every model.
+  function addModel(url, transform, modelId) {
+    if (!modelPivot) { loadModel(url, transform, modelId); return; }   // no primary yet
+    const loader = new GLTFLoader();
+    try {
+      const v = window.STING_VIEWER;
+      if (v && v.dracoLoader && loader.setDRACOLoader) loader.setDRACOLoader(v.dracoLoader);
+      if (v && v.meshoptDecoder && loader.setMeshoptDecoder) loader.setMeshoptDecoder(v.meshoptDecoder);
+    } catch (_) {}
+    loader.load(url, (gltf) => {
+      if (modelRoots.some(r => r.userData && r.userData.stingModelId === modelId)) return;  // already loaded
+      const root = gltf.scene;
+      root.userData.stingModelId = modelId || ('fed-' + modelRoots.length);
+      assignElementIds(root);
+      applyModelTransform(root, transform);
+      root.updateMatrixWorld(true);
+      root.position.sub(modelOffset);       // share the primary's recenter → relative positions
+      root.updateMatrixWorld(true);
+      modelPivot.add(root);
+      modelRoots.push(root);
+      recomputeModelBounds();
+      bridge.send('modelAdded', { modelId: root.userData.stingModelId, elementCount: countMeshes(root) });
+    }, undefined, (err) => console.warn('[viewer] federated model load failed', modelId, err));
+  }
+  function recomputeModelBounds() {
+    const b = new THREE.Box3();
+    modelRoots.forEach(r => { if (r && r.visible) b.expandByObject(r); });
+    if (b.isEmpty() && modelRoots[0]) b.expandByObject(modelRoots[0]);
+    modelBounds = b;
+  }
+  function setModelVisibleById(modelId, visible) {
+    const r = modelRoots.find(x => x.userData && x.userData.stingModelId === modelId);
+    if (!r) return false;
+    r.visible = !!visible;
+    recomputeModelBounds();
+    return true;
   }
 
   // BLK-2 — apply a stored ProjectModelTransform to a loaded model root.
@@ -915,43 +1107,67 @@ THREE.ColorManagement.enabled = false;
   function assignElementIds(root) {
     root.traverse(obj => {
       if (!obj.isMesh) return;
-      const g = obj.userData && (obj.userData.guid || (obj.userData.extras && obj.userData.extras.guid));
+      const u = obj.userData || {};
+      const ex = u.extras || {};
+      // The STING exporter writes the Revit UniqueId (the element-map key) into the
+      // glTF node extras → userData.uniqueId. Accept guid OR uniqueId, own or extras.
+      const g = u.guid || u.uniqueId || ex.guid || ex.uniqueId;
       obj.userData.elementGuid = g || obj.uuid;
     });
   }
 
+  // FITFIX/Item-2 — bbox of only the VISIBLE meshes (mesh + all ancestors visible),
+  // so Fit/Home frame what's actually shown after isolate/hide/model-toggle. Empty
+  // Box3 when nothing is visible.
+  function visibleModelBounds() {
+    const b = new THREE.Box3();
+    const root = modelPivot || modelRoot;
+    if (!root) return b;
+    root.updateMatrixWorld(true);
+    root.traverse(o => {
+      if (!o.isMesh || !o.visible) return;
+      for (let p = o.parent; p; p = p.parent) { if (!p.visible) return; }   // ancestor hidden
+      b.expandByObject(o);
+    });
+    return b;
+  }
   function fitCamera(target) {
-    // 'target' lets callers fit to a sub-region (e.g. a single selected
-    // element's bounding box). Defaults to the whole-model bounds.
-    const box = target || modelBounds;
+    // 'target' lets callers fit to a sub-region (e.g. a single selected element's
+    // bbox). With no target, frame only the VISIBLE geometry (Item 2); if nothing is
+    // visible, no-op (the caller toasts).
+    const box = target || visibleModelBounds();
     if (!box || box.isEmpty()) return;
+    // STING_VIEWER_FITFIX — FOV-aware framing computed from the box SIZE, NOT
+    // Box3.getBoundingSphere(): THREE.Sphere is tree-shaken out of the prod bundle, so
+    // getBoundingSphere(new Vector3()) threw "reading 'addVectors'" on every fit (load,
+    // Fit/Home/F). radius = half the box diagonal — same framing, no Sphere needed.
     const size = box.getSize(new THREE.Vector3());
     const centre = box.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z) || 1;
-    const dist = maxDim * 1.8;
-    // BUG 2 — IFC/Revit are Z-up. Lock camera.up to world-Z (no bbox guess) so
-    // OrbitControls maps vertical drag → polar (tilt) and horizontal → azimuth
-    // (spin). Frame from the south (Y-) and slightly above (Z+) so the longest
-    // horizontal axis reads left-to-right.
-    camera.up.set(0, 0, 1);
-    if (Math.abs(size.x) >= Math.abs(size.y)) {
-      camera.position.copy(centre).add(new THREE.Vector3(0, -dist * 0.8, dist * 0.6));
+    const radius = 0.5 * (size.length() || 1);
+    const vFov = (camera.fov || 50) * Math.PI / 180;   // ortho has no fov → 50° positions the eye
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * (camera.aspect || 1));
+    const dist = (radius / Math.sin(Math.min(vFov, hFov) / 2)) * 1.1;
+    // For a passed sub-region target, PRESERVE the current view direction; for the
+    // whole-model fit use the default south-and-above framing. camera.up stays (0,1,0).
+    let dir;
+    if (target) {
+      dir = new THREE.Vector3().subVectors(camera.position, controls.target);
+      if (dir.lengthSq() < 1e-9) dir.set(0, 0.55, 0.85);
     } else {
-      camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, 0, dist * 0.6));
+      dir = (Math.abs(size.x) >= Math.abs(size.z))
+        ? new THREE.Vector3(0, 0.55, 0.85)
+        : new THREE.Vector3(0.85, 0.55, 0);
     }
+    dir.normalize();
+    camera.position.copy(centre).addScaledVector(dir, dist);
     controls.target.copy(centre);
-    // BUG 1 — tighten near/far from the WHOLE-model size (not the sub-target,
-    // which would clip the rest of the model when fitting one element). With
-    // the model recentred near the origin this keeps the usable depth range
-    // tight and, with the log depth buffer, eliminates z-fighting.
-    // near is derived from the box being framed (so a single-element fit never
-    // clips that element on a large site); far from the whole-model diagonal so
-    // the rest of the model stays visible behind it. For the default whole-model
-    // fit both diagonals are equal → near = diag/1000, far = diag*10.
-    const fitDiag = size.length() || maxDim;
-    const modelDiag = (modelBounds.isEmpty() ? size : modelBounds.getSize(new THREE.Vector3())).length() || fitDiag;
+    // near from the framed diagonal, far from the whole-model diagonal (+ camera dist).
+    const fitDiag = radius * 2;
+    const modelSize = modelBounds.isEmpty() ? size : modelBounds.getSize(new THREE.Vector3());
+    const modelDiag = modelSize.length() || fitDiag;
     camera.near = Math.max(fitDiag / 1000, 1e-4);
-    camera.far  = Math.max(modelDiag, fitDiag) * 10;
+    camera.far  = (Math.max(modelDiag, fitDiag) + dist) * 10;
+    if (camera.isOrthographicCamera && typeof updateOrthoFrustum === 'function') updateOrthoFrustum(radius);
     camera.updateProjectionMatrix();
     controls.update();
   }
@@ -1026,12 +1242,15 @@ THREE.ColorManagement.enabled = false;
     }
 
     if (longPress) { emitPlaceIssue(hit); return; }
+    // Tool exclusivity — markup + section OWN the pointer; they must NOT also
+    // select/pick. The pick raycaster is gated off for them here.
+    if (activeTool === 'markup' || activeTool === 'section') return;
     if (activeTool === 'pick')         emitPick(hit);
     else if (activeTool === 'measure') addMeasurePoint(hit);
     else if (activeTool === 'pin')     emitPlaceIssue(hit);
     else if (activeTool === 'clearance') addClearancePick(hit);
     else if (activeTool === 'cumPath') addCumulativePickHit(hit);
-    else                                emitPick(hit);
+    else                                emitPick(hit);   // pick / orbit / default
   });
 
   // ── Clearance pick — collects two element targets, emits min-distance ─
@@ -1069,10 +1288,26 @@ THREE.ColorManagement.enabled = false;
     pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
   }
+  // V1 — a mesh is pickable only if it (and all ancestors) are visible AND its appearance
+  // state isn't ghost / x-ray / transparent. So a click passes THROUGH a ghosted/x-rayed
+  // element to the SOLID element behind it (Navisworks/ACC). Pins are always pickable;
+  // solid + colour-overridden elements stay pickable. _vizMode is stamped by the
+  // coordination layer's appearance resolver.
+  function isPickableMesh(o) {
+    if (!o) return false;
+    if (pinMeta.has(o.uuid)) return true;
+    for (let p = o; p; p = p.parent) { if (p.visible === false) return false; }
+    const vm = o.userData && o.userData._vizMode;
+    if (vm === 'ghost') return false;
+    if (typeof vm === 'string' && (vm.indexOf('trans:') === 0 || vm === 'rmode:xray' || vm === 'rmode:ghost')) return false;
+    return true;
+  }
   function raycast() {
     raycaster.setFromCamera(pointer, camera);
-    const targets = modelRoot ? [modelRoot, pinGroup] : [];
-    return raycaster.intersectObjects(targets, true);
+    // FEDERATION — raycast the whole pivot (every model root), not just the primary.
+    const root = modelPivot || modelRoot;
+    const targets = root ? [root, pinGroup] : (pinGroup ? [pinGroup] : []);
+    return raycaster.intersectObjects(targets, true).filter(h => isPickableMesh(h.object));
   }
 
   function emitPick(hit) {
@@ -1191,10 +1426,12 @@ THREE.ColorManagement.enabled = false;
     const PRIORITY = { CRITICAL: 0xEF4444, HIGH: 0xF97316, MEDIUM: 0xF59E0B, LOW: 0x60A5FA };
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: PRIORITY[priority] || 0x60A5FA, depthTest: false }));
     const scale = modelBounds.isEmpty() ? 1 : modelBounds.getSize(new THREE.Vector3()).length() * 0.012;
-    // Pin coords arrive in TRUE world (issue anchors from the server) — shift
-    // into the recentred render space so the pin lands on the model.
+    // Pin coords arrive in TRUE world (Z-up, issue anchors from the server) —
+    // toScene shifts AND rotates them into the recentred Y-up render space so the
+    // pin lands on the model (pinGroup is a direct child of scene, not the pivot).
     sprite.scale.set(scale, scale, scale);
-    sprite.position.set(x - modelOffset.x, y - modelOffset.y, z - modelOffset.z);
+    const ps = toScene([x, y, z]);
+    sprite.position.set(ps[0], ps[1], ps[2]);
     pinGroup.add(sprite); pinMeta.set(sprite.uuid, { issueId: id, priority });
   }
   function clearPins() { while (pinGroup.children.length) pinGroup.remove(pinGroup.children[0]); pinMeta.clear(); }
@@ -1211,7 +1448,9 @@ THREE.ColorManagement.enabled = false;
   function handleCommand(cmd) {
     if (!cmd || !cmd.type) return;
     switch (cmd.type) {
-      case 'load':            loadModel(cmd.payload.url, cmd.payload.transform); break;
+      case 'load':            loadModel(cmd.payload.url, cmd.payload.transform, cmd.payload.modelId); break;
+      case 'addModel':        addModel(cmd.payload.url, cmd.payload.transform, cmd.payload.modelId); break;
+      case 'setModelVisibleById': setModelVisibleById(cmd.payload.modelId, cmd.payload.visible); break;
       case 'elementMap':      elementMap = Object.assign(elementMap || {}, cmd.payload.map || {}); break;
       case 'setTool':         setTool(cmd.payload.tool); break;
       case 'fit':              fitCamera(); break;
@@ -1386,7 +1625,10 @@ THREE.ColorManagement.enabled = false;
 
   function setTool(t) {
     activeTool = t;
-    enableSection(t === 'section');
+    // Section clipping is owned by the section-BOX system (viewer-extras
+    // setSectionBox + the coordination-viewer panel), not the old single-plane
+    // enableSection — so we don't toggle it here (it would clobber the box's
+    // 6 clip planes). enableSection remains for any legacy direct callers.
     if (t !== 'measure') clearMeasure();
     bridge.send('toolChanged', { tool: t });
   }
@@ -1395,25 +1637,58 @@ THREE.ColorManagement.enabled = false;
   window.addEventListener('resize', sizeRenderer);
   if (window.ResizeObserver) new ResizeObserver(sizeRenderer).observe(host);
 
+  // M6 — after the main render, run a registered overlay hook (the minimap renders
+  // itself as a scissored inset into THIS canvas, sharing the single GL context —
+  // a second WebGLRenderer can't share the scene's GPU buffers and rendered empty).
+  let _afterRenderCb = null;
   (function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
+    if (_afterRenderCb) { try { _afterRenderCb(renderer); } catch (_) {} }
   })();
+  // Render the scene through `cam` into a screen rectangle (CSS px from the canvas
+  // top-left) of the main canvas, then restore the full viewport. setViewport /
+  // setScissor take CSS pixels — three applies the pixel ratio internally.
+  function renderInset(cam, cssX, cssY, cssW, cssH) {
+    const size = renderer.getSize(new THREE.Vector2());   // CSS px
+    const y = size.y - (cssY + cssH);                     // GL bottom-left origin
+    const prevScissorTest = renderer.getScissorTest();
+    renderer.setScissorTest(true);
+    renderer.setScissor(cssX, y, cssW, cssH);
+    renderer.setViewport(cssX, y, cssW, cssH);
+    renderer.render(scene, cam);
+    renderer.setViewport(0, 0, size.x, size.y);
+    renderer.setScissor(0, 0, size.x, size.y);
+    renderer.setScissorTest(prevScissorTest);
+  }
 
   function countMeshes(obj) { let n = 0; obj.traverse(o => { if (o.isMesh) n++; }); return n; }
   function bbToArray(b, off) {
     const o = off || { x: 0, y: 0, z: 0 };
     return [b.min.x + o.x, b.min.y + o.y, b.min.z + o.z, b.max.x + o.x, b.max.y + o.y, b.max.z + o.z];
   }
+  // ORBIT FIX — map a rendered (Y-up) AABB to a true-world (Z-up) AABB by sending
+  // its 8 corners through toWorld and re-bounding. Used for the host 'loaded' report.
+  function trueWorldBounds(b) {
+    if (!b || b.isEmpty()) return [0, 0, 0, 0, 0, 0];
+    const mn = b.min, mx = b.max;
+    let nx = Infinity, ny = Infinity, nz = Infinity, Mx = -Infinity, My = -Infinity, Mz = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      const w = toWorld([(i & 1) ? mx.x : mn.x, (i & 2) ? mx.y : mn.y, (i & 4) ? mx.z : mn.z]);
+      nx = Math.min(nx, w[0]); ny = Math.min(ny, w[1]); nz = Math.min(nz, w[2]);
+      Mx = Math.max(Mx, w[0]); My = Math.max(My, w[1]); Mz = Math.max(Mz, w[2]);
+    }
+    return [nx, ny, nz, Mx, My, Mz];
+  }
 
   // Level the camera: keep current position and yaw, zero out pitch so the
   // view is perfectly horizontal. Works for Z-up (Revit) and Y-up models.
   function levelCamera() {
     if (modelBounds.isEmpty()) return;
-    // BUG 2 — IFC/Revit are Z-up; lock it (no bbox guess) to match fitCamera.
-    const up = new THREE.Vector3(0, 0, 1);
-    camera.up.copy(up);
+    // ORBIT FIX — model is rendered Y-up; the horizon plane is perpendicular to
+    // world-Y. camera.up stays the OrbitControls default (0,1,0) — do not override.
+    const up = new THREE.Vector3(0, 1, 0);
     // Project the current look direction onto the horizontal plane.
     const fwd = new THREE.Vector3();
     camera.getWorldDirection(fwd);
@@ -1428,14 +1703,100 @@ THREE.ColorManagement.enabled = false;
 
   // STING_VIEWER export — exact same surface viewer-extras + coordination
   // viewer expect.
+  // ── Realistic render mode ─────────────────────────────────────────────
+  // Procedural IBL via PMREMGenerator.fromScene(new RoomEnvironment()) — no asset.
+  // ON: scene.environment + ACES tonemap + sRGB output (the model's MeshStandard
+  // materials gain reflections/lighting). OFF: restore the legacy linear look
+  // (NoToneMapping + LinearSRGBColorSpace). The env texture is built once + cached.
+  // The unconditional render loop picks the change up next frame. Composition with
+  // the layered model is handled in coordination-viewer.js (Realistic = base
+  // appearance; colour-by/ghost still override; Clear returns to it).
+  let _realisticEnv = null;
+  let _realisticBg = null;   // P4 — dark studio gradient backdrop for Realistic (NOT the env)
+  function setRealistic(on) {
+    on = !!on;
+    if (on) {
+      if (!_realisticEnv) {
+        try {
+          const pmrem = new THREE.PMREMGenerator(renderer);
+          _realisticEnv = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+          pmrem.dispose();
+        } catch (e) { console.warn('[viewer] Realistic env build failed', e); _realisticEnv = null; }
+      }
+      scene.environment = _realisticEnv;
+      // P4 — DECOUPLE backdrop from the IBL: the RoomEnvironment lights/reflects the model
+      // (scene.environment) but must NOT be the backdrop (that's the bright/whitish look).
+      // Use a subtle dark studio gradient so the lit model pops; env stays environment-only.
+      if (!_realisticBg) {
+        try {
+          const cv = document.createElement('canvas'); cv.width = 16; cv.height = 256;
+          const ctx = cv.getContext('2d');
+          const g = ctx.createLinearGradient(0, 0, 0, 256);
+          g.addColorStop(0, '#1b2027'); g.addColorStop(1, '#0c0e12');
+          ctx.fillStyle = g; ctx.fillRect(0, 0, 16, 256);
+          _realisticBg = new THREE.CanvasTexture(cv);
+          _realisticBg.colorSpace = THREE.SRGBColorSpace;
+        } catch (e) { _realisticBg = null; }
+      }
+      scene.background = _realisticBg || new THREE.Color(0x111318);
+      // Soften IBL + pull exposure down so flat untextured white plaster reads as LIT with
+      // form, not washed flat. (Real materials/textures come from the Phase-2 exporter.)
+      try { scene.environmentIntensity = 0.45; } catch (e) {}
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 0.62;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      // E — DEPTH: dampen the flat hemisphere/ambient fill so the IBL's soft directional
+      // variation (a contact-shadow / ambient-occlusion-like gradient) shows; keep the key
+      // directional light for form. (True SSAO/contact shadows = a postprocessing follow-up.)
+      try { hemi.intensity = _legacyFill.hemi * 0.35; amb.intensity = _legacyFill.amb * 0.25; dir.intensity = _legacyFill.dir * 1.1; } catch (e) {}
+    } else {
+      scene.environment = null;
+      scene.background = new THREE.Color(0x111318);   // P4 — restore the legacy solid dark backdrop
+      try { scene.environmentIntensity = 1.0; } catch (e) {}
+      renderer.toneMapping = THREE.NoToneMapping;
+      renderer.toneMappingExposure = 1.0;
+      renderer.outputColorSpace = THREE.LinearSRGBColorSpace;   // legacy/default look
+      try { hemi.intensity = _legacyFill.hemi; amb.intensity = _legacyFill.amb; dir.intensity = _legacyFill.dir; } catch (e) {}
+    }
+    // glTF baseColorTexture is tagged SRGBColorSpace by GLTFLoader; the viewer otherwise
+    // runs ColorManagement OFF (legacy look), which would render textures un-decoded. Enable
+    // colour-management while Realistic is on so textures + colours decode correctly; OFF
+    // restores the legacy non-colour-managed look. A CM/colorSpace change needs a shader
+    // recompile on existing materials.
+    try { THREE.ColorManagement.enabled = on; } catch (e) {}
+    try {
+      scene.traverse(o => {
+        if (o.isMesh && o.material) {
+          const ms = Array.isArray(o.material) ? o.material : [o.material];
+          for (let i = 0; i < ms.length; i++) if (ms[i]) ms[i].needsUpdate = true;
+        }
+      });
+    } catch (e) {}
+  }
+
   window.STING_VIEWER = {
-    scene, camera, renderer, controls, bridge,
-    fitCamera, levelCamera, assignElementIds,
+    scene, renderer, controls, bridge,
+    setRealistic,
+    // camera is swapped by setCameraMode (persp ↔ ortho), so expose it as a getter
+    // — downstream V.camera always reads the CURRENT camera.
+    get camera() { return camera; },
+    fitCamera, levelCamera, assignElementIds, visibleModelBounds,
+    setCameraMode, snapView, sizeRenderer,
+    // M6 — minimap inset (single-renderer scissor) + an after-render hook.
+    renderInset,
+    set onAfterRender(fn) { _afterRenderCb = fn; },
+    get onAfterRender() { return _afterRenderCb; },
+    get isOrtho() { return !!camera.isOrthographicCamera; },
     // K3 — one overlay path for every STING colour feed (twin/diff/cx/qa…)
     applyOverlay, clearOverlay,
     get activeOverlaySource() { return _activeOverlaySource; },
     get modelRoot()       { return modelRoot; },
     set modelRoot(v)       { modelRoot = v; },
+    // FEDERATION — all loaded roots + the group (modelPivot) that holds them all.
+    // The viz layer traverses modelGroup so appearance spans every loaded model.
+    get modelRoots()      { return modelRoots; },
+    get modelGroup()      { return modelPivot; },
+    addModel, setModelVisibleById,
     get modelReady()      { return modelReady; },
     markModelReady, applyModelTransform,
     get modelBounds()     { return modelBounds; },
@@ -1444,6 +1805,12 @@ THREE.ColorManagement.enabled = false;
     // downstream scripts (viewer-extras area measure) can convert rendered
     // coords back to true world coords.
     get modelOffset()     { return modelOffset; },
+    get modelPivot()      { return modelPivot; },
+    // ORBIT FIX — full rendered(Y-up) ↔ true-world(Z-up) bridge, rotation-aware.
+    // Downstream scripts (viewer-extras measure / sections) must use THESE, not
+    // a bare modelOffset add, now that the rendered scene is rotated.
+    toWorld, toScene, worldDirToScene,
+    get upQuaternion()    { return Z_UP_TO_Y_UP; },   // Z-up → Y-up (federation rotation)
     get highlightedMesh() { return highlightedMesh; },
     // R13 — expose pinGroup + pinMeta so the coordination layer can add
     // its own pins to the same pipeline the engine raycasts. The engine
@@ -1551,5 +1918,10 @@ THREE.ColorManagement.enabled = false;
      /hubs/meeting for camera-follow + participant presence + overlay sync.
      Complete no-op when the meeting param is absent. -->
 <script defer src="./meeting-sync.js"></script>
+
+<!-- WS3 — LiveKit A/V (camera / mic / screen-share). Opt-in via ?meeting=<id>,
+     complete no-op otherwise + inert inside the RN WebView. Loads livekit-client
+     from a pinned CDN at runtime (same pattern as signalr-shim). -->
+<script defer src="./livekit-av.js"></script>
 </body>
 </html>

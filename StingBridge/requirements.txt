@@ -1,6 +1,12 @@
 requests>=2.31.0
 watchdog>=4.0.0
-ifcopenshell>=0.7.0
+# Phase A5 — PIN to the ifcopenshell major that Bonsai bundles (0.8.x). The
+# headless worker and the interactive Bonsai add-on MUST agree on the
+# ifcopenshell version: the util.geolocation `auto_*` helpers + signatures the
+# coordinate engine (Phase C) relies on landed in 0.8 and shift across majors.
+# Bump this ceiling deliberately, in lockstep with the Bonsai range pinned in
+# stingtools-bonsai/blender_manifest.toml.
+ifcopenshell>=0.8.0,<0.9
 
 # Shared STING core — single source of the Planscape /ifc/data wire contract
 # (_element_to_wire). In the monorepo dev checkout the bridge imports it from

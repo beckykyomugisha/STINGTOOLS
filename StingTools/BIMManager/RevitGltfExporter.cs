@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Visual;   // Phase 2 — appearance assets (Asset / AssetProperty*)
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using Newtonsoft.Json;
@@ -34,23 +35,38 @@ namespace StingTools.BIMManager
         private string? _currentCategory;
         private int[]? _currentRgb;
 
+        // Phase 2 — real material textures. OFF by default: lean coordination /
+        // low-bandwidth exports stay flat-colour (unchanged). ON for presentation /
+        // as-built. Set via the static toggle or the Export() parameter
+        // ("PlanscapeExportTextures" export option).
+        public static bool ExportTextures { get; set; } = false;
+        private readonly bool _exportTextures;
+        // Per-material appearance cache (Revit material ElementId.Value → resolved def),
+        // so the version-sensitive appearance read runs once per material, not per face.
+        private readonly Dictionary<long, MaterialDef?> _appearanceCache = new();
+        // Phase 2 — resolved texture-path cache (by lowercased filename) so the library
+        // filesystem scan runs at most once per filename per export session.
+        private static readonly Dictionary<string, string?> _texPathCache = new();
+
         private const double FeetToMm = 304.8;
 
-        public RevitGltfExporter(Document doc)
+        public RevitGltfExporter(Document doc, bool exportTextures = false)
         {
             _doc = doc;
+            _exportTextures = exportTextures;
             _xformStack.Push(Transform.Identity);
         }
 
-        public static ExportResult Export(Document doc, View3D view, string outputGlbPath)
+        public static ExportResult Export(Document doc, View3D view, string outputGlbPath, bool? exportTextures = null)
         {
+            bool textures = exportTextures ?? ExportTextures;
             // S8.2.2 — span around the whole export so telemetry-on users see
             // p99 export latency vs scene size in their dashboards.
             return StingTools.Core.PluginTelemetry.Run(
                 "RevitGltfExporter.export",
                 () =>
                 {
-                    var ctx = new RevitGltfExporter(doc);
+                    var ctx = new RevitGltfExporter(doc, textures);
                     var exporter = new CustomExporter(doc, ctx)
                     {
                         IncludeGeometricObjects = false,
@@ -139,6 +155,8 @@ namespace StingTools.BIMManager
         // adjustment in another working impl.
         public RenderNodeAction OnFaceBegin(FaceNode node) => RenderNodeAction.Proceed;
         public void OnFaceEnd(FaceNode node) { }
+        private MaterialDef? _activeMat;   // Phase 2 — current face's resolved material (UV transform for OnPolymesh)
+
         public void OnMaterial(MaterialNode node)
         {
             try
@@ -146,8 +164,269 @@ namespace StingTools.BIMManager
                 var c = node.Color;
                 if (c != null && _current != null)
                     _current.Rgb = new[] { (int)c.Red, (int)c.Green, (int)c.Blue };
+
+                // Phase 2 — resolve the real appearance (diffuse bitmap + PBR factors) once
+                // per material. Whole-element single-material model (last face wins), matching
+                // the existing one-primitive-per-element design. Failure → null → flat colour.
+                if (_exportTextures)
+                {
+                    var def = ResolveAppearance(node);
+                    _activeMat = def;
+                    if (def != null && _current != null) _current.Mat = def;
+                }
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+        }
+
+        // Phase 2 (hardened + self-diagnosing) — Material → AppearanceAsset → rendering asset
+        // → diffuse bitmap + PBR. Records diag fields on the MaterialDef (logged at export end
+        // by LogTextureDiagnostics) so a re-publish shows, per material, whether a bitmap was
+        // found + whether its path resolved + why any was skipped. Never throws (failure → a
+        // colour-only def). TODO-VERIFY-API: Visual.Asset schema is version-sensitive (2025/26/27).
+        private MaterialDef? ResolveAppearance(MaterialNode node)
+        {
+            ElementId matId;
+            try { matId = node.MaterialId; } catch { return null; }
+            if (matId == null || matId == ElementId.InvalidElementId) return null;
+            long key = matId.Value;
+            if (_appearanceCache.TryGetValue(key, out var cached)) return cached;
+
+            var def = new MaterialDef();
+            try
+            {
+                var mat = _doc.GetElement(matId) as Material;
+                def.MatName = mat?.Name ?? ("material " + key);
+                try { var c = node.Color; if (c != null) def.DiffuseRgb = new[] { (int)c.Red, (int)c.Green, (int)c.Blue }; } catch { }
+                try { def.Alpha = 1.0 - Clamp01(node.Transparency); } catch { }
+
+                var assetElem = mat != null ? _doc.GetElement(mat.AppearanceAssetId) as AppearanceAssetElement : null;
+                var asset = assetElem?.GetRenderingAsset();
+                def.HadAsset = asset != null;
+                if (asset == null) { def.Reason = "no-appearance-asset"; def.ComputeKey(); _appearanceCache[key] = def; return def; }
+
+                var dc = ReadColor(asset, "generic_diffuse") ?? ReadColor(asset, "diffuse");
+                if (dc != null) def.DiffuseRgb = dc;
+
+                // Robust diffuse bitmap — walk the connected-asset graph, preferring
+                // diffuse/colour/albedo branches, falling back to any UnifiedBitmap.
+                var bmpAsset = FindBitmapAsset(asset, true);
+                if (bmpAsset == null) { def.Reason = "no-bitmap"; }
+                else
+                {
+                    var raw = GetBitmapRawPath(bmpAsset);
+                    def.RawPath = raw ?? "";
+                    def.BitmapFound = !string.IsNullOrWhiteSpace(raw);
+                    if (!def.BitmapFound) def.Reason = "bitmap-prop-empty";
+                    else
+                    {
+                        var resolved = ResolveTexturePath(raw!, def);
+                        if (resolved != null) { def.DiffuseTexPath = resolved; ReadTextureTransform(bmpAsset, def); def.Reason = "ok"; }
+                        else def.Reason = "path-missing";
+                    }
+                }
+
+                // Optional normal/bump map.
+                var bump = FindNamedBitmap(asset, new[] { "generic_bump_map", "bumpmap_Bitmap", "bump" });
+                if (bump != null) { var bp = GetBitmapRawPath(bump); var br = string.IsNullOrWhiteSpace(bp) ? null : ResolveTexturePath(bp!, null); if (br != null) def.NormalTexPath = br; }
+
+                // PBR factors.
+                var gloss = ReadDouble(asset, "generic_glossiness"); if (gloss.HasValue) def.Roughness = 1.0 - Clamp01(gloss.Value);
+                var metal = ReadDouble(asset, "generic_is_metal");   if (metal.HasValue) def.Metallic = metal.Value > 0.5 ? 1.0 : 0.0;
+                var tr = ReadDouble(asset, "generic_transparency");  if (tr.HasValue) def.Alpha = 1.0 - Clamp01(tr.Value);
+                def.ComputeKey();
+            }
+            catch (Exception ex) { def.Reason = "exception: " + ex.Message; StingLog.Warn($"[tex] appearance resolve failed for {def.MatName}: {ex.Message}"); }
+
+            _appearanceCache[key] = def;
+            return def;
+        }
+
+        private static double Clamp01(double v) => v < 0 ? 0 : (v > 1 ? 1 : v);
+
+        // Read a colour AssetProperty (AssetPropertyDoubleArray4d) → 0..255 rgb.
+        private static int[]? ReadColor(Asset asset, string name)
+        {
+            try
+            {
+                var p = asset.FindByName(name);
+                if (p is AssetPropertyDoubleArray4d col)
+                {
+                    var v = col.GetValueAsDoubles();
+                    if (v != null && v.Count >= 3)
+                        return new[] { Clamp255(v[0]), Clamp255(v[1]), Clamp255(v[2]) };
+                }
+            }
+            catch { }
+            return null;
+        }
+        private static int Clamp255(double d) { var i = (int)Math.Round(d * 255.0); return i < 0 ? 0 : (i > 255 ? 255 : i); }
+
+        // Read a scalar AssetProperty across the types Revit uses (double / float / distance /
+        // integer / boolean). texture_RealWorldScaleX etc. are AssetPropertyDistance.
+        private static double? ReadDouble(Asset asset, string name)
+        {
+            try
+            {
+                var p = asset.FindByName(name);
+                if (p is AssetPropertyDouble d) return d.Value;
+                if (p is AssetPropertyFloat f) return f.Value;
+                if (p is AssetPropertyDistance dist) return dist.Value;
+                if (p is AssetPropertyInteger i) return i.Value;
+                if (p is AssetPropertyBoolean b) return b.Value ? 1.0 : 0.0;
+            }
+            catch { }
+            return null;
+        }
+
+        // ── robust bitmap discovery (recursive across connected assets) ────────────
+        // Prefer a UnifiedBitmap reached via a diffuse/colour-named property; else any bitmap.
+        private static Asset? FindBitmapAsset(Asset root, bool preferDiffuse)
+        {
+            if (preferDiffuse)
+            {
+                var hit = FindNamedBitmap(root, new[] { "generic_diffuse", "diffuse", "color_map", "surface_albedo", "base_color", "albedo" });
+                if (hit != null) return hit;
+            }
+            return WalkForBitmap(root, 0);
+        }
+        // Bitmap connected under any of the named properties (recursing into the connected asset).
+        private static Asset? FindNamedBitmap(Asset root, string[] names)
+        {
+            foreach (var nm in names)
+            {
+                try
+                {
+                    var p = root.FindByName(nm);
+                    if (p == null) continue;
+                    for (int i = 0; i < p.NumberOfConnectedProperties; i++)
+                    {
+                        if (p.GetConnectedProperty(i) is Asset c)
+                        {
+                            var b = WalkForBitmap(c, 0);
+                            if (b != null) return b;
+                        }
+                    }
+                }
+                catch { }
+            }
+            return null;
+        }
+        // DFS for an Asset carrying a non-empty unifiedbitmap_Bitmap, across nested connected assets.
+        private static Asset? WalkForBitmap(Asset? a, int depth)
+        {
+            if (a == null || depth > 6) return null;
+            try
+            {
+                if (a.FindByName("unifiedbitmap_Bitmap") is AssetPropertyString bs && !string.IsNullOrWhiteSpace(bs.Value)) return a;
+                for (int i = 0; i < a.Size; i++)
+                {
+                    var p = a.Get(i);
+                    if (p == null) continue;
+                    for (int j = 0; j < p.NumberOfConnectedProperties; j++)
+                    {
+                        if (p.GetConnectedProperty(j) is Asset c)
+                        {
+                            var r = WalkForBitmap(c, depth + 1);
+                            if (r != null) return r;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+        private static string? GetBitmapRawPath(Asset bitmapAsset)
+        {
+            try { return (bitmapAsset.FindByName("unifiedbitmap_Bitmap") as AssetPropertyString)?.Value; }
+            catch { return null; }
+        }
+        private static void ReadTextureTransform(Asset bmp, MaterialDef def)
+        {
+            def.UvScaleU = ReadDouble(bmp, "texture_RealWorldScaleX") ?? def.UvScaleU;
+            def.UvScaleV = ReadDouble(bmp, "texture_RealWorldScaleY") ?? def.UvScaleV;
+            def.UvOffU   = ReadDouble(bmp, "texture_UOffset") ?? def.UvOffU;
+            def.UvOffV   = ReadDouble(bmp, "texture_VOffset") ?? def.UvOffV;
+            def.UvAngle  = ReadDouble(bmp, "texture_WAngle") ?? def.UvAngle;
+        }
+
+        // ── path resolution (absolute → library dirs by filename, cached) ──────────
+        // Revit stores absolute paths OR library tokens/relatives. Try each '|'-separated
+        // candidate absolute; else search the material/texture library dirs by filename.
+        private string? ResolveTexturePath(string raw, MaterialDef? def)
+        {
+            foreach (var cand0 in raw.Split('|'))
+            {
+                var cand = cand0.Trim();
+                if (cand.Length == 0) continue;
+                if (Path.IsPathRooted(cand) && File.Exists(cand)) return cand;
+                var fn = Path.GetFileName(cand);
+                if (string.IsNullOrEmpty(fn)) continue;
+                var fkey = fn.ToLowerInvariant();
+                if (_texPathCache.TryGetValue(fkey, out var hit)) { if (hit != null) return hit; continue; }
+                var found = SearchLibraries(fn);
+                _texPathCache[fkey] = found;
+                if (found != null) return found;
+            }
+            if (def != null) def.AttemptedDirs = string.Join(";", TextureLibraryDirs());
+            return null;
+        }
+        private string? SearchLibraries(string filename)
+        {
+            foreach (var dir in TextureLibraryDirs())
+            {
+                try
+                {
+                    if (!Directory.Exists(dir)) continue;
+                    var direct = Path.Combine(dir, filename);
+                    if (File.Exists(direct)) return direct;
+                    foreach (var f in Directory.EnumerateFiles(dir, filename, SearchOption.AllDirectories)) return f;
+                }
+                catch { /* permission / long-path — skip dir */ }
+            }
+            return null;
+        }
+        private IEnumerable<string> TextureLibraryDirs()
+        {
+            var dirs = new List<string>();
+            try { var d = Path.GetDirectoryName(_doc.PathName); if (!string.IsNullOrEmpty(d)) dirs.Add(d!); } catch { }
+            var cf86 = Environment.GetEnvironmentVariable("CommonProgramFiles(x86)") ?? @"C:\Program Files (x86)\Common Files";
+            var cf   = Environment.GetEnvironmentVariable("CommonProgramFiles") ?? @"C:\Program Files\Common Files";
+            dirs.Add(Path.Combine(cf86, "Autodesk Shared", "Materials", "Textures"));
+            dirs.Add(Path.Combine(cf86, "Autodesk Shared", "Materials"));
+            dirs.Add(Path.Combine(cf, "Autodesk Shared", "Materials", "Textures"));
+            // Project-supplied / library overrides via env (';'-separated).
+            foreach (var ev in new[] { "ADSK_MATERIAL_LIBRARY", "PLANSCAPE_TEXTURE_DIRS" })
+            {
+                var v = Environment.GetEnvironmentVariable(ev);
+                if (!string.IsNullOrEmpty(v)) dirs.AddRange(v!.Split(';'));
+            }
+            return dirs.Where(d => !string.IsNullOrWhiteSpace(d)).Distinct();
+        }
+
+        // Downscale a PNG/JPEG to maxDim (longest side) via System.Drawing; returns the
+        // original bytes on no-resize-needed or any failure. Keeps the source codec.
+        private static byte[] DownscaleImage(byte[] data, int maxDim, string ext)
+        {
+            try
+            {
+                using var ms = new MemoryStream(data);
+                using var img = System.Drawing.Image.FromStream(ms);
+                if (img.Width <= maxDim && img.Height <= maxDim) return data;
+                double s = (double)maxDim / Math.Max(img.Width, img.Height);
+                int w = Math.Max(1, (int)(img.Width * s)), h = Math.Max(1, (int)(img.Height * s));
+                using var bmp = new System.Drawing.Bitmap(w, h);
+                using (var g = System.Drawing.Graphics.FromImage(bmp))
+                {
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    g.DrawImage(img, 0, 0, w, h);
+                }
+                using var outMs = new MemoryStream();
+                var fmt = ext == ".png" ? System.Drawing.Imaging.ImageFormat.Png : System.Drawing.Imaging.ImageFormat.Jpeg;
+                bmp.Save(outMs, fmt);
+                var outBytes = outMs.ToArray();
+                return outBytes.Length > 0 ? outBytes : data;
+            }
+            catch { return data; }
         }
 
         public void OnPolymesh(PolymeshTopology poly)
@@ -160,6 +439,17 @@ namespace StingTools.BIMManager
             var distrib = poly.DistributionOfNormals;
 
             int baseIdx = _current.Positions.Count / 3;
+
+            // Phase 2 — per-vertex UVs (TEXCOORD_0). Padded with (0,0) when a polymesh has
+            // none so UVs stay aligned 1:1 with positions across multi-polymesh elements.
+            // TODO-VERIFY-API: GetUVs()/NumberOfUVs return raw texture coords for textured
+            // materials only; real-world scale/offset/rotation is applied via
+            // KHR_texture_transform at material build (verify units in Revit).
+            IList<UV>? uvs = null;
+            if (_exportTextures)
+            {
+                try { if (poly.NumberOfUVs > 0) uvs = poly.GetUVs(); } catch { }
+            }
 
             for (int i = 0; i < pts.Count; i++)
             {
@@ -180,6 +470,12 @@ namespace StingTools.BIMManager
                 _current.Normals.Add((float)n.X);
                 _current.Normals.Add((float)n.Y);
                 _current.Normals.Add((float)n.Z);
+
+                if (_exportTextures)
+                {
+                    if (uvs != null && i < uvs.Count) { _current.UVs.Add((float)uvs[i].U); _current.UVs.Add((float)uvs[i].V); }
+                    else { _current.UVs.Add(0f); _current.UVs.Add(0f); }
+                }
             }
 
             for (int f = 0; f < facets.Count; f++)
@@ -301,10 +597,95 @@ namespace StingTools.BIMManager
             var bufferViews = new JArray();
             var materials = new JArray();
             var matKeyToIndex = new Dictionary<string, int>();
+            // Phase 2 — texture graph (only populated when ExportTextures is on).
+            var images = new JArray();
+            var samplers = new JArray();
+            var textures = new JArray();
+            var imgCache = new Dictionary<string, int>();    // file path → images[] index (-1 = skipped)
+            var texCache = new Dictionary<int, int>();       // image index → textures[] index
+            var texMatCache = new Dictionary<string, int>(); // MaterialDef.Key → materials[] index
+            int samplerIdx = -1;
+            bool usedKhrTransform = false;
+
+            static string MimeFor(string p)
+            {
+                var e = Path.GetExtension(p).ToLowerInvariant();
+                return e is ".jpg" or ".jpeg" ? "image/jpeg" : ".png".Equals(e) ? "image/png" : "";
+            }
+            // Embed an image's bytes into the GLB buffer (dedup by path). glTF only renders
+            // PNG/JPEG in-browser, so other formats (.bmp/.tif) are skipped (TODO: convert).
+            int EmbedImage(string p)
+            {
+                if (imgCache.TryGetValue(p, out var ix)) return ix;
+                var mime = MimeFor(p);
+                if (mime.Length == 0) { StingLog.Warn($"[gltf] unsupported texture format, skipped: {p}"); imgCache[p] = -1; return -1; }
+                byte[] bytes;
+                try { bytes = File.ReadAllBytes(p); } catch { imgCache[p] = -1; return -1; }
+                // Downscale > ~2k (longest side) via System.Drawing so the GLB stays lean;
+                // dedup by path keeps repeats free. Final byte cap is a last-resort guard.
+                bytes = DownscaleImage(bytes, 2048, Path.GetExtension(p).ToLowerInvariant());
+                if (bytes.Length > 8 * 1024 * 1024) { StingLog.Warn($"[tex] texture still too large after downscale ({bytes.Length}B), skipped: {p}"); imgCache[p] = -1; return -1; }
+                Pad4(bin, binWriter);
+                int off = (int)bin.Position;
+                binWriter.Write(bytes);
+                int len = (int)bin.Position - off;
+                Pad4(bin, binWriter);
+                int bvi = bufferViews.Count;
+                bufferViews.Add(new JObject { ["buffer"] = 0, ["byteOffset"] = off, ["byteLength"] = len });
+                int imi = images.Count;
+                images.Add(new JObject { ["bufferView"] = bvi, ["mimeType"] = mime });
+                imgCache[p] = imi;
+                return imi;
+            }
+            int EnsureSampler()
+            {
+                if (samplerIdx < 0) { samplerIdx = samplers.Count; samplers.Add(new JObject { ["wrapS"] = 10497, ["wrapT"] = 10497 }); }
+                return samplerIdx;
+            }
+            int EnsureTexture(int imageIndex)
+            {
+                if (texCache.TryGetValue(imageIndex, out var ti)) return ti;
+                ti = textures.Count;
+                textures.Add(new JObject { ["source"] = imageIndex, ["sampler"] = EnsureSampler() });
+                texCache[imageIndex] = ti;
+                return ti;
+            }
+            int ResolveTexturedMaterial(MaterialDef def)
+            {
+                if (texMatCache.TryGetValue(def.Key, out var mi)) return mi;
+                int baseImg = string.IsNullOrEmpty(def.DiffuseTexPath) ? -1 : EmbedImage(def.DiffuseTexPath!);
+                var pbr = new JObject { ["metallicFactor"] = def.Metallic, ["roughnessFactor"] = def.Roughness };
+                if (baseImg >= 0)
+                {
+                    var bct = new JObject { ["index"] = EnsureTexture(baseImg) };
+                    var tt = new JObject();
+                    if (def.UvScaleU != 0 && def.UvScaleV != 0) tt["scale"] = new JArray { 1.0 / def.UvScaleU, 1.0 / def.UvScaleV };
+                    if (def.UvOffU != 0 || def.UvOffV != 0) tt["offset"] = new JArray { def.UvOffU, def.UvOffV };
+                    if (def.UvAngle != 0) tt["rotation"] = -def.UvAngle * Math.PI / 180.0;   // deg→rad (sign TODO-VERIFY)
+                    if (tt.Count > 0) { bct["extensions"] = new JObject { ["KHR_texture_transform"] = tt }; usedKhrTransform = true; }
+                    pbr["baseColorTexture"] = bct;
+                    // Textured + translucent: white base factor carries the alpha.
+                    if (def.Alpha < 0.999) pbr["baseColorFactor"] = new JArray { 1.0, 1.0, 1.0, def.Alpha };
+                }
+                else
+                {
+                    var rgb = def.DiffuseRgb ?? new[] { 200, 200, 200 };
+                    pbr["baseColorFactor"] = new JArray { rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0, def.Alpha };
+                }
+                var m = new JObject { ["pbrMetallicRoughness"] = pbr, ["doubleSided"] = true };
+                if (!string.IsNullOrEmpty(def.NormalTexPath))
+                {
+                    int nimg = EmbedImage(def.NormalTexPath!);
+                    if (nimg >= 0) m["normalTexture"] = new JObject { ["index"] = EnsureTexture(nimg) };
+                }
+                if (def.Alpha < 0.999) m["alphaMode"] = "BLEND";
+                int idx = materials.Count; materials.Add(m); texMatCache[def.Key] = idx; return idx;
+            }
 
             double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue;
             double maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
             int totalElements = 0;
+            int uvlessTextured = 0;   // textured material but mesh had no UVs (texture skipped)
 
             for (int n = 0; n < _nodes.Count; n++)
             {
@@ -312,7 +693,17 @@ namespace StingTools.BIMManager
                 if (node.Positions.Count == 0 || node.Indices.Count == 0) continue;
                 totalElements++;
 
-                int matIdx = ResolveMaterial(materials, matKeyToIndex, node.Rgb);
+                // Phase 2 — textured iff appearance resolved a usable diffuse bitmap AND we
+                // captured a full set of UVs aligned to the vertices.
+                bool textured = _exportTextures && node.Mat != null && !string.IsNullOrEmpty(node.Mat.DiffuseTexPath)
+                                && node.UVs.Count == (node.Positions.Count / 3) * 2;
+                if (_exportTextures && !textured && node.Mat != null && !string.IsNullOrEmpty(node.Mat.DiffuseTexPath))
+                {
+                    uvlessTextured++;
+                    if (uvlessTextured <= 12) StingLog.Info($"[tex] '{node.Name}' has a textured material but no UVs — texture skipped (mesh carries no texture coords)");
+                }
+                int matIdx = textured ? ResolveTexturedMaterial(node.Mat!)
+                                      : ResolveMaterial(materials, matKeyToIndex, node.Rgb);
 
                 int idxByteOffset = (int)bin.Position;
                 foreach (var i in node.Indices) binWriter.Write(i);
@@ -339,6 +730,15 @@ namespace StingTools.BIMManager
                 foreach (var v in node.Normals) binWriter.Write(v);
                 int normBytes = (int)bin.Position - normByteOffset;
                 Pad4(bin, binWriter);
+
+                int uvByteOffset = 0, uvBytes = 0;
+                if (textured)
+                {
+                    uvByteOffset = (int)bin.Position;
+                    foreach (var v in node.UVs) binWriter.Write(v);
+                    uvBytes = (int)bin.Position - uvByteOffset;
+                    Pad4(bin, binWriter);
+                }
 
                 int idxBvIdx = bufferViews.Count;
                 bufferViews.Add(new JObject {
@@ -373,14 +773,29 @@ namespace StingTools.BIMManager
                     ["count"] = node.Normals.Count / 3, ["type"] = "VEC3",
                 });
 
+                int uvAccIdx = -1;
+                if (textured)
+                {
+                    int uvBvIdx = bufferViews.Count;
+                    bufferViews.Add(new JObject {
+                        ["buffer"] = 0, ["byteOffset"] = uvByteOffset, ["byteLength"] = uvBytes,
+                        ["byteStride"] = 8, ["target"] = 34962,
+                    });
+                    uvAccIdx = accessors.Count;
+                    accessors.Add(new JObject {
+                        ["bufferView"] = uvBvIdx, ["componentType"] = 5126,
+                        ["count"] = node.UVs.Count / 2, ["type"] = "VEC2",
+                    });
+                }
+
+                var attrs = new JObject { ["POSITION"] = posAccIdx, ["NORMAL"] = normAccIdx };
+                if (uvAccIdx >= 0) attrs["TEXCOORD_0"] = uvAccIdx;
+
                 int meshIdx = meshes.Count;
                 meshes.Add(new JObject {
                     ["primitives"] = new JArray {
                         new JObject {
-                            ["attributes"] = new JObject {
-                                ["POSITION"] = posAccIdx,
-                                ["NORMAL"] = normAccIdx,
-                            },
+                            ["attributes"] = attrs,
                             ["indices"] = idxAccIdx,
                             ["material"] = matIdx,
                             ["mode"] = 4,
@@ -398,6 +813,32 @@ namespace StingTools.BIMManager
                 });
             }
 
+            // Phase 2 — per-material texture diagnostics + summary (the human reads these in
+            // StingTools.log after a re-publish to see exactly what resolved + why any skipped).
+            if (_exportTextures)
+            {
+                int withBitmap = 0, embedded = 0, noBitmap = 0, pathMissing = 0;
+                foreach (var kv in _appearanceCache)
+                {
+                    var d = kv.Value; if (d == null) continue;
+                    bool emb = !string.IsNullOrEmpty(d.DiffuseTexPath) && imgCache.TryGetValue(d.DiffuseTexPath!, out var ii) && ii >= 0;
+                    if (d.BitmapFound) withBitmap++;
+                    if (emb) embedded++;
+                    if (!d.BitmapFound) noBitmap++;
+                    else if (string.IsNullOrEmpty(d.DiffuseTexPath)) pathMissing++;
+                    var line = $"[tex] '{d.MatName}': appearanceAsset={(d.HadAsset ? "yes" : "no")} " +
+                               $"diffuseBitmapProp={(d.BitmapFound ? "found" : "none")} rawPath='{d.RawPath}' " +
+                               $"resolved='{(string.IsNullOrEmpty(d.DiffuseTexPath) ? "MISSING" : d.DiffuseTexPath)}' " +
+                               $"embedded={(emb ? "yes" : "no")} reason={d.Reason}";
+                    if (string.IsNullOrEmpty(d.DiffuseTexPath) && d.BitmapFound && !string.IsNullOrEmpty(d.AttemptedDirs))
+                        line += $" searchedDirs='{d.AttemptedDirs}'";
+                    StingLog.Info(line);
+                }
+                StingLog.Info($"[tex] SUMMARY materials={_appearanceCache.Count} withBitmap={withBitmap} " +
+                              $"embedded={embedded} skipped-noBitmap={noBitmap} skipped-pathMissing={pathMissing} " +
+                              $"uvless-textured={uvlessTextured} images={images.Count}");
+            }
+
             var rootNodeIndices = new JArray();
             for (int i = 0; i < nodes.Count; i++) rootNodeIndices.Add(i);
 
@@ -413,6 +854,11 @@ namespace StingTools.BIMManager
                 ["bufferViews"] = bufferViews,
                 ["buffers"] = new JArray { new JObject { ["byteLength"] = binBytes.Length } },
             };
+            // Phase 2 — only attach the texture graph when something was actually embedded.
+            if (images.Count > 0) gltf["images"] = images;
+            if (samplers.Count > 0) gltf["samplers"] = samplers;
+            if (textures.Count > 0) gltf["textures"] = textures;
+            if (usedKhrTransform) gltf["extensionsUsed"] = new JArray { "KHR_texture_transform" };
 
             byte[] jsonBytes = Encoding.UTF8.GetBytes(gltf.ToString(Newtonsoft.Json.Formatting.None));
             int jsonPad = (4 - (jsonBytes.Length & 3)) & 3;
@@ -498,6 +944,35 @@ namespace StingTools.BIMManager
             public List<float> Positions = new();
             public List<float> Normals = new();
             public List<uint> Indices = new();
+            public List<float> UVs = new();   // Phase 2 — TEXCOORD_0 (2 floats/vertex), aligned to Positions
+            public MaterialDef? Mat;          // Phase 2 — resolved appearance (textures + PBR)
+        }
+
+        // Phase 2 — resolved Revit appearance for one material.
+        private class MaterialDef
+        {
+            public int[]? DiffuseRgb;          // fallback base colour (0..255)
+            public double Alpha = 1.0;         // 1 = opaque
+            public double Roughness = 0.85;
+            public double Metallic = 0.0;
+            public string? DiffuseTexPath;     // baseColorTexture source (resolved, existing file)
+            public string? NormalTexPath;      // normalTexture source
+            public double UvScaleU = 1.0, UvScaleV = 1.0;  // real-world tile size (feet) → KHR scale = 1/size
+            public double UvOffU = 0.0, UvOffV = 0.0;
+            public double UvAngle = 0.0;       // degrees (Revit texture_WAngle)
+            public string Key = "";
+            // ── self-diagnostics (logged at export end so a re-publish shows what happened) ──
+            public string MatName = "";
+            public bool HadAsset;              // material had an AppearanceAsset rendering asset
+            public bool BitmapFound;           // a diffuse bitmap property with a non-empty path was found
+            public string RawPath = "";        // the raw bitmap string from the asset (pre-resolve)
+            public string Reason = "";         // ok | no-appearance-asset | no-bitmap | path-missing | exception:…
+            public string AttemptedDirs = "";  // library dirs searched when the path didn't resolve
+            public void ComputeKey()
+            {
+                var rgb = DiffuseRgb != null ? string.Join(",", DiffuseRgb) : "x";
+                Key = $"{DiffuseTexPath}|{NormalTexPath}|{rgb}|{Alpha:F3}|{Roughness:F3}|{Metallic:F1}|{UvScaleU:F4}|{UvScaleV:F4}|{UvOffU:F4}|{UvOffV:F4}|{UvAngle:F2}";
+            }
         }
 
         public class ExportResult

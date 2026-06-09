@@ -63,24 +63,24 @@ This means:
 - The single IFC file in memory stays consistent — no two libraries
   fighting over it.
 
-## When STING is loaded WITHOUT Bonsai
+## When STING is loaded WITHOUT Bonsai (hard dependency)
 
-`BonsaiBridge.installed` returns `False`. STING continues to function
-in **standalone mode**:
+**Bonsai is a hard dependency. There is no in-Blender standalone mode.**
+Stock Blender does not ship `ifcopenshell`, and Bonsai is what provides both
+the IFC library and the undo-aware mutation layer STING delegates to.
 
-- The N-panel renders with a banner: "Bonsai not detected (standalone
-  mode)".
-- The substrate (52 enums + 2 psets) still loads.
-- IDS validation still works on any IFC file passed via STING's own
-  file picker.
-- IFC writes use `ifcopenshell.api.run()` directly. Blender's undo
-  stack does NOT track them (Bonsai's undo integration is what makes
-  IFC mutations undoable in the first place).
+When `BonsaiBridge.installed` returns `False`:
 
-Standalone mode is fine for headless / batch operations
-(`blender --background --python sting_batch.py`) and for users who
-only want STING's tagging without Bonsai's full UI. For interactive
-modelling, install Bonsai.
+- The N-panel renders a "**Bonsai is required**" banner with a re-check button
+  and **stops** — STING ops are not offered, because they would no-op without
+  ifcopenshell.
+- No IFC writes are attempted.
+
+**Headless / batch tagging runs *outside* Blender**, not in a Blender standalone
+mode: the StingBridge worker (`python -m StingBridge.bridge …`) and
+`stingtools-core` run with a **pip-installed `ifcopenshell`**, so servers / cron
+/ CI never need Blender or Bonsai. That is the supported automation path —
+`ifcopenshell` is never bundled into the Blender extension.
 
 ## Version compatibility
 
@@ -98,14 +98,15 @@ sub-module doesn't break detection of the parent.
 ## What STING never does
 
 - ❌ Open or save IFC files when Bonsai is loaded. Bonsai owns that.
-- ❌ Mutate IFC entities outside `ifcopenshell.api.run()`.
+- ❌ Mutate IFC entities outside Bonsai's `tool.Ifc.run()` (which wraps
+  `ifcopenshell.api` with undo + UI refresh) when Bonsai is present.
 - ❌ Register UI panels in the **BIM** sidebar tab (Bonsai's tab).
   STING uses its own **STING** tab.
 - ❌ Override Bonsai's handlers (file load, depsgraph). STING
   registers its own handlers alongside Bonsai's.
-- ❌ Bundle a copy of ifcopenshell or Bonsai. STING relies on
-  whatever ifcopenshell ships with Bonsai (or with the user's
-  Blender python environment in standalone mode).
+- ❌ Bundle a copy of ifcopenshell or Bonsai. In Blender, STING relies on
+  the ifcopenshell that Bonsai ships. Headless automation gets ifcopenshell
+  from `pip` via StingBridge — never bundled into the extension.
 
 ## What Bonsai never does (yet)
 

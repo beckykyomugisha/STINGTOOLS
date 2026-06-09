@@ -2808,7 +2808,7 @@ namespace StingTools.BIMManager
                 // old onrender.com fallback (a retired host LoadConnectionSettings
                 // already drops) so all three "Open Web Dashboard" call sites
                 // agree on the base URL and deep-link the active project's models.
-                string? cfgPath = null;
+                string cfgPath = null;   // file isn't in a #nullable context; null is fine here
                 var doc = commandData.Application.ActiveUIDocument?.Document;
                 if (doc != null)
                     cfgPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "planscape_connection.json");

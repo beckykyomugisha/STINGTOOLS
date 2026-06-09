@@ -58,6 +58,10 @@ public static class SeedData
                 Tier = LicenseTier.Premium,
                 MaxUsers = 50,
                 MaxProjects = 20,
+                // D — the Quota filter caps by BillingPlan (NOT the legacy MaxProjects field).
+                // Without this the demo defaults to Plan=Trial (1 project) while it seeds 6+,
+                // so every "create project" 402'd. Enterprise = unlimited (a demo sandbox).
+                Plan = BillingPlan.Enterprise,
                 MimEnabled = true
             };
             db.Tenants.Add(tenant);

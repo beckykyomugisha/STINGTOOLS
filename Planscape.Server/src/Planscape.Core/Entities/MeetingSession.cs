@@ -34,6 +34,20 @@ public class MeetingSession : ITenantScoped
     /// <summary>ACTIVE | ENDED.</summary>
     public string Status { get; set; } = "ACTIVE";
 
+    /// <summary>
+    /// WS3 (MeetingMedia) — what every client is currently looking at:
+    /// <c>model</c> (the shared 3D viewer), <c>document</c> (a shared doc), or
+    /// <c>screen</c> (a presenter's LiveKit screen-share). The SignalR hub owns
+    /// this "active surface" state; LiveKit owns the A/V media plane.
+    /// </summary>
+    /// NULLABLE column — existing rows predating this column read as null and the app
+    /// treats null as the default "model" surface (see MeetingRoomController). This keeps
+    /// adding the column to an existing table non-breaking (no NOT NULL + default needed).
+    public string? ActiveSurface { get; set; } = "model";
+
+    /// <summary>When <see cref="ActiveSurface"/> is <c>document</c>, the shared DocumentRecord id. Nullable.</summary>
+    public Guid? ActiveDocumentId { get; set; }
+
     public string CreatedBy { get; set; } = "";
     public Guid? CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

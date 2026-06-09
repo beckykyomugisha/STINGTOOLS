@@ -1742,3 +1742,35 @@ tr.row-selected td { color: var(--text-primary); }
 /* Reduce capture modal width — three reason columns x 6 chips fits in 480 px. */
 .photo-modal .modal { max-width: 560px; width: 92%; }
 
+
+/* ViewCube / orientation gizmo (Commit 5) */
+.view-cube .vc-btn{
+  font:600 10px/1 -apple-system,Segoe UI,sans-serif;color:#cfd6e4;background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.08);border-radius:5px;padding:5px 0;cursor:pointer;min-width:34px;
+}
+.view-cube .vc-btn:hover{background:rgba(59,130,246,0.55);color:#fff;}
+.view-cube .vc-btn.active{background:rgba(59,130,246,0.85);color:#fff;}
+
+/* Collapsible-panel edge handles + smooth grid transition (Commit 6) */
+.app-shell{ transition: grid-template-columns 0.18s ease; }
+.app-shell.resizing{ transition: none; user-select: none; }   /* V2 — live drag, no lag */
+.rail-handle{
+  position:absolute; top:50%; transform:translateY(-50%); z-index:11;
+  width:16px; height:72px; display:flex; align-items:center; justify-content:center;
+  background:rgba(20,22,28,0.72); color:#9aa3b2; cursor:ew-resize; border-radius:5px;
+  font:600 12px/1 sans-serif; backdrop-filter:blur(4px); user-select:none; touch-action:none;
+}
+.rail-handle:hover{ color:#fff; background:rgba(59,130,246,0.7); }
+.app-shell.resizing .rail-handle{ background:rgba(59,130,246,0.85); color:#fff; }
+.rail-left{ left:4px; }
+.rail-right{ right:4px; }
+
+/* M7 — walk joystick: centred just above the nav-controls cluster (tracks the
+   bottom panel), clear of the bottom-left capture FAB + bottom-right minimap. */
+.walk-joystick{
+  position:absolute; left:50%; transform:translateX(-50%);
+  bottom: calc(var(--bottom-panel-height) + 66px);
+  z-index:12; transition: bottom 0.18s ease;
+}
+.viewport-wrap.bp-collapsed .walk-joystick { bottom: calc(32px + 66px); }
+.viewport-wrap.bp-expanded  .walk-joystick { bottom: calc(60vh + 66px); }

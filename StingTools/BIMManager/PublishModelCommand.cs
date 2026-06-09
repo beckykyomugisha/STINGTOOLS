@@ -96,7 +96,7 @@ namespace StingTools.BIMManager
             }
 
             // ── Step 2: pick a project ─────────────────────────────────
-            var projectId = PickProject(client);
+            var (projectId, projectName, projectCode) = PickProject(client);
             if (projectId == Guid.Empty) return Result.Cancelled;
 
             // ── Step 3: pick the publish mode up front ─────────────────
@@ -124,7 +124,7 @@ namespace StingTools.BIMManager
                 BuildElementMap(doc, mapPath, out var elementCount, out var bounds);
                 StingLog.Info($"Planscape: element map generated ({elementCount} elements) → {mapPath}");
 
-                return mode switch
+                Result result = mode switch
                 {
                     PublishMode.RefreshMetadataOnly => DoRefreshMetadata(
                         client, projectId, modelPath!, mapPath, doc, elementCount),
@@ -140,6 +140,28 @@ namespace StingTools.BIMManager
                         client, projectId, modelPath!, mapPath, doc, elementCount, bounds, force: false,
                         successHeadline: "Published"),
                 };
+
+                // ── Step 6: link the model to the project it published into ──
+                // Publishing IS an explicit "this model belongs to this project"
+                // statement, so persist the link per-document (and set the
+                // in-memory CurrentProjectId) the moment a publish succeeds. This
+                // is what lets the invite path, PluginSyncTickBridge, BOQ sync and
+                // the BCC header all recognise the model as linked without a
+                // separate "Link to project" step.
+                if (result == Result.Succeeded)
+                {
+                    try
+                    {
+                        PlanscapeProjectLink.Set(
+                            PlanscapeProjectLink.ConfigPathFor(doc),
+                            projectId, projectName, projectCode, client.ConnectedUser);
+                    }
+                    catch (Exception linkEx)
+                    {
+                        StingLog.Warn($"Planscape: publish succeeded but link persist failed: {linkEx.Message}");
+                    }
+                }
+                return result;
             }
             catch (Exception ex)
             {
@@ -324,13 +346,14 @@ namespace StingTools.BIMManager
 
         // ── Project picker ─────────────────────────────────────────────
 
-        private static Guid PickProject(PlanscapeServerClient client)
+        private static (Guid id, string name, string code) PickProject(PlanscapeServerClient client)
         {
+            var none = (Guid.Empty, "", "");
             var projects = Task.Run(() => client.GetProjectsAsync()).GetAwaiter().GetResult();
             if (projects == null || projects.Count == 0)
             {
                 TaskDialog.Show("Publish Model", "No Planscape projects are visible to your account.");
-                return Guid.Empty;
+                return none;
             }
 
             // Reuse StingListPicker via its public surface when present.
@@ -350,8 +373,11 @@ namespace StingTools.BIMManager
                     : r == TaskDialogResult.CommandLink2 ? 1
                     : r == TaskDialogResult.CommandLink3 ? 2
                     : r == TaskDialogResult.CommandLink4 ? 3 : -1;
-            if (idx < 0 || idx >= projects.Count) return Guid.Empty;
-            return Guid.TryParse(projects[idx]["id"]?.Value<string>() ?? "", out var id) ? id : Guid.Empty;
+            if (idx < 0 || idx >= projects.Count) return none;
+            if (!Guid.TryParse(projects[idx]["id"]?.Value<string>() ?? "", out var id)) return none;
+            return (id,
+                    projects[idx]["name"]?.Value<string>() ?? "",
+                    projects[idx]["code"]?.Value<string>() ?? "");
         }
 
         // ── File picker ────────────────────────────────────────────────
@@ -397,7 +423,14 @@ namespace StingTools.BIMManager
                 $"{safeDocName}-{safeViewName}.glb");
             try
             {
-                var result = RevitGltfExporter.Export(doc, v3d, outPath);
+                // Phase 2 — "PlanscapeExportTextures" export option: real Revit material
+                // textures (ON for presentation / as-built, OFF for lean coordination /
+                // low-bandwidth). Opt in via env var PLANSCAPE_EXPORT_TEXTURES=1 or by
+                // setting RevitGltfExporter.ExportTextures=true. Default OFF (unchanged).
+                bool wantTextures =
+                    string.Equals(Environment.GetEnvironmentVariable("PLANSCAPE_EXPORT_TEXTURES"), "1", StringComparison.OrdinalIgnoreCase)
+                    || RevitGltfExporter.ExportTextures;
+                var result = RevitGltfExporter.Export(doc, v3d, outPath, exportTextures: wantTextures);
                 StingLog.Info($"Planscape: GLB exported ({result.ElementCount} elements, {result.FileSizeBytes:N0} bytes) → {outPath}");
                 return outPath;
             }
@@ -448,6 +481,10 @@ namespace StingTools.BIMManager
                                           Max = new XYZ(double.MinValue, double.MinValue, double.MinValue) };
             int count = 0;
             int boundsContributors = 0;
+            // A — MEP system capture coverage (mirrors the [tex] SUMMARY).
+            int sysResolved = 0, sysUnresolved = 0;
+            var sysHist = new Dictionary<string, int>();
+            var sysUnresolvedCats = new Dictionary<string, int>();
 
             foreach (var el in elements)
             {
@@ -471,6 +508,27 @@ namespace StingTools.BIMManager
                     boundsContributors++;
                 }
 
+                // A — resolve the element's MEP system ONCE (used by both tagged + untagged
+                // entries). Non-MEP elements → empty SYS (they just won't colour by System).
+                var catName = el.Category?.Name ?? "";
+                var (mepSys, sysClass, sysName, isMep) = ResolveMepSystem(el, catName);
+                if (!string.IsNullOrEmpty(mepSys))
+                {
+                    sysResolved++;
+                    // Prefix the histogram key with the discipline so the SUMMARY shows the
+                    // M / E / P split (e.g. "M:SupplyAir", "E:PowerCircuit", "P:DCW").
+                    var dcode = DeriveDisciplineFromCategory(catName);
+                    // Item 7 — UNIFORM disc prefix (use "?" when unknown) so buckets don't split
+                    // into "P:Domestic Cold Water" vs bare "Domestic Cold Water".
+                    var k = (string.IsNullOrEmpty(dcode) ? "?" : dcode) + ":" + (string.IsNullOrEmpty(sysClass) ? mepSys : sysClass);
+                    sysHist[k] = sysHist.TryGetValue(k, out var n) ? n + 1 : 1;
+                }
+                else if (isMep)
+                {
+                    sysUnresolved++;
+                    sysUnresolvedCats[catName] = sysUnresolvedCats.TryGetValue(catName, out var u) ? u + 1 : 1;
+                }
+
                 if (string.IsNullOrEmpty(tag))
                 {
                     // PUBLISH-WHOLE-MODEL — emit a minimal entry for every
@@ -482,13 +540,24 @@ namespace StingTools.BIMManager
                     // which is what the right-panel Properties tab needs.
                     string lvlOnly = "";
                     try { lvlOnly = ParameterHelpers.GetLevelCode(doc, el) ?? ""; } catch { }
-                    map[guid] = new JObject
+                    var untaggedEntry = new JObject
                     {
                         ["name"]      = el.Name ?? "",
                         ["category"]  = el.Category?.Name ?? "",
+                        // M3 — derive a discipline from the Revit category so the viewer's
+                        // BY DISCIPLINE / colour-by-discipline work on as-built (untagged) models.
+                        ["discipline"] = DeriveDisciplineFromCategory(el.Category?.Name ?? ""),
                         ["level"]     = lvlOnly,
+                        // A — MEP system (resolved from Revit's MEPSystem at export, since
+                        // untagged/as-built elements carry no ASS_SYSTEM_TYPE_TXT token).
+                        ["system"]    = mepSys,
+                        ["sysClass"]  = sysClass,
+                        ["sysName"]   = sysName,
                         ["elementId"] = el.Id.Value,
                     };
+                    AddCost(el, untaggedEntry);   // M3 — per-element cost (rate × measured qty)
+                    AddQuantitiesAndMaterials(doc, el, untaggedEntry);   // E4 — area/volume/length + materials
+                    map[guid] = untaggedEntry;
                     count++;
                     continue;
                 }
@@ -497,21 +566,52 @@ namespace StingTools.BIMManager
                 var lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                 var sys  = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                 var stat = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                // P1 — the remaining ISO 19650 tokens so the viewer's "ISO 19650 Tag" group
+                // shows all 8 (DISC·LOC·ZONE·LVL·SYS·FUNC·PROD·SEQ) instead of hinting them.
+                var zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                var func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                var prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                var seq  = ParameterHelpers.GetString(el, ParamRegistry.SEQ);
 
-                map[guid] = new JObject
+                var taggedEntry = new JObject
                 {
                     ["tag"]        = tag ?? "",
                     ["name"]       = el.Name ?? "",
                     ["category"]   = el.Category?.Name ?? "",
-                    ["discipline"] = disc,
+                    // Fall back to a category-derived discipline if the DISC token is blank.
+                    ["discipline"] = string.IsNullOrWhiteSpace(disc) ? DeriveDisciplineFromCategory(el.Category?.Name ?? "") : disc,
                     ["location"]   = loc,
+                    ["zone"]       = zone,
                     ["level"]      = lvl,
-                    ["system"]     = sys,
+                    // A — stamped SYS token wins; else the system resolved from Revit's MEPSystem.
+                    ["system"]     = string.IsNullOrWhiteSpace(sys) ? mepSys : sys,
+                    ["sysClass"]   = sysClass,
+                    ["sysName"]    = sysName,
+                    ["func"]       = func,
+                    ["prod"]       = prod,
+                    ["seq"]        = seq,
                     ["status"]     = stat,
                     ["elementId"]  = el.Id.Value,
                 };
+                AddCost(el, taggedEntry);     // M3 — per-element cost
+                AddQuantitiesAndMaterials(doc, el, taggedEntry);   // E4 — area/volume/length + materials
+                map[guid] = taggedEntry;
                 count++;
             }
+
+            // A — [sys] coverage SUMMARY (mirror of [tex]): so a re-publish shows how many
+            // elements got a SYS, the per-classification histogram, and which categories of
+            // MEP elements fell through unresolved.
+            try
+            {
+                var hist = string.Join(" ", sysHist.OrderByDescending(kv => kv.Value)
+                    .Take(24).Select(kv => kv.Key + "=" + kv.Value));
+                StingLog.Info($"[sys] SUMMARY resolved={sysResolved} unresolved={sysUnresolved} | {hist}");
+                if (sysUnresolved > 0)
+                    StingLog.Info("[sys] unresolved by category: " + string.Join(" ", sysUnresolvedCats
+                        .OrderByDescending(kv => kv.Value).Take(24).Select(kv => kv.Key + "=" + kv.Value)));
+            }
+            catch (Exception ex) { StingLog.Warn($"[sys] summary failed: {ex.Message}"); }
 
             // Convert feet → mm for the bounds (Revit internal units are feet).
             // If nothing contributed bounds (e.g. empty 3D view), send zeros so
@@ -527,6 +627,188 @@ namespace StingTools.BIMManager
             elementCount = count;
 
             File.WriteAllText(outputPath, map.ToString(Newtonsoft.Json.Formatting.Indented), Encoding.UTF8);
+        }
+
+        /// <summary>
+        /// M3 — write per-element cost into the element-map entry. Cost = unit rate
+        /// (ASS_CST_UNIT_RATE_NR) × measured quantity (volume m³ / area m² / length m,
+        /// whichever the element exposes). When no rate is set, nothing is written
+        /// (the viewer shows "—" — never a fabricated number). Currency from
+        /// ASS_CST_CURRENCY_TXT when present.
+        /// </summary>
+        private static void AddCost(Element el, JObject entry)
+        {
+            try
+            {
+                var rateStr = ParameterHelpers.GetString(el, ParamRegistry.CST_UNIT_RATE_NR);
+                if (!double.TryParse(rateStr, out var rate) || rate <= 0) return;
+                double qty = MeasuredQuantity(el);
+                double cost = qty > 0 ? rate * qty : rate;   // no measurable qty ⇒ rate is the line cost
+                entry["cost"] = Math.Round(cost, 2);
+                var cur = ParameterHelpers.GetString(el, ParamRegistry.CST_CURRENCY_TXT);
+                if (!string.IsNullOrWhiteSpace(cur)) entry["costCurrency"] = cur;
+            }
+            catch { /* cost is best-effort; never block the publish */ }
+        }
+
+        /// <summary>
+        /// E4 — emit per-element quantities (area m² / volume m³ / length m) and a
+        /// per-material breakdown (name + area + volume) into the element-map entry so
+        /// the viewer's Properties → Materials / Quantities sections populate. All
+        /// best-effort + metric; absent values are simply not written (the client only
+        /// renders the sections when present).
+        /// </summary>
+        private static void AddQuantitiesAndMaterials(Document doc, Element el, JObject entry)
+        {
+            const double ft3 = 0.0283168, ft2 = 0.092903, ft = 0.3048;
+            try
+            {
+                Parameter p;
+                if ((p = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED)) != null && p.HasValue && p.AsDouble() > 0) entry["volume"] = Math.Round(p.AsDouble() * ft3, 3);
+                if ((p = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED))   != null && p.HasValue && p.AsDouble() > 0) entry["area"]   = Math.Round(p.AsDouble() * ft2, 3);
+                if ((p = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH))    != null && p.HasValue && p.AsDouble() > 0) entry["length"] = Math.Round(p.AsDouble() * ft, 3);
+            }
+            catch { }
+            try
+            {
+                var mats = new JArray();
+                foreach (ElementId mid in el.GetMaterialIds(false))
+                {
+                    if (!(doc.GetElement(mid) is Material m)) continue;
+                    var mo = new JObject { ["name"] = m.Name ?? "" };
+                    try { double a = el.GetMaterialArea(mid, false); if (a > 0) mo["area"]   = Math.Round(a * ft2, 3); } catch { }
+                    try { double v = el.GetMaterialVolume(mid);      if (v > 0) mo["volume"] = Math.Round(v * ft3, 3); } catch { }
+                    mats.Add(mo);
+                }
+                if (mats.Count > 0) entry["materials"] = mats;
+            }
+            catch { }
+        }
+
+        /// <summary>Primary measured quantity in metric: volume (m³) → area (m²) → length (m).</summary>
+        private static double MeasuredQuantity(Element el)
+        {
+            const double ft3 = 0.0283168, ft2 = 0.092903, ft = 0.3048;
+            Parameter p;
+            if ((p = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED)) != null && p.HasValue && p.AsDouble() > 0) return p.AsDouble() * ft3;
+            if ((p = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED))   != null && p.HasValue && p.AsDouble() > 0) return p.AsDouble() * ft2;
+            if ((p = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH))    != null && p.HasValue && p.AsDouble() > 0) return p.AsDouble() * ft;
+            return 0;
+        }
+
+        /// <summary>
+        /// M3 — map a Revit category name to an ISO discipline code so the viewer's
+        /// BY DISCIPLINE / colour-by-discipline / presets populate on as-built models
+        /// that never went through the STING tag pipeline. Mirrors the client discOf().
+        /// </summary>
+        // A1 — root discipline classification. MUST mirror the viewer's discOf() RULES
+        // (coordination-viewer.js): ORDER MATTERS — Electrical BEFORE Plumbing (so
+        // "Lighting Fixtures" never falls under a bare-"fixture" plumbing rule), Fire
+        // protection before Plumbing, Plumbing made SPECIFIC (never bare "fixture"),
+        // Toposolid/site → Architectural. Keep this in sync with discOf on changes.
+        // A — resolve an element's MEP system → (STING SYS code, raw classification, instance
+        // name, isMep). MEPCurve uses .MEPSystem; fittings/fixtures/accessories walk connectors.
+        // Element-level RBS_SYSTEM_CLASSIFICATION_PARAM / RBS_SYSTEM_NAME_PARAM are read first
+        // (Revit exposes them directly on MEP elements). Non-MEP → ("","","",false). Never throws.
+        private static (string sys, string sysClass, string sysName, bool isMep) ResolveMepSystem(Element el, string categoryName)
+        {
+            string sysClass = "", sysName = "";
+            try { var pc = el.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM); if (pc != null) sysClass = pc.AsValueString() ?? pc.AsString() ?? ""; } catch { }
+            try { var pn = el.get_Parameter(BuiltInParameter.RBS_SYSTEM_NAME_PARAM); if (pn != null) sysName = pn.AsString() ?? pn.AsValueString() ?? ""; } catch { }
+            bool isMep = el is MEPCurve;
+            if (string.IsNullOrEmpty(sysClass) || string.IsNullOrEmpty(sysName))
+            {
+                try
+                {
+                    MEPSystem mep = null;
+                    if (el is MEPCurve mc) mep = mc.MEPSystem;
+                    else if (el is FamilyInstance fi && fi.MEPModel != null)
+                    {
+                        isMep = true;
+                        var cm = fi.MEPModel.ConnectorManager;
+                        if (cm != null)
+                        {
+                            foreach (Connector c in cm.Connectors)
+                            {
+                                try { if (c.MEPSystem != null) { mep = c.MEPSystem; break; } } catch { }
+                            }
+                        }
+                    }
+                    if (mep != null)
+                    {
+                        isMep = true;
+                        if (string.IsNullOrEmpty(sysName)) sysName = mep.Name ?? "";
+                        if (string.IsNullOrEmpty(sysClass))
+                        {
+                            try { var p = mep.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM); if (p != null) sysClass = p.AsValueString() ?? p.AsString() ?? ""; } catch { }
+                        }
+                    }
+                }
+                catch { }
+            }
+            // Electrical — devices/fixtures have NO MEPSystem; pull the assigned circuit's
+            // SystemType (PowerCircuit/Data/Telephone/Security/FireAlarm/Communication/Controls)
+            // + name from the electrical system(s).
+            if (string.IsNullOrEmpty(sysClass) && el is FamilyInstance efi && efi.MEPModel != null)
+            {
+                try
+                {
+                    System.Collections.Generic.ISet<Autodesk.Revit.DB.Electrical.ElectricalSystem> esets = null;
+                    try { esets = efi.MEPModel.GetElectricalSystems(); } catch { }
+                    if (esets == null || esets.Count == 0) { try { esets = efi.MEPModel.GetAssignedElectricalSystems(); } catch { } }
+                    if (esets != null)
+                    {
+                        foreach (var es in esets)
+                        {
+                            if (es == null) continue;
+                            isMep = true;
+                            if (string.IsNullOrEmpty(sysName)) sysName = es.Name ?? "";
+                            try { sysClass = es.SystemType.ToString(); } catch { }
+                            break;
+                        }
+                    }
+                }
+                catch { }
+            }
+            // Containment (conduit / cable tray) + other MEP categories carry no system object —
+            // mark them MEP so the category-based SYS code (LV/ICT/…) is emitted, not left blank.
+            if (!isMep && !string.IsNullOrEmpty(categoryName) &&
+                System.Text.RegularExpressions.Regex.IsMatch(categoryName,
+                    @"conduit|cable\s*tray|duct|pipe|plumb|sprinkler|fire\s*alarm|electric|lighting|luminaire|\bdata\b|telephon|communicat|security|nurse\s*call|\bwire\b",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                isMep = true;
+            if (!string.IsNullOrEmpty(sysClass) || !string.IsNullOrEmpty(sysName)) isMep = true;
+            // Item 7 — collapse a multi-system classification (comma-joined, possibly duplicated,
+            // e.g. "Power,Domestic Cold Water,Domestic Cold Water") to ONE canonical class so the
+            // viewer palette + [sys] buckets don't fragment.
+            if (!string.IsNullOrEmpty(sysClass) && sysClass.IndexOf(',') >= 0)
+            {
+                var parts = sysClass.Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).Distinct().ToList();
+                if (parts.Count > 0) sysClass = parts[0];
+            }
+            string sys = "";
+            if (isMep) { try { sys = TagConfig.GetMepSystemAwareSysCode(el, categoryName) ?? ""; } catch { } }
+            return (sys, sysClass, sysName, isMep);
+        }
+
+        private static string DeriveDisciplineFromCategory(string cat)
+        {
+            if (string.IsNullOrWhiteSpace(cat)) return "";
+            var c = cat.ToLowerInvariant();
+            bool Rx(string p) => System.Text.RegularExpressions.Regex.IsMatch(c, p);
+            // Mechanical / HVAC
+            if (Rx(@"duct|air\s*terminal|diffuser|grille|hvac|\bvav\b|\bahu\b|\bfcu\b|mechanical|\bfan\b|damper|air\s*handl|chiller|\bboiler\b|cooling\s*tower")) return "M";
+            // Electrical (incl. lighting + comms/data + fire-alarm) — BEFORE plumbing.
+            if (Rx(@"electric|lighting|luminaire|light\s*fixture|\bconduit|cable\s*tray|\bcable\b|\bwire\b|\bdata\b|fire\s*alarm|communicat|security\s*device|nurse\s*call|telephon|\bswitch\b|socket|receptacle|panelboard|distribution\s*board|busway|bus\s*duct")) return "E";
+            // Fire protection — BEFORE plumbing (sprinklers / standpipes / hydrants).
+            if (Rx(@"sprinkler|fire\s*protect|fire\s*supp|fire\s*pump|standpipe|hydrant")) return "FP";
+            // Plumbing / public health — SPECIFIC; never bare "fixture".
+            if (Rx(@"plumb|sanitary|water\s*closet|\bwc\b|lavatory|urinal|\bbasin\b|\bsink\b|cistern|\bsoil\b|\bwaste\b|drainage|\bpipe|\bvalve\b|\btap\b|cold\s*water|hot\s*water|rainwater|\bgully\b")) return "P";
+            // Structural
+            if (Rx(@"column|\bbeam\b|brace|footing|foundation|framing|structural|rebar|truss|slab\s*edge|\bpile\b")) return "S";
+            // Architectural (building-element catch-all incl. toposolid/site)
+            if (Rx(@"wall|floor|ceiling|roof|door|window|stair|railing|handrail|furniture|casework|\broom\b|curtain|generic\s*model|toposolid|topograph|planting|\bsite\b|\bmass\b|parking|\bramp\b|\bpad\b|grading")) return "A";
+            return "";
         }
 
         /// <summary>

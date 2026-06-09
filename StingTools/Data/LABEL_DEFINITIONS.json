@@ -60800,6 +60800,1005 @@
         }
       ]
     },
+    "Specialty Equipment Asset": {
+      "family_name": "STING - Specialty Equipment Tag Asset",
+      "paragraph_container": "ASS_TAG_7_PARA_EQUIPMENT_TXT",
+      "paragraph_template": "Asset {asset_id} ({description}) — serial {serial}. Installed: {install_date}. Expected life: {life} yr. Maintenance frequency: {maint} months. Warranty: {warranty}. Criticality: {criticality}/5. Status: {status}.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.5",
+          "note": "Full 8-segment tag"
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, \"\")"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, \"\")"
+        },
+        {
+          "param": "ASS_SERIAL_NR_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Ser:",
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_SERIAL_NR_TXT, \"\")"
+        },
+        {
+          "param": "ASS_ID_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "ID:",
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_ID_TXT, \"\")"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_INSTALL_DATE_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Installed:",
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_INSTALL_DATE_TXT, \"\")"
+        },
+        {
+          "param": "ASS_EXPECTED_LIFE_YEARS_YRS",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Life:",
+          "suffix_override": "yr",
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, \"\")"
+        },
+        {
+          "param": "ASS_MAINTENANCE_FREQUENCY_MONTHS",
+          "spaces": 1,
+          "break": true,
+          "prefix_override": "Maint:",
+          "suffix_override": "m",
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_MAINTENANCE_FREQUENCY_MONTHS, \"\")"
+        },
+        {
+          "param": "ASS_WARRANTY_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Warr:",
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_WARRANTY_TXT, \"\")"
+        },
+        {
+          "param": "ASS_CRITICALITY_RATING_NR",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Crit:",
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_CRITICALITY_RATING_NR, \"\")"
+        },
+        {
+          "param": "ASS_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, \"\")"
+        }
+      ],
+      "tier_4": [
+        {
+          "param": "COMM_STATE_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Comm:",
+          "note": "T4 Commissioning state (Draft/Pre-C/Witness/Final)",
+          "style": "BOLD",
+          "color": "BLUE",
+          "size": "2.0"
+        },
+        {
+          "param": "COMM_DATE_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "on ",
+          "note": "T4 Commissioning stamp date",
+          "style": "BOLD",
+          "color": "BLUE",
+          "size": "2.0"
+        },
+        {
+          "param": "COMM_OPERATIVE_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "by ",
+          "note": "T4 Commissioning operative signature",
+          "style": "BOLD",
+          "color": "BLUE",
+          "size": "2.0"
+        }
+      ],
+      "tier_5": [
+        {
+          "param": "CST_UG_PRICE_UGX",
+          "spaces": 0,
+          "break": false,
+          "suffix_override": " UGX",
+          "note": "T5 Local price (UGX ex-works)",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "CST_INTL_PRICE_USD",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "/ ",
+          "suffix_override": " USD",
+          "note": "T5 International price (USD CIF/DAP)",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "CST_QUOTE_REF_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Quote:",
+          "note": "T5 Supplier quote / PO ref",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_UNIT_RATE_NR",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Rate: ",
+          "note": "T5 Currency-neutral unit rate [Phase 184 P0.2]",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_CURRENCY_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " ",
+          "note": "T5 ISO 4217 currency code [Phase 184 P0.2]",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_FX_TO_BASE_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "FX: ",
+          "note": "T5 FX rate to base currency [Phase 184 P0.2]",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_FX_DATE_DT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " FX date: ",
+          "note": "T5 FX rate fixing date [Phase 184 P0.2]",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_AS_OF_DT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "As of: ",
+          "note": "T5 Pricing reference date [Phase 184 P0.2]",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_STALE_BOOL",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Stale: ",
+          "note": "T5 Cost-stale flag [Phase 184 P2]",
+          "style": "BOLD",
+          "color": "ORANGE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_STALE_REASON_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " - ",
+          "note": "T5 Stale reason [Phase 184 P2]",
+          "style": "NOM",
+          "color": "ORANGE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_PMT_PCT_COMPLETE_NR",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Cmpl: ",
+          "suffix_override": "%",
+          "note": "T5 Percent complete (payment cert) [Phase 184g P5]",
+          "style": "BOLD",
+          "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_PMT_CERT_NO_NR",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " Cert#: ",
+          "note": "T5 Payment certificate number [Phase 184g P5]",
+          "style": "NOM",
+          "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_PMT_CERT_DATE_DT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " Certified: ",
+          "note": "T5 Payment cert valuation date [Phase 184g P5]",
+          "style": "NOM",
+          "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_VAR_NO_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Var: ",
+          "note": "T5 Variation / change-order number [Phase 184g P5]",
+          "style": "BOLD",
+          "color": "RED",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_VAR_INSTRUCTION_DT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " Instr: ",
+          "note": "T5 Variation instruction date [Phase 184g P5]",
+          "style": "NOM",
+          "color": "RED",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_VAR_VALUATION_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " Val: ",
+          "note": "T5 Variation valuation [Phase 184g P5]",
+          "style": "NOM",
+          "color": "RED",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_PMT_LAST_VALUED_DT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " Valued: ",
+          "note": "T5 Last valuation timestamp [Phase 184g P5]",
+          "style": "NOM",
+          "color": "GREEN",
+          "size": "2.0"
+        }
+      ],
+      "tier_6": [
+        {
+          "param": "CBN_A1_A3_KG_CO2E",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "A1-A3:",
+          "suffix_override": " kgCO₂e",
+          "note": "T6 Product-stage embodied carbon (BS EN 15978)",
+          "style": "ITALIC",
+          "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "CBN_A4_KG_CO2E",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "| A4:",
+          "suffix_override": " kgCO₂e",
+          "note": "T6 Transport-stage carbon",
+          "style": "ITALIC",
+          "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "CBN_B6_KG_CO2E_YR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "| B6:",
+          "suffix_override": " kgCO₂e/yr",
+          "note": "T6 Operational energy carbon",
+          "style": "ITALIC",
+          "color": "GREEN",
+          "size": "2.0"
+        }
+      ],
+      "tier_7": [
+        {
+          "param": "ASS_SPOOL_NR_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Spool:",
+          "note": "T7 Fabrication spool number (ISO 6412)",
+          "style": "BOLD",
+          "color": "ORANGE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_FAB_STATUS_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Fab:",
+          "note": "T7 Fabrication status",
+          "style": "BOLD",
+          "color": "ORANGE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_QC_INSPECTOR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "QC:",
+          "note": "T7 QC inspector signature",
+          "style": "BOLD",
+          "color": "ORANGE",
+          "size": "2.0"
+        }
+      ],
+      "tier_8": [
+        {
+          "param": "CLASH_TRIAGE_SEVERITY_NR",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Sev:",
+          "suffix_override": "/5",
+          "note": "T8 Clash triage severity 0-5",
+          "style": "BOLD",
+          "color": "RED",
+          "size": "2.0"
+        },
+        {
+          "param": "CLASH_TRIAGE_CATEGORY_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "T8 Clash category (Hard/Soft/Tolerance/Workflow)",
+          "style": "BOLD",
+          "color": "RED",
+          "size": "2.0"
+        },
+        {
+          "param": "CLASH_RESOLUTION_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Res:",
+          "note": "T8 Clash resolution status",
+          "style": "BOLD",
+          "color": "RED",
+          "size": "2.0"
+        }
+      ],
+      "tier_9": [
+        {
+          "param": "ASBUILT_DEVIATION_MM",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Δ:",
+          "suffix_override": " mm",
+          "note": "T9 As-built deviation vs design",
+          "style": "ITALIC",
+          "color": "GREY",
+          "size": "2.0"
+        },
+        {
+          "param": "ASBUILT_CAPTURE_DATE_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "on ",
+          "note": "T9 Reality-capture snapshot date",
+          "style": "ITALIC",
+          "color": "GREY",
+          "size": "2.0"
+        },
+        {
+          "param": "HEALTH_SCORE_LAST_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Health:",
+          "suffix_override": "/100",
+          "note": "T9 Last computed model health score",
+          "style": "ITALIC",
+          "color": "GREY",
+          "size": "2.0"
+        }
+      ],
+      "tier_10": [
+        {
+          "param": "IFC_PSET_OVERRIDE_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "IFC:",
+          "note": "T10 IFC 4.3 PSet / property override",
+          "style": "NOM",
+          "color": "GREY",
+          "size": "2.0"
+        },
+        {
+          "param": "ACC_ISSUE_ID_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "ACC:",
+          "note": "T10 ACC Issue ID round-trip reference",
+          "style": "NOM",
+          "color": "GREY",
+          "size": "2.0"
+        },
+        {
+          "param": "ACC_SYNC_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Sync:",
+          "note": "T10 ACC sync status (Pending/Synced/Conflict/Failed)",
+          "style": "NOM",
+          "color": "GREY",
+          "size": "2.0"
+        }
+      ],
+      "warnings": [
+        {
+          "param": "WARN_ASS_CRITICALITY_SPECIALTY_EQUIP",
+          "severity": "HIGH",
+          "data_type": "TEXT",
+          "threshold": "Criticality rating > 3 without commissioning plan",
+          "standard": "ISO 55000 / PAS 1192-3",
+          "description": "Asset criticality rating exceeds threshold — commissioning plan required",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_CRITICALITY_SPECIALTY_EQUIP, \"\")"
+        },
+        {
+          "param": "WARN_ASS_COMMISSIONING_SPECIALTY_EQUIP",
+          "severity": "MEDIUM",
+          "data_type": "TEXT",
+          "threshold": "Commissioning requirement not specified",
+          "standard": "BSRIA BG 6 / CIBSE Commissioning Codes",
+          "description": "Commissioning requirement not specified for critical asset",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_COMMISSIONING_SPECIALTY_EQUIP, \"\")"
+        }
+      ],
+      "source_csv": "STING_TAG_CONFIG_v5_0_GEN.csv"
+    },
+    "Specialty Equipment General": {
+      "family_name": "STING - Specialty Equipment Tag General",
+      "paragraph_container": "ASS_TAG_7_PARA_EQUIPMENT_TXT",
+      "paragraph_template": "{description} — function {func}, system {system}. Manufacturer: {mfr}, model {model}. Standard: {standard}. Status: {status}.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.5",
+          "note": "Full 8-segment tag"
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, \"\")"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, \"\")"
+        },
+        {
+          "param": "ASS_FUNC_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Func:",
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_FUNC_TXT, \"\")"
+        },
+        {
+          "param": "ASS_SYSTEM_TYPE_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEM_TYPE_TXT, \"\")"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Mfr:",
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_MANUFACTURER_TXT, \"\")"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Model:",
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_MODEL_NR_TXT, \"\")"
+        },
+        {
+          "param": "ASS_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, \"\")"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std:",
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "formula": "if(TAG_PARA_STATE_3_BOOL, RGL_STD_TXT, \"\")"
+        }
+      ],
+      "tier_4": [
+        {
+          "param": "COMM_STATE_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Comm:",
+          "note": "T4 Commissioning state (Draft/Pre-C/Witness/Final)",
+          "style": "BOLD",
+          "color": "BLUE",
+          "size": "2.0"
+        },
+        {
+          "param": "COMM_DATE_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "on ",
+          "note": "T4 Commissioning stamp date",
+          "style": "BOLD",
+          "color": "BLUE",
+          "size": "2.0"
+        },
+        {
+          "param": "COMM_OPERATIVE_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "by ",
+          "note": "T4 Commissioning operative signature",
+          "style": "BOLD",
+          "color": "BLUE",
+          "size": "2.0"
+        }
+      ],
+      "tier_5": [
+        {
+          "param": "CST_UG_PRICE_UGX",
+          "spaces": 0,
+          "break": false,
+          "suffix_override": " UGX",
+          "note": "T5 Local price (UGX ex-works)",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "CST_INTL_PRICE_USD",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "/ ",
+          "suffix_override": " USD",
+          "note": "T5 International price (USD CIF/DAP)",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "CST_QUOTE_REF_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Quote:",
+          "note": "T5 Supplier quote / PO ref",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_UNIT_RATE_NR",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Rate: ",
+          "note": "T5 Currency-neutral unit rate [Phase 184 P0.2]",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_CURRENCY_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " ",
+          "note": "T5 ISO 4217 currency code [Phase 184 P0.2]",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_FX_TO_BASE_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "FX: ",
+          "note": "T5 FX rate to base currency [Phase 184 P0.2]",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_FX_DATE_DT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " FX date: ",
+          "note": "T5 FX rate fixing date [Phase 184 P0.2]",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_AS_OF_DT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "As of: ",
+          "note": "T5 Pricing reference date [Phase 184 P0.2]",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_STALE_BOOL",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Stale: ",
+          "note": "T5 Cost-stale flag [Phase 184 P2]",
+          "style": "BOLD",
+          "color": "ORANGE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_CST_STALE_REASON_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " - ",
+          "note": "T5 Stale reason [Phase 184 P2]",
+          "style": "NOM",
+          "color": "ORANGE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_PMT_PCT_COMPLETE_NR",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Cmpl: ",
+          "suffix_override": "%",
+          "note": "T5 Percent complete (payment cert) [Phase 184g P5]",
+          "style": "BOLD",
+          "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_PMT_CERT_NO_NR",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " Cert#: ",
+          "note": "T5 Payment certificate number [Phase 184g P5]",
+          "style": "NOM",
+          "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_PMT_CERT_DATE_DT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " Certified: ",
+          "note": "T5 Payment cert valuation date [Phase 184g P5]",
+          "style": "NOM",
+          "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_VAR_NO_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Var: ",
+          "note": "T5 Variation / change-order number [Phase 184g P5]",
+          "style": "BOLD",
+          "color": "RED",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_VAR_INSTRUCTION_DT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " Instr: ",
+          "note": "T5 Variation instruction date [Phase 184g P5]",
+          "style": "NOM",
+          "color": "RED",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_VAR_VALUATION_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " Val: ",
+          "note": "T5 Variation valuation [Phase 184g P5]",
+          "style": "NOM",
+          "color": "RED",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_PMT_LAST_VALUED_DT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " Valued: ",
+          "note": "T5 Last valuation timestamp [Phase 184g P5]",
+          "style": "NOM",
+          "color": "GREEN",
+          "size": "2.0"
+        }
+      ],
+      "tier_6": [
+        {
+          "param": "CBN_A1_A3_KG_CO2E",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "A1-A3:",
+          "suffix_override": " kgCO₂e",
+          "note": "T6 Product-stage embodied carbon (BS EN 15978)",
+          "style": "ITALIC",
+          "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "CBN_A4_KG_CO2E",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "| A4:",
+          "suffix_override": " kgCO₂e",
+          "note": "T6 Transport-stage carbon",
+          "style": "ITALIC",
+          "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "CBN_B6_KG_CO2E_YR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "| B6:",
+          "suffix_override": " kgCO₂e/yr",
+          "note": "T6 Operational energy carbon",
+          "style": "ITALIC",
+          "color": "GREEN",
+          "size": "2.0"
+        }
+      ],
+      "tier_7": [
+        {
+          "param": "ASS_SPOOL_NR_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Spool:",
+          "note": "T7 Fabrication spool number (ISO 6412)",
+          "style": "BOLD",
+          "color": "ORANGE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_FAB_STATUS_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Fab:",
+          "note": "T7 Fabrication status",
+          "style": "BOLD",
+          "color": "ORANGE",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_QC_INSPECTOR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "QC:",
+          "note": "T7 QC inspector signature",
+          "style": "BOLD",
+          "color": "ORANGE",
+          "size": "2.0"
+        }
+      ],
+      "tier_8": [
+        {
+          "param": "CLASH_TRIAGE_SEVERITY_NR",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Sev:",
+          "suffix_override": "/5",
+          "note": "T8 Clash triage severity 0-5",
+          "style": "BOLD",
+          "color": "RED",
+          "size": "2.0"
+        },
+        {
+          "param": "CLASH_TRIAGE_CATEGORY_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "T8 Clash category (Hard/Soft/Tolerance/Workflow)",
+          "style": "BOLD",
+          "color": "RED",
+          "size": "2.0"
+        },
+        {
+          "param": "CLASH_RESOLUTION_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Res:",
+          "note": "T8 Clash resolution status",
+          "style": "BOLD",
+          "color": "RED",
+          "size": "2.0"
+        }
+      ],
+      "tier_9": [
+        {
+          "param": "ASBUILT_DEVIATION_MM",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Δ:",
+          "suffix_override": " mm",
+          "note": "T9 As-built deviation vs design",
+          "style": "ITALIC",
+          "color": "GREY",
+          "size": "2.0"
+        },
+        {
+          "param": "ASBUILT_CAPTURE_DATE_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "on ",
+          "note": "T9 Reality-capture snapshot date",
+          "style": "ITALIC",
+          "color": "GREY",
+          "size": "2.0"
+        },
+        {
+          "param": "HEALTH_SCORE_LAST_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Health:",
+          "suffix_override": "/100",
+          "note": "T9 Last computed model health score",
+          "style": "ITALIC",
+          "color": "GREY",
+          "size": "2.0"
+        }
+      ],
+      "tier_10": [
+        {
+          "param": "IFC_PSET_OVERRIDE_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "IFC:",
+          "note": "T10 IFC 4.3 PSet / property override",
+          "style": "NOM",
+          "color": "GREY",
+          "size": "2.0"
+        },
+        {
+          "param": "ACC_ISSUE_ID_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "ACC:",
+          "note": "T10 ACC Issue ID round-trip reference",
+          "style": "NOM",
+          "color": "GREY",
+          "size": "2.0"
+        },
+        {
+          "param": "ACC_SYNC_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Sync:",
+          "note": "T10 ACC sync status (Pending/Synced/Conflict/Failed)",
+          "style": "NOM",
+          "color": "GREY",
+          "size": "2.0"
+        }
+      ],
+      "warnings": [
+        {
+          "param": "WARN_GEN_SPEC_EQUIP_NO_SYS",
+          "severity": "HIGH",
+          "data_type": "TEXT",
+          "threshold": "ASS_SYSTEM_TYPE_TXT empty",
+          "standard": "ISO 19650-2 / CIBSE",
+          "description": "System type not assigned — required for equipment register",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_SYS, \"\")"
+        },
+        {
+          "param": "WARN_GEN_SPEC_EQUIP_NO_COMMISSION",
+          "severity": "MEDIUM",
+          "data_type": "TEXT",
+          "threshold": "Commissioning requirements not specified",
+          "standard": "BSRIA BG 8/2009 / CIBSE Commissioning Code",
+          "description": "Commissioning requirements not specified for specialty equipment",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_COMMISSION, \"\")"
+        }
+      ],
+      "source_csv": "STING_TAG_CONFIG_v5_0_GEN.csv"
+    },
     "Duct Insulation": {
       "family_name": "STING - Duct Insulation Tag",
       "paragraph_container": "HVC_TAG_7_PARA_DUCT_INSULATION_TXT",
@@ -75913,230 +76912,632 @@
     "LPS Air Terminal": {
       "family_name": "STING - LPS Air Terminal Tag",
       "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "categories": ["Electrical Equipment", "Generic Models", "Specialty Equipment"],
-      "discipline": "E",
-      "system": "LPS",
-      "function": "AT",
-      "standard": "BS EN 62305-3:2011 §5.2",
       "tier_1": [
-        { "param": "ELC_LPS_AIRTERM_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.5"
+        }
       ],
       "tier_2": [
-        { "param": "ELC_LPS_CLASS_TXT",                "spaces": 0, "break": true, "prefix_override": "Class:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_ZONE_TXT",                 "spaces": 0, "break": true, "prefix_override": "LPZ:",   "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_PROTECTION_ANGLE_DEG",     "spaces": 0, "break": true, "prefix_override": "α:", "suffix_override": "°", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_AIR_TERMINAL_COUNT_NR",    "spaces": 0, "break": true, "prefix_override": "N:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ELC_LPS_CLASS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Class:"
+        },
+        {
+          "param": "ELC_LPS_ZONE_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "LPZ:"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Std:"
+        }
       ],
       "tier_3": [
-        { "param": "ELC_LPS_ROLLING_SPHERE_RADIUS_M",  "spaces": 0, "break": true, "prefix_override": "r:", "suffix_override": " m", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_MESH_SIZE_M",              "spaces": 0, "break": true, "prefix_override": "Mesh:", "suffix_override": " m", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_RISK_ASSESSMENT_TXT",      "spaces": 0, "break": true, "prefix_override": "Risk:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_COMPLIANCE_STATUS_TXT",    "spaces": 0, "break": true, "style": "BOLD", "color": "RED", "size": "2.0" }
+        {
+          "param": "ELC_TAG_7_PARA_LPS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        }
       ],
-      "warnings": [
-        { "param": "WARN_ELC_LPS_NO_CLASS",            "severity": "CRITICAL", "data_type": "TEXT", "standard": "BS EN 62305-1:2011 §8",   "description": "LPS class missing — set I/II/III/IV per BS EN 62305-2 risk assessment", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, \"\")" },
-        { "param": "WARN_ELC_LPS_MESH_SIZE_EXCEEDED",  "severity": "HIGH",     "data_type": "TEXT", "standard": "BS EN 62305-3:2011 Tab 2", "description": "Air-termination mesh exceeds class limit (I=5×5 II=10×10 III=15×15 IV=20×20 m)", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_MESH_SIZE_EXCEEDED, \"\")" },
-        { "param": "WARN_ELC_LPS_NO_ZONE",             "severity": "MEDIUM",   "data_type": "TEXT", "standard": "BS EN 62305-4:2011 §4.1", "description": "LPZ (LPZ0A/LPZ0B/LPZ1/LPZ2/LPZ3) not assigned",                                  "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_ZONE, \"\")" },
-        { "param": "WARN_ELC_LPS_NO_RISK_ASSESSMENT",  "severity": "HIGH",     "data_type": "TEXT", "standard": "BS EN 62305-2:2012",      "description": "Risk assessment (R1..R4) reference missing",                                       "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_RISK_ASSESSMENT, \"\")" }
-      ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "paragraph_template": "Lightning protection air terminal — LPS class {class}, zone {zone}. Compliant with BS EN 62305-3 §5.2."
     },
     "LPS Down Conductor": {
       "family_name": "STING - LPS Down Conductor Tag",
       "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "categories": ["Electrical Equipment", "Generic Models", "Conduits", "Conduit Fittings", "Specialty Equipment"],
-      "discipline": "E",
-      "system": "LPS",
-      "function": "DC",
-      "standard": "BS EN 62305-3:2011 §5.3",
       "tier_1": [
-        { "param": "ELC_LPS_DOWNCOND_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.5"
+        }
       ],
       "tier_2": [
-        { "param": "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR",  "spaces": 0, "break": true, "prefix_override": "N:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2", "spaces": 0, "break": true, "prefix_override": "A:", "suffix_override": " mm²", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_CONDUCTOR_MATERIAL_TXT",   "spaces": 0, "break": true, "prefix_override": "Mat:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_SEPARATION_DISTANCE_MM",   "spaces": 0, "break": true, "prefix_override": "s:", "suffix_override": " mm", "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ELC_LPS_CLASS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Class:"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Std:"
+        }
       ],
       "tier_3": [
-        { "param": "ELC_LPS_CLASS_TXT", "spaces": 0, "break": true, "prefix_override": "Class:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_ZONE_TXT",  "spaces": 0, "break": true, "prefix_override": "LPZ:",   "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ELC_TAG_7_PARA_LPS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        }
       ],
-      "warnings": [
-        { "param": "WARN_ELC_LPS_DOWN_COND_INSUFFICIENT",     "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 Tab 4", "description": "Down conductor count below class minimum (Class I=4 II=3 III/IV=2)", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_DOWN_COND_INSUFFICIENT, \"\")" },
-        { "param": "WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW",   "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 Tab 6", "description": "Cross-section below 50 mm² Cu / 70 mm² Al / 50 mm² Steel",       "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW, \"\")" },
-        { "param": "WARN_ELC_LPS_SEPARATION_FAIL",            "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §6.3",  "description": "Separation distance below s = ki·kc·l/km — services flashover risk", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_SEPARATION_FAIL, \"\")" }
-      ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "paragraph_template": "Lightning protection down conductor — LPS class {class}. Compliant with BS EN 62305-3 §5.3."
     },
     "LPS Earth Electrode": {
       "family_name": "STING - LPS Earth Electrode Tag",
       "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "categories": ["Electrical Equipment", "Generic Models", "Specialty Equipment"],
-      "discipline": "E",
-      "system": "LPS",
-      "function": "EE",
-      "standard": "BS EN 62305-3:2011 §5.4",
       "tier_1": [
-        { "param": "ELC_LPS_EARTH_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.5"
+        }
       ],
       "tier_2": [
-        { "param": "ELC_LPS_EARTH_TYPE_TXT",            "spaces": 0, "break": true, "prefix_override": "Type:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_EARTH_RESISTANCE_OHM",      "spaces": 0, "break": true, "prefix_override": "R:", "suffix_override": " Ω", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_EARTH_ELECTRODE_COUNT_NR",  "spaces": 0, "break": true, "prefix_override": "N:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_TEST_DATE_TXT",             "spaces": 0, "break": true, "prefix_override": "Tested:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ELC_LPS_CLASS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Class:"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Std:"
+        }
       ],
       "tier_3": [
-        { "param": "ELC_LPS_INSPECTION_INTERVAL_MONTHS", "spaces": 0, "break": true, "prefix_override": "Inspect:", "suffix_override": " mo", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_CERT_REF_TXT",               "spaces": 0, "break": true, "prefix_override": "Cert:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ELC_TAG_7_PARA_LPS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        }
       ],
-      "warnings": [
-        { "param": "WARN_ELC_LPS_EARTH_RESISTANCE_HIGH", "severity": "HIGH",   "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §5.4.1", "description": "Earth resistance > 10 Ω — supplement electrodes or add ring earth",     "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_EARTH_RESISTANCE_HIGH, \"\")" },
-        { "param": "WARN_ELC_LPS_INSPECTION_OVERDUE",    "severity": "MEDIUM", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §E.7",   "description": "Inspection interval exceeded (Class I/II=12mo III/IV=24mo)",            "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_INSPECTION_OVERDUE, \"\")" }
-      ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "paragraph_template": "Lightning protection earth electrode — LPS class {class}. Compliant with BS EN 62305-3 §5.4."
     },
     "LPS Bond": {
       "family_name": "STING - LPS Bond Tag",
       "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "categories": ["Electrical Equipment", "Generic Models", "Conduits", "Specialty Equipment"],
-      "discipline": "E",
-      "system": "LPS",
-      "function": "BOND",
-      "standard": "BS EN 62305-3:2011 §6.2",
       "tier_1": [
-        { "param": "ELC_LPS_BOND_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.5"
+        }
       ],
       "tier_2": [
-        { "param": "ELC_LPS_BOND_TYPE_TXT",            "spaces": 0, "break": true, "prefix_override": "Bond:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2", "spaces": 0, "break": true, "prefix_override": "A:", "suffix_override": " mm²", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_ZONE_TXT",                 "spaces": 0, "break": true, "prefix_override": "LPZ:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ELC_LPS_CLASS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Class:"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Std:"
+        }
       ],
-      "warnings": [
-        { "param": "WARN_ELC_LPS_NO_BONDING", "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §6.2", "description": "Equipotential bonding type missing — DIRECT / SPD / ISOLATING_SPARK_GAP required", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, \"\")" }
+      "tier_3": [
+        {
+          "param": "ELC_TAG_7_PARA_LPS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        }
       ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "paragraph_template": "Lightning protection equipotential bond / spark gap. Compliant with BS EN 62305-3."
     },
     "LPS SPD": {
       "family_name": "STING - LPS SPD Tag",
       "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "categories": ["Electrical Equipment", "Specialty Equipment"],
-      "discipline": "E",
-      "system": "LPS",
-      "function": "SPD",
-      "standard": "BS EN 62305-4:2011 / BS EN 61643",
       "tier_1": [
-        { "param": "ELC_LPS_SPD_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.5"
+        }
       ],
       "tier_2": [
-        { "param": "ELC_LPS_SURGE_PROTECTION_LVL_TXT", "spaces": 0, "break": true, "prefix_override": "SPD:",  "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_ZONE_TXT",                 "spaces": 0, "break": true, "prefix_override": "LPZ:",  "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_BOND_TYPE_TXT",            "spaces": 0, "break": true, "prefix_override": "Bond:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ELC_LPS_CLASS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Class:"
+        },
+        {
+          "param": "ELC_LPS_ZONE_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "LPZ:"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Std:"
+        }
       ],
-      "warnings": [],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "tier_3": [
+        {
+          "param": "ELC_TAG_7_PARA_LPS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        }
+      ],
+      "paragraph_template": "Surge protection device (SPD) at LPZ boundary {zone}. Compliant with BS EN 62305-4."
     },
     "LPS Test Clamp": {
       "family_name": "STING - LPS Test Clamp Tag",
       "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "categories": ["Electrical Equipment", "Generic Models", "Specialty Equipment"],
-      "discipline": "E",
-      "system": "LPS",
-      "function": "TC",
-      "standard": "BS EN 62305-3:2011 §7.2",
       "tier_1": [
-        { "param": "ELC_LPS_TESTCLAMP_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.5"
+        }
       ],
       "tier_2": [
-        { "param": "ELC_LPS_TEST_DATE_TXT",              "spaces": 0, "break": true, "prefix_override": "Tested:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_EARTH_RESISTANCE_OHM",       "spaces": 0, "break": true, "prefix_override": "R:", "suffix_override": " Ω", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_INSPECTION_INTERVAL_MONTHS", "spaces": 0, "break": true, "prefix_override": "Next:", "suffix_override": " mo", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_CERT_REF_TXT",               "spaces": 0, "break": true, "prefix_override": "Cert:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Std:"
+        }
       ],
-      "warnings": [
-        { "param": "WARN_ELC_LPS_INSPECTION_OVERDUE", "severity": "MEDIUM", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §E.7", "description": "Inspection overdue (12mo Class I/II / 24mo Class III/IV)", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_INSPECTION_OVERDUE, \"\")" }
+      "tier_3": [
+        {
+          "param": "ELC_TAG_7_PARA_LPS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        }
       ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "paragraph_template": "Lightning protection test clamp / inspection point. Compliant with BS EN 62305-3."
     },
     "LPS Foundation Earth (Structural Reuse)": {
       "family_name": "STING - LPS Foundation Earth (Structural Reuse) Tag",
       "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "categories": ["Structural Foundations", "Structural Rebar", "Structural Area Reinforcement", "Structural Path Reinforcement", "Structural Fabric Reinforcement"],
-      "discipline": "S",
-      "system": "LPS",
-      "function": "EE",
-      "standard": "BS EN 62305-3:2011 §5.4 + Annex E.5.3",
-      "cross_discipline_note": "Structural rebar reused as Type-B foundation earth electrode. Structural team owns geometry; LPS designer needs continuity tag for commissioning + BoQ reconciliation.",
       "tier_1": [
-        { "param": "ELC_LPS_EARTH_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.5"
+        }
       ],
       "tier_2": [
-        { "param": "ELC_LPS_EARTH_TYPE_TXT",       "spaces": 0, "break": true, "prefix_override": "Type:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_CLASS_TXT",            "spaces": 0, "break": true, "prefix_override": "Class:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_EARTH_RESISTANCE_OHM", "spaces": 0, "break": true, "prefix_override": "R:", "suffix_override": " Ω", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_TEST_DATE_TXT",        "spaces": 0, "break": true, "prefix_override": "Tested:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ELC_LPS_CLASS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Class:"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Std:"
+        }
       ],
       "tier_3": [
-        { "param": "ELC_LPS_BOND_TYPE_TXT", "spaces": 0, "break": true, "prefix_override": "Bond:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_CERT_REF_TXT",  "spaces": 0, "break": true, "prefix_override": "Cert:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ELC_TAG_7_PARA_LPS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        }
       ],
-      "warnings": [
-        { "param": "WARN_ELC_LPS_EARTH_RESISTANCE_HIGH", "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §5.4.1 + Annex E.5.3", "description": "Foundation earth resistance > 10 Ω — supplement with Type-A rod electrodes", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_EARTH_RESISTANCE_HIGH, \"\")" },
-        { "param": "WARN_ELC_LPS_NO_BONDING",            "severity": "HIGH", "data_type": "TEXT", "standard": "BS EN 62305-3:2011 Annex E.5.3",       "description": "Rebar-to-LPS bonding method not specified — continuity not guaranteed without welded / clamped bonds", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, \"\")" }
-      ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_STR.csv"
+      "paragraph_template": "Lightning protection earth — structural foundation reuse. Compliant with BS EN 62305-3."
     },
     "LPS Natural Air Termination (Architectural Reuse)": {
       "family_name": "STING - LPS Natural Air Termination (Architectural Reuse) Tag",
       "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "categories": ["Roofs", "Walls", "Wall Sweeps", "Curtain Wall Mullions", "Fascia", "Gutter", "Roof Soffits"],
-      "discipline": "A",
-      "system": "LPS",
-      "function": "AT",
-      "standard": "BS EN 62305-3:2011 §5.2.5",
-      "cross_discipline_note": "Metal roof / parapet / coping / metallic facade element acting as natural air-termination component. Architects own geometry; LPS designer needs class + thickness + bond strategy tag.",
       "tier_1": [
-        { "param": "ELC_LPS_AIRTERM_TAG_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.5"
+        }
       ],
       "tier_2": [
-        { "param": "ELC_LPS_CLASS_TXT",                "spaces": 0, "break": true, "prefix_override": "Class:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_ZONE_TXT",                 "spaces": 0, "break": true, "prefix_override": "LPZ:",   "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_CONDUCTOR_MATERIAL_TXT",   "spaces": 0, "break": true, "prefix_override": "Mat:",   "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2", "spaces": 0, "break": true, "prefix_override": "t:", "suffix_override": " mm", "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ELC_LPS_CLASS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Class:"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Std:"
+        }
       ],
       "tier_3": [
-        { "param": "ELC_LPS_BOND_TYPE_TXT",       "spaces": 0, "break": true, "prefix_override": "Bond:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_RISK_ASSESSMENT_TXT", "spaces": 0, "break": true, "prefix_override": "Risk:", "style": "NOM", "color": "BLACK", "size": "2.0" }
+        {
+          "param": "ELC_TAG_7_PARA_LPS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        }
       ],
-      "warnings": [
-        { "param": "WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW", "severity": "HIGH",     "data_type": "TEXT", "standard": "BS EN 62305-3:2011 Tab 3", "description": "Sheet thickness below natural-component minimum (BS EN 62305-3 Tab 3 — typ. 0.5 mm Cu / 0.7 mm Al / 4 mm Steel for puncture resistance)", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW, \"\")" },
-        { "param": "WARN_ELC_LPS_NO_BONDING",               "severity": "HIGH",     "data_type": "TEXT", "standard": "BS EN 62305-3:2011 §5.2.5", "description": "Bonding to LPS network not specified — natural component is non-functional without continuity",                                              "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, \"\")" },
-        { "param": "WARN_ELC_LPS_NO_CLASS",                 "severity": "CRITICAL", "data_type": "TEXT", "standard": "BS EN 62305-1:2011 §8",     "description": "LPS class not assigned — required to verify natural-component thickness vs BS EN 62305-3 Tab 3",                                       "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, \"\")" }
-      ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_ARCH.csv"
+      "paragraph_template": "Lightning protection air termination — architectural element reuse (roof / parapet / fascia). Compliant with BS EN 62305-3 §5.2."
     },
     "LPS Generic Component": {
       "family_name": "STING - LPS Generic Component Tag",
       "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "categories": ["Generic Models", "Specialty Equipment", "Detail Items"],
-      "discipline": "E",
-      "system": "LPS",
-      "function": "LPS",
-      "standard": "BS EN 62305 (multi-part)",
-      "cross_discipline_note": "Catch-all for lightning-protection elements modelled as Generic Models / Specialty Equipment / Detail Items. Sub-PROD (ATR/AMS/ACT/DCN/ERD/ERG/EFE/EME/BCN/BBR/BSG/SPD1-3/TCL) and FUNC (AT/DC/EE/BOND/SPD/TC) auto-resolve from family name in TagConfig.GetFamilyAwareProdCode + ResolveLpsFunc.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true, "style": "BOLD", "color": "BLUE", "size": "2.5" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.5"
+        }
       ],
       "tier_2": [
-        { "param": "ELC_LPS_CLASS_TXT",             "spaces": 0, "break": true, "prefix_override": "Class:", "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_ZONE_TXT",              "spaces": 0, "break": true, "prefix_override": "LPZ:",   "style": "NOM", "color": "BLACK", "size": "2.0" },
-        { "param": "ELC_LPS_COMPLIANCE_STATUS_TXT", "spaces": 0, "break": true,                            "style": "BOLD", "color": "RED",   "size": "2.0" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ELC_LPS_CLASS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Class:"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Std:"
+        }
       ],
-      "warnings": [
-        { "param": "WARN_ELC_LPS_NO_CLASS", "severity": "CRITICAL", "data_type": "TEXT", "standard": "BS EN 62305-1:2011 §8",   "description": "LPS class missing — set I/II/III/IV per BS EN 62305-2 risk assessment", "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, \"\")" },
-        { "param": "WARN_ELC_LPS_NO_ZONE",  "severity": "MEDIUM",   "data_type": "TEXT", "standard": "BS EN 62305-4:2011 §4.1", "description": "Lightning protection zone (LPZ) not assigned",                          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_ZONE, \"\")" }
+      "tier_3": [
+        {
+          "param": "ELC_TAG_7_PARA_LPS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
+          "param": "ASS_STATUS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        }
       ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_GEN.csv"
+      "paragraph_template": "LPS generic / cross-discipline reuse component. Compliant with BS EN 62305."
     },
     "Brace / Truss": {
       "family_name": "STING - Brace / Truss Tag",
@@ -81153,636 +82554,6 @@
         }
       ],
       "paragraph_template": "Nurse call station / device, type {type}. Compliant with HTM 08-03."
-    },
-    "LPS Air Terminal": {
-      "family_name": "STING - LPS Air Terminal Tag",
-      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "tier_1": [
-        {
-          "param": "ASS_TAG_1_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.5"
-        }
-      ],
-      "tier_2": [
-        {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": false,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ELC_LPS_CLASS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Class:"
-        },
-        {
-          "param": "ELC_LPS_ZONE_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "LPZ:"
-        },
-        {
-          "param": "RGL_STD_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Std:"
-        }
-      ],
-      "tier_3": [
-        {
-          "param": "ELC_TAG_7_PARA_LPS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_STATUS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        }
-      ],
-      "paragraph_template": "Lightning protection air terminal — LPS class {class}, zone {zone}. Compliant with BS EN 62305-3 §5.2."
-    },
-    "LPS Down Conductor": {
-      "family_name": "STING - LPS Down Conductor Tag",
-      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "tier_1": [
-        {
-          "param": "ASS_TAG_1_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.5"
-        }
-      ],
-      "tier_2": [
-        {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": false,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ELC_LPS_CLASS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Class:"
-        },
-        {
-          "param": "RGL_STD_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Std:"
-        }
-      ],
-      "tier_3": [
-        {
-          "param": "ELC_TAG_7_PARA_LPS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_STATUS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        }
-      ],
-      "paragraph_template": "Lightning protection down conductor — LPS class {class}. Compliant with BS EN 62305-3 §5.3."
-    },
-    "LPS Earth Electrode": {
-      "family_name": "STING - LPS Earth Electrode Tag",
-      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "tier_1": [
-        {
-          "param": "ASS_TAG_1_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.5"
-        }
-      ],
-      "tier_2": [
-        {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": false,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ELC_LPS_CLASS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Class:"
-        },
-        {
-          "param": "RGL_STD_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Std:"
-        }
-      ],
-      "tier_3": [
-        {
-          "param": "ELC_TAG_7_PARA_LPS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_STATUS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        }
-      ],
-      "paragraph_template": "Lightning protection earth electrode — LPS class {class}. Compliant with BS EN 62305-3 §5.4."
-    },
-    "LPS Bond": {
-      "family_name": "STING - LPS Bond Tag",
-      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "tier_1": [
-        {
-          "param": "ASS_TAG_1_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.5"
-        }
-      ],
-      "tier_2": [
-        {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": false,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ELC_LPS_CLASS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Class:"
-        },
-        {
-          "param": "RGL_STD_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Std:"
-        }
-      ],
-      "tier_3": [
-        {
-          "param": "ELC_TAG_7_PARA_LPS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_STATUS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        }
-      ],
-      "paragraph_template": "Lightning protection equipotential bond / spark gap. Compliant with BS EN 62305-3."
-    },
-    "LPS SPD": {
-      "family_name": "STING - LPS SPD Tag",
-      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "tier_1": [
-        {
-          "param": "ASS_TAG_1_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.5"
-        }
-      ],
-      "tier_2": [
-        {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": false,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ELC_LPS_CLASS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Class:"
-        },
-        {
-          "param": "ELC_LPS_ZONE_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "LPZ:"
-        },
-        {
-          "param": "RGL_STD_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Std:"
-        }
-      ],
-      "tier_3": [
-        {
-          "param": "ELC_TAG_7_PARA_LPS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_STATUS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        }
-      ],
-      "paragraph_template": "Surge protection device (SPD) at LPZ boundary {zone}. Compliant with BS EN 62305-4."
-    },
-    "LPS Test Clamp": {
-      "family_name": "STING - LPS Test Clamp Tag",
-      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "tier_1": [
-        {
-          "param": "ASS_TAG_1_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.5"
-        }
-      ],
-      "tier_2": [
-        {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": false,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "RGL_STD_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Std:"
-        }
-      ],
-      "tier_3": [
-        {
-          "param": "ELC_TAG_7_PARA_LPS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_STATUS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        }
-      ],
-      "paragraph_template": "Lightning protection test clamp / inspection point. Compliant with BS EN 62305-3."
-    },
-    "LPS Generic Component": {
-      "family_name": "STING - LPS Generic Component Tag",
-      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "tier_1": [
-        {
-          "param": "ASS_TAG_1_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.5"
-        }
-      ],
-      "tier_2": [
-        {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": false,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ELC_LPS_CLASS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Class:"
-        },
-        {
-          "param": "RGL_STD_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Std:"
-        }
-      ],
-      "tier_3": [
-        {
-          "param": "ELC_TAG_7_PARA_LPS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_STATUS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        }
-      ],
-      "paragraph_template": "LPS generic / cross-discipline reuse component. Compliant with BS EN 62305."
-    },
-    "LPS Foundation Earth (Structural Reuse)": {
-      "family_name": "STING - LPS Foundation Earth (Structural Reuse) Tag",
-      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "tier_1": [
-        {
-          "param": "ASS_TAG_1_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.5"
-        }
-      ],
-      "tier_2": [
-        {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": false,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ELC_LPS_CLASS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Class:"
-        },
-        {
-          "param": "RGL_STD_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Std:"
-        }
-      ],
-      "tier_3": [
-        {
-          "param": "ELC_TAG_7_PARA_LPS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_STATUS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        }
-      ],
-      "paragraph_template": "Lightning protection earth — structural foundation reuse. Compliant with BS EN 62305-3."
-    },
-    "LPS Natural Air Termination (Architectural Reuse)": {
-      "family_name": "STING - LPS Natural Air Termination (Architectural Reuse) Tag",
-      "paragraph_container": "ELC_TAG_7_PARA_LPS_TXT",
-      "tier_1": [
-        {
-          "param": "ASS_TAG_1_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.5"
-        }
-      ],
-      "tier_2": [
-        {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": false,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ELC_LPS_CLASS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Class:"
-        },
-        {
-          "param": "RGL_STD_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0",
-          "prefix_override": "Std:"
-        }
-      ],
-      "tier_3": [
-        {
-          "param": "ELC_TAG_7_PARA_LPS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
-          "param": "ASS_STATUS_TXT",
-          "spaces": 0,
-          "break": true,
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        }
-      ],
-      "paragraph_template": "Lightning protection air termination — architectural element reuse (roof / parapet / fascia). Compliant with BS EN 62305-3 §5.2."
     },
     "Curtain Panel": {
       "family_name": "STING - Curtain Panel Tag",

@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import { crashReporter } from './crashReporter';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { getToken } from '@/api/client';
+import { setPendingMeeting, meetingLivePath } from './pendingMeeting';
 
 interface RouterShape {
   push: (path: string) => void;
@@ -13,7 +15,7 @@ export const notificationTapRouter = {
    * We parse and route into the relevant tab.
    */
   attach(router: RouterShape): () => void {
-    const sub = Notifications.addNotificationResponseReceivedListener(response => {
+    const sub = Notifications.addNotificationResponseReceivedListener(async response => {
       try {
         const data = response.notification.request.content.data as Record<string, unknown> | undefined;
         if (!data) return;
@@ -29,8 +31,28 @@ export const notificationTapRouter = {
         const feature = type.startsWith('ISSUE') ? 'issues'
           : type.startsWith('COMPLIANCE') ? 'dashboard'
           : type.startsWith('DOCUMENT') ? 'documents'
+          : type.startsWith('MEETING') || type.startsWith('MINUTES') ? 'dashboard'
           : 'issues';
         useNotificationStore.getState().decrement(feature);
+
+        // P1 — meeting invite / live-start: deep-link straight into the live
+        // meeting and auto-join A/V. Server data carries meetingId (+ optionally
+        // meetingSessionId). If signed out, stash the target and route through
+        // login → set-password, then back into the meeting.
+        if (type === 'MEETING_INVITE' || type === 'MEETING_LIVE') {
+          const meetingId = (data.meetingId as string | undefined)
+            ?? (data.meetingSessionId as string | undefined);
+          if (meetingId && projectId) {
+            const token = await getToken().catch(() => null);
+            if (token) {
+              router.push(meetingLivePath(projectId, meetingId));
+            } else {
+              await setPendingMeeting({ projectId, meetingId });
+              router.push('/login');
+            }
+            return;
+          }
+        }
 
         if (type.startsWith('ISSUE')) {
           // Phase 96 — prefer direct navigation to the detail screen when we

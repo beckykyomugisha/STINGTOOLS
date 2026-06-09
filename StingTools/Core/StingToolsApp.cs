@@ -577,6 +577,14 @@ namespace StingTools.Core
                 // Prevents stale project-wide scope from carrying over between projects
                 Select.SelectionScopeHelper.SetScope(false);
 
+                // Restore the per-document Planscape project link into the
+                // in-memory CurrentProjectId so the invite path + background
+                // sync target the project this model is linked to (and so a
+                // stale link from a previously-active model doesn't leak across
+                // project switches). No-op when the model isn't linked.
+                try { StingTools.BIMManager.PlanscapeProjectLink.RestoreInto(e.Document); }
+                catch (Exception linkEx) { StingLog.Warn($"Planscape link restore: {linkEx.Message}"); }
+
                 // Standards: sync ProjectStandardsManager from this document.
                 // The manager persists to %APPDATA% (per-user, not per-project)
                 // so without a per-project hint, opening a different .rvt keeps

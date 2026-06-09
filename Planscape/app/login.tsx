@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import { theme } from '@/utils/theme';
 import { useAuth } from '@/hooks/useAuth';
+import { consumePendingMeeting, meetingLivePath } from '@/services/pendingMeeting';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -27,7 +28,13 @@ export default function LoginScreen() {
     const url = serverUrl.trim() || undefined;
     const ok = await login(email.trim(), password, url);
     if (ok) {
-      router.replace('/(tabs)');
+      // P1 — if we arrived here from a meeting deep link, go straight to it.
+      const pending = await consumePendingMeeting();
+      if (pending) {
+        router.replace(meetingLivePath(pending.projectId, pending.meetingId));
+      } else {
+        router.replace('/(tabs)');
+      }
     }
   }
 

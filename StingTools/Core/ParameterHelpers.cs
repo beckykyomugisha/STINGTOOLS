@@ -504,10 +504,16 @@ namespace StingTools.Core
                 if (digits.Length > 0 && digits.Length <= 3)
                     return "L" + digits.PadLeft(2, '0');
 
-                // Unrecognized pattern — return XX rather than truncating the name
-                // which could produce nonsensical level codes
-                StingLog.Info($"GetLevelCode: unrecognized level name '{name}', defaulting to XX");
-                return "XX";
+                // Item 6 — unrecognized but REAL name: sanitize + pass through (trim + collapse
+                // spaces → UPPER, e.g. "Ring beam" → "RING-BEAM") instead of flattening to XX,
+                // which loses the level across all tagging. Cap to 12 chars to keep tag-container
+                // length assumptions sane; only fall back to XX if sanitization yields nothing.
+                string sane = System.Text.RegularExpressions.Regex.Replace(name, @"\s+", "-");
+                sane = System.Text.RegularExpressions.Regex.Replace(sane, @"[^A-Za-z0-9\-]", "").ToUpperInvariant().Trim('-');
+                if (sane.Length > 12) sane = sane.Substring(0, 12).Trim('-');
+                if (string.IsNullOrEmpty(sane)) { StingLog.Info($"GetLevelCode: level name '{name}' sanitized to empty, defaulting to XX"); return "XX"; }
+                StingLog.Info($"GetLevelCode: unrecognized level name '{name}' → passthrough code '{sane}'");
+                return sane;
             }
             catch (Exception ex)
             {

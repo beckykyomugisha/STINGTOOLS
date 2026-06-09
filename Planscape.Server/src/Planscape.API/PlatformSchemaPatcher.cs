@@ -57,6 +57,11 @@ internal static class PlatformSchemaPatcher
             ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT now(),
             ""EndedAt"" timestamp with time zone)",
         @"CREATE INDEX IF NOT EXISTS ""IX_MeetingSessions_Project_Status"" ON ""MeetingSessions"" (""ProjectId"", ""Status"")",
+        // WS3 MeetingMedia — active-surface columns (nullable; app defaults to 'model').
+        // Idempotent ADD COLUMN covers BOTH a fresh CREATE above (which omits them) and a
+        // pre-existing MeetingSessions table that predates the columns.
+        @"ALTER TABLE ""MeetingSessions"" ADD COLUMN IF NOT EXISTS ""ActiveSurface"" text",
+        @"ALTER TABLE ""MeetingSessions"" ADD COLUMN IF NOT EXISTS ""ActiveDocumentId"" uuid",
         @"CREATE TABLE IF NOT EXISTS ""MeetingViewerParticipants"" (
             ""Id"" uuid PRIMARY KEY,
             ""TenantId"" uuid NOT NULL,

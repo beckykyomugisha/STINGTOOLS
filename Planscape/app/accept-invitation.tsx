@@ -20,6 +20,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { apiFetch, setTokens } from "@/api/client";
+import { consumePendingMeeting, meetingLivePath } from "@/services/pendingMeeting";
 
 interface AcceptResponse {
   accessToken: string;
@@ -51,7 +52,13 @@ export default function AcceptInvitationScreen() {
       });
       await setTokens(resp.accessToken, resp.refreshToken);
       Alert.alert("Welcome!", `Signed in as ${resp.userName}`);
-      router.replace("/(tabs)");
+      // P1 — if activation was triggered by a meeting deep link, jump into it.
+      const pending = await consumePendingMeeting();
+      if (pending) {
+        router.replace(meetingLivePath(pending.projectId, pending.meetingId));
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Invitation could not be accepted.");
     } finally {

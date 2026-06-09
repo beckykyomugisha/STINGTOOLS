@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.API.Authorization;
@@ -26,16 +27,19 @@ public class ProjectMembersController : ControllerBase
     private readonly IEmailService _emailService;
     private readonly IProjectMembershipNotifier _membershipNotifier;
     private readonly IConfiguration _config;
+    private readonly ILogger<ProjectMembersController> _logger;
 
     public ProjectMembersController(PlanscapeDbContext db,
                                     IEmailService emailService,
                                     IProjectMembershipNotifier membershipNotifier,
-                                    IConfiguration config)
+                                    IConfiguration config,
+                                    ILogger<ProjectMembersController> logger)
     {
         _db = db;
         _emailService = emailService;
         _membershipNotifier = membershipNotifier;
         _config = config;
+        _logger = logger;
     }
 
     // ── GET all members for a project ─────────────────────────────────────────
@@ -197,11 +201,49 @@ public class ProjectMembersController : ControllerBase
     [HttpPost("invite")]
     public async Task<ActionResult> InviteByEmail(Guid projectId, [FromBody] InviteByEmailRequest req)
     {
-        if (!await IsManagerOrAboveAsync(projectId)) return Forbid();
+        // Authorize by PROJECT role (see AuthorizeManageAsync). On denial, log
+        // the reason and return JSON { message } the plugin surfaces — never a
+        // bare 403 (which the user can't act on).
+        var auth = await AuthorizeManageAsync(projectId);
+        if (!auth.ok)
+        {
+            _logger.LogWarning("[invite] denied: caller {UserId} role {Role} on project {ProjectId} — {Reason}",
+                ProjectVisibility.GetUserId(User), auth.callerRole, projectId, auth.reason);
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                message = $"You don't have permission to invite members to this project ({auth.reason})."
+            });
+        }
 
         var tenantId = GetTenantId();
         var project  = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+
+        // Resolve the public base URL once (Planscape:PublicBaseUrl when set —
+        // e.g. behind a tunnel/cloud; else the request origin). Used for BOTH
+        // the email link and the link returned to the plugin so they're identical.
+        var baseUrl = Planscape.API.PublicUrl.Resolve(_config, Request);
+        var linkWarning = InviteLink.UnstableBaseWarning(baseUrl);
+
+        string? rawInviteToken = null;   // set when we mint/reissue a pending invite
+        bool emailDispatched = false;    // true only when an invite email was actually attempted
+
+        // Single active invite token per pending user. Stored as the SHA-256
+        // hash in RefreshToken (RESET: prefix → reset-password.html sets the
+        // password AND activates). Re-minting overwrites the prior hash, so the
+        // previous link stops working — exactly one live token at a time.
+        // Expiry defaults to 7 days; override via Auth:InviteTokenExpiryDays.
+        int inviteExpiryDays = int.TryParse(_config["Auth:InviteTokenExpiryDays"], out var ied) && ied > 0 ? ied : 7;
+        string MintInviteToken(AppUser u)
+        {
+            var raw = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
+                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+            var hash = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
+            u.RefreshToken = $"RESET:{hash}";
+            u.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(inviteExpiryDays);
+            return raw;
+        }
 
         var user = await _db.Users.FirstOrDefaultAsync(u =>
             u.Email == req.Email.ToLowerInvariant() && u.TenantId == tenantId);
@@ -214,20 +256,6 @@ public class ProjectMembersController : ControllerBase
             if (tenant != null && userCount >= tenant.MaxUsers)
                 return BadRequest($"User limit ({tenant.MaxUsers}) reached. Upgrade your plan to add more users.");
 
-            // P10 — generate an invitation token the user can exchange for an
-            // access token via POST /api/auth/accept-invitation. Stored in
-            // RefreshToken with "INV:" prefix so AuthController.AcceptInvitation
-            // can distinguish it from refresh / reset tokens.
-            //
-            // Phase 175 — store the SHA-256 of the token, not the raw value.
-            // The raw value goes in the email body; the DB only ever holds
-            // the hash. AcceptInvitation hashes the inbound token before
-            // comparing.
-            var inviteToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
-                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
-            var inviteTokenHash = Convert.ToHexString(
-                System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(inviteToken)));
-
             user = new AppUser
             {
                 TenantId      = tenantId,
@@ -237,12 +265,13 @@ public class ProjectMembersController : ControllerBase
                 Role          = UserRole.Contributor,
                 Iso19650Role  = req.Iso19650Role ?? "M",
                 IsActive      = false,  // awaiting first login / password set
-                // RESET: (not INV:) so the invite link's token validates against
-                // /api/auth/reset-password, which sets the password AND activates
-                // the user. reset-password.html consumes ?token=…&email=….
-                RefreshToken  = $"RESET:{inviteTokenHash}",
-                RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(14),
             };
+            // Mint the single active invite token. RESET: prefix (not INV:) so
+            // the link validates against /api/auth/reset-password, which sets the
+            // password AND activates the user — one complete onboarding step.
+            // The DB only ever holds the SHA-256 hash; the raw value goes in the
+            // email and is single-use (reset-password nulls it on consume).
+            rawInviteToken = MintInviteToken(user);
             _db.Users.Add(user);
 
             var userId5 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid5) ? uid5 : (Guid?)null;
@@ -260,18 +289,38 @@ public class ProjectMembersController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            // Send invite email with password-reset link. PublicUrl.Resolve uses
-            // Planscape:PublicBaseUrl (the tunnel/cloud URL) when set, so the link
-            // a remote guest receives is reachable — never the internal localhost.
+            // Send invite email with the one-click deep link (token + email +
+            // project). baseUrl uses Planscape:PublicBaseUrl when set, so the
+            // link a remote guest receives is reachable — never internal localhost.
             await _emailService.SendInviteEmailAsync(
                 user.Email, user.DisplayName, GetCurrentUserName(),
-                project.Name, Planscape.API.PublicUrl.Resolve(_config, Request), inviteToken);
+                project.Name, baseUrl, rawInviteToken, projectId);
+            emailDispatched = _emailService.IsConfigured;
+        }
+        else if (!user.IsActive)
+        {
+            // Re-invite of an existing PENDING (never-activated) user. Reissue a
+            // fresh token — invalidating the prior one — and resend, so the
+            // re-invite isn't a silent no-op. Idempotent: each call replaces the
+            // last token, so repeated re-invites keep working.
+            if (string.IsNullOrWhiteSpace(user.DisplayName) && !string.IsNullOrWhiteSpace(req.DisplayName))
+                user.DisplayName = req.DisplayName!;
+            rawInviteToken = MintInviteToken(user);
+            await _db.SaveChangesAsync();
+
+            await _emailService.SendInviteEmailAsync(
+                user.Email, user.DisplayName, GetCurrentUserName(),
+                project.Name, baseUrl, rawInviteToken, projectId);
+            emailDispatched = _emailService.IsConfigured;
+            _logger.LogInformation("[invite] reissued token for {Email} on project {ProjectId}", user.Email, projectId);
         }
 
-        // Add to project
+        // Add to project. Only block as a duplicate when the user is a fully
+        // onboarded (active) member — a pending invitee whose member row already
+        // exists must still be re-invitable (token reissued above).
         var existing = await _db.ProjectMembers
             .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == user.Id);
-        if (existing != null && existing.IsActive)
+        if (existing != null && existing.IsActive && user.IsActive)
             return Conflict("User is already a member of this project");
 
         // Phase 177-D — apply named preset baseline; explicit fields override.
@@ -311,12 +360,32 @@ public class ProjectMembersController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        // Item 8 — report whether mail ACTUALLY went out (not merely whether SMTP
+        // is configured) so the plugin shows "emailed" vs "copy the link" honestly.
+        // Deep link — return the one-click accept URL so the plugin can show + log
+        // it and copy it as the fallback when mail wasn't sent.
+        bool emailSent = emailDispatched;
+        string? inviteUrl = rawInviteToken != null
+            ? InviteLink.BuildAcceptUrl(baseUrl, req.Email.Trim(), rawInviteToken, projectId)
+            : null;
+
+        _logger.LogInformation(
+            "[invite] sent project={ProjectId} to={Email} emailSent={EmailSent} link={Link}{Warn}",
+            projectId, req.Email, emailSent, inviteUrl ?? "(none)",
+            linkWarning != null ? " WARNING(base-url): " + linkWarning : "");
+
         return Ok(new
         {
             message    = $"Invitation recorded for {req.Email}",
             userId     = user.Id,
             isPending  = !user.IsActive,
-            note       = user.IsActive ? null : "An invitation email has been sent with instructions to set a password."
+            emailSent,
+            inviteLink = inviteUrl,
+            linkWarning,
+            note       = !user.IsActive
+                ? (emailSent ? "An invitation email has been sent with instructions to set a password."
+                             : "Email is not configured on the server — copy the invitation link to the invitee instead.")
+                : null
         });
     }
 
@@ -516,10 +585,45 @@ public class ProjectMembersController : ControllerBase
     }
 
     private async Task<bool> IsManagerOrAboveAsync(Guid projectId)
+        => (await AuthorizeManageAsync(projectId)).ok;
+
+    /// <summary>
+    /// Authorize a membership-management action (add / invite / update / remove).
+    /// Authorization is by the caller's PROJECT role, NOT the global JWT
+    /// <c>role</c> claim — that earlier check 403'd a project Manager/author
+    /// whose tenant role happened to be Contributor, so they couldn't invite
+    /// to their own project. A caller is allowed when they are:
+    ///   • a tenant Admin / Owner / SecurityOfficer, OR
+    ///   • the project author (<c>Project.CreatedById</c>), OR
+    ///   • an active <c>ProjectMember</c> whose <c>ProjectRole</c> is
+    ///     Owner / Admin / Manager.
+    /// Returns the (denial) reason and the caller's effective role for logging.
+    /// </summary>
+    private async Task<(bool ok, string reason, string callerRole)> AuthorizeManageAsync(Guid projectId)
     {
-        if (!await CanAccessProjectAsync(projectId)) return false;
-        var role = User.FindFirst("role")?.Value ?? "";
-        return role is "Manager" or "Admin" or "Owner";
+        if (!await CanAccessProjectAsync(projectId))
+            return (false, "caller cannot see this project", "(none)");
+
+        if (ProjectVisibility.IsTenantAdmin(User))
+            return (true, "tenant admin", User.FindFirst("role")?.Value ?? "Admin");
+
+        var userId = ProjectVisibility.GetUserId(User);
+
+        var project = await _db.Projects.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == projectId);
+        if (project?.CreatedById is Guid author && author == userId)
+            return (true, "project author", "Author");
+
+        var member = await _db.ProjectMembers.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId && m.IsActive);
+        if (member == null)
+            return (false, "caller is not an active member of this project", "(none)");
+
+        var pr = member.ProjectRole ?? "";
+        if (pr is "Owner" or "Admin" or "Manager")
+            return (true, $"project {pr}", pr);
+
+        return (false, $"project role '{pr}' lacks membership-management permission (need Manager or above)", pr);
     }
 
     // Phase 177 — normalise inbound array → CSV; null/empty array means

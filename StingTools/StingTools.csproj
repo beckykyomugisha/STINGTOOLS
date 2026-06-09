@@ -143,10 +143,17 @@
   -->
   <Target Name="RemoveConflictingAssemblies" AfterTargets="ResolveAssemblyReferences">
     <ItemGroup>
-      <!-- Keep System.IO.Packaging — it's a NuGet package needed by ClosedXML/OpenXml -->
+      <!-- Keep System.IO.Packaging (ClosedXML/OpenXml) + System.IO.Pipelines (SignalR client).
+           Item 5: KEEP the SignalR runtime closure — Microsoft.AspNetCore.* (SignalR.Client*,
+           Http.Connections*, Connections.Abstractions) + Microsoft.Extensions.* (DI / Logging /
+           Options / Primitives / Configuration.Abstractions / Features). Revit does NOT preload
+           these, and the realtime client fails to load without them ("Could not load
+           ...SignalR.Client.Core"). The genuine framework conflicts this target guards
+           (WindowsBase / Presentation* / mscorlib / netstandard / other System.*/Microsoft.*)
+           are still removed. -->
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
-        Condition="($([System.String]::new('%(Filename)').StartsWith('System.')) And '%(Filename)' != 'System.IO.Packaging') Or
-                   $([System.String]::new('%(Filename)').StartsWith('Microsoft.')) Or
+        Condition="($([System.String]::new('%(Filename)').StartsWith('System.')) And '%(Filename)' != 'System.IO.Packaging' And '%(Filename)' != 'System.IO.Pipelines') Or
+                   ($([System.String]::new('%(Filename)').StartsWith('Microsoft.')) And $([System.String]::new('%(Filename)').StartsWith('Microsoft.AspNetCore.')) != 'true' And $([System.String]::new('%(Filename)').StartsWith('Microsoft.Extensions.')) != 'true') Or
                    '%(Filename)' == 'WindowsBase' Or
                    '%(Filename)' == 'PresentationCore' Or
                    '%(Filename)' == 'PresentationFramework' Or
