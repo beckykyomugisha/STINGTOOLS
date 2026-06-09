@@ -3524,29 +3524,30 @@ namespace StingTools.Tags
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  Augment Tag Families — reinject T4-T10 into existing .rfa files
+    //  Augment Tag Families — full parameter sync for existing .rfa files
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Reinjects T4-T10 shared parameters and visibility formulas into
-    /// existing STING tag family .rfa files without touching any already-
-    /// configured T1-T3 label rows.
+    /// Brings every STING tag family .rfa on disk up to the complete
+    /// STING parameter contract without disturbing any already-configured labels.
     ///
-    /// Safe by design:
-    ///   • <c>FamilyManager.AddParameter</c> is additive-only — if a shared
-    ///     parameter is already bound, the call is a no-op. T1-T3 parameters
-    ///     and their label elements are never removed or repositioned.
-    ///   • <c>FamilyLabelAuthor.AuthorLabelsMulti</c> only processes rows
-    ///     declared in T4..T10 of the CSV tier plans. T1-T3 label elements are
-    ///     completely outside its scope.
-    ///   • When <c>preserveHandEdits</c> is true (default), families where ANY
-    ///     text/annotation element has been manually positioned have their
-    ///     formula re-writes skipped — only the param bindings are added.
+    /// What it injects (all additive — existing params are never removed or moved):
+    ///   1. Tag containers   — TAG1-TAG7, TAG7A-TAG7F (13 params)
+    ///   2. Visibility gates — TAG_PARA_STATE_1..10_BOOL + TAG_WARN_VISIBLE_BOOL
+    ///   3. Tag style matrix — 128 TAG_{size}{style}_{colour}_BOOL variants
+    ///   4. Appearance params — box colour/visible/style, leader colour,
+    ///                          TAG_SCALE_TIER_AUTO_BOOL, TAG_DEPTH_TIER_INT
+    ///   5. Description      — ASS_DESCRIPTION_TXT
+    ///   6. Category-specific label params from LABEL_DEFINITIONS.json
+    ///   7. T4-T10 label formula rows — from STING_TAG_CONFIG_v5_0_*.csv
     ///
-    /// Use case: you ran CreateTagFamilies and configured T1-T3 labels in the
-    /// Revit family editor. Later the CSV files gained T4-T10 content (or the
-    /// CSVs were updated). Run AugmentTagFamilies to bring every .rfa up to
-    /// date with the current CSV tier definitions without losing your label work.
+    /// Safety guarantees:
+    ///   • FamilyManager.AddParameter is additive-only: already-bound params are skipped.
+    ///   • FamilyLabelAuthor.AuthorLabelsMulti only touches T4..T10 rows from the CSV tier plans.
+    ///   • T1-T3 label elements are completely outside its scope.
+    ///   • When PreserveHandEdits=true, formula writes are skipped on hand-positioned families
+    ///     (param bindings are still added — only the formula overwrite is deferred).
+    ///   • Families with no CSV tier plan still receive the full base + style + visibility params.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -3585,15 +3586,6 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
-            if (plansByFamily.Count == 0 && (plansByMode == null || plansByMode.Count == 0))
-            {
-                TaskDialog.Show("Augment Tag Families",
-                    "No tier plans found in tag config CSVs.\n\n" +
-                    "Ensure the STING_TAG_CONFIG_v5_0_*.csv files are present in the data folder " +
-                    "and contain T4..T10 tier rows.");
-                return Result.Cancelled;
-            }
-
             // ── Step 3: Locate .rfa output folder ─────────────────────
             string outputDir = TagFamilyConfig.GetOutputDirectory();
             if (!Directory.Exists(outputDir))
@@ -3616,10 +3608,15 @@ namespace StingTools.Tags
             // ── Step 4: Confirm with user ──────────────────────────────
             var confirm = TaskDialog.Show("Augment Tag Families",
                 $"Found {rfaFiles.Length} STING .rfa files in:\n{outputDir}\n\n" +
-                "This will:\n" +
-                "  • Add any missing T4-T10 shared parameters (additive-only)\n" +
-                "  • Apply/update T4-T10 visibility formulas from the CSV tier definitions\n" +
-                "  • Leave ALL existing T1-T3 label rows completely untouched\n\n" +
+                "This will inject ALL missing parameters (additive — nothing removed):\n" +
+                "  • Tag containers (TAG1-TAG7, TAG7A-TAG7F)\n" +
+                "  • Visibility gates (TAG_PARA_STATE_1..10_BOOL, TAG_WARN_VISIBLE_BOOL)\n" +
+                "  • Tag style matrix (128 TAG_{size}{style}_{colour}_BOOL variants)\n" +
+                "  • Appearance params (box colour/style, leader colour, scale/depth cache)\n" +
+                "  • Category-specific label params (LABEL_DEFINITIONS.json)\n" +
+                "  • T4-T10 label formulas (STING_TAG_CONFIG CSV tier definitions)\n\n" +
+                "T1-T3 label rows you have already configured are NOT touched.\n" +
+                "Families with no CSV tier plan still receive base + style + visibility params.\n\n" +
                 $"Preserve hand-edited label positions: {(preserveHandEdits ? "YES" : "NO")}\n\n" +
                 "Continue?",
                 TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
@@ -3632,16 +3629,6 @@ namespace StingTools.Tags
             foreach (string rfaPath in rfaFiles)
             {
                 string famName = Path.GetFileNameWithoutExtension(rfaPath);
-
-                // Build mode plans for this family from the loaded tier data
-                var modePlans = BuildModePlans(plansByMode, plansByFamily, famName);
-                if (modePlans.Count == 0)
-                {
-                    report.AppendLine($"  [SKIP] {famName} — no T4..T10 plan in CSVs");
-                    noplan++;
-                    continue;
-                }
-
                 Document famDoc = null;
                 try
                 {
@@ -3653,26 +3640,61 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    var opts = new FamilyLabelAuthor.Options
+                    // ── 5a: Detect the family's Revit category ─────────
+                    string categoryDisplay = DetectCategoryName(famDoc);
+
+                    // ── 5b: Build the FULL parameter list for this family
+                    //   Includes: TagParams + VisibilityParams + StyleParams
+                    //             + ASS_DESCRIPTION_TXT + category label params
+                    List<string> allParams = TagFamilyConfig.GetAllFamilyParams(
+                        categoryDisplay, famName);
+
+                    // ── 5c: Inject ALL missing shared parameters ────────
+                    int injected = InjectMissingParams(famDoc, allParams, sharedParamFile, app);
+
+                    // ── 5d: Apply T4-T10 label formulas from CSVs ──────
+                    var modePlans = BuildModePlans(plansByMode, plansByFamily, famName);
+                    int formulasApplied = 0, formulasSkipped = 0,
+                        tiersPreserved = 0, labelRebound = 0;
+                    string planTag = "(no CSV tier plan — base/style params only)";
+
+                    if (modePlans.Count > 0)
                     {
-                        App = app,
-                        SharedParamFile = sharedParamFile,
-                        PreserveHandEdits = preserveHandEdits,
-                        FamilyName = famName,
-                    };
+                        var opts = new FamilyLabelAuthor.Options
+                        {
+                            App = app,
+                            SharedParamFile = sharedParamFile,
+                            PreserveHandEdits = preserveHandEdits,
+                            FamilyName = famName,
+                        };
+                        FamilyLabelAuthor.Result r =
+                            FamilyLabelAuthor.AuthorLabelsMulti(famDoc, modePlans, opts);
+                        formulasApplied = r.FormulasApplied;
+                        formulasSkipped = r.FormulasSkipped;
+                        tiersPreserved  = r.TiersPreserved;
+                        labelRebound    = r.LabelRebound;
+                        planTag = modePlans.Count > 1
+                            ? $"modes=[{string.Join(",", modePlans.ConvertAll(m => m.Mode))}]"
+                            : "single-mode";
+                        foreach (var w in r.Warnings)
+                            StingLog.Warn($"AugmentTagFamilies {famName}: {w}");
+                    }
+                    else
+                    {
+                        noplan++;
+                    }
 
-                    FamilyLabelAuthor.Result r = FamilyLabelAuthor.AuthorLabelsMulti(
-                        famDoc, modePlans, opts);
-
-                    // Save in-place (same path, overwrite)
+                    // ── 5e: Save in-place ───────────────────────────────
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(rfaPath, saveOpts);
 
-                    report.AppendLine($"  [OK]   {famName} — " +
-                        $"bound={r.ParamsBound} formulas={r.FormulasApplied} " +
-                        $"skipped={r.FormulasSkipped} preserved={r.TiersPreserved}");
-                    foreach (var w in r.Warnings)
-                        StingLog.Warn($"AugmentTagFamilies {famName}: {w}");
+                    report.AppendLine($"  [OK]   {famName}");
+                    report.AppendLine(
+                        $"           cat=\"{categoryDisplay}\" " +
+                        $"injected={injected} {planTag}");
+                    report.AppendLine(
+                        $"           formulas={formulasApplied} skipped={formulasSkipped} " +
+                        $"preserved={tiersPreserved} label-rebound={labelRebound}");
                     success++;
                 }
                 catch (Exception ex)
@@ -3693,7 +3715,8 @@ namespace StingTools.Tags
                 var reload = TaskDialog.Show("Augment Tag Families — Reload?",
                     $"Augmented {success} families successfully.\n\n" +
                     "Reload all augmented .rfa files into the current project?\n" +
-                    "(Families already loaded will be overwritten with the updated version.)",
+                    "(Only families that are already loaded will be updated.)\n\n" +
+                    "overwriteParameterValues = false — existing placed-tag instance values are preserved.",
                     TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
 
                 if (reload == TaskDialogResult.Yes)
@@ -3704,19 +3727,19 @@ namespace StingTools.Tags
                         string famName = Path.GetFileNameWithoutExtension(rfaPath);
                         try
                         {
-                            Family existingFamily = null;
+                            // Only reload families that are already in the project
+                            bool found = false;
                             foreach (Family f in new FilteredElementCollector(doc)
                                 .OfClass(typeof(Family)).Cast<Family>())
                             {
-                                if (string.Equals(f.Name, famName, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    existingFamily = f;
-                                    break;
-                                }
+                                if (string.Equals(f.Name, famName,
+                                    StringComparison.OrdinalIgnoreCase))
+                                { found = true; break; }
                             }
-                            if (existingFamily == null) continue; // only reload what's already loaded
+                            if (!found) continue;
 
-                            using (Transaction tx = new Transaction(doc, $"STING Reload {famName}"))
+                            using (Transaction tx = new Transaction(doc,
+                                $"STING Reload {famName}"))
                             {
                                 tx.Start();
                                 doc.LoadFamily(rfaPath, new OverwriteLoadOptions(), out Family _);
@@ -3726,30 +3749,149 @@ namespace StingTools.Tags
                         }
                         catch (Exception ex)
                         {
-                            StingLog.Warn($"AugmentTagFamilies reload {famName}: {ex.Message}");
+                            StingLog.Warn(
+                                $"AugmentTagFamilies reload {famName}: {ex.Message}");
                             reloadFailed++;
                         }
                     }
                     report.AppendLine();
-                    report.AppendLine($"Reloaded {reloaded} into project ({reloadFailed} failed).");
+                    report.AppendLine(
+                        $"Reloaded {reloaded} into project ({reloadFailed} failed).");
                 }
             }
 
             // ── Step 7: Summary ────────────────────────────────────────
             string summary =
-                $"Augmented: {success}   No plan: {noplan}   Failed: {failed}\n" +
+                $"Processed {rfaFiles.Length}:  OK={success}  " +
+                $"No-CSV-plan={noplan}  Failed={failed}\n" +
                 $"Source: {outputDir}\n\n" +
                 report.ToString();
 
             TaskDialog.Show("Augment Tag Families — Complete", summary);
+            return Result.Succeeded;
+        }
 
-            return failed == 0 ? Result.Succeeded : Result.Succeeded; // always Succeeded so caller sees the report
+        // ─────────────────────────────────────────────────────────────
+        //  Static helpers
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Detect the Revit category display name from an open family document,
+        /// e.g. "Ducts", "Air Terminals", "Mechanical Equipment", "Lighting Fixtures".
+        /// Falls back to empty string on any failure so GetAllFamilyParams still works.
+        /// </summary>
+        private static string DetectCategoryName(Document famDoc)
+        {
+            try
+            {
+                var famCatId = famDoc.OwnerFamily?.FamilyCategoryId;
+                if (famCatId == null || famCatId == ElementId.InvalidElementId)
+                    return "";
+                var cat = Category.GetCategory(famDoc, famCatId);
+                return cat?.Name ?? "";
+            }
+            catch { return ""; }
         }
 
         /// <summary>
-        /// Build the list of mode plans for a given family name by consulting
-        /// both the per-mode and the flat family maps (same logic as
+        /// Open MR_PARAMETERS.txt and add every parameter in <paramref name="paramNames"/>
+        /// that is not already bound in the family. Additive-only: existing params are left
+        /// exactly as-is. Returns the count of newly added parameters.
+        /// </summary>
+        private static int InjectMissingParams(
+            Document famDoc,
+            IEnumerable<string> paramNames,
+            string sharedParamFile,
+            Autodesk.Revit.ApplicationServices.Application app)
+        {
+            string originalFile = app.SharedParametersFilename;
+            try
+            {
+                app.SharedParametersFilename = sharedParamFile;
+                DefinitionFile defFile = app.OpenSharedParameterFile();
+                if (defFile == null)
+                {
+                    StingLog.Warn(
+                        "AugmentTagFamilies.InjectMissingParams: cannot open shared param file");
+                    return 0;
+                }
+
+                // Build O(1) lookup of already-present param names
+                var present = new HashSet<string>(StringComparer.Ordinal);
+                FamilyManager famMan = famDoc.FamilyManager;
+                foreach (FamilyParameter fp in famMan.Parameters)
+                    present.Add(fp.Definition.Name);
+
+                // Collect definitions to add (skip already-present ones)
+                var toAdd = new List<ExternalDefinition>();
+                foreach (string pName in paramNames)
+                {
+                    if (present.Contains(pName)) continue;
+                    ExternalDefinition extDef = FindExternalDefinition(defFile, pName);
+                    if (extDef == null)
+                    {
+                        StingLog.Warn(
+                            $"AugmentTagFamilies: '{pName}' not found in MR_PARAMETERS.txt");
+                        continue;
+                    }
+                    toAdd.Add(extDef);
+                }
+
+                if (toAdd.Count == 0) return 0;
+
+                int added = 0;
+                using (Transaction tx = new Transaction(famDoc, "STING Inject Missing Params"))
+                {
+                    tx.Start();
+                    foreach (ExternalDefinition extDef in toAdd)
+                    {
+                        try
+                        {
+                            famMan.AddParameter(
+                                extDef,
+                                GroupTypeId.General,
+                                true /* isInstance = true: tags display per-instance values */);
+                            added++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn(
+                                $"AugmentTagFamilies: cannot add '{extDef.Name}': {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+                return added;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("AugmentTagFamilies.InjectMissingParams failed", ex);
+                return 0;
+            }
+            finally
+            {
+                // ALWAYS restore — prevents leaving Revit pointed at the wrong SP file
+                try { app.SharedParametersFilename = originalFile; } catch { }
+            }
+        }
+
+        /// <summary>Search every group in the definition file for a matching parameter name.</summary>
+        private static ExternalDefinition FindExternalDefinition(
+            DefinitionFile defFile, string paramName)
+        {
+            foreach (DefinitionGroup grp in defFile.Groups)
+                foreach (Definition def in grp.Definitions)
+                    if (def.Name == paramName && def is ExternalDefinition ext)
+                        return ext;
+            return null;
+        }
+
+        /// <summary>
+        /// Build the list of mode plans for a given family name by consulting both the
+        /// per-mode and the flat family tier-plan maps (same logic as
         /// <see cref="CreateTagFamiliesCommand.AuthorFromPlanIfAvailable"/>).
+        /// Returns an empty list when the family has no CSV tier plan entry — in that
+        /// case the caller still injects base + style + visibility params, just skips formulas.
         /// </summary>
         private static List<FamilyLabelAuthor.ModePlan> BuildModePlans(
             Dictionary<string, Dictionary<string, TierPlan>> plansByMode,
@@ -3767,9 +3909,9 @@ namespace StingTools.Tags
                     if (plan == null) continue;
                     modePlans.Add(new FamilyLabelAuthor.ModePlan
                     {
-                        Mode = kv.Key,
+                        Mode      = kv.Key,
                         GateParam = HandoverModeHelper.GetSelectorBool(kv.Key),
-                        Plan = plan,
+                        Plan      = plan,
                     });
                 }
             }
@@ -3789,12 +3931,15 @@ namespace StingTools.Tags
             return modePlans;
         }
 
-        /// <summary>IFamilyLoadOptions that always overwrites existing types.</summary>
+        /// <summary>
+        /// IFamilyLoadOptions that always accepts the incoming family without
+        /// overwriting instance parameter values on already-placed tags.
+        /// </summary>
         private sealed class OverwriteLoadOptions : IFamilyLoadOptions
         {
             public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
             {
-                overwriteParameterValues = false; // preserve instance param values on placed tags
+                overwriteParameterValues = false; // preserve placed-tag instance values
                 return true;
             }
             public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse,
