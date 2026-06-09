@@ -187,6 +187,18 @@ class PlanscapeClient:
         return out
 
     # ------------------------------------------------------------------
+    # substrate drift-check (Phase A4)
+    # ------------------------------------------------------------------
+
+    def get_substrate_manifest(self) -> dict:
+        """GET /api/substrate/manifest — the server's substrate hash.
+
+        Returns the server's ``{ "sha256", "schemaVersion", "totalEnums" }``.
+        The substrate is global (not project-scoped), so no project id.
+        """
+        return self._request("GET", "/api/substrate/manifest")
+
+    # ------------------------------------------------------------------
     # tag sync (existing endpoint)
     # ------------------------------------------------------------------
 
@@ -246,3 +258,44 @@ class PlanscapeClient:
                 raise PlanscapeNetworkError(f"HTTP {e.code} from {path}: {e.reason}") from e
             except _urlerr.URLError as e:
                 raise PlanscapeNetworkError(f"network error contacting {path}: {e.reason}") from e
+
+
+# ----------------------------------------------------------------------
+# substrate drift-check helper (Phase A4)
+# ----------------------------------------------------------------------
+
+def check_substrate_drift(client: Any, shared_ifc: Optional[Any] = None) -> tuple[bool, str]:
+    """Compare this host's substrate hash against the server's.
+
+    Returns ``(ok, message)``:
+      - ``(True, …)``  — in sync, or the server hasn't pinned a hash, or the
+        check could not be performed (network/transport error) — drift-check
+        never blocks login.
+      - ``(False, …)`` — the host reads a different (stale/forked) substrate
+        than the federation; ``message`` is suitable for a host warning.
+
+    ``client`` is duck-typed: any object exposing ``get_substrate_manifest()``
+    returning ``{"sha256": …}`` works (the core :class:`PlanscapeClient`, the
+    Bonsai add-on client, or the StingBridge client).
+    """
+    from .. import substrate
+
+    try:
+        local = substrate.substrate_manifest_sha256(shared_ifc)
+    except FileNotFoundError as e:
+        return True, f"substrate check skipped (no local manifest: {e})"
+
+    try:
+        remote = client.get_substrate_manifest()
+    except Exception as e:  # noqa: BLE001 — never block login on a transport hiccup
+        return True, f"substrate check skipped (server unreachable: {e})"
+
+    remote_hash = remote.get("sha256") if isinstance(remote, dict) else None
+    if substrate.compare(local, remote_hash):
+        return True, "substrate in sync with server"
+    return (
+        False,
+        "SUBSTRATE DRIFT — this host reads a different shared/ifc vocabulary "
+        f"than the server (local {local[:12]}… vs server {(remote_hash or '')[:12]}…). "
+        "Re-sync shared/ifc before coordinating.",
+    )

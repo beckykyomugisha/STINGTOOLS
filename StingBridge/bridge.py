@@ -62,6 +62,7 @@ def _make_clients(cfg: BridgeConfig) -> tuple[ArchiCadClient, PlanscapeClient]:
         project_id=cfg.planscape_project_id,
     )
     ps.login(cfg.planscape_email, cfg.planscape_password)
+    _warn_on_substrate_drift(ps)
 
     return ac, ps
 
@@ -130,7 +131,28 @@ def _make_ps_client(cfg: BridgeConfig) -> PlanscapeClient:
         sys.exit(1)
     ps = PlanscapeClient(base_url=cfg.planscape_url, project_id=cfg.planscape_project_id)
     ps.login(cfg.planscape_email, cfg.planscape_password)
+    _warn_on_substrate_drift(ps)
     return ps
+
+
+def _warn_on_substrate_drift(ps: PlanscapeClient) -> None:
+    """Phase A4 — log a WARNING if this bridge's shared/ifc substrate differs
+    from the server's. Never raises: a drift-check failure must not stop sync."""
+    try:
+        from stingtools_core.planscape.client import check_substrate_drift
+    except ImportError:
+        # stingtools-core not on the path — skip silently (StingBridge can run
+        # the legacy sync without the shared core installed).
+        return
+    try:
+        ok, message = check_substrate_drift(ps)
+    except Exception as e:  # noqa: BLE001
+        log.debug("Substrate drift-check skipped: %s", e)
+        return
+    if not ok:
+        log.warning("%s", message)
+    else:
+        log.info("Substrate: %s", message)
 
 
 def cmd_watch_ifc(cfg: BridgeConfig, drop_dir: str) -> int:
