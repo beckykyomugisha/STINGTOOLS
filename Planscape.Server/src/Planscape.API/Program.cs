@@ -636,6 +636,10 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.IFederatedCoherence
 // Gap A–D — IFC alignment / georeferencing validator (called after every IFC ingest).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcAlignmentValidator,
     Planscape.Infrastructure.Services.IfcAlignmentValidator>();
+// Phase A4 — substrate drift-check. Hash of shared/ifc/enums/_manifest.json,
+// computed once and cached (immutable per deployment). Hosts compare on login.
+builder.Services.AddSingleton<Planscape.API.Services.ISubstrateManifestProvider,
+    Planscape.API.Services.SubstrateManifestProvider>();
 
 if (isWorker)
 {

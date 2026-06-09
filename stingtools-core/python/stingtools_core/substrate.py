@@ -28,10 +28,29 @@ def substrate_manifest_path(shared_ifc: Optional[Path] = None) -> Path:
     return base / MANIFEST_RELATIVE
 
 
+def _normalize_newlines(raw: bytes) -> bytes:
+    """Collapse CRLF/CR to LF so the hash is checkout-OS-independent.
+
+    The substrate ships in git; a Windows checkout with ``core.autocrlf=true``
+    materialises ``_manifest.json`` with CRLF line endings, while the LF blob is
+    what a Linux CI / Docker server build sees. Hashing the *raw* bytes would
+    therefore make a Windows host (Bonsai) and a Linux server drift *forever*
+    even on byte-identical content — the exact failure §6 of the integration
+    plan flags ("computed over the same file or it will always drift"). We hash
+    the LF-normalised content on BOTH halves so they agree regardless of how
+    each side's working tree was checked out.
+    """
+    return raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
 def substrate_manifest_sha256(shared_ifc: Optional[Path] = None) -> str:
-    """SHA-256 (hex) of this host's substrate manifest. The cross-host drift key."""
+    """SHA-256 (hex) of this host's substrate manifest. The cross-host drift key.
+
+    Computed over LF-normalised bytes (see :func:`_normalize_newlines`) so the
+    Windows-host hash equals the Linux-server hash for identical content.
+    """
     path = substrate_manifest_path(shared_ifc)
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashlib.sha256(_normalize_newlines(path.read_bytes())).hexdigest()
 
 
 def compare(local_hash: str, remote_hash: Optional[str]) -> bool:
