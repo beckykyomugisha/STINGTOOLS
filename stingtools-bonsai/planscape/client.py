@@ -141,3 +141,16 @@ class PlanscapeClient:
     def list_projects(self) -> Any:
         """GET /api/projects — used to help the user find their project id."""
         return self._request("GET", "/api/projects")
+
+    # ------------------------------------------------------------------
+    # substrate drift-check (Phase A4)
+    # ------------------------------------------------------------------
+    def get_substrate_manifest(self) -> dict:
+        """GET /api/substrate/manifest — the server's substrate hash.
+
+        Returns ``{ "sha256", "schemaVersion", "totalEnums" }``. The substrate
+        is global (not project-scoped). Used by the post-login drift-check so a
+        host reading a stale/forked shared/ifc vocabulary is warned, not left to
+        silently coordinate on divergent enums.
+        """
+        return self._request("GET", "/api/substrate/manifest")

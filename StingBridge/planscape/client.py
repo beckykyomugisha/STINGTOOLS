@@ -91,6 +91,23 @@ class PlanscapeClient:
         if not self._token or time.time() >= self._token_expiry:
             self.login(email, password)
 
+    # ── substrate drift-check (Phase A4) ─────────────────────────────────────
+
+    def get_substrate_manifest(self) -> dict:
+        """GET /api/substrate/manifest — the server's global substrate hash.
+
+        Returns ``{ "sha256", "schemaVersion", "totalEnums" }``. Used by the
+        worker-startup drift-check so a bridge running on a stale/forked
+        shared/ifc copy is warned before it ingests against divergent enums.
+        """
+        resp = self._session.get(
+            f"{self.base_url}/api/substrate/manifest", timeout=_TIMEOUT
+        )
+        if resp.status_code == 401:
+            raise PlanscapeAuthError("Token expired or invalid")
+        resp.raise_for_status()
+        return resp.json()
+
     # ── sync ─────────────────────────────────────────────────────────────────
 
     def ingest_ifc_data(
