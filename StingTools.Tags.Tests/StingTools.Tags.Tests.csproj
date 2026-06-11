@@ -26,6 +26,7 @@
     <Compile Include="..\StingTools\Docs\ReviewCommentTracker.cs" Link="Docs\ReviewCommentTracker.cs" />
     <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Core\Classification\CsiMasterFormat.cs" />
     <Compile Include="..\StingTools\Core\Validation\DeviceCoordination.cs" Link="Core\Validation\DeviceCoordination.cs" />
+    <Compile Include="..\StingTools\Core\Hvac\LifeCycleCostEngine.cs" Link="Core\Hvac\LifeCycleCostEngine.cs" />
   </ItemGroup>
 
 </Project>

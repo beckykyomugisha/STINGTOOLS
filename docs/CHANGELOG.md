@@ -3,6 +3,42 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192E2 — 40-year HVAC life-cycle cost comparison)
+
+Satisfies the A1 §17 mechanical "40-year by-year financial comparison
+including graphs" deliverable. **Build verified clean; NPV + escalation +
+replacement-cycle math unit-tested against hand-calculated toy cases
+(92/92 pass).**
+
+- **`Core/Hvac/LifeCycleCostEngine.cs`** (new, Revit-free) — `LccOption`
+  (capital, annual energy, per-m² or flat maintenance, replacement
+  cycles) + `LccInputs` (horizon / escalation% / discount%) +
+  `Compute` → per-option year-by-year rows (nominal + discounted),
+  40-yr nominal + NPV totals, and the nominal/NPV crossover year.
+  Documented convention: capital at year 0 (df 1); a cost in year y is
+  escalated `(1+esc)^(y-1)` and discounted `1/(1+disc)^y`; replacements
+  recur on `y % intervalYears == 0`.
+- **`Data/STING_HVAC_LCC_DEFAULTS.json`** (new, + project overlay
+  `_BIM_COORD/hvac_lcc.json`) — two worked options (VRF heat recovery vs
+  chilled-water AHU+FCU) over 40 yr; energy via direct cost / kWh×tariff /
+  model-derived (Σ HVC_PEAK_SENS_W × EFLH).
+- **`Commands/Hvac/HvacLifeCycleCompareCommand.cs`** (new, tag
+  `Hvac_LifeCycleCompare`, ReadOnly) — resolves energy + floor area from
+  the model where requested, runs the engine, writes a Summary sheet +
+  one year-by-year sheet per option (the chart-data columns) to
+  `STING_HVAC_LCC_<date>.xlsx`; dialog states graphs are charted in Excel.
+- **`StingTools.Tags.Tests/LifeCycleCostEngineTests.cs`** (new, 7 cases)
+  — 3-year hand-calc NPV (with/without escalation), replacement cycle,
+  per-m² maintenance, crossover year, empty-safe.
+- Registered: `Hvac_LifeCycleCompare` in `StingCommandHandler` +
+  `WorkflowEngine`; Life-cycle cost button on the HVAC panel RPRT tab
+  (fall-through dispatch).
+
+**Caveats**: command not Revit-smoke-tested — verify in Revit before
+merge. Graphs are charted from the XLSX columns (STING writes the data,
+not the chart objects). Model-derived energy is a Σ peak × equivalent-
+full-load-hours estimate, not an 8760-hour simulation.
+
 #### Completed (Phase 192D1 — ComCheck lighting input export)
 
 Generates a COMcheck interior-lighting data-entry CSV (A1 lighting
