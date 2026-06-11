@@ -231,6 +231,9 @@ namespace StingTools.UI
                     case "LOD_Verify":               RunCommand<Commands.Validation.LodVerifyCommand>(app); break;
                     case "LOD_Stamp":                RunCommand<Commands.Validation.LodStampCommand>(app); break;
 
+                    // ── Phase 192 (B3): Program audit vs Owner Excel template ──
+                    case "Program_Audit":            RunCommand<Commands.Validation.ProgramAuditCommand>(app); break;
+
                     // ── Phase 175: Design Options ──
                     case "DesignOptions_Inspect":             RunCommand<Commands.DesignOptions.DesignOptionsInspectCommand>(app); break;
                     case "DesignOptions_MoveTo":              RunCommand<Commands.DesignOptions.MoveToOptionCommand>(app); break;

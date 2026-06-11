@@ -342,7 +342,7 @@ namespace StingTools.Core
             "AutoTag", "BatchTag", "TagAndCombine", "TagNewOnly", "TagChanged", "FamilyStagePopulate",
             "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "TokenConfidenceAudit",
             "TagScheme_Render", "TagScheme_Inspect", "TagScheme_Audit",
-            "LOD_Verify", "LOD_Stamp", "ValidateTemplate",
+            "LOD_Verify", "LOD_Stamp", "Program_Audit", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
             "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
             "CreateDimStyles", "CreateVGOverrides", "ApplyFilters",
@@ -1511,6 +1511,7 @@ namespace StingTools.Core
                 case "TagScheme_Audit": return new Tags.TagSchemeAuditCommand();
                 case "LOD_Verify": return new Commands.Validation.LodVerifyCommand();
                 case "LOD_Stamp": return new Commands.Validation.LodStampCommand();
+                case "Program_Audit": return new Commands.Validation.ProgramAuditCommand();
                 case "ValidateTemplate": return new Temp.ValidateTemplateCommand();
 
                 // Templates

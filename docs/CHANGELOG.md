@@ -3,6 +3,44 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192B3 — Program Audit comparator)
+
+Audits model rooms against the Owner's live program Excel template
+(A1 §19) and emits a deficiency log. **Build verified clean; pure-logic
+join/compare unit-tested (48/48 pass).**
+
+- **`Core/Validation/ProgramAuditEngine.cs`** (new, Revit/Excel-free) —
+  `ProgramRow` / `ModelRoomRow` / `ProgramAuditRow` POCOs + `Normalize`
+  (case/space/punctuation-stripping key) + `Compare(program, model,
+  tolerancePct)`. Join order Room Number → exact name → normalised name;
+  unjoined template rows = MissingFromModel, unjoined model rooms =
+  ExtraInModel; area compared within ±tolerance (Compliant/Over/Under),
+  per-type count compared when the template carries a Required Count.
+- **`Commands/Validation/ProgramAuditCommand.cs`** (new, tag
+  `Program_Audit`, ReadOnly) — picks the template (OpenFileDialog),
+  reads it via ClosedXML with header-forgiving column matching
+  (configurable via `_BIM_COORD/program_audit_map.json`: name/number/
+  area/department/count/building header keyword lists + area unit
+  m²/ft² + tolerance), reads placed rooms (OST_Rooms, area > 0),
+  runs the engine, writes `STING_ProgramAudit_<yyyyMMdd>.xlsx` with a
+  per-row Status column + TaskDialog summary (compliant/over/under/
+  missing/extra/count-mismatch + first 15 deficiencies).
+- **`StingTools.Tags.Tests/ProgramAuditEngineTests.cs`** (new, 12 cases)
+  — Normalize, number-over-name join precedence, area bands,
+  missing/extra, normalised-name fallback, count mismatch, no-area
+  match. Links `ProgramAuditEngine.cs` via `<Compile Include>` (pure
+  net8.0, no Revit DLLs).
+- **`Tests/fixtures/kut/program_template_sample.xlsx`** (new) — 5-row
+  fixture for the manual Revit command smoke test.
+- Registered: `Program_Audit` in `StingCommandHandler` +
+  `WorkflowEngine` known-tags + `ResolveCommand`; Program Audit button
+  in the dock-panel BIM-tab LOD VERIFICATION section.
+
+**Caveats**: command (Excel/Revit IO) not Revit-smoke-tested — verify
+in Revit with the fixture before merge. Room area read in ft²×0.0929 →
+m²; template area unit defaults to m² (set `areaUnit:"ft2"` in the map
+overlay otherwise).
+
 #### Completed (Phase 192B1 — LOD Verification Engine)
 
 The single highest-value KUT item: verifies element maturity against a

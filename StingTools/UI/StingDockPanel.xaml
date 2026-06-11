@@ -3617,6 +3617,8 @@
                                             ToolTip="Verify element maturity against a milestone LOD (Deliverable A/B/C/D); TaskDialog + CSV + JSON gate report"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="LOD Stamp" Tag="LOD_Stamp" Click="Cmd_Click"
                                             ToolTip="Stamp ASS_LOD_VERIFIED_TXT on every element that passes the picked milestone"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Program Audit" Tag="Program_Audit" Click="Cmd_Click"
+                                            ToolTip="Audit model rooms against the Owner program Excel template — area/count compliance + missing/extra; XLSX deficiency log"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
