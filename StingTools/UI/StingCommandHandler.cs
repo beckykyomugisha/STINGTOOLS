@@ -244,6 +244,9 @@ namespace StingTools.UI
                     // ── Phase 192 (B4): Device coordination ──
                     case "DeviceCoord_Audit":        RunCommand<Commands.Validation.DeviceCoordinationCommand>(app); break;
 
+                    // ── Phase 192 (D1): ComCheck lighting input ──
+                    case "ComCheck_Export":          RunCommand<Commands.Electrical.Lighting.ComCheckExportCommand>(app); break;
+
                     // ── Phase 192 (C3): Bluebeam review comment tracker ──
                     case "ReviewComments_Import":     RunCommand<Docs.ReviewCommentsImportCommand>(app); break;
                     case "ReviewComments_Dashboard":  RunCommand<Docs.ReviewCommentsDashboardCommand>(app); break;

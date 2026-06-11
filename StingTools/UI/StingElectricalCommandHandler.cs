@@ -333,6 +333,9 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.Lighting.LightingPowerDensityCommand>(app); break;
                 case "Lite_LpdColor":
                     RunCommand<StingTools.Commands.Electrical.Lighting.LpdColorCommand>(app); break;
+                case "Lite_ComCheck":
+                case "ComCheck_Export":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.ComCheckExportCommand>(app); break;
                 case "Rprt_FaultSchedule":
                     RunCommand<StingTools.Commands.Electrical.Reports.FaultCurrentScheduleCommand>(app); break;
                 case "Rprt_DemandFactors":

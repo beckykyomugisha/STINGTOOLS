@@ -1281,6 +1281,9 @@
                                             Tag="Lite_LPD" Click="Cmd_Click"/>
                                     <Button Content="▶ Color rooms in view" Style="{StaticResource ElecActionBtn}"
                                             Tag="Lite_LpdColor" Click="Cmd_Click"/>
+                                    <Button Content="▶ ComCheck export" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Lite_ComCheck" Click="Cmd_Click"
+                                            ToolTip="Export a COMcheck interior-lighting CSV (per-space area + allowed LPD + installed fixtures; paste into COMcheck)"/>
                                 </WrapPanel>
                                 <DataGrid x:Name="LpdGrid" AutoGenerateColumns="False" CanUserAddRows="False"
                                           IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10" Margin="0,4">

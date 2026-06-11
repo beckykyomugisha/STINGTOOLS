@@ -3,6 +3,36 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192D1 — ComCheck lighting input export)
+
+Generates a COMcheck interior-lighting data-entry CSV (A1 lighting
+scope). **Build verified clean; not Revit-smoke-tested.**
+
+- **`Commands/Electrical/Lighting/ComCheckExportCommand.cs`** (new, tag
+  `ComCheck_Export` / `Lite_ComCheck`, ReadOnly) — one block per placed
+  room: COMcheck space type (from `HVC_SPACE_TYPE_TXT` or the room-name
+  map), floor area (ft² + m²), **allowed LPD reused from the existing
+  ASHRAE 90.1 LPD engine** (`LightingPowerDensityCommand.LoadLpdLimits` +
+  `LookupLimit` + `ReadWattage` — the table is NOT re-tabulated here),
+  and the installed fixture schedule per space (type, description, lamps,
+  watts each, quantity, total). Summary block: per-space + project
+  allowed-vs-proposed W with PASS/FAIL. CSV
+  `STING_ComCheck_Lighting_<date>.csv`; the dialog states designers paste
+  into COMcheck (STING does not write the binary `.cck`).
+- **`Data/STING_COMCHECK_SPACE_MAP.csv`** (new, ~30 rows + project
+  overlay `_BIM_COORD/comcheck_space_map.csv`) — room-name keyword →
+  COMcheck Activity/Space type label (longest pattern wins).
+- Registered: `ComCheck_Export` in `StingCommandHandler` +
+  `WorkflowEngine`; `Lite_ComCheck` in `StingElectricalCommandHandler`
+  with a "ComCheck export" button on the Electrical panel's LPD card.
+
+**Caveats**: command not Revit-smoke-tested — verify in Revit before
+merge. No pure-logic unit test (the calc is reused from the LPD engine;
+this command is Revit/aggregation-bound). Lamp count is best-effort from
+a "Number of Lamps" parameter, default 1. The `.cck` XML was assessed not
+cheap to emit; the CSV companion is the deliverable, as the prompt
+allows.
+
 #### Completed (Phase 192B4 — Device Coordination validator)
 
 Coordinates device locations against doors, casework, art/specialty and

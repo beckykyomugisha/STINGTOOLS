@@ -1,0 +1,37 @@
+# STING ComCheck space-type map (Phase 192 D1). Maps a room-name keyword to a
+# COMcheck interior-lighting Activity/Space type (ASHRAE 90.1-2019 space-by-space).
+# First matching pattern wins (longest pattern first). Project overlay:
+# <project>/_BIM_COORD/comcheck_space_map.csv. The ALLOWED LPD is NOT taken from
+# here — it is read from the existing LPD engine (STING_LPD_LIMITS.json); this
+# only supplies the COMcheck space-type label for the export.
+Pattern,ComCheckSpaceType
+open office,Office - Open Plan
+office,Office - Enclosed
+conference,Conference/Meeting/Multipurpose
+meeting,Conference/Meeting/Multipurpose
+classroom,Classroom/Lecture/Training
+corridor,Corridor
+lobby,Lobby
+reception,Lobby
+restroom,Restroom
+toilet,Restroom
+chapel,Religious Worship
+sanctuary,Religious Worship
+worship,Religious Worship
+baptistry,Religious Worship
+sealing,Religious Worship
+storage,Storage
+store,Storage
+plant,Electrical/Mechanical Room
+mechanical,Electrical/Mechanical Room
+electrical,Electrical/Mechanical Room
+kitchen,Food Preparation
+dining,Dining Area
+stair,Stairway
+lounge,Lounge/Breakroom
+break,Lounge/Breakroom
+library,Library - Reading Area
+laundry,Laundry/Washing Area
+locker,Locker Room
+gym,Gymnasium/Fitness Center
+parking,Parking Area
