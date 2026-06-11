@@ -3623,6 +3623,22 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- BLUEBEAM REVIEW COMMENTS (Phase 192 C3) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="REVIEW COMMENTS (BLUEBEAM)"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Owner Bluebeam Studio comment close-out tracking (phase-gate condition + monthly KPI)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Import" Tag="ReviewComments_Import" Click="Cmd_Click"
+                                            ToolTip="Import a Bluebeam comment summary (CSV/XLSX), assign a gate, upsert into _BIM_COORD/review_comments.json"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Dashboard" Tag="ReviewComments_Dashboard" Click="Cmd_Click"
+                                            ToolTip="Tracked comments grid + close-out rate + open count"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="KPI Export" Tag="ReviewComments_Export" Click="Cmd_Click"
+                                            ToolTip="Monthly KPI CSV — per-gate total / closed / close-out % / mean age / overdue"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- CARBON and CHANGE TRACKING -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CARBON and CHANGE TRACKING"/>
                         <Border Style="{StaticResource GroupBorder}">

@@ -3,6 +3,41 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192C3 — Bluebeam comment close-out tracker)
+
+Tracks Owner Bluebeam Studio review-comment close-out — a phase-gate
+condition (A1) and monthly KPI (proposal §4.6). **Build verified clean;
+pure-logic upsert/close-out/KPI unit-tested (63/63 pass).**
+
+- **`Docs/ReviewCommentTracker.cs`** (new, Revit/IO-free) —
+  `ReviewComment` / `ReviewCommentStore` / `ReviewKpiRow` POCOs +
+  `NormalizeStatus` (Bluebeam → Open/Answered/ResolvedPendingOwner/
+  Closed) + `Upsert` (re-import merges by SessionId|CommentId, keeps
+  first-seen, refreshes last-seen, preserves an assigned owner) +
+  `AgeDays` (first-seen → now/last-seen) + `CloseOutRate` + `BuildKpi`
+  (per-gate + ALL row, overdue = open beyond SLA).
+- **`Docs/ReviewCommentCommands.cs`** (new) — `ReviewComments_Import`
+  (CSV/XLSX parse with header-forgiving mapping configurable via
+  `_BIM_COORD/review_comment_map.json`; pick gate; upsert into
+  `_BIM_COORD/review_comments.json`), `ReviewComments_Dashboard`
+  (StingDataGridDialog grid + close-out rate + open count),
+  `ReviewComments_Export` (monthly KPI CSV: gate, total, closed,
+  close-out %, mean age, overdue).
+- **`StingTools.Tags.Tests/ReviewCommentTrackerTests.cs`** (new, 15
+  cases) — status mapping, upsert add/refresh/owner-preserve, close-out
+  rate, age (open vs closed), KPI grouping + overdue. Tracker linked via
+  `<Compile Include>`.
+- **`Tests/fixtures/kut/bluebeam_comments_sample.csv`** (new) — 8-row
+  synthetic Bluebeam summary for the manual command smoke test.
+- Registered: 3 tags in `StingCommandHandler` + `WorkflowEngine`
+  known-tags + `ResolveCommand`; REVIEW COMMENTS section on the
+  dock-panel BIM tab.
+
+**Caveats**: commands (CSV/XLSX/JSON IO + dashboard) not Revit-smoke-
+tested — verify in Revit with the fixture before merge. Owner assignment
++ the ResolvedPendingOwner state are persisted but the dashboard is
+currently read-only (no in-grid owner edit yet).
+
 #### Completed (Phase 192B3 — Program Audit comparator)
 
 Audits model rooms against the Owner's live program Excel template

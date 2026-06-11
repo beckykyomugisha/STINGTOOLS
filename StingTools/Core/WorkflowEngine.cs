@@ -342,7 +342,8 @@ namespace StingTools.Core
             "AutoTag", "BatchTag", "TagAndCombine", "TagNewOnly", "TagChanged", "FamilyStagePopulate",
             "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "TokenConfidenceAudit",
             "TagScheme_Render", "TagScheme_Inspect", "TagScheme_Audit",
-            "LOD_Verify", "LOD_Stamp", "Program_Audit", "ValidateTemplate",
+            "LOD_Verify", "LOD_Stamp", "Program_Audit",
+            "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
             "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
             "CreateDimStyles", "CreateVGOverrides", "ApplyFilters",
@@ -1512,6 +1513,9 @@ namespace StingTools.Core
                 case "LOD_Verify": return new Commands.Validation.LodVerifyCommand();
                 case "LOD_Stamp": return new Commands.Validation.LodStampCommand();
                 case "Program_Audit": return new Commands.Validation.ProgramAuditCommand();
+                case "ReviewComments_Import": return new Docs.ReviewCommentsImportCommand();
+                case "ReviewComments_Dashboard": return new Docs.ReviewCommentsDashboardCommand();
+                case "ReviewComments_Export": return new Docs.ReviewCommentsExportCommand();
                 case "ValidateTemplate": return new Temp.ValidateTemplateCommand();
 
                 // Templates
