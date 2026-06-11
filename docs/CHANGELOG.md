@@ -3,6 +3,50 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192A — KUT: finish the tag-scheme work)
+
+Closes the Phase 191 "gaps you own" list from
+[`PROMPT_KUT_PHASE_192_IMPLEMENTATION.md`](PROMPT_KUT_PHASE_192_IMPLEMENTATION.md)
+Part A. **Build verified clean** against the Revit 2025 API
+(`dotnet build`, 0 warnings / 0 errors) — the Phase 191 commit also
+compiles clean, so the "verify compile" caveat on Phase 191 is
+discharged. Not yet Revit-smoke-tested — verify in Revit before merge.
+
+- **`Tags/TokenConfidenceAuditCommand.cs`** (new, tag
+  `TokenConfidenceAudit`, ReadOnly) — A1. Reporting layer over the
+  pipeline's provenance params (`ASS_LOC_SOURCE_TXT` /
+  `ASS_ZONE_SOURCE_TXT` / `ASS_SYS_DETECT_LAYER_INT`). Classifies
+  LOC/ZONE/SYS per element into High (Room / TYPE_OVERRIDE / Workset /
+  ScopeBox; SYS layers 1–5) / Medium (ProjectInfo; SYS 6) / Low
+  (Default / unset; SYS 7). TaskDialog: band totals, the
+  silent-BLD1-default count (LOC=BLD1 with `LOC_SOURCE=Default` — reads
+  as "Temple" but never confirmed), per-discipline + per-category SYS
+  fallback (top 10), first 10 offender ElementIds. CSV
+  `STING_TokenConfidence_Audit.csv` (one row per low-band element).
+- **A2** — `StingToolsApp.OnDocumentClosing` now invalidates
+  `TagSchemeRegistry` per document. Dock-panel TAGS tab gains a SCHEME
+  TAGS section (Render / Inspect / Audit) + a Token Confidence button
+  in the QA WrapPanel. `TagScheme_Render/Inspect/Audit` +
+  `TokenConfidenceAudit` registered in `WorkflowEngine` known-tags +
+  `ResolveCommand`. NLP patterns added.
+- **A3** — `docs/examples/KUT/` worked example overlay
+  (`project_config.json` six-building LOC + per-building sequence,
+  `tag_schemes.json` enabling `kut-temple-example`, `README.md` setup
+  sequence + BEP detection rules).
+- **A4** — scope-box LOC detection. `SpatialAutoDetect.ScopeBoxLoc` +
+  `BuildScopeBoxLocIndex` + `DetectLocFromScopeBox`; a scope box named
+  `STING-LOC::<loc>` declares a building footprint, and a site element
+  whose bbox centre falls inside (XY) gets that LOC with
+  `LOC_SOURCE="ScopeBox"`. Cached on `PopulationContext.ScopeBoxLocs`;
+  `PopulateAll` consults it only when room/workset detection fell to the
+  project/BLD1 default. Token Confidence Audit bands ScopeBox as High.
+
+**Caveats**: not Revit-smoke-tested (LoadSharedParams param-bind check,
+BatchTag, TokenConfidenceAudit on a real model still pending). Scope-box
+detection uses the element's untransformed bbox centre — hosted families
+whose bbox is degenerate before placement are skipped, falling through to
+the existing default (no regression).
+
 #### Completed (Phase 191 — Tag Scheme engine: project-grammar tag renderings)
 
 Built for the Kampala Uganda Temple (KUT) engagement; generic for any
