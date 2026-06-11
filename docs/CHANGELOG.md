@@ -3,6 +3,33 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192D2 — US standards preset overlay)
+
+Exposes US presets as data where engines are already parameterised — no
+new calculation engines. **Build verified clean.**
+
+- **`Data/STING_US_PRESET_OVERLAY.json`** (new, documented example) —
+  overlay slots for `_BIM_COORD/mep_sizing_rules.json`: `_defaultRegion:
+  US_IP` (duct/pipe → US_IP size + bore tables already in the corporate
+  file), `conduit.maxFillPct: 40` (NEC Ch 9 Table 1, >2 conductors),
+  `cableTray.maxFillPct: 50` (NEC 392.22). Not auto-loaded — the BIM
+  manager copies the slots needed.
+- **`docs/US_STANDARDS_PRESET.md`** (new) — capability map: already
+  US-capable (ASHRAE 90.1 LPD + ComCheck, NEC 392 tray fill, NEC Ch 9
+  conduit fill, NEC demand factors, IEEE 1584 arc flash, Hunter's-method
+  plumbing, US_IP duct/pipe sizes) vs remains BS/EN-only (LPS EN 62305,
+  NFPA 13 hydraulics, IPC drainage, NEC ampacity cable sizing, BS 5422
+  insulation) — flagged, not silently mis-applied.
+- **LPS report EN 62305 note** — `LpsFullReportCommand` now emits an
+  INFO note when the project reads as US-context (resolved climate-site
+  country US, or the address names the US): STING LPS figures are EN
+  62305; under US codes lightning protection is NFPA 780, a performance
+  spec by the engineer of record (A2 makes it a performance spec anyway).
+
+**Caveats**: data + docs + one report note only. No NEC ampacity / NFPA
+13 / IPC engines were added — those are genuine new-engine work, flagged
+in the capability map.
+
 #### Completed (Phase 192E3 — Kampala climate data)
 
 Confirms the project's design-day climate resolves. **Data + docs only;

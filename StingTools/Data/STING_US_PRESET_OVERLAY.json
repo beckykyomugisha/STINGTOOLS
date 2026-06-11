@@ -1,0 +1,15 @@
+{
+  "_schema": "STING_MEP_SIZING_RULES",
+  "_version": "1.0",
+  "_comment": "Phase 192 D2 — US-standards preset OVERLAY EXAMPLE. This is documentation, NOT auto-loaded. Copy the slots you need into <project>/_BIM_COORD/mep_sizing_rules.json (the MepSizingRegistry layers that file over the corporate STING_MEP_SIZING_RULES.json). It only changes values where the registry already has a slot — STING adds NO new US calculation engines. Sources: NEC Ch 9 Table 1 (conduit fill 40% for >2 conductors), NEC 392.22 (cable-tray fill 50%), SMACNA (US duct region uses the US_IP standardSizes already in the corporate file), ASHRAE 90.1 (air density 1.2), ASHRAE A48 / 90.1 (NC targets). Verify against the project spec before use.",
+  "_notes": [
+    "Set _defaultRegion to US_IP so duct/pipe sizing reads the US_IP standard-size + bore tables already in the corporate file.",
+    "conduit.maxFillPct 40 = NEC Chapter 9 Table 1 for more than two conductors (corporate default is BS 7671's 45%).",
+    "cableTray.maxFillPct 50 = NEC 392.22 (matches the corporate value; restated here for provenance).",
+    "ncTargets are ASHRAE A48 / 90.1 design values; restate per the corporate file's acoustics block keys."
+  ],
+  "duct": { "_defaultRegion": "US_IP" },
+  "pipe": { "_defaultRegion": "US_IP" },
+  "conduit": { "_defaultRegion": "US_IP", "maxFillPct": 40, "source": "NEC Ch 9 Table 1 — >2 conductors" },
+  "cableTray": { "_defaultRegion": "US_IP", "maxFillPct": 50, "source": "NEC 392.22" }
+}
