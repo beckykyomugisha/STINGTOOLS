@@ -916,6 +916,7 @@ namespace StingTools.UI
                     case "TagScheme_Render": RunCommand<Tags.RenderSchemeTagsCommand>(app); break;
                     case "TagScheme_Inspect": RunCommand<Tags.TagSchemeInspectCommand>(app); break;
                     case "TagScheme_Audit": RunCommand<Tags.TagSchemeAuditCommand>(app); break;
+                    case "TokenConfidenceAudit": RunCommand<Tags.TokenConfidenceAuditCommand>(app); break;
 
                     // ── Paragraph & Warning controls (v4.2) ──
                     case "SetParagraphDepth": RunCommand<Tags.SetParagraphDepthCommand>(app); break;

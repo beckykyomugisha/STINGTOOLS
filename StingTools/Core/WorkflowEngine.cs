@@ -340,7 +340,7 @@ namespace StingTools.Core
             "CreateWalls", "CreateFloors", "CreateCeilings", "CreateRoofs", "CreateDucts", "CreatePipes",
             "FullAutoPopulate", "BatchSchedules", "EvaluateFormulas",
             "AutoTag", "BatchTag", "TagAndCombine", "TagNewOnly", "TagChanged", "FamilyStagePopulate",
-            "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "ValidateTemplate",
+            "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "TokenConfidenceAudit", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
             "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
             "CreateDimStyles", "CreateVGOverrides", "ApplyFilters",
@@ -1503,6 +1503,7 @@ namespace StingTools.Core
                 // Validation
                 case "ValidateTags": return new Tags.ValidateTagsCommand();
                 case "PreTagAudit": return new Tags.PreTagAuditCommand();
+                case "TokenConfidenceAudit": return new Tags.TokenConfidenceAuditCommand();
                 case "ValidateTemplate": return new Temp.ValidateTemplateCommand();
 
                 // Templates
