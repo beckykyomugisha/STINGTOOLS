@@ -52,13 +52,26 @@ Build the extension zip (one-off), then install it through Blender's GUI.
 
 **Build the zip:**
 
+Use `build.py` — it vendors `stingtools_core` **and** the `shared/ifc/`
+substrate into `_vendor/` (both required for an installed `.zip` to
+work) and then zips. It prefers Blender's official toolchain when a
+`blender` executable is available, and falls back to an equivalent
+manual zip otherwise:
+
 ```bash
-blender --command extension build \
-  --source-dir stingtools-bonsai \
-  --output-dir stingtools-bonsai/dist
-# → stingtools-bonsai/dist/stingtools_bonsai-0.1.0.zip
-blender --command extension validate stingtools-bonsai/dist/stingtools_bonsai-0.1.0.zip
+cd stingtools-bonsai
+python build.py --blender /path/to/blender   # official extension build
+#   or just:  python build.py                # auto-detect; manual fallback
+# → dist/stingtools_bonsai-0.1.0.zip
+blender --command extension validate dist/stingtools_bonsai-0.1.0.zip
 ```
+
+> **Why not `blender --command extension build` directly?** That command
+> only zips the add-on folder — it does **not** copy in `stingtools_core`
+> or `shared/ifc/`, which live elsewhere in the repo. A `.zip` built that
+> way installs but reports "core: NOT LOADED" and `About STING` fails to
+> find the substrate. `build.py` does the vendoring first, then hands off
+> to (or substitutes for) the Blender toolchain.
 
 **Install in Blender 4.2+ (exact GUI steps):**
 
@@ -119,24 +132,29 @@ launching Blender:
 export STINGTOOLS_SHARED_IFC=/path/to/STINGTOOLS/shared/ifc
 ```
 
-## How `stingtools_core` is resolved
+## How `stingtools_core` + the substrate are resolved
 
-The add-on's `__init__.py` injects two candidate paths onto `sys.path`:
+An installed `.zip` is a self-contained folder — it can't walk up the
+repo tree — so the add-on needs **two** things vendored, and resolves
+each independently (see `__init__.py`):
 
-1. `../stingtools-core/python/` (when the add-on is symlinked from a
-   repo checkout — dev mode).
-2. `./_vendor/stingtools_core/` (when the add-on is built into a
-   packaged extension `.zip` — release mode).
+| Need | Dev mode (symlinked checkout) | Packaged `.zip` (release) |
+|---|---|---|
+| `stingtools_core` package | `../stingtools-core/python/` on `sys.path` | `_vendor/stingtools_core/` on `sys.path` |
+| `shared/ifc/` substrate | core walks up to the repo's `shared/ifc/` | `STINGTOOLS_SHARED_IFC` set to `_vendor/shared/ifc/` |
 
-The MVP build step copies `stingtools-core/python/stingtools_core/`
-into `_vendor/` so a deployed extension is self-contained.
+`build.py` copies both `stingtools-core/python/stingtools_core/` and
+`shared/ifc/` into `_vendor/` so a deployed extension is fully
+self-contained — no PyPI dependency, no repo-relative discovery. See
+`_vendor/_README.md`.
 
 ## Layout
 
 ```
 stingtools-bonsai/
 ├── blender_manifest.toml       extension manifest (Blender 4.2+)
-├── __init__.py                 bl_info + register / unregister + sys.path bridge
+├── __init__.py                 bl_info + register / unregister + sys.path + substrate-env bridge
+├── build.py                    vendors core + shared/ifc, builds the installable .zip
 ├── README.md                   this file
 ├── core/                       Bonsai coexistence layer
 │   └── bonsai.py               BonsaiBridge: detect + delegate IFC mutations
@@ -149,7 +167,7 @@ stingtools-bonsai/
 ├── handlers/                   bpy.app.handlers (MVP weeks 4+)
 ├── planscape/                  Planscape REST client (MVP week 5)
 ├── workflows/                  JSON preset chains (MVP week 6)
-└── _vendor/                    vendored stingtools_core for built extensions
+└── _vendor/                    vendored stingtools_core + shared/ifc (populated by build.py; empty in dev)
 ```
 
 ## Coexistence rules

@@ -37,11 +37,13 @@ bl_info = {
 # Make `stingtools_core` resolvable when it lives in the repo's
 # stingtools-core/python/ folder during dev. In a packaged extension
 # it'll be vendored under _vendor/.
+import os
 import sys
 from pathlib import Path
 
 _THIS = Path(__file__).resolve()
-_REPO_ROOT_CANDIDATES = [_THIS.parent.parent, _THIS.parent / "_vendor"]
+_VENDOR = _THIS.parent / "_vendor"
+_REPO_ROOT_CANDIDATES = [_THIS.parent.parent, _VENDOR]
 for _cand in _REPO_ROOT_CANDIDATES:
     _core = _cand / "stingtools-core" / "python"
     if _core.exists() and str(_core) not in sys.path:
@@ -49,6 +51,20 @@ for _cand in _REPO_ROOT_CANDIDATES:
     _vendored = _cand / "stingtools_core"
     if _vendored.exists() and str(_cand) not in sys.path:
         sys.path.insert(0, str(_cand))
+
+# Make the shared/ifc substrate (enums + psets + IDS) reachable.
+#
+# In dev the add-on is symlinked from a repo checkout, so the core
+# package's own walk-up discovery (paths.find_shared_ifc) finds the
+# repo's shared/ifc/ — nothing to do here.
+#
+# In a packaged .zip the substrate is vendored at _vendor/shared/ifc/.
+# Walk-up can't reach it (it's a self-contained install dir), so point
+# STINGTOOLS_SHARED_IFC at the vendored copy. setdefault so a user- or
+# dev-set env var always wins.
+_VENDORED_SUBSTRATE = _VENDOR / "shared" / "ifc"
+if (_VENDORED_SUBSTRATE / "enums" / "_README.md").exists():
+    os.environ.setdefault("STINGTOOLS_SHARED_IFC", str(_VENDORED_SUBSTRATE))
 
 
 def register():
