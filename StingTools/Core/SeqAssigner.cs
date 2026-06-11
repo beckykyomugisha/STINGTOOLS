@@ -72,17 +72,40 @@ namespace StingTools.Core
         /// sessions (empty DISC→A, SYS→GEN, LVL/XX→L00, ZONE/XX/ZZ→Z01).
         /// </summary>
         public static string BuildSeqKey(string disc, string sys, string lvl, string zone, bool includeZone)
+            => BuildSeqKey(disc, sys, lvl, zone, null, includeZone, includeLoc: false);
+
+        /// <summary>
+        /// Phase 191 — LOC-aware overload. When <paramref name="includeLoc"/> is
+        /// set the location (building/volume) code joins the counter key so each
+        /// building numbers independently — multi-building campuses get
+        /// per-volume sequences (Temple AHU-0001 and Meetinghouse AHU-0001
+        /// coexist). Key shapes: <c>DISC_SYS_LVL</c> · <c>DISC_ZONE_SYS_LVL</c>
+        /// · <c>DISC_LOC_SYS_LVL</c> · <c>DISC_LOC_ZONE_SYS_LVL</c>.
+        /// Empty/placeholder LOC normalises to BLD1 to match PopulateAll.
+        /// </summary>
+        public static string BuildSeqKey(string disc, string sys, string lvl, string zone, string loc, bool includeZone, bool includeLoc)
         {
             if (string.IsNullOrEmpty(disc)) disc = "A";
             if (string.IsNullOrEmpty(sys))  sys  = "GEN";
             if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
 
+            string locPart = null;
+            if (includeLoc)
+            {
+                locPart = loc;
+                if (string.IsNullOrEmpty(locPart) || locPart == "XX") locPart = "BLD1";
+            }
+
             if (includeZone)
             {
                 if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
-                return $"{disc}_{zone}_{sys}_{lvl}";
+                return includeLoc
+                    ? $"{disc}_{locPart}_{zone}_{sys}_{lvl}"
+                    : $"{disc}_{zone}_{sys}_{lvl}";
             }
-            return $"{disc}_{sys}_{lvl}";
+            return includeLoc
+                ? $"{disc}_{locPart}_{sys}_{lvl}"
+                : $"{disc}_{sys}_{lvl}";
         }
 
         /// <summary>Format a sequence number for the given scheme and pad width.</summary>

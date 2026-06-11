@@ -912,6 +912,11 @@ namespace StingTools.UI
                     case "PreTagAudit": RunCommand<Tags.PreTagAuditCommand>(app); break;
                     case "ResolveAllIssues": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
 
+                    // ── Tag Schemes (Phase 191 — project grammar renderings) ──
+                    case "TagScheme_Render": RunCommand<Tags.RenderSchemeTagsCommand>(app); break;
+                    case "TagScheme_Inspect": RunCommand<Tags.TagSchemeInspectCommand>(app); break;
+                    case "TagScheme_Audit": RunCommand<Tags.TagSchemeAuditCommand>(app); break;
+
                     // ── Paragraph & Warning controls (v4.2) ──
                     case "SetParagraphDepth": RunCommand<Tags.SetParagraphDepthCommand>(app); break;
                     case "ToggleWarningVisibility": RunCommand<Tags.ToggleWarningVisibilityCommand>(app); break;

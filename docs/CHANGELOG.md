@@ -3,6 +3,65 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 191 — Tag Scheme engine: project-grammar tag renderings)
+
+Built for the Kampala Uganda Temple (KUT) engagement; generic for any
+project whose Owner mandates a tag/identifier grammar different from
+the STING corporate 8-segment form. **Built without `dotnet build`
+verification (Linux sandbox) — verify in Revit before merge.** The
+companion implementation prompt for the remaining KUT work items lives
+in [`PROMPT_KUT_PHASE_192_IMPLEMENTATION.md`](PROMPT_KUT_PHASE_192_IMPLEMENTATION.md).
+
+- **`Core/TagSchemeEngine.cs`** (new) — `TagScheme` / `TagSchemeSegment`
+  POCOs + `TagSchemeRegistry` (corporate baseline
+  `Data/STING_TAG_SCHEMES.json` + project overlay
+  `<project>/_BIM_COORD/tag_schemes.json`, merged by id, project wins;
+  per-document cache; SHA-256 checksums; render stamp at
+  `_BIM_COORD/.sting_tag_scheme_stamp.json` for drift detection;
+  ProjectInformation value cache) + `TagSchemeRenderer` (segment kinds:
+  `token` with optional value map, `projectInfo`, `literal`). Schemes
+  are *renderings* of the canonical 8 source tokens — one token source
+  of truth, N rendered strings, zero drift by construction. A scheme
+  may never target `ASS_TAG_1_TXT` or a source token parameter.
+- **`Data/STING_TAG_SCHEMES.json`** (new) — `iso19650-element`
+  (PROJECT-ORIGINATOR-VOLUME-LEVEL-DISCIPLINE-NUMBER, reading
+  `PRJ_ORG_PROJECT_CODE_TXT` / `PRJ_ORG_ORIGINATOR_CODE_TXT` at render
+  time) + `kut-temple-example` (six-building volume map BLD1→01 …
+  EXT→00). Both ship disabled; projects opt in via the overlay.
+- **Pipeline hook** — `TagPipelineHelper.RunFullPipeline` renders all
+  enabled schemes right after `WriteTag7All`, so AutoTag / BatchTag /
+  TagAndCombine / TagNewOnly / ReTag **and the real-time IUpdater** emit
+  scheme tags through one code path. No-op when nothing is enabled.
+- **New shared parameter `ASS_TAG_SCHEME_TXT`** (UUIDv5
+  `2c8224df-92e0-567b-a9df-c8cd1e4402a3` in the Planscape docs
+  namespace) — default scheme target container. Registered in
+  `ParamRegistry` (constant + fallback `UniversalParams`),
+  `PARAMETER_REGISTRY.json` (`support_params`, binding universal),
+  `MR_PARAMETERS.txt` + `MR_PARAMETERS.csv`.
+- **Per-building SEQ grouping (`SEQ_INCLUDE_LOC`)** — new
+  `project_config.json` key; `SeqAssigner.BuildSeqKey` gains a LOC-aware
+  overload (`DISC_LOC_SYS_LVL` / `DISC_LOC_ZONE_SYS_LVL`, empty LOC
+  normalises to BLD1). Wired through `TagConfig` (flag + parse + reset +
+  scheme-change warning + `BuildAndWriteTag` key), both counter-scan
+  sites in `TagConfig.Defaults.cs`, and the five command call sites
+  (TokenWriter / PreTagAudit / TagOperationCommands ×3). Default off —
+  existing projects unchanged.
+- **3 new commands** (`Tags/TagSchemeCommands.cs`, dispatched via
+  `TagScheme_Render` / `TagScheme_Inspect` / `TagScheme_Audit`):
+  `RenderSchemeTagsCommand` (batch back-fill + heal, selection-else-
+  project scope, Escape-cancellable, updates render stamp),
+  `TagSchemeInspectCommand` (read-only: scheme list, validity, coverage,
+  checksum drift vs last render), `TagSchemeAuditCommand` (read-only
+  consistency: stored vs re-rendered per element, CSV to output dir —
+  catches hand-edited scheme tags and stale renders).
+
+Caveats: (1) no `dotnet build` run; (2) dock-panel buttons not yet
+added — commands dispatch via handler tags only; (3)
+`TagSchemeRegistry` caches are not yet dropped on document close; (4)
+the Token Confidence Audit (default-value provenance report) is
+specified but not yet implemented — all three are top items in the
+Phase 192 prompt.
+
 #### Completed (BOQ accuracy — review pass 2: each-unit carbon zeroing)
 
 Three corrections to the BOQ engine, appended as the "Review pass 2"

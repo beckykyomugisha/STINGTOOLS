@@ -4190,6 +4190,16 @@ namespace StingTools.Core
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
+                // Phase 191 — project tag scheme rendering. Renders the same
+                // tokens into any enabled project grammar (e.g. ISO 19650
+                // PROJECT-ORIGINATOR-VOLUME-LEVEL-DISCIPLINE-NUMBER) and
+                // writes the result to the scheme's own container parameter.
+                // No-op when no scheme is enabled for this document. Hooked
+                // here so AutoTag, BatchTag, TagAndCombine, TagNewOnly, ReTag
+                // and the IUpdater all emit scheme tags through one code path.
+                try { TagSchemeRenderer.RenderAll(doc, el, tokenVals); }
+                catch (Exception schEx) { StingLog.Warn($"TagScheme render on {el?.Id}: {schEx.Message}"); }
+
                 // Phase 176 — Lightning Protection System warnings (BS EN 62305).
                 // Cheap inline check: only LPS-tagged families incur the cost
                 // of LpsValidator.EvaluateAndWrite (10 rules + verdict roll-up).

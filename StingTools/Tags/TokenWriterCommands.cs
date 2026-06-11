@@ -367,8 +367,9 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(zone)) zone = "ZZ";
                     string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
                     string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                    string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                     // Use canonical BuildSeqKey for consistent key format across all commands
-                    string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
+                    string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone, loc);
                     maxSeq.TryGetValue(key, out int ms);
                     maxSeq[key] = ms + 1;
                     // Honor SeqScheme setting (Numeric/Alpha/ZonePrefix/DiscPrefix)

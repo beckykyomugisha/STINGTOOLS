@@ -381,7 +381,7 @@ namespace StingTools.Organise
                         if (string.IsNullOrEmpty(disc)) continue;
 
                         // FIX-B02: Use canonical BuildSeqKey for consistent key format
-                        string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
+                        string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone, loc);
                         if (!seqCounters.TryGetValue(seqKey, out _)) seqCounters[seqKey] = 0;
 
                         // Find next unique SEQ
@@ -608,10 +608,11 @@ namespace StingTools.Organise
                 string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
                 string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
                 string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                 if (string.IsNullOrEmpty(disc)) continue;
 
                 // TAG-03: Use canonical BuildSeqKey for consistent grouping with all other commands
-                string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
+                string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone, loc);
                 if (!groups.TryGetValue(key, out var grpList))
                     groups[key] = grpList = new List<Element>();
                 grpList.Add(elem);
@@ -5115,7 +5116,8 @@ namespace StingTools.Organise
                             string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
                             string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                             string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                            string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
+                            string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                            string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone, loc);
                             seqCounters.TryGetValue(key, out int sqc);
                             seqCounters[key] = sqc + 1;
                             string newSeq = seqCounters[key].ToString().PadLeft(ParamRegistry.NumPad, '0');

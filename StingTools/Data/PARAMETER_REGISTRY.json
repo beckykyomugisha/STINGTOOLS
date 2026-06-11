@@ -14831,6 +14831,13 @@
       "curated": true
     },
     {
+      "param_name": "ASS_TAG_SCHEME_TXT",
+      "guid": "2c8224df-92e0-567b-a9df-c8cd1e4402a3",
+      "description": "Project-grammar tag rendering (TagSchemeEngine) \u2014 derived from source tokens, e.g. ISO 19650 PROJECT-ORIGINATOR-VOLUME-LEVEL-DISCIPLINE-NUMBER",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ASS_WEIGHT_KG_NR",
       "guid": "c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa",
       "description": "Ass Weight Kg [ISO 19650]",

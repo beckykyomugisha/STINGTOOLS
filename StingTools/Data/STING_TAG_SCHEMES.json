@@ -1,0 +1,53 @@
+{
+  "version": "1.0",
+  "description": "STING tag scheme library — named project-grammar renderings of the canonical 8 source tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ, plus STATUS/REV). Schemes are RENDERINGS, not independent tag data: every scheme string is derived from the same tokens that build ASS_TAG_1_TXT, so the two can never drift. Segment kinds: 'token' (a source token, with optional 'map' value remapping such as LOC code → BEP volume code), 'projectInfo' (a ProjectInformation parameter such as PRJ_ORG_PROJECT_CODE_TXT, resolved once per document), 'literal' (fixed text). All corporate schemes ship DISABLED — projects opt in (and may override or add schemes) via <project>/_BIM_COORD/tag_schemes.json, merged by id with project entries winning. Rendered strings write to 'targetParam' (default ASS_TAG_SCHEME_TXT); a scheme may never target ASS_TAG_1_TXT or a source token parameter.",
+  "schemes": [
+    {
+      "id": "iso19650-element",
+      "name": "ISO 19650 element identifier",
+      "description": "Generic ISO 19650-2 style identifier: Project-Originator-Volume-Level-Discipline-Number. Project and originator codes are read from ProjectInformation (PRJ_ORG_PROJECT_CODE_TXT / PRJ_ORG_ORIGINATOR_CODE_TXT) at render time so a consultant or project-code change is a single field edit plus one re-render, never a per-element rewrite. Volume is the STING LOC token; remap LOC codes to BEP volume codes by adding a 'map' on the LOC segment in your project overlay.",
+      "origin": "corporate",
+      "enabled": false,
+      "targetParam": "ASS_TAG_SCHEME_TXT",
+      "separator": "-",
+      "segments": [
+        { "kind": "projectInfo", "param": "PRJ_ORG_PROJECT_CODE_TXT", "fallback": "PRJ" },
+        { "kind": "projectInfo", "param": "PRJ_ORG_ORIGINATOR_CODE_TXT", "fallback": "ZZZ" },
+        { "kind": "token", "token": "LOC" },
+        { "kind": "token", "token": "LVL" },
+        { "kind": "token", "token": "DISC" },
+        { "kind": "token", "token": "SEQ" }
+      ]
+    },
+    {
+      "id": "kut-temple-example",
+      "name": "Kampala Uganda Temple (KUT) element identifier — worked example",
+      "description": "Worked example for a six-building campus: KUT-<originator>-<volume>-<level>-<discipline>-<number>. The LOC segment maps STING building codes to two-digit BEP volume codes (BLD1 Temple → 01, BLD2 Meetinghouse → 02, BLD3 Housing/Ancillary → 03, BLD4 Grounds → 04, BLD5 Utility → 05, BLD6 Guard House → 06, EXT site-wide → 00). Copy this scheme into <project>/_BIM_COORD/tag_schemes.json, set enabled=true, and adjust codes to the agreed BEP volume table. Remains disabled in the corporate baseline.",
+      "origin": "example",
+      "enabled": false,
+      "targetParam": "ASS_TAG_SCHEME_TXT",
+      "separator": "-",
+      "segments": [
+        { "kind": "projectInfo", "param": "PRJ_ORG_PROJECT_CODE_TXT", "fallback": "KUT" },
+        { "kind": "projectInfo", "param": "PRJ_ORG_ORIGINATOR_CODE_TXT", "fallback": "ZZZ" },
+        {
+          "kind": "token",
+          "token": "LOC",
+          "map": {
+            "BLD1": "01",
+            "BLD2": "02",
+            "BLD3": "03",
+            "BLD4": "04",
+            "BLD5": "05",
+            "BLD6": "06",
+            "EXT": "00"
+          },
+          "fallback": "00"
+        },
+        { "kind": "token", "token": "LVL" },
+        { "kind": "token", "token": "DISC" },
+        { "kind": "token", "token": "SEQ" }
+      ]
+    }
+  ]
+}
