@@ -163,19 +163,17 @@ def _excluded(rel: Path, patterns: list[str]) -> bool:
 def build_manual(version: str) -> Path:
     """Zip the add-on dir honouring the manifest's exclude patterns.
 
-    Produces a layout identical to Blender's: every path prefixed with the
-    extension id directory, manifest at ``<id>/blender_manifest.toml``.
+    Produces the canonical Blender extension layout: a FLAT archive with
+    ``blender_manifest.toml`` at the root. That is what
+    ``extensions.package_install_files`` expects — the manifest must NOT be
+    nested under an extra directory. Mirrors what ``blender --command
+    extension build`` produces.
     """
     patterns = read_exclude_patterns()
     DIST_DIR.mkdir(exist_ok=True)
     out = DIST_DIR / f"stingtools_bonsai-{version}.zip"
     if out.exists():
         out.unlink()
-
-    # Blender nests everything under the extension id. Read it from manifest.
-    manifest = (ADDON_DIR / "blender_manifest.toml").read_text(encoding="utf-8")
-    idm = re.search(r'^\s*id\s*=\s*"([^"]+)"', manifest, re.MULTILINE)
-    ext_id = idm.group(1) if idm else "stingtools_bonsai"
 
     count = 0
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -185,7 +183,7 @@ def build_manual(version: str) -> Path:
             rel = path.relative_to(ADDON_DIR)
             if _excluded(rel, patterns):
                 continue
-            zf.write(path, f"{ext_id}/{rel.as_posix()}")
+            zf.write(path, rel.as_posix())
             count += 1
     _log(f"manual zip: {count} files -> {out}")
     return out
@@ -245,16 +243,25 @@ def main() -> int:
                  "(pass --blender <path> to use the official toolchain)")
         out = build_manual(version)
 
-    # Verify the artefact actually carries the two missing pieces.
+    # Verify the artefact actually carries the two missing pieces. Match on
+    # suffix so this holds for both the flat layout Blender produces
+    # (manifest at root) and any nested layout.
     with zipfile.ZipFile(out) as zf:
         names = zf.namelist()
-    has_core = any("/_vendor/stingtools_core/__init__.py" in n for n in names)
-    has_substrate = any("/_vendor/shared/ifc/enums/_README.md" in n for n in names)
+    has_core = any(n.endswith("_vendor/stingtools_core/__init__.py") for n in names)
+    has_substrate = any(n.endswith("_vendor/shared/ifc/enums/_README.md") for n in names)
+    has_manifest = any(n == "blender_manifest.toml" or n.endswith("/blender_manifest.toml")
+                       for n in names)
+    if not has_manifest:
+        _fail("built zip has no blender_manifest.toml — not a valid extension")
     if not has_core:
         _fail("built zip is missing _vendor/stingtools_core — core would not load")
     if not has_substrate:
         _fail("built zip is missing _vendor/shared/ifc — substrate would not load")
-    _log("verified: zip contains vendored core + substrate")
+    # dist/ must not be bundled into the package (zip-in-zip bloat).
+    if any("/dist/" in n or n.startswith("dist/") for n in names):
+        _fail("built zip bundles dist/ — add 'dist/' to manifest paths_exclude_pattern")
+    _log("verified: zip has manifest + vendored core + substrate, no dist/ bloat")
 
     if not args.keep_vendor:
         clean_vendor()

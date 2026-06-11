@@ -52,5 +52,8 @@ paths_exclude_pattern = [
     "__pycache__/",
     "*.pyc",
     ".git/",
+    ".gitignore",
     "tests/",
+    "dist/",
+    "build.py",
 ]
