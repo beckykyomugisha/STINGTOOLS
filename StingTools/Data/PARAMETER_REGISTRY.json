@@ -14886,6 +14886,42 @@
       "curated": true
     },
     {
+      "param_name": "LTG_HOIST_WEIGHT_KG",
+      "guid": "f2ec67d7-0d9a-561b-b3f6-11b713ac468e",
+      "description": "Decorative-lighting hoist load (kg) — A1 §5 lighting schedule",
+      "datatype": "TEXT",
+      "group_id": 7,
+      "group_name": "LTG_CONTROLS",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Electrical",
+      "curated": true
+    },
+    {
+      "param_name": "LTG_HOIST_MOTOR_TXT",
+      "guid": "aabcfa8d-62bb-55bc-8cf2-d84e365a75a5",
+      "description": "Decorative-lighting hoist motor type / reference — A1 §5 lighting schedule",
+      "datatype": "TEXT",
+      "group_id": 7,
+      "group_name": "LTG_CONTROLS",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Electrical",
+      "curated": true
+    },
+    {
+      "param_name": "LTG_HOIST_DROP_MM",
+      "guid": "c110503a-c776-5c6e-8298-24adf24d1fd0",
+      "description": "Decorative-lighting hoist drop distance (mm) — A1 §5 lighting schedule",
+      "datatype": "TEXT",
+      "group_id": 7,
+      "group_name": "LTG_CONTROLS",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Electrical",
+      "curated": true
+    },
+    {
       "param_name": "ASS_WEIGHT_KG_NR",
       "guid": "c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa",
       "description": "Ass Weight Kg [ISO 19650]",

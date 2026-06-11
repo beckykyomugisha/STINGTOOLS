@@ -212,6 +212,15 @@ namespace StingTools.Core
         /// UUIDv5 in namespace a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
         public const string FOHLIO_REF = "FOHLIO_REF_TXT";
         public const string FOHLIO_REF_GUID = "0ecf2056-1239-52bc-87f8-17c281e67209";
+        /// <summary>Phase 192 (E4) — decorative-lighting hoisting params (A1 §5
+        /// lighting schedule). UUIDv5 in namespace
+        /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
+        public const string LTG_HOIST_WEIGHT_KG = "LTG_HOIST_WEIGHT_KG";
+        public const string LTG_HOIST_WEIGHT_KG_GUID = "f2ec67d7-0d9a-561b-b3f6-11b713ac468e";
+        public const string LTG_HOIST_MOTOR_TXT = "LTG_HOIST_MOTOR_TXT";
+        public const string LTG_HOIST_MOTOR_TXT_GUID = "aabcfa8d-62bb-55bc-8cf2-d84e365a75a5";
+        public const string LTG_HOIST_DROP_MM = "LTG_HOIST_DROP_MM";
+        public const string LTG_HOIST_DROP_MM_GUID = "c110503a-c776-5c6e-8298-24adf24d1fd0";
         // Per-view 8-char "1"/"0" mask gating which segments render in
         // BuildDisplayTag without mutating the canonical ASS_TAG_1_TXT.
         // Bound to OST_Views so users can hide ZONE in a presentation view

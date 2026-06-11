@@ -3,6 +3,34 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192E4 — Temple seed content)
+
+Temple-specific seed content. **Build verified clean.**
+
+- **Baptismal font** — new `STING_SEED_BaptismalFont` symbol in
+  `Data/Seeds/STING_SEED_PlumbingFixture.json`: DCW + DHW supply, SAN
+  drain, and a recirculation supply/return connector pair (heated +
+  treated loop), plus font params (fill rate `PLM_FIX_FLOWRATE_LMIN`,
+  drain, working volume `PLM_FONT_VOLUME_L`, heater capacity
+  `PLM_FONT_HEATER_KW`, treatment loop `PLM_FONT_TREATMENT_TXT`, recirc
+  flow `PLM_FONT_RECIRC_LMIN`) + a BAPTISMAL_FONT type variant. Added as
+  a separate symbol (not a type variant) because the recirc connectors
+  differ from the base fixture.
+- **Decorative-lighting hoisting params** — `LTG_HOIST_WEIGHT_KG`,
+  `LTG_HOIST_MOTOR_TXT`, `LTG_HOIST_DROP_MM` (A1 §5) fully registered
+  (UUIDv5, group 7 `LTG_CONTROLS`): ParamRegistry constants +
+  UniversalParams fallback, PARAMETER_REGISTRY.json support_params,
+  MR_PARAMETERS.txt/csv. Added to the MEP_Electrical Lighting Schedule
+  field + header lists in `MR_SCHEDULES.csv` (the schedule pipeline reads
+  columns from there — verified) so the hoist columns appear on the
+  lighting schedule.
+
+**Caveats**: font-specific params (`PLM_FONT_*`) ship as family-local
+(shared:false) on the seed — they don't need registry GUIDs; promote to
+shared if a project schedules them. Seed geometry is the schematic
+2D/3D placeholder per the Phase 185 authoring rule; real font geometry
+comes from a manufacturer family via the swap registry.
+
 #### Completed (Phase 192D2 — US standards preset overlay)
 
 Exposes US presets as data where engines are already parameterised — no
