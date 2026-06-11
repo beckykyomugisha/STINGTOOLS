@@ -3,6 +3,28 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192E3 — Kampala climate data)
+
+Confirms the project's design-day climate resolves. **Data + docs only;
+build verified clean.**
+
+- `Data/STING_CLIMATE_DATA.json` already ships a **`kampala`** entry
+  (lat 0.042 / lon 32.444 / elev 1155 m; cooling 0.4 % DB 30.3 °C / MCWB
+  20.4 °C; heating 99.6 % 13.7 °C; UTC+3, no DST). Source citation
+  refined to name the ASHRAE 2021 Entebbe station (HUEN / WMO 636800) and
+  flag that the values are an area estimate to confirm before design use.
+- `ClimateRegistry.ByLabelContains` resolves it from
+  `ProjectInformation.Address` (id/label "Kampala" token-matches an
+  address containing "Kampala"); the `DocumentOpened` auto-stamp then
+  writes `PRJ_CLIMATE_SITE_ID` so HVAC commands read it directly.
+- **`docs/examples/KUT/climate_data.json`** (new) — project overlay
+  example for `_BIM_COORD/` so the engineer-of-record can replace the
+  corporate estimate with confirmed ASHRAE values.
+
+**Caveats**: the shipped Kampala cooling/heating values are an Entebbe
+area estimate — confirm against ASHRAE 2021 station data before relying
+on them for sizing (stated in the JSON source + the overlay example).
+
 #### Completed (Phase 192E1 — Prototype drift report)
 
 Answers the recurring Owner peer-review question "what changed vs the

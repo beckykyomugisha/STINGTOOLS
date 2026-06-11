@@ -1,0 +1,23 @@
+{
+  "_comment": "KUT climate overlay example (Phase 192 E3). Copy to <project>/_BIM_COORD/climate_data.json to override the corporate Kampala entry with VERIFIED ASHRAE 2021 design values once the engineer-of-record confirms them against the Entebbe station (HUEN / WMO 636800). The corporate STING_CLIMATE_DATA.json already ships a Kampala entry that resolves via the ProjectInformation.Address fuzzy-match (address containing 'Kampala'); this overlay is only needed if the corporate estimate must be replaced. The HVAC pressure-class audit + block-load air-density use the cooling 0.4% (99.6 percentile) dry-bulb.",
+  "_schema": "STING_CLIMATE_DATA",
+  "_version": "1.1",
+  "sites": [
+    {
+      "id": "kampala",
+      "label": "Kampala",
+      "country": "UG",
+      "lat": 0.042,
+      "lon": 32.444,
+      "elevationM": 1155,
+      "cooling996DbC": 30.3,
+      "cooling996McwbC": 20.4,
+      "heating996DbC": 13.7,
+      "hdd18": 0,
+      "cdd10": 3000,
+      "utcOffsetHours": 3,
+      "observesDstInSummer": false,
+      "source": "PROJECT OVERRIDE — replace with engineer-confirmed ASHRAE 2021 Entebbe (HUEN/636800) design values"
+    }
+  ]
+}
