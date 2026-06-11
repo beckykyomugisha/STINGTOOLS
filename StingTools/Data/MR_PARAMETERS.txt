@@ -1630,6 +1630,8 @@ PARAM	5bc65c4e-492c-5e7f-b892-b9c14b58d20a	ASS_TIEIN_SIZE_TXT	TEXT		1	1	Ass Tiei
 PARAM	c9e5a3b4-d6f7-4a8c-b10d-3e4f5a6b7c8d	ASS_TOKEN_LOCK_TXT	TEXT		1	1	Ass Token Lock [ISO 19650]	1
 PARAM	2c8224df-92e0-567b-a9df-c8cd1e4402a3	ASS_TAG_SCHEME_TXT	TEXT		1	1	Ass Tag Scheme [project grammar rendering, ISO 19650]	1
 PARAM	60440963-a414-5667-88f4-d12082344c4d	ASS_LOD_VERIFIED_TXT	TEXT		1	1	Ass Lod Verified [milestone id passed at LOD]	1
+PARAM	3c2c7d9d-93e2-5f95-a002-69b17450efe6	CSI_SECTION_TXT	TEXT		1	1	CSI MasterFormat section [e.g. 23 31 00]	1
+PARAM	160a2335-1886-5503-b569-28d9e63f5a75	CSI_TITLE_TXT	TEXT		1	1	CSI MasterFormat section title	1
 PARAM	c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa	ASS_WEIGHT_KG_NR	TEXT		1	1	Ass Weight Kg [ISO 19650]	1
 # -- Group 3: COM_DAT (Communications & Security) (8 params) --
 PARAM	d2828a98-abba-5a71-825c-e8b1c6355fe9	COM_C_PANEL_TXT	TEXT		3	1	Com C Panel [ISO 19650]	1

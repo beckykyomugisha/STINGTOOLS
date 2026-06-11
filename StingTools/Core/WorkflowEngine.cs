@@ -343,6 +343,7 @@ namespace StingTools.Core
             "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "TokenConfidenceAudit",
             "TagScheme_Render", "TagScheme_Inspect", "TagScheme_Audit",
             "LOD_Verify", "LOD_Stamp", "Program_Audit", "OwnerStandards_Audit",
+            "CSI_Assign", "SpecLink_Reconcile",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
             "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
@@ -1514,6 +1515,8 @@ namespace StingTools.Core
                 case "LOD_Stamp": return new Commands.Validation.LodStampCommand();
                 case "Program_Audit": return new Commands.Validation.ProgramAuditCommand();
                 case "OwnerStandards_Audit": return new Commands.Validation.OwnerStandardsAuditCommand();
+                case "CSI_Assign": return new Commands.Classification.CsiAssignCommand();
+                case "SpecLink_Reconcile": return new Commands.Classification.SpecLinkReconcileCommand();
                 case "ReviewComments_Import": return new Docs.ReviewCommentsImportCommand();
                 case "ReviewComments_Dashboard": return new Docs.ReviewCommentsDashboardCommand();
                 case "ReviewComments_Export": return new Docs.ReviewCommentsExportCommand();

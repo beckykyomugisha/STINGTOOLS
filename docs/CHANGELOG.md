@@ -3,6 +3,48 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192C2 — SpecLink / CSI MasterFormat cross-reference)
+
+Keeps model keynotes / classifications reconciled with the RIB SpecLink
+spec TOC (CSI MasterFormat). **Build verified clean; pure resolution +
+reconcile logic unit-tested (71/71 pass).**
+
+- **`CSI_SECTION_TXT` / `CSI_TITLE_TXT`** new shared params (UUIDv5
+  `3c2c7d9d-…` / `160a2335-…`) fully registered (ParamRegistry constants
+  + UniversalParams fallback, PARAMETER_REGISTRY.json support_params,
+  MR_PARAMETERS.txt/csv).
+- **`Data/STING_CSI_MASTERFORMAT_MAP.csv`** (new, ~85 rows + project
+  overlay `_BIM_COORD/csi_map.csv`) — `Category, FamilyRegex, TypeRegex,
+  Sys, Section, Title` rules for divisions 21/22/23/26/27/28 + 08/09/10/
+  12 (and a few 04/05/06/07 neighbours). Codes are starter
+  approximations to confirm against the project spec.
+- **`Core/Classification/CsiMasterFormat.cs`** (new, Revit-free) —
+  `CsiRule` (compiled family/type regexes) + scored `Resolve`
+  (most-specific match wins: category + family + type + SYS qualifiers;
+  ties → earliest rule) + `ParseCsvLines` (skips `#`/blank/header) +
+  `NormalizeSection` + `Reconcile` (spec-gap / over-spec / title-mismatch
+  diff).
+- **`Commands/Classification/CsiCommands.cs`** (new) — `CSI_Assign`
+  (Manual; fill-empty / overwrite picker; writes both params; reports
+  unmapped categories) + `SpecLink_Reconcile` (ReadOnly; header-forgiving
+  TOC CSV/XLSX import; XLSX report
+  `STING_SpecLink_Reconcile_<date>.xlsx`).
+- **`StingTools.Tags.Tests/CsiMasterFormatTests.cs`** (new, 8 cases) —
+  parse skips, family-beats-category, category fallback, SYS resolution,
+  null-when-no-rule, normalise, reconcile gaps/over-spec/mismatch,
+  missing-title-not-mismatch.
+- **`Tests/fixtures/kut/speclink_toc_sample.csv`** (new, 10 rows).
+- Registered: `CSI_Assign` / `SpecLink_Reconcile` in
+  `StingCommandHandler` + `WorkflowEngine`; CSI / SPECLINK section on the
+  dock-panel BIM tab.
+
+**Caveats**: commands not Revit-smoke-tested — verify with the fixture
+before merge. C2 step 4 (add CSI_SECTION_TXT to the COBie/handover export
+columns) was assessed **non-trivial** — `COBIE_ATTRIBUTE_TEMPLATES.csv`
+is keyed per equipment-type RowNamePattern, not a single column list, so
+adding CSI cleanly would touch many rows / the exporter; deferred per the
+"do not refactor exporters" instruction.
+
 #### Completed (Phase 192B2 — Owner Standards Pack)
 
 Encodes the Owner's BIM modeling standards as a configurable rule-pack

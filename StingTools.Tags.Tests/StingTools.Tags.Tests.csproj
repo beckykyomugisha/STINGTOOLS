@@ -24,6 +24,7 @@
     <Compile Include="..\StingTools\Core\SeqAssigner.cs" Link="Core\SeqAssigner.cs" />
     <Compile Include="..\StingTools\Core\Validation\ProgramAuditEngine.cs" Link="Core\Validation\ProgramAuditEngine.cs" />
     <Compile Include="..\StingTools\Docs\ReviewCommentTracker.cs" Link="Docs\ReviewCommentTracker.cs" />
+    <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Core\Classification\CsiMasterFormat.cs" />
   </ItemGroup>
 
 </Project>

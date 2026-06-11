@@ -3641,6 +3641,20 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- CSI MASTERFORMAT / SPECLINK (Phase 192 C2) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="CSI / SPECLINK"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="CSI MasterFormat classification + RIB SpecLink TOC reconciliation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="CSI Assign" Tag="CSI_Assign" Click="Cmd_Click"
+                                            ToolTip="Resolve + write CSI_SECTION_TXT / CSI_TITLE_TXT from STING_CSI_MASTERFORMAT_MAP.csv (category → family → SYS)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="SpecLink Reconcile" Tag="SpecLink_Reconcile" Click="Cmd_Click"
+                                            ToolTip="Compare model CSI sections against the SpecLink spec TOC — spec gaps / over-spec / title mismatches; XLSX report"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- CARBON and CHANGE TRACKING -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CARBON and CHANGE TRACKING"/>
                         <Border Style="{StaticResource GroupBorder}">

@@ -199,6 +199,14 @@ namespace StingTools.Core
         /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
         public const string LOD_VERIFIED = "ASS_LOD_VERIFIED_TXT";
         public const string LOD_VERIFIED_GUID = "60440963-a414-5667-88f4-d12082344c4d";
+        /// <summary>Phase 192 (C2) — CSI MasterFormat section (e.g. "23 31 00")
+        /// resolved by CSI_Assign from STING_CSI_MASTERFORMAT_MAP.csv. Reconciled
+        /// against the RIB SpecLink spec TOC. UUIDv5 in namespace
+        /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
+        public const string CSI_SECTION = "CSI_SECTION_TXT";
+        public const string CSI_SECTION_GUID = "3c2c7d9d-93e2-5f95-a002-69b17450efe6";
+        public const string CSI_TITLE = "CSI_TITLE_TXT";
+        public const string CSI_TITLE_GUID = "160a2335-1886-5503-b569-28d9e63f5a75";
         // Per-view 8-char "1"/"0" mask gating which segments render in
         // BuildDisplayTag without mutating the canonical ASS_TAG_1_TXT.
         // Bound to OST_Views so users can hide ZONE in a presentation view
@@ -2742,6 +2750,7 @@ namespace StingTools.Core
                 "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
                 "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
                 "ASS_TAG_SCHEME_TXT", "ASS_LOD_VERIFIED_TXT",
+                "CSI_SECTION_TXT", "CSI_TITLE_TXT",
             };
 
             // CRASH FIX: Initialize GUID maps from SourceTokens when JSON is missing.

@@ -1,0 +1,98 @@
+# STING CSI MasterFormat map (Phase 192 C2). Resolves a Revit element to a CSI
+# MasterFormat section + title for SpecLink reconciliation. Columns:
+#   Category    Revit category name (exact, case-insensitive). "*" = any.
+#   FamilyRegex optional regex tested against the family name (case-insensitive).
+#   TypeRegex   optional regex tested against the type/symbol name.
+#   Sys         optional SYS token (ASS_SYSTEM_TYPE_TXT) exact match.
+#   Section     CSI MasterFormat number (e.g. 23 31 00).
+#   Title       CSI section title.
+# Most-specific row wins (more matched qualifiers = higher score; ties: first).
+# Starter baseline — codes are common approximations to be confirmed against the
+# project's RIB SpecLink spec. Projects extend/override via _BIM_COORD/csi_map.csv.
+Category,FamilyRegex,TypeRegex,Sys,Section,Title
+Doors,,,,08 11 00,Metal Doors and Frames
+Doors,(?i)wood,,,08 14 00,Wood Doors and Frames
+Doors,(?i)glass|alum|storefront,,,08 41 00,Entrances and Storefronts
+Doors,(?i)overhead|coiling|roller,,,08 33 00,Coiling Doors and Grilles
+Windows,,,,08 50 00,Windows
+Curtain Panels,,,,08 44 00,Curtain Wall and Glazed Assemblies
+Curtain Wall Mullions,,,,08 44 00,Curtain Wall and Glazed Assemblies
+Walls,,,,09 29 00,Gypsum Board
+Walls,(?i)masonry|block|brick,,,04 20 00,Unit Masonry
+Walls,(?i)concrete,,,03 30 00,Cast-in-Place Concrete
+Floors,,,,09 60 00,Flooring
+Ceilings,,,,09 51 00,Acoustical Ceilings
+Roofs,,,,07 50 00,Membrane Roofing
+Specialty Equipment,,,,10 00 00,Specialties
+Specialty Equipment,(?i)sign,,,10 14 00,Signage
+Specialty Equipment,(?i)toilet|cubicle|partition,,,10 21 13,Toilet Compartments
+Specialty Equipment,(?i)locker,,,10 51 00,Lockers
+Specialty Equipment,(?i)extinguisher,,,10 44 00,Fire Protection Specialties
+Specialty Equipment,(?i)bench|pew|seating,,,12 60 00,Multiple Seating
+Furniture,,,,12 50 00,Furniture
+Furniture Systems,,,,12 50 00,Furniture
+Casework,,,,12 32 00,Manufactured Wood Casework
+Casework,(?i)custom|millwork|joinery,,,06 40 00,Architectural Woodwork
+Sprinklers,,,,21 13 00,Fire-Suppression Sprinkler Systems
+Pipes,,,FP,21 11 00,Facility Fire-Suppression Water-Service Piping
+Mechanical Equipment,(?i)fire pump,,,21 30 00,Fire Pumps
+Plumbing Fixtures,,,,22 40 00,Plumbing Fixtures
+Plumbing Fixtures,(?i)water closet|wc|urinal,,,22 42 13,Commercial Water Closets and Urinals
+Plumbing Fixtures,(?i)lavatory|basin|sink,,,22 42 16,Commercial Lavatories and Sinks
+Pipes,,,DCW,22 11 16,Domestic Water Piping
+Pipes,,,DHW,22 11 16,Domestic Water Piping
+Pipes,,,HWS,22 11 16,Domestic Water Piping
+Pipes,,,SAN,22 13 16,Sanitary Waste and Vent Piping
+Pipes,,,RWD,22 14 13,Facility Storm Drainage Piping
+Pipes,,,GAS,23 11 23,Facility Natural-Gas Piping
+Mechanical Equipment,(?i)water heater|calorifier|cylinder|dhw,,,22 33 00,Electric Domestic Water Heaters
+Mechanical Equipment,(?i)booster|pump set,,,22 11 23,Domestic Water Pumps
+Ducts,,,,23 31 00,HVAC Ducts and Casings
+Duct Fittings,,,,23 31 00,HVAC Ducts and Casings
+Flex Ducts,,,,23 31 00,HVAC Ducts and Casings
+Duct Accessory,,,,23 33 00,Air Duct Accessories
+Air Terminals,,,,23 37 13,Diffusers Registers and Grilles
+Pipes,,,CHW,23 21 13,Hydronic Piping
+Pipes,,,HHW,23 21 13,Hydronic Piping
+Pipes,,,LHW,23 21 13,Hydronic Piping
+Pipes,,,CWS,23 21 13,Hydronic Piping
+Pipes,,,REFRIG,23 23 00,Refrigerant Piping
+Pipe Fittings,,,,23 21 13,Hydronic Piping
+Mechanical Equipment,(?i)ahu|air handling,,,23 73 00,Indoor Central-Station Air-Handling Units
+Mechanical Equipment,(?i)fcu|fan coil,,,23 82 19,Fan Coil Units
+Mechanical Equipment,(?i)vav,,,23 36 00,Air Terminal Units
+Mechanical Equipment,(?i)chiller,,,23 64 00,Packaged Water Chillers
+Mechanical Equipment,(?i)boiler,,,23 52 00,Heating Boilers
+Mechanical Equipment,(?i)cooling tower,,,23 65 00,Cooling Towers
+Mechanical Equipment,(?i)pump,,,23 21 23,Hydronic Pumps
+Mechanical Equipment,(?i)\bfan\b|exhaust,,,23 34 00,HVAC Fans
+Mechanical Equipment,(?i)vrf|vrv|heat pump,,,23 81 26,Split-System Air-Conditioners
+Mechanical Equipment,(?i)doas|energy recovery|erv|hrv,,,23 72 00,Air-to-Air Energy Recovery Equipment
+Mechanical Equipment,,,,23 00 00,Heating Ventilating and Air Conditioning (HVAC)
+Electrical Equipment,(?i)panel|mdb|distribution board|\bdb\b,,,26 24 16,Panelboards
+Electrical Equipment,(?i)switchboard|switchgear,,,26 24 13,Switchboards
+Electrical Equipment,(?i)transformer,,,26 22 00,Low-Voltage Transformers
+Electrical Equipment,(?i)ats|transfer switch,,,26 36 00,Transfer Switches
+Electrical Equipment,(?i)generator|genset,,,26 32 13,Engine Generators
+Electrical Equipment,(?i)\bups\b,,,26 33 53,Static Uninterruptible Power Supply
+Electrical Equipment,(?i)busbar|busway,,,26 25 00,Enclosed Bus Assemblies
+Electrical Equipment,,,,26 00 00,Electrical
+Electrical Fixtures,,,,26 27 26,Wiring Devices
+Lighting Fixtures,,,,26 51 00,Interior Lighting
+Lighting Fixtures,(?i)exterior|flood|pole|bollard|external,,,26 56 00,Exterior Lighting
+Lighting Fixtures,(?i)emergency|exit,,,26 52 00,Emergency Lighting
+Lighting Devices,,,,26 09 23,Lighting Control Devices
+Conduits,,,,26 05 33,Raceways and Boxes for Electrical Systems
+Conduit Fittings,,,,26 05 33,Raceways and Boxes for Electrical Systems
+Cable Trays,,,,26 05 36,Cable Trays for Electrical Systems
+Cable Tray Fittings,,,,26 05 36,Cable Trays for Electrical Systems
+Communication Devices,,,,27 10 00,Structured Cabling
+Data Devices,,,,27 10 00,Structured Cabling
+Communication Devices,(?i)nurse call,,,27 52 23,Nurse Call and Code Blue Systems
+Communication Devices,(?i)pa\b|public address|speaker|tannoy,,,27 51 16,Public Address and Mass Notification Systems
+Telephone Devices,,,,27 10 00,Structured Cabling
+Fire Alarm Devices,,,,28 31 00,Fire Detection and Alarm
+Security Devices,,,,28 20 00,Electronic Surveillance
+Security Devices,(?i)cctv|camera,,,28 23 00,Video Surveillance
+Security Devices,(?i)access control|card reader,,,28 13 00,Access Control and Intrusion Detection
+Nurse Call Devices,,,,28 17 00,Nurse Call Systems

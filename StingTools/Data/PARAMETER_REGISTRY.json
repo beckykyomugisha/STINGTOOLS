@@ -14850,6 +14850,30 @@
       "curated": true
     },
     {
+      "param_name": "CSI_SECTION_TXT",
+      "guid": "3c2c7d9d-93e2-5f95-a002-69b17450efe6",
+      "description": "CSI MasterFormat section (e.g. 23 31 00) resolved by CSI_Assign; reconciled against the RIB SpecLink spec TOC",
+      "datatype": "TEXT",
+      "group_id": 1,
+      "group_name": "ASS_MNG",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Asset",
+      "curated": true
+    },
+    {
+      "param_name": "CSI_TITLE_TXT",
+      "guid": "160a2335-1886-5503-b569-28d9e63f5a75",
+      "description": "CSI MasterFormat section title (e.g. HVAC Ducts and Casings) resolved by CSI_Assign",
+      "datatype": "TEXT",
+      "group_id": 1,
+      "group_name": "ASS_MNG",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Asset",
+      "curated": true
+    },
+    {
       "param_name": "ASS_WEIGHT_KG_NR",
       "guid": "c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa",
       "description": "Ass Weight Kg [ISO 19650]",
