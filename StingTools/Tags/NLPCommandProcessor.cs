@@ -69,6 +69,10 @@ namespace StingTools.Tags
             (@"\b(duplicate.?tags?|find\s+dup|fix\s+dup)\b", "FixDuplicates", "FixDuplicates", "Find and fix duplicate tags"),
             (@"\b(build\s+tags?|rebuild\s+tags?|assemble)\b", "BuildTags", "BuildTags", "Rebuild tags from tokens"),
             (@"\b(completeness|dashboard|compliance\s+dash)\b", "CompletenessDashboard", "CompletenessDashboard", "Tag completeness dashboard"),
+            (@"\b(token\s+confidence|confidence\s+audit|fallback\s+audit)\b", "TokenConfidenceAudit", "TokenConfidenceAudit", "Audit token detection confidence (High/Medium/Low)"),
+            (@"\b(render\s+scheme\s+tags?|scheme\s+render)\b", "TagScheme_Render", "TagScheme_Render", "Render project tag schemes onto tagged elements"),
+            (@"\b(scheme\s+inspect|inspect\s+schemes?)\b", "TagScheme_Inspect", "TagScheme_Inspect", "Inspect tag schemes — enablement, drift, coverage"),
+            (@"\b(scheme\s+audit|audit\s+schemes?)\b", "TagScheme_Audit", "TagScheme_Audit", "Audit scheme-tag consistency vs current tokens"),
 
             // Token setting
             (@"\b(set\s+disc|discipline|set\s+discipline)\b", "SetDisc", "SetDiscipline", "Set discipline code"),

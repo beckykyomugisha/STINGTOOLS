@@ -2372,11 +2372,22 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Clear Art"  Tag="ClearOverrides"        Click="Cmd_Click" ToolTip="Reset graphic overrides in active view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Pre-Flight" Tag="CombinePreFlight"      Click="Cmd_Click" ToolTip="Combine parameters pre-flight check — verifies container bindings before bulk combine"/>
                                 <Button Style="{StaticResource BlueBtn}"   Content="Complete %" Tag="CompletenessDashboard" Click="Cmd_Click" ToolTip="Per-discipline tag completeness dashboard with percentage RAG status"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Token Conf" Tag="TokenConfidenceAudit"  Click="Cmd_Click" ToolTip="Confidence audit: classify LOC/ZONE/SYS into High/Medium/Low by detection provenance; surfaces silent BLD1 defaults that a completeness % hides"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Dupes"      Tag="FindDuplicates"        Click="Cmd_Click" ToolTip="Find duplicate tag values + select affected elements"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="Stale"      Tag="SelectStale"           Click="Cmd_Click" ToolTip="Select elements with stale tags (moved/changed since tagging)"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Containers" Tag="ContainerPreCheck"     Click="Cmd_Click" ToolTip="Verify all 36+ tag container parameters are bound and writable"/>
                                 <Button Style="{StaticResource BlueBtn}"   Content="QR"         Tag="QRCode"                Click="Cmd_Click" ToolTip="Generate QR code PNG for each selected element (encodes ASS_TAG_1_TXT as sting:// asset URL)"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Codes"      Tag="CodeLegend"            Click="Cmd_Click" ToolTip="Browse all ISO 19650, CDE, discipline, STING parameter and RIBA stage codes in a searchable reference window"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- SCHEME TAGS (Phase 191/192 — project-grammar renderings of the canonical 8 tokens) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ SCHEME TAGS"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}"  Content="Render Scheme" Tag="TagScheme_Render"  Click="Cmd_Click" ToolTip="Render every enabled project tag scheme onto already-tagged elements and update the render stamp"/>
+                                <Button Style="{StaticResource BlueBtn}"   Content="Scheme Inspect" Tag="TagScheme_Inspect" Click="Cmd_Click" ToolTip="List schemes, enablement, validity, checksum drift vs last render, and coverage"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Scheme Audit"   Tag="TagScheme_Audit"   Click="Cmd_Click" ToolTip="Re-render each enabled scheme from current tokens and report mismatches / unrendered tags"/>
                             </WrapPanel>
                         </Border>
 
