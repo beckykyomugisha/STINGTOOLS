@@ -3603,6 +3603,8 @@
                                             ToolTip="Family Audit — loaded families: unused, in-place, duplicates"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="V/Sh" Tag="ViewSheetCompleteness" Click="Cmd_Click"
                                             ToolTip="View and sheet completeness audit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Devices" Tag="DeviceCoord_Audit" Click="Cmd_Click"
+                                            ToolTip="Device Coordination audit (A1 §7) — switch/outlet vs door swing, casework clearance, mounting-height outliers, art/specialty overlap, fire-alarm vs decorative lighting"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

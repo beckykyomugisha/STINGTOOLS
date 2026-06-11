@@ -3,6 +3,42 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192B4 — Device Coordination validator)
+
+Coordinates device locations against doors, casework, art/specialty and
+decorative lighting (A1 §7) using bounding-box + wall-host geometry —
+cheap and robust, not a full clash run. **Build verified clean;
+pure geometry unit-tested (79/79 pass).**
+
+- **`Core/Validation/DeviceCoordination.cs`** (new, Revit-free) — `Aabb`
+  (mm; `OverlapsXY`, `PlanarGapMm`) + `ClearanceViolation` +
+  `MountingHeightOutliers` (per-room Z deviation from median) + `Median` +
+  `OnSwingSide` (dot-product sign test) + rule POCOs.
+- **`Data/STING_DEVICE_COORD_RULES.json`** (new, + project overlay
+  `_BIM_COORD/device_coord_rules.json`) — 6 starter rules across 4 types:
+  switch/outlet vs door swing (`doorSwing`), device vs casework/furniture
+  clearance (`clearance`), device + sensor mounting-height consistency
+  (`mountingHeight`), device-overlaps-art/specialty same wall (`overlap`),
+  fire-alarm vs decorative lighting clearance.
+- **`Commands/Validation/DeviceCoordinationCommand.cs`** (new,
+  `DeviceCoord_Audit`, ReadOnly) — builds AABBs (ft→mm) + wall-host +
+  room per element, dispatches per rule type (doorSwing uses
+  FacingOrientation × HandOrientation to test the swept quadrant),
+  groups findings per room, CSV `STING_DeviceCoord_Audit_<date>.csv` +
+  TaskDialog (per-room + first 20).
+- **`StingTools.Tags.Tests/DeviceCoordinationTests.cs`** (new, 8 cases) —
+  overlap, planar gap, clearance, height outliers, median odd/even,
+  swing-side sign.
+- Registered: `DeviceCoord_Audit` in `StingCommandHandler` +
+  `WorkflowEngine`; Devices button in the dock-panel BIM-tab SPATIAL
+  VALIDATION group.
+
+**Caveats**: command not Revit-smoke-tested — verify in Revit before
+merge. doorSwing is a documented bbox + orientation heuristic (swept
+quadrant + planar gap), not a true swing-arc sweep; it flags candidates
+for human review. Geometry is axis-aligned bbox only — a device just
+inside a deep casework bbox reads as a clearance hit (conservative).
+
 #### Completed (Phase 192C1 — Fohlio ExLink profile)
 
 Links the model to the Owner's Fohlio FF&E single source of truth — a
