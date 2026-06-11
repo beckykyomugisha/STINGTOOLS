@@ -3,6 +3,31 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192E1 — Prototype drift report)
+
+Answers the recurring Owner peer-review question "what changed vs the
+prototype?". **Build verified clean; not Revit-smoke-tested.**
+
+- **`BIMManager/PrototypeDriftCommand.cs`** (new, tag
+  `PrototypeDrift_Report`, ReadOnly) — user picks the prototype from a
+  loaded RVT link or a second open document (StingListPicker). Compares
+  the current model at **type-level grain (category + type name)** —
+  documented in the output because element-GUID matching across detached
+  prototypes is unreliable. Reports TYPE_ADDED / TYPE_REMOVED,
+  COUNT_CHANGED (instances per matching type), DIM_CHANGED (curated type
+  dimensions: Width/Height/Thickness/Depth/Diameter/Length, mm),
+  ROOM_DELTA (per-room-name count + area). XLSX register grouped by
+  discipline with a Delta column (`STING_PrototypeDrift_<date>.xlsx`).
+- Registered: `PrototypeDrift_Report` in `StingCommandHandler` +
+  `WorkflowEngine`; Prototype Drift button in the dock-panel BIM-tab
+  CARBON and CHANGE TRACKING group.
+
+**Caveats**: command not Revit-smoke-tested — verify in Revit before
+merge. Renamed types surface as one TYPE_ADDED + one TYPE_REMOVED (no
+GUID to correlate across a detached prototype) — type-level is the honest
+grain, as the prompt specifies. No pure-logic unit test (the diff is
+Revit-collector-bound).
+
 #### Completed (Phase 192E2 — 40-year HVAC life-cycle cost comparison)
 
 Satisfies the A1 §17 mechanical "40-year by-year financial comparison

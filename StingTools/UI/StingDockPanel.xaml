@@ -3683,6 +3683,8 @@
                                             ToolTip="Whole-life embodied carbon calculator"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Snapshot" Tag="TakeSnapshot" Click="Cmd_Click"
                                             ToolTip="Snapshot current STING parameter values"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Prototype Drift" Tag="PrototypeDrift_Report" Click="Cmd_Click"
+                                            ToolTip="What changed vs the Owner prototype? Type-level diff (added/removed types, count + dimension drift, room program deltas) vs a loaded link or open document; XLSX by discipline"/>
                                 </WrapPanel>
                                 <Expander Header="Carbon + snapshot ops" FontSize="10" Margin="0,2,0,0">
                                     <WrapPanel Margin="0,4">

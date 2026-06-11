@@ -250,6 +250,9 @@ namespace StingTools.UI
                     // ── Phase 192 (E2): HVAC life-cycle cost ──
                     case "Hvac_LifeCycleCompare":    RunCommand<Commands.Hvac.HvacLifeCycleCompareCommand>(app); break;
 
+                    // ── Phase 192 (E1): Prototype drift ──
+                    case "PrototypeDrift_Report":    RunCommand<BIMManager.PrototypeDriftCommand>(app); break;
+
                     // ── Phase 192 (C3): Bluebeam review comment tracker ──
                     case "ReviewComments_Import":     RunCommand<Docs.ReviewCommentsImportCommand>(app); break;
                     case "ReviewComments_Dashboard":  RunCommand<Docs.ReviewCommentsDashboardCommand>(app); break;
