@@ -344,6 +344,7 @@ namespace StingTools.Core
             "TagScheme_Render", "TagScheme_Inspect", "TagScheme_Audit",
             "LOD_Verify", "LOD_Stamp", "Program_Audit", "OwnerStandards_Audit",
             "CSI_Assign", "SpecLink_Reconcile",
+            "Fohlio_Export", "Fohlio_Import", "Fohlio_Audit",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
             "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
@@ -1517,6 +1518,9 @@ namespace StingTools.Core
                 case "OwnerStandards_Audit": return new Commands.Validation.OwnerStandardsAuditCommand();
                 case "CSI_Assign": return new Commands.Classification.CsiAssignCommand();
                 case "SpecLink_Reconcile": return new Commands.Classification.SpecLinkReconcileCommand();
+                case "Fohlio_Export": return new ExLink.FohlioExportCommand();
+                case "Fohlio_Import": return new ExLink.FohlioImportCommand();
+                case "Fohlio_Audit": return new ExLink.FohlioAuditCommand();
                 case "ReviewComments_Import": return new Docs.ReviewCommentsImportCommand();
                 case "ReviewComments_Dashboard": return new Docs.ReviewCommentsDashboardCommand();
                 case "ReviewComments_Export": return new Docs.ReviewCommentsExportCommand();

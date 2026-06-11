@@ -207,6 +207,11 @@ namespace StingTools.Core
         public const string CSI_SECTION_GUID = "3c2c7d9d-93e2-5f95-a002-69b17450efe6";
         public const string CSI_TITLE = "CSI_TITLE_TXT";
         public const string CSI_TITLE_GUID = "160a2335-1886-5503-b569-28d9e63f5a75";
+        /// <summary>Phase 192 (C1) — Fohlio item URL/ID. The "link, never
+        /// duplicate" key into the Owner's Fohlio FF&amp;E single source of truth.
+        /// UUIDv5 in namespace a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
+        public const string FOHLIO_REF = "FOHLIO_REF_TXT";
+        public const string FOHLIO_REF_GUID = "0ecf2056-1239-52bc-87f8-17c281e67209";
         // Per-view 8-char "1"/"0" mask gating which segments render in
         // BuildDisplayTag without mutating the canonical ASS_TAG_1_TXT.
         // Bound to OST_Views so users can hide ZONE in a presentation view
@@ -2750,7 +2755,7 @@ namespace StingTools.Core
                 "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
                 "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
                 "ASS_TAG_SCHEME_TXT", "ASS_LOD_VERIFIED_TXT",
-                "CSI_SECTION_TXT", "CSI_TITLE_TXT",
+                "CSI_SECTION_TXT", "CSI_TITLE_TXT", "FOHLIO_REF_TXT",
             };
 
             // CRASH FIX: Initialize GUID maps from SourceTokens when JSON is missing.

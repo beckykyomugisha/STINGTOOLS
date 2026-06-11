@@ -3,6 +3,43 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192C1 — Fohlio ExLink profile)
+
+Links the model to the Owner's Fohlio FF&E single source of truth — a
+parameter-sync + reference-link layer ("link, never duplicate"), not a
+data copy. **Build verified clean; not Revit-smoke-tested.**
+
+- **`FOHLIO_REF_TXT`** new shared param (UUIDv5
+  `0ecf2056-1239-52bc-87f8-17c281e67209`) fully registered — the Fohlio
+  item URL/ID link key.
+- **`ExLink/FohlioLink.cs`** (new) — `FohlioMap` (FF&E categories +
+  column mapping STING/Revit param ↔ Fohlio field, `$`-pseudo params for
+  Family/Type/Category/Room, configurable via `_BIM_COORD/fohlio_map.json`)
+  + `IFohlioTransport` interface + `FohlioRestTransport` **Tier-2 stub**
+  (`TestConnection` gate live; list/get/update throw NotImplemented with
+  TODOs) + `FohlioConnection` loader.
+- **`ExLink/FohlioCommands.cs`** (new) — `Fohlio_Export` (ReadOnly, FF&E
+  register → Fohlio-shape CSV), `Fohlio_Import` (Manual; match by Item
+  Tag; **preview/diff TaskDialog before any write**; fill-empty/overwrite;
+  writes `FOHLIO_REF_TXT` + selected fields + ES snapshot), `Fohlio_Audit`
+  (ReadOnly; missing-ref + stale-vs-snapshot + per-category currency KPI).
+- **`Core/Storage/StingFohlioSnapshotSchema.cs`** (new ES schema, GUID
+  `E1A7B2C4-…-1245-…`) — stores the last-imported Fohlio field snapshot
+  per element (ref + JSON + timestamp) so the audit can flag drift.
+- **`docs/examples/KUT/fohlio_connection.json.example`** (new) — the only
+  tracked connection artefact. `.gitignore` now ignores
+  `fohlio_connection.json` + `**/fohlio_connection.json` (verified via
+  `git check-ignore` — the real key file cannot be committed).
+- Registered: `Fohlio_Export` / `_Import` / `_Audit` in
+  `StingCommandHandler` + `WorkflowEngine`; FOHLIO FF&E section on the
+  dock-panel BIM tab.
+
+**Caveats**: commands not Revit-smoke-tested — verify CSV round-trip in
+Revit before merge. Tier-2 REST transport is a clean stub (CSV is the
+contractual path); list/get/update need the Fohlio v2 API docs + a key to
+wire. No pure-logic unit test (Revit/IO-bound, like B2). Import matches by
+`ASS_TAG_1_TXT`; rows whose tag isn't in the model are reported unmatched.
+
 #### Completed (Phase 192C2 — SpecLink / CSI MasterFormat cross-reference)
 
 Keeps model keynotes / classifications reconciled with the RIB SpecLink

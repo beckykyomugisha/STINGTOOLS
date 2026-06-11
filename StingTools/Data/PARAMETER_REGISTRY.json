@@ -14874,6 +14874,18 @@
       "curated": true
     },
     {
+      "param_name": "FOHLIO_REF_TXT",
+      "guid": "0ecf2056-1239-52bc-87f8-17c281e67209",
+      "description": "Fohlio item URL/ID — the link-never-duplicate key into the Owner FF&E single source of truth (Fohlio ExLink profile)",
+      "datatype": "TEXT",
+      "group_id": 1,
+      "group_name": "ASS_MNG",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Asset",
+      "curated": true
+    },
+    {
       "param_name": "ASS_WEIGHT_KG_NR",
       "guid": "c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa",
       "description": "Ass Weight Kg [ISO 19650]",

@@ -1,0 +1,5 @@
+{
+  "_comment": "Phase 192 C1 — Fohlio REST connection (Tier 2). Copy to <project>/_BIM_COORD/fohlio_connection.json and fill in your values. NEVER commit the real file — fohlio_connection.json is gitignored. The CSV Fohlio_Export / Fohlio_Import path needs NO connection file; this only enables the future REST transport behind the Test-connection gate.",
+  "BaseUrl": "https://api.fohlio.com/v2",
+  "ApiKey": "REPLACE_WITH_YOUR_FOHLIO_API_KEY"
+}

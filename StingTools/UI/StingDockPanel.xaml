@@ -3655,6 +3655,22 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- FOHLIO FF&amp;E (Phase 192 C1) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="FOHLIO FF&amp;E"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Owner FF&amp;E single source of truth — link, never duplicate (FOHLIO_REF_TXT)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Fohlio Export" Tag="Fohlio_Export" Click="Cmd_Click"
+                                            ToolTip="Export the FF&amp;E register in Fohlio import shape (CSV)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Fohlio Import" Tag="Fohlio_Import" Click="Cmd_Click"
+                                            ToolTip="Import a Fohlio export — preview the diff, then write FOHLIO_REF_TXT + selected fields back"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fohlio Audit" Tag="Fohlio_Audit" Click="Cmd_Click"
+                                            ToolTip="FF&amp;E missing FOHLIO_REF_TXT + stale rows (model ≠ last Fohlio snapshot); per-category currency KPI"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- CARBON and CHANGE TRACKING -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CARBON and CHANGE TRACKING"/>
                         <Border Style="{StaticResource GroupBorder}">

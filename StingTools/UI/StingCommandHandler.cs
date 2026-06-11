@@ -3644,6 +3644,11 @@ namespace StingTools.UI
                     }
 
                     // ── ExLink commands ──
+                    // ── Phase 192 (C1): Fohlio FF&E link ──
+                    case "Fohlio_Export": RunCommand<ExLink.FohlioExportCommand>(app); break;
+                    case "Fohlio_Import": RunCommand<ExLink.FohlioImportCommand>(app); break;
+                    case "Fohlio_Audit": RunCommand<ExLink.FohlioAuditCommand>(app); break;
+
                     case "ExLinkBrowser": RunCommand<ExLink.ExLinkBrowserCommand>(app); break;
                     case "ExLinkExport": RunCommand<ExLink.ExLinkExportCommand>(app); break;
                     case "ExLinkImport": RunCommand<ExLink.ExLinkImportCommand>(app); break;
