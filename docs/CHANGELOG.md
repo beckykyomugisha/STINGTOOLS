@@ -3,6 +3,58 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192B1 — LOD Verification Engine)
+
+The single highest-value KUT item: verifies element maturity against a
+milestone LOD matrix (200/300/350/400) at Deliverables A/B/C, the
+conformed set, and the Deliverable D record model. **Build verified
+clean** against the Revit 2025 API; not yet Revit-smoke-tested.
+
+- **`Data/STING_LOD_MATRIX.json`** (new, + project overlay
+  `_BIM_COORD/lod_matrix.json` merged by milestone id / category) — 5
+  milestones, a `"*"` default rule + explicit rules for 19 high-volume
+  categories (walls, floors, doors, windows, mech/elec equipment,
+  lighting/plumbing fixtures, ducts, pipes, conduits, cable trays, air
+  terminals, sprinklers, fire-alarm devices, structural framing/columns,
+  casework, specialty equipment). Per-LOD checks: `requireGeometry`,
+  `forbidPlaceholderFamilies`, `requireTypeNotGeneric`,
+  `requireManufacturerType`, `requiredParams` (`+name` adds to inherited,
+  plain replaces), `requiredDims` (numeric > 0), `inherit`. Checks are
+  limited to what the Revit API can verify — a parameter/naming/
+  geometry-presence maturity proxy, **not a geometric survey** (stated in
+  the JSON description + every command output). `requireNoUnresolvedClash`
+  is honoured as a non-verifiable INFO note, never a hard fail.
+- **`Core/Validation/LodVerificationEngine.cs`** (new) — `LodMatrix` POCOs
+  + `LodMatrixRegistry` (corporate + overlay, per-doc cache) +
+  `Verify(doc, milestoneId, scope) → LodVerificationResult` with
+  per-element pass/fail + reasons, per-category and per-discipline
+  rollups, overall %. Inheritance + `+`/replace list semantics resolved
+  once per category per pass.
+- **`Commands/Validation/LodVerifyCommand.cs`** (new) — `LOD_Verify`
+  (ReadOnly): milestone picker → engine → TaskDialog + CSV
+  (`STING_LOD_<milestone>_Audit.csv`) + JSON gate report to
+  `_BIM_COORD/lod_reports/<milestone>_<yyyyMMddHHmmss>.json` (the Owner
+  gate artefact). `LOD_Stamp` (Manual): writes the milestone id into the
+  new `ASS_LOD_VERIFIED_TXT` on passing elements.
+- **`ASS_LOD_VERIFIED_TXT`** new shared param (UUIDv5
+  `60440963-a414-5667-88f4-d12082344c4d`) registered in ParamRegistry
+  (constant + UniversalParams fallback), PARAMETER_REGISTRY.json
+  support_params, MR_PARAMETERS.txt/csv.
+- **`Data/WORKFLOW_GateAudit.json`** (new) — standing gate chain:
+  ValidateTags → TokenConfidenceAudit → LOD_Verify →
+  CompletenessDashboard → TagScheme_Audit.
+- Registered: `LOD_Verify` / `LOD_Stamp` in `StingCommandHandler` +
+  `WorkflowEngine` known-tags + `ResolveCommand`; LOD VERIFICATION
+  section on the dock-panel BIM tab.
+
+**Caveats**: not Revit-smoke-tested (param-bind via LoadSharedParams,
+LOD_Verify on a real model, gate-report write still pending). Geometry
+check is bbox-presence only (non-degenerate extent in ≥2 axes) — it does
+not validate dimensional correctness; the output says so. `requiredDims`
+reference confirmed-existing params (e.g. `HVC_FLOW_LS`); a required
+param that is unbound on the project reads as a fail at that LOD (correct
+— it should be bound + populated by then).
+
 #### Completed (Phase 192A — KUT: finish the tag-scheme work)
 
 Closes the Phase 191 "gaps you own" list from

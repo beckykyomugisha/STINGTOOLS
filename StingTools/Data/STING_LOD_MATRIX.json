@@ -1,0 +1,201 @@
+{
+  "version": "1.0",
+  "description": "STING LOD verification matrix. Corporate baseline; merged by id over a project overlay at <project>/_BIM_COORD/lod_matrix.json (project milestones/categoryRules win by id/category). Checks are a PARAMETER + NAMING + GEOMETRY-PRESENCE maturity proxy, NOT a geometric survey — STING cannot verify that geometry is dimensionally correct, only that it exists, is not a placeholder family, and carries the parameters expected at that LOD. Per-LOD check fields: requireGeometry (non-degenerate bbox), forbidPlaceholderFamilies (family/type name must not match placeholderFamilyPatterns), requiredParams (shared param present + non-empty; '+name' adds to the inherited list, a plain name replaces it), requiredDims (numeric shared param resolves > 0), requireTypeNotGeneric (type/family name must not contain 'generic'), requireManufacturerType (type+family name must not match a placeholder pattern — manufacturer-specified proxy), requireNoUnresolvedClash (NOT API-verifiable — reported as an INFO limitation, never a hard fail), inherit (LOD key to inherit checks from).",
+  "milestones": [
+    { "id": "deliverable-a", "name": "Deliverable A (Basis of Design)", "lod": 200 },
+    { "id": "deliverable-b", "name": "Deliverable B (50% documentation)", "lod": 300 },
+    { "id": "deliverable-c", "name": "Deliverable C (100% documentation)", "lod": 350 },
+    { "id": "conformed-set", "name": "Conformed set", "lod": 350 },
+    { "id": "deliverable-d", "name": "Deliverable D (record model)", "lod": 400 }
+  ],
+  "placeholderFamilyPatterns": [
+    "(?i)generic",
+    "(?i)placeholder",
+    "(?i)^STING_SEED_",
+    "(?i)\\bTBD\\b",
+    "(?i)\\bdummy\\b",
+    "(?i)\\bdefault\\b"
+  ],
+  "categoryRules": [
+    {
+      "category": "*",
+      "checks": {
+        "200": { "requireGeometry": true, "forbidPlaceholderFamilies": false, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Walls",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350" }
+      }
+    },
+    {
+      "category": "Floors",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350" }
+      }
+    },
+    {
+      "category": "Doors",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Windows",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Mechanical Equipment",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"], "requiredDims": ["HVC_FLOW_LS"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT", "+MNT_TYPE_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Electrical Equipment",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT", "+MNT_TYPE_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Lighting Fixtures",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Plumbing Fixtures",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT", "+MNT_TYPE_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Ducts",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300" },
+        "400": { "inherit": "350" }
+      }
+    },
+    {
+      "category": "Pipes",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300" },
+        "400": { "inherit": "350" }
+      }
+    },
+    {
+      "category": "Conduits",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300" },
+        "400": { "inherit": "350" }
+      }
+    },
+    {
+      "category": "Cable Trays",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300" },
+        "400": { "inherit": "350" }
+      }
+    },
+    {
+      "category": "Air Terminals",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Sprinklers",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Fire Alarm Devices",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Structural Framing",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350" }
+      }
+    },
+    {
+      "category": "Structural Columns",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350" }
+      }
+    },
+    {
+      "category": "Casework",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Specialty Equipment",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT", "+MNT_TYPE_TXT"], "requireManufacturerType": true }
+      }
+    }
+  ]
+}

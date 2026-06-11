@@ -3607,6 +3607,20 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- LOD VERIFICATION (Phase 192 B1) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LOD VERIFICATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Element maturity vs the milestone LOD matrix (param/naming/geometry proxy)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="LOD Verify" Tag="LOD_Verify" Click="Cmd_Click"
+                                            ToolTip="Verify element maturity against a milestone LOD (Deliverable A/B/C/D); TaskDialog + CSV + JSON gate report"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="LOD Stamp" Tag="LOD_Stamp" Click="Cmd_Click"
+                                            ToolTip="Stamp ASS_LOD_VERIFIED_TXT on every element that passes the picked milestone"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- CARBON and CHANGE TRACKING -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CARBON and CHANGE TRACKING"/>
                         <Border Style="{StaticResource GroupBorder}">

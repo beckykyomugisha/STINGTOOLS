@@ -1,0 +1,28 @@
+{
+  "name": "Gate Audit",
+  "description": "Standing deliverable-gate audit chain for the Owner (KUT). Validates the canonical tags, classifies token-fill confidence (surfaces silent defaults), verifies element maturity against the milestone LOD matrix, reports per-discipline completeness, and confirms scheme-tag consistency. Run before every Deliverable A/B/C / conformed-set publish; the LOD gate report under _BIM_COORD/lod_reports/ is the artefact that accompanies the drawings.",
+  "rollback_on_failure": false,
+  "steps": [
+    {
+      "commandTag": "ValidateTags",
+      "label": "ISO 19650 tag validation — all 8 token segments present + code-valid"
+    },
+    {
+      "commandTag": "TokenConfidenceAudit",
+      "label": "Token-fill confidence — High/Medium/Low by provenance; flags silent BLD1 defaults"
+    },
+    {
+      "commandTag": "LOD_Verify",
+      "label": "LOD maturity verification against the milestone matrix (pick the gate milestone)"
+    },
+    {
+      "commandTag": "CompletenessDashboard",
+      "label": "Per-discipline tag completeness RAG dashboard"
+    },
+    {
+      "commandTag": "TagScheme_Audit",
+      "label": "Scheme-tag consistency — rendered identifiers match current tokens",
+      "optional": true
+    }
+  ]
+}

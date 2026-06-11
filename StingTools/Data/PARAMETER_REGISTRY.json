@@ -14838,6 +14838,18 @@
       "required": false
     },
     {
+      "param_name": "ASS_LOD_VERIFIED_TXT",
+      "guid": "60440963-a414-5667-88f4-d12082344c4d",
+      "description": "Milestone id stamped by LOD_Stamp on elements that pass LodVerificationEngine at that milestone's LOD (e.g. deliverable-c)",
+      "datatype": "TEXT",
+      "group_id": 1,
+      "group_name": "ASS_MNG",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Asset",
+      "curated": true
+    },
+    {
       "param_name": "ASS_WEIGHT_KG_NR",
       "guid": "c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa",
       "description": "Ass Weight Kg [ISO 19650]",

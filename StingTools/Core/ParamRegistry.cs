@@ -193,6 +193,12 @@ namespace StingTools.Core
         /// namespace a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
         public const string TAG_SCHEME = "ASS_TAG_SCHEME_TXT";
         public const string TAG_SCHEME_GUID = "2c8224df-92e0-567b-a9df-c8cd1e4402a3";
+        /// <summary>Phase 192 (B1) — milestone id stamped by LOD_Stamp on elements
+        /// that PASS LodVerificationEngine at that milestone's LOD (e.g.
+        /// "deliverable-c"). UUIDv5 in the Planscape docs namespace
+        /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
+        public const string LOD_VERIFIED = "ASS_LOD_VERIFIED_TXT";
+        public const string LOD_VERIFIED_GUID = "60440963-a414-5667-88f4-d12082344c4d";
         // Per-view 8-char "1"/"0" mask gating which segments render in
         // BuildDisplayTag without mutating the canonical ASS_TAG_1_TXT.
         // Bound to OST_Views so users can hide ZONE in a presentation view
@@ -2735,7 +2741,7 @@ namespace StingTools.Core
                 "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
                 "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
                 "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
-                "ASS_TAG_SCHEME_TXT",
+                "ASS_TAG_SCHEME_TXT", "ASS_LOD_VERIFIED_TXT",
             };
 
             // CRASH FIX: Initialize GUID maps from SourceTokens when JSON is missing.
