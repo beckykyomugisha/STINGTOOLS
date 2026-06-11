@@ -1,0 +1,74 @@
+{
+  "version": "1.0",
+  "description": "STING Owner Standards Pack — a rule-pack encoding the Owner's BIM modeling standards as configuration. Corporate starter baseline; merged by rule id over a project overlay at <project>/_BIM_COORD/owner_standards.json (project rules win by id; the Owner's week-1 standards are encoded here). Rule types: paramRequired (param non-empty on categories), paramPattern (value matches/forbids regex), paramInList (value in list), familyNamePattern, typeNamePattern (family/type name matches/forbids regex per category), worksetPattern (workset names match regex), viewNamePattern, sheetNumberPattern, tagSchemeConsistent (rendered scheme strings match current tokens — delegates to TagSchemeRenderer). Severity BLOCK/WARN/INFO drives the RAG summary. 'source' cites the Owner doc section and is shown to the client. Set 'enabled': false to ship a rule disabled.",
+  "rules": [
+    {
+      "id": "prj-org-project-code",
+      "type": "paramRequired",
+      "severity": "BLOCK",
+      "enabled": true,
+      "param": "PRJ_ORG_PROJECT_CODE_TXT",
+      "categories": ["Project Information"],
+      "description": "Project code must be set on Project Information (drives ISO 19650 container naming + tag schemes).",
+      "source": "BEP — Project information / ISO 19650-2 container naming"
+    },
+    {
+      "id": "prj-org-originator",
+      "type": "paramRequired",
+      "severity": "BLOCK",
+      "enabled": true,
+      "param": "PRJ_ORG_ORIGINATOR_CODE_TXT",
+      "categories": ["Project Information"],
+      "description": "Originator code must be set on Project Information.",
+      "source": "BEP — Project information / ISO 19650-2 originator"
+    },
+    {
+      "id": "workset-building-prefix",
+      "type": "worksetPattern",
+      "severity": "WARN",
+      "enabled": true,
+      "pattern": "^(BLD[1-6]|EXT)_",
+      "description": "Worksets should be prefixed with a building code (BLD1..BLD6 or EXT) so site elements without rooms still resolve their LOC (e.g. BLD2_Mechanical).",
+      "source": "KUT BEP — per-building workset convention"
+    },
+    {
+      "id": "tag-scheme-consistent",
+      "type": "tagSchemeConsistent",
+      "severity": "WARN",
+      "enabled": true,
+      "description": "Every enabled tag scheme's rendered identifier must match the element's current tokens (no hand-edited or stale scheme tags).",
+      "source": "STING tag-scheme contract (Phase 191) — derived, never hand-edited"
+    },
+    {
+      "id": "discipline-code-valid",
+      "type": "paramInList",
+      "severity": "WARN",
+      "enabled": true,
+      "param": "ASS_DISCIPLINE_COD_TXT",
+      "categories": ["*"],
+      "values": ["A", "S", "M", "E", "P", "FP", "LV", "G", "H", "MG", "RP"],
+      "description": "Discipline code must be one of the agreed ISO 19650 discipline codes.",
+      "source": "KUT BEP — discipline taxonomy"
+    },
+    {
+      "id": "sheet-kut-number-pattern",
+      "type": "sheetNumberPattern",
+      "severity": "INFO",
+      "enabled": false,
+      "pattern": "^KUT-[A-Z0-9]{3}-[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z]-\\d{4}$",
+      "description": "Sheet numbers should follow the ISO 19650 container form KUT-ZZZ-XX-XX-M3-A-0001. Ships DISABLED — enable once the Owner's number table is confirmed in week 1.",
+      "source": "ISO 19650-2 container naming (KUT-originator-volume-level-type-discipline-number)"
+    },
+    {
+      "id": "no-generic-mech-equipment",
+      "type": "familyNamePattern",
+      "severity": "WARN",
+      "enabled": true,
+      "categories": ["Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures"],
+      "pattern": "(?i)generic|placeholder",
+      "forbid": true,
+      "description": "MEP equipment families must not be generic/placeholder by the coordination set.",
+      "source": "Owner BIM standard — model maturity / no placeholder families"
+    }
+  ]
+}

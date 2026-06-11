@@ -3619,6 +3619,8 @@
                                             ToolTip="Stamp ASS_LOD_VERIFIED_TXT on every element that passes the picked milestone"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Program Audit" Tag="Program_Audit" Click="Cmd_Click"
                                             ToolTip="Audit model rooms against the Owner program Excel template — area/count compliance + missing/extra; XLSX deficiency log"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Owner Standards" Tag="OwnerStandards_Audit" Click="Cmd_Click"
+                                            ToolTip="Run the Owner Standards Pack rule-pack (workset prefixes, required PRJ_ORG fields, discipline codes, scheme consistency, sheet naming) — RAG summary + CSV/JSON report"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

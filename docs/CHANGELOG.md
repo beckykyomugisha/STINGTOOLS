@@ -3,6 +3,46 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192B2 — Owner Standards Pack)
+
+Encodes the Owner's BIM modeling standards as a configurable rule-pack
+so adopting their week-1 standards is a JSON edit, not a code change.
+**Build verified clean; not Revit-smoke-tested.**
+
+- **`Data/STING_OWNER_STANDARDS_PACK.json`** (new, + project overlay
+  `_BIM_COORD/owner_standards.json` merged by rule id) — starter
+  baseline: required `PRJ_ORG_PROJECT_CODE_TXT` / `_ORIGINATOR_CODE_TXT`
+  (BLOCK), workset `^(BLD[1-6]|EXT)_` prefix (WARN), tag-scheme
+  consistency (WARN), discipline-code-in-list (WARN), no
+  generic/placeholder MEP families (WARN), and the ISO 19650
+  `KUT-ZZZ-XX-XX-M3-A-0001` sheet-number pattern shipped **disabled**
+  until the Owner's number table lands. Each rule carries `severity`
+  (BLOCK/WARN/INFO) + `source` (cited Owner doc section).
+- **`Core/Validation/OwnerStandardsPack.cs`** (new) — rule POCO +
+  registry (corporate + overlay, per-doc cache) + one evaluator that
+  switches over 9 rule types: `paramRequired`, `paramPattern`,
+  `paramInList`, `familyNamePattern`, `typeNamePattern`,
+  `worksetPattern`, `viewNamePattern`, `sheetNumberPattern`,
+  `tagSchemeConsistent`. The scheme rule **reuses
+  `TagSchemeRenderer.Render`** (Phase 191) — it does not duplicate that
+  logic.
+- **`Commands/Validation/OwnerStandardsAuditCommand.cs`** (new,
+  `OwnerStandards_Audit`, ReadOnly) — runs all enabled rules, RAG
+  summary (RED if any BLOCK fails, AMBER on WARN, else GREEN) + per-rule
+  detail with cited sources, CSV
+  (`STING_OwnerStandards_Audit_<date>.csv`) + JSON report to
+  `_BIM_COORD/owner_standards_reports/`.
+- Registered: `OwnerStandards_Audit` in `StingCommandHandler` +
+  `WorkflowEngine` known-tags + `ResolveCommand`; Owner Standards button
+  on the dock-panel BIM tab. `OnDocumentClosing` now also invalidates
+  the LOD-matrix + Owner-standards registries.
+
+**Caveats**: command not Revit-smoke-tested — verify in Revit before
+merge. Evaluator is Revit-bound (reads elements/worksets/views/sheets/
+project-info + TagSchemeRenderer) so it has no pure-logic unit test;
+rule-type coverage is the audit surface. `Project Information` category
+in a rule's `categories` is special-cased to `doc.ProjectInformation`.
+
 #### Completed (Phase 192C3 — Bluebeam comment close-out tracker)
 
 Tracks Owner Bluebeam Studio review-comment close-out — a phase-gate

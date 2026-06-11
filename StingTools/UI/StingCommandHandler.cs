@@ -234,6 +234,9 @@ namespace StingTools.UI
                     // ── Phase 192 (B3): Program audit vs Owner Excel template ──
                     case "Program_Audit":            RunCommand<Commands.Validation.ProgramAuditCommand>(app); break;
 
+                    // ── Phase 192 (B2): Owner Standards Pack audit ──
+                    case "OwnerStandards_Audit":     RunCommand<Commands.Validation.OwnerStandardsAuditCommand>(app); break;
+
                     // ── Phase 192 (C3): Bluebeam review comment tracker ──
                     case "ReviewComments_Import":     RunCommand<Docs.ReviewCommentsImportCommand>(app); break;
                     case "ReviewComments_Dashboard":  RunCommand<Docs.ReviewCommentsDashboardCommand>(app); break;
