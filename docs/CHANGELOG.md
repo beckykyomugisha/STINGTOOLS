@@ -3,6 +3,70 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192 — KUT alignment pack complete)
+
+The Kampala Uganda Temple alignment pack is fully landed across Parts
+A–E (one feature per commit, every commit `dotnet build`-clean against
+the Revit 2025 API; pure-logic engines unit-tested). Per-item detail is
+in the blocks below; this is the consolidated command + asset inventory.
+
+**Commands added (19), by tag → dock-panel location**
+
+| Tag | Mode | Dock-panel location |
+|---|---|---|
+| `TokenConfidenceAudit` | ReadOnly | TAGS · QUALITY ASSURANCE ("Token Conf") |
+| `TagScheme_Render` / `TagScheme_Inspect` / `TagScheme_Audit` | Manual / RO / RO | TAGS · SCHEME TAGS (Phase 191 cmds; buttons added A2) |
+| `LOD_Verify` | ReadOnly | BIM · LOD VERIFICATION |
+| `LOD_Stamp` | Manual | BIM · LOD VERIFICATION |
+| `Program_Audit` | ReadOnly | BIM · LOD VERIFICATION ("Program Audit") |
+| `OwnerStandards_Audit` | ReadOnly | BIM · LOD VERIFICATION ("Owner Standards") |
+| `DeviceCoord_Audit` | ReadOnly | BIM · SPATIAL VALIDATION ("Devices") |
+| `CSI_Assign` | Manual | BIM · CSI / SPECLINK |
+| `SpecLink_Reconcile` | ReadOnly | BIM · CSI / SPECLINK |
+| `Fohlio_Export` / `Fohlio_Audit` | ReadOnly | BIM · FOHLIO FF&E |
+| `Fohlio_Import` | Manual | BIM · FOHLIO FF&E |
+| `ReviewComments_Import` / `_Dashboard` / `_Export` | ReadOnly | BIM · REVIEW COMMENTS (BLUEBEAM) |
+| `ComCheck_Export` (`Lite_ComCheck`) | ReadOnly | ELECTRICAL panel · LPD card |
+| `Hvac_LifeCycleCompare` | ReadOnly | HVAC panel · RPRT tab |
+| `PrototypeDrift_Report` | ReadOnly | BIM · CARBON and CHANGE TRACKING |
+
+All 19 are registered in `StingCommandHandler` and `WorkflowEngine`
+(known-tags + `ResolveCommand`); `ComCheck_Export` also has a
+`Lite_ComCheck` case in `StingElectricalCommandHandler`.
+
+**New shared parameters (7, UUIDv5)**: `ASS_LOD_VERIFIED_TXT`,
+`CSI_SECTION_TXT`, `CSI_TITLE_TXT`, `FOHLIO_REF_TXT`,
+`LTG_HOIST_WEIGHT_KG`, `LTG_HOIST_MOTOR_TXT`, `LTG_HOIST_DROP_MM` — each
+fully registered (ParamRegistry + PARAMETER_REGISTRY.json + MR_PARAMETERS
+txt/csv).
+
+**New ES schema**: `StingFohlioSnapshotSchema` (Fohlio import snapshot).
+
+**Workflow preset**: `WORKFLOW_GateAudit.json` (ValidateTags →
+TokenConfidenceAudit → LOD_Verify → CompletenessDashboard →
+TagScheme_Audit).
+
+**Pure-logic engines unit-tested** (`StingTools.Tags.Tests`, 85 tests):
+`ProgramAuditEngine`, `ReviewCommentTracker`, `CsiMasterFormat`,
+`DeviceCoordination`, `LifeCycleCostEngine` (+ pre-existing
+`SeqAssigner`). Scope-box LOC detection (A4) extends `SpatialAutoDetect`.
+
+**Data files added**: `STING_LOD_MATRIX.json`,
+`STING_OWNER_STANDARDS_PACK.json`, `STING_CSI_MASTERFORMAT_MAP.csv`,
+`STING_DEVICE_COORD_RULES.json`, `STING_COMCHECK_SPACE_MAP.csv`,
+`STING_HVAC_LCC_DEFAULTS.json`, `STING_US_PRESET_OVERLAY.json`,
+`WORKFLOW_GateAudit.json`; Kampala climate entry confirmed; baptismal
+font seed symbol.
+
+**Docs / examples**: `docs/examples/KUT/` (project_config, tag_schemes,
+climate_data, fohlio_connection.json.example, README, REVIT_SMOKE_TEST)
++ `docs/US_STANDARDS_PRESET.md`. Test fixtures under
+`Tests/fixtures/kut/`.
+
+**Standing caveat**: every command ships build-clean but **not yet
+Revit-smoke-tested** — work through `docs/examples/KUT/REVIT_SMOKE_TEST.md`
+in a Revit session before merge to `main`.
+
 #### Completed (Phase 192E4 — Temple seed content)
 
 Temple-specific seed content. **Build verified clean.**
