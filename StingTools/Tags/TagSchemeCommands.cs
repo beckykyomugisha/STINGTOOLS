@@ -82,6 +82,11 @@ namespace StingTools.Tags
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // Always re-read before a render so on-disk scheme edits AND
+            // ProjectInformation edits (project code / originator are cached per
+            // document) are picked up without a separate reload step.
+            TagSchemeRegistry.Reload(doc);
+
             var schemes = TagSchemeRegistry.EnabledSchemes(doc);
             if (schemes.Count == 0)
             {
