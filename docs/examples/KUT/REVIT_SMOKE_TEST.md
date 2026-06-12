@@ -18,7 +18,7 @@ expected outcome.
 5. **Batch Tag** a sample area. → elements get `ASS_TAG_1_TXT`; new tags get a scheme string automatically.
 6. **Render Scheme** (`TagScheme_Render`). → back-fills scheme strings on existing tags; stamp updates.
 7. **Scheme Audit** (`TagScheme_Audit`). → reports 0 mismatches after render.
-8. **Token Confidence** (`TokenConfidenceAudit`, TAGS · QA). → TaskDialog shows High/Medium/Low bands + silent-BLD1 count; CSV `STING_TokenConfidence_Audit.csv` written. Confirm a known site element with a `STING-LOC::BLD2` scope box reads `LOC_SOURCE=ScopeBox` (High).
+8. **Token Confidence** (`TokenConfidenceAudit`, TAGS · QA). → TaskDialog shows High/Medium/Low bands + silent-BLD1 count; CSV `STING_TokenConfidence_Audit.csv` written. Confirm a known site element with a `STING-LOC::BLD2` scope box reads `LOC_SOURCE=ScopeBox` (High). Draw STING-LOC scope boxes **unrotated** (stored as axis-aligned plan extents); where boxes nest, the smallest containing box wins.
 
 ## 2. LOD + Owner-standards gates (Part B)
 

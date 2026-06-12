@@ -71,3 +71,8 @@ boundaries give `LOC_SOURCE = Room` / `ZONE_SOURCE = Room` (High
 confidence) and are the strongest signal STING has. Site elements with
 no rooms or worksets can use the optional scope-box convention
 (`STING-LOC::BLDn`, see the Token Confidence Audit `ScopeBox` band).
+**Draw STING-LOC scope boxes UNROTATED** — STING stores each box's
+axis-aligned plan extents, so a rotated box is treated as its (larger)
+axis-aligned envelope. When boxes overlap or nest, the **smallest**
+containing box wins, so a campus-wide box plus per-building boxes
+resolve each element to its specific building.

@@ -913,19 +913,8 @@ namespace StingTools.Core
             return !string.IsNullOrEmpty(projectLoc) ? projectLoc : "BLD1";
         }
 
-        /// <summary>
-        /// Phase 192 (A4) — scope-box LOC boundary. A scope box named
-        /// <c>STING-LOC::&lt;locCode&gt;</c> (e.g. <c>STING-LOC::BLD2</c>)
-        /// declares a building footprint. Snapshotted as plan (XY) extents
-        /// so containment is a cheap point-in-rectangle test ignoring Z.
-        /// </summary>
-        public class ScopeBoxLoc
-        {
-            public string Loc;
-            public double MinX, MinY, MaxX, MaxY;
-            public bool Contains(double x, double y) =>
-                x >= MinX && x <= MaxX && y >= MinY && y <= MaxY;
-        }
+        // ScopeBoxLoc (plan-rectangle + most-specific selection) lives in the
+        // Revit-free Core/ScopeBoxLoc.cs so it can be unit-tested.
 
         /// <summary>
         /// Build the scope-box LOC index: every scope box (OST_VolumeOfInterest)
@@ -971,9 +960,11 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Phase 192 (A4) — LOC from scope-box containment. Returns the LOC
-        /// code of the first <c>STING-LOC::*</c> scope box whose plan rectangle
+        /// Phase 192 (A4) — LOC from scope-box containment. Returns the LOC code
+        /// of the SMALLEST <c>STING-LOC::*</c> scope box whose plan rectangle
         /// contains the element's bounding-box centre (XY, Z ignored), or null.
+        /// Smallest-wins makes nested boxes resolve to the most specific building
+        /// and is deterministic when boxes overlap.
         /// </summary>
         public static string DetectLocFromScopeBox(List<ScopeBoxLoc> scopeBoxes, Element el)
         {
@@ -984,8 +975,7 @@ namespace StingTools.Core
                 if (bb == null) return null;
                 double cx = (bb.Min.X + bb.Max.X) * 0.5;
                 double cy = (bb.Min.Y + bb.Max.Y) * 0.5;
-                foreach (var sb in scopeBoxes)
-                    if (sb.Contains(cx, cy)) return sb.Loc;
+                return ScopeBoxLoc.SmallestContaining(scopeBoxes, cx, cy)?.Loc;
             }
             catch (Exception ex)
             {
@@ -1566,7 +1556,7 @@ namespace StingTools.Core
             /// <summary>Phase 192 (A4): cached STING-LOC::&lt;loc&gt; scope-box plan
             /// rectangles for site-element LOC detection. Empty when no such scope
             /// boxes exist (the common case).</summary>
-            public List<SpatialAutoDetect.ScopeBoxLoc> ScopeBoxLocs { get; set; }
+            public List<ScopeBoxLoc> ScopeBoxLocs { get; set; }
 
             /// <summary>GAP-019: Configurable default STATUS (from project_config.json or "NEW").</summary>
             public string DefaultStatus { get; set; } = "NEW";
