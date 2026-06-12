@@ -3,4 +3,4 @@ Allow: /
 Disallow: /api/
 Disallow: /assets/template-*
 
-Sitemap: https://planscape.co/sitemap.xml
+Sitemap: https://planscape.build/sitemap.xml
