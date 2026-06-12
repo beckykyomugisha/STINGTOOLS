@@ -107,6 +107,11 @@ namespace StingTools.Tags
 
             int written = 0, skippedUntagged = 0, failed = 0, processed = 0;
             var sw = System.Diagnostics.Stopwatch.StartNew();
+            // One-time binding check on the first taggable element: if a scheme's
+            // target param isn't bound, the render silently writes nothing — warn
+            // explicitly instead of reporting a bare "0 written".
+            var unboundTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool bindingChecked = false;
 
             using (var t = new Transaction(doc, "STING Render Scheme Tags"))
             {
@@ -126,6 +131,14 @@ namespace StingTools.Tags
                         // elements that already carry a canonical tag qualify.
                         string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                         if (string.IsNullOrEmpty(tag1)) { skippedUntagged++; continue; }
+
+                        if (!bindingChecked)
+                        {
+                            bindingChecked = true;
+                            foreach (var s in schemes)
+                                if (!string.IsNullOrEmpty(s.TargetParam) && el.LookupParameter(s.TargetParam) == null)
+                                    unboundTargets.Add(s.TargetParam);
+                        }
 
                         if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) { failed++; continue; }
 
@@ -156,11 +169,21 @@ namespace StingTools.Tags
             report.AppendLine($"Failed / locked:         {failed}");
             report.AppendLine($"Duration:                {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
+            if (unboundTargets.Count > 0)
+            {
+                report.AppendLine("⚠ Target parameter(s) NOT BOUND on this project:");
+                foreach (var p in unboundTargets) report.AppendLine($"    {p}");
+                report.AppendLine("   Run Load Params (LoadSharedParams) to bind them, then re-run Render Scheme Tags.");
+                report.AppendLine();
+                StingLog.Warn($"RenderSchemeTags: unbound target param(s): {string.Join(", ", unboundTargets)}");
+            }
             report.AppendLine("Render stamp updated — Inspect now reports schemes as current.");
 
             TaskDialog td = new TaskDialog("Render Scheme Tags")
             {
-                MainInstruction = $"{written} element(s) rendered across {schemes.Count} scheme(s)",
+                MainInstruction = unboundTargets.Count > 0 && written == 0
+                    ? $"0 rendered — target param not bound ({string.Join(", ", unboundTargets)})"
+                    : $"{written} element(s) rendered across {schemes.Count} scheme(s)",
                 MainContent = report.ToString()
             };
             td.Show();
