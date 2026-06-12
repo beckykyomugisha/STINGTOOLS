@@ -14892,7 +14892,7 @@
       "datatype": "TEXT",
       "group_id": 7,
       "group_name": "LTG_CONTROLS",
-      "binding": "universal",
+      "binding": "LightingFixtures",
       "required": false,
       "discipline": "Electrical",
       "curated": true
@@ -14904,7 +14904,7 @@
       "datatype": "TEXT",
       "group_id": 7,
       "group_name": "LTG_CONTROLS",
-      "binding": "universal",
+      "binding": "LightingFixtures",
       "required": false,
       "discipline": "Electrical",
       "curated": true
@@ -14916,7 +14916,7 @@
       "datatype": "TEXT",
       "group_id": 7,
       "group_name": "LTG_CONTROLS",
-      "binding": "universal",
+      "binding": "LightingFixtures",
       "required": false,
       "discipline": "Electrical",
       "curated": true
