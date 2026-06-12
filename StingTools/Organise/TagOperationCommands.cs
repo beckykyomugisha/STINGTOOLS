@@ -2912,6 +2912,7 @@ namespace StingTools.Organise
                 "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ",
                 // Assembled Tags
                 "ASS_TAG_1 (Full)", "ASS_TAG_2 (Short)", "ASS_TAG_3 (Location)", "ASS_TAG_4 (System)",
+                "SchemeTag (project grammar)",
                 // Validation
                 "TagValid", "TagResolved", "TagComplete", "ValidationIssues",
                 // Status & Classification
@@ -2958,6 +2959,7 @@ namespace StingTools.Organise
                 string tag2 = Gs(el, ParamRegistry.TAG2);
                 string tag3 = Gs(el, ParamRegistry.TAG3);
                 string tag4 = Gs(el, ParamRegistry.TAG4);
+                string schemeTag = Gs(el, ParamRegistry.TAG_SCHEME);
 
                 // Validation
                 bool isValid = TagConfig.TagIsComplete(tag1);
@@ -3058,6 +3060,7 @@ namespace StingTools.Organise
                 sb.Append(Esc(tag2)).Append(',');
                 sb.Append(Esc(tag3)).Append(',');
                 sb.Append(Esc(tag4)).Append(',');
+                sb.Append(Esc(schemeTag)).Append(',');
                 sb.Append(isValid).Append(',');
                 sb.Append(isResolved).Append(',');
                 sb.Append(isComplete).Append(',');

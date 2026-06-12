@@ -261,6 +261,12 @@
       "suffix": "",
       "label": "Full Tag (8-segment)"
     },
+    "ASS_TAG_SCHEME_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Scheme Tag (project grammar)",
+      "note": "Project-grammar rendering of the canonical tokens (TagSchemeEngine) — e.g. ISO 19650 KUT-ZZZ-XX-XX-M3-A-0001. Add this as a label row on an annotation tag family to display the scheme identifier on drawings. Derived, never hand-edited."
+    },
     "ASS_TAG_2_TXT": {
       "prefix": "",
       "suffix": "",
