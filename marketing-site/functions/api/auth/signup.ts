@@ -97,7 +97,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
     throw e;
   }
 
-  const tokens = await issueTokens(env, user, request);
+  const tokens = await issueTokens(env, user, tenant, request);
   await sendVerifyEmail(env, email, firstName, verifyToken);
 
   return jsonResponse(

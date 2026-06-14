@@ -22,7 +22,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
 
   if (presented) {
     const tokenHash = await sha256Hex(presented);
-    await revokeSessionByTokenHash(env.WAITLIST_DB, tokenHash);
+    await revokeSessionByTokenHash(env.WAITLIST_DB, tokenHash, "logout");
   }
 
   return jsonResponse(request, { ok: true }, 200, {

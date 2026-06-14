@@ -78,10 +78,35 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at           TEXT    NOT NULL,
   last_used_at         TEXT,
   expires_at           TEXT    NOT NULL,
-  revoked_at           TEXT
+  revoked_at           TEXT,
+  revoked_reason       TEXT                            -- rotated | replay | manual | logout | expiry | password_reset
+);
+
+-- Idempotency cache for payment-creating endpoints (B3). The helper lives in
+-- functions/api/auth/_lib/idempotency.ts; the table ships now so B3 needs no
+-- further migration.
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+  key          TEXT    PRIMARY KEY,
+  tenant_id    TEXT,
+  endpoint     TEXT    NOT NULL,
+  response     TEXT    NOT NULL,                       -- cached JSON response body
+  status_code  INTEGER NOT NULL,
+  created_at   TEXT    NOT NULL,
+  expires_at   TEXT    NOT NULL                        -- TTL 24h; cleaned by the cron worker
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_tenant      ON users(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user     ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires  ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_tenants_status    ON tenants(subscription_status);
+CREATE INDEX IF NOT EXISTS idx_idem_expires      ON idempotency_keys(expires_at);
+
+-- ---------------------------------------------------------------------------
+-- One-time migration for databases that already had the ORIGINAL B1 schema
+-- applied (sessions without revoked_reason). SQLite cannot guard ADD COLUMN
+-- with IF NOT EXISTS, so this is split out: run it ONCE on an existing DB and
+-- ignore a "duplicate column name" error (it means you already have it). Fresh
+-- databases get the column from the CREATE TABLE above and can skip this.
+--   wrangler d1 execute planscape-waitlist --remote \
+--     --command="ALTER TABLE sessions ADD COLUMN revoked_reason TEXT;"
+-- ---------------------------------------------------------------------------

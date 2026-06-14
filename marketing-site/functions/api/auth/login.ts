@@ -42,7 +42,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
   if (!tenant) throw unauthorized("Invalid email or password.");
 
   await touchLastLogin(env.WAITLIST_DB, user.id);
-  const tokens = await issueTokens(env, user, request);
+  const tokens = await issueTokens(env, user, tenant, request);
 
   return jsonResponse(
     request,

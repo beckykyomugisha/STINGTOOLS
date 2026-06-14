@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verify your email — Planscape</title>
+<meta name="theme-color" content="#E8912D">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.auth-wrap { max-width: 480px; margin: 48px auto; padding: 0 16px; }
+.auth-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 32px; text-align: center; }
+.auth-card h1 { margin: 0 0 12px; font-size: 24px; }
+.auth-card p { color: var(--muted); margin: 0 0 16px; }
+.state { display: none; }
+.state.shown { display: block; }
+.btn-primary { display: inline-block; background: var(--accent); color: #fff; border: 0; padding: 12px 24px; font-size: 15px; font-weight: 600; border-radius: 8px; cursor: pointer; text-decoration: none; }
+.btn-primary:hover { background: #d57f1f; }
+.spinner { font-size: 28px; }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <div class="links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+</nav>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="state shown" id="loading">
+      <div class="spinner">⏳</div>
+      <h1>Verifying your email…</h1>
+      <p>One moment.</p>
+    </div>
+    <div class="state" id="ok">
+      <div class="spinner">✅</div>
+      <h1>Email verified</h1>
+      <p>Your account is confirmed and your 14-day trial is live.</p>
+      <a class="btn-primary" href="/pricing.html">See plans</a>
+    </div>
+    <div class="state" id="fail">
+      <div class="spinner">⚠️</div>
+      <h1>We couldn't verify that link</h1>
+      <p id="fail-msg">This verification link is invalid or has expired.</p>
+      <a class="btn-primary" href="/contact.html">Get help</a>
+    </div>
+  </div>
+</div>
+
+<footer class="site">
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+<script>
+(function () {
+  var token = new URLSearchParams(location.search).get('token') || '';
+  var loading = document.getElementById('loading');
+  var ok = document.getElementById('ok');
+  var fail = document.getElementById('fail');
+  var failMsg = document.getElementById('fail-msg');
+
+  function show(el) {
+    loading.classList.remove('shown');
+    el.classList.add('shown');
+  }
+
+  if (!token) {
+    failMsg.textContent = 'No verification token was provided.';
+    show(fail);
+    return;
+  }
+
+  fetch('/api/auth/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: token })
+  }).then(function (res) {
+    return res.json().then(function (j) { return { ok: res.ok, body: j }; });
+  }).then(function (r) {
+    if (r.ok) { show(ok); }
+    else { failMsg.textContent = (r.body && r.body.error) || failMsg.textContent; show(fail); }
+  }).catch(function () {
+    failMsg.textContent = 'Network error — please try again in a moment.';
+    show(fail);
+  });
+})();
+</script>
+
+</body>
+</html>

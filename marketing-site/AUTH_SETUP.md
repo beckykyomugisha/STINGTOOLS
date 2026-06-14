@@ -36,13 +36,15 @@ openssl rand -base64 32
 
 ## 2. Apply the schema migration
 
-The three new tables (`tenants`, `users`, `sessions`) are appended to the
-existing `schema.sql`. Every statement is idempotent (`IF NOT EXISTS`), so
-re-running is safe and the existing `waitlist` table is untouched.
+The four new tables (`tenants`, `users`, `sessions`, `idempotency_keys`) are
+appended to the existing `schema.sql`. Every `CREATE` is idempotent
+(`IF NOT EXISTS`), so re-running is safe and the existing `waitlist` table is
+untouched.
 
 ```bash
 cd marketing-site
 wrangler d1 execute planscape-waitlist --remote --file=./functions/api/schema.sql
+# or: npm run schema:remote
 ```
 
 Verify the tables exist:
@@ -50,21 +52,61 @@ Verify the tables exist:
 ```bash
 wrangler d1 execute planscape-waitlist --remote \
   --command="SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
-# expect: sessions, tenants, users, waitlist
+# expect: idempotency_keys, sessions, tenants, users, waitlist
+```
+
+### If you applied the ORIGINAL B1 schema before this hardening pass
+
+The hardening adds `sessions.revoked_reason`. SQLite can't guard `ADD COLUMN`
+with `IF NOT EXISTS`, so on a database that already had the first B1 schema
+applied, run this **once** (ignore a "duplicate column name" error — it means
+you already have it):
+
+```bash
+wrangler d1 execute planscape-waitlist --remote \
+  --command="ALTER TABLE sessions ADD COLUMN revoked_reason TEXT;"
+```
+
+A fresh database gets the column from the `CREATE TABLE` and can skip this.
+
+---
+
+## 3. Local development
+
+```bash
+cd marketing-site
+npm install                 # @cloudflare/workers-types + wrangler + typescript
+npm run typecheck           # tsc against the Functions — must be clean
+npm run schema:local        # apply schema.sql to the LOCAL D1 (.wrangler/)
+npm run dev                 # wrangler pages dev — serves the site + Functions
+# Set local secrets in marketing-site/.dev.vars (gitignored):
+#   JWT_SECRET="local-dev-secret-at-least-32-bytes-long-xxxxx"
+#   APP_ORIGIN="http://localhost:8788"
+#   RESEND_API_KEY=""      # leave empty locally — email sends are skipped, flow still works
+```
+
+With `RESEND_API_KEY` unset, verification/reset emails are skipped (logged via
+`console.error`) so the whole flow is exercisable offline; grab the token
+straight from D1:
+
+```bash
+wrangler d1 execute planscape-waitlist --local \
+  --command="SELECT email, email_verify_token FROM users ORDER BY created_at DESC LIMIT 1;"
 ```
 
 ---
 
-## 3. Deploy
+## 4. Deploy
 
 ```bash
 cd marketing-site
 wrangler pages deploy . --project-name=planscape-marketing --branch=main --commit-dirty=true
+# or: npm run deploy
 ```
 
 ---
 
-## 4. Rate limiting (configure in the dashboard — do NOT roll your own)
+## 5. Rate limiting (configure in the dashboard — do NOT roll your own)
 
 Use Cloudflare's built-in rate-limiting rules. In the dashboard:
 **Security → WAF → Rate limiting rules** (or the per-Pages-project equivalent).
@@ -82,53 +124,75 @@ The Functions themselves do not implement rate limiting — that's intentional.
 
 ---
 
-## 5. Smoke test
+## 6. Smoke test (the B1 done-criteria)
 
 Replace `<JWT>` / `<REFRESH>` with values returned by the previous step.
 
 ```bash
 BASE=https://planscape.build
 
-# 1. Sign up — expect 200 + token + refreshToken + tenant.subscriptionStatus="trial"
-curl -s -X POST $BASE/api/auth/signup \
-  -H "Content-Type: application/json" \
+# 1. Sign up — 200 + token + refreshToken + tenant.subscriptionStatus="trial"
+curl -s -X POST $BASE/api/auth/signup -H "Content-Type: application/json" \
   -d '{"email":"test+b1@planscape.build","password":"correct-horse-battery","firstName":"Test","lastName":"User","firmName":"Test Firm","country":"UG"}'
 
-# 2. /me with the JWT — expect 200 + user.emailVerified=false
+# 2. /me with the JWT — 200 + user.emailVerified=false
 curl -s $BASE/api/auth/me -H "Authorization: Bearer <JWT>"
 
-# 3. Re-signup, same email — expect 409 "An account with this email already exists."
+# 3. Re-signup, same email — 409 "An account with this email already exists."
 curl -s -X POST $BASE/api/auth/signup -H "Content-Type: application/json" \
   -d '{"email":"test+b1@planscape.build","password":"correct-horse-battery","firstName":"T","lastName":"U","firmName":"X","country":"UG"}'
 
-# 4. Login wrong password — expect 401 "Invalid email or password." (NOT "user not found")
+# 4. Login wrong password — 401 "Invalid email or password." (NOT "user not found")
 curl -s -X POST $BASE/api/auth/login -H "Content-Type: application/json" \
   -d '{"email":"test+b1@planscape.build","password":"wrong"}'
 
-# 5. Login right password — expect 200 + JWT + refresh
+# 5. Login right password — 200 + JWT + refresh. SAVE this refresh as REFRESH_5.
 curl -s -X POST $BASE/api/auth/login -H "Content-Type: application/json" \
   -d '{"email":"test+b1@planscape.build","password":"correct-horse-battery"}'
 
-# 6. Refresh — expect 200 + new JWT + new refresh. The step-5 refresh is now dead
-#    (single-use rotation): repeating step 6 with the SAME token returns 401.
+# 6. Refresh with REFRESH_5 — 200 + new JWT + new refresh (REFRESH_6).
 curl -s -X POST $BASE/api/auth/refresh -H "Content-Type: application/json" \
-  -d '{"refreshToken":"<REFRESH from step 5>"}'
+  -d '{"refreshToken":"<REFRESH_5>"}'
 
-# 7. Check the inbox for the verification email (manual).
+# 7. REPLAY DETECTION: refresh again with the now-spent REFRESH_5 — 401, AND this
+#    revokes ALL of the user's sessions (so REFRESH_6 is now dead too). Confirm by
+#    trying REFRESH_6 next → also 401.
+curl -s -X POST $BASE/api/auth/refresh -H "Content-Type: application/json" \
+  -d '{"refreshToken":"<REFRESH_5>"}'
+curl -s -X POST $BASE/api/auth/refresh -H "Content-Type: application/json" \
+  -d '{"refreshToken":"<REFRESH_6>"}'   # expect 401 — killed by the replay above
 
-# 8. Verify the email (paste the token from the email link)
+# 8. Verify email — click the link in the inbox (lands on /verify-email) OR POST directly:
 curl -s -X POST $BASE/api/auth/verify -H "Content-Type: application/json" \
   -d '{"token":"<token from email>"}'
-#    (Clicking the email link hits GET /api/auth/verify?token=... and returns the same JSON.)
 
-# 9. Logout — revokes the refresh token, clears the cookie
-curl -s -X POST $BASE/api/auth/logout -H "Content-Type: application/json" \
-  -d '{"refreshToken":"<current REFRESH>"}'
+# 9. /me again — user.emailVerified=true, and the JWT now carries ev:true.
+curl -s $BASE/api/auth/me -H "Authorization: Bearer <fresh JWT from a new login>"
 
-# 10. Inspect D1
+# 10. Forgot password, NONEXISTENT email — 200 {ok:true} (anti-enumeration, no email).
+curl -s -X POST $BASE/api/auth/password/forgot -H "Content-Type: application/json" \
+  -d '{"email":"nobody@nowhere.test"}'
+
+# 11. Forgot password, REAL email — 200 {ok:true} + reset email arrives.
+curl -s -X POST $BASE/api/auth/password/forgot -H "Content-Type: application/json" \
+  -d '{"email":"test+b1@planscape.build"}'
+
+# 12. Reset password — 200 + fresh login tokens. All prior sessions are revoked.
+#     (Click the email link → lands on /reset-password, OR POST directly:)
+curl -s -X POST $BASE/api/auth/password/reset -H "Content-Type: application/json" \
+  -d '{"token":"<token from reset email>","newPassword":"a-brand-new-passphrase"}'
+
+# 13. Trial lazy-expiry — backdate the trial, then GET /me flips it to read_only:
 wrangler d1 execute planscape-waitlist --remote \
-  --command="SELECT id,email,first_name,last_name,role,email_verified_at FROM users; SELECT id,name,slug,subscription_status,trial_ends_at FROM tenants;"
+  --command="UPDATE tenants SET trial_ends_at='2000-01-01T00:00:00.000Z' WHERE slug='test-firm';"
+curl -s $BASE/api/auth/me -H "Authorization: Bearer <JWT>"   # tenant.subscriptionStatus="read_only"
+
+# 14. Inspect D1
+wrangler d1 execute planscape-waitlist --remote \
+  --command="SELECT id,email,first_name,last_name,role,email_verified_at FROM users; SELECT id,name,slug,subscription_status,trial_ends_at FROM tenants; SELECT id,revoked_at,revoked_reason FROM sessions ORDER BY created_at DESC LIMIT 5;"
 ```
+
+When steps 1–14 behave as annotated, **B1 is done** — reply `B1 smoke passed`.
 
 ---
 
@@ -150,9 +214,20 @@ wrangler d1 execute planscape-waitlist --remote \
 
 - **Passwords**: PBKDF2-SHA256, 600,000 iterations, 32-byte random salt. Stored as
   `pbkdf2$iterations$salt$hash`.
-- **Access token**: HS256 JWT, 1-hour expiry, claims `{ iss, sub, tid, role, ev, iat, exp }`.
+- **Access token**: HS256 JWT, 1-hour expiry, claims
+  `{ iss, sub, tid, role, ev, ps, pt, pp, iat, exp }` — `ps`=subscription status,
+  `pt`=plan tier, `pp`=plan product. These plan claims are refreshed on every
+  login / refresh so B2–B4 can authorize without a DB round-trip.
 - **Refresh token**: opaque 32-byte url-safe random string, **single-use** (rotated on
   every refresh), 30-day expiry. Only its SHA-256 hash is stored in `sessions`.
+- **Replay detection**: reusing an already-rotated refresh token revokes **all** of
+  the user's live sessions (`sessions.revoked_reason='replay'`) and returns 401 —
+  defends against a stolen refresh token being replayed after rotation.
+- **Trial lazy-expiry**: `GET /me` flips a `trial` tenant whose window has elapsed to
+  `read_only`. The B3 cron worker will do the same proactively.
+- **Idempotency**: the `idempotency_keys` table + `_lib/idempotency.ts` ship now,
+  unused by B1, so B3's payment endpoints can dedupe on `Idempotency-Key` with no
+  further migration.
 - **Anti-enumeration**: login returns the same 401 whether the email exists or the
   password is wrong; `password/forgot` and `resend-verify` always return 200.
 - **CORS**: only `https://planscape.build` and `https://app.planscape.build` may call

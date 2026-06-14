@@ -283,7 +283,9 @@ export async function getSessionByTokenHash(
     .first<SessionRow>();
 }
 
-// Single-use rotation: revoke the old session and mint a new one atomically.
+// Single-use rotation: revoke the old session (reason 'rotated') and mint a new
+// one atomically. The 'rotated' reason is what replay-detection keys off — a
+// presented token whose session is already revoked-as-rotated means reuse.
 export async function rotateSession(
   db: D1Database,
   oldSessionId: string,
@@ -294,7 +296,9 @@ export async function rotateSession(
   const nowIso = now.toISOString();
   await db.batch([
     db
-      .prepare(`UPDATE sessions SET revoked_at = ? WHERE id = ?`)
+      .prepare(
+        `UPDATE sessions SET revoked_at = ?, revoked_reason = 'rotated' WHERE id = ?`
+      )
       .bind(nowIso, oldSessionId),
     db
       .prepare(
@@ -318,12 +322,53 @@ export async function rotateSession(
 
 export async function revokeSessionByTokenHash(
   db: D1Database,
-  tokenHash: string
+  tokenHash: string,
+  reason = "manual"
 ): Promise<void> {
   await db
     .prepare(
-      `UPDATE sessions SET revoked_at = ? WHERE refresh_token_hash = ? AND revoked_at IS NULL`
+      `UPDATE sessions SET revoked_at = ?, revoked_reason = ?
+       WHERE refresh_token_hash = ? AND revoked_at IS NULL`
     )
-    .bind(new Date().toISOString(), tokenHash)
+    .bind(new Date().toISOString(), reason, tokenHash)
     .run();
+}
+
+// Revoke every still-live session for a user. Used by replay detection
+// (reason 'replay') and password reset (reason 'password_reset').
+export async function revokeAllUserSessions(
+  db: D1Database,
+  userId: string,
+  reason: string
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE sessions SET revoked_at = ?, revoked_reason = ?
+       WHERE user_id = ? AND revoked_at IS NULL`
+    )
+    .bind(new Date().toISOString(), reason, userId)
+    .run();
+}
+
+// Lazy trial expiry: if the tenant is still 'trial' but the trial window has
+// closed, flip it to 'read_only' and return the updated row. Called on /me.
+export async function expireTrialIfNeeded(
+  db: D1Database,
+  tenant: TenantRow
+): Promise<TenantRow> {
+  if (
+    tenant.subscription_status !== "trial" ||
+    new Date(tenant.trial_ends_at).getTime() > Date.now()
+  ) {
+    return tenant;
+  }
+  const nowIso = new Date().toISOString();
+  await db
+    .prepare(
+      `UPDATE tenants SET subscription_status = 'read_only', updated_at = ?
+       WHERE id = ? AND subscription_status = 'trial'`
+    )
+    .bind(nowIso, tenant.id)
+    .run();
+  return { ...tenant, subscription_status: "read_only", updated_at: nowIso };
 }

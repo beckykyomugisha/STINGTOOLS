@@ -57,6 +57,7 @@ export interface SessionRow {
   last_used_at: string | null;
   expires_at: string;
   revoked_at: string | null;
+  revoked_reason: string | null;
 }
 
 // JWT claims (HS256 access token).
@@ -66,6 +67,9 @@ export interface JwtClaims {
   tid: string; // tenant id
   role: string;
   ev: boolean; // email verified
+  ps: string; // subscription_status (trial | active | past_due | read_only | cancelled)
+  pt: string | null; // plan_tier (solo | studio | ...)
+  pp: string | null; // plan_product (sting-tools | planscape)
   iat: number;
   exp: number;
 }

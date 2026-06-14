@@ -5,7 +5,7 @@ import { signJwt } from "./jwt";
 import { randomToken, sha256Hex, uuid } from "./tokens";
 import { claimsFor } from "./auth";
 import { createSession, rotateSession } from "./db";
-import type { Env, UserRow } from "./types";
+import type { Env, UserRow, TenantRow } from "./types";
 
 const REFRESH_COOKIE = "ps_refresh";
 const REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -15,10 +15,23 @@ export interface IssuedTokens {
   refreshToken: string; // opaque, returned to client once
 }
 
-// Mint a fresh access token for a user without touching sessions.
-export async function mintAccessToken(env: Env, user: UserRow): Promise<string> {
+// Mint a fresh access token. Plan/subscription claims come from the tenant so
+// the token carries everything downstream authz needs.
+export async function mintAccessToken(
+  env: Env,
+  user: UserRow,
+  tenant: TenantRow
+): Promise<string> {
   return signJwt(
-    claimsFor(user.id, user.tenant_id, user.role, user.email_verified_at != null),
+    claimsFor({
+      userId: user.id,
+      tenantId: user.tenant_id,
+      role: user.role,
+      emailVerified: user.email_verified_at != null,
+      subscriptionStatus: tenant.subscription_status,
+      planTier: tenant.plan_tier,
+      planProduct: tenant.plan_product,
+    }),
     env.JWT_SECRET
   );
 }
@@ -27,9 +40,10 @@ export async function mintAccessToken(env: Env, user: UserRow): Promise<string> 
 export async function issueTokens(
   env: Env,
   user: UserRow,
+  tenant: TenantRow,
   request: Request
 ): Promise<IssuedTokens> {
-  const token = await mintAccessToken(env, user);
+  const token = await mintAccessToken(env, user, tenant);
   const refreshToken = randomToken(32);
   const refreshTokenHash = await sha256Hex(refreshToken);
   await createSession(env.WAITLIST_DB, {
@@ -46,10 +60,11 @@ export async function issueTokens(
 export async function rotateTokens(
   env: Env,
   user: UserRow,
+  tenant: TenantRow,
   oldSessionId: string,
   request: Request
 ): Promise<IssuedTokens> {
-  const token = await mintAccessToken(env, user);
+  const token = await mintAccessToken(env, user, tenant);
   const refreshToken = randomToken(32);
   const refreshTokenHash = await sha256Hex(refreshToken);
   await rotateSession(env.WAITLIST_DB, oldSessionId, {

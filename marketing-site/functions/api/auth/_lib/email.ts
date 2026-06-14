@@ -67,7 +67,7 @@ export async function sendVerifyEmail(
   firstName: string,
   token: string
 ): Promise<void> {
-  const link = `${appOrigin(env)}/api/auth/verify?token=${encodeURIComponent(token)}`;
+  const link = `${appOrigin(env)}/verify-email?token=${encodeURIComponent(token)}`;
   const html = shell(
     "Confirm your email",
     `<p style="margin:0 0 20px;font-size:15px;line-height:1.5;">Hi ${firstName}, welcome to Planscape. Confirm your email address to activate your 14-day trial.</p>
