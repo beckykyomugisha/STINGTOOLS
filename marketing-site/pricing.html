@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pricing — Planscape</title>
-<meta name="description" content="Flat per-firm pricing. Free 30-day trial. Starter $35/mo, Standard $65/mo, Large $90/mo, Enterprise custom. Invoiced in your local currency.">
+<meta name="description" content="Per-firm pricing for STING Tools (Revit plugin) and Planscape (cloud + plugin bundle). 14-day free trial — trial both products. From $25/mo. Local currency invoicing.">
 <meta property="og:title" content="Pricing — Planscape">
-<meta property="og:description" content="Flat per-firm pricing — add users without paying per seat. From $35/mo. Local currency invoicing for East &amp; West Africa.">
+<meta property="og:description" content="Per-firm pricing. STING Tools from $25/mo. Planscape bundle from $60/mo. 14-day free trial. Local currency for East &amp; West Africa.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://planscape.build/pricing.html">
 <meta name="theme-color" content="#E8912D">
@@ -22,6 +22,19 @@
 }
 .toggle-row button.active { background:var(--ink); color:#fff; border-color:var(--ink); }
 .save-badge { color:var(--good); font-size:13px; font-weight:600; }
+.product-switch { display:flex; justify-content:center; gap:0; margin:8px 0 24px; flex-wrap:wrap; }
+.product-switch a {
+  background:var(--card); border:1px solid var(--line);
+  padding:12px 24px; cursor:pointer; text-decoration:none;
+  font-size:14px; font-weight:600; color:var(--muted);
+}
+.product-switch a:first-child { border-radius:999px 0 0 999px; }
+.product-switch a:last-child { border-radius:0 999px 999px 0; border-left:0; }
+.product-switch a.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.product-section { margin-top:48px; }
+.product-section h2 { margin-bottom:4px; }
+.product-tag { display:inline-block; background:var(--card); border:1px solid var(--line); padding:4px 10px; border-radius:999px; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:8px; }
+.tier .cap { font-size:13px; color:var(--muted); margin-top:-8px; margin-bottom:8px; }
 </style>
 </head>
 <body>
@@ -42,8 +55,8 @@
 </nav>
 
 <header class="page-header">
-  <h1>Simple, predictable pricing</h1>
-  <p>One flat price per firm — not per seat. Invite the whole team. Pay in your local currency.</p>
+  <h1>Pricing that scales with your firm</h1>
+  <p>Two products. One Revit plugin, one cloud platform. Pick what you need — or bundle both and save.</p>
 </header>
 
 <section style="padding-top:0">
@@ -51,98 +64,215 @@
     <button class="active" onclick="setBilling('month')" id="btn-month">Monthly</button>
     <button onclick="setBilling('year')" id="btn-year">Annual <span class="save-badge">Save 20%</span></button>
   </div>
-  <p class="text-center muted" style="font-size:13px;margin-bottom:0">All plans include the Revit plugin · 30-day free trial · no credit card required</p>
+  <p class="text-center muted" style="font-size:13px;margin-bottom:0">14-day free trial · trial both products · no credit card required</p>
+</section>
+
+<section class="product-section" style="padding-top:24px">
+  <div class="text-center">
+    <span class="product-tag">PLANSCAPE BUNDLE</span>
+    <h2 style="margin:8px 0 4px">Planscape — plugin + cloud + mobile</h2>
+    <p class="lead" style="margin:0 auto 24px">Everything in STING Tools, plus cloud CDE, mobile app, GPS site capture, and BCF round-trip. Priced by coordinator count.</p>
+  </div>
 
   <div class="pricing-grid">
     <div class="tier">
-      <h3>Plugin Only</h3>
-      <p class="desc">Just the Revit plugin. No cloud sync, no mobile app.</p>
-      <div class="price">$<span data-m="15" data-y="12">15</span><span class="per">/firm/mo</span></div>
+      <h3>Solo</h3>
+      <p class="desc">For sole practitioners and tiny studios.</p>
+      <div class="price">$<span data-m="60" data-y="48">60</span><span class="per">/firm/mo</span></div>
+      <p class="cap">Up to 3 coordinators</p>
       <ul>
-        <li>Revit 2025 / 2026 / 2027 plugin</li>
-        <li>763+ commands</li>
-        <li>ISO 19650 auto-tagging</li>
-        <li>Drawing template manager</li>
-        <li>Healthcare + MEP packs</li>
-        <li class="x">No cloud CDE</li>
-        <li class="x">No mobile app</li>
-        <li class="x">Email support only</li>
-      </ul>
-      <a href="/signup?plan=plugin" class="cta">Start trial</a>
-    </div>
-
-    <div class="tier">
-      <h3>Starter</h3>
-      <p class="desc">Plugin + cloud CDE + mobile. For solo practices and small teams.</p>
-      <div class="price">$<span data-m="35" data-y="28">35</span><span class="per">/firm/mo</span></div>
-      <ul>
-        <li>Everything in Plugin Only</li>
-        <li>Up to 5 users</li>
-        <li>3 active projects</li>
+        <li>STING Tools Revit plugin (full)</li>
         <li>Cloud CDE (10 GB storage)</li>
         <li>Offline-first mobile app</li>
-        <li>GPS site map</li>
-        <li>Photo capture + voice notes</li>
+        <li>GPS site map + photo capture</li>
+        <li>3 active projects</li>
         <li>Email + WhatsApp support</li>
       </ul>
-      <a href="/signup?plan=starter" class="cta">Start trial</a>
+      <a href="/signup?plan=planscape-solo" class="cta">Start 14-day trial</a>
     </div>
 
     <div class="tier highlight">
-      <h3>Standard</h3>
-      <p class="desc">For mid-size practices delivering on multiple projects in parallel.</p>
-      <div class="price">$<span data-m="65" data-y="52">65</span><span class="per">/firm/mo</span></div>
+      <h3>Studio</h3>
+      <p class="desc">For small practices delivering on multiple projects in parallel.</p>
+      <div class="price">$<span data-m="130" data-y="104">130</span><span class="per">/firm/mo</span></div>
+      <p class="cap">4–10 coordinators</p>
       <ul>
-        <li>Everything in Starter</li>
-        <li>Up to 10 users</li>
+        <li>Everything in Solo</li>
         <li>10 active projects</li>
         <li>50 GB storage</li>
         <li>ACC + SharePoint sync</li>
-        <li>BCF round-trip</li>
+        <li>BCF 2.1 round-trip</li>
         <li>Excel bidirectional sync</li>
         <li>Priority support (4h response)</li>
       </ul>
-      <a href="/signup?plan=standard" class="cta">Start trial</a>
+      <a href="/signup?plan=planscape-studio" class="cta">Start 14-day trial</a>
     </div>
 
     <div class="tier">
-      <h3>Large</h3>
-      <p class="desc">For practices with 15+ coordinators and an active portfolio.</p>
-      <div class="price">$<span data-m="90" data-y="72">90</span><span class="per">/firm/mo</span></div>
+      <h3>Practice</h3>
+      <p class="desc">For mid-size practices with multi-discipline teams.</p>
+      <div class="price">$<span data-m="280" data-y="224">280</span><span class="per">/firm/mo</span></div>
+      <p class="cap">11–25 coordinators</p>
       <ul>
-        <li>Everything in Standard</li>
-        <li>Up to 20 users</li>
-        <li>Unlimited projects</li>
+        <li>Everything in Studio</li>
+        <li>Unlimited active projects</li>
         <li>200 GB storage</li>
         <li>4D / 5D scheduling</li>
         <li>Embodied carbon tracking</li>
         <li>Clash detection</li>
         <li>SSO + 2FA</li>
       </ul>
-      <a href="/signup?plan=large" class="cta">Start trial</a>
+      <a href="/signup?plan=planscape-practice" class="cta">Start 14-day trial</a>
+    </div>
+
+    <div class="tier">
+      <h3>Firm</h3>
+      <p class="desc">For established firms running concurrent large projects.</p>
+      <div class="price">$<span data-m="560" data-y="448">560</span><span class="per">/firm/mo</span></div>
+      <p class="cap">26–50 coordinators</p>
+      <ul>
+        <li>Everything in Practice</li>
+        <li>500 GB storage</li>
+        <li>Dedicated onboarding session</li>
+        <li>Quarterly account review</li>
+        <li>Audit log export</li>
+        <li>Custom IFC property mapping</li>
+        <li>Priority support (2h response)</li>
+      </ul>
+      <a href="/signup?plan=planscape-firm" class="cta">Start 14-day trial</a>
+    </div>
+  </div>
+
+  <div class="pricing-grid" style="grid-template-columns:1fr 1fr;margin-top:24px">
+    <div class="tier">
+      <h3>Large</h3>
+      <p class="desc">For large firms and consortiums with deep BIM teams.</p>
+      <div class="price">$<span data-m="1000" data-y="800">1,000</span><span class="per">/firm/mo</span></div>
+      <p class="cap">51–100 coordinators</p>
+      <ul>
+        <li>Everything in Firm</li>
+        <li>2 TB storage</li>
+        <li>SCIM user provisioning</li>
+        <li>Multi-region data residency choice</li>
+        <li>Phone support (1h response)</li>
+        <li>Dedicated CSM</li>
+      </ul>
+      <a href="/signup?plan=planscape-large" class="cta">Start 14-day trial</a>
+    </div>
+
+    <div class="tier">
+      <h3>Enterprise</h3>
+      <p class="desc">For very large practices, contractors, and public-sector clients.</p>
+      <div class="price">Custom<span class="per"> &nbsp;contact us</span></div>
+      <p class="cap">100+ coordinators</p>
+      <ul>
+        <li>Everything in Large</li>
+        <li>Unlimited storage</li>
+        <li>Self-host option (Docker Compose)</li>
+        <li>Single-tenant database</li>
+        <li>Custom integrations + SLA</li>
+        <li>Onboarding + training included</li>
+      </ul>
+      <a href="/contact.html#enterprise" class="cta" style="background:var(--ink)">Talk to us</a>
+    </div>
+  </div>
+</section>
+
+<section class="product-section" style="background:var(--card)">
+  <div class="text-center">
+    <span class="product-tag">STING TOOLS ONLY</span>
+    <h2 style="margin:8px 0 4px">STING Tools — Revit plugin standalone</h2>
+    <p class="lead" style="margin:0 auto 24px">763+ commands for ISO 19650 tagging, drawing production, MEP engineering, and healthcare validation. No cloud, no mobile — just the plugin.</p>
+  </div>
+
+  <div class="pricing-grid">
+    <div class="tier">
+      <h3>Solo</h3>
+      <p class="desc">Just the Revit plugin for a single seat.</p>
+      <div class="price">$<span data-m="25" data-y="20">25</span><span class="per">/firm/mo</span></div>
+      <p class="cap">1 seat</p>
+      <ul>
+        <li>Revit 2025 / 2026 / 2027 plugin</li>
+        <li>763+ commands</li>
+        <li>ISO 19650 auto-tagging</li>
+        <li>Drawing template manager</li>
+        <li>Healthcare + MEP packs</li>
+        <li>Monthly updates</li>
+        <li>Email support</li>
+      </ul>
+      <a href="/signup?plan=sting-solo" class="cta">Start 14-day trial</a>
+    </div>
+
+    <div class="tier">
+      <h3>Studio</h3>
+      <p class="desc">For small Revit teams sharing the plugin across a firm.</p>
+      <div class="price">$<span data-m="90" data-y="72">90</span><span class="per">/firm/mo</span></div>
+      <p class="cap">Up to 5 seats</p>
+      <ul>
+        <li>Everything in Solo</li>
+        <li>Up to 5 named seats</li>
+        <li>Shared firm config</li>
+        <li>Drawing template library sync</li>
+        <li>Family library curation</li>
+        <li>Email + WhatsApp support</li>
+      </ul>
+      <a href="/signup?plan=sting-studio" class="cta">Start 14-day trial</a>
+    </div>
+
+    <div class="tier">
+      <h3>Practice</h3>
+      <p class="desc">For mid-size BIM teams across multiple disciplines.</p>
+      <div class="price">$<span data-m="200" data-y="160">200</span><span class="per">/firm/mo</span></div>
+      <p class="cap">Up to 15 seats</p>
+      <ul>
+        <li>Everything in Studio</li>
+        <li>Up to 15 named seats</li>
+        <li>Custom command groups</li>
+        <li>Parameter registry overrides</li>
+        <li>Project-scoped placement rules</li>
+        <li>Priority support (4h response)</li>
+      </ul>
+      <a href="/signup?plan=sting-practice" class="cta">Start 14-day trial</a>
+    </div>
+
+    <div class="tier">
+      <h3>Firm</h3>
+      <p class="desc">For larger firms with a deep Revit roster.</p>
+      <div class="price">$<span data-m="400" data-y="320">400</span><span class="per">/firm/mo</span></div>
+      <p class="cap">Up to 40 seats</p>
+      <ul>
+        <li>Everything in Practice</li>
+        <li>Up to 40 named seats</li>
+        <li>Workstation deployment helper</li>
+        <li>Group Policy MSI</li>
+        <li>Audit log of plugin usage</li>
+        <li>Priority support (2h response)</li>
+      </ul>
+      <a href="/signup?plan=sting-firm" class="cta">Start 14-day trial</a>
     </div>
   </div>
 
   <div class="pricing-grid" style="grid-template-columns:1fr;margin-top:24px">
     <div class="tier">
       <h3>Enterprise</h3>
-      <p class="desc">For large practices, contractors, and public-sector clients with custom needs.</p>
+      <p class="desc">For very large Revit estates and public-sector clients.</p>
       <div class="price">Custom<span class="per"> &nbsp;contact us</span></div>
+      <p class="cap">40+ seats</p>
       <div class="grid-3" style="margin-top:16px">
         <ul style="border:0;padding:0;margin:0">
-          <li>Everything in Large</li>
-          <li>Unlimited users</li>
-          <li>Unlimited storage</li>
+          <li>Unlimited seats</li>
+          <li>Custom command authoring</li>
+          <li>Whitelabel option</li>
         </ul>
         <ul style="border:0;padding:0;margin:0">
-          <li>Self-host option (Docker Compose)</li>
-          <li>Dedicated EU or Africa region</li>
-          <li>Single-tenant database</li>
+          <li>On-prem licence server</li>
+          <li>Bespoke training pack</li>
+          <li>Direct engineering channel</li>
         </ul>
         <ul style="border:0;padding:0;margin:0">
-          <li>Custom integrations</li>
-          <li>1-hour SLA · phone support</li>
-          <li>Onboarding + training included</li>
+          <li>SLA-backed contracts</li>
+          <li>Annual invoicing</li>
+          <li>Procurement-friendly terms</li>
         </ul>
       </div>
       <a href="/contact.html#enterprise" class="cta" style="background:var(--ink);margin-top:24px;max-width:240px">Talk to us</a>
@@ -151,30 +281,30 @@
 </section>
 
 <section>
-  <h2 class="text-center">Compare plans</h2>
+  <h2 class="text-center">Compare Planscape plans</h2>
   <p class="lead text-center" style="margin:0 auto 24px">Every limit explained side-by-side.</p>
   <div style="overflow-x:auto">
   <table class="tbl">
     <thead>
-      <tr><th>Feature</th><th>Plugin</th><th>Starter</th><th>Standard</th><th>Large</th><th>Enterprise</th></tr>
+      <tr><th>Feature</th><th>Solo</th><th>Studio</th><th>Practice</th><th>Firm</th><th>Large</th><th>Enterprise</th></tr>
     </thead>
     <tbody>
-      <tr><td>Revit plugin (2025/26/27)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-      <tr><td>Cloud CDE</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-      <tr><td>Mobile app (iOS + Android)</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-      <tr><td>Users</td><td>1</td><td>5</td><td>10</td><td>20</td><td>Unlimited</td></tr>
-      <tr><td>Active projects</td><td>—</td><td>3</td><td>10</td><td>Unlimited</td><td>Unlimited</td></tr>
-      <tr><td>Storage</td><td>—</td><td>10 GB</td><td>50 GB</td><td>200 GB</td><td>Unlimited</td></tr>
-      <tr><td>GPS site map</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-      <tr><td>Photo capture + voice notes</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-      <tr><td>ACC + SharePoint sync</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
-      <tr><td>BCF 2.1 round-trip</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
-      <tr><td>4D / 5D scheduling</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
-      <tr><td>Clash detection</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
-      <tr><td>Embodied carbon tracking</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
-      <tr><td>SSO + 2FA</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
-      <tr><td>Self-host option</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
-      <tr><td>Support SLA</td><td>Email · 48h</td><td>Email · 24h</td><td>Email · 4h</td><td>Email · 4h</td><td>Phone · 1h</td></tr>
+      <tr><td>STING Tools Revit plugin</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Cloud CDE</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Mobile app (iOS + Android)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Coordinators</td><td>1–3</td><td>4–10</td><td>11–25</td><td>26–50</td><td>51–100</td><td>100+</td></tr>
+      <tr><td>Active projects</td><td>3</td><td>10</td><td>Unlimited</td><td>Unlimited</td><td>Unlimited</td><td>Unlimited</td></tr>
+      <tr><td>Storage</td><td>10 GB</td><td>50 GB</td><td>200 GB</td><td>500 GB</td><td>2 TB</td><td>Unlimited</td></tr>
+      <tr><td>GPS site map + photo capture</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>ACC + SharePoint sync</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>BCF 2.1 round-trip</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>4D / 5D scheduling</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Clash detection</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Embodied carbon tracking</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>SSO + 2FA</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>SCIM provisioning</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Self-host option</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+      <tr><td>Support SLA</td><td>Email · 24h</td><td>Email · 4h</td><td>Email · 4h</td><td>Email · 2h</td><td>Phone · 1h</td><td>Phone · 1h</td></tr>
     </tbody>
   </table>
   </div>
@@ -200,32 +330,44 @@
   <h2 class="text-center">Frequently asked questions</h2>
   <div class="faq-list">
     <details class="faq-item">
+      <summary class="faq-q">What's the difference between STING Tools and Planscape?</summary>
+      <div class="faq-a"><strong>STING Tools</strong> is the Revit plugin only — 763+ commands for tagging, drawing production, MEP engineering, and healthcare validation. It runs entirely on your workstation, no cloud required. <strong>Planscape</strong> bundles STING Tools with a cloud CDE, mobile app, GPS site capture, BCF round-trip, and team collaboration. If you're a solo Revit author who just wants the plugin, pick STING Tools. If your firm runs multi-discipline projects with site teams and clients, pick Planscape.</div>
+    </details>
+    <details class="faq-item">
       <summary class="faq-q">What does "per firm" actually mean?</summary>
-      <div class="faq-a">One price covers your whole firm regardless of how many users you have, up to the plan's user cap. So Standard at $65/mo covers up to 10 users in your firm — invite the whole team without worrying about per-seat math. When you hit the cap, upgrade or remove inactive users.</div>
+      <div class="faq-a">One flat price covers your whole firm, up to the plan's coordinator (Planscape) or seat (STING Tools) cap. So Planscape Studio at $130/mo covers up to 10 coordinators in your firm — invite the whole team without per-seat math. When you hit the cap, upgrade or remove inactive users.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">What happens when we exceed our coordinator/seat cap?</summary>
+      <div class="faq-a">We use a <strong>soft block</strong>. You can keep inviting users past your cap — nothing breaks, no surprise invoices — but everyone with admin access sees an upgrade prompt explaining you're over. You have 14 days to either upgrade to the next tier or remove inactive members. After 14 days, new sign-ins are paused (existing sessions keep working) until you upgrade. We never auto-charge you for overages.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Can I trial both products?</summary>
+      <div class="faq-a">Yes — your 14-day free trial gives you full access to both STING Tools and the Planscape cloud bundle so you can decide what fits. At the end of the trial, pick whichever product (and tier) works for you. If you don't pick anything, your account moves to read-only mode — you keep access to your data but can't create new projects or sync the plugin until you choose a plan.</div>
     </details>
     <details class="faq-item">
       <summary class="faq-q">Can my clients access projects?</summary>
-      <div class="faq-a">Yes — clients and contractors join as external project members without buying a separate license. They get role-restricted access to the project you've invited them to (typically Viewer or Client role). They don't count against your user cap as long as their firm doesn't also need to author models.</div>
+      <div class="faq-a">Yes — clients and contractors join as external project members without buying a separate licence. They get role-restricted access to the project you've invited them to (typically Viewer or Client role). They don't count against your coordinator cap as long as their firm doesn't also need to author models.</div>
     </details>
     <details class="faq-item">
-      <summary class="faq-q">What happens at the end of the 30-day trial?</summary>
-      <div class="faq-a">If you've added a payment method, your subscription starts on day 31 at the plan you chose at signup. If you haven't, your account moves to read-only mode — you keep access to all your data but can't create new projects, raise new issues, or sync the Revit plugin. We give you 60 days to either upgrade or export your data before it's archived.</div>
+      <summary class="faq-q">What happens at the end of the 14-day trial?</summary>
+      <div class="faq-a">If you've added a payment method, your subscription starts on day 15 at the plan and product you chose. If you haven't, your account moves to read-only mode — you keep access to all your data but can't create new projects, raise new issues, or sync the Revit plugin. We give you 60 days to either upgrade or export your data before it's archived.</div>
     </details>
     <details class="faq-item">
-      <summary class="faq-q">Can I switch plans mid-cycle?</summary>
-      <div class="faq-a">Yes — upgrades take effect immediately and we pro-rate the new plan from the upgrade date. Downgrades take effect at the next billing cycle so you don't lose access mid-month.</div>
+      <summary class="faq-q">Can I switch plans or products mid-cycle?</summary>
+      <div class="faq-a">Yes — upgrades (e.g. Solo → Studio, or STING Tools → Planscape) take effect immediately and we pro-rate the new plan from the upgrade date. Downgrades take effect at the next billing cycle so you don't lose access mid-month.</div>
     </details>
     <details class="faq-item">
       <summary class="faq-q">Is there an annual discount?</summary>
-      <div class="faq-a">Yes — pay annually and save 20% on any plan. Toggle the annual / monthly switch at the top of this page to see the discounted rate.</div>
+      <div class="faq-a">Yes — pay annually and save 20% on any plan, on either product. Toggle the annual / monthly switch at the top of this page to see the discounted rate.</div>
     </details>
     <details class="faq-item">
       <summary class="faq-q">Do you offer educational or non-profit pricing?</summary>
-      <div class="faq-a">Yes. Accredited universities, vocational training institutes, and registered non-profits get 50% off the Standard tier. <a href="/contact.html">Contact us</a> with your accreditation details.</div>
+      <div class="faq-a">Yes. Accredited universities, vocational training institutes, and registered non-profits get 50% off any Planscape or STING Tools tier. <a href="/contact.html">Contact us</a> with your accreditation details.</div>
     </details>
     <details class="faq-item">
       <summary class="faq-q">Can I self-host instead of using your cloud?</summary>
-      <div class="faq-a">Yes — self-host ships with the Enterprise plan. The server stack (ASP.NET Core 8 + PostgreSQL + Redis + MinIO) deploys via Docker Compose. We provide the configuration, you provide the hardware. See the <a href="/guides/self-hosting.html">self-hosting guide</a> for the deployment walkthrough and hardware requirements.</div>
+      <div class="faq-a">Yes — self-host ships with Planscape Enterprise. The server stack (ASP.NET Core 8 + PostgreSQL + Redis + MinIO) deploys via Docker Compose. We provide the configuration, you provide the hardware. See the <a href="/guides/self-hosting.html">self-hosting guide</a> for the deployment walkthrough and hardware requirements.</div>
     </details>
     <details class="faq-item">
       <summary class="faq-q">What's your refund policy?</summary>
@@ -235,8 +377,8 @@
 </section>
 
 <div class="cta-band">
-  <h2>Try it free for 30 days.</h2>
-  <p>Full Standard tier features. No credit card. Cancel any time.</p>
+  <h2>Try it free for 14 days.</h2>
+  <p>Both products. Full features. No credit card. Cancel any time.</p>
   <a href="/signup">Start now</a>
 </div>
 
@@ -277,7 +419,10 @@
 function setBilling(mode) {
   var prices = document.querySelectorAll('.price span[data-m]');
   prices.forEach(function(p){
-    p.textContent = mode === 'year' ? p.getAttribute('data-y') : p.getAttribute('data-m');
+    var v = mode === 'year' ? p.getAttribute('data-y') : p.getAttribute('data-m');
+    // Insert thousands separator for values >= 1000
+    var n = parseInt(v, 10);
+    p.textContent = n >= 1000 ? n.toLocaleString('en-US') : v;
   });
   document.getElementById('btn-month').classList.toggle('active', mode==='month');
   document.getElementById('btn-year').classList.toggle('active', mode==='year');

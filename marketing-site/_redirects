@@ -6,13 +6,8 @@
 /docs           https://docs.planscape.build/    301
 /docs/*         https://docs.planscape.build/:splat 301
 
-# Cleaner URLs without .html
-/features       /features.html                 301
-/pricing        /pricing.html                  301
-/about          /about.html                    301
-/contact        /contact.html                  301
-/privacy        /privacy.html                  301
-/terms          /terms.html                    301
+# Note: Cloudflare Pages auto-canonicalises /pricing → /pricing.html.
+# Don't add explicit /pricing → /pricing.html rules here — they create a redirect loop.
 
 # App routes — proxy to the API for signup / login
 /signup         https://api.planscape.build/auth/signup 302
