@@ -24,16 +24,20 @@ database_id = "abc12345-6789-..."
 
 **Copy the `database_id`** — you'll need it.
 
-## 2. Bind D1 to the Pages project
+## 2. Bind D1 in `wrangler.toml`
 
-Go to **Cloudflare dashboard → Pages → planscape-marketing → Settings → Functions → D1 database bindings → Add binding**:
+The binding is already defined in `marketing-site/wrangler.toml`:
 
-- **Variable name:** `WAITLIST_DB`
-- **D1 database:** `planscape-waitlist`
+```toml
+[[d1_databases]]
+binding       = "WAITLIST_DB"
+database_name = "planscape-waitlist"
+database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"
+```
 
-Click **Save**. Bindings apply to the next deploy.
+If you ever re-create the D1 database, update the `database_id` here (and in the `[[env.preview.d1_databases]]` + `[[env.production.d1_databases]]` blocks at the bottom) before the next deploy.
 
-> Note: D1 bindings can't be set via `wrangler.toml` for Pages projects — only via the dashboard. (Workers projects support `wrangler.toml` bindings; Pages does not, as of mid-2026.)
+> Note: the Cloudflare dashboard's **+ Add binding** button is greyed out for projects using `wrangler.toml` — that's intentional. The toml is the source of truth; the dashboard shows the binding as read-only after the next deploy.
 
 ## 3. Apply the schema (creates the `waitlist` table)
 
