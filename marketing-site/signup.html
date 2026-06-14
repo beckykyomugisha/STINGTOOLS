@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Join the waitlist — Planscape</title>
+<meta name="description" content="Planscape is launching in private beta in 2026. Join the waitlist for early access to STING Tools and the Planscape cloud bundle.">
+<meta name="theme-color" content="#E8912D">
+<meta name="robots" content="noindex,follow">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/signup">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.signup-wrap { max-width: 540px; margin: 32px auto; padding: 0 16px; }
+.signup-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 32px;
+}
+.signup-card h1 { margin: 0 0 8px; font-size: 28px; }
+.signup-card .sub { color: var(--muted); margin: 0 0 24px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+.field input, .field select, .field textarea {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 15px;
+  background: #fff;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 145, 45, 0.15);
+}
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 540px) { .field-row { grid-template-columns: 1fr; } }
+.field .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.btn-primary {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.btn-primary:hover { background: #d57f1f; }
+.btn-primary:disabled { background: var(--muted); cursor: not-allowed; }
+.success-state, .error-state {
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+  display: none;
+}
+.success-state { background: #e8f7ed; border: 1px solid #2e9b59; color: #1e6b3c; }
+.error-state { background: #fdebea; border: 1px solid #cc3322; color: #8b2018; }
+.success-state.shown, .error-state.shown { display: block; }
+.fineprint { font-size: 12px; color: var(--muted); margin-top: 16px; text-align: center; }
+.product-choice { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+@media (max-width: 540px) { .product-choice { grid-template-columns: 1fr; } }
+.product-choice label {
+  display: block;
+  padding: 14px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+.product-choice input[type=radio] { display: none; }
+.product-choice input[type=radio]:checked + span { color: var(--accent); }
+.product-choice label:has(input:checked) {
+  border-color: var(--accent);
+  background: #fff5eb;
+}
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/blog/">Blog</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+</nav>
+
+<div class="signup-wrap">
+  <div class="signup-card">
+    <div class="success-state" id="success">
+      <h2 style="margin:0 0 8px;font-size:20px">You're on the list 🎉</h2>
+      <p style="margin:0">We'll email you as soon as your trial slot is ready. In the meantime, browse the <a href="/guides/">guides</a> or <a href="/contact.html#demo">book a demo</a>.</p>
+    </div>
+    <div class="error-state" id="error">
+      <h2 style="margin:0 0 8px;font-size:20px">Something went wrong</h2>
+      <p style="margin:0" id="error-msg">Please try again, or email <a href="mailto:hello@planscape.build">hello@planscape.build</a>.</p>
+    </div>
+
+    <div id="form-block">
+      <h1>Join the waitlist</h1>
+      <p class="sub">Planscape is launching in private beta in 2026. Tell us about your firm and we'll roll out a trial slot as capacity opens up.</p>
+
+      <form id="waitlist-form" novalidate>
+        <div class="field">
+          <label>Which product are you interested in?</label>
+          <div class="product-choice">
+            <label><input type="radio" name="product" value="sting-tools"><span>STING Tools<br><small style="font-weight:400">Plugin only</small></span></label>
+            <label><input type="radio" name="product" value="planscape" checked><span>Planscape<br><small style="font-weight:400">Plugin + cloud</small></span></label>
+            <label><input type="radio" name="product" value="both"><span>Not sure<br><small style="font-weight:400">Tell me both</small></span></label>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="firstName">First name</label>
+            <input type="text" id="firstName" name="firstName" required autocomplete="given-name">
+          </div>
+          <div class="field">
+            <label for="lastName">Last name</label>
+            <input type="text" id="lastName" name="lastName" required autocomplete="family-name">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="email">Work email</label>
+          <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@firm.com">
+          <div class="hint">We'll use this to send you your trial invite.</div>
+        </div>
+
+        <div class="field">
+          <label for="firm">Firm name</label>
+          <input type="text" id="firm" name="firm" required autocomplete="organization">
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="country">Country</label>
+            <select id="country" name="country" required>
+              <option value="">Choose…</option>
+              <option value="UG">Uganda</option>
+              <option value="KE">Kenya</option>
+              <option value="TZ">Tanzania</option>
+              <option value="RW">Rwanda</option>
+              <option value="NG">Nigeria</option>
+              <option value="ZA">South Africa</option>
+              <option value="GH">Ghana</option>
+              <option value="ET">Ethiopia</option>
+              <option value="SN">Senegal</option>
+              <option value="CI">Côte d'Ivoire</option>
+              <option value="EG">Egypt</option>
+              <option value="MA">Morocco</option>
+              <option value="GB">United Kingdom</option>
+              <option value="US">United States</option>
+              <option value="EU">Other (EU)</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="teamSize">Coordinators</label>
+            <select id="teamSize" name="teamSize" required>
+              <option value="">Choose…</option>
+              <option value="1-3">1–3</option>
+              <option value="4-10">4–10</option>
+              <option value="11-25">11–25</option>
+              <option value="26-50">26–50</option>
+              <option value="51-100">51–100</option>
+              <option value="100+">100+</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="role">Your role</label>
+          <select id="role" name="role" required>
+            <option value="">Choose…</option>
+            <option value="bim-manager">BIM Manager</option>
+            <option value="bim-coordinator">BIM Coordinator</option>
+            <option value="project-lead">Project Lead</option>
+            <option value="principal">Principal / Partner</option>
+            <option value="it">IT / Operations</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="notes">Anything we should know? <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+          <textarea id="notes" name="notes" rows="3" placeholder="e.g. We're starting an ISO 19650 pilot in Q3 / We use Revit + Navisworks today / We deliver hospital projects"></textarea>
+        </div>
+
+        <button type="submit" class="btn-primary" id="submit-btn">Join the waitlist</button>
+
+        <p class="fineprint">By submitting you agree to our <a href="/privacy.html">privacy policy</a>. We'll only email you about your trial — no marketing list.</p>
+      </form>
+    </div>
+  </div>
+</div>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/tutorials/">Tutorials</a>
+      <a href="/blog/">Blog</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+<script>
+(function(){
+  // Pre-select product based on ?plan= query parameter
+  var params = new URLSearchParams(location.search);
+  var plan = params.get('plan') || '';
+  if (plan.indexOf('sting') === 0) {
+    document.querySelector('input[name=product][value=sting-tools]').checked = true;
+  } else if (plan.indexOf('planscape') === 0) {
+    document.querySelector('input[name=product][value=planscape]').checked = true;
+  }
+  // Pre-select team size from plan name
+  var sizeMap = {
+    'solo': '1-3', 'studio': '4-10', 'practice': '11-25',
+    'firm': '26-50', 'large': '51-100'
+  };
+  for (var k in sizeMap) {
+    if (plan.indexOf(k) !== -1) {
+      // delay to ensure DOM is ready
+      var sel = document.getElementById('teamSize');
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === sizeMap[k]) { sel.selectedIndex = i; break; }
+      }
+      break;
+    }
+  }
+
+  var form = document.getElementById('waitlist-form');
+  var btn = document.getElementById('submit-btn');
+  var formBlock = document.getElementById('form-block');
+  var success = document.getElementById('success');
+  var errorBox = document.getElementById('error');
+  var errorMsg = document.getElementById('error-msg');
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    errorBox.classList.remove('shown');
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    var data = {
+      product: form.product.value,
+      firstName: form.firstName.value.trim(),
+      lastName: form.lastName.value.trim(),
+      email: form.email.value.trim(),
+      firm: form.firm.value.trim(),
+      country: form.country.value,
+      teamSize: form.teamSize.value,
+      role: form.role.value,
+      notes: form.notes.value.trim(),
+      submittedAt: new Date().toISOString(),
+      referrer: document.referrer || '',
+      utm: location.search || ''
+    };
+
+    fetch('/api/waitlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(function(res){
+      if (!res.ok) return res.json().then(function(j){ throw new Error(j.error || 'Request failed'); });
+      return res.json();
+    }).then(function(){
+      formBlock.style.display = 'none';
+      success.classList.add('shown');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }).catch(function(err){
+      errorMsg.textContent = err.message || 'Network error — please try again, or email hello@planscape.build.';
+      errorBox.classList.add('shown');
+      btn.disabled = false;
+      btn.textContent = 'Join the waitlist';
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
