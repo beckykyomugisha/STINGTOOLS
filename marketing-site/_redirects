@@ -9,14 +9,12 @@
 # Note: Cloudflare Pages auto-canonicalises /pricing → /pricing.html.
 # Don't add explicit /pricing → /pricing.html rules here — they create a redirect loop.
 
-# App routes — proxy to the API for signup / login
-/signup         https://api.planscape.build/auth/signup 302
-/login          https://api.planscape.build/auth/login  302
-/app            https://app.planscape.build/             302
-/app/*          https://app.planscape.build/:splat       302
-
-# API
-/api/*          https://api.planscape.build/:splat       200
+# Pre-launch: signup and login both land on the waitlist page.
+# When the real API is live, change these to point at api.planscape.build/auth/*.
+/signup         /signup.html                            302
+/login          /signup.html                            302
+/app            /signup.html                            302
+/app/*          /signup.html                            302
 
 # Old WordPress-style paths (just in case)
 /?p=*           /blog/                          301
