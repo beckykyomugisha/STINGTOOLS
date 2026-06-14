@@ -16,5 +16,6 @@ export const unauthorized = (msg = "Unauthorized") => new AuthError(401, msg);
 export const forbidden = (msg = "Forbidden") => new AuthError(403, msg);
 export const notFound = (msg = "Not found") => new AuthError(404, msg);
 export const conflict = (msg: string) => new AuthError(409, msg);
+export const gone = (msg: string) => new AuthError(410, msg);
 export const serverError = (msg = "Something went wrong. Please try again.") =>
   new AuthError(500, msg);

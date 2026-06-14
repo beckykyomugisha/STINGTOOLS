@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Accept your invitation — Planscape</title>
+<meta name="theme-color" content="#E8912D">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.auth-wrap { max-width: 460px; margin: 48px auto; padding: 0 16px; }
+.auth-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 32px; }
+.auth-card h1 { margin: 0 0 8px; font-size: 24px; text-align: center; }
+.auth-card .sub { color: var(--muted); margin: 0 0 24px; text-align: center; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+.field input { width: 100%; padding: 11px 14px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; background: #fff; box-sizing: border-box; font-family: inherit; }
+.field input:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,145,45,0.15); }
+.field .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 460px) { .field-row { grid-template-columns: 1fr; } }
+.btn-primary { width: 100%; background: var(--accent); color: #fff; border: 0; padding: 14px; font-size: 16px; font-weight: 600; border-radius: 8px; cursor: pointer; }
+.btn-primary:hover { background: #d57f1f; }
+.btn-primary:disabled { background: var(--muted); cursor: not-allowed; }
+.btn-link { display: block; width: 100%; background: none; border: 0; color: var(--muted); margin-top: 12px; font-size: 13px; cursor: pointer; text-decoration: underline; }
+.state { border-radius: 10px; padding: 18px; margin-bottom: 16px; display: none; }
+.state.ok { background: #e8f7ed; border: 1px solid #2e9b59; color: #1e6b3c; }
+.state.err { background: #fdebea; border: 1px solid #cc3322; color: #8b2018; }
+.state.shown { display: block; }
+.invite-banner { background: #fff5eb; border: 1px solid var(--accent); border-radius: 8px; padding: 14px; margin-bottom: 20px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <div class="links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+</nav>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="state ok" id="ok">
+      <strong id="ok-title">You're in 🎉</strong>
+      <p style="margin:6px 0 0" id="ok-msg">Your account is ready.</p>
+    </div>
+    <div class="state err" id="err">
+      <strong>Can't open this invitation</strong>
+      <p style="margin:6px 0 0" id="err-msg">This invitation link is invalid or has expired.</p>
+    </div>
+
+    <div id="form-block" style="display:none">
+      <h1>Join the team</h1>
+      <p class="sub">Set up your account to accept the invitation.</p>
+      <div class="invite-banner" id="invite-banner"></div>
+      <form id="accept-form" novalidate>
+        <div class="field-row">
+          <div class="field">
+            <label for="firstName">First name</label>
+            <input type="text" id="firstName" autocomplete="given-name" required>
+          </div>
+          <div class="field">
+            <label for="lastName">Last name</label>
+            <input type="text" id="lastName" autocomplete="family-name" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="pw">Password</label>
+          <input type="password" id="pw" autocomplete="new-password" minlength="12" required>
+          <div class="hint">At least 12 characters. A passphrase works well.</div>
+        </div>
+        <button type="submit" class="btn-primary" id="submit-btn">Accept &amp; create account</button>
+        <button type="button" class="btn-link" id="decline-btn">Decline this invitation</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<footer class="site">
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+<script>
+(function () {
+  var token = new URLSearchParams(location.search).get('token') || '';
+  var formBlock = document.getElementById('form-block');
+  var banner = document.getElementById('invite-banner');
+  var ok = document.getElementById('ok');
+  var okTitle = document.getElementById('ok-title');
+  var okMsg = document.getElementById('ok-msg');
+  var err = document.getElementById('err');
+  var errMsg = document.getElementById('err-msg');
+  var form = document.getElementById('accept-form');
+  var btn = document.getElementById('submit-btn');
+  var declineBtn = document.getElementById('decline-btn');
+
+  function fail(msg) { errMsg.textContent = msg; err.classList.add('shown'); formBlock.style.display = 'none'; }
+
+  if (!token) { fail('No invitation token was provided.'); return; }
+
+  // Load the preview so we can show who invited them and to what role.
+  fetch('/api/invitations/' + encodeURIComponent(token) + '/preview', { method: 'POST' })
+    .then(function (res) { return res.json().then(function (j) { return { ok: res.ok, body: j }; }); })
+    .then(function (r) {
+      if (!r.ok) { fail((r.body && r.body.error) || 'This invitation link is invalid or has expired.'); return; }
+      var role = (r.body.role || '').replace(/_/g, ' ');
+      banner.innerHTML = '<strong>' + r.body.inviterName + '</strong> invited you to join <strong>' +
+        r.body.tenantName + '</strong> as <strong>' + role + '</strong> (' + r.body.email + ').';
+      formBlock.style.display = 'block';
+    })
+    .catch(function () { fail('Network error — please try again in a moment.'); });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    err.classList.remove('shown');
+    var firstName = document.getElementById('firstName').value.trim();
+    var lastName = document.getElementById('lastName').value.trim();
+    var pw = document.getElementById('pw').value;
+    if (!firstName || !lastName) { errMsg.textContent = 'Please enter your name.'; err.classList.add('shown'); return; }
+    if (pw.length < 12) { errMsg.textContent = 'Password must be at least 12 characters.'; err.classList.add('shown'); return; }
+
+    btn.disabled = true; btn.textContent = 'Creating account…';
+    fetch('/api/invitations/' + encodeURIComponent(token) + '/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firstName: firstName, lastName: lastName, password: pw })
+    }).then(function (res) { return res.json().then(function (j) { return { ok: res.ok, body: j }; }); })
+      .then(function (r) {
+        if (r.ok) {
+          formBlock.style.display = 'none';
+          okTitle.textContent = "You're in 🎉";
+          okMsg.textContent = 'Welcome to ' + (r.body.tenant && r.body.tenant.name ? r.body.tenant.name : 'the team') + '. You can close this tab and sign in to Planscape.';
+          ok.classList.add('shown');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          errMsg.textContent = (r.body && r.body.error) || 'Could not accept the invitation.';
+          err.classList.add('shown');
+          btn.disabled = false; btn.textContent = 'Accept & create account';
+        }
+      }).catch(function () {
+        errMsg.textContent = 'Network error — please try again in a moment.';
+        err.classList.add('shown');
+        btn.disabled = false; btn.textContent = 'Accept & create account';
+      });
+  });
+
+  declineBtn.addEventListener('click', function () {
+    if (!confirm('Decline this invitation? This cannot be undone.')) return;
+    fetch('/api/invitations/' + encodeURIComponent(token) + '/decline', { method: 'POST' })
+      .then(function () {
+        formBlock.style.display = 'none';
+        okTitle.textContent = 'Invitation declined';
+        okMsg.textContent = 'No problem — the team has been notified.';
+        ok.classList.add('shown');
+      })
+      .catch(function () {
+        errMsg.textContent = 'Network error — please try again.';
+        err.classList.add('shown');
+      });
+  });
+})();
+</script>
+
+</body>
+</html>

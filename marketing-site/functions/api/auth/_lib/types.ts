@@ -25,6 +25,7 @@ export interface TenantRow {
   subscription_status: string;
   trial_started_at: string;
   trial_ends_at: string;
+  cap_exceeded_since: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -43,8 +44,22 @@ export interface UserRow {
   password_reset_token_hash: string | null;
   password_reset_expires_at: string | null;
   last_login_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string | null;
+}
+
+export interface InvitationRow {
+  id: string;
+  tenant_id: string;
+  email: string;
+  role: string;
+  token_hash: string;
+  invited_by_user_id: string;
+  expires_at: string;
+  accepted_at: string | null;
+  declined_at: string | null;
+  created_at: string;
 }
 
 export interface SessionRow {

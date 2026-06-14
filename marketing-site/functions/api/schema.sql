@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   subscription_status  TEXT    NOT NULL DEFAULT 'trial', -- trial | active | past_due | read_only | cancelled
   trial_started_at     TEXT    NOT NULL,               -- ISO 8601 UTC
   trial_ends_at        TEXT    NOT NULL,               -- ISO 8601 UTC, +14 days
+  cap_exceeded_since   TEXT,                            -- (B2) ISO when seat count first went over plan cap; null when under
   created_at           TEXT    NOT NULL,
   updated_at           TEXT
 );
@@ -65,6 +66,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_reset_token_hash   TEXT,                    -- SHA-256 of token (token only sent in email, never stored plain)
   password_reset_expires_at   TEXT,
   last_login_at               TEXT,
+  deleted_at                  TEXT,                    -- (B2) soft-delete tombstone; contributions preserved
   created_at                  TEXT    NOT NULL,
   updated_at                  TEXT
 );
@@ -109,4 +111,50 @@ CREATE INDEX IF NOT EXISTS idx_idem_expires      ON idempotency_keys(expires_at)
 -- databases get the column from the CREATE TABLE above and can skip this.
 --   wrangler d1 execute planscape-waitlist --remote \
 --     --command="ALTER TABLE sessions ADD COLUMN revoked_reason TEXT;"
+-- ---------------------------------------------------------------------------
+
+
+-- ---------------------------------------------------------------------------
+-- Tenants + team (B2) — invitations / audit log
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS invitations (
+  id                   TEXT    PRIMARY KEY,            -- uuid v4
+  tenant_id            TEXT    NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  email                TEXT    NOT NULL,
+  role                 TEXT    NOT NULL,               -- admin | bim_manager | project_lead | coordinator | viewer | client
+  token_hash           TEXT    NOT NULL UNIQUE,        -- SHA-256 of the opaque invite token (token only sent in email)
+  invited_by_user_id   TEXT    NOT NULL REFERENCES users(id),
+  expires_at           TEXT    NOT NULL,               -- +7 days
+  accepted_at          TEXT,
+  declined_at          TEXT,
+  created_at           TEXT    NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id     TEXT,
+  actor_user_id TEXT,
+  action        TEXT    NOT NULL,                      -- user.invited | invitation.accepted | user.role_changed | user.removed | tenant.updated | ...
+  target        TEXT,                                  -- user_id | invitation_id
+  metadata      TEXT,                                  -- JSON
+  ip            TEXT,
+  user_agent    TEXT,
+  created_at    TEXT    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_invites_tenant ON invitations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_invites_email  ON invitations(email);
+CREATE INDEX IF NOT EXISTS idx_audit_tenant   ON audit_log(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_audit_action   ON audit_log(action);
+
+-- ---------------------------------------------------------------------------
+-- One-time migration for databases that already had B1 applied (before B2 added
+-- tenants.cap_exceeded_since and users.deleted_at). SQLite can't guard ADD
+-- COLUMN with IF NOT EXISTS — run these ONCE and ignore "duplicate column name"
+-- errors. Fresh databases get the columns from the CREATE TABLEs above.
+--   wrangler d1 execute planscape-waitlist --remote \
+--     --command="ALTER TABLE tenants ADD COLUMN cap_exceeded_since TEXT;"
+--   wrangler d1 execute planscape-waitlist --remote \
+--     --command="ALTER TABLE users ADD COLUMN deleted_at TEXT;"
 -- ---------------------------------------------------------------------------

@@ -2,8 +2,37 @@
 // verifies it, and returns the claims. Throws AuthError(401) on any failure.
 
 import { verifyJwt } from "./jwt";
-import { unauthorized } from "./errors";
+import { unauthorized, forbidden } from "./errors";
 import type { Env, JwtClaims } from "./types";
+
+// Role hierarchy. Higher number = more authority.
+// owner > admin > bim_manager > project_lead > coordinator > viewer > client
+export const ROLE_LEVEL: Record<string, number> = {
+  owner: 6,
+  admin: 5,
+  bim_manager: 4,
+  project_lead: 3,
+  coordinator: 2,
+  viewer: 1,
+  client: 0,
+};
+
+export type Role = keyof typeof ROLE_LEVEL;
+
+export function roleLevel(role: string): number {
+  return ROLE_LEVEL[role] ?? -1;
+}
+
+// Roles that may be assigned to an invited / managed member (owner is minted
+// only at signup and transferred via a dedicated flow, never granted here).
+export const ASSIGNABLE_ROLES = [
+  "admin",
+  "bim_manager",
+  "project_lead",
+  "coordinator",
+  "viewer",
+  "client",
+] as const;
 
 export interface AuthContext {
   userId: string;
@@ -35,6 +64,20 @@ export async function requireAuth(
     planTier: claims.pt ?? null,
     planProduct: claims.pp ?? null,
   };
+}
+
+// Authenticate AND require at least `minRole`. Throws 401 if no/invalid token,
+// 403 if the caller's role sits below the threshold.
+export async function requireRole(
+  request: Request,
+  env: Env,
+  minRole: Role
+): Promise<AuthContext> {
+  const auth = await requireAuth(request, env);
+  if (roleLevel(auth.role) < roleLevel(minRole)) {
+    throw forbidden("You don't have permission to do that.");
+  }
+  return auth;
 }
 
 // Build the signable claim set from a user + their tenant. Subscription status,

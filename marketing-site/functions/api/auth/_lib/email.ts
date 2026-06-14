@@ -93,6 +93,25 @@ export async function sendResetEmail(
   await send(env, to, "Reset your Planscape password", html);
 }
 
+export async function sendInviteEmail(
+  env: Env,
+  to: string,
+  inviterName: string,
+  tenantName: string,
+  role: string,
+  token: string
+): Promise<void> {
+  const link = `${appOrigin(env)}/accept-invite?token=${encodeURIComponent(token)}`;
+  const roleLabel = role.replace(/_/g, " ");
+  const html = shell(
+    `You're invited to ${tenantName}`,
+    `<p style="margin:0 0 20px;font-size:15px;line-height:1.5;">${inviterName} has invited you to join <strong>${tenantName}</strong> on Planscape as <strong>${roleLabel}</strong>.</p>
+     <p style="margin:0 0 24px;">${button(link, "Accept invitation")}</p>
+     <p style="margin:0;font-size:13px;color:#8a8f99;line-height:1.5;">Or paste this link into your browser:<br><span style="color:#2b59ff;word-break:break-all;">${link}</span><br><br>This invitation expires in 7 days.</p>`
+  );
+  await send(env, to, `Join ${tenantName} on Planscape`, html);
+}
+
 export async function sendWelcomeEmail(
   env: Env,
   to: string,

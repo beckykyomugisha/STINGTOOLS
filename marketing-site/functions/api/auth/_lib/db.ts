@@ -2,7 +2,14 @@
 // Functions throw the raw D1 error to the caller, which maps it to a generic
 // 500 — callers never surface DB internals to the client.
 
-import type { TenantRow, UserRow, SessionRow, PublicUser, PublicTenant } from "./types";
+import type {
+  TenantRow,
+  UserRow,
+  SessionRow,
+  InvitationRow,
+  PublicUser,
+  PublicTenant,
+} from "./types";
 
 const TRIAL_DAYS = 14;
 const REFRESH_TTL_DAYS = 30;
@@ -348,6 +355,439 @@ export async function revokeAllUserSessions(
     )
     .bind(new Date().toISOString(), reason, userId)
     .run();
+}
+
+// ---- B2: members ----------------------------------------------------------
+
+export interface MemberView {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  emailVerified: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+export function toMemberView(u: UserRow): MemberView {
+  return {
+    id: u.id,
+    email: u.email,
+    firstName: u.first_name,
+    lastName: u.last_name,
+    role: u.role,
+    emailVerified: u.email_verified_at != null,
+    lastLoginAt: u.last_login_at,
+    createdAt: u.created_at,
+  };
+}
+
+export async function countActiveMembers(
+  db: D1Database,
+  tenantId: string
+): Promise<number> {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM users WHERE tenant_id = ? AND deleted_at IS NULL`
+    )
+    .bind(tenantId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+export async function countPendingInvites(
+  db: D1Database,
+  tenantId: string
+): Promise<number> {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM invitations
+         WHERE tenant_id = ? AND accepted_at IS NULL AND declined_at IS NULL
+           AND expires_at > ?`
+    )
+    .bind(tenantId, new Date().toISOString())
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+export async function listMembers(
+  db: D1Database,
+  tenantId: string
+): Promise<UserRow[]> {
+  const res = await db
+    .prepare(
+      `SELECT * FROM users WHERE tenant_id = ? AND deleted_at IS NULL
+       ORDER BY created_at ASC`
+    )
+    .bind(tenantId)
+    .all<UserRow>();
+  return res.results ?? [];
+}
+
+export async function getActiveMemberById(
+  db: D1Database,
+  tenantId: string,
+  userId: string
+): Promise<UserRow | null> {
+  return db
+    .prepare(
+      `SELECT * FROM users WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL`
+    )
+    .bind(userId, tenantId)
+    .first<UserRow>();
+}
+
+export async function getActiveMemberByEmail(
+  db: D1Database,
+  tenantId: string,
+  email: string
+): Promise<UserRow | null> {
+  return db
+    .prepare(
+      `SELECT * FROM users WHERE email = ? AND tenant_id = ? AND deleted_at IS NULL`
+    )
+    .bind(email, tenantId)
+    .first<UserRow>();
+}
+
+export async function countTenantOwners(
+  db: D1Database,
+  tenantId: string
+): Promise<number> {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM users
+         WHERE tenant_id = ? AND role = 'owner' AND deleted_at IS NULL`
+    )
+    .bind(tenantId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+export async function updateUserRole(
+  db: D1Database,
+  userId: string,
+  role: string
+): Promise<void> {
+  await db
+    .prepare(`UPDATE users SET role = ?, updated_at = ? WHERE id = ?`)
+    .bind(role, new Date().toISOString(), userId)
+    .run();
+}
+
+export async function softDeleteUser(db: D1Database, userId: string): Promise<void> {
+  const nowIso = new Date().toISOString();
+  // Tombstone the user and kill their live sessions in one batch.
+  await db.batch([
+    db
+      .prepare(`UPDATE users SET deleted_at = ?, updated_at = ? WHERE id = ?`)
+      .bind(nowIso, nowIso, userId),
+    db
+      .prepare(
+        `UPDATE sessions SET revoked_at = ?, revoked_reason = 'user_removed'
+         WHERE user_id = ? AND revoked_at IS NULL`
+      )
+      .bind(nowIso, userId),
+  ]);
+}
+
+// ---- B2: tenant settings + cap -------------------------------------------
+
+export async function updateTenantSettings(
+  db: D1Database,
+  tenantId: string,
+  fields: { name?: string; country?: string | null; currency?: string }
+): Promise<TenantRow> {
+  const sets: string[] = [];
+  const binds: (string | null)[] = [];
+  if (fields.name !== undefined) {
+    sets.push("name = ?");
+    binds.push(fields.name);
+  }
+  if (fields.country !== undefined) {
+    sets.push("country = ?");
+    binds.push(fields.country);
+  }
+  if (fields.currency !== undefined) {
+    sets.push("currency = ?");
+    binds.push(fields.currency);
+  }
+  sets.push("updated_at = ?");
+  binds.push(new Date().toISOString());
+  binds.push(tenantId);
+  await db
+    .prepare(`UPDATE tenants SET ${sets.join(", ")} WHERE id = ?`)
+    .bind(...binds)
+    .run();
+  const row = await getTenantById(db, tenantId);
+  if (!row) throw new Error("tenant vanished");
+  return row;
+}
+
+// Set or clear cap_exceeded_since. Pass null to clear (tenant back under cap).
+export async function setCapExceededSince(
+  db: D1Database,
+  tenantId: string,
+  iso: string | null
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE tenants SET cap_exceeded_since = ?, updated_at = ? WHERE id = ?`
+    )
+    .bind(iso, new Date().toISOString(), tenantId)
+    .run();
+}
+
+// ---- B2: invitations ------------------------------------------------------
+
+export interface CreateInvitationInput {
+  id: string;
+  tenantId: string;
+  email: string;
+  role: string;
+  tokenHash: string;
+  invitedByUserId: string;
+  expiresAt: string;
+}
+
+export async function createInvitation(
+  db: D1Database,
+  input: CreateInvitationInput
+): Promise<InvitationRow> {
+  const nowIso = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO invitations
+         (id, tenant_id, email, role, token_hash, invited_by_user_id,
+          expires_at, created_at)
+       VALUES (?,?,?,?,?,?,?,?)`
+    )
+    .bind(
+      input.id,
+      input.tenantId,
+      input.email,
+      input.role,
+      input.tokenHash,
+      input.invitedByUserId,
+      input.expiresAt,
+      nowIso
+    )
+    .run();
+  const row = await db
+    .prepare(`SELECT * FROM invitations WHERE id = ?`)
+    .bind(input.id)
+    .first<InvitationRow>();
+  if (!row) throw new Error("invitation insert vanished");
+  return row;
+}
+
+export async function getInvitationByTokenHash(
+  db: D1Database,
+  tokenHash: string
+): Promise<InvitationRow | null> {
+  return db
+    .prepare(`SELECT * FROM invitations WHERE token_hash = ?`)
+    .bind(tokenHash)
+    .first<InvitationRow>();
+}
+
+export async function getInvitationById(
+  db: D1Database,
+  tenantId: string,
+  id: string
+): Promise<InvitationRow | null> {
+  return db
+    .prepare(`SELECT * FROM invitations WHERE id = ? AND tenant_id = ?`)
+    .bind(id, tenantId)
+    .first<InvitationRow>();
+}
+
+// An open invite for this email in this tenant (not accepted/declined/expired).
+export async function getPendingInviteForEmail(
+  db: D1Database,
+  tenantId: string,
+  email: string
+): Promise<InvitationRow | null> {
+  return db
+    .prepare(
+      `SELECT * FROM invitations
+         WHERE tenant_id = ? AND email = ? AND accepted_at IS NULL
+           AND declined_at IS NULL AND expires_at > ?`
+    )
+    .bind(tenantId, email, new Date().toISOString())
+    .first<InvitationRow>();
+}
+
+export async function listPendingInvitations(
+  db: D1Database,
+  tenantId: string
+): Promise<InvitationRow[]> {
+  const res = await db
+    .prepare(
+      `SELECT * FROM invitations
+         WHERE tenant_id = ? AND accepted_at IS NULL AND declined_at IS NULL
+           AND expires_at > ?
+       ORDER BY created_at DESC`
+    )
+    .bind(tenantId, new Date().toISOString())
+    .all<InvitationRow>();
+  return res.results ?? [];
+}
+
+export async function deleteInvitation(db: D1Database, id: string): Promise<void> {
+  await db.prepare(`DELETE FROM invitations WHERE id = ?`).bind(id).run();
+}
+
+export async function markInvitationAccepted(
+  db: D1Database,
+  id: string
+): Promise<void> {
+  await db
+    .prepare(`UPDATE invitations SET accepted_at = ? WHERE id = ?`)
+    .bind(new Date().toISOString(), id)
+    .run();
+}
+
+export async function markInvitationDeclined(
+  db: D1Database,
+  id: string
+): Promise<void> {
+  await db
+    .prepare(`UPDATE invitations SET declined_at = ? WHERE id = ?`)
+    .bind(new Date().toISOString(), id)
+    .run();
+}
+
+// Create a user who is joining via an accepted invite: role from the invite,
+// email already proven (verified) by clicking the link, no verify token.
+export interface CreateInvitedUserInput {
+  id: string;
+  tenantId: string;
+  email: string;
+  passwordHash: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+}
+
+export async function createInvitedUser(
+  db: D1Database,
+  input: CreateInvitedUserInput
+): Promise<UserRow> {
+  const nowIso = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO users
+         (id, tenant_id, email, password_hash, first_name, last_name, role,
+          email_verified_at, last_login_at, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`
+    )
+    .bind(
+      input.id,
+      input.tenantId,
+      input.email,
+      input.passwordHash,
+      input.firstName,
+      input.lastName,
+      input.role,
+      nowIso,
+      nowIso,
+      nowIso
+    )
+    .run();
+  const row = await getUserById(db, input.id);
+  if (!row) throw new Error("invited user insert vanished");
+  return row;
+}
+
+// ---- B2: audit log --------------------------------------------------------
+
+export interface AuditInput {
+  tenantId: string | null;
+  actorUserId: string | null;
+  action: string;
+  target?: string | null;
+  metadata?: unknown;
+  ip?: string | null;
+  userAgent?: string | null;
+}
+
+export async function audit(db: D1Database, input: AuditInput): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO audit_log
+         (tenant_id, actor_user_id, action, target, metadata, ip, user_agent, created_at)
+       VALUES (?,?,?,?,?,?,?,?)`
+    )
+    .bind(
+      input.tenantId,
+      input.actorUserId,
+      input.action,
+      input.target ?? null,
+      input.metadata != null ? JSON.stringify(input.metadata) : null,
+      input.ip ?? null,
+      input.userAgent ?? null,
+      new Date().toISOString()
+    )
+    .run();
+}
+
+export interface AuditRowView {
+  id: number;
+  action: string;
+  target: string | null;
+  metadata: unknown;
+  actorUserId: string | null;
+  ip: string | null;
+  createdAt: string;
+}
+
+export async function listAudit(
+  db: D1Database,
+  tenantId: string,
+  opts: { limit: number; offset: number; action?: string | null }
+): Promise<AuditRowView[]> {
+  const where = ["tenant_id = ?"];
+  const binds: (string | number)[] = [tenantId];
+  if (opts.action) {
+    where.push("action = ?");
+    binds.push(opts.action);
+  }
+  binds.push(opts.limit, opts.offset);
+  const res = await db
+    .prepare(
+      `SELECT id, action, target, metadata, actor_user_id, ip, created_at
+         FROM audit_log WHERE ${where.join(" AND ")}
+       ORDER BY id DESC LIMIT ? OFFSET ?`
+    )
+    .bind(...binds)
+    .all<{
+      id: number;
+      action: string;
+      target: string | null;
+      metadata: string | null;
+      actor_user_id: string | null;
+      ip: string | null;
+      created_at: string;
+    }>();
+  return (res.results ?? []).map((r) => ({
+    id: r.id,
+    action: r.action,
+    target: r.target,
+    metadata: r.metadata ? safeJson(r.metadata) : null,
+    actorUserId: r.actor_user_id,
+    ip: r.ip,
+    createdAt: r.created_at,
+  }));
+}
+
+function safeJson(s: string): unknown {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return s;
+  }
 }
 
 // Lazy trial expiry: if the tenant is still 'trial' but the trial window has
