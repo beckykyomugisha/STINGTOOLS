@@ -212,8 +212,15 @@ When steps 1–14 behave as annotated, **B1 is done** — reply `B1 smoke passed
 
 ## Security notes
 
-- **Passwords**: PBKDF2-SHA256, 600,000 iterations, 32-byte random salt. Stored as
-  `pbkdf2$iterations$salt$hash`.
+- **Passwords**: PBKDF2-SHA256, **100,000 iterations**, 32-byte random salt. Stored as
+  `pbkdf2-v1$iterations$salt$hash` (versioned prefix). Cloudflare Workers' Web Crypto
+  **caps PBKDF2 at 100,000 iterations** — requesting more (OWASP recommends 600k)
+  throws `NotSupportedError` at runtime, so 100k is the platform ceiling, not a
+  choice. The upgrade path for stronger hashing is **Argon2id** via
+  [`@noble/hashes/argon2`](https://github.com/paulmillr/noble-hashes) (a pure-JS impl
+  that runs in Workers), shipped under a new prefix (e.g. `argon2id-v1`) so old hashes
+  keep verifying during a rolling rehash-on-login migration.
+  Ref: <https://developers.cloudflare.com/workers/runtime-apis/web-crypto/>
 - **Access token**: HS256 JWT, 1-hour expiry, claims
   `{ iss, sub, tid, role, ev, ps, pt, pp, iat, exp }` — `ps`=subscription status,
   `pt`=plan tier, `pp`=plan product. These plan claims are refreshed on every

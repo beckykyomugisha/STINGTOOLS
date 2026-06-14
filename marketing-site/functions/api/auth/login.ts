@@ -34,7 +34,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
   // Anti-enumeration: always do a password verification (against the stored
   // hash, or a throwaway compute when the user is absent) and return the same
   // generic 401 either way.
-  const stored = user?.password_hash ?? "pbkdf2$600000$AAAA$AAAA";
+  const stored = user?.password_hash ?? "pbkdf2-v1$100000$AAAA$AAAA";
   const ok = await verifyPassword(body.password, stored);
   if (!user || !ok) throw unauthorized("Invalid email or password.");
 

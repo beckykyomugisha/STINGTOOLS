@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS users (
   id                          TEXT    PRIMARY KEY,     -- uuid v4
   tenant_id                   TEXT    NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   email                       TEXT    NOT NULL UNIQUE,
-  password_hash               TEXT    NOT NULL,        -- pbkdf2$iterations$salt_b64$hash_b64
+  password_hash               TEXT    NOT NULL,        -- pbkdf2-v1$iterations$salt_b64$hash_b64
   first_name                  TEXT    NOT NULL,
   last_name                   TEXT    NOT NULL,
   role                        TEXT    NOT NULL DEFAULT 'owner',  -- owner | admin | bim_manager | project_lead | coordinator | viewer | client
