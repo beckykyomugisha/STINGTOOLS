@@ -19,6 +19,17 @@ compatibility_date = "2026-05-01"
 [vars]
 SITE_URL = "https://planscape.build"
 
+# Auth core (B1) secrets — DO NOT put real values here. Set them as encrypted
+# environment variables / secrets in the Cloudflare dashboard:
+#   Pages → planscape-marketing → Settings → Environment variables (Production).
+#   JWT_SECRET      Secret. 32+ random bytes. Generate: openssl rand -base64 32
+#                   Signs HS256 access tokens. Rotating it invalidates all JWTs.
+#   RESEND_API_KEY  Secret. Resend API key (re_...) for verification / reset email.
+#   APP_ORIGIN      Plain var. Public origin for email links. https://planscape.build
+#   EMAIL_FROM      Plain var (optional). Override the From: address.
+#                   Default: "Planscape <noreply@planscape.build>"
+# The auth Functions reuse the WAITLIST_DB D1 binding below — no new binding needed.
+
 # D1 binding for the waitlist Function (functions/api/waitlist.ts)
 # Created via: wrangler d1 create planscape-waitlist
 [[d1_databases]]

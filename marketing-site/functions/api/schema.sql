@@ -28,3 +28,60 @@ CREATE INDEX IF NOT EXISTS idx_waitlist_submitted_at ON waitlist(submitted_at);
 CREATE INDEX IF NOT EXISTS idx_waitlist_country      ON waitlist(country);
 CREATE INDEX IF NOT EXISTS idx_waitlist_product      ON waitlist(product);
 CREATE INDEX IF NOT EXISTS idx_waitlist_status       ON waitlist(status);
+
+-- ---------------------------------------------------------------------------
+-- Auth core (B1) — tenants / users / sessions
+-- Sits alongside the waitlist table in the same `planscape-waitlist` D1 DB.
+-- Apply with:
+--   wrangler d1 execute planscape-waitlist --remote --file=./functions/api/schema.sql
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS tenants (
+  id                   TEXT    PRIMARY KEY,            -- uuid v4
+  name                 TEXT    NOT NULL,
+  slug                 TEXT    NOT NULL UNIQUE,        -- lowercase-hyphenated, derived from name
+  country              TEXT,                           -- ISO 3166-1 alpha-2
+  currency             TEXT    NOT NULL DEFAULT 'USD',
+  plan_product         TEXT,                           -- sting-tools | planscape | null while in trial
+  plan_tier            TEXT,                           -- solo | studio | practice | firm | large | enterprise
+  subscription_status  TEXT    NOT NULL DEFAULT 'trial', -- trial | active | past_due | read_only | cancelled
+  trial_started_at     TEXT    NOT NULL,               -- ISO 8601 UTC
+  trial_ends_at        TEXT    NOT NULL,               -- ISO 8601 UTC, +14 days
+  created_at           TEXT    NOT NULL,
+  updated_at           TEXT
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id                          TEXT    PRIMARY KEY,     -- uuid v4
+  tenant_id                   TEXT    NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  email                       TEXT    NOT NULL UNIQUE,
+  password_hash               TEXT    NOT NULL,        -- pbkdf2$iterations$salt_b64$hash_b64
+  first_name                  TEXT    NOT NULL,
+  last_name                   TEXT    NOT NULL,
+  role                        TEXT    NOT NULL DEFAULT 'owner',  -- owner | admin | bim_manager | project_lead | coordinator | viewer | client
+  email_verified_at           TEXT,
+  email_verify_token          TEXT,                    -- random 32-byte url-safe
+  email_verify_expires_at     TEXT,
+  password_reset_token_hash   TEXT,                    -- SHA-256 of token (token only sent in email, never stored plain)
+  password_reset_expires_at   TEXT,
+  last_login_at               TEXT,
+  created_at                  TEXT    NOT NULL,
+  updated_at                  TEXT
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id                   TEXT    PRIMARY KEY,            -- uuid v4
+  user_id              TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  refresh_token_hash   TEXT    NOT NULL UNIQUE,        -- SHA-256 of the opaque refresh token
+  user_agent           TEXT,
+  ip                   TEXT,
+  created_at           TEXT    NOT NULL,
+  last_used_at         TEXT,
+  expires_at           TEXT    NOT NULL,
+  revoked_at           TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_tenant      ON users(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_user     ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires  ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_tenants_status    ON tenants(subscription_status);
