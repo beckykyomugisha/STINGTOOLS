@@ -316,9 +316,38 @@ CREATE INDEX        IF NOT EXISTS idx_discount_active   ON discount_codes(active
 -- events racing in separate Pages Functions isolates (invoice race-recovery +
 -- customer.subscription.created) could write TWO rows for the same
 -- (provider, provider_subscription_id). The UNIQUE index above will FAIL to
--- create while those duplicates remain, so run this ONCE first — it keeps the
--- most-recently-inserted row per (provider, provider_subscription_id) and drops
--- the rest — THEN (re-)apply this schema file:
+-- create while those duplicates remain.
+--
+-- invoices.subscription_id has a FK onto subscriptions(id), and some invoices
+-- point at the duplicate (non-survivor) rows — so a bare DELETE fails with
+-- FOREIGN KEY constraint failed (SQLITE_CONSTRAINT_FOREIGNKEY). Run these THREE
+-- steps ONCE, in order, THEN (re-)apply this schema file to create the index.
+-- All three are idempotent (a second run is a no-op). Fresh databases have no
+-- duplicates and can skip this entirely.
+--
+-- Step 1 — re-point invoices off each non-survivor onto the survivor (the
+-- MAX(rowid) row) of its (provider, provider_subscription_id) group:
+--   wrangler d1 execute planscape-waitlist --remote --command="
+--     UPDATE invoices
+--        SET subscription_id = (
+--          SELECT survivor.id
+--            FROM subscriptions survivor
+--            JOIN subscriptions old ON old.provider = survivor.provider
+--             AND old.provider_subscription_id = survivor.provider_subscription_id
+--           WHERE old.id = invoices.subscription_id
+--             AND survivor.rowid = (
+--               SELECT MAX(s.rowid) FROM subscriptions s
+--                WHERE s.provider = old.provider
+--                  AND s.provider_subscription_id = old.provider_subscription_id))
+--      WHERE subscription_id IN (
+--        SELECT old.id FROM subscriptions old
+--         WHERE old.provider_subscription_id IS NOT NULL
+--           AND old.rowid NOT IN (
+--             SELECT MAX(rowid) FROM subscriptions
+--              WHERE provider_subscription_id IS NOT NULL
+--              GROUP BY provider, provider_subscription_id));"
+--
+-- Step 2 — now that nothing references them, delete the non-survivor rows:
 --   wrangler d1 execute planscape-waitlist --remote --command="
 --     DELETE FROM subscriptions
 --      WHERE provider_subscription_id IS NOT NULL
@@ -326,6 +355,7 @@ CREATE INDEX        IF NOT EXISTS idx_discount_active   ON discount_codes(active
 --          SELECT MAX(rowid) FROM subscriptions
 --           WHERE provider_subscription_id IS NOT NULL
 --           GROUP BY provider, provider_subscription_id);"
--- The DELETE is itself idempotent (a second run removes nothing). Fresh
--- databases have no duplicates and can skip it.
+--
+-- Step 3 — (re-)apply this schema file; idx_subs_provider_unique now creates:
+--   cd marketing-site && npm run schema:remote
 -- ---------------------------------------------------------------------------
