@@ -208,16 +208,229 @@ actions emitted: `subscription.activated` / `.cancelled` / `.resumed` /
 
 ---
 
-## Out of scope for B3a — deferred to B3b
+## Delivered in B3b (see below)
 
-B3a is **Stripe core only**. The following are explicitly **not** in this phase:
+The B3a "deferred" list — **Pesapal**, the **cron Worker**, **tax**, and
+**discount codes** — all land in B3b. See the next section.
 
-- **Pesapal** — the second (Africa-facing) payment rail. The `subscriptions` /
-  `invoices` schema already carries a generic `provider` column so B3b adds
-  `provider='pesapal'` rows alongside Stripe with no migration.
-- **Cron Worker** — nightly `idempotency_keys` / expired-trial sweep and
-  proactive `past_due → read_only` enforcement (B3a relies on Stripe webhooks +
-  lazy `/me` expiry).
-- **Tax** — VAT / sales-tax computation and the `invoices.tax_cents` /
-  `tax_label` population (the columns ship now, populated B3b).
-- **Discount codes** — promo / coupon handling at checkout.
+---
+
+# Planscape Billing (B3b — Pesapal + cron + tax + discounts)
+
+B3b adds the Africa-facing payment rail and the lifecycle automation around it.
+A **currency router** sends each checkout to the right provider; a **cron Worker**
+handles trial expiry / reminders / dunning / digest / cleanup; a **tax table**
+breaks out VAT (or a reverse-charge line) per country; **discount codes** apply at
+checkout. The `subscriptions` / `invoices` / `webhooks_log` tables from B3a are
+reused with `provider='pesapal'` — no destructive migration.
+
+> **Not Flutterwave.** Uganda self-serve onboarding is broken in Flutterwave's
+> dashboard, so B3b uses **Pesapal V3**. NGN/ZAR are deferred (later expansion).
+
+## Currency router
+
+| Currency | Provider | Notes |
+|---|---|---|
+| USD / EUR / GBP | **Stripe** | Existing B3a route (2-decimal) |
+| UGX / KES / TZS / RWF | **Pesapal** | UGX/RWF are zero-decimal (see `CURRENCY_MINOR_EXP`) |
+| NGN / ZAR | _deferred_ | `400 "Currency not supported."` until a later phase |
+
+`providerForCurrency()` in `_lib/billing/catalog.ts` does the routing; the
+checkout endpoint branches on it. FX pegs (`FX_FROM_USD_PESAPAL`) are approximate
+and **refreshed quarterly** alongside `FX_FROM_USD`.
+
+## 1. New environment variables
+
+Add to **Pages → planscape-marketing → Settings → Environment variables**:
+
+| Name | Type | How to get it | Used for |
+|---|---|---|---|
+| `PESAPAL_CONSUMER_KEY` | Secret | Pesapal dashboard → API | RequestToken |
+| `PESAPAL_CONSUMER_SECRET` | Secret | Pesapal dashboard → API | RequestToken |
+| `PESAPAL_BASE_URL` | Plain | `https://cybqa.pesapal.com/pesapalv3` (sandbox) / `https://pay.pesapal.com/v3` (prod) | API base |
+| `PESAPAL_IPN_ID` | Plain | **RegisterIPN response** — see step 2 below | `notification_id` on SubmitOrder |
+| `ADMIN_API_KEY` | Secret | Any 32+ random bytes (`openssl rand -base64 32`) | Guards `/api/admin/*` until B5 |
+
+For the **cron Worker** (`marketing-site-cron`, separate project) set via
+`npx wrangler secret put …`:
+
+| Name | Type | Used for |
+|---|---|---|
+| `RESEND_API_KEY` | Secret | Lifecycle email (reminders, dunning) |
+| `SIGNUP_DIGEST_WEBHOOK` | Secret (optional) | 06:00 UTC Slack/Discord digest |
+| `ADMIN_API_KEY` | Secret (optional) | Guards the manual `/run?job=` trigger |
+
+> `PESAPAL_IPN_ID` and `ADMIN_API_KEY` are **new required** vars not present in
+> B3a. The Pesapal checkout path returns `500 "Mobile-money billing is not
+> configured."` if `PESAPAL_CONSUMER_KEY` or `PESAPAL_IPN_ID` is missing, so a
+> half-configured deploy never half-creates a Pesapal order.
+
+## 2. Register the Pesapal IPN (one-time → get `PESAPAL_IPN_ID`)
+
+The IPN URL `https://planscape.build/api/webhooks/pesapal` is already registered,
+but SubmitOrder needs the **`ipn_id`** that RegisterIPN returned. If you don't
+have it, fetch it once:
+
+```bash
+BASE=https://cybqa.pesapal.com/pesapalv3   # prod: https://pay.pesapal.com/v3
+TOKEN=$(curl -s -X POST $BASE/api/Auth/RequestToken -H "Content-Type: application/json" \
+  -d '{"consumer_key":"…","consumer_secret":"…"}' | jq -r .token)
+
+curl -s -X POST $BASE/api/URLSetup/RegisterIPN -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"url":"https://planscape.build/api/webhooks/pesapal","ipn_notification_type":"POST"}'
+#   → { "ipn_id":"<uuid>", "url":"…", "ipn_notification_type":"POST", … }
+```
+
+Put the returned `ipn_id` into `PESAPAL_IPN_ID`. (The same call is also exposed
+programmatically as `registerIpn()` in `_lib/billing/pesapal.ts`.)
+
+## 3. Apply the schema migration
+
+B3b appends three tables — `pesapal_orders`, `discount_codes`,
+`discount_redemptions` — to `schema.sql`. Every `CREATE` is idempotent; **no
+ALTERs** (additive only). Re-running is safe.
+
+```bash
+cd marketing-site
+npm run schema:remote     # wrangler d1 execute … --remote --file=./functions/api/schema.sql
+wrangler d1 execute planscape-waitlist --remote \
+  --command="SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+#   expect: …, discount_codes, discount_redemptions, pesapal_orders, …
+```
+
+## 4. Pesapal security model — no inbound HMAC
+
+Pesapal's callback + IPN carry **only an `OrderTrackingId`, never the payment
+status**. The webhook therefore re-fetches the authoritative status with
+`GetTransactionStatus` (authenticated with our own token). Confirmation == the
+re-query, so there is nothing to HMAC-verify on the inbound call. `webhooks_log`
+records each IPN (`provider='pesapal'`, `event_id=OrderTrackingId`), dedupes on
+the tracking id, and the handler replies with the JSON ack Pesapal expects
+(`{orderNotificationType, orderTrackingId, orderMerchantReference, status:200}`).
+
+## 5. Tax (`_lib/billing/tax.ts`) — hardcoded, **review quarterly**
+
+Prices are treated as **tax-inclusive**: the charged total never changes, we only
+break out the embedded component (`subtotal = round(total/(1+rate))`,
+`tax = total − subtotal`). Applied to **both** providers at invoice creation,
+keyed on `tenants.country`.
+
+| Country | Treatment | Invoice line |
+|---|---|---|
+| UG | 18% VAT (inclusive) | `UG VAT 18%` |
+| KE / TZ / RW / NG / ZA | B2B reverse charge, 0 tax cents | `Reverse charge — declare to KRA/TRA/RRA/FIRS/SARS` |
+| GB + EU-27 | VAT MOSS at the country rate (inclusive) | e.g. `DE VAT 19%` |
+| US / CA / AU / other | 0% | _(no line)_ |
+
+> **Quarterly review** (next: align with each calendar quarter). Re-check the EU
+> standard-rate table + the UG rate against the revenue authorities and update
+> `INCLUSIVE_VAT_RATES` / `REVERSE_CHARGE_AUTHORITY` in `tax.ts`. The FX pegs in
+> `catalog.ts` get the same quarterly refresh.
+
+## 6. Discount codes
+
+`discount_codes` (`percent_off` XOR `amount_off_cents`+`currency`, `applies_to`,
+`max_redemptions`, `redeemed_count`, `expires_at`). Checkout accepts
+`?discount=CODE` (or `{"discount":"CODE"}` in the body), validates, and applies it:
+
+- **Stripe** → a one-time `duration:'once'` **coupon** (so renewals bill full price).
+- **Pesapal** → the order amount is reduced directly (one payment per period).
+
+Redemption is recorded at **payment success** (not checkout creation) so abandoned
+checkouts don't burn a code; `UNIQUE(code, tenant_id)` makes recording idempotent
+on webhook retry and bumps `redeemed_count` only on a fresh insert.
+
+**Admin endpoint** (guarded by `X-Admin-Key: $ADMIN_API_KEY` until B5):
+
+```bash
+curl -s -X POST $BASE/api/admin/discount-codes -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"LAUNCH20","percentOff":20,"maxRedemptions":100,"appliesTo":"sting-tools"}'
+curl -s $BASE/api/admin/discount-codes -H "X-Admin-Key: $ADMIN_API_KEY"   # list
+```
+
+## 7. Cron Worker (`marketing-site-cron`)
+
+A **standalone Worker** (not part of the Pages project) binding the **same
+`WAITLIST_DB`**. Deploy:
+
+```bash
+cd marketing-site-cron
+npm install
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put SIGNUP_DIGEST_WEBHOOK   # optional
+npx wrangler secret put ADMIN_API_KEY           # optional (manual trigger)
+npx wrangler deploy
+```
+
+Schedule (UTC) — dispatched by cron expression in `scheduled()`:
+
+| Cron | Job | Action |
+|---|---|---|
+| `0 * * * *` | `expireTrials` | `trial` + `trial_ends_at < now` → `read_only` + email |
+| `0 9 * * *` | `daily09` | T-7/T-3/T-1 trial reminders · cap-exceeded reminders · dunning (past_due > 7d → read_only) |
+| `0 6 * * *` | `nightlyDigest` | 24h signups / subs / invoices / waitlist → `SIGNUP_DIGEST_WEBHOOK` |
+| `0 3 * * *` | `cleanup` | prune expired sessions + idempotency_keys; archive `webhooks_log` > 90d |
+
+Manual trigger for testing (needs `ADMIN_API_KEY`):
+
+```bash
+curl -s "https://planscape-cron.<account>.workers.dev/run?job=cleanup" -H "X-Admin-Key: $ADMIN_API_KEY"
+curl -s "https://planscape-cron.<account>.workers.dev/run?job=expireTrials" -H "X-Admin-Key: $ADMIN_API_KEY"
+# jobs: expireTrials | daily09 | trialReminders | capReminders | dunning | nightlyDigest | cleanup
+```
+
+## 8. Smoke test (B3b done-criteria)
+
+```bash
+BASE=https://planscape.build
+JWT="<owner access token>"
+
+# 1. Pesapal checkout (UGX) → returns a Pesapal redirect_url + a pending order.
+curl -s -X POST $BASE/api/billing/checkout \
+  -H "Authorization: Bearer $JWT" -H "Content-Type: application/json" \
+  -d '{"product":"sting-tools","tier":"solo","cycle":"monthly","currency":"UGX"}'
+#   → 200 { provider:"pesapal", checkoutUrl:"https://…pesapal…", orderTrackingId, amountCents, currency:"UGX" }
+#   Open checkoutUrl, pay with a sandbox mobile-money/card. Pesapal fires the IPN:
+#   → /api/webhooks/pesapal re-queries GetTransactionStatus → COMPLETED →
+#     subscriptions(provider=pesapal,status=active) + invoices(status=paid,tax_label set) +
+#     tenants.subscription_status='active'.
+wrangler d1 execute planscape-waitlist --remote \
+  --command="SELECT provider,status,currency FROM subscriptions; SELECT status,tax_label,total_cents FROM invoices ORDER BY created_at DESC LIMIT 3;"
+
+# 2. Discount: create a code, then check it reduces the charged amount.
+curl -s -X POST $BASE/api/admin/discount-codes -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" -d '{"code":"SAVE10","percentOff":10}'
+curl -s -X POST $BASE/api/billing/checkout -H "Authorization: Bearer $JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"product":"sting-tools","tier":"solo","cycle":"monthly","currency":"UGX","discount":"SAVE10"}'
+#   → amountCents 10% lower than step 1. On payment success, discount_redemptions
+#     gets a row and discount_codes.redeemed_count increments.
+
+# 3. Tax line on a UG invoice (set the tenant country to UG first if needed):
+wrangler d1 execute planscape-waitlist --remote \
+  --command="SELECT number,subtotal_cents,tax_cents,tax_label,total_cents FROM invoices ORDER BY created_at DESC LIMIT 1;"
+#   → tax_label='UG VAT 18%', subtotal+tax == total.
+
+# 4. Cron: trigger cleanup + expireTrials manually and confirm counts.
+curl -s "https://planscape-cron.<account>.workers.dev/run?job=cleanup" -H "X-Admin-Key: $ADMIN_API_KEY"
+```
+
+When 1–4 behave as annotated, **B3b is done**.
+
+## B3b endpoint / file reference
+
+| Method | Path | Role | Purpose |
+|---|---|---|---|
+| POST | `/api/billing/checkout` | owner | Routed by currency (Stripe **or** Pesapal); accepts `discount` |
+| POST/GET | `/api/webhooks/pesapal` | Pesapal (re-query) | IPN sink — confirms via GetTransactionStatus |
+| POST | `/api/admin/discount-codes` | `X-Admin-Key` | Create a discount code |
+| GET | `/api/admin/discount-codes` | `X-Admin-Key` | List discount codes |
+
+| File | Role |
+|---|---|
+| `_lib/billing/pesapal.ts` | Pesapal V3 client (token, RegisterIPN, SubmitOrder, GetTransactionStatus) |
+| `_lib/billing/tax.ts` | Country tax table (inclusive VAT / reverse charge) |
+| `_lib/billing/discounts.ts` | Validate / apply / record-redemption |
+| `marketing-site-cron/` | Standalone cron Worker (separate `wrangler.toml`, same D1) |

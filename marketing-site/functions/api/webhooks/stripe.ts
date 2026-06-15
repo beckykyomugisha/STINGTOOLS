@@ -37,6 +37,8 @@ import {
   insertWebhookLog,
   updateWebhookStatus,
 } from "../_lib/billing/state";
+import { resolveTax } from "../_lib/billing/tax";
+import { recordRedemption } from "../_lib/billing/discounts";
 import type { Env } from "../auth/_lib/types";
 
 // CORS preflight is irrelevant for Stripe (no Origin), but keep the contract.
@@ -135,6 +137,11 @@ async function handleCheckoutCompleted(
     tier: meta.tier,
     status,
   });
+  // Record a discount redemption if one rode along in the session metadata.
+  const discountCode = session.metadata?.discount;
+  if (discountCode) {
+    await recordRedemption(env.WAITLIST_DB, discountCode, tenantId, "stripe", session.id);
+  }
   await audit(env.WAITLIST_DB, {
     tenantId,
     actorUserId: null,
@@ -237,14 +244,19 @@ async function handleInvoice(
   if (!subRow) return "ignored";
   const tenantId = subRow.tenant_id;
 
+  // Break out tax from the (tax-inclusive) Stripe total per the tenant's country.
+  const tenant = await getTenantById(env.WAITLIST_DB, tenantId);
+  const tax = resolveTax(tenant?.country ?? null, inv.total);
+
   await upsertInvoice(env.WAITLIST_DB, {
     tenantId,
     subscriptionId: subRow.id,
     providerInvoiceId: inv.id,
     currency: inv.currency.toUpperCase(),
-    subtotalCents: inv.subtotal,
-    taxCents: inv.tax ?? 0,
+    subtotalCents: tax.subtotalCents,
+    taxCents: tax.taxCents,
     totalCents: inv.total,
+    taxLabel: tax.taxLabel,
     status: paid ? "paid" : "open",
     hostedUrl: inv.hosted_invoice_url,
     pdfUrl: inv.invoice_pdf,
@@ -252,7 +264,6 @@ async function handleInvoice(
     createdAt: unixToIso(inv.created) ?? new Date().toISOString(),
   });
 
-  const tenant = await getTenantById(env.WAITLIST_DB, tenantId);
   const prevStatus = tenant?.subscription_status ?? null;
 
   if (paid) {

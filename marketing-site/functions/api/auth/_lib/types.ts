@@ -14,6 +14,18 @@ export interface Env {
   // Billing (B3a — Stripe). Both set as encrypted secrets in the CF dashboard.
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  // Billing (B3b — Pesapal). Consumer key/secret are encrypted secrets; base URL
+  // is a plain var (sandbox: https://cybqa.pesapal.com/pesapalv3, prod:
+  // https://pay.pesapal.com/v3). PESAPAL_IPN_ID is the notification id returned
+  // by RegisterIPNURL (obtained once — see BILLING_SETUP.md).
+  PESAPAL_CONSUMER_KEY?: string;
+  PESAPAL_CONSUMER_SECRET?: string;
+  PESAPAL_BASE_URL?: string;
+  PESAPAL_IPN_ID?: string;
+  // Platform-admin guard for /api/admin/* (B5 replaces with a real admin model).
+  ADMIN_API_KEY?: string;
+  // Optional Slack/Discord webhook for the cron worker's nightly signup digest.
+  SIGNUP_DIGEST_WEBHOOK?: string;
 }
 
 // Row shapes as stored in D1.

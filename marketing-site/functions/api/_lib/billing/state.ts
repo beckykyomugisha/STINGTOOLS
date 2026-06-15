@@ -85,6 +85,7 @@ export function mapStripeStatus(stripeStatus: string): string {
 
 export interface UpsertSubscriptionInput {
   tenantId: string;
+  provider?: string; // defaults to 'stripe'
   providerCustomerId: string | null;
   providerSubscriptionId: string | null;
   product: string;
@@ -150,7 +151,7 @@ export async function upsertSubscription(
     .bind(
       id,
       input.tenantId,
-      "stripe",
+      input.provider ?? "stripe",
       input.providerCustomerId,
       input.providerSubscriptionId,
       input.product,
@@ -177,7 +178,7 @@ function rowFromInput(
   return {
     id,
     tenant_id: input.tenantId,
-    provider: "stripe",
+    provider: input.provider ?? "stripe",
     provider_customer_id: input.providerCustomerId,
     provider_subscription_id: input.providerSubscriptionId,
     product: input.product,
@@ -361,12 +362,14 @@ export async function nextInvoiceNumber(db: D1Database, year: number): Promise<s
 
 export interface UpsertInvoiceInput {
   tenantId: string;
+  provider?: string; // defaults to 'stripe'
   subscriptionId: string | null;
   providerInvoiceId: string;
   currency: string;
   subtotalCents: number;
   taxCents: number;
   totalCents: number;
+  taxLabel?: string | null;
   status: string;
   hostedUrl: string | null;
   pdfUrl: string | null;
@@ -382,11 +385,13 @@ export async function upsertInvoice(
 ): Promise<InvoiceRow> {
   const existing = await getInvoiceByProviderId(db, input.providerInvoiceId);
   if (existing) {
+    const taxLabel = input.taxLabel !== undefined ? input.taxLabel : existing.tax_label;
     await db
       .prepare(
         `UPDATE invoices
            SET subscription_id = ?, currency = ?, subtotal_cents = ?, tax_cents = ?,
-               total_cents = ?, status = ?, hosted_url = ?, pdf_url = ?, paid_at = ?
+               total_cents = ?, tax_label = ?, status = ?, hosted_url = ?, pdf_url = ?,
+               paid_at = ?
          WHERE id = ?`
       )
       .bind(
@@ -395,6 +400,7 @@ export async function upsertInvoice(
         input.subtotalCents,
         input.taxCents,
         input.totalCents,
+        taxLabel,
         input.status,
         input.hostedUrl,
         input.pdfUrl,
@@ -409,6 +415,7 @@ export async function upsertInvoice(
       subtotal_cents: input.subtotalCents,
       tax_cents: input.taxCents,
       total_cents: input.totalCents,
+      tax_label: taxLabel,
       status: input.status,
       hosted_url: input.hostedUrl,
       pdf_url: input.pdfUrl,
@@ -419,25 +426,28 @@ export async function upsertInvoice(
   const id = uuid();
   const year = new Date(input.createdAt).getUTCFullYear();
   const number = await nextInvoiceNumber(db, year);
+  const provider = input.provider ?? "stripe";
+  const taxLabel = input.taxLabel ?? null;
   await db
     .prepare(
       `INSERT INTO invoices
          (id, tenant_id, subscription_id, provider, provider_invoice_id, number,
-          currency, subtotal_cents, tax_cents, total_cents, status, hosted_url,
-          pdf_url, paid_at, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+          currency, subtotal_cents, tax_cents, total_cents, tax_label, status,
+          hosted_url, pdf_url, paid_at, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .bind(
       id,
       input.tenantId,
       input.subscriptionId,
-      "stripe",
+      provider,
       input.providerInvoiceId,
       number,
       input.currency,
       input.subtotalCents,
       input.taxCents,
       input.totalCents,
+      taxLabel,
       input.status,
       input.hostedUrl,
       input.pdfUrl,
@@ -449,14 +459,14 @@ export async function upsertInvoice(
     id,
     tenant_id: input.tenantId,
     subscription_id: input.subscriptionId,
-    provider: "stripe",
+    provider,
     provider_invoice_id: input.providerInvoiceId,
     number,
     currency: input.currency,
     subtotal_cents: input.subtotalCents,
     tax_cents: input.taxCents,
     total_cents: input.totalCents,
-    tax_label: null,
+    tax_label: taxLabel,
     status: input.status,
     hosted_url: input.hostedUrl,
     pdf_url: input.pdfUrl,
@@ -497,6 +507,7 @@ export async function getWebhookByEventId(
 }
 
 export interface InsertWebhookInput {
+  provider?: string; // defaults to 'stripe'
   eventId: string | null;
   eventType: string | null;
   signatureOk: boolean;
@@ -517,7 +528,7 @@ export async function insertWebhookLog(
     )
     .bind(
       id,
-      "stripe",
+      input.provider ?? "stripe",
       input.eventId,
       input.eventType,
       input.signatureOk ? 1 : 0,
@@ -538,5 +549,96 @@ export async function updateWebhookStatus(
   await db
     .prepare(`UPDATE webhooks_log SET status = ?, error = ?, processed_at = ? WHERE id = ?`)
     .bind(status, error, new Date().toISOString(), id)
+    .run();
+}
+
+// ---- pesapal orders -------------------------------------------------------
+// Pending Pesapal checkout context. Written at checkout, resolved on the IPN.
+
+export interface PesapalOrderRow {
+  id: string;
+  tenant_id: string;
+  order_tracking_id: string | null;
+  merchant_reference: string;
+  product: string;
+  tier: string;
+  billing_cycle: string;
+  currency: string;
+  amount_minor: number;
+  discount_code: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreatePesapalOrderInput {
+  id: string;
+  tenantId: string;
+  merchantReference: string;
+  product: string;
+  tier: string;
+  billingCycle: string;
+  currency: string;
+  amountMinor: number;
+  discountCode: string | null;
+}
+
+export async function createPesapalOrder(
+  db: D1Database,
+  input: CreatePesapalOrderInput
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO pesapal_orders
+         (id, tenant_id, order_tracking_id, merchant_reference, product, tier,
+          billing_cycle, currency, amount_minor, discount_code, status, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+    )
+    .bind(
+      input.id,
+      input.tenantId,
+      null,
+      input.merchantReference,
+      input.product,
+      input.tier,
+      input.billingCycle,
+      input.currency,
+      input.amountMinor,
+      input.discountCode,
+      "pending",
+      new Date().toISOString()
+    )
+    .run();
+}
+
+export async function setPesapalOrderTracking(
+  db: D1Database,
+  id: string,
+  orderTrackingId: string
+): Promise<void> {
+  await db
+    .prepare(`UPDATE pesapal_orders SET order_tracking_id = ?, updated_at = ? WHERE id = ?`)
+    .bind(orderTrackingId, new Date().toISOString(), id)
+    .run();
+}
+
+export async function getPesapalOrderByTracking(
+  db: D1Database,
+  orderTrackingId: string
+): Promise<PesapalOrderRow | null> {
+  return db
+    .prepare(`SELECT * FROM pesapal_orders WHERE order_tracking_id = ?`)
+    .bind(orderTrackingId)
+    .first<PesapalOrderRow>();
+}
+
+export async function setPesapalOrderStatus(
+  db: D1Database,
+  id: string,
+  status: string
+): Promise<void> {
+  await db
+    .prepare(`UPDATE pesapal_orders SET status = ?, updated_at = ? WHERE id = ?`)
+    .bind(status, new Date().toISOString(), id)
     .run();
 }

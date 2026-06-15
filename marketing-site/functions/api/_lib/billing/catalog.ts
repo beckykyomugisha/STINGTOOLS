@@ -23,15 +23,53 @@ export const PLAN_CATALOG = {
 
 export const ANNUAL_DISCOUNT = 0.2; // 20% off the monthly equivalent
 
-// Currency support for B3a (Stripe): USD, EUR, GBP. FX rates are pegged via a
-// static table (refresh quarterly, not at checkout time) so users see
-// predictable prices. UGX/KES/NGN/ZAR are Flutterwave-only — the checkout route
-// rejects them with 400 until B3b.
+// Currency support is split by payment provider:
+//   USD / EUR / GBP        → Stripe   (FX_FROM_USD)
+//   UGX / KES / TZS / RWF  → Pesapal  (FX_FROM_USD_PESAPAL)
+//   NGN / ZAR              → deferred (later expansion)
+// FX rates are pegged via static tables (refresh quarterly, not at checkout
+// time) so users see predictable prices. The router below maps a currency to
+// its provider; the checkout route 400s anything unsupported.
 export const FX_FROM_USD = { USD: 1.0, EUR: 0.92, GBP: 0.78 } as const;
 
+// Pesapal currencies. Rates are approximate (June 2026) — refresh quarterly
+// alongside FX_FROM_USD. UGX/RWF are zero-decimal (see CURRENCY_MINOR_EXP).
+export const FX_FROM_USD_PESAPAL = {
+  UGX: 3700,
+  KES: 129,
+  TZS: 2600,
+  RWF: 1350,
+} as const;
+
+// Minor-unit exponent per currency. 2 = cents (default), 0 = no subunit.
+// Drives both our stored *_cents columns and the major-unit amount Pesapal wants.
+export const CURRENCY_MINOR_EXP: Record<string, number> = {
+  USD: 2, EUR: 2, GBP: 2, KES: 2, TZS: 2, UGX: 0, RWF: 0,
+};
+
 export type StripeCurrency = keyof typeof FX_FROM_USD;
+export type PesapalCurrency = keyof typeof FX_FROM_USD_PESAPAL;
 export type PlanProduct = keyof typeof PLAN_CATALOG;
 export type BillingCycle = "monthly" | "annual";
+
+// Combined FX table for any supported currency, used by the generic pricing path.
+export const FX_FROM_USD_ALL: Record<string, number> = {
+  ...FX_FROM_USD,
+  ...FX_FROM_USD_PESAPAL,
+};
+
+export type PaymentProvider = "stripe" | "pesapal";
+
+export function isPesapalCurrency(c: string): c is PesapalCurrency {
+  return c in FX_FROM_USD_PESAPAL;
+}
+
+// Route a currency to its payment provider, or null if unsupported.
+export function providerForCurrency(c: string): PaymentProvider | null {
+  if (c in FX_FROM_USD) return "stripe";
+  if (c in FX_FROM_USD_PESAPAL) return "pesapal";
+  return null;
+}
 
 // A plan entry as stored above (usdMonthly may be null for enterprise).
 export interface PlanEntry {

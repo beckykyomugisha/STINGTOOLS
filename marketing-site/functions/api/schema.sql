@@ -236,3 +236,66 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_webhooks_event   ON webhooks_log(provider,
 --   wrangler d1 execute planscape-waitlist --remote \
 --     --command="ALTER TABLE tenants ADD COLUMN stripe_customer_id TEXT;"
 -- ---------------------------------------------------------------------------
+
+
+-- ---------------------------------------------------------------------------
+-- Billing (B3b — Pesapal + discounts) — pesapal_orders / discount_codes /
+-- discount_redemptions. The subscriptions + invoices tables from B3a are
+-- reused with provider='pesapal'; webhooks_log carries provider='pesapal'
+-- rows (event_id = Pesapal OrderTrackingId). No ALTERs — additive only.
+-- ---------------------------------------------------------------------------
+
+-- Pending Pesapal order context, written at checkout and resolved when the IPN
+-- fires. Holds everything needed to mint the subscription + invoice once the
+-- authoritative GetTransactionStatus comes back COMPLETED.
+CREATE TABLE IF NOT EXISTS pesapal_orders (
+  id                  TEXT PRIMARY KEY,            -- uuid v4; sent to Pesapal as the merchant reference
+  tenant_id           TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  order_tracking_id   TEXT,                        -- Pesapal's id, set after SubmitOrderRequest
+  merchant_reference  TEXT NOT NULL,               -- == id (our reference echoed back on the IPN)
+  product             TEXT NOT NULL,               -- sting-tools | planscape
+  tier                TEXT NOT NULL,               -- solo | studio | ...
+  billing_cycle       TEXT NOT NULL,               -- monthly | annual
+  currency            TEXT NOT NULL,               -- UGX | KES | TZS | RWF
+  amount_minor        INTEGER NOT NULL,            -- charged amount in minor units (discount already applied)
+  discount_code       TEXT,                        -- uppercased code if one was applied
+  status              TEXT NOT NULL,               -- pending | completed | failed | invalid | reversed
+  created_at          TEXT NOT NULL,
+  updated_at          TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_pesapal_tracking ON pesapal_orders(order_tracking_id);
+CREATE INDEX IF NOT EXISTS idx_pesapal_tenant   ON pesapal_orders(tenant_id);
+
+-- Discount codes. percent_off XOR amount_off_cents (amount needs currency).
+-- applies_to: null = any plan | 'product' | 'product:tier'. Provider-agnostic —
+-- the checkout reduces the charged amount directly (inline price for Stripe,
+-- order amount for Pesapal), so there are no Stripe Coupon objects to sync.
+CREATE TABLE IF NOT EXISTS discount_codes (
+  id                TEXT PRIMARY KEY,              -- uuid v4
+  code              TEXT NOT NULL UNIQUE,          -- stored UPPER-cased; matched case-insensitively
+  percent_off       INTEGER,                       -- 1..100 (null when amount_off used)
+  amount_off_cents  INTEGER,                       -- minor units in `currency` (null when percent used)
+  currency          TEXT,                          -- required iff amount_off_cents set
+  applies_to        TEXT,                          -- null=any | 'sting-tools' | 'planscape:solo' ...
+  max_redemptions   INTEGER,                       -- null = unlimited
+  redeemed_count    INTEGER NOT NULL DEFAULT 0,
+  expires_at        TEXT,                          -- ISO 8601 UTC; null = never expires
+  active            INTEGER NOT NULL DEFAULT 1,
+  created_at        TEXT NOT NULL,
+  created_by        TEXT                           -- admin identifier (free text for B3b)
+);
+
+-- One redemption per (code, tenant). The UNIQUE index makes recording idempotent
+-- (INSERT OR IGNORE), so a webhook retry never double-increments redeemed_count.
+CREATE TABLE IF NOT EXISTS discount_redemptions (
+  id          TEXT PRIMARY KEY,                    -- uuid v4
+  code        TEXT NOT NULL,
+  tenant_id   TEXT NOT NULL,
+  provider    TEXT NOT NULL,                       -- stripe | pesapal
+  reference   TEXT,                                -- checkout session id / order tracking id
+  created_at  TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_redemption_unique ON discount_redemptions(code, tenant_id);
+CREATE INDEX        IF NOT EXISTS idx_discount_active   ON discount_codes(active);

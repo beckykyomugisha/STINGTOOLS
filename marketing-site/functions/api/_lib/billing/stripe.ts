@@ -140,6 +140,30 @@ export interface StripePortalSession {
   url: string;
 }
 
+export interface StripeCoupon {
+  id: string;
+}
+
+// Create a one-time (duration: 'once') coupon so a discount code only applies to
+// the first invoice — renewals bill at full price. percent_off XOR amount_off
+// (amount_off needs currency, in the smallest unit). Used by the checkout route.
+export function stripeCreateCoupon(
+  opts: { secretKey: string; idempotencyKey?: string | null },
+  spec:
+    | { percentOff: number; name?: string }
+    | { amountOff: number; currency: string; name?: string }
+): Promise<StripeCoupon> {
+  const body: FormObject = { duration: "once", max_redemptions: 1 };
+  if ("percentOff" in spec) {
+    body.percent_off = spec.percentOff;
+  } else {
+    body.amount_off = spec.amountOff;
+    body.currency = spec.currency.toLowerCase();
+  }
+  if (spec.name) body.name = spec.name;
+  return stripePost<StripeCoupon>("/coupons", body, opts);
+}
+
 export interface StripeSubscriptionItem {
   id: string;
 }
