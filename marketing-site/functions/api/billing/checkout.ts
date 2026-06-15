@@ -120,7 +120,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
         mode: "subscription",
         customer: customerId,
         client_reference_id: tenant.id,
-        success_url: `${appOrigin(env)}/account/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${appOrigin(env)}/billing-success?checkout=success&session_id={CHECKOUT_SESSION_ID}&tier=${encodeURIComponent(tier)}&product=${encodeURIComponent(product)}`,
         cancel_url: `${appOrigin(env)}/account/billing?checkout=cancelled`,
         line_items: [
           {

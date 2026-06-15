@@ -18,6 +18,7 @@ import {
   verifyWebhookSignature,
   stripeGet,
   unixToIso,
+  invoiceSubscriptionId,
   type StripeSubscription,
   type StripeCheckoutSession,
   type StripeInvoice,
@@ -228,8 +229,11 @@ async function handleInvoice(
   inv: StripeInvoice,
   paid: boolean
 ): Promise<"processed" | "ignored"> {
-  if (!inv.subscription) return "ignored";
-  const subRow = await getSubscriptionByProviderId(env.WAITLIST_DB, inv.subscription);
+  // Basil (2025-03-31+) dropped the top-level inv.subscription, so resolve it
+  // from inv.parent.subscription_details (or the line items) as well.
+  const subscriptionId = invoiceSubscriptionId(inv);
+  if (!subscriptionId) return "ignored";
+  const subRow = await getSubscriptionByProviderId(env.WAITLIST_DB, subscriptionId);
   if (!subRow) return "ignored";
   const tenantId = subRow.tenant_id;
 

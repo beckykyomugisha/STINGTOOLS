@@ -155,11 +155,25 @@ export interface StripeSubscription {
   metadata?: Record<string, string>;
 }
 
+export interface StripeInvoiceLine {
+  parent?: {
+    subscription_item_details?: { subscription?: string | null } | null;
+  } | null;
+}
+
 export interface StripeInvoice {
   id: string;
   number: string | null;
   customer: string;
-  subscription: string | null;
+  // The top-level `subscription` field existed before the 2025-03-31.basil API,
+  // which removed it and moved the id to parent.subscription_details.subscription
+  // (and the per-line parent.subscription_item_details.subscription). We read all
+  // three so the webhook works regardless of the account's API version.
+  subscription?: string | null;
+  parent?: {
+    subscription_details?: { subscription?: string | null } | null;
+  } | null;
+  lines?: { data?: StripeInvoiceLine[] };
   currency: string;
   subtotal: number;
   tax: number | null;
@@ -169,6 +183,20 @@ export interface StripeInvoice {
   invoice_pdf: string | null;
   created: number;
   status_transitions?: { paid_at: number | null };
+}
+
+// Resolve an invoice's subscription id across Stripe API versions: pre-Basil
+// top-level `subscription`, Basil `parent.subscription_details.subscription`, or
+// the first line item's `parent.subscription_item_details.subscription`.
+export function invoiceSubscriptionId(inv: StripeInvoice): string | null {
+  if (inv.subscription) return inv.subscription;
+  const fromParent = inv.parent?.subscription_details?.subscription;
+  if (fromParent) return fromParent;
+  for (const line of inv.lines?.data ?? []) {
+    const sub = line.parent?.subscription_item_details?.subscription;
+    if (sub) return sub;
+  }
+  return null;
 }
 
 export interface StripeWebhookEvent {
