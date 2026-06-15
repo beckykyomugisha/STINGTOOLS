@@ -11,6 +11,9 @@ export interface Env {
   APP_ORIGIN?: string;
   // Optional override for the From: address on transactional email.
   EMAIL_FROM?: string;
+  // Billing (B3a — Stripe). Both set as encrypted secrets in the CF dashboard.
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
 }
 
 // Row shapes as stored in D1.
@@ -26,6 +29,7 @@ export interface TenantRow {
   trial_started_at: string;
   trial_ends_at: string;
   cap_exceeded_since: string | null;
+  stripe_customer_id: string | null; // (B3a) Stripe customer id, null pre-checkout
   created_at: string;
   updated_at: string | null;
 }

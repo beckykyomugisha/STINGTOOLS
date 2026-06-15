@@ -158,3 +158,81 @@ CREATE INDEX IF NOT EXISTS idx_audit_action   ON audit_log(action);
 --   wrangler d1 execute planscape-waitlist --remote \
 --     --command="ALTER TABLE users ADD COLUMN deleted_at TEXT;"
 -- ---------------------------------------------------------------------------
+
+
+-- ---------------------------------------------------------------------------
+-- Billing (B3a — Stripe core) — subscriptions / invoices / webhook log
+-- The subscriptions + invoices model is provider-agnostic: B3a writes
+-- provider='stripe'; B3b adds provider='flutterwave' rows alongside.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id                       TEXT PRIMARY KEY,            -- uuid v4 (our row id)
+  tenant_id                TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  provider                 TEXT NOT NULL,               -- 'stripe' for B3a (B3b adds 'flutterwave')
+  provider_customer_id     TEXT,
+  provider_subscription_id TEXT,
+  product                  TEXT NOT NULL,               -- sting-tools | planscape
+  tier                     TEXT NOT NULL,               -- solo | studio | practice | firm | large | enterprise
+  billing_cycle            TEXT NOT NULL,               -- 'monthly' | 'annual'
+  currency                 TEXT NOT NULL,
+  amount_cents             INTEGER NOT NULL,            -- unit amount in minor units for the cycle
+  current_period_start     TEXT,
+  current_period_end       TEXT,
+  cancel_at_period_end     INTEGER NOT NULL DEFAULT 0,
+  status                   TEXT NOT NULL,               -- mirrors tenant.subscription_status
+  created_at               TEXT NOT NULL,
+  updated_at               TEXT
+);
+
+CREATE TABLE IF NOT EXISTS invoices (
+  id                  TEXT PRIMARY KEY,                 -- uuid v4 (our row id)
+  tenant_id           TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  subscription_id     TEXT REFERENCES subscriptions(id),
+  provider            TEXT NOT NULL,
+  provider_invoice_id TEXT,
+  number              TEXT NOT NULL,                    -- PS-INV-YYYY-NNNN
+  currency            TEXT NOT NULL,
+  subtotal_cents      INTEGER NOT NULL,
+  tax_cents           INTEGER NOT NULL DEFAULT 0,
+  total_cents         INTEGER NOT NULL,
+  tax_label           TEXT,                             -- e.g. "UG VAT 18%" (B3b populates)
+  status              TEXT NOT NULL,                    -- 'open' | 'paid' | 'void' | 'uncollectible'
+  hosted_url          TEXT,
+  pdf_url             TEXT,
+  due_at              TEXT,
+  paid_at             TEXT,
+  created_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS webhooks_log (
+  id            TEXT    PRIMARY KEY,                    -- uuid v4 (our row id)
+  provider      TEXT    NOT NULL,                       -- 'stripe'
+  event_id      TEXT,                                   -- provider Event.id; null if unparseable / bad sig
+  event_type    TEXT,
+  signature_ok  INTEGER NOT NULL DEFAULT 0,             -- 1 = HMAC verified
+  payload       TEXT    NOT NULL,                       -- raw body, persisted even on bad sig
+  status        TEXT    NOT NULL,                       -- received | processed | ignored | bad_signature | error
+  error         TEXT,
+  created_at    TEXT    NOT NULL,
+  processed_at  TEXT
+);
+
+CREATE INDEX        IF NOT EXISTS idx_subs_tenant      ON subscriptions(tenant_id);
+CREATE INDEX        IF NOT EXISTS idx_subs_provider    ON subscriptions(provider_subscription_id);
+CREATE INDEX        IF NOT EXISTS idx_invoices_tenant  ON invoices(tenant_id);
+CREATE INDEX        IF NOT EXISTS idx_invoices_number  ON invoices(number);
+-- SQLite treats NULLs as distinct, so bad-signature events (event_id NULL) all
+-- coexist as separate rows; dedupe only kicks in for events with a real event_id.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_webhooks_event   ON webhooks_log(provider, event_id);
+
+-- ---------------------------------------------------------------------------
+-- One-time migration for databases that already had B1/B2 applied (before B3a
+-- added tenants.stripe_customer_id). SQLite can't guard ADD COLUMN with IF NOT
+-- EXISTS — run this ONCE and ignore a "duplicate column name" error. Fresh
+-- databases get the column from... (there is no CREATE TABLE for tenants here;
+-- the column is added to the existing tenants table, so on a brand-new DB you
+-- still run this ALTER once after the B1 CREATE TABLE tenants above.)
+--   wrangler d1 execute planscape-waitlist --remote \
+--     --command="ALTER TABLE tenants ADD COLUMN stripe_customer_id TEXT;"
+-- ---------------------------------------------------------------------------
