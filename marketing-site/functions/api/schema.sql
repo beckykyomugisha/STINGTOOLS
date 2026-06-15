@@ -220,6 +220,15 @@ CREATE TABLE IF NOT EXISTS webhooks_log (
 
 CREATE INDEX        IF NOT EXISTS idx_subs_tenant      ON subscriptions(tenant_id);
 CREATE INDEX        IF NOT EXISTS idx_subs_provider    ON subscriptions(provider_subscription_id);
+-- One row per (provider, provider_subscription_id). Backs the ON CONFLICT upsert
+-- in upsertSubscription so the concurrent-isolate webhook race (invoice
+-- race-recovery + customer.subscription.created) can't double-insert. Partial:
+-- rows with a NULL provider_subscription_id are exempt (and SQLite keeps NULLs
+-- distinct anyway). On an EXISTING db with duplicates this CREATE FAILS until you
+-- run the one-time dedup below first.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subs_provider_unique
+  ON subscriptions(provider, provider_subscription_id)
+  WHERE provider_subscription_id IS NOT NULL;
 CREATE INDEX        IF NOT EXISTS idx_invoices_tenant  ON invoices(tenant_id);
 CREATE INDEX        IF NOT EXISTS idx_invoices_number  ON invoices(number);
 -- SQLite treats NULLs as distinct, so bad-signature events (event_id NULL) all
@@ -299,3 +308,24 @@ CREATE TABLE IF NOT EXISTS discount_redemptions (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_redemption_unique ON discount_redemptions(code, tenant_id);
 CREATE INDEX        IF NOT EXISTS idx_discount_active   ON discount_codes(active);
+
+
+-- ---------------------------------------------------------------------------
+-- One-time dedup for databases populated BEFORE idx_subs_provider_unique
+-- existed. The old upsertSubscription did a check-then-insert, so two webhook
+-- events racing in separate Pages Functions isolates (invoice race-recovery +
+-- customer.subscription.created) could write TWO rows for the same
+-- (provider, provider_subscription_id). The UNIQUE index above will FAIL to
+-- create while those duplicates remain, so run this ONCE first — it keeps the
+-- most-recently-inserted row per (provider, provider_subscription_id) and drops
+-- the rest — THEN (re-)apply this schema file:
+--   wrangler d1 execute planscape-waitlist --remote --command="
+--     DELETE FROM subscriptions
+--      WHERE provider_subscription_id IS NOT NULL
+--        AND rowid NOT IN (
+--          SELECT MAX(rowid) FROM subscriptions
+--           WHERE provider_subscription_id IS NOT NULL
+--           GROUP BY provider, provider_subscription_id);"
+-- The DELETE is itself idempotent (a second run removes nothing). Fresh
+-- databases have no duplicates and can skip it.
+-- ---------------------------------------------------------------------------

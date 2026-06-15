@@ -106,39 +106,15 @@ export async function upsertSubscription(
   input: UpsertSubscriptionInput
 ): Promise<SubscriptionRow> {
   const nowIso = new Date().toISOString();
-  const existing = input.providerSubscriptionId
-    ? await getSubscriptionByProviderId(db, input.providerSubscriptionId)
-    : null;
+  const provider = input.provider ?? "stripe";
+  const newId = uuid();
 
-  if (existing) {
-    await db
-      .prepare(
-        `UPDATE subscriptions
-           SET provider_customer_id = ?, product = ?, tier = ?, billing_cycle = ?,
-               currency = ?, amount_cents = ?, current_period_start = ?,
-               current_period_end = ?, cancel_at_period_end = ?, status = ?,
-               updated_at = ?
-         WHERE id = ?`
-      )
-      .bind(
-        input.providerCustomerId,
-        input.product,
-        input.tier,
-        input.billingCycle,
-        input.currency,
-        input.amountCents,
-        input.currentPeriodStart,
-        input.currentPeriodEnd,
-        input.cancelAtPeriodEnd ? 1 : 0,
-        input.status,
-        nowIso,
-        existing.id
-      )
-      .run();
-    return { ...existing, ...rowFromInput(existing.id, existing.created_at, nowIso, input) };
-  }
-
-  const id = uuid();
+  // Atomic upsert keyed on (provider, provider_subscription_id). A check-then-
+  // insert would double-write under the concurrent-isolate webhook race
+  // (invoice race-recovery + customer.subscription.created both seeing no row);
+  // ON CONFLICT keeps it to a single row. The conflict target matches the
+  // partial UNIQUE index idx_subs_provider_unique (rows with a NULL
+  // provider_subscription_id are exempt and just insert).
   await db
     .prepare(
       `INSERT INTO subscriptions
@@ -146,12 +122,26 @@ export async function upsertSubscription(
           product, tier, billing_cycle, currency, amount_cents,
           current_period_start, current_period_end, cancel_at_period_end, status,
           created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(provider, provider_subscription_id)
+         WHERE provider_subscription_id IS NOT NULL
+       DO UPDATE SET
+         provider_customer_id = excluded.provider_customer_id,
+         product = excluded.product,
+         tier = excluded.tier,
+         billing_cycle = excluded.billing_cycle,
+         currency = excluded.currency,
+         amount_cents = excluded.amount_cents,
+         current_period_start = excluded.current_period_start,
+         current_period_end = excluded.current_period_end,
+         cancel_at_period_end = excluded.cancel_at_period_end,
+         status = excluded.status,
+         updated_at = ?`
     )
     .bind(
-      id,
+      newId,
       input.tenantId,
-      input.provider ?? "stripe",
+      provider,
       input.providerCustomerId,
       input.providerSubscriptionId,
       input.product,
@@ -163,10 +153,20 @@ export async function upsertSubscription(
       input.currentPeriodEnd,
       input.cancelAtPeriodEnd ? 1 : 0,
       input.status,
+      nowIso,
       nowIso
     )
     .run();
-  return rowFromInput(id, nowIso, nowIso, input);
+
+  // Re-read the canonical row: on a conflict the surviving id/created_at belong
+  // to the pre-existing row, not newId.
+  const row = input.providerSubscriptionId
+    ? await getSubscriptionByProviderId(db, input.providerSubscriptionId)
+    : await db
+        .prepare(`SELECT * FROM subscriptions WHERE id = ?`)
+        .bind(newId)
+        .first<SubscriptionRow>();
+  return row ?? rowFromInput(newId, nowIso, nowIso, input);
 }
 
 function rowFromInput(
