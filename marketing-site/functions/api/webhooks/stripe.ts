@@ -240,8 +240,28 @@ async function handleInvoice(
   // from inv.parent.subscription_details (or the line items) as well.
   const subscriptionId = invoiceSubscriptionId(inv);
   if (!subscriptionId) return "ignored";
-  const subRow = await getSubscriptionByProviderId(env.WAITLIST_DB, subscriptionId);
-  if (!subRow) return "ignored";
+  let subRow = await getSubscriptionByProviderId(env.WAITLIST_DB, subscriptionId);
+  if (!subRow) {
+    // Race with customer.subscription.created: Pages Functions isolates can
+    // process the two events concurrently, so invoice.paid can arrive a beat
+    // before the subscription row is written — and Stripe won't retry an event
+    // we've already 200'd. Rather than dropping the invoice, fetch the
+    // subscription straight from Stripe, upsert it, and re-query.
+    if (env.STRIPE_SECRET_KEY) {
+      try {
+        const stripeSub = await stripeGet<StripeSubscription>(
+          `/subscriptions/${subscriptionId}`,
+          { secretKey: env.STRIPE_SECRET_KEY }
+        );
+        await handleSubscriptionUpsert(env, request, stripeSub, true);
+        subRow = await getSubscriptionByProviderId(env.WAITLIST_DB, subscriptionId);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`invoice.paid race recovery failed for ${subscriptionId}: ${msg}`);
+      }
+    }
+    if (!subRow) return "ignored"; // genuinely not one of ours
+  }
   const tenantId = subRow.tenant_id;
 
   // Break out tax from the (tax-inclusive) Stripe total per the tenant's country.
