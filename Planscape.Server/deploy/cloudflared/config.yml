@@ -1,0 +1,29 @@
+# Cloudflare Tunnel ingress for the Planscape heavy-BIM server (C0).
+#
+# Locally-managed tunnel config. The companion credentials.json (the tunnel's
+# private key, downloaded by `cloudflared tunnel create`) sits next to this
+# file and is GITIGNORED — never commit it.
+#
+# DRAFT (C0) — replace the placeholder tunnel id below with the real one from
+# `cloudflared tunnel create planscape-heavy`, then route DNS with
+# `cloudflared tunnel route dns planscape-heavy api-heavy.planscape.build`.
+# Full walkthrough in oracle-vm-setup.md.
+
+# The tunnel UUID (NOT the name). `cloudflared tunnel create` prints it and
+# writes <UUID>.json — copy that to credentials.json beside this file.
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /etc/cloudflared/credentials.json
+
+# Keep the edge↔origin hop warm and fail fast if the API is down.
+originRequest:
+  connectTimeout: 30s
+  noTLSVerify: false
+
+ingress:
+  # Heavy BIM API. `api` is the compose service name; both containers share the
+  # default compose network, so cloudflared reaches it by DNS at api:8080.
+  - hostname: api-heavy.planscape.build
+    service: http://api:8080
+
+  # Catch-all — every other hostname gets a 404 (required final rule).
+  - service: http_status:404
