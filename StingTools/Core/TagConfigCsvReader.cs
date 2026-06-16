@@ -111,9 +111,14 @@ namespace StingTools.Core
                 if (trimmed.StartsWith(WarningBanner))
                 {
                     // Warning rows follow this banner. They do not contribute to
-                    // TierPlan, but they may be followed by more family blocks
-                    // in the same file — so we just close the current family
-                    // and keep scanning.
+                    // TierPlan, but the family block that PRECEDED the banner must
+                    // be committed first — otherwise every family that ends with a
+                    // "⚠ WARNING PARAMETERS" banner (i.e. essentially all of them
+                    // in the ARCH/GEN/MEP/STR CSVs) is silently dropped and never
+                    // reaches plansByFamily. Commit, then close the current family
+                    // and keep scanning for the next block.
+                    if (!string.IsNullOrEmpty(currentFamily) && currentPlan != null)
+                        result[currentFamily] = Finalise(currentPlan);
                     currentFamily = null;
                     currentPlan = null;
                     continue;
