@@ -2224,17 +2224,37 @@ namespace StingTools.Tags
                             continue;
                         }
 
-                        // Check if already added
-                        bool exists = false;
+                        // Check if already added; if so, verify StorageType matches
+                        FamilyParameter existingFp = null;
                         foreach (FamilyParameter fp in famMan.Parameters)
                         {
                             if (fp.Definition.Name == paramName)
                             {
-                                exists = true;
+                                existingFp = fp;
                                 break;
                             }
                         }
-                        if (exists) continue;
+
+                        if (existingFp != null)
+                        {
+                            StorageType expectedStorage = GetExpectedStorageType(extDef);
+                            if (existingFp.StorageType == expectedStorage)
+                                continue; // Correct type — nothing to do
+
+                            // Wrong storage type — delete so we can re-add with the correct type
+                            StingLog.Info($"Param '{paramName}': StorageType mismatch " +
+                                $"(bound={existingFp.StorageType}, expected={expectedStorage}) " +
+                                $"— removing for re-injection from MR_PARAMETERS.txt");
+                            try
+                            {
+                                famMan.RemoveParameter(existingFp);
+                            }
+                            catch (Exception rmEx)
+                            {
+                                StingLog.Warn($"Cannot remove mistyped param '{paramName}': {rmEx.Message}");
+                                continue; // Can't fix this param — skip to avoid duplicate-add error
+                            }
+                        }
 
                         try
                         {
@@ -2270,6 +2290,40 @@ namespace StingTools.Tags
                         app.SharedParametersFilename = originalFile;
                 }
                 catch (Exception ex2) { StingLog.Warn($"best effort: {ex2.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Maps an ExternalDefinition's declared data type to the Revit StorageType
+        /// that will be used when the parameter is bound to a family.
+        /// Supports both Revit 2025+ ForgeTypeId API and the legacy ParameterType enum.
+        /// </summary>
+        private static StorageType GetExpectedStorageType(ExternalDefinition extDef)
+        {
+            try
+            {
+                // Revit 2025+ API: GetDataType() returns ForgeTypeId
+                ForgeTypeId typeId = extDef.GetDataType();
+                if (typeId == SpecTypeId.String.Text)         return StorageType.String;
+                if (typeId == SpecTypeId.Boolean.YesNo)       return StorageType.Integer;
+                if (typeId == SpecTypeId.Int.Integer)         return StorageType.Integer;
+                if (typeId == SpecTypeId.Number)              return StorageType.Double;
+                if (typeId == SpecTypeId.Reference.Material)  return StorageType.ElementId;
+                // All other measurement specs (Length, Area, Force …) are Double
+                return StorageType.Double;
+            }
+            catch
+            {
+                // Fallback for environments where GetDataType() is unavailable
+#pragma warning disable CS0618
+                return extDef.ParameterType switch
+                {
+                    ParameterType.Text    => StorageType.String,
+                    ParameterType.YesNo   => StorageType.Integer,
+                    ParameterType.Integer => StorageType.Integer,
+                    _                     => StorageType.Double,
+                };
+#pragma warning restore CS0618
             }
         }
 
