@@ -1192,6 +1192,24 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
+            // ── Step 2b: Reconcile project shared-parameter specs ──
+            // Older sessions (or seed families) may have registered _BOOL parameter
+            // GUIDs in THIS project with the wrong spec (e.g. plain Integer instead of
+            // Yes/No). Loading a corrected Yes/No family into such a project makes Revit
+            // POST a non-recoverable conflict failure ("…conflicts with the existing…
+            // type 'Integer'") that aborts the load. Clear any mismatched project
+            // definition up front so the family loads register the correct spec.
+            try
+            {
+                int reconciled = ReconcileProjectSharedParams(doc, app, sharedParamFile);
+                if (reconciled > 0)
+                    StingLog.Info($"Reconciled {reconciled} mistyped project shared parameter(s) before tag-family build");
+            }
+            catch (Exception reconEx)
+            {
+                StingLog.Warn($"Project shared-param reconciliation skipped: {reconEx.Message}");
+            }
+
             // ── Step 3: Check which STING tag families are already loaded ──
             var loadedFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (Family fam in new FilteredElementCollector(doc)
@@ -2195,6 +2213,85 @@ namespace StingTools.Tags
         }
 
         /// <summary>
+        /// Reconcile the current project's existing SharedParameterElements against the
+        /// spec declared in MR_PARAMETERS.txt. Any GUID the project has registered with a
+        /// DIFFERENT data type (e.g. plain Integer where the file now declares Yes/No) is
+        /// unbound and deleted so a subsequent family load can re-register it with the
+        /// correct spec instead of hitting a non-recoverable shared-parameter conflict.
+        ///
+        /// Returns the number of mistyped definitions cleared. Scans only what the project
+        /// already knows about, so the cost is bounded by the project's parameter count —
+        /// not by the 3,000+ entries in the shared-parameter file.
+        /// </summary>
+        private int ReconcileProjectSharedParams(Document doc,
+            Autodesk.Revit.ApplicationServices.Application app,
+            string sharedParamFile)
+        {
+            string originalFile = app.SharedParametersFilename;
+            try
+            {
+                app.SharedParametersFilename = sharedParamFile;
+                DefinitionFile defFile = app.OpenSharedParameterFile();
+                if (defFile == null) return 0;
+
+                // Build GUID -> expected spec from the file (one pass).
+                var expected = new Dictionary<Guid, ForgeTypeId>();
+                foreach (DefinitionGroup grp in defFile.Groups)
+                    foreach (Definition d in grp.Definitions)
+                        if (d is ExternalDefinition ed && !expected.ContainsKey(ed.GUID))
+                            expected[ed.GUID] = ed.GetDataType();
+
+                // Find project SharedParameterElements whose spec no longer matches.
+                var mismatched = new List<SharedParameterElement>();
+                foreach (SharedParameterElement spe in new FilteredElementCollector(doc)
+                    .OfClass(typeof(SharedParameterElement)).Cast<SharedParameterElement>())
+                {
+                    Definition def = spe.GetDefinition();
+                    if (def == null) continue;
+                    if (expected.TryGetValue(spe.GuidValue, out ForgeTypeId want) &&
+                        def.GetDataType() != want)
+                    {
+                        mismatched.Add(spe);
+                    }
+                }
+
+                if (mismatched.Count == 0) return 0;
+
+                int fixedCount = 0;
+                using (Transaction tx = new Transaction(doc, "STING Reconcile Param Specs"))
+                {
+                    tx.Start();
+                    foreach (SharedParameterElement spe in mismatched)
+                    {
+                        try
+                        {
+                            Definition def = spe.GetDefinition();
+                            if (def != null && doc.ParameterBindings.Contains(def))
+                                doc.ParameterBindings.Remove(def);
+                            doc.Delete(spe.Id);
+                            fixedCount++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Cannot clear mistyped project param '{spe.Name}': {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+                return fixedCount;
+            }
+            finally
+            {
+                try
+                {
+                    if (!string.IsNullOrEmpty(originalFile))
+                        app.SharedParametersFilename = originalFile;
+                }
+                catch (Exception ex) { StingLog.Warn($"best effort restore SP file: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
         /// Add STING shared parameters to a family document using FamilyManager.
         /// Opens the shared parameter file, finds each tag parameter by GUID,
         /// and adds it to the family as an instance parameter.
@@ -2252,7 +2349,9 @@ namespace StingTools.Tags
                             continue;
                         }
 
-                        // Check if already added; if so, verify StorageType matches
+                        ForgeTypeId expectedTypeId = extDef.GetDataType();
+
+                        // Is the parameter already bound as a FamilyParameter?
                         FamilyParameter existingFp = null;
                         foreach (FamilyParameter fp in famMan.Parameters)
                         {
@@ -2263,67 +2362,86 @@ namespace StingTools.Tags
                             }
                         }
 
-                        if (existingFp != null)
-                        {
-                            // Compare at ForgeTypeId (SpecType) level — StorageType alone is not
-                            // sufficient because YESNO and INTEGER both resolve to StorageType.Integer.
-                            ForgeTypeId expectedTypeId = extDef.GetDataType();
-                            ForgeTypeId existingTypeId = existingFp.Definition.GetDataType();
-                            if (existingTypeId == expectedTypeId)
-                                continue; // Correct spec type — nothing to do
+                        // PROACTIVE conflict prevention.
+                        //
+                        // The GUID can already be registered in the family document as a
+                        // SharedParameterElement with a DIFFERENT spec (e.g. plain Integer)
+                        // even when NO FamilyParameter is bound to it. In that case
+                        // famMan.AddParameter() does not throw a catchable exception — it
+                        // POSTS a Revit failure ("…conflicts with the existing… type
+                        // 'Integer'") that only surfaces at tx.Commit(), bypassing any
+                        // try/catch. So we must detect and remove the mismatched definition
+                        // BEFORE calling AddParameter.
+                        //
+                        // Compare at ForgeTypeId (SpecType) level — StorageType alone is not
+                        // sufficient because YESNO and INTEGER both resolve to
+                        // StorageType.Integer.
+                        bool boundSpecMatches =
+                            existingFp != null &&
+                            existingFp.Definition.GetDataType() == expectedTypeId;
 
-                            // Spec type mismatch (e.g., Integer vs YesNo) — remove and re-add
-                            StingLog.Info($"Param '{paramName}': SpecType mismatch " +
-                                $"(bound={existingTypeId}, expected={expectedTypeId}) " +
-                                $"— removing for re-injection from MR_PARAMETERS.txt");
-                            try
-                            {
-                                famMan.RemoveParameter(existingFp);
-                            }
+                        SharedParameterElement spe = SharedParameterElement.Lookup(famDoc, extDef.GUID);
+                        bool speSpecMatches =
+                            spe == null ||
+                            spe.GetDefinition().GetDataType() == expectedTypeId;
+
+                        if (existingFp != null && boundSpecMatches && speSpecMatches)
+                            continue; // Already present with the correct spec — nothing to do
+
+                        // Something is mismatched. Detach the bound FamilyParameter first
+                        // (this releases any formula associations / label bindings), then
+                        // delete the stale SharedParameterElement so the GUID is free to be
+                        // re-registered with the correct spec.
+                        if (existingFp != null && (!boundSpecMatches || !speSpecMatches))
+                        {
+                            StingLog.Info($"Param '{paramName}': removing bound FamilyParameter " +
+                                $"(spec={existingFp.Definition.GetDataType().TypeId}, " +
+                                $"expected={expectedTypeId.TypeId})");
+                            try { famMan.RemoveParameter(existingFp); }
                             catch (Exception rmEx)
                             {
                                 StingLog.Warn($"Cannot remove mistyped param '{paramName}': {rmEx.Message}");
-                                continue; // Can't fix this param — skip to avoid duplicate-add error
+                                continue; // Can't fix — skip to avoid posting a conflict failure
+                            }
+                            existingFp = null;
+                        }
+
+                        if (spe != null && !speSpecMatches)
+                        {
+                            StingLog.Info($"Param '{paramName}': deleting stale " +
+                                $"SharedParameterElement (GUID={extDef.GUID}, " +
+                                $"spec={spe.GetDefinition().GetDataType().TypeId}) before re-add");
+                            try { famDoc.Delete(spe.Id); }
+                            catch (Exception delEx)
+                            {
+                                StingLog.Warn($"Cannot delete stale SPE for '{paramName}': {delEx.Message}");
+                                continue; // Leaving it would post a conflict failure at commit
                             }
                         }
 
-                        try
+                        if (existingFp != null)
+                            continue; // Bound, correct spec, SPE cleaned — done
+
+                        // Add inside a SubTransaction so that — if Revit still posts a
+                        // failure for this one parameter — it can be rolled back in
+                        // isolation without aborting the whole "Add Tag Params" commit.
+                        using (SubTransaction sub = new SubTransaction(famDoc))
                         {
-                            famMan.AddParameter(
-                                extDef,
-                                GroupTypeId.General,
-                                true); // isInstance = true (tags display instance values)
-                            added++;
-                        }
-                        catch (Exception ex)
-                        {
-                            // If the failure is a spec-type conflict, an orphaned
-                            // SharedParameterElement from a prior session may have registered
-                            // this GUID under a different type. Delete the SPE and retry once.
-                            bool retried = false;
-                            if (ex.Message.Contains("conflicts with"))
+                            sub.Start();
+                            try
                             {
-                                try
-                                {
-                                    SharedParameterElement orphanSpe =
-                                        SharedParameterElement.Lookup(famDoc, extDef.GUID);
-                                    if (orphanSpe != null)
-                                    {
-                                        StingLog.Info($"Param '{paramName}': removing orphaned " +
-                                            $"SharedParameterElement (GUID={extDef.GUID}) and retrying");
-                                        famDoc.Delete(orphanSpe.Id);
-                                        famMan.AddParameter(extDef, GroupTypeId.General, true);
-                                        added++;
-                                        retried = true;
-                                    }
-                                }
-                                catch (Exception retryEx)
-                                {
-                                    StingLog.Warn($"Retry after SPE cleanup failed for '{paramName}': {retryEx.Message}");
-                                }
+                                famMan.AddParameter(
+                                    extDef,
+                                    GroupTypeId.General,
+                                    true); // isInstance = true (tags display instance values)
+                                sub.Commit();
+                                added++;
                             }
-                            if (!retried)
+                            catch (Exception ex)
+                            {
+                                try { sub.RollBack(); } catch { /* best effort */ }
                                 StingLog.Warn($"Cannot add param '{paramName}' to family: {ex.Message}");
+                            }
                         }
                     }
 
