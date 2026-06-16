@@ -1429,7 +1429,38 @@ namespace StingTools.Tags
                     string seedPath = TagFamilyConfig.FindSeedFamily(bic);
                     if (!string.IsNullOrEmpty(seedPath))
                     {
-                        if (LoadFamilyIntoProject(doc, seedPath, famName))
+                        // Pre-reconcile the seed .rfa so any SharedParameterElements
+                        // that were authored with the wrong spec (e.g. Integer instead
+                        // of Yes/No for _BOOL params) are stripped before the family
+                        // is loaded into the project. Without this, doc.LoadFamily()
+                        // posts a non-recoverable "conflicts with the existing … type"
+                        // failure that aborts the load even though ReconcileProjectSharedParams
+                        // already cleaned the HOST project document.
+                        string tempSeedPath = null;
+                        string pathToLoad = seedPath;
+                        try
+                        {
+                            tempSeedPath = ReconcileSeedFamilyToTemp(app, seedPath, sharedParamFile);
+                            if (!string.IsNullOrEmpty(tempSeedPath))
+                                pathToLoad = tempSeedPath;
+                        }
+                        catch (Exception rsEx)
+                        {
+                            StingLog.Warn($"Seed pre-reconcile for '{catDisplay}': {rsEx.Message} — loading original");
+                        }
+
+                        bool seedLoaded;
+                        try
+                        {
+                            seedLoaded = LoadFamilyIntoProject(doc, pathToLoad, famName);
+                        }
+                        finally
+                        {
+                            if (tempSeedPath != null && File.Exists(tempSeedPath))
+                                try { File.Delete(tempSeedPath); } catch { }
+                        }
+
+                        if (seedLoaded)
                         {
                             report.AppendLine($"  [SEED] {catDisplay} — loaded pre-configured seed family");
                             loaded++;
@@ -2288,6 +2319,130 @@ namespace StingTools.Tags
                         app.SharedParametersFilename = originalFile;
                 }
                 catch (Exception ex) { StingLog.Warn($"best effort restore SP file: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Opens a seed .rfa family, removes any SharedParameterElements whose GUID is
+        /// registered with a spec that conflicts with MR_PARAMETERS.txt (e.g. plain Integer
+        /// where the file now declares Yes/No for a _BOOL param), saves the cleaned family
+        /// to a uniquely-named temp file, and returns that temp path.
+        ///
+        /// Returns null when the seed has no spec conflicts (caller should use the original
+        /// seed path directly). The caller is responsible for deleting the temp file after
+        /// the family has been loaded into the project.
+        ///
+        /// This is necessary because doc.LoadFamily() posts a non-recoverable Revit failure
+        /// when it tries to register a GUID with a different spec than the one already
+        /// known to the host project — a failure that no .NET catch block can intercept.
+        /// </summary>
+        private string ReconcileSeedFamilyToTemp(
+            Autodesk.Revit.ApplicationServices.Application app,
+            string seedPath,
+            string sharedParamFile)
+        {
+            string originalFile = app.SharedParametersFilename;
+            Document famDoc = null;
+            try
+            {
+                // Build GUID → expected spec from MR_PARAMETERS.txt.
+                app.SharedParametersFilename = sharedParamFile;
+                DefinitionFile defFile = app.OpenSharedParameterFile();
+                if (defFile == null) return null;
+
+                var expected = new Dictionary<Guid, ForgeTypeId>();
+                foreach (DefinitionGroup grp in defFile.Groups)
+                    foreach (Definition d in grp.Definitions)
+                        if (d is ExternalDefinition ed && !expected.ContainsKey(ed.GUID))
+                            expected[ed.GUID] = ed.GetDataType();
+
+                // Open the seed family document.
+                famDoc = app.OpenDocumentFile(seedPath);
+                if (famDoc == null) return null;
+
+                // Find mismatched SharedParameterElements.
+                var mismatched = new List<SharedParameterElement>();
+                foreach (SharedParameterElement spe in new FilteredElementCollector(famDoc)
+                    .OfClass(typeof(SharedParameterElement)).Cast<SharedParameterElement>())
+                {
+                    Definition def = spe.GetDefinition();
+                    if (def == null) continue;
+                    if (expected.TryGetValue(spe.GuidValue, out ForgeTypeId want) &&
+                        def.GetDataType() != want)
+                    {
+                        mismatched.Add(spe);
+                        StingLog.Info($"Seed '{Path.GetFileName(seedPath)}': GUID {spe.GuidValue} " +
+                            $"has spec {def.GetDataType().TypeId}, expected {want.TypeId} — removing");
+                    }
+                }
+
+                if (mismatched.Count == 0)
+                {
+                    famDoc.Close(false);
+                    famDoc = null;
+                    return null; // No conflicts — caller can use original path
+                }
+
+                // Strip mismatched FamilyParameters then delete the stale SPEs.
+                FamilyManager famMan = famDoc.FamilyManager;
+                using (Transaction tx = new Transaction(famDoc, "STING Reconcile Seed Params"))
+                {
+                    tx.Start();
+                    foreach (SharedParameterElement spe in mismatched)
+                    {
+                        try
+                        {
+                            // Unbind the FamilyParameter that references this GUID (if any).
+                            FamilyParameter boundFp = null;
+                            foreach (FamilyParameter fp in famMan.Parameters)
+                            {
+                                if (fp.Definition is ExternalDefinition fpExt &&
+                                    fpExt.GUID == spe.GuidValue)
+                                {
+                                    boundFp = fp;
+                                    break;
+                                }
+                            }
+                            if (boundFp != null)
+                                famMan.RemoveParameter(boundFp);
+
+                            famDoc.Delete(spe.Id);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Cannot remove SPE in seed " +
+                                $"'{Path.GetFileName(seedPath)}': {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+
+                // Save the cleaned family to a unique temp file (never overwrite the
+                // original seed so re-runs still start from the correct baseline).
+                string tempDir = Path.GetTempPath();
+                string tempPath = Path.Combine(tempDir, $"STING_seed_{Guid.NewGuid():N}.rfa");
+                famDoc.SaveAs(tempPath, new SaveAsOptions { OverwriteExistingFile = true });
+                famDoc.Close(false);
+                famDoc = null;
+
+                StingLog.Info($"Seed reconciled: stripped {mismatched.Count} mismatched " +
+                    $"param(s) from '{Path.GetFileName(seedPath)}', temp: {tempPath}");
+                return tempPath;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"ReconcileSeedFamilyToTemp failed for '{seedPath}'", ex);
+                return null;
+            }
+            finally
+            {
+                try { famDoc?.Close(false); } catch { }
+                try
+                {
+                    if (!string.IsNullOrEmpty(originalFile))
+                        app.SharedParametersFilename = originalFile;
+                }
+                catch (Exception ex) { StingLog.Warn($"Restore SP file: {ex.Message}"); }
             }
         }
 
