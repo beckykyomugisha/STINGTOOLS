@@ -26,7 +26,12 @@ namespace StingTools.Tags
         /// a family is listed twice (the discipline CSVs should not
         /// overlap in practice).
         /// </summary>
-        public static Dictionary<string, TierPlan> LoadAll(Document doc)
+        /// <param name="failedCsvs">
+        /// When non-null, receives the names of any CSVs that could not be
+        /// located on disk — callers can surface these in a diagnostic banner.
+        /// </param>
+        public static Dictionary<string, TierPlan> LoadAll(Document doc,
+            List<string> failedCsvs = null)
         {
             var merged = new Dictionary<string, TierPlan>(StringComparer.Ordinal);
             string[] csvNames;
@@ -40,20 +45,23 @@ namespace StingTools.Tags
             foreach (string name in csvNames)
             {
                 if (string.IsNullOrEmpty(name)) continue;
-                string path = StingToolsApp.FindDataFile(name);
-                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                string path = ResolveCsvPath(name);
+                if (string.IsNullOrEmpty(path))
                 {
                     StingLog.Warn($"TagConfigPlanResolver: CSV '{name}' not resolved on disk — skipping.");
+                    failedCsvs?.Add(name);
                     continue;
                 }
                 try
                 {
                     var perFile = TagConfigCsvReader.LoadFile(path);
                     foreach (var kv in perFile) merged[kv.Key] = kv.Value;
+                    StingLog.Info($"TagConfigPlanResolver: loaded {perFile.Count} families from '{name}'.");
                 }
                 catch (Exception ex2)
                 {
                     StingLog.Warn($"TagConfigPlanResolver: parsing '{name}' failed — {ex2.Message}");
+                    failedCsvs?.Add(name);
                 }
             }
             return merged;
@@ -88,8 +96,8 @@ namespace StingTools.Tags
                 foreach (string name in modeKv.Value)
                 {
                     if (string.IsNullOrEmpty(name)) continue;
-                    string path = StingToolsApp.FindDataFile(name);
-                    if (string.IsNullOrEmpty(path) || !File.Exists(path)) continue;
+                    string path = ResolveCsvPath(name);
+                    if (string.IsNullOrEmpty(path)) continue;
                     try
                     {
                         var perFile = TagConfigCsvReader.LoadFile(path);
@@ -120,10 +128,10 @@ namespace StingTools.Tags
                 if (string.IsNullOrEmpty(dir)) return false;
                 string cfg = Path.Combine(dir, "project_config.json");
                 if (!File.Exists(cfg)) return false;
-                var jo = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(cfg));
+                var jo = JObject.Parse(File.ReadAllText(cfg));
                 var tok = jo["PRESERVE_HAND_EDITS"];
                 if (tok == null) return false;
-                if (tok.Type == Newtonsoft.Json.Linq.JTokenType.Boolean) return (bool)tok;
+                if (tok.Type == JTokenType.Boolean) return (bool)tok;
                 return string.Equals(tok.ToString(), "true", StringComparison.OrdinalIgnoreCase);
             }
             catch (Exception ex)
@@ -131,6 +139,69 @@ namespace StingTools.Tags
                 StingLog.Warn($"TagConfigPlanResolver.ReadPreserveHandEdits: {ex.Message}");
                 return false;
             }
+        }
+
+        // ── private helpers ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Locate a tag-config CSV file by filename. Tries the standard
+        /// <see cref="StingToolsApp.FindDataFile"/> chain first, then a set of
+        /// deployment-layout–specific fallback paths so that the file can be
+        /// found whether the plugin is running from <c>CompiledPlugin/</c>,
+        /// a Revit add-ins folder, or directly from the source tree.
+        /// Returns null when the file cannot be found anywhere.
+        /// </summary>
+        private static string ResolveCsvPath(string csvFileName)
+        {
+            // 1. Standard search (DataPath + recursive + known alternates).
+            string found = StingToolsApp.FindDataFile(csvFileName);
+            if (!string.IsNullOrEmpty(found) && File.Exists(found))
+                return found;
+
+            // 2. Extra fallback paths relative to the assembly directory.
+            //    These cover layouts where the DLL lives in CompiledPlugin/
+            //    but the CSV files are only in the source tree under
+            //    StingTools/Data/, or in a sibling data/ folder that was not
+            //    picked up by the primary search chain.
+            string asmDir = "";
+            try
+            {
+                asmDir = Path.GetDirectoryName(StingToolsApp.AssemblyPath ?? "") ?? "";
+            }
+            catch { /* AssemblyPath not yet set in a unit-test context */ }
+
+            if (!string.IsNullOrEmpty(asmDir))
+            {
+                string[] extras = {
+                    // CompiledPlugin/data/<file>  (case-variant the primary search may miss)
+                    Path.Combine(asmDir, "data",  csvFileName),
+                    Path.Combine(asmDir, "Data",  csvFileName),
+                    // Sibling StingTools/Data/ — works when DLL is in CompiledPlugin/
+                    Path.Combine(asmDir, "..", "StingTools", "Data", csvFileName),
+                    Path.Combine(asmDir, "..", "StingTools", "data", csvFileName),
+                    // Up two levels then into StingTools/Data/ (nested build outputs)
+                    Path.Combine(asmDir, "..", "..", "StingTools", "Data", csvFileName),
+                    // Plain sibling data/ next to parent folder
+                    Path.Combine(asmDir, "..", "data", csvFileName),
+                    Path.Combine(asmDir, "..", "Data", csvFileName),
+                };
+
+                foreach (string candidate in extras)
+                {
+                    try
+                    {
+                        string full = Path.GetFullPath(candidate);
+                        if (File.Exists(full))
+                        {
+                            StingLog.Info($"TagConfigPlanResolver: resolved '{csvFileName}' via fallback → {full}");
+                            return full;
+                        }
+                    }
+                    catch { /* Path.GetFullPath can throw on malformed paths */ }
+                }
+            }
+
+            return null;
         }
     }
 }
