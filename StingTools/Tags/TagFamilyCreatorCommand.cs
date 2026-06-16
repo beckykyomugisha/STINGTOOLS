@@ -1151,7 +1151,8 @@ namespace StingTools.Tags
             //    are silently skipped — families keep whatever rows are live.
             Dictionary<string, Dictionary<string, TierPlan>> plansByMode =
                 TagConfigPlanResolver.LoadAllPerMode(doc);
-            Dictionary<string, TierPlan> plansByFamily = TagConfigPlanResolver.LoadAll(doc);
+            var failedCsvs = new System.Collections.Generic.List<string>();
+            Dictionary<string, TierPlan> plansByFamily = TagConfigPlanResolver.LoadAll(doc, failedCsvs);
             bool preserveHandEdits = TagConfigPlanResolver.ReadPreserveHandEdits(doc);
             string activeMode = HandoverModeHelper.GetActiveMode(doc);
 
@@ -1309,18 +1310,45 @@ namespace StingTools.Tags
                 string fn = TagFamilyConfig.GetFamilyName(bic);
                 if (TagFamilyConfig.ContainsPlanForFamily(plansByFamily, fn)) familiesWithPlan++;
             }
-            // Coverage warning: <50% of base categories have CSV plans usually
-            // indicates a naming-convention drift between creator and CSVs
-            // (e.g. plural/singular, suffix format). Surface it loudly so
-            // silent default-tier authoring doesn't ship as-if normal.
+            // Coverage warning: <50% of base categories have CSV plans.
+            // Two distinct root causes are diagnosed so the user gets
+            // an actionable message rather than a generic warning:
+            //   A) CSV files not found on disk → plansByFamily is empty.
+            //      The resolver tried the standard DataPath search chain PLUS
+            //      several deployment-layout fallbacks and still could not
+            //      locate the files.  Fix: copy the 5 STING_TAG_CONFIG_v5_0_*.csv
+            //      files into the same folder as StingTools.dll (or into a
+            //      'data' sub-folder next to it).
+            //   B) CSVs loaded but family names don't match → naming drift.
+            //      Check CategoryCsvFamilyKey and VariantSuffixToCsvName.
             int coveragePct = categories.Count == 0 ? 100 : (int)Math.Round(familiesWithPlan * 100.0 / categories.Count);
-            string coverageBanner = coveragePct < 50
-                ? $"⚠ WARNING: only {coveragePct}% of base categories matched a CSV plan.\n" +
-                  "  Most families will be authored with DEFAULT visibility params\n" +
-                  "  instead of per-family T4-T10 rows. Likely cause: CSV family\n" +
-                  "  name drift (plural/singular, suffix format). Check CategoryCsvFamilyKey\n" +
-                  "  and VariantSuffixToCsvName in TagFamilyConfig.cs.\n\n"
-                : string.Empty;
+            string coverageBanner = string.Empty;
+            if (coveragePct < 50)
+            {
+                if (failedCsvs.Count > 0)
+                {
+                    // Root cause A: CSV files not found on disk.
+                    string missingList = string.Join(", ", failedCsvs);
+                    coverageBanner =
+                        $"⚠ WARNING: only {coveragePct}% of base categories matched a CSV plan.\n" +
+                        $"  {failedCsvs.Count} tag-config CSV file(s) could NOT be located on disk:\n" +
+                        $"  {missingList}\n" +
+                        "  Without the CSV data, families are authored with DEFAULT\n" +
+                        "  visibility params instead of per-family T4-T10 rows.\n" +
+                        "  FIX: copy the STING_TAG_CONFIG_v5_0_*.csv files into\n" +
+                        $"  the 'data' sub-folder next to StingTools.dll.\n\n";
+                }
+                else
+                {
+                    // Root cause B: CSVs loaded but family-name mismatch.
+                    coverageBanner =
+                        $"⚠ WARNING: only {coveragePct}% of base categories matched a CSV plan.\n" +
+                        "  The CSV files were found but most family names did not match.\n" +
+                        "  Likely cause: naming drift (plural/singular, suffix format).\n" +
+                        "  Check CategoryCsvFamilyKey and VariantSuffixToCsvName\n" +
+                        "  in TagFamilyConfig.cs.\n\n";
+                }
+            }
             confirm.MainContent =
                 coverageBanner +
                 $"Total taggable categories: {total}\n" +
