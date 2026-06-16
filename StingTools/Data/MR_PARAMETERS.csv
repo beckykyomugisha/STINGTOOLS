@@ -25,7 +25,7 @@ Generic Models,ASS_SYSTEM_TYPE_TXT,2b3658d9-bfc6-56db-9df5-901337fde0f5,TEXT,ASS
 Generic Models,ASS_TAG_1_TXT,1eeb577d-342d-5039-97f1-f1dd8d80c8c4,TEXT,ASS_MNG,Type,Ass Tag 1 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TAG_2_TXT,bf6cb687-478f-459a-8c5d-ece073c24831,TEXT,ASS_MNG,Type,Ass Tag 2 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TAG_3_TXT,068abd3b-650e-4a7c-ac07-82e556160de0,TEXT,ASS_MNG,Type,Ass Tag 3 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,BLE_CASEWORK_ACCESSIBLE_BOOL,8c2b44a9-cc06-408d-af91-0f14499042c4,TEXT,CST_PROC,Type,Accessible casework compliance [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_CASEWORK_ACCESSIBLE_BOOL,8c2b44a9-cc06-408d-af91-0f14499042c4,YESNO,CST_PROC,Type,Accessible casework compliance [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CASEWORK_COUNTERTOP_TXT,3592eb3b-308a-42b5-a14c-0b18f19b8d6b,TEXT,CST_PROC,Type,Casework countertop material [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CASEWORK_HARDWARE_TXT,fe571646-cbb4-496f-95b7-dbff007a5d53,TEXT,CST_PROC,Type,Casework hardware specification [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CASEWORK_MATERIAL_TXT,222b02d7-63ab-487b-8d92-2e2f6962dd48,TEXT,CST_PROC,Type,Casework primary material [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -71,10 +71,10 @@ Generic Models,BLE_MULLION_MATERIAL_TXT,eff23acf-6055-424a-a824-682a18cdfb45,TEX
 Generic Models,BLE_PANEL_GLASS_TYPE_TXT,13c8d3d5-989d-43b4-bcdd-eacaaaa33bf1,TEXT,CST_PROC,Type,Curtain wall panel glass type [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_PANEL_HEIGHT_MM,be1a1d83-5ab3-4637-977a-cfe1bf297dd3,TEXT,CST_PROC,Type,Curtain wall panel height in mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_PANEL_WIDTH_MM,85f6f562-2570-4cdc-8823-dd780014efca,TEXT,CST_PROC,Type,Curtain wall panel width in mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_PARK_ACCESSIBLE_BOOL,b5ac9b94-b39d-468d-847e-b49d346b3633,TEXT,CST_PROC,Type,Parking bay meets accessibility standards [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_PARK_ACCESSIBLE_BOOL,b5ac9b94-b39d-468d-847e-b49d346b3633,YESNO,CST_PROC,Type,Parking bay meets accessibility standards [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_PARK_BAY_LENGTH_MM,421958ca-f53b-4f18-999c-282ba0d8dcc7,TEXT,CST_PROC,Type,Parking bay length in mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_PARK_BAY_WIDTH_MM,eb9182d4-8c20-4d84-a53b-70bf9c771757,TEXT,CST_PROC,Type,Parking bay width in mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_PARK_EV_CHARGING_BOOL,b09617b0-e85e-4079-9c0f-6b490e32daf4,TEXT,CST_PROC,Type,EV charging point provided [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_PARK_EV_CHARGING_BOOL,b09617b0-e85e-4079-9c0f-6b490e32daf4,YESNO,CST_PROC,Type,EV charging point provided [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_PARK_TYPE_TXT,6d2b0bdf-0c70-4acc-bc6f-cd0bd8cc7d0e,TEXT,CST_PROC,Type,Parking bay type classification [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_RAILING_BALUSTER_SPACING_MM,e5a30e5b-eefa-402a-9a72-7d441f93a300,TEXT,CST_PROC,Type,Railing baluster spacing in mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_RAILING_HEIGHT_MM,59f58f53-84f9-482f-9b1d-59fc2336b2b1,TEXT,CST_PROC,Type,Railing height in mm [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -95,7 +95,7 @@ Generic Models,BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR,df9197f1-d5c9-4ef0-bec7-05265667
 Generic Models,BLE_ROOM_NAME_TXT,0bf56335-3e98-58cb-81eb-a998c017d657,TEXT,CST_PROC,Type,Ble Room Name Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOM_NUM_TXT,08c45bc2-6903-5a41-b295-9c3111de6882,TEXT,CST_PROC,Type,Ble Room Num Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOM_VENTILATION_RATE_LPS,aaa7d06b-881d-447c-b28d-ec2764597319,TEXT,CST_PROC,Type,Room design ventilation rate in l/s [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_SIGN_ILLUMINATED_BOOL,908be268-188c-405a-9d0b-d8717999da94,TEXT,CST_PROC,Type,Signage is internally illuminated [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_SIGN_ILLUMINATED_BOOL,908be268-188c-405a-9d0b-d8717999da94,YESNO,CST_PROC,Type,Signage is internally illuminated [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_SIGN_TYPE_TXT,c1e98355-30ee-4f2c-ba3d-861bcb840d82,TEXT,CST_PROC,Type,Signage type classification [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STAIR_HEADROOM_MM,d1228a5a-c2ca-4018-b02c-1c29a6ffd5bf,TEXT,CST_PROC,Type,Stair headroom clearance in mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_BEAM_SZ_TXT,7cead505-38f5-57a5-9425-b349170a9ee7,TEXT,CST_PROC,Type,Ble Struct Beam Sz Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -332,7 +332,7 @@ Generic Models,PLM_VNT_SZ_NR,b27f8b0d-cd76-54bb-bb37-c97c7580e79d,TEXT,PLM_DRN,T
 Generic Models,PRJ_INFORMATION_SPARE_02_TXT,b4e2d00d-a873-4fa9-bdc4-3d57fe742671,TEXT,PRJ_INFORMATION,Type,Spare parameter 2 for PRJ_INFORMATION group,False,,,MULTI,1,0
 Generic Models,MAT_SPECIFICATIONS,0efc1f0f-a86a-5088-9305-8839f35d8acc,TEXT,MAT_INFO,Type,Mat Specifications [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_BY_TXT,faebac20-d848-42bb-9659-7ea1773499f9,TEXT,ASS_MNG,Type,Tie-in installed/connected by (contractor/trade) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_TIEIN_CONNECTED_BOOL,675b0c39-6577-4dd2-b7d0-ecb5501987ce,TEXT,ASS_MNG,Type,Tie-in connection status flag [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_TIEIN_CONNECTED_BOOL,675b0c39-6577-4dd2-b7d0-ecb5501987ce,YESNO,ASS_MNG,Type,Tie-in connection status flag [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_ELEV_TXT,5ce9a926-497f-4403-ba63-03342f208313,TEXT,ASS_MNG,Type,Tie-in point elevation reference [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_FLOW_DIR_TXT,5ce85a72-707e-4af9-8521-ed872c8793c8,TEXT,ASS_MNG,Type,Tie-in flow direction (IN/OUT/BIDIRECTIONAL) [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_IFC_REF_TXT,06a09689-3d8a-4b24-8483-37959f648f89,TEXT,ASS_MNG,Type,Tie-in IFC GUID reference [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -360,7 +360,7 @@ Generic Models,PROP_PHYSICAL_SPARE_01_TXT,a8a02414-4d93-4cbc-b256-8f242fe61fc8,T
 Generic Models,TPL_TRACKING_SPARE_01_TXT,71383214-27c6-45bd-a0e1-017efb6fb1c7,TEXT,TPL_TRACKING,Type,Spare parameter 1 for TPL_TRACKING group,False,,,MULTI,1,0
 Generic Models,BI_DIMENSIONS_TXT,85e95414-1461-435f-880e-32392d310aa2,TEXT,TPL_TRACKING,Type,Image dimensions [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_PNL_CKT_SOURCE_NAME_03_TXT,b5da8314-11c4-4b6d-aa38-eeae56c9f9b8,TEXT,ELC_PWR,Type,Elc Pnl tag,False,,,MULTI,1,0
-Generic Models,RGL_KCCA_APPROVAL_REQ_BOOL,71628414-da7f-5bc2-bf30-2adb501283aa,TEXT,RGL_CMPL,Type,Rgl Kcca Approval Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RGL_KCCA_APPROVAL_REQ_BOOL,71628414-da7f-5bc2-bf30-2adb501283aa,YESNO,RGL_CMPL,Type,Rgl Kcca Approval Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_CON_GRADE_TXT,9406b214-102a-589e-87f8-c9ebb6a3c6e6,TEXT,COM_DAT,Type,Cst S Con Grade Txt [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,ASS_NUMBER_OF_DAT_OUTLETS_INT,a9b92515-9881-5af2-85cd-41329358b0e3,TEXT,ASS_MNG,Type,Ass Number Of Dat Outlets Int [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,MAT_FEATURES,65fa7015-14b5-50c7-b339-9ea8d49645b5,TEXT,MAT_INFO,Type,Mat Features [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -580,7 +580,7 @@ Generic Models,PLM_DRN_GRT_MAT_TXT,4eef976d-29bc-568b-a137-114aa4a205a2,TEXT,PLM
 Generic Models,TS_NAME_TXT,20f7ea6d-6171-4a0e-89b7-e456155106ac,TEXT,TPL_TRACKING,Type,Text style name [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_PMT_PRO_DELIVERY_DATE_TXT,7e630a6f-64a2-5d6e-b4ef-b8817397425a,TEXT,ASS_MNG,Type,Ass Pmt Pro Delivery Date Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PRJ_TB_REVISION_DATE_TXT,25f22a6f-68ed-5e36-8875-d31779f444a5,TEXT,PRJ_INFORMATION,Type,Date of the current revision (DD-Mon-YYYY) [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,RGL_NEMA_APPROVAL_REQ_BOOL,aacd316f-602a-5878-acdc-c4785f8f4b8f,TEXT,RGL_CMPL,Type,Rgl Nema Approval Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RGL_NEMA_APPROVAL_REQ_BOOL,aacd316f-602a-5878-acdc-c4785f8f4b8f,YESNO,RGL_CMPL,Type,Rgl Nema Approval Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_MAT_DURABILITY_TXT,90064f6f-3cfe-5f5e-b63d-f20f13a063b4,TEXT,CST_PROC,Type,Ble Mat Durability Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,VT_SCALE_TXT,f542776f-ff19-4ae9-9327-cf9261c59f8b,TEXT,TPL_TRACKING,Type,View scale [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_CALC_PURLINS_M,6d5c8f6f-66df-41a9-96fa-e9df5776f656,TEXT,COM_DAT,Type,Calculated purlin length in meters [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -622,7 +622,7 @@ Generic Models,PLM_DRN_VNT_MAT_TXT,36d89b7c-3247-5b75-8395-1304ceef745c,TEXT,PLM
 Generic Models,MAT_ELEMENT_TYPE,8e5bf87c-4cd4-575a-95cc-e2faf2beaf70,TEXT,MAT_INFO,Type,Mat Element Type [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STAIR_TREAD_FINISH_TXT,138dc87d-fb13-50b6-a5cf-07c9b2478746,TEXT,BLE_STRUCTURE,Type,Hvc Stair Tread Finish Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ENV_ROOF_TAG_TXT,9a1ef97d-12f7-419d-93f9-60f3773e55ef,TEXT,BLE_ELES,Type,"Roof specification tag: covering, waterproofing, R-value, slope [ISO 19650-1:2018]",False,,,MULTI,1,0
-Generic Models,CST_IMPORT_REQUIRED_BOOL,9e582b7e-a208-5c68-96b1-569156796d54,TEXT,COM_DAT,Type,Cst Import Required Bool [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,CST_IMPORT_REQUIRED_BOOL,9e582b7e-a208-5c68-96b1-569156796d54,YESNO,COM_DAT,Type,Cst Import Required Bool [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-IMAGE,eaaf3b80-c7f9-508a-8e4e-2aafba2d2f76,TEXT,CST_PROC,Type,Ble App-image [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_EXPECTED_LIFE_YEARS_YRS,3bc7b880-b296-532f-9faf-8c41d69df5c3,TEXT,ASS_MNG,Type,Ass Expected Life Years Yrs [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,MAT_EPD_REF_TXT,9858e380-29bb-430b-82d0-7f2898d2fd3d,TEXT,MAT_INFO,Type,Environmental Product Declaration reference number per ISO 22057 [ISO 22057:2022],False,,,MULTI,1,0
@@ -651,7 +651,7 @@ Generic Models,RGL_QA_TST_REPORT_REF_TXT,9e404386-90b2-5c9c-a035-e16d3250b657,TE
 Generic Models,CP_HEX_CODE_TXT,507d4787-323a-4e10-b4fe-810f8aca3f48,TEXT,TPL_TRACKING,Type,Color hex code [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_INFO_SPARE_02_TXT,66ead487-2258-4c7b-9a9d-015d06c25cae,TEXT,MAT_INFO,Type,Spare parameter 2 for MAT_INFO group,False,,,MULTI,1,0
 Generic Models,COLOR_R_INT,32c5ea87-b947-4e06-9565-2910f0c00acc,INTEGER,TPL_TRACKING,Type,Palette color red [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,RGL_OCCUPANCY_CERT_REQ_BOOL,11a35489-5285-5344-bdd2-16608bfb080c,TEXT,RGL_CMPL,Type,Rgl Occupancy Cert Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RGL_OCCUPANCY_CERT_REQ_BOOL,11a35489-5285-5344-bdd2-16608bfb080c,YESNO,RGL_CMPL,Type,Rgl Occupancy Cert Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_EAR_HARDCORE_VOLUME_CU_M,645c088a-a602-58b9-a7f8-b59984dba6b4,TEXT,COM_DAT,Type,Cst S Ear Hardcore Volume Cu M [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,CST_UNIT_PRICE_ADHESIVE_UGX,f3ba3b8a-1950-4f08-9a31-63b759e2dc60,TEXT,COM_DAT,Type,Unit price per kilogram adhesive in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_CBL_NR_TXT,6f0de18a-a61d-5928-9cd9-449eb8d7361a,TEXT,ELC_PWR,Type,Elc Cbl Nr Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -678,14 +678,14 @@ Generic Models,DS_TICK_MARK_TXT,411c6496-6b6d-43ef-94ee-5237433ff2db,TEXT,TPL_TR
 Generic Models,TS_FONT_NAME_TXT,4f860397-5d83-4279-9851-ab94be97ff1c,TEXT,TPL_TRACKING,Type,Font name [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MA_STATUS_TXT,768b0c97-5ba3-46aa-a79e-c2d3a19bcb78,TEXT,TPL_TRACKING,Type,Audit status [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,CST_S_EAR_BACKFILL_VOLUME_CU_M,2e672c97-62a3-5b6d-aa21-7fb9a6b8ffc1,TEXT,COM_DAT,Type,Cst S Ear Backfill Volume Cu M [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,CST_LOCAL_MAT_BOOL,e5f96c97-55b8-5bca-bf7c-b0aa0f12c494,TEXT,COM_DAT,Type,Cst Local Mat Bool [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,CST_LOCAL_MAT_BOOL,e5f96c97-55b8-5bca-bf7c-b0aa0f12c494,YESNO,COM_DAT,Type,Cst Local Mat Bool [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,RGL_QA_APVD_VENDOR_TXT,fa5bb098-bd58-59c6-8835-6c3c12b499cc,TEXT,RGL_CMPL,Type,Rgl Qa Apvd Vendor Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-CUT-FG-COLOR,4674e698-222c-5233-9a41-e24c034d9ee2,TEXT,CST_PROC,Type,Ble App-cut-fg-color [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,FLT_TRANSPARENCY_INT,63533f99-ac82-4f54-8e4c-720fad914924,INTEGER,TPL_TRACKING,Type,Override transparency [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_REI_GRADE_TXT,92058a99-7743-5431-b77f-ee6a3d13a813,TEXT,COM_DAT,Type,Cst S Rei Grade Txt [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,MAT_LAYER_3_FUNCTION,12dc3e9a-4e10-5d90-8238-f03a7e719ada,TEXT,MAT_INFO,Type,Mat Layer 3 Function [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_EAR_SOIL_TYPE_TXT,c014f69a-2afa-50f8-a6bf-65ea88c87ea7,TEXT,COM_DAT,Type,Cst S Ear Soil Type Txt [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,RGL_UMEME_APPROVAL_BOOL,c357089b-c15d-52d5-bdaf-5fc20fd4a2fc,TEXT,RGL_CMPL,Type,Rgl Umeme Approval Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RGL_UMEME_APPROVAL_BOOL,c357089b-c15d-52d5-bdaf-5fc20fd4a2fc,YESNO,RGL_CMPL,Type,Rgl Umeme Approval Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PROP_SOUND_RED_DB,0e0af49b-5fd9-51bb-8273-cb04161067de,TEXT,PROP_PHYSICAL,Type,Prop Sound Red Db [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_DRN_FITTING_CONNECTION_TYPE_TXT,79ac469c-1c30-5b5d-b46e-c85d9d11dbfb,TEXT,PLM_DRN,Type,Plm Drn Fitting Connection Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,USAGE_TXT,c7aa8b9c-53be-4b40-9dc8-3ca723a4a720,TEXT,TPL_TRACKING,Type,Dimension style usage [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -722,7 +722,7 @@ Generic Models,PLM_STRAINER_END_CONNECTION_TXT,2b5ed3a7-d217-524c-b92d-878ba524c
 Generic Models,FLS_SFTY_DEV_ADDRESS_TXT,524bd6a7-15d0-5c44-9b0b-8f7ea4968d1b,TEXT,FLS_LIFE_SFTY,Type,Fls Sfty Dev Address Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PROP_THERMAL_COND_W_MK,7a67eea7-6c74-56ea-bf6e-2cb506aef2b6,TEXT,PROP_PHYSICAL,Type,Prop Thermal Cond W Mk [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_FRM_BEAM_LENGTH_M,d4e5f6a7-b8c9-0123-defa-4567890123d4,TEXT,CST_PROC,Type,Formwork beam length in meters [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,RGL_NWSC_APPROVAL_BOOL,7f7752a8-e1cc-5259-b73d-1141327ad1e6,TEXT,RGL_CMPL,Type,Rgl Nwsc Approval Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RGL_NWSC_APPROVAL_BOOL,7f7752a8-e1cc-5259-b73d-1141327ad1e6,YESNO,RGL_CMPL,Type,Rgl Nwsc Approval Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,SPARE_PARAM_05_INT,4dfa5da8-b92f-42a2-89b2-240dc1676ec2,INTEGER,TPL_TRACKING,Type,Spare parameter 05 for future use [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_TOTAL_ROOFING_COST,a0302da9-fe50-4b97-a199-21fc7b12defe,TEXT,COM_DAT,Type,Total roofing cost in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PRJ_TB_DRAWN_BY_TXT,760330a9-462f-5f6f-b8e4-866262084c1d,TEXT,PRJ_INFORMATION,Type,Name or initials of drafter who produced this drawing [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -977,10 +977,10 @@ Generic Models,ASS_PROJECT_COD_TXT,24bc19e4-8ec6-4d4c-b457-5e14a1f42e58,TEXT,STI
 Generic Models,ASS_ORIGINATOR_COD_TXT,87dc564e-8542-497d-a36f-ee335fd32bd4,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
 Generic Models,ASS_VOLUME_COD_TXT,4f51f371-c2b1-43f5-9dea-da797442c1fb,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
 Generic Models,ASS_REV_COD_TXT,83b2139d-67bb-48db-a50f-32140c0dc753,TEXT,STINGTags_ISO19650,Type,ISO 19650 revision code token in the tag container system (GROUP 17). Written by the tag pipeline. See also ASS_REV_TXT (GROUP 1) for the display revision label.,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_1_BOOL,e26e01ef-33d8-5a57-9ab7-fa30faa4ceff,TEXT,STINGTags_ISO19650,Type,Compact mode (tier 1 only) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_2_BOOL,b1080057-9890-5a0c-959a-46fb8847c766,TEXT,STINGTags_ISO19650,Type,Standard mode (tiers 1+2) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_3_BOOL,825a73c0-4b3b-5474-8db5-f54072ff40b8,TEXT,STINGTags_ISO19650,Type,Comprehensive mode (tiers 1+2+3) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,TEXT,STINGTags_ISO19650,Type,Enable/disable warning text in tags [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_1_BOOL,e26e01ef-33d8-5a57-9ab7-fa30faa4ceff,YESNO,STINGTags_ISO19650,Type,Compact mode (tier 1 only) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_2_BOOL,b1080057-9890-5a0c-959a-46fb8847c766,YESNO,STINGTags_ISO19650,Type,Standard mode (tiers 1+2) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_3_BOOL,825a73c0-4b3b-5474-8db5-f54072ff40b8,YESNO,STINGTags_ISO19650,Type,Comprehensive mode (tiers 1+2+3) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,YESNO,STINGTags_ISO19650,Type,Enable/disable warning text in tags [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,STINGTags_ISO19650,Type,"Filter: CRITICAL, HIGH, MEDIUM, ALL [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,BLE_CEILING_AREA_SQ_M,b2d67f62-bb98-5390-89d7-4f5c5cba97a3,TEXT,BLE_ELES,Type,Ble Ceiling Area Sq M [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CEILING_FIN_TILE_QTY_NR,02e86218-684e-50f6-a23b-d0f517d65766,TEXT,BLE_ELES,Type,Ble Ceiling Fin Tile Qty Nr [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -1273,7 +1273,7 @@ Generic Models,STR_TAG_7_PARA_STR_REBAR_TXT,dc1b44a7-9073-50ea-b01d-2a664db4b7f3
 Generic Models,STR_TAG_7_PARA_STR_STIFFENERS_TXT,35d4baf6-5faa-521e-b9bf-54b7a84e6b81,TEXT,BLE_STRUCTURE,Type,Str Stiffeners paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,STR_TAG_7_PARA_STR_TRUSSES_TXT,b31d7a3d-2bbc-5bc5-8f98-d7bc8e250634,TEXT,BLE_STRUCTURE,Type,Str Trusses paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_CBT_FAB_TYPE_TXT,81bbdfb0-bb7c-4e2a-9a4f-1fea6628b35a,TEXT,ELC_PWR,Type,Cable tray fabrication type,False,,,MULTI,1,0
-Generic Models,ELC_CBT_SHOP_DRAWING_REQ_BOOL,b1dee33a-e25a-46ff-be55-e812b37272ee,TEXT,ELC_PWR,Type,Cable tray shop drawing required,False,,,MULTI,1,0
+Generic Models,ELC_CBT_SHOP_DRAWING_REQ_BOOL,b1dee33a-e25a-46ff-be55-e812b37272ee,YESNO,ELC_PWR,Type,Cable tray shop drawing required,False,,,MULTI,1,0
 Generic Models,ELC_CBT_SUPPORT_SPACING_MM,f1b0189c-7305-47b2-a3a9-6941fc266055,TEXT,ELC_PWR,Type,Cable tray support spacing,False,,,MULTI,1,0
 Generic Models,ELC_CDT_BEND_RADIUS_MM,28eff30f-4a9f-41d0-8368-414a49d6f5c6,TEXT,ELC_PWR,Type,Conduit bend radius,False,,,MULTI,1,0
 Generic Models,ELC_CDT_FAB_METHOD_TXT,8ede2927-bbdf-419c-8fe9-f394a5ee315c,TEXT,ELC_PWR,Type,Conduit fabrication method,False,,,MULTI,1,0
@@ -1281,21 +1281,21 @@ Generic Models,ELC_CDT_SUPPORT_SPACING_MM,6ae13b9c-9a74-4f0f-98fa-a2e9fcd92169,T
 Generic Models,HVC_DCT_FAB_METHOD_TXT,0cadc641-be47-4650-bd0c-6fba88a0a808,TEXT,HVC_SYSTEMS,Type,Duct fabrication method,False,,,MULTI,1,0
 Generic Models,HVC_DCT_HANGER_TYPE_TXT,96a9533f-b824-4d8a-9769-66b823ba30bb,TEXT,HVC_SYSTEMS,Type,Duct hanger type,False,,,MULTI,1,0
 Generic Models,HVC_DCT_SEAM_TYPE_TXT,8f15df53-da96-4554-82d5-c99be9876efd,TEXT,HVC_SYSTEMS,Type,Duct seam type,False,,,MULTI,1,0
-Generic Models,HVC_DCT_SHOP_DRAWING_REQ_BOOL,0c43b027-7b32-4217-a435-4634b6a9c0da,TEXT,HVC_SYSTEMS,Type,Duct shop drawing required,False,,,MULTI,1,0
+Generic Models,HVC_DCT_SHOP_DRAWING_REQ_BOOL,0c43b027-7b32-4217-a435-4634b6a9c0da,YESNO,HVC_SYSTEMS,Type,Duct shop drawing required,False,,,MULTI,1,0
 Generic Models,HVC_DCT_SUPPORTS_SPACING_MM,63423e60-5177-42c3-8d52-49564a913369,TEXT,HVC_SYSTEMS,Type,Duct support spacing,False,,,MULTI,1,0
 Generic Models,PER_SUST_EPD_REF_TXT,aecf0169-9d8f-4cea-8390-66b9f233f305,TEXT,PER_SUST,Type,Environmental product declaration reference,False,,,MULTI,1,0
 Generic Models,PER_SUST_RECYCLABILITY_PCT,02e6b900-e84a-426a-a84f-318fc5790dde,TEXT,PER_SUST,Type,Recyclability percentage,False,,,MULTI,1,0
 Generic Models,PER_SUST_WATER_RATING_TXT,f77c8c33-57b2-42b4-bfc5-6edbc9bc839c,TEXT,PER_SUST,Type,Water efficiency rating,False,,,MULTI,1,0
 Generic Models,PLM_PPE_FAB_METHOD_TXT,8460c5a1-154e-467f-aaf0-2a201128b192,TEXT,PLM_DRN,Type,Pipe fabrication method,False,,,MULTI,1,0
 Generic Models,PLM_PPE_HANGER_TYPE_TXT,bc442e99-1ac1-43ad-9f04-d2a41f2ecb21,TEXT,PLM_DRN,Type,Pipe hanger type,False,,,MULTI,1,0
-Generic Models,PLM_PPE_SHOP_DRAWING_REQ_BOOL,2e41f61f-a81e-410a-a8fb-abd3be9288e0,TEXT,PLM_DRN,Type,Pipe shop drawing required,False,,,MULTI,1,0
+Generic Models,PLM_PPE_SHOP_DRAWING_REQ_BOOL,2e41f61f-a81e-410a-a8fb-abd3be9288e0,YESNO,PLM_DRN,Type,Pipe shop drawing required,False,,,MULTI,1,0
 Generic Models,PLM_PPE_SUPPORTS_SPACING_MM,6fac991a-6e6a-4af3-aa07-e0d7a7f25d07,TEXT,PLM_DRN,Type,Pipe support spacing,False,,,MULTI,1,0
 Generic Models,PLM_PPE_WELD_TYPE_TXT,723f57dd-9123-4592-9db3-e8c70a072cff,TEXT,PLM_DRN,Type,Pipe weld type,False,,,MULTI,1,0
 Generic Models,RGL_KCCA_CERT_NR,006f2e5d-d155-4159-aa5d-5c5b64fe0ec0,TEXT,RGL_CMPL,Type,KCCA certification number,False,,,MULTI,1,0
 Generic Models,RGL_NEMA_CERT_NR,b26efc46-4ec2-4aaf-bc5a-423a6b09c359,TEXT,RGL_CMPL,Type,NEMA certification number,False,,,MULTI,1,0
-Generic Models,RGL_NWSC_APPROVAL_REQ_BOOL,d2095db1-5991-48a9-959e-b0eb6d611091,TEXT,RGL_CMPL,Type,NWSC approval required,False,,,MULTI,1,0
+Generic Models,RGL_NWSC_APPROVAL_REQ_BOOL,d2095db1-5991-48a9-959e-b0eb6d611091,YESNO,RGL_CMPL,Type,NWSC approval required,False,,,MULTI,1,0
 Generic Models,RGL_NWSC_CERT_NR,0b711aaa-09ce-4388-ae2f-8eb840442d3b,TEXT,RGL_CMPL,Type,NWSC certification number,False,,,MULTI,1,0
-Generic Models,RGL_UMEME_APPROVAL_REQ_BOOL,faf8944a-9469-4760-b8ad-ad21b370573f,TEXT,RGL_CMPL,Type,UMEME approval required,False,,,MULTI,1,0
+Generic Models,RGL_UMEME_APPROVAL_REQ_BOOL,faf8944a-9469-4760-b8ad-ad21b370573f,YESNO,RGL_CMPL,Type,UMEME approval required,False,,,MULTI,1,0
 Generic Models,RGL_UMEME_CERT_NR,4fe49564-bc1e-4299-8e09-0f2a2ebe677b,TEXT,RGL_CMPL,Type,UMEME certification number,False,,,MULTI,1,0
 Generic Models,STRUCT_COL_AXIAL_LOAD_KN,21f21930-316c-4b70-8174-b8bd0670f5dc,TEXT,BLE_STRUCTURE,Type,Column axial load,False,,,MULTI,1,0
 Generic Models,STRUCT_COL_BUCKLING_CHECK_BOOL,ab62a703-a19d-41d3-884b-dc2f3ab135af,YESNO,BLE_STRUCTURE,Type,Column buckling check passed,False,,,MULTI,1,0
@@ -1436,7 +1436,7 @@ Generic Models,STR_MATERIAL_GRADE_TXT,83154e2f-33de-5bd2-ab98-62bfc2da97b9,TEXT,
 Generic Models,VIEW_COLOR_SCHEME_TXT,a261879e-2028-5098-991d-0b08317dba46,TEXT,STINGTags_ISO19650,Type,Active color scheme name for view,False,,,MULTI,1,0
 Generic Models,VIEW_DISC_FILTER_TXT,d86c87a8-679e-5d55-8eb4-d8e8038a56c5,TEXT,STINGTags_ISO19650,Type,Discipline filter codes for view (comma-separated),False,,,MULTI,1,0
 Generic Models,TAG_TEXT_COLOUR_TEXT,e2d68782-f71e-5716-b559-e8795f7f5e5d,TEXT,STINGTags_ISO19650,Type,Tag text colour override (RGB hex or named colour),False,,,MULTI,1,0
-Generic Models,TAG_BOX_VISIBLE_BOOL,4ceac996-f3f3-5ba5-8049-06bbbd354ede,TEXT,STINGTags_ISO19650,Type,Tag box/border visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_BOX_VISIBLE_BOOL,4ceac996-f3f3-5ba5-8049-06bbbd354ede,YESNO,STINGTags_ISO19650,Type,Tag box/border visibility flag,False,,,MULTI,1,0
 Generic Models,TAG_BOX_COLOR_TEXT,1c702447-9f7c-52d4-bcd6-94effef32cf1,TEXT,STINGTags_ISO19650,Type,Tag box border colour (RGB hex or named colour),False,,,MULTI,1,0
 Generic Models,TAG_BOX_LINE_WEIGHT,9147f06c-a402-5b7d-a518-7f0c8e3be909,INTEGER,STINGTags_ISO19650,Type,Tag box border line weight (1-16),False,,,MULTI,1,0
 Generic Models,TAG_BOX_STYLE_TEXT,17cfe49e-f2a2-5c60-a750-124673a6eb80,TEXT,STINGTags_ISO19650,Type,Tag box style (Solid/Dashed/None),False,,,MULTI,1,0
@@ -1444,19 +1444,19 @@ Generic Models,TAG_BOX_PADDING_MM,700f66dd-5fb4-56d4-b160-131462898bc9,NUMBER,ST
 Generic Models,TAG_LEADER_ARROW_STYLE_TEXT,e673009f-bfbc-59e9-b05f-1d1aa970cb51,TEXT,STINGTags_ISO19650,Type,Leader arrowhead style (Filled/Open/Dot/None),False,,,MULTI,1,0
 Generic Models,TAG_LEADER_ELBOW_TYPE_TEXT,6474a716-f0ab-59d3-9379-2b4760ba13d5,TEXT,STINGTags_ISO19650,Type,Leader elbow type (Straight/45deg/90deg/Free),False,,,MULTI,1,0
 Generic Models,TAG_LEADER_LINE_WEIGHT,f6ce6f37-83ee-5884-a33f-ee468978517e,INTEGER,STINGTags_ISO19650,Type,Leader line weight (1-16),False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_A_BOOL,a8194ccf-05ae-5eb4-87b5-38bacb4324fe,TEXT,STINGTags_ISO19650,Type,TAG7 Section A (Identity) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_B_BOOL,b561a313-f873-5648-a127-3e917b5f5dd0,TEXT,STINGTags_ISO19650,Type,TAG7 Section B (System) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_C_BOOL,0e535d1a-d2eb-5b15-b954-360ad46e1a57,TEXT,STINGTags_ISO19650,Type,TAG7 Section C (Spatial) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_D_BOOL,74f5360e-4107-539f-af72-38389e7b64bd,TEXT,STINGTags_ISO19650,Type,TAG7 Section D (Lifecycle) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_E_BOOL,fdb2ccfa-6128-545c-8b6c-6a656d418948,TEXT,STINGTags_ISO19650,Type,TAG7 Section E (Technical) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_F_BOOL,329929ad-5f26-5d15-98b2-54604ecda858,TEXT,STINGTags_ISO19650,Type,TAG7 Section F (Classification) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_4_BOOL,3ac69694-7584-5ba2-9bce-4d045ca21088,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 4,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_5_BOOL,c9045501-eee6-54ce-b725-3ea589ee8025,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 5,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_6_BOOL,9b913556-ac00-5a04-b53c-1e262498ad1d,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 6,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_7_BOOL,8eb03b28-aaf9-5803-8e87-f0655afbf08d,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 7,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_8_BOOL,dd2f491c-8806-5cd2-bb21-d3b915646070,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 8,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_9_BOOL,482475c4-be76-5db3-87a6-8aac4a53dc74,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 9,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_10_BOOL,8be3ef27-42ab-5668-8cd0-a376578c805a,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 10,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_A_BOOL,a8194ccf-05ae-5eb4-87b5-38bacb4324fe,YESNO,STINGTags_ISO19650,Type,TAG7 Section A (Identity) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_B_BOOL,b561a313-f873-5648-a127-3e917b5f5dd0,YESNO,STINGTags_ISO19650,Type,TAG7 Section B (System) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_C_BOOL,0e535d1a-d2eb-5b15-b954-360ad46e1a57,YESNO,STINGTags_ISO19650,Type,TAG7 Section C (Spatial) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_D_BOOL,74f5360e-4107-539f-af72-38389e7b64bd,YESNO,STINGTags_ISO19650,Type,TAG7 Section D (Lifecycle) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_E_BOOL,fdb2ccfa-6128-545c-8b6c-6a656d418948,YESNO,STINGTags_ISO19650,Type,TAG7 Section E (Technical) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_F_BOOL,329929ad-5f26-5d15-98b2-54604ecda858,YESNO,STINGTags_ISO19650,Type,TAG7 Section F (Classification) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_4_BOOL,3ac69694-7584-5ba2-9bce-4d045ca21088,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 4,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_5_BOOL,c9045501-eee6-54ce-b725-3ea589ee8025,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 5,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_6_BOOL,9b913556-ac00-5a04-b53c-1e262498ad1d,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 6,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_7_BOOL,8eb03b28-aaf9-5803-8e87-f0655afbf08d,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 7,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_8_BOOL,dd2f491c-8806-5cd2-bb21-d3b915646070,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 8,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_9_BOOL,482475c4-be76-5db3-87a6-8aac4a53dc74,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 9,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_10_BOOL,8be3ef27-42ab-5668-8cd0-a376578c805a,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 10,False,,,MULTI,1,0
 Generic Models,ASS_MATERIAL_TXT,a1b2c3d4-5001-4a01-b001-000000000101,TEXT,ASS_MNG,Type,Asset material description [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_SUPPLIER_TXT,a1b2c3d4-5002-4a01-b001-000000000102,TEXT,ASS_MNG,Type,Asset supplier name [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_BARCODE_TXT,a1b2c3d4-5003-4a01-b001-000000000103,TEXT,ASS_MNG,Type,Asset barcode identifier [COBie V2.4],False,,,MULTI,1,0
@@ -1606,7 +1606,7 @@ Generic Models,MNT_ACCESS_REQUIREMENTS_TXT,88ccb178-34ab-ede3-1279-b3eb7e0545c1,
 Generic Models,MNT_FREQUENCY_TXT,6b13cb44-d7fa-418d-27c4-ccc16bd05188,TEXT,PER_SUST,Type,Mnt Frequency [ISO 19650],False,,,MULTI,1,0
 Generic Models,MNT_LAST_SERVICE_DATE_TXT,340e26d1-c299-2940-ee8e-3322267c0a97,TEXT,PER_SUST,Type,Mnt Last Service Date [ISO 19650],False,,,MULTI,1,0
 Generic Models,MNT_SPARE_PARTS_TXT,90b280e2-b414-545a-2db9-f011a3130677,TEXT,PER_SUST,Type,Mnt Spare Parts [ISO 19650],False,,,MULTI,1,0
-Generic Models,PER_CONDENSATION_RISK_BOOL,c07000e1-8ba7-59d2-8016-d15aea970d4b,TEXT,PER_SUST,Type,Per Condensation Risk [ISO 19650],False,,,MULTI,1,0
+Generic Models,PER_CONDENSATION_RISK_BOOL,c07000e1-8ba7-59d2-8016-d15aea970d4b,YESNO,PER_SUST,Type,Per Condensation Risk [ISO 19650],False,,,MULTI,1,0
 Generic Models,PER_EXPECTED_LIFE_YEARS,9502f071-2b22-50ef-11d6-daddba4cc3f1,TEXT,PER_SUST,Type,Per Expected Life Years [ISO 19650],False,,,MULTI,1,0
 Generic Models,PER_FIRE_RATING_HR,204f0610-4f8b-5eab-9af2-8a7dbee3962e,TEXT,PER_SUST,Type,Per Fire Rating Hr [ISO 19650],False,,,MULTI,1,0
 Generic Models,PER_RECYCLABILITY_PCT,6cfbec62-d60b-a0ef-4954-0e5cc4789aa5,TEXT,PER_SUST,Type,Per Recyclability Pct [ISO 19650],False,,,MULTI,1,0
@@ -1618,7 +1618,7 @@ Generic Models,BLE_CEILING_GRID_TXT,fbdca2f3-3f9b-52f8-864b-70a50c5618f7,TEXT,BL
 Generic Models,BLE_CEILING_TILE_SIZE_TXT,5e9a2719-29bd-5ac3-a165-6bf93ee35d49,TEXT,BLE_ELES,Type,Ble Ceiling Tile Size [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_ACOUSTIC_STC_NR,0ffc672b-ae54-51b6-a57b-d165521acfc3,TEXT,BLE_ELES,Type,Ble Door Acoustic Stc [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_CLOSER_TXT,affb9e38-e1db-5a54-ab28-0dc494c3776a,TEXT,BLE_ELES,Type,Ble Door Closer [ISO 19650],False,,,MULTI,1,0
-Generic Models,BLE_DOOR_GLAZING_BOOL,acbffcf6-2553-519d-91d9-3bc9264c8304,TEXT,BLE_ELES,Type,Ble Door Glazing [ISO 19650],False,,,MULTI,1,0
+Generic Models,BLE_DOOR_GLAZING_BOOL,acbffcf6-2553-519d-91d9-3bc9264c8304,YESNO,BLE_ELES,Type,Ble Door Glazing [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_FLOOR_LOAD_KN_M2,da0a0762-c687-5c51-997b-a4138428383c,TEXT,BLE_ELES,Type,Ble Floor Load Kn M2 [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_FLOOR_SLIP_RESISTANCE_TXT,bc4a861d-6534-5931-a6a0-b5f3b54c6e56,TEXT,BLE_ELES,Type,Ble Floor Slip Resistance [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_FLOOR_WATERPROOF_TXT,845803b9-d82a-5050-922b-79592abd899b,TEXT,BLE_ELES,Type,Ble Floor Waterproof [ISO 19650],False,,,MULTI,1,0
@@ -1627,7 +1627,7 @@ Generic Models,BLE_FURN_MATERIAL_TXT,c5913cbd-0a45-568c-99b4-5be83630d0c9,TEXT,B
 Generic Models,BLE_FURN_WORKSTATION_TYPE_TXT,f7a76836-9037-5107-9089-56359d40e318,TEXT,BLE_ELES,Type,Ble Furn Workstation Type [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_PARKING_SIZE_TXT,7b1ff45c-0ace-5f3f-8d17-28a923b43eb7,TEXT,BLE_ELES,Type,Ble Parking Size [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_PARKING_TYPE_TXT,4c056451-0b1f-5135-bb0c-32fca3f9509c,TEXT,BLE_ELES,Type,Ble Parking Type [ISO 19650],False,,,MULTI,1,0
-Generic Models,BLE_RAMP_HANDRAIL_BOOL,a0c9bd40-8190-5ba4-b83c-e6021487e529,TEXT,BLE_ELES,Type,Ble Ramp Handrail [ISO 19650],False,,,MULTI,1,0
+Generic Models,BLE_RAMP_HANDRAIL_BOOL,a0c9bd40-8190-5ba4-b83c-e6021487e529,YESNO,BLE_ELES,Type,Ble Ramp Handrail [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_RAMP_SURFACE_TXT,02722adc-5b60-5a4e-98a4-91fd38b0f2d8,TEXT,BLE_ELES,Type,Ble Ramp Surface [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_DRAINAGE_TYPE_TXT,dccbf6b1-4ec2-584b-ade5-e9690409ef71,TEXT,BLE_ELES,Type,Ble Roof Drainage Type [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_ROOM_OCCUPANCY_NR,9ae2bd6a-1cd6-57ae-b021-677d0d7fc77d,TEXT,BLE_ELES,Type,Ble Room Occupancy [ISO 19650],False,,,MULTI,1,0
@@ -2111,134 +2111,134 @@ Generic Models,PER_SUST_GLAZING_RATIO_PCT,d8a01a2d-3c1d-57bd-b567-1ebf9220c115,T
 Generic Models,PER_SUST_SOLAR_GAIN_W,d9240497-3f4c-5604-a92e-23dd6033d4c4,TEXT,PLM_DRN,Type,Solar heat gain watts [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,PLM_DRN_TRAP_EFFECTIVE_SEAL_MM,95fab87d-5702-5e71-bdff-8f573d99eae0,TEXT,HVC_SYSTEMS,Type,Drain trap effective seal depth mm [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,PLM_PPE_VELOCITY_CALC_MPS,0dc2c254-ded2-57d1-bbfa-a724be0fe0b7,TEXT,HVC_SYSTEMS,Type,Pipe velocity calculated m/s [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,TAG_2.5NOM_RED_BOOL,0f518bf8-00b9-4884-b4c1-250000000004,TEXT,STINGTags_ISO19650,Type,Tag 2.5Nom Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_RED_BOOL,287b72c2-7315-4cd5-82c1-200000000004,TEXT,STINGTags_ISO19650,Type,Tag 2Nom Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_GREEN_BOOL,3442cc7f-3299-4be8-87c1-200000000003,TEXT,STINGTags_ISO19650,Type,Tag 2Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLD_RED_BOOL,3ed66197-7fc2-43cd-93c1-250000000008,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bold Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLD_GREEN_BOOL,4c3c0bea-ec9d-41a8-9cc1-250000000007,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bold Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLD_BLUE_BOOL,6e9e2d50-47b2-4e50-8cc1-250000000006,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bold Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_BLACK_BOOL,71eaf35e-4f69-417c-90c1-200000000001,TEXT,STINGTags_ISO19650,Type,Tag 2Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_BLACK_BOOL,784a1790-6fca-4d73-acc1-200000000005,TEXT,STINGTags_ISO19650,Type,Tag 2Bold Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5NOM_GREEN_BOOL,84f3a73d-6432-479a-bcc1-250000000003,TEXT,STINGTags_ISO19650,Type,Tag 2.5Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_RED_BOOL,9b53e6c5-9a96-4883-81c1-200000000008,TEXT,STINGTags_ISO19650,Type,Tag 2Bold Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_BLUE_BOOL,a64c0b1d-b40b-4f6a-b1c1-200000000006,TEXT,STINGTags_ISO19650,Type,Tag 2Bold Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLD_BLACK_BOOL,bbc94dd6-592e-4a71-8cc1-250000000005,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bold Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_GREEN_BOOL,c34be0e6-3e38-4293-a1c1-200000000007,TEXT,STINGTags_ISO19650,Type,Tag 2Bold Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_BLACK_BOOL,d5a1b2c3-1001-4e01-a1c1-200000000009,TEXT,STINGTags_ISO19650,Type,Tag 2Italic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_BLUE_BOOL,d5a1b2c3-1002-4e01-a1c1-200000000010,TEXT,STINGTags_ISO19650,Type,Tag 2Italic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_GREEN_BOOL,d5a1b2c3-1003-4e01-a1c1-200000000011,TEXT,STINGTags_ISO19650,Type,Tag 2Italic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_RED_BOOL,d5a1b2c3-1004-4e01-a1c1-200000000012,TEXT,STINGTags_ISO19650,Type,Tag 2Italic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_BLACK_BOOL,d5a1b2c3-2013-4e01-a1c1-200000000013,TEXT,STINGTags_ISO19650,Type,Tag 2Bolditalic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_BLUE_BOOL,d5a1b2c3-2014-4e01-a1c1-200000000014,TEXT,STINGTags_ISO19650,Type,Tag 2Bolditalic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_GREEN_BOOL,d5a1b2c3-2015-4e01-a1c1-200000000015,TEXT,STINGTags_ISO19650,Type,Tag 2Bolditalic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_RED_BOOL,d5a1b2c3-2016-4e01-a1c1-200000000016,TEXT,STINGTags_ISO19650,Type,Tag 2Bolditalic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_ORANGE_BOOL,d5a1b2c3-2017-4e01-a1c1-200000000017,TEXT,STINGTags_ISO19650,Type,Tag 2Bolditalic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_PURPLE_BOOL,d5a1b2c3-2018-4e01-a1c1-200000000018,TEXT,STINGTags_ISO19650,Type,Tag 2Bolditalic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_GREY_BOOL,d5a1b2c3-2019-4e01-a1c1-200000000019,TEXT,STINGTags_ISO19650,Type,Tag 2Bolditalic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_WHITE_BOOL,d5a1b2c3-2020-4e01-a1c1-200000000020,TEXT,STINGTags_ISO19650,Type,Tag 2Bolditalic White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_ORANGE_BOOL,d5a1b2c3-2021-4e01-a1c1-200000000021,TEXT,STINGTags_ISO19650,Type,Tag 2Nom Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_PURPLE_BOOL,d5a1b2c3-2022-4e01-a1c1-200000000022,TEXT,STINGTags_ISO19650,Type,Tag 2Nom Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_GREY_BOOL,d5a1b2c3-2023-4e01-a1c1-200000000023,TEXT,STINGTags_ISO19650,Type,Tag 2Nom Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_WHITE_BOOL,d5a1b2c3-2024-4e01-a1c1-200000000024,TEXT,STINGTags_ISO19650,Type,Tag 2Nom White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_ORANGE_BOOL,d5a1b2c3-2025-4e01-a1c1-200000000025,TEXT,STINGTags_ISO19650,Type,Tag 2Bold Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_PURPLE_BOOL,d5a1b2c3-2026-4e01-a1c1-200000000026,TEXT,STINGTags_ISO19650,Type,Tag 2Bold Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_GREY_BOOL,d5a1b2c3-2027-4e01-a1c1-200000000027,TEXT,STINGTags_ISO19650,Type,Tag 2Bold Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_WHITE_BOOL,d5a1b2c3-2028-4e01-a1c1-200000000028,TEXT,STINGTags_ISO19650,Type,Tag 2Bold White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_ORANGE_BOOL,d5a1b2c3-2029-4e01-a1c1-200000000029,TEXT,STINGTags_ISO19650,Type,Tag 2Italic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_PURPLE_BOOL,d5a1b2c3-2030-4e01-a1c1-200000000030,TEXT,STINGTags_ISO19650,Type,Tag 2Italic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_GREY_BOOL,d5a1b2c3-2031-4e01-a1c1-200000000031,TEXT,STINGTags_ISO19650,Type,Tag 2Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_WHITE_BOOL,d5a1b2c3-2032-4e01-a1c1-200000000032,TEXT,STINGTags_ISO19650,Type,Tag 2Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5ITALIC_BLACK_BOOL,d5a1b2c3-2501-4e01-a1c1-250000000009,TEXT,STINGTags_ISO19650,Type,Tag 2.5Italic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5ITALIC_BLUE_BOOL,d5a1b2c3-2502-4e01-a1c1-250000000010,TEXT,STINGTags_ISO19650,Type,Tag 2.5Italic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5ITALIC_GREEN_BOOL,d5a1b2c3-2503-4e01-a1c1-250000000011,TEXT,STINGTags_ISO19650,Type,Tag 2.5Italic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5ITALIC_RED_BOOL,d5a1b2c3-2504-4e01-a1c1-250000000012,TEXT,STINGTags_ISO19650,Type,Tag 2.5Italic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLDITALIC_BLACK_BOOL,d5a1b2c3-2513-4e01-a1c1-250000000013,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLDITALIC_BLUE_BOOL,d5a1b2c3-2514-4e01-a1c1-250000000014,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLDITALIC_GREEN_BOOL,d5a1b2c3-2515-4e01-a1c1-250000000015,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLDITALIC_RED_BOOL,d5a1b2c3-2516-4e01-a1c1-250000000016,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLDITALIC_ORANGE_BOOL,d5a1b2c3-2517-4e01-a1c1-250000000017,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLDITALIC_PURPLE_BOOL,d5a1b2c3-2518-4e01-a1c1-250000000018,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLDITALIC_GREY_BOOL,d5a1b2c3-2519-4e01-a1c1-250000000019,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLDITALIC_WHITE_BOOL,d5a1b2c3-2520-4e01-a1c1-250000000020,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bolditalic White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5NOM_ORANGE_BOOL,d5a1b2c3-2533-4e01-a1c1-250000000033,TEXT,STINGTags_ISO19650,Type,Tag 2.5Nom Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5NOM_PURPLE_BOOL,d5a1b2c3-2534-4e01-a1c1-250000000034,TEXT,STINGTags_ISO19650,Type,Tag 2.5Nom Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5NOM_GREY_BOOL,d5a1b2c3-2535-4e01-a1c1-250000000035,TEXT,STINGTags_ISO19650,Type,Tag 2.5Nom Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5NOM_WHITE_BOOL,d5a1b2c3-2536-4e01-a1c1-250000000036,TEXT,STINGTags_ISO19650,Type,Tag 2.5Nom White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLD_ORANGE_BOOL,d5a1b2c3-2537-4e01-a1c1-250000000037,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bold Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLD_PURPLE_BOOL,d5a1b2c3-2538-4e01-a1c1-250000000038,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bold Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLD_GREY_BOOL,d5a1b2c3-2539-4e01-a1c1-250000000039,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bold Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5BOLD_WHITE_BOOL,d5a1b2c3-2540-4e01-a1c1-250000000040,TEXT,STINGTags_ISO19650,Type,Tag 2.5Bold White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5ITALIC_ORANGE_BOOL,d5a1b2c3-2541-4e01-a1c1-250000000041,TEXT,STINGTags_ISO19650,Type,Tag 2.5Italic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5ITALIC_PURPLE_BOOL,d5a1b2c3-2542-4e01-a1c1-250000000042,TEXT,STINGTags_ISO19650,Type,Tag 2.5Italic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5ITALIC_GREY_BOOL,d5a1b2c3-2543-4e01-a1c1-250000000043,TEXT,STINGTags_ISO19650,Type,Tag 2.5Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5ITALIC_WHITE_BOOL,d5a1b2c3-2544-4e01-a1c1-250000000044,TEXT,STINGTags_ISO19650,Type,Tag 2.5Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_BLACK_BOOL,d5a1b2c3-3001-4e01-a1c1-300000000001,TEXT,STINGTags_ISO19650,Type,Tag 3Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_BLUE_BOOL,d5a1b2c3-3002-4e01-a1c1-300000000002,TEXT,STINGTags_ISO19650,Type,Tag 3Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_GREEN_BOOL,d5a1b2c3-3003-4e01-a1c1-300000000003,TEXT,STINGTags_ISO19650,Type,Tag 3Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_RED_BOOL,d5a1b2c3-3004-4e01-a1c1-300000000004,TEXT,STINGTags_ISO19650,Type,Tag 3Nom Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_BLACK_BOOL,d5a1b2c3-3005-4e01-a1c1-300000000005,TEXT,STINGTags_ISO19650,Type,Tag 3Bold Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_BLUE_BOOL,d5a1b2c3-3006-4e01-a1c1-300000000006,TEXT,STINGTags_ISO19650,Type,Tag 3Bold Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_GREEN_BOOL,d5a1b2c3-3007-4e01-a1c1-300000000007,TEXT,STINGTags_ISO19650,Type,Tag 3Bold Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_RED_BOOL,d5a1b2c3-3008-4e01-a1c1-300000000008,TEXT,STINGTags_ISO19650,Type,Tag 3Bold Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_BLACK_BOOL,d5a1b2c3-3009-4e01-a1c1-300000000009,TEXT,STINGTags_ISO19650,Type,Tag 3Italic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_BLUE_BOOL,d5a1b2c3-3010-4e01-a1c1-300000000010,TEXT,STINGTags_ISO19650,Type,Tag 3Italic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_GREEN_BOOL,d5a1b2c3-3011-4e01-a1c1-300000000011,TEXT,STINGTags_ISO19650,Type,Tag 3Italic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_RED_BOOL,d5a1b2c3-3012-4e01-a1c1-300000000012,TEXT,STINGTags_ISO19650,Type,Tag 3Italic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_BLACK_BOOL,d5a1b2c3-3013-4e01-a1c1-300000000013,TEXT,STINGTags_ISO19650,Type,Tag 3Bolditalic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_BLUE_BOOL,d5a1b2c3-3014-4e01-a1c1-300000000014,TEXT,STINGTags_ISO19650,Type,Tag 3Bolditalic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_GREEN_BOOL,d5a1b2c3-3015-4e01-a1c1-300000000015,TEXT,STINGTags_ISO19650,Type,Tag 3Bolditalic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_RED_BOOL,d5a1b2c3-3016-4e01-a1c1-300000000016,TEXT,STINGTags_ISO19650,Type,Tag 3Bolditalic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_ORANGE_BOOL,d5a1b2c3-3017-4e01-a1c1-300000000017,TEXT,STINGTags_ISO19650,Type,Tag 3Bolditalic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_PURPLE_BOOL,d5a1b2c3-3018-4e01-a1c1-300000000018,TEXT,STINGTags_ISO19650,Type,Tag 3Bolditalic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_GREY_BOOL,d5a1b2c3-3019-4e01-a1c1-300000000019,TEXT,STINGTags_ISO19650,Type,Tag 3Bolditalic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_WHITE_BOOL,d5a1b2c3-3020-4e01-a1c1-300000000020,TEXT,STINGTags_ISO19650,Type,Tag 3Bolditalic White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_ORANGE_BOOL,d5a1b2c3-3033-4e01-a1c1-300000000033,TEXT,STINGTags_ISO19650,Type,Tag 3Nom Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_PURPLE_BOOL,d5a1b2c3-3034-4e01-a1c1-300000000034,TEXT,STINGTags_ISO19650,Type,Tag 3Nom Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_GREY_BOOL,d5a1b2c3-3035-4e01-a1c1-300000000035,TEXT,STINGTags_ISO19650,Type,Tag 3Nom Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_WHITE_BOOL,d5a1b2c3-3036-4e01-a1c1-300000000036,TEXT,STINGTags_ISO19650,Type,Tag 3Nom White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_ORANGE_BOOL,d5a1b2c3-3037-4e01-a1c1-300000000037,TEXT,STINGTags_ISO19650,Type,Tag 3Bold Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_PURPLE_BOOL,d5a1b2c3-3038-4e01-a1c1-300000000038,TEXT,STINGTags_ISO19650,Type,Tag 3Bold Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_GREY_BOOL,d5a1b2c3-3039-4e01-a1c1-300000000039,TEXT,STINGTags_ISO19650,Type,Tag 3Bold Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_WHITE_BOOL,d5a1b2c3-3040-4e01-a1c1-300000000040,TEXT,STINGTags_ISO19650,Type,Tag 3Bold White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_ORANGE_BOOL,d5a1b2c3-3041-4e01-a1c1-300000000041,TEXT,STINGTags_ISO19650,Type,Tag 3Italic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_PURPLE_BOOL,d5a1b2c3-3042-4e01-a1c1-300000000042,TEXT,STINGTags_ISO19650,Type,Tag 3Italic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_GREY_BOOL,d5a1b2c3-3043-4e01-a1c1-300000000043,TEXT,STINGTags_ISO19650,Type,Tag 3Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_WHITE_BOOL,d5a1b2c3-3044-4e01-a1c1-300000000044,TEXT,STINGTags_ISO19650,Type,Tag 3Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5NOM_BLACK_BOOL,d5a1b2c3-3501-4e01-a1c1-350000000001,TEXT,STINGTags_ISO19650,Type,Tag 3.5Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5NOM_BLUE_BOOL,d5a1b2c3-3502-4e01-a1c1-350000000002,TEXT,STINGTags_ISO19650,Type,Tag 3.5Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5NOM_GREEN_BOOL,d5a1b2c3-3503-4e01-a1c1-350000000003,TEXT,STINGTags_ISO19650,Type,Tag 3.5Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5NOM_RED_BOOL,d5a1b2c3-3504-4e01-a1c1-350000000004,TEXT,STINGTags_ISO19650,Type,Tag 3.5Nom Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLD_BLACK_BOOL,d5a1b2c3-3505-4e01-a1c1-350000000005,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bold Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLD_BLUE_BOOL,d5a1b2c3-3506-4e01-a1c1-350000000006,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bold Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLD_GREEN_BOOL,d5a1b2c3-3507-4e01-a1c1-350000000007,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bold Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLD_RED_BOOL,d5a1b2c3-3508-4e01-a1c1-350000000008,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bold Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5ITALIC_BLACK_BOOL,d5a1b2c3-3509-4e01-a1c1-350000000009,TEXT,STINGTags_ISO19650,Type,Tag 3.5Italic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5ITALIC_BLUE_BOOL,d5a1b2c3-3510-4e01-a1c1-350000000010,TEXT,STINGTags_ISO19650,Type,Tag 3.5Italic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5ITALIC_GREEN_BOOL,d5a1b2c3-3511-4e01-a1c1-350000000011,TEXT,STINGTags_ISO19650,Type,Tag 3.5Italic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5ITALIC_RED_BOOL,d5a1b2c3-3512-4e01-a1c1-350000000012,TEXT,STINGTags_ISO19650,Type,Tag 3.5Italic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLDITALIC_BLACK_BOOL,d5a1b2c3-3513-4e01-a1c1-350000000013,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLDITALIC_BLUE_BOOL,d5a1b2c3-3514-4e01-a1c1-350000000014,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLDITALIC_GREEN_BOOL,d5a1b2c3-3515-4e01-a1c1-350000000015,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLDITALIC_RED_BOOL,d5a1b2c3-3516-4e01-a1c1-350000000016,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLDITALIC_ORANGE_BOOL,d5a1b2c3-3517-4e01-a1c1-350000000017,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLDITALIC_PURPLE_BOOL,d5a1b2c3-3518-4e01-a1c1-350000000018,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLDITALIC_GREY_BOOL,d5a1b2c3-3519-4e01-a1c1-350000000019,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLDITALIC_WHITE_BOOL,d5a1b2c3-3520-4e01-a1c1-350000000020,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bolditalic White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5NOM_ORANGE_BOOL,d5a1b2c3-3533-4e01-a1c1-350000000033,TEXT,STINGTags_ISO19650,Type,Tag 3.5Nom Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5NOM_PURPLE_BOOL,d5a1b2c3-3534-4e01-a1c1-350000000034,TEXT,STINGTags_ISO19650,Type,Tag 3.5Nom Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5NOM_GREY_BOOL,d5a1b2c3-3535-4e01-a1c1-350000000035,TEXT,STINGTags_ISO19650,Type,Tag 3.5Nom Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,TEXT,STINGTags_ISO19650,Type,Tag 3.5Nom White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLD_ORANGE_BOOL,d5a1b2c3-3537-4e01-a1c1-350000000037,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bold Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLD_PURPLE_BOOL,d5a1b2c3-3538-4e01-a1c1-350000000038,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bold Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLD_GREY_BOOL,d5a1b2c3-3539-4e01-a1c1-350000000039,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bold Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5BOLD_WHITE_BOOL,d5a1b2c3-3540-4e01-a1c1-350000000040,TEXT,STINGTags_ISO19650,Type,Tag 3.5Bold White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5ITALIC_ORANGE_BOOL,d5a1b2c3-3541-4e01-a1c1-350000000041,TEXT,STINGTags_ISO19650,Type,Tag 3.5Italic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5ITALIC_PURPLE_BOOL,d5a1b2c3-3542-4e01-a1c1-350000000042,TEXT,STINGTags_ISO19650,Type,Tag 3.5Italic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5ITALIC_GREY_BOOL,d5a1b2c3-3543-4e01-a1c1-350000000043,TEXT,STINGTags_ISO19650,Type,Tag 3.5Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3.5ITALIC_WHITE_BOOL,d5a1b2c3-3544-4e01-a1c1-350000000044,TEXT,STINGTags_ISO19650,Type,Tag 3.5Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5NOM_BLUE_BOOL,d7e853cb-be05-4297-9cc1-250000000002,TEXT,STINGTags_ISO19650,Type,Tag 2.5Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_BLUE_BOOL,e749764b-f2e7-4892-87c1-200000000002,TEXT,STINGTags_ISO19650,Type,Tag 2Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2.5NOM_BLACK_BOOL,f0b8fa91-eea9-4d7c-a3c1-250000000001,TEXT,STINGTags_ISO19650,Type,Tag 2.5Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5NOM_RED_BOOL,0f518bf8-00b9-4884-b4c1-250000000004,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2NOM_RED_BOOL,287b72c2-7315-4cd5-82c1-200000000004,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2NOM_GREEN_BOOL,3442cc7f-3299-4be8-87c1-200000000003,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLD_RED_BOOL,3ed66197-7fc2-43cd-93c1-250000000008,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLD_GREEN_BOOL,4c3c0bea-ec9d-41a8-9cc1-250000000007,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLD_BLUE_BOOL,6e9e2d50-47b2-4e50-8cc1-250000000006,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2NOM_BLACK_BOOL,71eaf35e-4f69-417c-90c1-200000000001,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_BLACK_BOOL,784a1790-6fca-4d73-acc1-200000000005,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5NOM_GREEN_BOOL,84f3a73d-6432-479a-bcc1-250000000003,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_RED_BOOL,9b53e6c5-9a96-4883-81c1-200000000008,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_BLUE_BOOL,a64c0b1d-b40b-4f6a-b1c1-200000000006,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLD_BLACK_BOOL,bbc94dd6-592e-4a71-8cc1-250000000005,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_GREEN_BOOL,c34be0e6-3e38-4293-a1c1-200000000007,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_BLACK_BOOL,d5a1b2c3-1001-4e01-a1c1-200000000009,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_BLUE_BOOL,d5a1b2c3-1002-4e01-a1c1-200000000010,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_GREEN_BOOL,d5a1b2c3-1003-4e01-a1c1-200000000011,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_RED_BOOL,d5a1b2c3-1004-4e01-a1c1-200000000012,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_BLACK_BOOL,d5a1b2c3-2013-4e01-a1c1-200000000013,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_BLUE_BOOL,d5a1b2c3-2014-4e01-a1c1-200000000014,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_GREEN_BOOL,d5a1b2c3-2015-4e01-a1c1-200000000015,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_RED_BOOL,d5a1b2c3-2016-4e01-a1c1-200000000016,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_ORANGE_BOOL,d5a1b2c3-2017-4e01-a1c1-200000000017,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_PURPLE_BOOL,d5a1b2c3-2018-4e01-a1c1-200000000018,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_GREY_BOOL,d5a1b2c3-2019-4e01-a1c1-200000000019,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_WHITE_BOOL,d5a1b2c3-2020-4e01-a1c1-200000000020,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2NOM_ORANGE_BOOL,d5a1b2c3-2021-4e01-a1c1-200000000021,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2NOM_PURPLE_BOOL,d5a1b2c3-2022-4e01-a1c1-200000000022,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2NOM_GREY_BOOL,d5a1b2c3-2023-4e01-a1c1-200000000023,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2NOM_WHITE_BOOL,d5a1b2c3-2024-4e01-a1c1-200000000024,YESNO,STINGTags_ISO19650,Type,Tag 2Nom White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_ORANGE_BOOL,d5a1b2c3-2025-4e01-a1c1-200000000025,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_PURPLE_BOOL,d5a1b2c3-2026-4e01-a1c1-200000000026,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_GREY_BOOL,d5a1b2c3-2027-4e01-a1c1-200000000027,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_WHITE_BOOL,d5a1b2c3-2028-4e01-a1c1-200000000028,YESNO,STINGTags_ISO19650,Type,Tag 2Bold White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_ORANGE_BOOL,d5a1b2c3-2029-4e01-a1c1-200000000029,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_PURPLE_BOOL,d5a1b2c3-2030-4e01-a1c1-200000000030,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_GREY_BOOL,d5a1b2c3-2031-4e01-a1c1-200000000031,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_WHITE_BOOL,d5a1b2c3-2032-4e01-a1c1-200000000032,YESNO,STINGTags_ISO19650,Type,Tag 2Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5ITALIC_BLACK_BOOL,d5a1b2c3-2501-4e01-a1c1-250000000009,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5ITALIC_BLUE_BOOL,d5a1b2c3-2502-4e01-a1c1-250000000010,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5ITALIC_GREEN_BOOL,d5a1b2c3-2503-4e01-a1c1-250000000011,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5ITALIC_RED_BOOL,d5a1b2c3-2504-4e01-a1c1-250000000012,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLDITALIC_BLACK_BOOL,d5a1b2c3-2513-4e01-a1c1-250000000013,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLDITALIC_BLUE_BOOL,d5a1b2c3-2514-4e01-a1c1-250000000014,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLDITALIC_GREEN_BOOL,d5a1b2c3-2515-4e01-a1c1-250000000015,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLDITALIC_RED_BOOL,d5a1b2c3-2516-4e01-a1c1-250000000016,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLDITALIC_ORANGE_BOOL,d5a1b2c3-2517-4e01-a1c1-250000000017,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLDITALIC_PURPLE_BOOL,d5a1b2c3-2518-4e01-a1c1-250000000018,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLDITALIC_GREY_BOOL,d5a1b2c3-2519-4e01-a1c1-250000000019,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bolditalic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLDITALIC_WHITE_BOOL,d5a1b2c3-2520-4e01-a1c1-250000000020,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bolditalic White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5NOM_ORANGE_BOOL,d5a1b2c3-2533-4e01-a1c1-250000000033,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5NOM_PURPLE_BOOL,d5a1b2c3-2534-4e01-a1c1-250000000034,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5NOM_GREY_BOOL,d5a1b2c3-2535-4e01-a1c1-250000000035,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5NOM_WHITE_BOOL,d5a1b2c3-2536-4e01-a1c1-250000000036,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLD_ORANGE_BOOL,d5a1b2c3-2537-4e01-a1c1-250000000037,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLD_PURPLE_BOOL,d5a1b2c3-2538-4e01-a1c1-250000000038,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLD_GREY_BOOL,d5a1b2c3-2539-4e01-a1c1-250000000039,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5BOLD_WHITE_BOOL,d5a1b2c3-2540-4e01-a1c1-250000000040,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5ITALIC_ORANGE_BOOL,d5a1b2c3-2541-4e01-a1c1-250000000041,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5ITALIC_PURPLE_BOOL,d5a1b2c3-2542-4e01-a1c1-250000000042,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5ITALIC_GREY_BOOL,d5a1b2c3-2543-4e01-a1c1-250000000043,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5ITALIC_WHITE_BOOL,d5a1b2c3-2544-4e01-a1c1-250000000044,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3NOM_BLACK_BOOL,d5a1b2c3-3001-4e01-a1c1-300000000001,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3NOM_BLUE_BOOL,d5a1b2c3-3002-4e01-a1c1-300000000002,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3NOM_GREEN_BOOL,d5a1b2c3-3003-4e01-a1c1-300000000003,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3NOM_RED_BOOL,d5a1b2c3-3004-4e01-a1c1-300000000004,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_BLACK_BOOL,d5a1b2c3-3005-4e01-a1c1-300000000005,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_BLUE_BOOL,d5a1b2c3-3006-4e01-a1c1-300000000006,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_GREEN_BOOL,d5a1b2c3-3007-4e01-a1c1-300000000007,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_RED_BOOL,d5a1b2c3-3008-4e01-a1c1-300000000008,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_BLACK_BOOL,d5a1b2c3-3009-4e01-a1c1-300000000009,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_BLUE_BOOL,d5a1b2c3-3010-4e01-a1c1-300000000010,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_GREEN_BOOL,d5a1b2c3-3011-4e01-a1c1-300000000011,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_RED_BOOL,d5a1b2c3-3012-4e01-a1c1-300000000012,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_BLACK_BOOL,d5a1b2c3-3013-4e01-a1c1-300000000013,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_BLUE_BOOL,d5a1b2c3-3014-4e01-a1c1-300000000014,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_GREEN_BOOL,d5a1b2c3-3015-4e01-a1c1-300000000015,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_RED_BOOL,d5a1b2c3-3016-4e01-a1c1-300000000016,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_ORANGE_BOOL,d5a1b2c3-3017-4e01-a1c1-300000000017,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_PURPLE_BOOL,d5a1b2c3-3018-4e01-a1c1-300000000018,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_GREY_BOOL,d5a1b2c3-3019-4e01-a1c1-300000000019,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_WHITE_BOOL,d5a1b2c3-3020-4e01-a1c1-300000000020,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3NOM_ORANGE_BOOL,d5a1b2c3-3033-4e01-a1c1-300000000033,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3NOM_PURPLE_BOOL,d5a1b2c3-3034-4e01-a1c1-300000000034,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3NOM_GREY_BOOL,d5a1b2c3-3035-4e01-a1c1-300000000035,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3NOM_WHITE_BOOL,d5a1b2c3-3036-4e01-a1c1-300000000036,YESNO,STINGTags_ISO19650,Type,Tag 3Nom White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_ORANGE_BOOL,d5a1b2c3-3037-4e01-a1c1-300000000037,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_PURPLE_BOOL,d5a1b2c3-3038-4e01-a1c1-300000000038,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_GREY_BOOL,d5a1b2c3-3039-4e01-a1c1-300000000039,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_WHITE_BOOL,d5a1b2c3-3040-4e01-a1c1-300000000040,YESNO,STINGTags_ISO19650,Type,Tag 3Bold White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_ORANGE_BOOL,d5a1b2c3-3041-4e01-a1c1-300000000041,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_PURPLE_BOOL,d5a1b2c3-3042-4e01-a1c1-300000000042,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_GREY_BOOL,d5a1b2c3-3043-4e01-a1c1-300000000043,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_WHITE_BOOL,d5a1b2c3-3044-4e01-a1c1-300000000044,YESNO,STINGTags_ISO19650,Type,Tag 3Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5NOM_BLACK_BOOL,d5a1b2c3-3501-4e01-a1c1-350000000001,YESNO,STINGTags_ISO19650,Type,Tag 3.5Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5NOM_BLUE_BOOL,d5a1b2c3-3502-4e01-a1c1-350000000002,YESNO,STINGTags_ISO19650,Type,Tag 3.5Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5NOM_GREEN_BOOL,d5a1b2c3-3503-4e01-a1c1-350000000003,YESNO,STINGTags_ISO19650,Type,Tag 3.5Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5NOM_RED_BOOL,d5a1b2c3-3504-4e01-a1c1-350000000004,YESNO,STINGTags_ISO19650,Type,Tag 3.5Nom Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLD_BLACK_BOOL,d5a1b2c3-3505-4e01-a1c1-350000000005,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bold Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLD_BLUE_BOOL,d5a1b2c3-3506-4e01-a1c1-350000000006,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bold Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLD_GREEN_BOOL,d5a1b2c3-3507-4e01-a1c1-350000000007,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bold Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLD_RED_BOOL,d5a1b2c3-3508-4e01-a1c1-350000000008,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bold Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5ITALIC_BLACK_BOOL,d5a1b2c3-3509-4e01-a1c1-350000000009,YESNO,STINGTags_ISO19650,Type,Tag 3.5Italic Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5ITALIC_BLUE_BOOL,d5a1b2c3-3510-4e01-a1c1-350000000010,YESNO,STINGTags_ISO19650,Type,Tag 3.5Italic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5ITALIC_GREEN_BOOL,d5a1b2c3-3511-4e01-a1c1-350000000011,YESNO,STINGTags_ISO19650,Type,Tag 3.5Italic Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5ITALIC_RED_BOOL,d5a1b2c3-3512-4e01-a1c1-350000000012,YESNO,STINGTags_ISO19650,Type,Tag 3.5Italic Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLDITALIC_BLACK_BOOL,d5a1b2c3-3513-4e01-a1c1-350000000013,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLDITALIC_BLUE_BOOL,d5a1b2c3-3514-4e01-a1c1-350000000014,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLDITALIC_GREEN_BOOL,d5a1b2c3-3515-4e01-a1c1-350000000015,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLDITALIC_RED_BOOL,d5a1b2c3-3516-4e01-a1c1-350000000016,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Red [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLDITALIC_ORANGE_BOOL,d5a1b2c3-3517-4e01-a1c1-350000000017,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLDITALIC_PURPLE_BOOL,d5a1b2c3-3518-4e01-a1c1-350000000018,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLDITALIC_GREY_BOOL,d5a1b2c3-3519-4e01-a1c1-350000000019,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bolditalic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLDITALIC_WHITE_BOOL,d5a1b2c3-3520-4e01-a1c1-350000000020,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bolditalic White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5NOM_ORANGE_BOOL,d5a1b2c3-3533-4e01-a1c1-350000000033,YESNO,STINGTags_ISO19650,Type,Tag 3.5Nom Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5NOM_PURPLE_BOOL,d5a1b2c3-3534-4e01-a1c1-350000000034,YESNO,STINGTags_ISO19650,Type,Tag 3.5Nom Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5NOM_GREY_BOOL,d5a1b2c3-3535-4e01-a1c1-350000000035,YESNO,STINGTags_ISO19650,Type,Tag 3.5Nom Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,YESNO,STINGTags_ISO19650,Type,Tag 3.5Nom White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLD_ORANGE_BOOL,d5a1b2c3-3537-4e01-a1c1-350000000037,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bold Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLD_PURPLE_BOOL,d5a1b2c3-3538-4e01-a1c1-350000000038,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bold Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLD_GREY_BOOL,d5a1b2c3-3539-4e01-a1c1-350000000039,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bold Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5BOLD_WHITE_BOOL,d5a1b2c3-3540-4e01-a1c1-350000000040,YESNO,STINGTags_ISO19650,Type,Tag 3.5Bold White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5ITALIC_ORANGE_BOOL,d5a1b2c3-3541-4e01-a1c1-350000000041,YESNO,STINGTags_ISO19650,Type,Tag 3.5Italic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5ITALIC_PURPLE_BOOL,d5a1b2c3-3542-4e01-a1c1-350000000042,YESNO,STINGTags_ISO19650,Type,Tag 3.5Italic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5ITALIC_GREY_BOOL,d5a1b2c3-3543-4e01-a1c1-350000000043,YESNO,STINGTags_ISO19650,Type,Tag 3.5Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3.5ITALIC_WHITE_BOOL,d5a1b2c3-3544-4e01-a1c1-350000000044,YESNO,STINGTags_ISO19650,Type,Tag 3.5Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5NOM_BLUE_BOOL,d7e853cb-be05-4297-9cc1-250000000002,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2NOM_BLUE_BOOL,e749764b-f2e7-4892-87c1-200000000002,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2.5NOM_BLACK_BOOL,f0b8fa91-eea9-4d7c-a3c1-250000000001,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PER_ACOUSTIC_WALL_STC,1def90dc-f6db-5299-b10c-75c3fbeb0d17,TEXT,PER_SUST,Type,Wall Sound Transmission Class rating,False,,,MULTI,1,0
 Generic Models,STR_RBR_COVER_MM,d6861fcc-af97-5962-a444-60018149503c,TEXT,BLE_STRUCTURE,Type,Reinforcement bar cover in mm,False,,,MULTI,1,0
 Generic Models,STING_4D_END_DATE_TXT,6774bf10-e971-5e40-ab21-ad9e54c3cf60,TEXT,STINGTags_ISO19650,Type,Construction end date yyyy-MM-dd [ISO 19650-2:2018],False,,,MULTI,1,0
@@ -2541,7 +2541,7 @@ Generic Models,STR_BOLT_TORQUE_NM_NR,87cca4d2-1a8c-57a0-a31b-ab78a308fbe5,NUMBER
 Generic Models,STR_CUTTING_LIST_REF_TXT,dbc0b581-2741-5a76-82bc-7956cef3af86,TEXT,BLE_STRUCTURE,Type,Rebar cutting list drawing reference [BS 8666:2020],False,,,MULTI,1,0
 Generic Models,STR_WELD_PROCEDURE_REF_TXT,e182a84b-a159-567f-a62d-fd0c3765f618,TEXT,BLE_STRUCTURE,Type,Welding procedure specification reference [BS EN ISO 15609-1:2019],False,,,MULTI,1,0
 Generic Models,TAG_DEPTH_TIER_INT,b7f3e2a1-0002-4a01-b001-000000090002,INTEGER,STINGTags_ISO19650,Type,Active paragraph depth tier cached on tag family type (1-10),False,,,MULTI,1,0
-Generic Models,TAG_SCALE_TIER_AUTO_BOOL,b7f3e2a1-0001-4a01-b001-000000090001,TEXT,STINGTags_ISO19650,Type,Tag scale tier auto-selection flag,False,,,MULTI,1,0
+Generic Models,TAG_SCALE_TIER_AUTO_BOOL,b7f3e2a1-0001-4a01-b001-000000090001,YESNO,STINGTags_ISO19650,Type,Tag scale tier auto-selection flag,False,,,MULTI,1,0
 Generic Models,TB_AUTHORITY_CODE_TXT,156fb9f9-00c7-5e73-9b8a-9868d4274966,TEXT,TBL_TITLEBLOCK,Type,Authority code KCCA ERA NEMA blank for non-submission [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_AUTHORITY_FORM_VERSION_TXT,1def6a69-c050-5ce9-a118-b190d7359e23,TEXT,TBL_TITLEBLOCK,Type,Submission form version eg KCCA-2024-Rev3 [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_DISCIPLINE_LIST_TXT,c2861f75-5490-50c1-ab0a-bee80da086e3,TEXT,TBL_TITLEBLOCK,Type,CSV of discipline codes this title block is valid for eg M;E;P;A;S [STING TB v1],False,,,MULTI,1,0
@@ -2622,7 +2622,7 @@ Electrical Equipment,ELC_CIRCUIT_LABEL_TXT,c2a7e5b1-3004-5333-9333-300000000004,
 Electrical Equipment,ELC_PNL_AIC_RATING_KA,f1d6e7c8-1001-5178-9178-100000000001,TEXT,ELC_PWR,Instance,Standardised AIC (Ampere Interrupting Capacity) tier in kA stamped to the panel for breaker / switchgear specification [STING Phase 178],False,,,ELECTRICAL,1,0
 Electrical Equipment,ELC_FEEDER_CSA_MM2,f1d6e7c8-1002-5178-9178-100000000002,TEXT,ELC_PWR,Instance,Calculated / proposed feeder cable cross-sectional area in mm² (distinct from circuit cable size) [STING Phase 178],False,,,ELECTRICAL,1,0
 Electrical Equipment,ELC_FEEDER_RATING_A,f1d6e7c8-1003-5178-9178-100000000003,TEXT,ELC_PWR,Instance,Calculated feeder breaker / fuse rating in amperes — the upstream protective device rating [STING Phase 178],False,,,ELECTRICAL,1,0
-Rooms,ELC_EMERG_COVERED_BOOL,f1d6e7c8-1004-5178-9178-100000000004,TEXT,ELC_PWR,Instance,Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178],False,,,ELECTRICAL,1,0
+Rooms,ELC_EMERG_COVERED_BOOL,f1d6e7c8-1004-5178-9178-100000000004,YESNO,ELC_PWR,Instance,Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178],False,,,ELECTRICAL,1,0
 Rooms,ELC_LPD_W_PER_M2,f1d6e7c8-1005-5178-9178-100000000005,TEXT,ELC_PWR,Instance,Calculated lighting power density of the room in W/m² [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178],False,,,ELECTRICAL,1,0
 Rooms,ELC_LPD_LIMIT_W_PER_M2,f1d6e7c8-1006-5178-9178-100000000006,TEXT,ELC_PWR,Instance,Standard LPD limit for the room type in W/m² [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178],False,,,ELECTRICAL,1,0
 Rooms,ELC_LPD_STATUS_TXT,f1d6e7c8-1007-5178-9178-100000000007,TEXT,ELC_PWR,Instance,LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178],False,,,ELECTRICAL,1,0
@@ -2631,7 +2631,7 @@ Electrical Equipment,ELC_ARC_FLASH_BOUNDARY_MM,a2e7f8d9-1002-5179-9179-100000000
 Electrical Equipment,ELC_ARC_FLASH_PPE_CAT,a2e7f8d9-1003-5179-9179-100000000003,TEXT,ELC_PWR,Instance,NFPA 70E Table 130.5(G) PPE category 0–4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179],False,,,ELECTRICAL,1,0
 Electrical Equipment,ELC_ARC_FLASH_WORK_DIST_MM,a2e7f8d9-1004-5179-9179-100000000004,TEXT,ELC_PWR,Instance,Working distance from the arc source in mm (default 455 mm for LV equipment per IEEE 1584) [STING Phase 179],False,,,ELECTRICAL,1,0
 Electrical Equipment,ELC_ARC_FLASH_LABEL_TXT,a2e7f8d9-1005-5179-9179-100000000005,TEXT,ELC_PWR,Instance,Formatted NFPA 70E arc flash warning label text — voltage / energy / boundary / PPE [STING Phase 179],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_SEL_COORD_VERIFIED_BOOL,a2e7f8d9-1006-5179-9179-100000000006,TEXT,ELC_PWR,Instance,Selective coordination check result (1=passes / 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179],False,,,ELECTRICAL,1,0
+Electrical Equipment,ELC_SEL_COORD_VERIFIED_BOOL,a2e7f8d9-1006-5179-9179-100000000006,YESNO,ELC_PWR,Instance,Selective coordination check result (1=passes / 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179],False,,,ELECTRICAL,1,0
 Electrical Equipment,ELC_BUSBAR_CSA_MM2,a2e7f8d9-1007-5179-9179-100000000007,TEXT,ELC_PWR,Instance,Busbar trunking conductor cross-sectional area in mm² [BS EN 60439-1 / STING Phase 179],False,,,ELECTRICAL,1,0
 Electrical Equipment,ELC_BUSBAR_RATING_A,a2e7f8d9-1008-5179-9179-100000000008,TEXT,ELC_PWR,Instance,Busbar trunking continuous current rating in amperes [BS EN 60439-1 / STING Phase 179],False,,,ELECTRICAL,1,0
 Cable Tray,ELC_BUSBAR_FILL_PCT,a2e7f8d9-1009-5179-9179-100000000009,TEXT,ELC_PWR,Instance,Busbar trunking duct fill percentage [STING Phase 179],False,,,ELECTRICAL,1,0
@@ -2657,7 +2657,7 @@ Generic Models,STING_DESIGN_REF_TXT,bcd5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f,TEXT,Id
 Generic Models,STING_SWAP_HISTORY_TXT,cde6f708-9b0c-1d2e-3f4a-5b6c7d8e9fa0,TEXT,Identity,Instance,Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.,False,,,MULTI,1,0
 Generic Models,ELC_JB_TYPE_TXT,def7081a-9ac1-2d3e-4f50-6172839405a6,TEXT,ELC_PWR,Instance,Junction box type: PULL_BOX / DRAW_IN_BOX / ADAPTABLE_BOX / TEE_BOX. Drives type-variant selection for the JB seed.,False,,,MULTI,1,0
 Generic Models,ELC_JB_SIZE_MM,ef8192ab-cdb2-3e4f-5061-7283940516b7,TEXT,ELC_PWR,Instance,Trade-size of the junction box in W x D x H millimetres. Default 100x100x60.,False,,,MULTI,1,0
-Generic Models,ELC_JB_AUTO_PLACED_BOOL,f0a293bc-decb-4f50-6172-839405162718,TEXT,ELC_PWR,Instance,True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.,False,,,MULTI,1,0
+Generic Models,ELC_JB_AUTO_PLACED_BOOL,f0a293bc-decb-4f50-6172-839405162718,YESNO,ELC_PWR,Instance,True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.,False,,,MULTI,1,0
 Generic Models,ELC_JB_REASON_TXT,a1b3a4cd-efdc-5061-7283-940516271829,TEXT,ELC_PWR,Instance,Reason auto-placer put the box here: BENDS_EXCESS / RUN_TOO_LONG / FILL_OVER / WALL_PENETRATION / MANUAL. Surfaced in the Penetration / Pull-Box register schedule.,False,,,MULTI,1,0
 Generic Models,ELC_CDT_BREAKPOINT_TXT,b2c4a5dd-fe1d-6172-8394-051627182930,TEXT,ELC_PWR,Instance,Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 §522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.,False,,,MULTI,1,0
 Generic Models,CEQ_CATEGORY_TXT,c8d4f6e2-d001-4d27-8c61-0e7a3f9b3001,TEXT,CEQ_CLINICAL,Type,Clinical equipment category: PENDANT / BEDHEAD / IMAGING / PHARMACY / DIAL / MORT / MOBIL,False,,,HEALTHCARE,1,0
@@ -2679,7 +2679,7 @@ Generic Models,CLN_EQUIP_WEIGHT_KG_NR,c8d4f6e2-2003-4d27-8c61-0e7a3f9bb003,NUMBE
 Generic Models,CLN_FGI_REF_TXT,c8d4f6e2-a003-4d27-8c61-0e7a3f9b0003,TEXT,CLN_CLINICAL,Type,FGI Guidelines section reference,False,,,HEALTHCARE,1,0
 Generic Models,CLN_FLOOR_LOAD_KN_M2_NR,c8d4f6e2-2001-4d27-8c61-0e7a3f9bb001,NUMBER,CLN_CLINICAL,Type,Imposed floor load (kN/m²) for heavy imaging equipment [H-23],False,,,HEALTHCARE,1,0
 Generic Models,CLN_HBN_REF_TXT,c8d4f6e2-a002-4d27-8c61-0e7a3f9b0002,TEXT,CLN_CLINICAL,Type,HBN reference (e.g. HBN 04-01 R-1234),False,,,HEALTHCARE,1,0
-Generic Models,CLN_HOIST_TRACK_BOOL,c8d4f6e2-a017-4d27-8c61-0e7a3f9b0017,TEXT,CLN_CLINICAL,Type,Ceiling-hoist track installed,False,,,HEALTHCARE,1,0
+Generic Models,CLN_HOIST_TRACK_BOOL,c8d4f6e2-a017-4d27-8c61-0e7a3f9b0017,YESNO,CLN_CLINICAL,Type,Ceiling-hoist track installed,False,,,HEALTHCARE,1,0
 Generic Models,CLN_HTM_REF_TXT,c8d4f6e2-a004-4d27-8c61-0e7a3f9b0004,TEXT,CLN_CLINICAL,Type,HTM (Health Technical Memorandum) reference,False,,,HEALTHCARE,1,0
 Generic Models,CLN_INFECT_CLASS_TXT,c8d4f6e2-a008-4d27-8c61-0e7a3f9b0008,TEXT,CLN_CLINICAL,Type,"Infection-control class: STD / AIIR / PE / CLASS-N / CLASS-P [CDC, HBN 04-01]",False,,,HEALTHCARE,1,0
 Generic Models,CLN_LIGATURE_RES_BOOL,c8d4f6e2-a014-4d27-8c61-0e7a3f9b0014,YESNO,CLN_CLINICAL,Type,Anti-ligature design applies [HBN 03-01 / FGI Pt 2],False,,,HEALTHCARE,1,0
@@ -2848,7 +2848,7 @@ Generic Models,PLM_PRJ_PLUMBING_CODE_TXT,98ab6e19-8d12-53c0-b388-8705f9413373,TE
 Generic Models,ELC_CDT_PENETRATION_COUNT_NR,c3d5b6ee-0f2e-7283-9405-162718304a5b,TEXT,ELC_PWR,Instance,Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).,False,,,MULTI,1,0
 Generic Models,ASS_ITEM_CODE_TXT,d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a,TEXT,ASS_MNG,Instance,Procurement item code for asset ordering,False,,,MULTI,1,0
 Generic Models,ASS_SYSTEMS_TXT,e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b,TEXT,ASS_MNG,Instance,Pipe/duct systems this element connects to (pipe-delimited),False,,,MULTI,1,0
-Generic Models,ASS_TERM_CAPPED_BOOL,f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c,TEXT,ASS_MNG,Instance,Terminal point is capped (stub-end or blanked off),False,,,MULTI,1,0
+Generic Models,ASS_TERM_CAPPED_BOOL,f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c,YESNO,ASS_MNG,Instance,Terminal point is capped (stub-end or blanked off),False,,,MULTI,1,0
 Generic Models,ASS_TERM_REASON_TXT,a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d,TEXT,ASS_MNG,Instance,Reason terminal is capped: FUTURE / DECOMMISSIONED / DESIGN-RESERVE,False,,,MULTI,1,0
 Generic Models,ASS_TRACE_SEQ_NR,b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e,INTEGER,ASS_MNG,Instance,Sequential trace number for multi-element commissioning sequences,False,,,MULTI,1,0
 Mechanical Equipment,MEC_SYS_TXT,b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2,TEXT,HVC_SYSTEMS,Instance,Mechanical system code,False,,,MECHANICAL,1,0
@@ -3032,7 +3032,7 @@ Generic Models,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,HV
 Generic Models,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,HVC_SYSTEMS,Type,STING_MEP_SIZING_RULES.json role + source that drove the size (e.g. 'branch|CIBSE B3') [Phase 182],False,,,MULTI,0,0
 Generic Models,HVC_PIPE_SERVICE_TXT,97e69122-4e43-5b88-9c82-6eaf586ddc07,TEXT,HVC_SYSTEMS,Type,Pipe service id (chw / hws / dcw / dhw / refrig_gas / refrig_liq / steam / natural_gas / condensate) detected from MEPSystem.SystemAbbreviation [Phase 183],False,,,MULTI,0,0
 Generic Models,HVC_PRESSURE_CLASS_TXT,61d432d6-77fe-5811-972f-0b28493d3de7,TEXT,HVC_SYSTEMS,Type,DW/144 pressure class id (low / med / high / extra) the duct was sized to [Phase 183],False,,,MULTI,0,0
-Generic Models,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,HVC_SYSTEMS,Type,1 when current duct size diverges >20% from the registry target for current flow + role [Phase 183],False,,,MULTI,0,0
+Generic Models,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,YESNO,HVC_SYSTEMS,Type,1 when current duct size diverges >20% from the registry target for current flow + role [Phase 183],False,,,MULTI,0,0
 Generic Models,HVC_REFRIGERANT_KG_NR,b99d07d1-6eca-50cf-b983-b6fe2442bc8c,TEXT,HVC_SYSTEMS,Type,Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand × GWP) [Phase 183],False,,,MULTI,1,0
 Generic Models,HVC_REFRIGERANT_TYPE_TXT,10d87a6e-b7d8-5058-81a9-bc62394d9bad,TEXT,HVC_SYSTEMS,Type,Refrigerant id (R32 / R290 / R410A / R407C / R134A / R454B / R513A / R744 / R717 / R1234yf / R1234ze) [Phase 183],False,,,MULTI,1,0
 Generic Models,HVC_CAPACITY_KW,397ee526-7af0-5516-a2a1-48db5a42f249,TEXT,HVC_SYSTEMS,Type,"Equipment design capacity in kW (sensible+latent for cooling, output for heating) [Phase 183]",False,,,MULTI,1,0
@@ -3061,7 +3061,7 @@ Generic Models,ASS_CST_CURRENCY_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42,TEXT,CS
 Generic Models,ASS_CST_FX_TO_BASE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43,NUMBER,CST_PROC,Type,FX rate to project base currency at write time [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_CST_FX_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44,TEXT,CST_PROC,Type,ISO 8601 date the FX rate was fixed (yyyy-MM-dd) [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_CST_AS_OF_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45,TEXT,CST_PROC,Type,Pricing reference date for inflation indexing [Phase 184],False,,,MULTI,1,0
-Generic Models,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,TEXT,CST_PROC,Type,Set when geometry/material/type change invalidates the last-costed line [Phase 184],False,,,MULTI,1,0
+Generic Models,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,YESNO,CST_PROC,Type,Set when geometry/material/type change invalidates the last-costed line [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_CST_STALE_REASON_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47,TEXT,CST_PROC,Type,Reason cost was flagged stale (Geometry / Material / Type / Rate) [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_PMT_PCT_COMPLETE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50,NUMBER,CST_PROC,Type,Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5],False,,,MULTI,1,0
 Generic Models,ASS_PMT_CERT_NO_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51,INTEGER,CST_PROC,Type,Payment certificate number this line item was last valued in [Phase 184g / P5],False,,,MULTI,1,0
