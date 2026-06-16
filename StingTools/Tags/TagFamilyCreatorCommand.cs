@@ -2265,13 +2265,16 @@ namespace StingTools.Tags
 
                         if (existingFp != null)
                         {
-                            StorageType expectedStorage = GetExpectedStorageType(extDef);
-                            if (existingFp.StorageType == expectedStorage)
-                                continue; // Correct type — nothing to do
+                            // Compare at ForgeTypeId (SpecType) level — StorageType alone is not
+                            // sufficient because YESNO and INTEGER both resolve to StorageType.Integer.
+                            ForgeTypeId expectedTypeId = extDef.GetDataType();
+                            ForgeTypeId existingTypeId = existingFp.Definition.GetDataType();
+                            if (existingTypeId == expectedTypeId)
+                                continue; // Correct spec type — nothing to do
 
-                            // Wrong storage type — delete so we can re-add with the correct type
-                            StingLog.Info($"Param '{paramName}': StorageType mismatch " +
-                                $"(bound={existingFp.StorageType}, expected={expectedStorage}) " +
+                            // Spec type mismatch (e.g., Integer vs YesNo) — remove and re-add
+                            StingLog.Info($"Param '{paramName}': SpecType mismatch " +
+                                $"(bound={existingTypeId}, expected={expectedTypeId}) " +
                                 $"— removing for re-injection from MR_PARAMETERS.txt");
                             try
                             {
@@ -2294,7 +2297,33 @@ namespace StingTools.Tags
                         }
                         catch (Exception ex)
                         {
-                            StingLog.Warn($"Cannot add param '{paramName}' to family: {ex.Message}");
+                            // If the failure is a spec-type conflict, an orphaned
+                            // SharedParameterElement from a prior session may have registered
+                            // this GUID under a different type. Delete the SPE and retry once.
+                            bool retried = false;
+                            if (ex.Message.Contains("conflicts with"))
+                            {
+                                try
+                                {
+                                    SharedParameterElement orphanSpe =
+                                        SharedParameterElement.Lookup(famDoc, extDef.GUID);
+                                    if (orphanSpe != null)
+                                    {
+                                        StingLog.Info($"Param '{paramName}': removing orphaned " +
+                                            $"SharedParameterElement (GUID={extDef.GUID}) and retrying");
+                                        famDoc.Delete(orphanSpe.Id);
+                                        famMan.AddParameter(extDef, GroupTypeId.General, true);
+                                        added++;
+                                        retried = true;
+                                    }
+                                }
+                                catch (Exception retryEx)
+                                {
+                                    StingLog.Warn($"Retry after SPE cleanup failed for '{paramName}': {retryEx.Message}");
+                                }
+                            }
+                            if (!retried)
+                                StingLog.Warn($"Cannot add param '{paramName}' to family: {ex.Message}");
                         }
                     }
 
