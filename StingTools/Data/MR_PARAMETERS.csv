@@ -332,7 +332,7 @@ Generic Models,PLM_VNT_SZ_NR,b27f8b0d-cd76-54bb-bb37-c97c7580e79d,TEXT,PLM_DRN,T
 Generic Models,PRJ_INFORMATION_SPARE_02_TXT,b4e2d00d-a873-4fa9-bdc4-3d57fe742671,TEXT,PRJ_INFORMATION,Type,Spare parameter 2 for PRJ_INFORMATION group,False,,,MULTI,1,0
 Generic Models,MAT_SPECIFICATIONS,0efc1f0f-a86a-5088-9305-8839f35d8acc,TEXT,MAT_INFO,Type,Mat Specifications [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_BY_TXT,faebac20-d848-42bb-9659-7ea1773499f9,TEXT,ASS_MNG,Type,Tie-in installed/connected by (contractor/trade) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_TIEIN_CONNECTED_BOOL,675b0c39-6577-4dd2-b7d0-ecb5501987ce,YESNO,ASS_MNG,Type,Tie-in connection status flag [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_TIEIN_CONNECTED_BOOL,675b0c39-6577-4dd2-b7d0-ecb5501987ce,TEXT,ASS_MNG,Type,Tie-in connection status flag [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_ELEV_TXT,5ce9a926-497f-4403-ba63-03342f208313,TEXT,ASS_MNG,Type,Tie-in point elevation reference [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_FLOW_DIR_TXT,5ce85a72-707e-4af9-8521-ed872c8793c8,TEXT,ASS_MNG,Type,Tie-in flow direction (IN/OUT/BIDIRECTIONAL) [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_IFC_REF_TXT,06a09689-3d8a-4b24-8483-37959f648f89,TEXT,ASS_MNG,Type,Tie-in IFC GUID reference [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -360,7 +360,7 @@ Generic Models,PROP_PHYSICAL_SPARE_01_TXT,a8a02414-4d93-4cbc-b256-8f242fe61fc8,T
 Generic Models,TPL_TRACKING_SPARE_01_TXT,71383214-27c6-45bd-a0e1-017efb6fb1c7,TEXT,TPL_TRACKING,Type,Spare parameter 1 for TPL_TRACKING group,False,,,MULTI,1,0
 Generic Models,BI_DIMENSIONS_TXT,85e95414-1461-435f-880e-32392d310aa2,TEXT,TPL_TRACKING,Type,Image dimensions [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_PNL_CKT_SOURCE_NAME_03_TXT,b5da8314-11c4-4b6d-aa38-eeae56c9f9b8,TEXT,ELC_PWR,Type,Elc Pnl tag,False,,,MULTI,1,0
-Generic Models,RGL_KCCA_APPROVAL_REQ_BOOL,71628414-da7f-5bc2-bf30-2adb501283aa,YESNO,RGL_CMPL,Type,Rgl Kcca Approval Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RGL_KCCA_APPROVAL_REQ_BOOL,71628414-da7f-5bc2-bf30-2adb501283aa,TEXT,RGL_CMPL,Type,Rgl Kcca Approval Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_CON_GRADE_TXT,9406b214-102a-589e-87f8-c9ebb6a3c6e6,TEXT,COM_DAT,Type,Cst S Con Grade Txt [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,ASS_NUMBER_OF_DAT_OUTLETS_INT,a9b92515-9881-5af2-85cd-41329358b0e3,TEXT,ASS_MNG,Type,Ass Number Of Dat Outlets Int [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,MAT_FEATURES,65fa7015-14b5-50c7-b339-9ea8d49645b5,TEXT,MAT_INFO,Type,Mat Features [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -622,7 +622,7 @@ Generic Models,PLM_DRN_VNT_MAT_TXT,36d89b7c-3247-5b75-8395-1304ceef745c,TEXT,PLM
 Generic Models,MAT_ELEMENT_TYPE,8e5bf87c-4cd4-575a-95cc-e2faf2beaf70,TEXT,MAT_INFO,Type,Mat Element Type [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STAIR_TREAD_FINISH_TXT,138dc87d-fb13-50b6-a5cf-07c9b2478746,TEXT,BLE_STRUCTURE,Type,Hvc Stair Tread Finish Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ENV_ROOF_TAG_TXT,9a1ef97d-12f7-419d-93f9-60f3773e55ef,TEXT,BLE_ELES,Type,"Roof specification tag: covering, waterproofing, R-value, slope [ISO 19650-1:2018]",False,,,MULTI,1,0
-Generic Models,CST_IMPORT_REQUIRED_BOOL,9e582b7e-a208-5c68-96b1-569156796d54,YESNO,COM_DAT,Type,Cst Import Required Bool [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,CST_IMPORT_REQUIRED_BOOL,9e582b7e-a208-5c68-96b1-569156796d54,TEXT,COM_DAT,Type,Cst Import Required Bool [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-IMAGE,eaaf3b80-c7f9-508a-8e4e-2aafba2d2f76,TEXT,CST_PROC,Type,Ble App-image [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_EXPECTED_LIFE_YEARS_YRS,3bc7b880-b296-532f-9faf-8c41d69df5c3,TEXT,ASS_MNG,Type,Ass Expected Life Years Yrs [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,MAT_EPD_REF_TXT,9858e380-29bb-430b-82d0-7f2898d2fd3d,TEXT,MAT_INFO,Type,Environmental Product Declaration reference number per ISO 22057 [ISO 22057:2022],False,,,MULTI,1,0
@@ -678,7 +678,7 @@ Generic Models,DS_TICK_MARK_TXT,411c6496-6b6d-43ef-94ee-5237433ff2db,TEXT,TPL_TR
 Generic Models,TS_FONT_NAME_TXT,4f860397-5d83-4279-9851-ab94be97ff1c,TEXT,TPL_TRACKING,Type,Font name [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MA_STATUS_TXT,768b0c97-5ba3-46aa-a79e-c2d3a19bcb78,TEXT,TPL_TRACKING,Type,Audit status [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,CST_S_EAR_BACKFILL_VOLUME_CU_M,2e672c97-62a3-5b6d-aa21-7fb9a6b8ffc1,TEXT,COM_DAT,Type,Cst S Ear Backfill Volume Cu M [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,CST_LOCAL_MAT_BOOL,e5f96c97-55b8-5bca-bf7c-b0aa0f12c494,YESNO,COM_DAT,Type,Cst Local Mat Bool [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,CST_LOCAL_MAT_BOOL,e5f96c97-55b8-5bca-bf7c-b0aa0f12c494,TEXT,COM_DAT,Type,Cst Local Mat Bool [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,RGL_QA_APVD_VENDOR_TXT,fa5bb098-bd58-59c6-8835-6c3c12b499cc,TEXT,RGL_CMPL,Type,Rgl Qa Apvd Vendor Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-CUT-FG-COLOR,4674e698-222c-5233-9a41-e24c034d9ee2,TEXT,CST_PROC,Type,Ble App-cut-fg-color [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,FLT_TRANSPARENCY_INT,63533f99-ac82-4f54-8e4c-720fad914924,INTEGER,TPL_TRACKING,Type,Override transparency [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -1273,7 +1273,7 @@ Generic Models,STR_TAG_7_PARA_STR_REBAR_TXT,dc1b44a7-9073-50ea-b01d-2a664db4b7f3
 Generic Models,STR_TAG_7_PARA_STR_STIFFENERS_TXT,35d4baf6-5faa-521e-b9bf-54b7a84e6b81,TEXT,BLE_STRUCTURE,Type,Str Stiffeners paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,STR_TAG_7_PARA_STR_TRUSSES_TXT,b31d7a3d-2bbc-5bc5-8f98-d7bc8e250634,TEXT,BLE_STRUCTURE,Type,Str Trusses paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_CBT_FAB_TYPE_TXT,81bbdfb0-bb7c-4e2a-9a4f-1fea6628b35a,TEXT,ELC_PWR,Type,Cable tray fabrication type,False,,,MULTI,1,0
-Generic Models,ELC_CBT_SHOP_DRAWING_REQ_BOOL,b1dee33a-e25a-46ff-be55-e812b37272ee,YESNO,ELC_PWR,Type,Cable tray shop drawing required,False,,,MULTI,1,0
+Generic Models,ELC_CBT_SHOP_DRAWING_REQ_BOOL,b1dee33a-e25a-46ff-be55-e812b37272ee,TEXT,ELC_PWR,Type,Cable tray shop drawing required,False,,,MULTI,1,0
 Generic Models,ELC_CBT_SUPPORT_SPACING_MM,f1b0189c-7305-47b2-a3a9-6941fc266055,TEXT,ELC_PWR,Type,Cable tray support spacing,False,,,MULTI,1,0
 Generic Models,ELC_CDT_BEND_RADIUS_MM,28eff30f-4a9f-41d0-8368-414a49d6f5c6,TEXT,ELC_PWR,Type,Conduit bend radius,False,,,MULTI,1,0
 Generic Models,ELC_CDT_FAB_METHOD_TXT,8ede2927-bbdf-419c-8fe9-f394a5ee315c,TEXT,ELC_PWR,Type,Conduit fabrication method,False,,,MULTI,1,0
@@ -1281,19 +1281,19 @@ Generic Models,ELC_CDT_SUPPORT_SPACING_MM,6ae13b9c-9a74-4f0f-98fa-a2e9fcd92169,T
 Generic Models,HVC_DCT_FAB_METHOD_TXT,0cadc641-be47-4650-bd0c-6fba88a0a808,TEXT,HVC_SYSTEMS,Type,Duct fabrication method,False,,,MULTI,1,0
 Generic Models,HVC_DCT_HANGER_TYPE_TXT,96a9533f-b824-4d8a-9769-66b823ba30bb,TEXT,HVC_SYSTEMS,Type,Duct hanger type,False,,,MULTI,1,0
 Generic Models,HVC_DCT_SEAM_TYPE_TXT,8f15df53-da96-4554-82d5-c99be9876efd,TEXT,HVC_SYSTEMS,Type,Duct seam type,False,,,MULTI,1,0
-Generic Models,HVC_DCT_SHOP_DRAWING_REQ_BOOL,0c43b027-7b32-4217-a435-4634b6a9c0da,YESNO,HVC_SYSTEMS,Type,Duct shop drawing required,False,,,MULTI,1,0
+Generic Models,HVC_DCT_SHOP_DRAWING_REQ_BOOL,0c43b027-7b32-4217-a435-4634b6a9c0da,TEXT,HVC_SYSTEMS,Type,Duct shop drawing required,False,,,MULTI,1,0
 Generic Models,HVC_DCT_SUPPORTS_SPACING_MM,63423e60-5177-42c3-8d52-49564a913369,TEXT,HVC_SYSTEMS,Type,Duct support spacing,False,,,MULTI,1,0
 Generic Models,PER_SUST_EPD_REF_TXT,aecf0169-9d8f-4cea-8390-66b9f233f305,TEXT,PER_SUST,Type,Environmental product declaration reference,False,,,MULTI,1,0
 Generic Models,PER_SUST_RECYCLABILITY_PCT,02e6b900-e84a-426a-a84f-318fc5790dde,TEXT,PER_SUST,Type,Recyclability percentage,False,,,MULTI,1,0
 Generic Models,PER_SUST_WATER_RATING_TXT,f77c8c33-57b2-42b4-bfc5-6edbc9bc839c,TEXT,PER_SUST,Type,Water efficiency rating,False,,,MULTI,1,0
 Generic Models,PLM_PPE_FAB_METHOD_TXT,8460c5a1-154e-467f-aaf0-2a201128b192,TEXT,PLM_DRN,Type,Pipe fabrication method,False,,,MULTI,1,0
 Generic Models,PLM_PPE_HANGER_TYPE_TXT,bc442e99-1ac1-43ad-9f04-d2a41f2ecb21,TEXT,PLM_DRN,Type,Pipe hanger type,False,,,MULTI,1,0
-Generic Models,PLM_PPE_SHOP_DRAWING_REQ_BOOL,2e41f61f-a81e-410a-a8fb-abd3be9288e0,YESNO,PLM_DRN,Type,Pipe shop drawing required,False,,,MULTI,1,0
+Generic Models,PLM_PPE_SHOP_DRAWING_REQ_BOOL,2e41f61f-a81e-410a-a8fb-abd3be9288e0,TEXT,PLM_DRN,Type,Pipe shop drawing required,False,,,MULTI,1,0
 Generic Models,PLM_PPE_SUPPORTS_SPACING_MM,6fac991a-6e6a-4af3-aa07-e0d7a7f25d07,TEXT,PLM_DRN,Type,Pipe support spacing,False,,,MULTI,1,0
 Generic Models,PLM_PPE_WELD_TYPE_TXT,723f57dd-9123-4592-9db3-e8c70a072cff,TEXT,PLM_DRN,Type,Pipe weld type,False,,,MULTI,1,0
 Generic Models,RGL_KCCA_CERT_NR,006f2e5d-d155-4159-aa5d-5c5b64fe0ec0,TEXT,RGL_CMPL,Type,KCCA certification number,False,,,MULTI,1,0
 Generic Models,RGL_NEMA_CERT_NR,b26efc46-4ec2-4aaf-bc5a-423a6b09c359,TEXT,RGL_CMPL,Type,NEMA certification number,False,,,MULTI,1,0
-Generic Models,RGL_NWSC_APPROVAL_REQ_BOOL,d2095db1-5991-48a9-959e-b0eb6d611091,YESNO,RGL_CMPL,Type,NWSC approval required,False,,,MULTI,1,0
+Generic Models,RGL_NWSC_APPROVAL_REQ_BOOL,d2095db1-5991-48a9-959e-b0eb6d611091,TEXT,RGL_CMPL,Type,NWSC approval required,False,,,MULTI,1,0
 Generic Models,RGL_NWSC_CERT_NR,0b711aaa-09ce-4388-ae2f-8eb840442d3b,TEXT,RGL_CMPL,Type,NWSC certification number,False,,,MULTI,1,0
 Generic Models,RGL_UMEME_APPROVAL_REQ_BOOL,faf8944a-9469-4760-b8ad-ad21b370573f,YESNO,RGL_CMPL,Type,UMEME approval required,False,,,MULTI,1,0
 Generic Models,RGL_UMEME_CERT_NR,4fe49564-bc1e-4299-8e09-0f2a2ebe677b,TEXT,RGL_CMPL,Type,UMEME certification number,False,,,MULTI,1,0
@@ -1606,7 +1606,7 @@ Generic Models,MNT_ACCESS_REQUIREMENTS_TXT,88ccb178-34ab-ede3-1279-b3eb7e0545c1,
 Generic Models,MNT_FREQUENCY_TXT,6b13cb44-d7fa-418d-27c4-ccc16bd05188,TEXT,PER_SUST,Type,Mnt Frequency [ISO 19650],False,,,MULTI,1,0
 Generic Models,MNT_LAST_SERVICE_DATE_TXT,340e26d1-c299-2940-ee8e-3322267c0a97,TEXT,PER_SUST,Type,Mnt Last Service Date [ISO 19650],False,,,MULTI,1,0
 Generic Models,MNT_SPARE_PARTS_TXT,90b280e2-b414-545a-2db9-f011a3130677,TEXT,PER_SUST,Type,Mnt Spare Parts [ISO 19650],False,,,MULTI,1,0
-Generic Models,PER_CONDENSATION_RISK_BOOL,c07000e1-8ba7-59d2-8016-d15aea970d4b,YESNO,PER_SUST,Type,Per Condensation Risk [ISO 19650],False,,,MULTI,1,0
+Generic Models,PER_CONDENSATION_RISK_BOOL,c07000e1-8ba7-59d2-8016-d15aea970d4b,TEXT,PER_SUST,Type,Per Condensation Risk [ISO 19650],False,,,MULTI,1,0
 Generic Models,PER_EXPECTED_LIFE_YEARS,9502f071-2b22-50ef-11d6-daddba4cc3f1,TEXT,PER_SUST,Type,Per Expected Life Years [ISO 19650],False,,,MULTI,1,0
 Generic Models,PER_FIRE_RATING_HR,204f0610-4f8b-5eab-9af2-8a7dbee3962e,TEXT,PER_SUST,Type,Per Fire Rating Hr [ISO 19650],False,,,MULTI,1,0
 Generic Models,PER_RECYCLABILITY_PCT,6cfbec62-d60b-a0ef-4954-0e5cc4789aa5,TEXT,PER_SUST,Type,Per Recyclability Pct [ISO 19650],False,,,MULTI,1,0
@@ -1618,7 +1618,7 @@ Generic Models,BLE_CEILING_GRID_TXT,fbdca2f3-3f9b-52f8-864b-70a50c5618f7,TEXT,BL
 Generic Models,BLE_CEILING_TILE_SIZE_TXT,5e9a2719-29bd-5ac3-a165-6bf93ee35d49,TEXT,BLE_ELES,Type,Ble Ceiling Tile Size [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_ACOUSTIC_STC_NR,0ffc672b-ae54-51b6-a57b-d165521acfc3,TEXT,BLE_ELES,Type,Ble Door Acoustic Stc [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_CLOSER_TXT,affb9e38-e1db-5a54-ab28-0dc494c3776a,TEXT,BLE_ELES,Type,Ble Door Closer [ISO 19650],False,,,MULTI,1,0
-Generic Models,BLE_DOOR_GLAZING_BOOL,acbffcf6-2553-519d-91d9-3bc9264c8304,YESNO,BLE_ELES,Type,Ble Door Glazing [ISO 19650],False,,,MULTI,1,0
+Generic Models,BLE_DOOR_GLAZING_BOOL,acbffcf6-2553-519d-91d9-3bc9264c8304,TEXT,BLE_ELES,Type,Ble Door Glazing [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_FLOOR_LOAD_KN_M2,da0a0762-c687-5c51-997b-a4138428383c,TEXT,BLE_ELES,Type,Ble Floor Load Kn M2 [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_FLOOR_SLIP_RESISTANCE_TXT,bc4a861d-6534-5931-a6a0-b5f3b54c6e56,TEXT,BLE_ELES,Type,Ble Floor Slip Resistance [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_FLOOR_WATERPROOF_TXT,845803b9-d82a-5050-922b-79592abd899b,TEXT,BLE_ELES,Type,Ble Floor Waterproof [ISO 19650],False,,,MULTI,1,0
@@ -1627,7 +1627,7 @@ Generic Models,BLE_FURN_MATERIAL_TXT,c5913cbd-0a45-568c-99b4-5be83630d0c9,TEXT,B
 Generic Models,BLE_FURN_WORKSTATION_TYPE_TXT,f7a76836-9037-5107-9089-56359d40e318,TEXT,BLE_ELES,Type,Ble Furn Workstation Type [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_PARKING_SIZE_TXT,7b1ff45c-0ace-5f3f-8d17-28a923b43eb7,TEXT,BLE_ELES,Type,Ble Parking Size [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_PARKING_TYPE_TXT,4c056451-0b1f-5135-bb0c-32fca3f9509c,TEXT,BLE_ELES,Type,Ble Parking Type [ISO 19650],False,,,MULTI,1,0
-Generic Models,BLE_RAMP_HANDRAIL_BOOL,a0c9bd40-8190-5ba4-b83c-e6021487e529,YESNO,BLE_ELES,Type,Ble Ramp Handrail [ISO 19650],False,,,MULTI,1,0
+Generic Models,BLE_RAMP_HANDRAIL_BOOL,a0c9bd40-8190-5ba4-b83c-e6021487e529,TEXT,BLE_ELES,Type,Ble Ramp Handrail [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_RAMP_SURFACE_TXT,02722adc-5b60-5a4e-98a4-91fd38b0f2d8,TEXT,BLE_ELES,Type,Ble Ramp Surface [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_DRAINAGE_TYPE_TXT,dccbf6b1-4ec2-584b-ade5-e9690409ef71,TEXT,BLE_ELES,Type,Ble Roof Drainage Type [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_ROOM_OCCUPANCY_NR,9ae2bd6a-1cd6-57ae-b021-677d0d7fc77d,TEXT,BLE_ELES,Type,Ble Room Occupancy [ISO 19650],False,,,MULTI,1,0
@@ -2679,7 +2679,7 @@ Generic Models,CLN_EQUIP_WEIGHT_KG_NR,c8d4f6e2-2003-4d27-8c61-0e7a3f9bb003,NUMBE
 Generic Models,CLN_FGI_REF_TXT,c8d4f6e2-a003-4d27-8c61-0e7a3f9b0003,TEXT,CLN_CLINICAL,Type,FGI Guidelines section reference,False,,,HEALTHCARE,1,0
 Generic Models,CLN_FLOOR_LOAD_KN_M2_NR,c8d4f6e2-2001-4d27-8c61-0e7a3f9bb001,NUMBER,CLN_CLINICAL,Type,Imposed floor load (kN/m²) for heavy imaging equipment [H-23],False,,,HEALTHCARE,1,0
 Generic Models,CLN_HBN_REF_TXT,c8d4f6e2-a002-4d27-8c61-0e7a3f9b0002,TEXT,CLN_CLINICAL,Type,HBN reference (e.g. HBN 04-01 R-1234),False,,,HEALTHCARE,1,0
-Generic Models,CLN_HOIST_TRACK_BOOL,c8d4f6e2-a017-4d27-8c61-0e7a3f9b0017,YESNO,CLN_CLINICAL,Type,Ceiling-hoist track installed,False,,,HEALTHCARE,1,0
+Generic Models,CLN_HOIST_TRACK_BOOL,c8d4f6e2-a017-4d27-8c61-0e7a3f9b0017,TEXT,CLN_CLINICAL,Type,Ceiling-hoist track installed,False,,,HEALTHCARE,1,0
 Generic Models,CLN_HTM_REF_TXT,c8d4f6e2-a004-4d27-8c61-0e7a3f9b0004,TEXT,CLN_CLINICAL,Type,HTM (Health Technical Memorandum) reference,False,,,HEALTHCARE,1,0
 Generic Models,CLN_INFECT_CLASS_TXT,c8d4f6e2-a008-4d27-8c61-0e7a3f9b0008,TEXT,CLN_CLINICAL,Type,"Infection-control class: STD / AIIR / PE / CLASS-N / CLASS-P [CDC, HBN 04-01]",False,,,HEALTHCARE,1,0
 Generic Models,CLN_LIGATURE_RES_BOOL,c8d4f6e2-a014-4d27-8c61-0e7a3f9b0014,YESNO,CLN_CLINICAL,Type,Anti-ligature design applies [HBN 03-01 / FGI Pt 2],False,,,HEALTHCARE,1,0
