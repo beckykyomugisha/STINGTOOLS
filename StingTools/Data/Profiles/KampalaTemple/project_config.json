@@ -1,0 +1,51 @@
+{
+  "_profile": "Kampala Uganda Temple Project — interim BIM tagging profile",
+  "_version": "0.1-interim",
+  "_authored": "2026-06-17 by Mayanja Davis (BIM Manager)",
+  "_note": "FULL ISO 19650 asset tag. A1/A2 define no element tag-token scheme; this is the ISO 19650 BEP scheme used until the Owner BIM modeling / prototype standard is issued (SPD Temple Design Hub), at which point SYS/FUNC/PROD values are re-mapped in one pass. Systems are aligned to the project's CSI MasterFormat divisions (A2).",
+
+  "_ISO_FIELD_MAP": "Full 8-segment tag mapped to ISO 19650 container fields: DISC=Role · LOC=Volume(building) · ZONE=sub-zone(STING extension) · LVL=Level · SYS/FUNC/PROD=asset classification · SEQ=Number. ISO 'Volume' is carried by the LOC token (the building) — no separate token is required. Volume also appears on the sheet/model name via the Drawing engine ({Project}-{Originator}-{Volume}-{Level}-{Type}-{Role}-{Number}).",
+
+  "TAG_FORMAT": {
+    "separator": "-",
+    "num_pad": 4,
+    "segment_order": ["DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ"]
+  },
+
+  "STATUS_DEFAULT": "NEW",
+  "REV_DEFAULT": "P01",
+  "DEFAULT_COLLISION_MODE": "AutoIncrement",
+  "SEQ_INCLUDE_ZONE": false,
+  "COMPLIANCE_GATE_PCT": 0,
+  "VALIDATE_STRICT_MODE": false,
+
+  "_LOC_is_building": "LOC token = building. Crosswalk to the KUT container Volume code is in README.md.",
+  "LOC_CODES": ["TPL", "MTH", "HSG", "GRD", "UTL", "GDH", "EXT", "ZZ"],
+  "CUSTOM_VALID_LOC": ["TPL", "MTH", "HSG", "GRD", "UTL", "GDH", "EXT", "ZZ"],
+
+  "ZONE_CODES": ["Z01", "Z02", "Z03", "Z04", "ZZ", "XX"],
+  "CUSTOM_VALID_ZONE": ["Z01", "Z02", "Z03", "Z04", "ZZ", "XX"],
+
+  "_SYS_aligned_to_CSI": "SysCode -> Revit categories. CSI division per system is documented in README.md (21 FP, 22 Plumbing, 23 HVAC, 26 Electrical, 27 Telecom, 28 Safety/Security).",
+  "SYS_MAP": {
+    "HVAC": ["Mechanical Equipment", "Ducts", "Duct Fittings", "Duct Accessories", "Duct Insulations", "Flex Ducts", "Air Terminals"],
+    "DCW":  ["Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulations", "Flex Pipes"],
+    "DHW":  ["Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulations"],
+    "HWS":  ["Pipes", "Pipe Fittings", "Pipe Accessories", "Mechanical Equipment"],
+    "SAN":  ["Plumbing Fixtures", "Pipes", "Pipe Fittings", "Pipe Accessories"],
+    "RWD":  ["Pipes", "Pipe Fittings", "Pipe Accessories"],
+    "SWD":  ["Pipes", "Pipe Fittings", "Pipe Accessories"],
+    "GAS":  ["Pipes", "Pipe Fittings", "Pipe Accessories"],
+    "FP":   ["Sprinklers", "Pipes", "Pipe Fittings"],
+    "FLS":  ["Fire Alarm Devices"],
+    "LV":   ["Electrical Equipment", "Electrical Fixtures", "Cable Trays", "Conduits"],
+    "LPS":  ["Electrical Equipment", "Conduits", "Conduit Fittings"],
+    "COM":  ["Communication Devices"],
+    "ICT":  ["Data Devices"],
+    "SEC":  ["Security Devices"],
+    "ARC":  ["Walls", "Floors", "Ceilings", "Roofs", "Doors", "Windows", "Stairs", "Railings", "Ramps", "Rooms", "Furniture", "Casework"],
+    "STR":  ["Structural Columns", "Structural Framing", "Structural Foundations"],
+    "GEN":  ["Generic Models"]
+  },
+  "CUSTOM_VALID_SYS": ["HVAC","DCW","DHW","HWS","SAN","RWD","SWD","GAS","FP","FLS","LV","LPS","COM","ICT","SEC","ARC","STR","GEN"]
+}
