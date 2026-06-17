@@ -23,134 +23,134 @@
 # Rows 141-150: Box / Leader / Scale params (INTEGER / YESNO / TEXT).
 #
 #,Group,Parameter,Datatype,Default,Category,Role,Description
-1,TextStyle,TAG_2NOM_BLACK_BOOL,YESNO,No,Common,Switch,2mm normal black text style
-2,TextStyle,TAG_2NOM_BLUE_BOOL,YESNO,No,Common,Switch,2mm normal blue text style
-3,TextStyle,TAG_2NOM_GREEN_BOOL,YESNO,No,Common,Switch,2mm normal green text style
-4,TextStyle,TAG_2NOM_RED_BOOL,YESNO,No,Common,Switch,2mm normal red text style
-5,TextStyle,TAG_2NOM_YELLOW_BOOL,YESNO,No,Common,Switch,2mm normal yellow text style
-6,TextStyle,TAG_2NOM_ORANGE_BOOL,YESNO,No,Common,Switch,2mm normal orange text style
-7,TextStyle,TAG_2NOM_PURPLE_BOOL,YESNO,No,Common,Switch,2mm normal purple text style
-8,TextStyle,TAG_2NOM_WHITE_BOOL,YESNO,No,Common,Switch,2mm normal white text style
-9,TextStyle,TAG_2BOLD_BLACK_BOOL,YESNO,No,Common,Switch,2mm bold black text style
-10,TextStyle,TAG_2BOLD_BLUE_BOOL,YESNO,No,Common,Switch,2mm bold blue text style
-11,TextStyle,TAG_2BOLD_GREEN_BOOL,YESNO,No,Common,Switch,2mm bold green text style
-12,TextStyle,TAG_2BOLD_RED_BOOL,YESNO,No,Common,Switch,2mm bold red text style
-13,TextStyle,TAG_2BOLD_YELLOW_BOOL,YESNO,No,Common,Switch,2mm bold yellow text style
-14,TextStyle,TAG_2BOLD_ORANGE_BOOL,YESNO,No,Common,Switch,2mm bold orange text style
-15,TextStyle,TAG_2BOLD_PURPLE_BOOL,YESNO,No,Common,Switch,2mm bold purple text style
-16,TextStyle,TAG_2BOLD_WHITE_BOOL,YESNO,No,Common,Switch,2mm bold white text style
-17,TextStyle,TAG_2ITALIC_BLACK_BOOL,YESNO,No,Common,Switch,2mm italic black text style
-18,TextStyle,TAG_2ITALIC_BLUE_BOOL,YESNO,No,Common,Switch,2mm italic blue text style
-19,TextStyle,TAG_2ITALIC_GREEN_BOOL,YESNO,No,Common,Switch,2mm italic green text style
-20,TextStyle,TAG_2ITALIC_RED_BOOL,YESNO,No,Common,Switch,2mm italic red text style
-21,TextStyle,TAG_2ITALIC_YELLOW_BOOL,YESNO,No,Common,Switch,2mm italic yellow text style
-22,TextStyle,TAG_2ITALIC_ORANGE_BOOL,YESNO,No,Common,Switch,2mm italic orange text style
-23,TextStyle,TAG_2ITALIC_PURPLE_BOOL,YESNO,No,Common,Switch,2mm italic purple text style
-24,TextStyle,TAG_2ITALIC_WHITE_BOOL,YESNO,No,Common,Switch,2mm italic white text style
-25,TextStyle,TAG_2BOLDITALIC_BLACK_BOOL,YESNO,No,Common,Switch,2mm bold-italic black text style
-26,TextStyle,TAG_2BOLDITALIC_BLUE_BOOL,YESNO,No,Common,Switch,2mm bold-italic blue text style
-27,TextStyle,TAG_2BOLDITALIC_GREEN_BOOL,YESNO,No,Common,Switch,2mm bold-italic green text style
-28,TextStyle,TAG_2BOLDITALIC_RED_BOOL,YESNO,No,Common,Switch,2mm bold-italic red text style
-29,TextStyle,TAG_2BOLDITALIC_YELLOW_BOOL,YESNO,No,Common,Switch,2mm bold-italic yellow text style
-30,TextStyle,TAG_2BOLDITALIC_ORANGE_BOOL,YESNO,No,Common,Switch,2mm bold-italic orange text style
-31,TextStyle,TAG_2BOLDITALIC_PURPLE_BOOL,YESNO,No,Common,Switch,2mm bold-italic purple text style
-32,TextStyle,TAG_2BOLDITALIC_WHITE_BOOL,YESNO,No,Common,Switch,2mm bold-italic white text style
-33,TextStyle,TAG_2.5NOM_BLACK_BOOL,YESNO,No,Common,Switch,2.5mm normal black text style
-34,TextStyle,TAG_2.5NOM_BLUE_BOOL,YESNO,No,Common,Switch,2.5mm normal blue text style
-35,TextStyle,TAG_2.5NOM_GREEN_BOOL,YESNO,No,Common,Switch,2.5mm normal green text style
-36,TextStyle,TAG_2.5NOM_RED_BOOL,YESNO,No,Common,Switch,2.5mm normal red text style
-37,TextStyle,TAG_2.5NOM_YELLOW_BOOL,YESNO,No,Common,Switch,2.5mm normal yellow text style
-38,TextStyle,TAG_2.5NOM_ORANGE_BOOL,YESNO,No,Common,Switch,2.5mm normal orange text style
-39,TextStyle,TAG_2.5NOM_PURPLE_BOOL,YESNO,No,Common,Switch,2.5mm normal purple text style
-40,TextStyle,TAG_2.5NOM_WHITE_BOOL,YESNO,No,Common,Switch,2.5mm normal white text style
-41,TextStyle,TAG_2.5BOLD_BLACK_BOOL,YESNO,No,Common,Switch,2.5mm bold black text style
-42,TextStyle,TAG_2.5BOLD_BLUE_BOOL,YESNO,No,Common,Switch,2.5mm bold blue text style
-43,TextStyle,TAG_2.5BOLD_GREEN_BOOL,YESNO,No,Common,Switch,2.5mm bold green text style
-44,TextStyle,TAG_2.5BOLD_RED_BOOL,YESNO,No,Common,Switch,2.5mm bold red text style
-45,TextStyle,TAG_2.5BOLD_YELLOW_BOOL,YESNO,No,Common,Switch,2.5mm bold yellow text style
-46,TextStyle,TAG_2.5BOLD_ORANGE_BOOL,YESNO,No,Common,Switch,2.5mm bold orange text style
-47,TextStyle,TAG_2.5BOLD_PURPLE_BOOL,YESNO,No,Common,Switch,2.5mm bold purple text style
-48,TextStyle,TAG_2.5BOLD_WHITE_BOOL,YESNO,No,Common,Switch,2.5mm bold white text style
-49,TextStyle,TAG_2.5ITALIC_BLACK_BOOL,YESNO,No,Common,Switch,2.5mm italic black text style
-50,TextStyle,TAG_2.5ITALIC_BLUE_BOOL,YESNO,No,Common,Switch,2.5mm italic blue text style
-51,TextStyle,TAG_2.5ITALIC_GREEN_BOOL,YESNO,No,Common,Switch,2.5mm italic green text style
-52,TextStyle,TAG_2.5ITALIC_RED_BOOL,YESNO,No,Common,Switch,2.5mm italic red text style
-53,TextStyle,TAG_2.5ITALIC_YELLOW_BOOL,YESNO,No,Common,Switch,2.5mm italic yellow text style
-54,TextStyle,TAG_2.5ITALIC_ORANGE_BOOL,YESNO,No,Common,Switch,2.5mm italic orange text style
-55,TextStyle,TAG_2.5ITALIC_PURPLE_BOOL,YESNO,No,Common,Switch,2.5mm italic purple text style
-56,TextStyle,TAG_2.5ITALIC_WHITE_BOOL,YESNO,No,Common,Switch,2.5mm italic white text style
-57,TextStyle,TAG_2.5BOLDITALIC_BLACK_BOOL,YESNO,No,Common,Switch,2.5mm bold-italic black text style
-58,TextStyle,TAG_2.5BOLDITALIC_BLUE_BOOL,YESNO,No,Common,Switch,2.5mm bold-italic blue text style
-59,TextStyle,TAG_2.5BOLDITALIC_GREEN_BOOL,YESNO,No,Common,Switch,2.5mm bold-italic green text style
-60,TextStyle,TAG_2.5BOLDITALIC_RED_BOOL,YESNO,No,Common,Switch,2.5mm bold-italic red text style
-61,TextStyle,TAG_2.5BOLDITALIC_YELLOW_BOOL,YESNO,No,Common,Switch,2.5mm bold-italic yellow text style
-62,TextStyle,TAG_2.5BOLDITALIC_ORANGE_BOOL,YESNO,No,Common,Switch,2.5mm bold-italic orange text style
-63,TextStyle,TAG_2.5BOLDITALIC_PURPLE_BOOL,YESNO,No,Common,Switch,2.5mm bold-italic purple text style
-64,TextStyle,TAG_2.5BOLDITALIC_WHITE_BOOL,YESNO,No,Common,Switch,2.5mm bold-italic white text style
-65,TextStyle,TAG_3NOM_BLACK_BOOL,YESNO,No,Common,Switch,3mm normal black text style
-66,TextStyle,TAG_3NOM_BLUE_BOOL,YESNO,No,Common,Switch,3mm normal blue text style
-67,TextStyle,TAG_3NOM_GREEN_BOOL,YESNO,No,Common,Switch,3mm normal green text style
-68,TextStyle,TAG_3NOM_RED_BOOL,YESNO,No,Common,Switch,3mm normal red text style
-69,TextStyle,TAG_3NOM_YELLOW_BOOL,YESNO,No,Common,Switch,3mm normal yellow text style
-70,TextStyle,TAG_3NOM_ORANGE_BOOL,YESNO,No,Common,Switch,3mm normal orange text style
-71,TextStyle,TAG_3NOM_PURPLE_BOOL,YESNO,No,Common,Switch,3mm normal purple text style
-72,TextStyle,TAG_3NOM_WHITE_BOOL,YESNO,No,Common,Switch,3mm normal white text style
-73,TextStyle,TAG_3BOLD_BLACK_BOOL,YESNO,No,Common,Switch,3mm bold black text style
-74,TextStyle,TAG_3BOLD_BLUE_BOOL,YESNO,No,Common,Switch,3mm bold blue text style
-75,TextStyle,TAG_3BOLD_GREEN_BOOL,YESNO,No,Common,Switch,3mm bold green text style
-76,TextStyle,TAG_3BOLD_RED_BOOL,YESNO,No,Common,Switch,3mm bold red text style
-77,TextStyle,TAG_3BOLD_YELLOW_BOOL,YESNO,No,Common,Switch,3mm bold yellow text style
-78,TextStyle,TAG_3BOLD_ORANGE_BOOL,YESNO,No,Common,Switch,3mm bold orange text style
-79,TextStyle,TAG_3BOLD_PURPLE_BOOL,YESNO,No,Common,Switch,3mm bold purple text style
-80,TextStyle,TAG_3BOLD_WHITE_BOOL,YESNO,No,Common,Switch,3mm bold white text style
-81,TextStyle,TAG_3ITALIC_BLACK_BOOL,YESNO,No,Common,Switch,3mm italic black text style
-82,TextStyle,TAG_3ITALIC_BLUE_BOOL,YESNO,No,Common,Switch,3mm italic blue text style
-83,TextStyle,TAG_3ITALIC_GREEN_BOOL,YESNO,No,Common,Switch,3mm italic green text style
-84,TextStyle,TAG_3ITALIC_RED_BOOL,YESNO,No,Common,Switch,3mm italic red text style
-85,TextStyle,TAG_3ITALIC_YELLOW_BOOL,YESNO,No,Common,Switch,3mm italic yellow text style
-86,TextStyle,TAG_3ITALIC_ORANGE_BOOL,YESNO,No,Common,Switch,3mm italic orange text style
-87,TextStyle,TAG_3ITALIC_PURPLE_BOOL,YESNO,No,Common,Switch,3mm italic purple text style
-88,TextStyle,TAG_3ITALIC_WHITE_BOOL,YESNO,No,Common,Switch,3mm italic white text style
-89,TextStyle,TAG_3BOLDITALIC_BLACK_BOOL,YESNO,No,Common,Switch,3mm bold-italic black text style
-90,TextStyle,TAG_3BOLDITALIC_BLUE_BOOL,YESNO,No,Common,Switch,3mm bold-italic blue text style
-91,TextStyle,TAG_3BOLDITALIC_GREEN_BOOL,YESNO,No,Common,Switch,3mm bold-italic green text style
-92,TextStyle,TAG_3BOLDITALIC_RED_BOOL,YESNO,No,Common,Switch,3mm bold-italic red text style
-93,TextStyle,TAG_3BOLDITALIC_YELLOW_BOOL,YESNO,No,Common,Switch,3mm bold-italic yellow text style
-94,TextStyle,TAG_3BOLDITALIC_ORANGE_BOOL,YESNO,No,Common,Switch,3mm bold-italic orange text style
-95,TextStyle,TAG_3BOLDITALIC_PURPLE_BOOL,YESNO,No,Common,Switch,3mm bold-italic purple text style
-96,TextStyle,TAG_3BOLDITALIC_WHITE_BOOL,YESNO,No,Common,Switch,3mm bold-italic white text style
-97,TextStyle,TAG_3.5NOM_BLACK_BOOL,YESNO,No,Common,Switch,3.5mm normal black text style
-98,TextStyle,TAG_3.5NOM_BLUE_BOOL,YESNO,No,Common,Switch,3.5mm normal blue text style
-99,TextStyle,TAG_3.5NOM_GREEN_BOOL,YESNO,No,Common,Switch,3.5mm normal green text style
-100,TextStyle,TAG_3.5NOM_RED_BOOL,YESNO,No,Common,Switch,3.5mm normal red text style
-101,TextStyle,TAG_3.5NOM_YELLOW_BOOL,YESNO,No,Common,Switch,3.5mm normal yellow text style
-102,TextStyle,TAG_3.5NOM_ORANGE_BOOL,YESNO,No,Common,Switch,3.5mm normal orange text style
-103,TextStyle,TAG_3.5NOM_PURPLE_BOOL,YESNO,No,Common,Switch,3.5mm normal purple text style
-104,TextStyle,TAG_3.5NOM_WHITE_BOOL,YESNO,No,Common,Switch,3.5mm normal white text style
-105,TextStyle,TAG_3.5BOLD_BLACK_BOOL,YESNO,No,Common,Switch,3.5mm bold black text style
-106,TextStyle,TAG_3.5BOLD_BLUE_BOOL,YESNO,No,Common,Switch,3.5mm bold blue text style
-107,TextStyle,TAG_3.5BOLD_GREEN_BOOL,YESNO,No,Common,Switch,3.5mm bold green text style
-108,TextStyle,TAG_3.5BOLD_RED_BOOL,YESNO,No,Common,Switch,3.5mm bold red text style
-109,TextStyle,TAG_3.5BOLD_YELLOW_BOOL,YESNO,No,Common,Switch,3.5mm bold yellow text style
-110,TextStyle,TAG_3.5BOLD_ORANGE_BOOL,YESNO,No,Common,Switch,3.5mm bold orange text style
-111,TextStyle,TAG_3.5BOLD_PURPLE_BOOL,YESNO,No,Common,Switch,3.5mm bold purple text style
-112,TextStyle,TAG_3.5BOLD_WHITE_BOOL,YESNO,No,Common,Switch,3.5mm bold white text style
-113,TextStyle,TAG_3.5ITALIC_BLACK_BOOL,YESNO,No,Common,Switch,3.5mm italic black text style
-114,TextStyle,TAG_3.5ITALIC_BLUE_BOOL,YESNO,No,Common,Switch,3.5mm italic blue text style
-115,TextStyle,TAG_3.5ITALIC_GREEN_BOOL,YESNO,No,Common,Switch,3.5mm italic green text style
-116,TextStyle,TAG_3.5ITALIC_RED_BOOL,YESNO,No,Common,Switch,3.5mm italic red text style
-117,TextStyle,TAG_3.5ITALIC_YELLOW_BOOL,YESNO,No,Common,Switch,3.5mm italic yellow text style
-118,TextStyle,TAG_3.5ITALIC_ORANGE_BOOL,YESNO,No,Common,Switch,3.5mm italic orange text style
-119,TextStyle,TAG_3.5ITALIC_PURPLE_BOOL,YESNO,No,Common,Switch,3.5mm italic purple text style
-120,TextStyle,TAG_3.5ITALIC_WHITE_BOOL,YESNO,No,Common,Switch,3.5mm italic white text style
-121,TextStyle,TAG_3.5BOLDITALIC_BLACK_BOOL,YESNO,No,Common,Switch,3.5mm bold-italic black text style
-122,TextStyle,TAG_3.5BOLDITALIC_BLUE_BOOL,YESNO,No,Common,Switch,3.5mm bold-italic blue text style
-123,TextStyle,TAG_3.5BOLDITALIC_GREEN_BOOL,YESNO,No,Common,Switch,3.5mm bold-italic green text style
-124,TextStyle,TAG_3.5BOLDITALIC_RED_BOOL,YESNO,No,Common,Switch,3.5mm bold-italic red text style
-125,TextStyle,TAG_3.5BOLDITALIC_YELLOW_BOOL,YESNO,No,Common,Switch,3.5mm bold-italic yellow text style
-126,TextStyle,TAG_3.5BOLDITALIC_ORANGE_BOOL,YESNO,No,Common,Switch,3.5mm bold-italic orange text style
-127,TextStyle,TAG_3.5BOLDITALIC_PURPLE_BOOL,YESNO,No,Common,Switch,3.5mm bold-italic purple text style
-128,TextStyle,TAG_3.5BOLDITALIC_WHITE_BOOL,YESNO,No,Common,Switch,3.5mm bold-italic white text style
+1,TextStyle,TAG_2NOM_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM BLACK
+2,TextStyle,TAG_2NOM_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM BLUE
+3,TextStyle,TAG_2NOM_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM GREEN
+4,TextStyle,TAG_2NOM_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM RED
+5,TextStyle,TAG_2NOM_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM ORANGE
+6,TextStyle,TAG_2NOM_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM PURPLE
+7,TextStyle,TAG_2NOM_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM GREY
+8,TextStyle,TAG_2NOM_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM WHITE
+9,TextStyle,TAG_2BOLD_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD BLACK
+10,TextStyle,TAG_2BOLD_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD BLUE
+11,TextStyle,TAG_2BOLD_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD GREEN
+12,TextStyle,TAG_2BOLD_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD RED
+13,TextStyle,TAG_2BOLD_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD ORANGE
+14,TextStyle,TAG_2BOLD_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD PURPLE
+15,TextStyle,TAG_2BOLD_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD GREY
+16,TextStyle,TAG_2BOLD_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD WHITE
+17,TextStyle,TAG_2ITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC BLACK
+18,TextStyle,TAG_2ITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC BLUE
+19,TextStyle,TAG_2ITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC GREEN
+20,TextStyle,TAG_2ITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC RED
+21,TextStyle,TAG_2ITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC ORANGE
+22,TextStyle,TAG_2ITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC PURPLE
+23,TextStyle,TAG_2ITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC GREY
+24,TextStyle,TAG_2ITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC WHITE
+25,TextStyle,TAG_2BOLDITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC BLACK
+26,TextStyle,TAG_2BOLDITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC BLUE
+27,TextStyle,TAG_2BOLDITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC GREEN
+28,TextStyle,TAG_2BOLDITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC RED
+29,TextStyle,TAG_2BOLDITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC ORANGE
+30,TextStyle,TAG_2BOLDITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC PURPLE
+31,TextStyle,TAG_2BOLDITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC GREY
+32,TextStyle,TAG_2BOLDITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC WHITE
+33,TextStyle,TAG_2.5NOM_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM BLACK
+34,TextStyle,TAG_2.5NOM_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM BLUE
+35,TextStyle,TAG_2.5NOM_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM GREEN
+36,TextStyle,TAG_2.5NOM_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM RED
+37,TextStyle,TAG_2.5NOM_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM ORANGE
+38,TextStyle,TAG_2.5NOM_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM PURPLE
+39,TextStyle,TAG_2.5NOM_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM GREY
+40,TextStyle,TAG_2.5NOM_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM WHITE
+41,TextStyle,TAG_2.5BOLD_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD BLACK
+42,TextStyle,TAG_2.5BOLD_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD BLUE
+43,TextStyle,TAG_2.5BOLD_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD GREEN
+44,TextStyle,TAG_2.5BOLD_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD RED
+45,TextStyle,TAG_2.5BOLD_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD ORANGE
+46,TextStyle,TAG_2.5BOLD_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD PURPLE
+47,TextStyle,TAG_2.5BOLD_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD GREY
+48,TextStyle,TAG_2.5BOLD_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD WHITE
+49,TextStyle,TAG_2.5ITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC BLACK
+50,TextStyle,TAG_2.5ITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC BLUE
+51,TextStyle,TAG_2.5ITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC GREEN
+52,TextStyle,TAG_2.5ITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC RED
+53,TextStyle,TAG_2.5ITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC ORANGE
+54,TextStyle,TAG_2.5ITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC PURPLE
+55,TextStyle,TAG_2.5ITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC GREY
+56,TextStyle,TAG_2.5ITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC WHITE
+57,TextStyle,TAG_2.5BOLDITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC BLACK
+58,TextStyle,TAG_2.5BOLDITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC BLUE
+59,TextStyle,TAG_2.5BOLDITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC GREEN
+60,TextStyle,TAG_2.5BOLDITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC RED
+61,TextStyle,TAG_2.5BOLDITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC ORANGE
+62,TextStyle,TAG_2.5BOLDITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC PURPLE
+63,TextStyle,TAG_2.5BOLDITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC GREY
+64,TextStyle,TAG_2.5BOLDITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC WHITE
+65,TextStyle,TAG_3NOM_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM BLACK
+66,TextStyle,TAG_3NOM_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM BLUE
+67,TextStyle,TAG_3NOM_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM GREEN
+68,TextStyle,TAG_3NOM_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM RED
+69,TextStyle,TAG_3NOM_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM ORANGE
+70,TextStyle,TAG_3NOM_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM PURPLE
+71,TextStyle,TAG_3NOM_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM GREY
+72,TextStyle,TAG_3NOM_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM WHITE
+73,TextStyle,TAG_3BOLD_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD BLACK
+74,TextStyle,TAG_3BOLD_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD BLUE
+75,TextStyle,TAG_3BOLD_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD GREEN
+76,TextStyle,TAG_3BOLD_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD RED
+77,TextStyle,TAG_3BOLD_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD ORANGE
+78,TextStyle,TAG_3BOLD_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD PURPLE
+79,TextStyle,TAG_3BOLD_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD GREY
+80,TextStyle,TAG_3BOLD_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD WHITE
+81,TextStyle,TAG_3ITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC BLACK
+82,TextStyle,TAG_3ITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC BLUE
+83,TextStyle,TAG_3ITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC GREEN
+84,TextStyle,TAG_3ITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC RED
+85,TextStyle,TAG_3ITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC ORANGE
+86,TextStyle,TAG_3ITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC PURPLE
+87,TextStyle,TAG_3ITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC GREY
+88,TextStyle,TAG_3ITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC WHITE
+89,TextStyle,TAG_3BOLDITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC BLACK
+90,TextStyle,TAG_3BOLDITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC BLUE
+91,TextStyle,TAG_3BOLDITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC GREEN
+92,TextStyle,TAG_3BOLDITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC RED
+93,TextStyle,TAG_3BOLDITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC ORANGE
+94,TextStyle,TAG_3BOLDITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC PURPLE
+95,TextStyle,TAG_3BOLDITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC GREY
+96,TextStyle,TAG_3BOLDITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC WHITE
+97,TextStyle,TAG_3.5NOM_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM BLACK
+98,TextStyle,TAG_3.5NOM_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM BLUE
+99,TextStyle,TAG_3.5NOM_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM GREEN
+100,TextStyle,TAG_3.5NOM_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM RED
+101,TextStyle,TAG_3.5NOM_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM ORANGE
+102,TextStyle,TAG_3.5NOM_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM PURPLE
+103,TextStyle,TAG_3.5NOM_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM GREY
+104,TextStyle,TAG_3.5NOM_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM WHITE
+105,TextStyle,TAG_3.5BOLD_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD BLACK
+106,TextStyle,TAG_3.5BOLD_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD BLUE
+107,TextStyle,TAG_3.5BOLD_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD GREEN
+108,TextStyle,TAG_3.5BOLD_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD RED
+109,TextStyle,TAG_3.5BOLD_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD ORANGE
+110,TextStyle,TAG_3.5BOLD_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD PURPLE
+111,TextStyle,TAG_3.5BOLD_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD GREY
+112,TextStyle,TAG_3.5BOLD_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD WHITE
+113,TextStyle,TAG_3.5ITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC BLACK
+114,TextStyle,TAG_3.5ITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC BLUE
+115,TextStyle,TAG_3.5ITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC GREEN
+116,TextStyle,TAG_3.5ITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC RED
+117,TextStyle,TAG_3.5ITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC ORANGE
+118,TextStyle,TAG_3.5ITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC PURPLE
+119,TextStyle,TAG_3.5ITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC GREY
+120,TextStyle,TAG_3.5ITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC WHITE
+121,TextStyle,TAG_3.5BOLDITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC BLACK
+122,TextStyle,TAG_3.5BOLDITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC BLUE
+123,TextStyle,TAG_3.5BOLDITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC GREEN
+124,TextStyle,TAG_3.5BOLDITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC RED
+125,TextStyle,TAG_3.5BOLDITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC ORANGE
+126,TextStyle,TAG_3.5BOLDITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC PURPLE
+127,TextStyle,TAG_3.5BOLDITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC GREY
+128,TextStyle,TAG_3.5BOLDITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC WHITE
 129,TierGate,TAG_PARA_STATE_1_BOOL,TEXT,Yes,Common,Switch,Shows tier 1 rows when true (depth N enables 1..N cumulatively)
 130,TierGate,TAG_PARA_STATE_2_BOOL,TEXT,No,Common,Switch,Shows tier 2 rows when true (depth N enables 1..N cumulatively)
 131,TierGate,TAG_PARA_STATE_3_BOOL,TEXT,No,Common,Switch,Shows tier 3 rows when true (depth N enables 1..N cumulatively)
@@ -163,16 +163,17 @@
 138,TierGate,TAG_PARA_STATE_10_BOOL,TEXT,No,Common,Switch,Shows tier 10 rows when true (depth N enables 1..N cumulatively)
 139,Warning,TAG_WARN_VISIBLE_BOOL,TEXT,0,Common,Switch,Shows threshold warnings on the tag
 140,Warning,TAG_WARN_SEVERITY_FILTER_TXT,TEXT,HIGH,Common,Filter,Minimum warning severity to show (LOW | MEDIUM | HIGH | CRITICAL)
-141,Box,TAG_BOX_VISIBLE_BOOL,YESNO,No,Common,Switch,Shows a border box around the tag
-142,Box,TAG_BOX_WEIGHT_INT,INTEGER,2,Common,Style,Border line weight (1–16)
-143,Leader,TAG_LEADER_VISIBLE_BOOL,YESNO,No,Common,Switch,Shows the leader line
-144,Leader,TAG_LEADER_ATTACH_BOOL,YESNO,Yes,Common,Switch,Attaches leader end to element
-145,Leader,TAG_LEADER_ELBOW_BOOL,YESNO,Yes,Common,Switch,Adds an elbow bend to the leader
-146,Scale,TAG_SCALE_OVERRIDE_BOOL,YESNO,No,Common,Switch,Enables manual scale override
-147,Scale,TAG_SCALE_FACTOR_TXT,TEXT,1.0,Common,Value,Scale multiplier when override is active
-148,Box,TAG_BOX_COLOR_TXT,TEXT,000000,Common,Style,Border colour as RRGGBB hex string
-149,Leader,TAG_LEADER_COLOR_TXT,TEXT,000000,Common,Style,Leader colour as RRGGBB hex string
-150,TextStyle,TAG_ACTIVE_STYLE_TXT,TEXT,,Common,Cache,Last-written style key (e.g. 3NOM_BLACK) for drift detection
+141,Box,TAG_BOX_COLOR_R_INT,INTEGER,0,Common,Colour,Tag box colour — red channel 0-255
+142,Box,TAG_BOX_COLOR_G_INT,INTEGER,0,Common,Colour,Tag box colour — green channel 0-255
+143,Box,TAG_BOX_COLOR_B_INT,INTEGER,0,Common,Colour,Tag box colour — blue channel 0-255
+144,Box,TAG_BOX_VISIBLE_BOOL,YESNO,1,Common,Switch,Shows / hides the tag box
+145,Box,TAG_BOX_STYLE_TXT,TEXT,SOLID,Common,Style,Tag box style (SOLID | DASHED | NONE | ROUND)
+146,Leader,TAG_LEADER_COLOR_R_INT,INTEGER,0,Common,Colour,Leader colour — red channel 0-255
+147,Leader,TAG_LEADER_COLOR_G_INT,INTEGER,0,Common,Colour,Leader colour — green channel 0-255
+148,Leader,TAG_LEADER_COLOR_B_INT,INTEGER,0,Common,Colour,Leader colour — blue channel 0-255
+149,Scale,TAG_SCALE_TIER_AUTO_BOOL,YESNO,1,Common,Switch,Auto-compute depth tier from view scale
+150,Scale,TAG_DEPTH_TIER_INT,INTEGER,3,Common,Cache,Current depth tier (cached for fast redraw)
+
 # End of TAG STYLE PARAMETER CATALOG — 150 parameters
 TAG_FAMILY,STING - Clinical Room Tag,H,Rooms,1,CLN_ROOM_CLASS_TXT,Clinical room class label
 TAG_FAMILY,STING - Pressure Regime Tag,H,Rooms,1,CLN_PRESS_REGIME_TXT,Pressure cascade arrow + Δp
@@ -293,3 +294,33 @@ TAG_FAMILY,STING - Dosimetry Post Tag,RP,Generic Models,0,RAD_DOSE_DESIGN_GOAL_T
 31,MEDIUM,WARN_CLN_RF_SHIELD_UNSPECIFIED,MRI Faraday cage panel has no RF shielding method specified,IEC 60601-2-33,RP,Text,⚠ Warning: RF Shield Method Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_RF_SHIELD_UNSPECIFIED, """")"
 # Structural load (StructuralLoadValidator — for heavy imaging equipment)
 32,HIGH,WARN_CEQ_IMAGING_STRUCT_LOAD,Imaging equipment slab load not verified against structural model,AISC / BS EN 1991-1-1,RP,Text,⚠ Warning: Imaging Structural Load Unverified,"if(TAG_WARN_VISIBLE_BOOL, WARN_CEQ_IMAGING_STRUCT_LOAD, """")"
+# ─── Phase 184l: declarations align with newly-added shared params ─────────
+33,HIGH,WARN_CLN_PRESS_REGIME_MISSING,CLN_PRESS_REGIME_TXT empty,HTM 03-01,H,Text,⚠ Warning: Pressure Regime Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_PRESS_REGIME_MISSING, """")"
+34,HIGH,WARN_CLN_PRESS_DELTA_LOW,CLN_PRESS_DELTA_DESIGN_PA_NR < 5 Pa,HTM 03-01,H,Text,⚠ Warning: Pressure Delta < 5 Pa,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_PRESS_DELTA_LOW, """")"
+35,HIGH,WARN_CLN_LIGATURE_REQUIRED,Mental-health area but CLN_LIGATURE_RES_BOOL=0,HBN 03-01,H,Text,⚠ Warning: Anti-Ligature Not Certified,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_LIGATURE_REQUIRED, """")"
+36,HIGH,WARN_CLN_RAD_NO_SHIELDING,Rad controlled but no lead/barrier,NCRP 147,H,Text,⚠ Warning: Radiation Controlled - No Shielding,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_RAD_NO_SHIELDING, """")"
+37,HIGH,WARN_CLN_MRI_ZONE_MISSING,MRI area but CLN_MRI_ZONE_INT=0,ACR / IPEM 75,H,Text,⚠ Warning: MRI Zone Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_MRI_ZONE_MISSING, """")"
+38,HIGH,WARN_CLN_RF_SHIELD_NO_ZONE,RF_SHIELD=1 but MRI_ZONE<3,IEC 60601-2-33,H,Text,⚠ Warning: RF Shield ≠ Zone,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_RF_SHIELD_NO_ZONE, """")"
+39,HIGH,WARN_CLN_NOISE_EXCEEDS_TARGET,CLN_NOISE_NR_NR > HBN target,HTM 08-01 / HBN 00,H,Text,⚠ Warning: Noise Exceeds Target,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_NOISE_EXCEEDS_TARGET, """")"
+40,HIGH,WARN_CLN_RT60_OUT_OF_RANGE,CLN_RT60_TARGET_S_NR outside HBN range,HBN 00-09,H,Text,⚠ Warning: RT60 Out of Range,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_RT60_OUT_OF_RANGE, """")"
+41,HIGH,WARN_CLN_ROOM_CLASS_MISSING,CLN_ROOM_CLASS_TXT empty,HBN,H,Text,⚠ Warning: Room Class Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_ROOM_CLASS_MISSING, """")"
+42,HIGH,WARN_CLN_INFECT_CLASS_MISSING,CLN_INFECT_CLASS_TXT empty,HTM 03-01 / CDC,H,Text,⚠ Warning: Infection Class Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_INFECT_CLASS_MISSING, """")"
+43,HIGH,WARN_CLN_FLOOR_LOAD_INSUFFICIENT,CLN_FLOOR_LOAD_KN_M2_NR < required,BS EN 1991-1-1,H,Text,⚠ Warning: Floor Load Insufficient,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_FLOOR_LOAD_INSUFFICIENT, """")"
+44,HIGH,WARN_CLN_STRUCT_NOT_SIGNED_OFF,CLN_STRUCT_SIGN_OFF_TXT empty,BS EN 1991,H,Text,⚠ Warning: Structural Sign-Off Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_STRUCT_NOT_SIGNED_OFF, """")"
+45,HIGH,WARN_CLN_NURSECALL_MISSING,Care area but CLN_NURSECALL_TYPE_TXT empty,HTM 08-03,H,Text,⚠ Warning: Nurse-Call Type Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_NURSECALL_MISSING, """")"
+46,HIGH,WARN_CLN_HBN_REF_MISSING,CLN_HBN_REF_TXT empty,HBN,H,Text,⚠ Warning: HBN Reference Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CLN_HBN_REF_MISSING, """")"
+47,HIGH,WARN_MGS_PRESSURE_BELOW_CODE,MGS_NOM_PRESS_KPA_NR < code minimum,HTM 02-01 / NFPA 99,MG,Text,⚠ Warning: MGPS Pressure Below Code,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_PRESSURE_BELOW_CODE, """")"
+48,HIGH,WARN_MGS_FLOW_MISSING,MGS_DESIGN_FLOW_LPM_NR empty on TU,HTM 02-01,MG,Text,⚠ Warning: MGPS Flow Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_FLOW_MISSING, """")"
+49,HIGH,WARN_MGS_DIVERSITY_HIGH,MGS_DIVERSITY_PCT_NR > NFPA 99 §5.1.13,NFPA 99 §5.1.13,MG,Text,⚠ Warning: MGPS Diversity High,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_DIVERSITY_HIGH, """")"
+50,HIGH,WARN_MGS_TU_NOT_BS5682,MGS_TU_BS5682_BOOL=0,BS EN ISO 9170-1,MG,Text,⚠ Warning: TU Not BS 5682 Certified,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_TU_NOT_BS5682, """")"
+51,HIGH,WARN_MGS_TU_NOT_INDEXED,MGS_TU_INDEXED_BOOL=0,NIST gas-specific,MG,Text,⚠ Warning: TU Not Gas-Indexed,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_TU_NOT_INDEXED, """")"
+52,HIGH,WARN_MGS_VERIFY_OVERDUE,MGS_VERIFY_DT > 12 months ago,HTM 02-01 §15,MG,Text,⚠ Warning: MGPS Re-Verification Overdue,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_VERIFY_OVERDUE, """")"
+53,CRITICAL,WARN_MGS_PIPE_NOT_BRAZED,MGS_PIPE_BRAZED_BOOL=0,HTM 02-01 §10,MG,Text,⚠ Warning: MGPS Pipe Not Brazed,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_PIPE_NOT_BRAZED, """")"
+54,HIGH,WARN_MGS_AAP_REF_MISSING,AAP without MGS_AAP_REF_TXT,HTM 02-01,MG,Text,⚠ Warning: AAP Reference Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_AAP_REF_MISSING, """")"
+55,HIGH,WARN_MGS_ZVB_REF_MISSING,ZVB without MGS_ZVB_REF_TXT,HTM 02-01,MG,Text,⚠ Warning: ZVB Reference Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_MGS_ZVB_REF_MISSING, """")"
+56,HIGH,WARN_CEQ_CATEGORY_MISSING,CEQ_CATEGORY_TXT empty on medical equip,COBie healthcare,H,Text,⚠ Warning: CEQ Category Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CEQ_CATEGORY_MISSING, """")"
+57,HIGH,WARN_CEQ_DECON_METHOD_MISSING,Reusable equip but CEQ_DECON_METHOD_TXT empty,HTM 01-01,H,Text,⚠ Warning: Decon Method Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CEQ_DECON_METHOD_MISSING, """")"
+58,HIGH,WARN_CEQ_ENDO_REPRO_OVERDUE,CEQ_ENDO_LAST_REPRO_DT > AER cycle,HTM 01-06,H,Text,⚠ Warning: Endoscope Repro Overdue,"if(TAG_WARN_VISIBLE_BOOL, WARN_CEQ_ENDO_REPRO_OVERDUE, """")"
+59,HIGH,WARN_CEQ_SFG20_REF_MISSING,Asset without CEQ_SFG20_REF_TXT,SFG20,H,Text,⚠ Warning: SFG20 Reference Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CEQ_SFG20_REF_MISSING, """")"
+60,HIGH,WARN_PRJ_HEALTH_QE_MISSING,PRJ_ORG_HEALTH_QE_TXT empty,IPEM 75,H,Text,⚠ Warning: Healthcare QE Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_PRJ_HEALTH_QE_MISSING, """")"
+61,CRITICAL,WARN_PRJ_HEALTH_FACILITY_TYPE_MISSING,PRJ_ORG_HEALTH_FACILITY_TYPE_TXT empty,HBN / FGI,H,Text,⚠ Warning: Facility Type Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_PRJ_HEALTH_FACILITY_TYPE_MISSING, """")"
