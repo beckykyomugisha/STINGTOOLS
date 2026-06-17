@@ -1444,12 +1444,12 @@ Generic Models,TAG_BOX_PADDING_MM,700f66dd-5fb4-56d4-b160-131462898bc9,NUMBER,ST
 Generic Models,TAG_LEADER_ARROW_STYLE_TEXT,e673009f-bfbc-59e9-b05f-1d1aa970cb51,TEXT,STINGTags_ISO19650,Type,Leader arrowhead style (Filled/Open/Dot/None),False,,,MULTI,1,0
 Generic Models,TAG_LEADER_ELBOW_TYPE_TEXT,6474a716-f0ab-59d3-9379-2b4760ba13d5,TEXT,STINGTags_ISO19650,Type,Leader elbow type (Straight/45deg/90deg/Free),False,,,MULTI,1,0
 Generic Models,TAG_LEADER_LINE_WEIGHT,f6ce6f37-83ee-5884-a33f-ee468978517e,INTEGER,STINGTags_ISO19650,Type,Leader line weight (1-16),False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_A_BOOL,a8194ccf-05ae-5eb4-87b5-38bacb4324fe,YESNO,STINGTags_ISO19650,Type,TAG7 Section A (Identity) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_B_BOOL,b561a313-f873-5648-a127-3e917b5f5dd0,YESNO,STINGTags_ISO19650,Type,TAG7 Section B (System) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_C_BOOL,0e535d1a-d2eb-5b15-b954-360ad46e1a57,YESNO,STINGTags_ISO19650,Type,TAG7 Section C (Spatial) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_D_BOOL,74f5360e-4107-539f-af72-38389e7b64bd,YESNO,STINGTags_ISO19650,Type,TAG7 Section D (Lifecycle) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_E_BOOL,fdb2ccfa-6128-545c-8b6c-6a656d418948,YESNO,STINGTags_ISO19650,Type,TAG7 Section E (Technical) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_7_SECTION_VISIBLE_F_BOOL,329929ad-5f26-5d15-98b2-54604ecda858,YESNO,STINGTags_ISO19650,Type,TAG7 Section F (Classification) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_A_BOOL,a8194ccf-05ae-5eb4-87b5-38bacb4324fe,TEXT,STINGTags_ISO19650,Type,TAG7 Section A (Identity) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_B_BOOL,b561a313-f873-5648-a127-3e917b5f5dd0,TEXT,STINGTags_ISO19650,Type,TAG7 Section B (System) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_C_BOOL,0e535d1a-d2eb-5b15-b954-360ad46e1a57,TEXT,STINGTags_ISO19650,Type,TAG7 Section C (Spatial) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_D_BOOL,74f5360e-4107-539f-af72-38389e7b64bd,TEXT,STINGTags_ISO19650,Type,TAG7 Section D (Lifecycle) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_E_BOOL,fdb2ccfa-6128-545c-8b6c-6a656d418948,TEXT,STINGTags_ISO19650,Type,TAG7 Section E (Technical) visibility flag,False,,,MULTI,1,0
+Generic Models,TAG_7_SECTION_VISIBLE_F_BOOL,329929ad-5f26-5d15-98b2-54604ecda858,TEXT,STINGTags_ISO19650,Type,TAG7 Section F (Classification) visibility flag,False,,,MULTI,1,0
 Generic Models,TAG_PARA_STATE_4_BOOL,3ac69694-7584-5ba2-9bce-4d045ca21088,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 4,False,,,MULTI,1,0
 Generic Models,TAG_PARA_STATE_5_BOOL,c9045501-eee6-54ce-b725-3ea589ee8025,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 5,False,,,MULTI,1,0
 Generic Models,TAG_PARA_STATE_6_BOOL,9b913556-ac00-5a04-b53c-1e262498ad1d,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 6,False,,,MULTI,1,0
