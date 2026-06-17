@@ -1438,15 +1438,28 @@ namespace StingTools.Tags
                         // already cleaned the HOST project document.
                         string tempSeedPath = null;
                         string pathToLoad = seedPath;
+                        bool skipSeedDueToConflict = false;
                         try
                         {
                             tempSeedPath = ReconcileSeedFamilyToTemp(app, seedPath, sharedParamFile);
-                            if (!string.IsNullOrEmpty(tempSeedPath))
-                                pathToLoad = tempSeedPath;
+                            if (tempSeedPath == null)
+                                pathToLoad = seedPath; // no spec conflicts — use original
+                            else if (tempSeedPath == string.Empty)
+                                skipSeedDueToConflict = true; // conflicts exist but can't be fixed
+                            else
+                                pathToLoad = tempSeedPath; // use cleaned copy
                         }
                         catch (Exception rsEx)
                         {
                             StingLog.Warn($"Seed pre-reconcile for '{catDisplay}': {rsEx.Message} — loading original");
+                        }
+
+                        if (skipSeedDueToConflict)
+                        {
+                            report.AppendLine($"  [SKIP] {catDisplay} — seed has unresolvable parameter type conflicts (Integer vs Yes/No), skipping");
+                            failed++;
+                            failures.Add($"{catDisplay}: seed parameter type conflicts cannot be resolved");
+                            continue;
                         }
 
                         bool seedLoaded;
@@ -1456,7 +1469,9 @@ namespace StingTools.Tags
                         }
                         finally
                         {
-                            if (tempSeedPath != null && File.Exists(tempSeedPath))
+                            // tempSeedPath is "" when unresolvable (handled above by continue)
+                            // so IsNullOrEmpty guards against trying to File.Delete("")
+                            if (!string.IsNullOrEmpty(tempSeedPath) && File.Exists(tempSeedPath))
                                 try { File.Delete(tempSeedPath); } catch { }
                         }
 
@@ -1486,18 +1501,66 @@ namespace StingTools.Tags
                         bool hasParams = VerifyFamilyHasParams(app, outputPath);
                         if (hasParams)
                         {
-                            if (LoadFamilyIntoProject(doc, outputPath, famName))
+                            // Pre-reconcile: families built before the _BOOL params were
+                            // changed from INTEGER to YESNO in MR_PARAMETERS.txt will have
+                            // stale Integer SharedParameterElements that must be stripped
+                            // before loading, otherwise doc.LoadFamily posts a non-catchable
+                            // "conflicts with existing … type Integer" failure.
+                            string tempOutPath = null;
+                            string pathToLoadOut = outputPath;
+                            bool outNeedsRecreate = false;
+                            try
                             {
-                                report.AppendLine($"  [LOAD] {catDisplay} — loaded from existing .rfa");
-                                loaded++;
+                                string reconResult = ReconcileSeedFamilyToTemp(app, outputPath, sharedParamFile);
+                                if (reconResult == null)
+                                    pathToLoadOut = outputPath; // no conflicts — use as-is
+                                else if (reconResult == string.Empty)
+                                    outNeedsRecreate = true; // unresolvable — delete and rebuild
+                                else
+                                {
+                                    tempOutPath = reconResult;
+                                    pathToLoadOut = reconResult;
+                                }
+                            }
+                            catch (Exception rsEx)
+                            {
+                                StingLog.Warn($"Output pre-reconcile for '{catDisplay}': {rsEx.Message} — loading original");
+                            }
+
+                            if (outNeedsRecreate)
+                            {
+                                StingLog.Warn($"Output family has unresolvable param type conflicts — " +
+                                    $"deleting to recreate: {outputPath}");
+                                try { File.Delete(outputPath); }
+                                catch (Exception delEx) { StingLog.Warn($"Cannot delete {outputPath}: {delEx.Message}"); }
+                                // fall through to template-based creation below
                             }
                             else
                             {
-                                report.AppendLine($"  [FAIL] {catDisplay} — load failed");
-                                failed++;
-                                failures.Add($"{catDisplay}: family load failed");
+                                bool outLoaded;
+                                try
+                                {
+                                    outLoaded = LoadFamilyIntoProject(doc, pathToLoadOut, famName);
+                                }
+                                finally
+                                {
+                                    if (!string.IsNullOrEmpty(tempOutPath) && File.Exists(tempOutPath))
+                                        try { File.Delete(tempOutPath); } catch { }
+                                }
+
+                                if (outLoaded)
+                                {
+                                    report.AppendLine($"  [LOAD] {catDisplay} — loaded from existing .rfa");
+                                    loaded++;
+                                }
+                                else
+                                {
+                                    report.AppendLine($"  [FAIL] {catDisplay} — load failed");
+                                    failed++;
+                                    failures.Add($"{catDisplay}: family load failed");
+                                }
+                                continue;
                             }
-                            continue;
                         }
                         else
                         {
@@ -2385,6 +2448,7 @@ namespace StingTools.Tags
 
                 // Strip mismatched FamilyParameters then delete the stale SPEs.
                 FamilyManager famMan = famDoc.FamilyManager;
+                bool anyRemovalFailed = false;
                 using (Transaction tx = new Transaction(famDoc, "STING Reconcile Seed Params"))
                 {
                     tx.Start();
@@ -2410,11 +2474,28 @@ namespace StingTools.Tags
                         }
                         catch (Exception ex)
                         {
+                            anyRemovalFailed = true;
                             StingLog.Warn($"Cannot remove SPE in seed " +
                                 $"'{Path.GetFileName(seedPath)}': {ex.Message}");
                         }
                     }
                     tx.Commit();
+                }
+
+                if (anyRemovalFailed)
+                {
+                    // One or more Integer SPEs could not be removed (typically because the
+                    // corresponding FamilyParameter is referenced by a label formula and
+                    // Revit refuses to delete it). Saving a partially-cleaned family would
+                    // cause the same spec-conflict failure when it is loaded into the
+                    // project. Return the empty-string sentinel so the caller can skip
+                    // this family rather than loading a still-broken file.
+                    StingLog.Warn($"Seed '{Path.GetFileName(seedPath)}': " +
+                        $"{mismatched.Count} mismatched SPE(s) found but not all could be " +
+                        $"removed — aborting temp save, caller will skip this seed");
+                    famDoc.Close(false);
+                    famDoc = null;
+                    return string.Empty; // sentinel: conflicts exist but cannot be fixed
                 }
 
                 // Save the cleaned family to a unique temp file (never overwrite the
