@@ -235,10 +235,10 @@ ASS_TAG_7F_TXT,F,Classification & Reference,"Uniformat code | OmniClass code | K
 ## TAG7 PARAGRAPH DEPTH CONTROL
 SECTION,TAG7_PARAGRAPH_DEPTH
 PARAMETER,TYPE,DESCRIPTION,MANUAL_INPUT_GUIDE
-TAG_PARA_STATE_1_BOOL,YESNO,Compact mode — shows Identity Header (A) only,"Set to 1 for minimal tag display. Suitable for small-scale drawings."
-TAG_PARA_STATE_2_BOOL,YESNO,Standard mode — shows Identity (A) + System (B),"Set to 1 for standard engineering drawings."
-TAG_PARA_STATE_3_BOOL,YESNO,Comprehensive mode — shows all sections (A-F),"Set to 1 for detailed documentation and asset registers."
-TAG_WARN_VISIBLE_BOOL,YESNO,Show/hide warning indicators in tags,"Set to 1 to display ISO 19650 compliance warnings in tag annotations."
+TAG_PARA_STATE_1_BOOL,TEXT,Compact mode — shows Identity Header (A) only,"Set to 1 for minimal tag display. Suitable for small-scale drawings."
+TAG_PARA_STATE_2_BOOL,TEXT,Standard mode — shows Identity (A) + System (B),"Set to 1 for standard engineering drawings."
+TAG_PARA_STATE_3_BOOL,TEXT,Comprehensive mode — shows all sections (A-F),"Set to 1 for detailed documentation and asset registers."
+TAG_WARN_VISIBLE_BOOL,TEXT,Show/hide warning indicators in tags,"Set to 1 to display ISO 19650 compliance warnings in tag annotations."
 TAG_WARN_SEVERITY_FILTER_TXT,TEXT,Warning severity filter,"Enter: CRITICAL, HIGH, MEDIUM, or ALL to control which warnings display."
 ##
 ## TAG7 PRESENTATION MODES
@@ -255,17 +255,17 @@ BOQ,A + E + F,State 2,"Bill of Quantities extraction. Identity + specs + cost cl
 ## ═══════════════════════════════════════════════════════════════════════════════
 SECTION,VISIBILITY_PARAMETERS
 PARAMETER,TYPE,DESCRIPTION,STATUS,MANUAL_INPUT_GUIDE
-TAG_PARA_STATE_1_BOOL,YESNO,Paragraph depth: compact (State 1 only),EXISTING,"Set via Presentation Mode command or manually. 1=enabled."
-TAG_PARA_STATE_2_BOOL,YESNO,Paragraph depth: standard (States 1+2),EXISTING,"Set via Presentation Mode command or manually."
-TAG_PARA_STATE_3_BOOL,YESNO,Paragraph depth: comprehensive (States 1+2+3),EXISTING,"Set via Presentation Mode command or manually."
-TAG_WARN_VISIBLE_BOOL,YESNO,Enable/disable warning text in tags,EXISTING,"1 to show ISO compliance warnings in tag annotations."
+TAG_PARA_STATE_1_BOOL,TEXT,Paragraph depth: compact (State 1 only),EXISTING,"Set via Presentation Mode command or manually. 1=enabled."
+TAG_PARA_STATE_2_BOOL,TEXT,Paragraph depth: standard (States 1+2),EXISTING,"Set via Presentation Mode command or manually."
+TAG_PARA_STATE_3_BOOL,TEXT,Paragraph depth: comprehensive (States 1+2+3),EXISTING,"Set via Presentation Mode command or manually."
+TAG_WARN_VISIBLE_BOOL,TEXT,Enable/disable warning text in tags,EXISTING,"1 to show ISO compliance warnings in tag annotations."
 TAG_WARN_SEVERITY_FILTER_TXT,TEXT,Warning filter: CRITICAL/HIGH/MEDIUM/ALL,EXISTING,"Filter warning display by severity level."
-TAG_7_SECTION_VISIBLE_A_BOOL,YESNO,Show/hide TAG7 Section A (Identity Header),PROPOSED,"Independent control for Identity section visibility. Add to MR_PARAMETERS.txt."
-TAG_7_SECTION_VISIBLE_B_BOOL,YESNO,Show/hide TAG7 Section B (System & Function),PROPOSED,"Independent control for System section visibility."
-TAG_7_SECTION_VISIBLE_C_BOOL,YESNO,Show/hide TAG7 Section C (Spatial Context),PROPOSED,"Independent control for Spatial section visibility."
-TAG_7_SECTION_VISIBLE_D_BOOL,YESNO,Show/hide TAG7 Section D (Lifecycle & Status),PROPOSED,"Independent control for Lifecycle section visibility."
-TAG_7_SECTION_VISIBLE_E_BOOL,YESNO,Show/hide TAG7 Section E (Technical Specs),PROPOSED,"Independent control for Technical section visibility."
-TAG_7_SECTION_VISIBLE_F_BOOL,YESNO,Show/hide TAG7 Section F (Classification),PROPOSED,"Independent control for Classification section visibility."
+TAG_7_SECTION_VISIBLE_A_BOOL,TEXT,Show/hide TAG7 Section A (Identity Header),PROPOSED,"Independent control for Identity section visibility. Add to MR_PARAMETERS.txt."
+TAG_7_SECTION_VISIBLE_B_BOOL,TEXT,Show/hide TAG7 Section B (System & Function),PROPOSED,"Independent control for System section visibility."
+TAG_7_SECTION_VISIBLE_C_BOOL,TEXT,Show/hide TAG7 Section C (Spatial Context),PROPOSED,"Independent control for Spatial section visibility."
+TAG_7_SECTION_VISIBLE_D_BOOL,TEXT,Show/hide TAG7 Section D (Lifecycle & Status),PROPOSED,"Independent control for Lifecycle section visibility."
+TAG_7_SECTION_VISIBLE_E_BOOL,TEXT,Show/hide TAG7 Section E (Technical Specs),PROPOSED,"Independent control for Technical section visibility."
+TAG_7_SECTION_VISIBLE_F_BOOL,TEXT,Show/hide TAG7 Section F (Classification),PROPOSED,"Independent control for Classification section visibility."
 ##
 ## ═══════════════════════════════════════════════════════════════════════════════
 ## SHEET 11: MANUAL INPUT PARAMETERS — All User-Editable Fields

@@ -20090,7 +20090,7 @@
       "param_name": "CLN_HOIST_TRACK_BOOL",
       "guid": "c8d4f6e2-a017-4d27-8c61-0e7a3f9b0017",
       "description": "Ceiling-hoist track installed",
-      "datatype": "YESNO",
+      "datatype": "TEXT",
       "group_id": 28,
       "group_name": "CLN_CLINICAL",
       "binding": "universal",
