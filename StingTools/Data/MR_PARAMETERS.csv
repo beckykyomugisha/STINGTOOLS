@@ -977,10 +977,10 @@ Generic Models,ASS_PROJECT_COD_TXT,24bc19e4-8ec6-4d4c-b457-5e14a1f42e58,TEXT,STI
 Generic Models,ASS_ORIGINATOR_COD_TXT,87dc564e-8542-497d-a36f-ee335fd32bd4,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
 Generic Models,ASS_VOLUME_COD_TXT,4f51f371-c2b1-43f5-9dea-da797442c1fb,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
 Generic Models,ASS_REV_COD_TXT,83b2139d-67bb-48db-a50f-32140c0dc753,TEXT,STINGTags_ISO19650,Type,ISO 19650 revision code token in the tag container system (GROUP 17). Written by the tag pipeline. See also ASS_REV_TXT (GROUP 1) for the display revision label.,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_1_BOOL,e26e01ef-33d8-5a57-9ab7-fa30faa4ceff,YESNO,STINGTags_ISO19650,Type,Compact mode (tier 1 only) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_2_BOOL,b1080057-9890-5a0c-959a-46fb8847c766,YESNO,STINGTags_ISO19650,Type,Standard mode (tiers 1+2) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_3_BOOL,825a73c0-4b3b-5474-8db5-f54072ff40b8,YESNO,STINGTags_ISO19650,Type,Comprehensive mode (tiers 1+2+3) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,YESNO,STINGTags_ISO19650,Type,Enable/disable warning text in tags [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_1_BOOL,e26e01ef-33d8-5a57-9ab7-fa30faa4ceff,TEXT,STINGTags_ISO19650,Type,Compact mode (tier 1 only) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_2_BOOL,b1080057-9890-5a0c-959a-46fb8847c766,TEXT,STINGTags_ISO19650,Type,Standard mode (tiers 1+2) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_3_BOOL,825a73c0-4b3b-5474-8db5-f54072ff40b8,TEXT,STINGTags_ISO19650,Type,Comprehensive mode (tiers 1+2+3) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,TEXT,STINGTags_ISO19650,Type,Enable/disable warning text in tags [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,STINGTags_ISO19650,Type,"Filter: CRITICAL, HIGH, MEDIUM, ALL [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,BLE_CEILING_AREA_SQ_M,b2d67f62-bb98-5390-89d7-4f5c5cba97a3,TEXT,BLE_ELES,Type,Ble Ceiling Area Sq M [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CEILING_FIN_TILE_QTY_NR,02e86218-684e-50f6-a23b-d0f517d65766,TEXT,BLE_ELES,Type,Ble Ceiling Fin Tile Qty Nr [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -1450,13 +1450,13 @@ Generic Models,TAG_7_SECTION_VISIBLE_C_BOOL,0e535d1a-d2eb-5b15-b954-360ad46e1a57
 Generic Models,TAG_7_SECTION_VISIBLE_D_BOOL,74f5360e-4107-539f-af72-38389e7b64bd,YESNO,STINGTags_ISO19650,Type,TAG7 Section D (Lifecycle) visibility flag,False,,,MULTI,1,0
 Generic Models,TAG_7_SECTION_VISIBLE_E_BOOL,fdb2ccfa-6128-545c-8b6c-6a656d418948,YESNO,STINGTags_ISO19650,Type,TAG7 Section E (Technical) visibility flag,False,,,MULTI,1,0
 Generic Models,TAG_7_SECTION_VISIBLE_F_BOOL,329929ad-5f26-5d15-98b2-54604ecda858,YESNO,STINGTags_ISO19650,Type,TAG7 Section F (Classification) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_4_BOOL,3ac69694-7584-5ba2-9bce-4d045ca21088,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 4,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_5_BOOL,c9045501-eee6-54ce-b725-3ea589ee8025,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 5,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_6_BOOL,9b913556-ac00-5a04-b53c-1e262498ad1d,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 6,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_7_BOOL,8eb03b28-aaf9-5803-8e87-f0655afbf08d,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 7,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_8_BOOL,dd2f491c-8806-5cd2-bb21-d3b915646070,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 8,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_9_BOOL,482475c4-be76-5db3-87a6-8aac4a53dc74,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 9,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_10_BOOL,8be3ef27-42ab-5668-8cd0-a376578c805a,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 10,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_4_BOOL,3ac69694-7584-5ba2-9bce-4d045ca21088,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 4,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_5_BOOL,c9045501-eee6-54ce-b725-3ea589ee8025,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 5,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_6_BOOL,9b913556-ac00-5a04-b53c-1e262498ad1d,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 6,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_7_BOOL,8eb03b28-aaf9-5803-8e87-f0655afbf08d,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 7,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_8_BOOL,dd2f491c-8806-5cd2-bb21-d3b915646070,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 8,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_9_BOOL,482475c4-be76-5db3-87a6-8aac4a53dc74,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 9,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_10_BOOL,8be3ef27-42ab-5668-8cd0-a376578c805a,TEXT,STINGTags_ISO19650,Type,Paragraph depth state tier 10,False,,,MULTI,1,0
 Generic Models,ASS_MATERIAL_TXT,a1b2c3d4-5001-4a01-b001-000000000101,TEXT,ASS_MNG,Type,Asset material description [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_SUPPLIER_TXT,a1b2c3d4-5002-4a01-b001-000000000102,TEXT,ASS_MNG,Type,Asset supplier name [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_BARCODE_TXT,a1b2c3d4-5003-4a01-b001-000000000103,TEXT,ASS_MNG,Type,Asset barcode identifier [COBie V2.4],False,,,MULTI,1,0
