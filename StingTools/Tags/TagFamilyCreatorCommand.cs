@@ -360,10 +360,10 @@ namespace StingTools.Tags
         {
             (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Pipe)",            "Tie-In Point Tag (Pipe — Plumbing & Hydraulic)"),
             (BuiltInCategory.OST_DuctCurves,     "Duct Tag.rft",                "Tie-In Point (Duct)",            "Tie-In Point Tag (Duct — HVAC)"),
-            (BuiltInCategory.OST_Conduit,        "Conduit Tag.rft",             "Tie-In Point (Conduit)",         "Tie-In Point Tag (Conduit — Electrical LV/ELV)"),
+            (BuiltInCategory.OST_Conduit,        "Conduit Tag.rft",             "Tie-In Point (Conduit)",         "Tie-In Conduit"),
             (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Point Tag (Cable Tray — Electrical)"),
-            (BuiltInCategory.OST_Sprinklers,     "Sprinkler Tag.rft",           "Tie-In Point (Fire Protection)", "Tie-In Point Tag (Fire Protection — Sprinkler / Suppression)"),
-            (BuiltInCategory.OST_GenericModel,    "Generic Tag.rft",             "Tie-In Point (Gas)",             "Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)"),
+            (BuiltInCategory.OST_Sprinklers,     "Sprinkler Tag.rft",           "Tie-In Point (Fire Protection)", "Tie-In Fire Protection"),
+            (BuiltInCategory.OST_GenericModel,    "Generic Tag.rft",             "Tie-In Point (Gas)",             "Tie-In Gas"),
             // Pipe system-specific tie-in variants (from MEP CSV #49, #50)
             (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Fire Protection Pipe)", "Tie-In FP Pipe"),
             (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Gas Pipe)",             "Tie-In Gas Pipe"),
@@ -655,7 +655,14 @@ namespace StingTools.Tags
         }
 
         /// <summary>Generate variant family filename from suffix.</summary>
-        public static string GetTieInFamilyFileName(string suffix) => GetTieInFamilyName(suffix) + ".rfa";
+        /// <remarks>
+        /// Sanitises '/' (Windows-illegal in file names) that appears in verbose
+        /// family names such as "LV/ELV", "Sprinkler / Suppression", and
+        /// "Brace / Truss".  GetTieInFamilyName keeps the '/' so that
+        /// plansByFamily lookups against CSV-declared names still match.
+        /// </remarks>
+        public static string GetTieInFamilyFileName(string suffix)
+            => GetTieInFamilyName(suffix).Replace('/', '-') + ".rfa";
 
         /// <summary>
         /// Resolve a creator-side family name to the CSV-side family name used
