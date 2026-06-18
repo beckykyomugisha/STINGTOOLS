@@ -3308,6 +3308,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                     b.HasIndex("Status");
 
+                    b.HasIndex("TenantId");
+
                     b.HasIndex("ProjectId", "Code")
                         .IsUnique();
 
@@ -4060,6 +4062,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                     b.HasIndex("MeetingId");
 
+                    b.HasIndex("TenantId");
+
                     b.HasIndex("MeetingId", "Status");
 
                     b.ToTable("MeetingActionItems");
@@ -4110,6 +4114,8 @@ namespace Planscape.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(400)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("MeetingId", "OrderIndex");
 
@@ -4164,6 +4170,8 @@ namespace Planscape.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("MeetingId");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("UserId");
 
@@ -7196,6 +7204,8 @@ namespace Planscape.Infrastructure.Data.Migrations
                     b.HasIndex("DocumentId");
 
                     b.HasIndex("SiteDiaryId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("SiteDiaryAttachments");
                 });
