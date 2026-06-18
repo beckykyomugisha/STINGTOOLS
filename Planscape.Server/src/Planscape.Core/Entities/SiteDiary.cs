@@ -95,7 +95,7 @@ public class SiteDiary : ITenantScoped
 /// Join row that links a <see cref="DocumentRecord"/> to a
 /// <see cref="SiteDiary"/> entry — parallel to <see cref="IssueAttachment"/>.
 /// </summary>
-public class SiteDiaryAttachment
+public class SiteDiaryAttachment : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
