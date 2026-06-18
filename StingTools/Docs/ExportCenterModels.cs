@@ -220,6 +220,10 @@ namespace StingTools.Docs
         public bool GenerateReport { get; set; } = true;
         public string ReportFormat { get; set; } = "XLSX";       // XLSX / CSV
         public bool OpenReportWhenDone { get; set; }
+
+        /// <summary>Record per-sheet last-exported revision + path so the
+        /// "Changed Since Last Export" delta set works. On by default.</summary>
+        public bool StampLastExport { get; set; } = true;
     }
 
     /// <summary>Persistent saved selection — names + a list of sheet/view ElementIds (as strings to survive across docs).</summary>
@@ -261,6 +265,18 @@ namespace StingTools.Docs
         public string DefaultSetName { get; set; } = "All Sheets";
     }
 
+    /// <summary>Per-sheet last-export record for the "Changed Since Last Export"
+    /// delta set — keyed by SheetUniqueId + Format, holds the revision exported.</summary>
+    public class SheetExportRecord
+    {
+        public string SheetUniqueId { get; set; }
+        public string SheetNumber { get; set; }
+        public string Revision { get; set; }
+        public string Format { get; set; }
+        public string Path { get; set; }
+        public DateTime ExportedUtc { get; set; } = DateTime.UtcNow;
+    }
+
     /// <summary>A scheduled export job persisted in project_config.json.</summary>
     public class ScheduledExport
     {
@@ -287,6 +303,9 @@ namespace StingTools.Docs
         /// DocumentSaved. Off by default so exported files never appear unexpectedly;
         /// the manual ExportCenterRunSchedulesCommand path is always available.</summary>
         public bool EnableSaveTriggeredSchedules { get; set; }
+        /// <summary>Per-sheet last-export records backing the "Changed Since Last
+        /// Export" delta set; stamped post-run when Output.StampLastExport is on.</summary>
+        public List<SheetExportRecord> LastExports { get; set; } = new();
         public List<string> RecentFolders { get; set; } = new();
         public string LastOutputFolder { get; set; }
         public string LastNamingTemplate { get; set; }
@@ -386,6 +405,7 @@ namespace StingTools.Docs
             S("By Discipline: Structural");
             S("Issued Sheets");
             S("Revised This Week");
+            S("Changed Since Last Export");
             S("Currently Opened");
             return built;
         }
