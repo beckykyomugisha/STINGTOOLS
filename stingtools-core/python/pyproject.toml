@@ -23,7 +23,9 @@ dependencies = []
 [project.optional-dependencies]
 planscape = ["httpx>=0.25"]
 ids       = ["ifctester>=0.0.10"]
-ifc       = ["ifcopenshell>=0.8.0"]
+# Phase A5 — pin to the ifcopenshell major Bonsai bundles (0.8.x); <0.9 keeps
+# the core seam in lockstep with StingBridge/requirements.txt + the manifest.
+ifc       = ["ifcopenshell>=0.8.0,<0.9"]
 realtime  = ["signalrcore>=0.9"]
 dev       = ["pytest>=7", "ruff>=0.4"]
 

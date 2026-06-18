@@ -66,6 +66,13 @@
     <None Update="Data\IFC\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Phase A4 — ship the corporate substrate manifest next to the DLL so
+         SubstrateManifestProvider hashes the SAME file every host compares
+         against. Linked from the single source of truth (shared/ifc/) — never
+         forked — and copied to Data/IFC/Substrate/ at build. -->
+    <Content Include="$(MSBuildThisFileDirectory)..\..\..\shared\ifc\enums\_manifest.json"
+             Link="Data\IFC\Substrate\_manifest.json"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Sync the desktop coordination viewer from the canonical source the

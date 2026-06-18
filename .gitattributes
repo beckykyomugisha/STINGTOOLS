@@ -1,0 +1,15 @@
+# Line-ending policy.
+#
+# The IFC substrate manifest is BYTE-HASHED for cross-host drift detection
+# (stingtools_core/substrate.py + the server's SubstrateManifestProvider).
+# If a Windows checkout (core.autocrlf=true) materialised these files with CRLF
+# while a Linux CI/Docker server saw LF, the two halves would hash differently
+# for byte-identical content and drift forever. We pin the substrate to LF so the
+# on-disk bytes are canonical on every OS — the root-cause fix. (The hashers also
+# LF-normalise as defence in depth; this keeps any *other* byte-hash consumer safe
+# too.)
+#
+# Scoped deliberately to the substrate to avoid a repo-wide renormalisation diff.
+
+shared/ifc/**        text eol=lf
+**/_manifest.json    text eol=lf

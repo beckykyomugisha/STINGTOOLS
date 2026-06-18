@@ -96,7 +96,28 @@ class StingPlanscapeLoginOperator(bpy.types.Operator):
         context.scene[_TOKEN_KEY] = token
         context.scene[_EMAIL_KEY] = p.email
         self.report({"INFO"}, f"Logged in as {resp.get('userName') or p.email}")
+
+        # Phase A4 — substrate drift-check. Warn (never block) if this host
+        # reads a different shared/ifc vocabulary than the server.
+        self._check_substrate_drift(context, client)
         return {"FINISHED"}
+
+    def _check_substrate_drift(self, context, client) -> None:
+        """Compare local substrate hash with the server's; warn on mismatch."""
+        try:
+            from stingtools_core.planscape.client import check_substrate_drift
+        except ImportError:
+            # stingtools-core not importable in this Blender env — skip silently.
+            return
+        try:
+            ok, message = check_substrate_drift(client)
+        except Exception as e:  # noqa: BLE001 — drift-check must never break login
+            print(f"[STING] substrate drift-check skipped: {e}")
+            return
+        if not ok:
+            self.report({"WARNING"}, message)
+            context.scene["sting_substrate_drift"] = message
+        print(f"[STING] substrate: {message}")
 
 
 # ---------------------------------------------------------------------------
