@@ -16,9 +16,13 @@ namespace StingTools.Tags
     /// <remarks>
     /// Scope of work that DOES land here:
     ///   • Bind every shared parameter referenced in the plan's T4..T10 rows.
-    ///   • Apply the CSV-derived <c>if(TAG_PARA_STATE_N_BOOL, PARAM, "")</c>
+    ///   • Apply the CSV-derived <c>if(TAG_PARA_STATE_N_BOOL = "Yes", PARAM, "")</c>
     ///     calculated-value formula on each bound family parameter so tier
-    ///     visibility is gated correctly.
+    ///     visibility is gated correctly. The gate is tested with an explicit
+    ///     <c>= "Yes"</c> because STING stores the BOOL gates as TEXT and a bare
+    ///     TEXT parameter is not a valid Revit <c>if()</c> condition
+    ///     ("Inconsistent Units"). <see cref="TagConfig.GateToken"/> picks the
+    ///     form per storage type (TEXT ⇒ <c>= "Yes"</c>, YESNO ⇒ bare).
     ///   • Honour <c>preserveHandEdits</c>: when any Dimension/TextNote in the
     ///     family has a non-default (non-origin) position we skip formula
     ///     re-writes for the rows that map to that tier, leaving a user's hand
@@ -103,7 +107,9 @@ namespace StingTools.Tags
         /// visibility formula with the entry's <see cref="ModePlan.GateParam"/>.
         /// When a source parameter appears in more than one mode it gets a
         /// single OR-merged formula of the shape
-        /// <c>if(or(and(stateN, gateA), and(stateM, gateB), …), PARAM, "")</c>.
+        /// <c>if(or(and(stateN = "Yes", gateA = "Yes"), and(stateM = "Yes", gateB = "Yes"), …), PARAM, "")</c>
+        /// — each gate carries its storage-type-correct condition form (see
+        /// <see cref="TagConfig.GateToken"/>).
         /// </summary>
         public static Result AuthorLabelsMulti(Document fdoc,
             IEnumerable<ModePlan> modePlans, Options opts)
@@ -302,11 +308,13 @@ namespace StingTools.Tags
 
         // ------------------------------------------------------------------
         // Per-row formula: visibility is gated by TAG_PARA_STATE_N_BOOL; when a
-        // mode gate is supplied the gate becomes and(stateN, modeGate). When
-        // the same source parameter is referenced by multiple (tier, gate)
-        // pairs — which happens when Handover and Design & Construction both
-        // list it — we OR-merge them into a single formula of shape
-        //   if(or(and(stateN, gateA), and(stateM, gateB), …), PARAM, "").
+        // mode gate is supplied the gate becomes and(stateN, modeGate). Each
+        // gate token carries its storage-type-correct condition form via
+        // TagConfig.GateToken — TEXT gates (the v5.3+ default) emit `= "Yes"`,
+        // YESNO gates stay bare. When the same source parameter is referenced by
+        // multiple (tier, gate) pairs — which happens when Handover and Design &
+        // Construction both list it — we OR-merge them into a single formula of
+        // shape if(or(and(stateN="Yes", gateA="Yes"), …), PARAM, "").
         // Rows whose target tier is in preservedTiers are skipped.
         // ------------------------------------------------------------------
         private static void ApplyVisibilityFormulas(Document fdoc,
@@ -315,6 +323,15 @@ namespace StingTools.Tags
         {
             if (flat.Count == 0) return;
 
+            FamilyManager fm = fdoc.FamilyManager;
+
+            // Resolve each gate's condition FORM via its storage type so the
+            // emitted formula never trips Revit's "Inconsistent Units" error.
+            // STING stores TAG_PARA_STATE_*_BOOL + mode-gate BOOLs as TEXT
+            // ("Yes"/"No"), which is NOT a valid bare if()/and()/or() condition —
+            // it must be written as `gate = "Yes"`. TagConfig.GateToken picks the
+            // right form (TEXT ⇒ `= "Yes"`, YESNO ⇒ bare) and self-heals if a
+            // family carries a legacy Integer gate.
             var gatesByParam = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             int skippedRows = 0;
             foreach (var (tier, row, modeGate) in flat)
@@ -323,9 +340,10 @@ namespace StingTools.Tags
                 if (row == null || string.IsNullOrEmpty(row.Parameter)) { skippedRows++; continue; }
 
                 string stateBool = "TAG_PARA_STATE_" + tier + "_BOOL";
+                string stateTok = TagConfig.GateToken(fm, stateBool);
                 string gateExpr = string.IsNullOrEmpty(modeGate)
-                    ? stateBool
-                    : "and(" + stateBool + ", " + modeGate + ")";
+                    ? stateTok
+                    : "and(" + stateTok + ", " + TagConfig.GateToken(fm, modeGate) + ")";
 
                 if (!gatesByParam.TryGetValue(row.Parameter, out var list))
                 {
@@ -335,7 +353,6 @@ namespace StingTools.Tags
                 if (!list.Contains(gateExpr, StringComparer.Ordinal)) list.Add(gateExpr);
             }
 
-            FamilyManager fm = fdoc.FamilyManager;
             using (Transaction tx = new Transaction(fdoc, "STING AuthorLabels — tier formulas"))
             {
                 tx.Start();

@@ -83,11 +83,23 @@ Label using a **Calculated Value** formula that gates visibility via a TEXT-type
 ### The Constraint
 
 **Revit's label formula engine cannot use a YESNO-typed parameter as the condition of
-`if(condition, trueValue, falseValue)`.**
+`if(condition, trueValue, falseValue)`** — *and* it has no truthy-string semantics, so a
+**bare TEXT** parameter is not a valid condition either.
 
-If `TAG_PARA_STATE_2_BOOL` is stored as `YESNO` in MR_PARAMETERS.txt, the Revit Family
-Editor will reject the Calculated Value formula with a cryptic error. The tag compiles but
-displays empty at runtime.
+STING stores all tag-formula gates as TEXT (`"Yes"` / `"No"`) — this is the intentional
+v5.3+ decision that lets the gates be referenced inside label Calculated Values. The
+storage type and the *condition form* must match:
+
+| Gate storage | Condition form in the formula |
+|---|---|
+| **TEXT** (the STING default) | `gate = "Yes"` — explicit comparison |
+| **YESNO** / Integer (legacy) | `gate` — bare token |
+
+A bare TEXT gate (`if(TAG_PARA_STATE_2_BOOL, …)`) raises Revit's **"Inconsistent Units"**
+error and the formula is rejected. Writing `gate = "Yes"` is what makes a TEXT gate a valid
+boolean condition. The emitter (`TagConfig.GateToken`, called from `FamilyLabelAuthor`)
+picks the correct form per storage type automatically, so authored families always get the
+right shape; the manual steps below show what to type if you edit a family by hand.
 
 ### The Fix — Store as TEXT
 
@@ -147,26 +159,30 @@ In the Revit Family Editor, each tier's label row uses a **Calculated Value** wi
 following formula pattern:
 
 ```
-if(TAG_PARA_STATE_N_BOOL, <ParameterName>, "")
+if(TAG_PARA_STATE_N_BOOL = "Yes", <ParameterName>, "")
 ```
 
-The condition must reference a **TEXT**-type parameter (see Section 3). Revit evaluates the
-string `"Yes"` as truthy and any other value (including `"No"` or `""`) as falsy.
+The gate parameter is **TEXT**-typed (see Section 3), and the gate must be tested with an
+explicit `= "Yes"` comparison — Revit has no truthy-string semantics, so a bare TEXT gate
+raises **"Inconsistent Units"** and the formula is rejected. The return value
+(`<ParameterName>`) must also be a TEXT-typed parameter; numeric params there raise the same
+error. If a gate were ever stored as YESNO/Integer it would be written bare (no `= "Yes"`) —
+but the STING default is TEXT.
 
 ### Standard Tier Formulas
 
 | Tier | Calculated Value name | Formula |
 |---|---|---|
-| T2 | `Show Tier 2` | `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, "")` |
-| T3 | `Show Tier 3` | `if(TAG_PARA_STATE_3_BOOL, ASS_TAG_3_TXT, "")` |
-| T4 | `Show Tier 4` | `if(TAG_PARA_STATE_4_BOOL, ASS_COMMISS_DATE_TXT, "")` *(see Section 8)* |
-| T5 | `Show Tier 5` | `if(TAG_PARA_STATE_5_BOOL, CST_UNIT_RATE_TXT, "")` |
-| T6 | `Show Tier 6` | `if(TAG_PARA_STATE_6_BOOL, CRB_A1_A3_KGCO2E_TXT, "")` |
-| T7 | `Show Tier 7` | `if(TAG_PARA_STATE_7_BOOL, ASS_FAB_SPOOL_NR_TXT, "")` |
-| T8 | `Show Tier 8` | `if(TAG_PARA_STATE_8_BOOL, ASS_CLASH_SCORE_TXT, "")` |
-| T9 | `Show Tier 9` | `if(TAG_PARA_STATE_9_BOOL, ASS_ASBUILT_DATE_TXT, "")` |
-| T10 | `Show Tier 10` | `if(TAG_PARA_STATE_10_BOOL, RGL_REF_CODE_TXT, "")` |
-| Warning | `Show Warning` | `if(TAG_WARN_VISIBLE_BOOL, ASS_WARN_TXT, "")` |
+| T2 | `Show Tier 2` | `if(TAG_PARA_STATE_2_BOOL = "Yes", ASS_TAG_2_TXT, "")` |
+| T3 | `Show Tier 3` | `if(TAG_PARA_STATE_3_BOOL = "Yes", ASS_TAG_3_TXT, "")` |
+| T4 | `Show Tier 4` | `if(TAG_PARA_STATE_4_BOOL = "Yes", ASS_COMMISS_DATE_TXT, "")` *(see Section 8)* |
+| T5 | `Show Tier 5` | `if(TAG_PARA_STATE_5_BOOL = "Yes", CST_UNIT_RATE_TXT, "")` |
+| T6 | `Show Tier 6` | `if(TAG_PARA_STATE_6_BOOL = "Yes", CRB_A1_A3_KGCO2E_TXT, "")` |
+| T7 | `Show Tier 7` | `if(TAG_PARA_STATE_7_BOOL = "Yes", ASS_FAB_SPOOL_NR_TXT, "")` |
+| T8 | `Show Tier 8` | `if(TAG_PARA_STATE_8_BOOL = "Yes", ASS_CLASH_SCORE_TXT, "")` |
+| T9 | `Show Tier 9` | `if(TAG_PARA_STATE_9_BOOL = "Yes", ASS_ASBUILT_DATE_TXT, "")` |
+| T10 | `Show Tier 10` | `if(TAG_PARA_STATE_10_BOOL = "Yes", RGL_REF_CODE_TXT, "")` |
+| Warning | `Show Warning` | `if(TAG_WARN_VISIBLE_BOOL = "Yes", ASS_WARN_TXT, "")` |
 
 ### Multi-Parameter Tier Rows
 
@@ -179,8 +195,8 @@ Tiers often display multiple parameters concatenated. Use the Revit label's buil
 For tier 3 with threshold warning:
 
 ```
-if(TAG_PARA_STATE_3_BOOL,
-  if(TAG_WARN_VISIBLE_BOOL,
+if(TAG_PARA_STATE_3_BOOL = "Yes",
+  if(TAG_WARN_VISIBLE_BOOL = "Yes",
     concat(ASS_KEY_PROP_TXT, " ⚠ ", ASS_WARN_TXT),
     ASS_KEY_PROP_TXT),
   "")
@@ -223,16 +239,18 @@ Examples:
 
 ### How the Style Matrix Works
 
-Exactly **one** of the 128 TYPE parameters is set to `1` (or `"Yes"` if TEXT-typed) at any
-time per element type. The tag family's label rows are wired as:
+Exactly **one** of the 128 TYPE parameters is set to `"Yes"` (TEXT — the STING default; or
+`1` on a legacy Integer family) at any time per element type. The style BOOLs are gates too,
+so they follow the same condition-form contract as Section 3/4: a TEXT gate is tested as
+`= "Yes"`, never bare. The tag family's label rows are wired as:
 
 ```
 Label row "2mm Normal Black":
-  Calculated Value: if(TAG_2NOM_BLK_BOOL, ASS_TAG_1_TXT, "")
+  Calculated Value: if(TAG_2NOM_BLK_BOOL = "Yes", ASS_TAG_1_TXT, "")
   Visibility: always shown (Revit shows empty text as zero-height)
 
 Label row "2.5mm Bold Blue":
-  Calculated Value: if(TAG_2_5BOLD_BLU_BOOL, ASS_TAG_1_TXT, "")
+  Calculated Value: if(TAG_2_5BOLD_BLU_BOOL = "Yes", ASS_TAG_1_TXT, "")
 ```
 
 The `TagStyleEngine` switches the active style by:
@@ -490,10 +508,11 @@ For tier-gated rows:
 
 1. Create a label as in Step 3 BUT choose **Add Calculated Value** instead
 2. Name the Calculated Value (e.g., `Show Tier 2`)
-3. In the formula field, enter: `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, "")`
-4. **Critical**: `TAG_PARA_STATE_2_BOOL` must be TEXT-typed (not YESNO). Revit will show
-   an error if it is YESNO. Correct this in MR_PARAMETERS.txt first, then reload the
-   shared parameter file.
+3. In the formula field, enter: `if(TAG_PARA_STATE_2_BOOL = "Yes", ASS_TAG_2_TXT, "")`
+4. **Critical**: `TAG_PARA_STATE_2_BOOL` is TEXT-typed (not YESNO), so the gate MUST be
+   tested as `= "Yes"`. A bare `if(TAG_PARA_STATE_2_BOOL, …)` raises "Inconsistent Units"
+   because Revit has no truthy-string semantics. (If the gate were YESNO it would be bare,
+   but the STING default is TEXT.) The return parameter must also be TEXT-typed.
 5. Click OK → the label shows the calculated value
 
 ### Step 5 — Verify the Formula Works

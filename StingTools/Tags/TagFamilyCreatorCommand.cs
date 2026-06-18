@@ -2970,8 +2970,10 @@ namespace StingTools.Tags
                     sb.AppendLine();
                     sb.AppendLine("── TIER 2 (Standard+) ──");
                     sb.AppendLine("Use CALCULATED VALUES (Type: Text) for each parameter:");
-                    sb.AppendLine("  Formula: if(TAG_PARA_STATE_2_BOOL, <param>, \"\")");
+                    sb.AppendLine("  Formula: if(TAG_PARA_STATE_2_BOOL = \"Yes\", <param>, \"\")");
                     sb.AppendLine("  NOTE: All parameters MUST be TEXT type in MR_PARAMETERS.txt.");
+                    sb.AppendLine("  Gate BOOLs are TEXT too — test them as = \"Yes\" (a bare TEXT");
+                    sb.AppendLine("  param is not a valid if() condition → 'Inconsistent Units').");
                     sb.AppendLine("  Numeric params (NUMBER/LENGTH/AREA) cause 'Inconsistent Units'.");
                     sb.AppendLine();
                     FormatTierTable(sb, tier2, paramText);
@@ -2984,8 +2986,9 @@ namespace StingTools.Tags
                     sb.AppendLine();
                     sb.AppendLine("── TIER 3 (Comprehensive) ──");
                     sb.AppendLine("Use CALCULATED VALUES (Type: Text) for each parameter:");
-                    sb.AppendLine("  Formula: if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
+                    sb.AppendLine("  Formula: if(TAG_PARA_STATE_3_BOOL = \"Yes\", <param>, \"\")");
                     sb.AppendLine("  NOTE: All parameters MUST be TEXT type in MR_PARAMETERS.txt.");
+                    sb.AppendLine("  Gate BOOLs are TEXT — test them as = \"Yes\".");
                     sb.AppendLine();
                     FormatTierTable(sb, tier3, paramText);
                 }
@@ -3012,7 +3015,7 @@ namespace StingTools.Tags
                     sb.AppendLine();
                     sb.AppendLine($"── {extLabels[i]} ──");
                     sb.AppendLine("Use CALCULATED VALUES (Type: Text) for each parameter:");
-                    sb.AppendLine($"  Formula: if(TAG_PARA_STATE_{t}_BOOL, <param>, \"\")");
+                    sb.AppendLine($"  Formula: if(TAG_PARA_STATE_{t}_BOOL = \"Yes\", <param>, \"\")");
                     sb.AppendLine();
                     FormatTierTable(sb, arr, paramText);
                 }
@@ -3024,7 +3027,7 @@ namespace StingTools.Tags
                     sb.AppendLine();
                     sb.AppendLine($"── PARAGRAPH CONTAINER ──");
                     sb.AppendLine($"  Add: {paraCont}");
-                    sb.AppendLine($"  Formula: if(TAG_PARA_STATE_3_BOOL, {paraCont}, \"\")");
+                    sb.AppendLine($"  Formula: if(TAG_PARA_STATE_3_BOOL = \"Yes\", {paraCont}, \"\")");
                     sb.AppendLine($"  Break: YES (new line)");
                 }
 
@@ -3045,7 +3048,7 @@ namespace StingTools.Tags
                 sb.AppendLine("  ASS_TAG_7F_TXT               | Classification    | Italic   | YES");
                 sb.AppendLine();
                 sb.AppendLine("  For all TAG7 rows, use Calculated Values:");
-                sb.AppendLine("    if(TAG_PARA_STATE_3_BOOL, ASS_TAG_7x_TXT, \"\")");
+                sb.AppendLine("    if(TAG_PARA_STATE_3_BOOL = \"Yes\", ASS_TAG_7x_TXT, \"\")");
                 sb.AppendLine("  This makes TAG7 visible only in Full Specification mode.");
 
                 // Paragraph template (if defined)
@@ -3078,7 +3081,7 @@ namespace StingTools.Tags
                 sb.AppendLine("  ASS_DESCRIPTION_TXT          | (no prefix/suffix) | Break=YES");
                 sb.AppendLine();
                 sb.AppendLine("── TAG7 (Full Specification mode only) ──");
-                sb.AppendLine("  Use Calculated Values: if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
+                sb.AppendLine("  Use Calculated Values: if(TAG_PARA_STATE_3_BOOL = \"Yes\", <param>, \"\")");
                 sb.AppendLine("  ASS_TAG_7A_TXT  (Identity)   | Break=YES");
                 sb.AppendLine("  ASS_TAG_7B_TXT  (System)     | Break=YES");
                 sb.AppendLine("  ASS_TAG_7C_TXT  (Spatial)    | Break=YES");
@@ -3267,6 +3270,27 @@ namespace StingTools.Tags
                     report.AppendLine($"  {pname}: {ptype} (should be TEXT)");
                 if (typeMismatches.Count > 20)
                     report.AppendLine($"  ... and {typeMismatches.Count - 20} more");
+            }
+
+            // Gate condition-FORM guard: every TEXT gate referenced in a tag
+            // label / style formula must be tested as `GATE = "Yes"`; a bare
+            // TEXT gate is the "Inconsistent Units" trigger. YESNO gates must
+            // stay bare. Reads the formula source-of-truth + MR_PARAMETERS.txt.
+            var gateFormIssues = LabelParamTypeValidator.ValidateGateConditionForms();
+            if (gateFormIssues.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine($"⚠ WARNING: {gateFormIssues.Count} tag-formula gate(s) use the wrong condition form");
+                report.AppendLine("A bare TEXT gate raises 'Inconsistent Units' — it must read GATE = \"Yes\".");
+                foreach (var gi in gateFormIssues.Take(20))
+                    report.AppendLine($"  {gi}");
+                if (gateFormIssues.Count > 20)
+                    report.AppendLine($"  ... and {gateFormIssues.Count - 20} more");
+            }
+            else
+            {
+                report.AppendLine();
+                report.AppendLine("✓ Tag-formula gate condition forms aligned with storage types (0 issues).");
             }
 
             // Check bound param types in project
@@ -3555,6 +3579,192 @@ namespace StingTools.Tags
                 StingLog.Error("LabelParamTypeValidator.AutoFix failed", ex);
                 return 0;
             }
+        }
+
+        // ------------------------------------------------------------------
+        // Gate condition-FORM guard (Inconsistent-Units regression guard)
+        // ------------------------------------------------------------------
+
+        /// <summary>One mismatch between a gate's storage type and the
+        /// condition FORM it is written with inside a tag label / style formula.</summary>
+        public sealed class GateFormIssue
+        {
+            public string Source;     // file + locus
+            public string Gate;       // gate parameter name
+            public string Storage;    // "TEXT" / "YESNO" / "UNKNOWN"
+            public string Found;      // "bare" / "= \"Yes\""
+            public string Expected;   // the correct form
+            public string Formula;    // the offending formula snippet
+            public override string ToString() =>
+                $"{Source}: '{Gate}' ({Storage}) written {Found}, expected {Expected}";
+        }
+
+        // Gate-name shapes STING treats as tag-formula boolean gates.
+        private static readonly System.Text.RegularExpressions.Regex GateRefRegex =
+            new System.Text.RegularExpressions.Regex(
+                @"(?<gate>TAG_PARA_STATE_\d+_BOOL|TAG_WARN_VISIBLE_BOOL|TAG_7_SECTION_VISIBLE_[A-F]_BOOL|TAG_[0-9][A-Z0-9_\.]*_BOOL)(?<form>\s*=\s*""Yes"")?",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>
+        /// Permanent regression guard for the "Inconsistent Units" class of bug:
+        /// for every boolean-gate reference inside a tag label / style-row
+        /// formula, assert the CONDITION FORM matches the gate's STORAGE TYPE.
+        ///
+        /// <para>A TEXT gate (STING's v5.3+ default) must appear as
+        /// <c>GATE = "Yes"</c>; a YESNO / Integer gate must appear bare. A bare
+        /// TEXT gate (or a <c>= "Yes"</c> test on a YESNO gate) is flagged —
+        /// the former is the actual Revit "Inconsistent Units" trigger.</para>
+        ///
+        /// <para>Reads the formula source-of-truth (LABEL_DEFINITIONS.json
+        /// calculated_value_templates + per-category warnings, plus the
+        /// STING_TAG_CONFIG_v5_0_*.csv Formula column) and the gate storage
+        /// types from MR_PARAMETERS.txt — so it runs headless (no Revit needed).
+        /// Return / value parameters are NOT inspected here; the existing
+        /// <see cref="ValidateSourceFile"/> covers "value params must be TEXT".</para>
+        /// </summary>
+        public static List<GateFormIssue> ValidateGateConditionForms()
+        {
+            var issues = new List<GateFormIssue>();
+            var storageByGate = LoadGateStorageMap();
+            if (storageByGate.Count == 0) return issues; // can't resolve types → don't false-flag
+
+            // 1) LABEL_DEFINITIONS.json — calculated_value_templates + warnings
+            try
+            {
+                string labelFile = StingToolsApp.FindDataFile("LABEL_DEFINITIONS.json");
+                if (!string.IsNullOrEmpty(labelFile) && File.Exists(labelFile))
+                {
+                    var root = JObject.Parse(File.ReadAllText(labelFile));
+
+                    var cvt = root["calculated_value_templates"] as JObject;
+                    if (cvt != null)
+                        foreach (var prop in cvt.Properties())
+                        {
+                            string f = (prop.Value as JObject)?["formula"]?.ToString();
+                            ScanFormula(f, $"LABEL_DEFINITIONS.json:{prop.Name}", storageByGate, issues);
+                        }
+
+                    // Per-category warnings carry literal if(GATE, PARAM, "") formulas.
+                    var cats = root["category_labels"] as JObject ?? root["categories"] as JObject;
+                    if (cats != null)
+                        foreach (var catProp in cats.Properties())
+                        {
+                            var warnings = (catProp.Value as JObject)?["warnings"] as JArray;
+                            if (warnings == null) continue;
+                            foreach (var w in warnings)
+                            {
+                                string f = (w as JObject)?["formula"]?.ToString();
+                                ScanFormula(f, $"LABEL_DEFINITIONS.json:{catProp.Name}/warnings", storageByGate, issues);
+                            }
+                        }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ValidateGateConditionForms (JSON): {ex.Message}"); }
+
+            // 2) STING_TAG_CONFIG_v5_0_*.csv — the Formula column
+            try
+            {
+                string anyCsv = StingToolsApp.FindDataFile("STING_TAG_CONFIG_v5_0_GEN.csv");
+                string dir = string.IsNullOrEmpty(anyCsv) ? null : Path.GetDirectoryName(anyCsv);
+                if (dir != null && Directory.Exists(dir))
+                {
+                    foreach (string csv in Directory.GetFiles(dir, "STING_TAG_CONFIG_v5_0_*.csv"))
+                    {
+                        string name = Path.GetFileName(csv);
+                        int lineNo = 0;
+                        foreach (string raw in File.ReadLines(csv))
+                        {
+                            lineNo++;
+                            if (string.IsNullOrEmpty(raw) || raw.TrimStart().StartsWith("#")) continue;
+                            int idx = raw.IndexOf("if(", StringComparison.Ordinal);
+                            if (idx < 0) continue;
+                            // CSV un-escape: doubled quotes → single so the regex sees `= "Yes"`.
+                            string formula = raw.Substring(idx).Replace("\"\"", "\"");
+                            ScanFormula(formula, $"{name}:line {lineNo}", storageByGate, issues);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ValidateGateConditionForms (CSV): {ex.Message}"); }
+
+            return issues;
+        }
+
+        /// <summary>Scan one formula string for gate references and compare
+        /// each gate's emitted form against its storage type.</summary>
+        private static void ScanFormula(string formula, string locus,
+            Dictionary<string, string> storageByGate, List<GateFormIssue> issues)
+        {
+            if (string.IsNullOrEmpty(formula)) return;
+            foreach (System.Text.RegularExpressions.Match m in GateRefRegex.Matches(formula))
+            {
+                string gate = m.Groups["gate"].Value;
+                if (!storageByGate.TryGetValue(gate, out string storage)) continue; // unknown → skip
+                bool hasYesCompare = m.Groups["form"].Success;
+
+                if (storage == "TEXT" && !hasYesCompare)
+                {
+                    issues.Add(new GateFormIssue
+                    {
+                        Source = locus, Gate = gate, Storage = "TEXT",
+                        Found = "bare", Expected = $"{gate} = \"Yes\"",
+                        Formula = Trim(formula),
+                    });
+                }
+                else if (storage == "YESNO" && hasYesCompare)
+                {
+                    issues.Add(new GateFormIssue
+                    {
+                        Source = locus, Gate = gate, Storage = "YESNO",
+                        Found = "= \"Yes\"", Expected = gate,
+                        Formula = Trim(formula),
+                    });
+                }
+            }
+        }
+
+        private static string Trim(string s) =>
+            s != null && s.Length > 80 ? s.Substring(0, 80) + "…" : s;
+
+        /// <summary>
+        /// Build gate-name → storage classification ("TEXT" / "YESNO") from
+        /// MR_PARAMETERS.txt. Only the boolean-gate names STING uses in
+        /// tag formulas are returned. TEXT spec → "TEXT"; YESNO spec → "YESNO".
+        /// </summary>
+        private static Dictionary<string, string> LoadGateStorageMap()
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string mrFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                if (string.IsNullOrEmpty(mrFile) || !File.Exists(mrFile)) return map;
+
+                foreach (string line in File.ReadLines(mrFile))
+                {
+                    if (!line.StartsWith("PARAM")) continue;
+                    string[] parts = line.Split('\t');
+                    if (parts.Length < 4) continue;
+                    string name = parts[2];
+                    string spec = parts[3];
+                    if (!IsTagGateName(name)) continue;
+                    map[name] = string.Equals(spec, "YESNO", StringComparison.OrdinalIgnoreCase)
+                        ? "YESNO" : "TEXT"; // every non-YESNO gate is treated as TEXT
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadGateStorageMap: {ex.Message}"); }
+            return map;
+        }
+
+        private static bool IsTagGateName(string n)
+        {
+            if (string.IsNullOrEmpty(n)) return false;
+            if (n.StartsWith("TAG_PARA_STATE_", StringComparison.Ordinal) && n.EndsWith("_BOOL", StringComparison.Ordinal)) return true;
+            if (string.Equals(n, "TAG_WARN_VISIBLE_BOOL", StringComparison.Ordinal)) return true;
+            if (n.StartsWith("TAG_7_SECTION_VISIBLE_", StringComparison.Ordinal) && n.EndsWith("_BOOL", StringComparison.Ordinal)) return true;
+            // 128 style gates: TAG_{size}{style}_{colour}_BOOL — second char is a digit
+            if (n.StartsWith("TAG_", StringComparison.Ordinal) && n.EndsWith("_BOOL", StringComparison.Ordinal)
+                && n.Length > 5 && char.IsDigit(n[4])) return true;
+            return false;
         }
     }
 }
