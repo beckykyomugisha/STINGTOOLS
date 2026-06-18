@@ -384,7 +384,7 @@
     },
     {
       "param_name": "HANDOVER_MODE_HANDOVER_BOOL",
-      "guid": "a1b2c3d4-0002-5a01-b001-000000001001",
+      "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567801",
       "description": "Pattern selector — Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
@@ -392,7 +392,7 @@
     },
     {
       "param_name": "HANDOVER_MODE_DC_BOOL",
-      "guid": "a1b2c3d4-0002-5a01-b001-000000001002",
+      "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567802",
       "description": "Pattern selector — Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
@@ -400,7 +400,7 @@
     },
     {
       "param_name": "HANDOVER_MODE_CUSTOM_BOOL",
-      "guid": "a1b2c3d4-0002-5a01-b001-000000001003",
+      "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567803",
       "description": "Pattern selector — Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
@@ -27571,12 +27571,12 @@
       "params": [
         {
           "param_name": "SLV_TAG",
-          "guid": "00000000-0000-0000-0000-000000000000",
+          "guid": "fa93b8a1-3383-5c1f-8935-0dadba420f50",
           "description": "MEP Sleeve discipline tag container"
         },
         {
           "param_name": "SLV_TAG_7_PARA_TXT",
-          "guid": "00000000-0000-0000-0000-000000000001",
+          "guid": "4529fc89-90fb-56f9-955a-2d54998a294c",
           "description": "MEP Sleeve TAG7 paragraph container"
         }
       ]
