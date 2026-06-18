@@ -230,7 +230,7 @@ STING Tag Configuration v5.0 - MEP (COMPLETE with Warnings)
 Tag Family #1: STING - Air Terminal Tag
 TAG7: HVC_TAG_7_PARA_AT_TXT  •  Category: Air Terminals
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,HVC_DCT_FLW_CFM,Flow:,CFM,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_FLW_CFM, """")",NOM,BLACK,2.0,None,None
@@ -293,7 +293,7 @@ TAG7: HVC_TAG_7_PARA_AT_TXT  •  Category: Air Terminals
 Tag Family #2: STING - Duct Accessory Tag
 TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Accessories
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,HVC_DCT_PROPERTY_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_PROPERTY_TXT, """")",NOM,BLACK,2.0,None,None
@@ -350,7 +350,7 @@ TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Accessories
 Tag Family #3: STING - Duct Fitting Tag
 TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Fittings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,HVC_DCT_PROPERTY_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_PROPERTY_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
@@ -406,8 +406,8 @@ TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Fittings
 Tag Family #4: STING - Duct Tag
 TAG7: HVC_TAG_7_PARA_DUCT_TXT  •  Category: Ducts
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,HVC_DCT_PROPERTY_TXT,[,],0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,HVC_DCT_PROPERTY_TXT,[,],0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,HVC_DCT_FLW_CFM,Flow:,CFM,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_FLW_CFM, """")",NOM,BLACK,2.0,None,None
 5,T2,HVC_VEL_MPS,|,m/s,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, HVC_VEL_MPS, """")",NOM,BLACK,2.0,None,None
@@ -487,7 +487,7 @@ TAG7: HVC_TAG_7_PARA_DUCT_TXT  •  Category: Ducts
 Tag Family #5: STING - Flex Duct Tag
 TAG7: HVC_TAG_7_PARA_FLEXDUCT_TXT  •  Category: Flex Ducts
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,HVC_DCT_FLW_CFM,Flow:,CFM,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_FLW_CFM, """")",NOM,BLACK,2.0,None,None
 4,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
@@ -543,7 +543,7 @@ TAG7: HVC_TAG_7_PARA_FLEXDUCT_TXT  •  Category: Flex Ducts
 Tag Family #6: STING - Mechanical Equipment Tag
 TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Mechanical Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,HVC_CAP_KW,Cooling:,kW,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, HVC_CAP_KW, """")",NOM,BLACK,2.0,None,None
@@ -634,7 +634,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Mechanical Equipment
 Tag Family #7: STING - Flex Pipe Tag
 TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Flex Pipes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,PLM_PPE_SZ_MM,DN,mm,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SZ_MM, """")",NOM,BLACK,2.0,None,None
 4,T2,PLM_PPE_MAT_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_MAT_TXT, """")",NOM,BLACK,2.0,None,None
@@ -688,7 +688,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Flex Pipes
 Tag Family #8: STING - Pipe Accessory Tag
 TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Accessories
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,PLM_PPE_SZ_MM,DN,mm,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SZ_MM, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_DESCRIPTION_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
@@ -742,7 +742,7 @@ TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Accessories
 Tag Family #9: STING - Pipe Fitting Tag
 TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Fittings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,PLM_PPE_SZ_MM,DN,mm,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SZ_MM, """")",NOM,BLACK,2.0,None,None
 4,T2,PLM_PPE_MAT_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_MAT_TXT, """")",NOM,BLACK,2.0,None,None
@@ -797,8 +797,8 @@ TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Fittings
 Tag Family #10: STING - Pipe Tag
 TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Pipes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,PLM_PPE_FLW_LPS,Flow:,L/s,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_FLW_LPS, """")",NOM,BLACK,2.0,None,None
 5,T2,PLM_VEL_MPS,|,m/s,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, PLM_VEL_MPS, """")",NOM,BLACK,2.0,None,None
@@ -875,7 +875,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Pipes
 Tag Family #11: STING - Plumbing Fixture Tag
 TAG7: PLM_TAG_7_PARA_FIXTURE_TXT  •  Category: Plumbing Fixtures
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,PLM_PPE_SZ_MM,DN,mm,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SZ_MM, """")",NOM,BLACK,2.0,None,None
 4,T2,PLM_PPE_FLW_LPS,|,L/s,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_FLW_LPS, """")",NOM,BLACK,2.0,None,None
@@ -946,7 +946,7 @@ TAG7: PLM_TAG_7_PARA_FIXTURE_TXT  •  Category: Plumbing Fixtures
 Tag Family #12: STING - Fire Alarm Device Tag
 TAG7: FLS_TAG_7_PARA_FA_TXT  •  Category: Fire Alarm Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,FLS_SFTY_DEV_TYPE_TXT,,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, FLS_SFTY_DEV_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,FLS_SFTY_DEV_ZONE_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, FLS_SFTY_DEV_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1010,7 +1010,7 @@ TAG7: FLS_TAG_7_PARA_FA_TXT  •  Category: Fire Alarm Devices
 Tag Family #13: STING - Sprinkler Tag
 TAG7: FLS_TAG_7_PARA_SPR_TXT  •  Category: Sprinklers
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,FLS_SFTY_COVERAGE_AREA_SQ_M,Coverage:,m²,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, FLS_SFTY_COVERAGE_AREA_SQ_M, """")",NOM,BLACK,2.0,None,None
 4,T2,FLS_SFTY_K_FACTOR_NR,| K=,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, FLS_SFTY_K_FACTOR_NR, """")",NOM,BLACK,2.0,None,None
@@ -1077,7 +1077,7 @@ TAG7: FLS_TAG_7_PARA_SPR_TXT  •  Category: Sprinklers
 Tag Family #14: STING - Cable Tray Fitting Tag
 TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Tray Fittings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ELC_CTR_MAT_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_MAT_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1130,7 +1130,7 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Tray Fittings
 Tag Family #15: STING - Cable Tray Tag
 TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Trays
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ELC_CTR_MAT_TXT,,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_MAT_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,MNT_HGT_MM,| Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")",NOM,BLACK,2.0,None,None
@@ -1194,7 +1194,7 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Trays
 Tag Family #16: STING - Conduit Fitting Tag
 TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduit Fittings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ELC_CDT_SZ_MM,Conduit:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CDT_SZ_MM, """")",NOM,BLACK,2.0,None,None
@@ -1245,8 +1245,8 @@ TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduit Fittings
 Tag Family #17: STING - Conduit Tag
 TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduits
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,ELC_CDT_SZ_MM,Conduit:,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,ELC_CDT_SZ_MM,Conduit:,mm,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ELC_CKT_NR,Ckt:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CKT_NR, """")",NOM,BLACK,2.0,None,None
 5,T2,ELC_CDT_MAT_TXT,|,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ELC_CDT_MAT_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1313,8 +1313,8 @@ TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduits
 Tag Family #18: STING - Electrical Equipment Tag
 TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,ELC_PNL_DESIGNATION_NAME_TXT,Panel:,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,ELC_PNL_DESIGNATION_NAME_TXT,Panel:,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ELC_PNL_VLT_V,,V,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_PNL_VLT_V, """")",NOM,BLACK,2.0,None,None
 5,T2,ELC_PNL_PHS_COUNT_NR,|,Ph,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ELC_PNL_PHS_COUNT_NR, """")",NOM,BLACK,2.0,None,None
@@ -1402,7 +1402,7 @@ TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
 Tag Family #19: STING - Electrical Fixture Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ELC_PWR_KW,Power:,kW,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ELC_PWR_KW, """")",NOM,BLACK,2.0,None,None
 4,T2,ELC_VLT_PRIMARY_RATING_V,|,V,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_VLT_PRIMARY_RATING_V, """")",NOM,BLACK,2.0,None,None
@@ -1457,7 +1457,7 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
 Tag Family #20: STING - Lighting Device Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ELC_CKT_NR,Ckt:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ELC_CKT_NR, """")",NOM,BLACK,2.0,None,None
 4,T2,ELC_PNL_DESIGNATION_NAME_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_PNL_DESIGNATION_NAME_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1511,8 +1511,8 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Devices
 Tag Family #21: STING - Lighting Fixture Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Fixtures
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,LTG_FIX_TYPE_CLASSIFICATION_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,LTG_FIX_TYPE_CLASSIFICATION_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,LTG_FIX_LMP_WATTAGE_W,,W,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, LTG_FIX_LMP_WATTAGE_W, """")",NOM,BLACK,2.0,None,None
 5,T2,CST_FIX_LUMEN_OUTPUT_LM,|,lm,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_FIX_LUMEN_OUTPUT_LM, """")",NOM,BLACK,2.0,None,None
@@ -1583,7 +1583,7 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Fixtures
 Tag Family #22: STING - Communication Device Tag
 TAG7: COM_TAG_7_PARA_BMS_TXT  •  Category: Communication Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,COM_C_PROTOCOL_TXT,,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, COM_C_PROTOCOL_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,COM_C_NETWORK_ADDRESS_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, COM_C_NETWORK_ADDRESS_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1643,7 +1643,7 @@ TAG7: COM_TAG_7_PARA_BMS_TXT  •  Category: Communication Devices
 Tag Family #23: STING - Data Device Tag
 TAG7: ICT_TAG_7_PARA_DATA_TXT  •  Category: Data Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ICT_OUTLET_TYPE_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ICT_OUTLET_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")",NOM,BLACK,2.0,None,None
@@ -1696,7 +1696,7 @@ TAG7: ICT_TAG_7_PARA_DATA_TXT  •  Category: Data Devices
 Tag Family #24: STING - Nurse Call Device Tag
 TAG7: NCL_TAG_7_PARA_NURSECALL_TXT  •  Category: Nurse Call Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,NCL_ZONE_TXT,Zone:,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, NCL_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")",NOM,BLACK,2.0,None,None
@@ -1747,7 +1747,7 @@ TAG7: NCL_TAG_7_PARA_NURSECALL_TXT  •  Category: Nurse Call Devices
 Tag Family #25: STING - Security Device Tag
 TAG7: SEC_TAG_7_PARA_SECURITY_TXT  •  Category: Security Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,SEC_DEV_ZONE_TXT,Zone:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SEC_DEV_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_DESCRIPTION_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1800,7 +1800,7 @@ TAG7: SEC_TAG_7_PARA_SECURITY_TXT  •  Category: Security Devices
 Tag Family #26: STING - Telephone Devices Tag
 TAG7: ICT_TAG_7_PARA_TEL_TXT  •  Category: Telephone Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ICT_OUTLET_TYPE_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ICT_OUTLET_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ICT_PORT_NR_TXT,Port:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ICT_PORT_NR_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1856,7 +1856,7 @@ TAG7: ICT_TAG_7_PARA_TEL_TXT  •  Category: Telephone Devices
 Tag Family #27: STING - Generic Model Tag
 TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Generic Models
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1918,7 +1918,7 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Generic Models
 Tag Family #28: STING - Specialty Equipment Tag
 TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1985,8 +1985,8 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 Tag Family #29: STING - Duct Insulation Tag
 TAG7: HVC_TAG_7_PARA_DUCT_INSULATION_TXT  •  Category: Duct Insulation
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
 5,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2037,8 +2037,8 @@ TAG7: HVC_TAG_7_PARA_DUCT_INSULATION_TXT  •  Category: Duct Insulation
 Tag Family #30: STING - Duct Lining Tag
 TAG7: HVC_TAG_7_PARA_DUCT_LINING_TXT  •  Category: Duct Lining
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
 5,T3,HVC_TAG_7_PARA_DUCT_LINING_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_DUCT_LINING_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2089,8 +2089,8 @@ TAG7: HVC_TAG_7_PARA_DUCT_LINING_TXT  •  Category: Duct Lining
 Tag Family #31: STING - Pipe Insulation Tag
 TAG7: PLM_TAG_7_PARA_PIPE_INSULATION_TXT  •  Category: Pipe Insulation
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
 5,T3,PLM_TAG_7_PARA_PIPE_INSULATION_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_PIPE_INSULATION_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2142,7 +2142,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_INSULATION_TXT  •  Category: Pipe Insulation
 Tag Family #32: STING - Plumbing Equipment Tag
 TAG7: PLM_TAG_7_PARA_PLM_EQUIP_TXT  •  Category: Plumbing Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,PLM_EQP_CAPACITY_L,Cap:,L,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PLM_EQP_CAPACITY_L, """")",NOM,BLACK,2.0,None,None
@@ -2207,8 +2207,8 @@ TAG7: PLM_TAG_7_PARA_PLM_EQUIP_TXT  •  Category: Plumbing Equipment
 Tag Family #33: STING - Mechanical Control Devices Tag
 TAG7: HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT  •  Category: Mechanical Control Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,MEC_CTRL_FUNCTION_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,MEC_CTRL_FUNCTION_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,MEC_CTRL_SIGNAL_TXT,Signal:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MEC_CTRL_SIGNAL_TXT, """")",NOM,BLACK,2.0,None,None
 5,T3,HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2258,7 +2258,7 @@ TAG7: HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT  •  Category: Mechanical Control Device
 Tag Family #34: STING - Mechanical Equipment Sets Tag
 TAG7: HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT  •  Category: Mechanical Equipment Sets
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T3,MEC_SET_CAPACITY_KW,Capacity:,kW,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, MEC_SET_CAPACITY_KW, """")",NOM,BLACK,2.0,None,None
 4,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
@@ -2314,8 +2314,8 @@ TAG7: HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT  •  Category: Mechanical Equipment Se
 Tag Family #35: STING - Electrical Connectors Tag
 TAG7: ELC_TAG_7_PARA_ELC_CONNECTORS_TXT  •  Category: Electrical Connectors
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,ELC_CONN_TYPE_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,ELC_CONN_TYPE_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ELC_CKT_BRK_RATING_A,,A,1,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CKT_BRK_RATING_A, """")",NOM,BLACK,2.0,None,None
 5,T3,ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_ELC_CONNECTORS_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2363,8 +2363,8 @@ TAG7: ELC_TAG_7_PARA_ELC_CONNECTORS_TXT  •  Category: Electrical Connectors
 Tag Family #36: STING - Fire Protection Tag
 TAG7: FLS_TAG_7_PARA_FIRE_PROT_TXT  •  Category: Fire Protection
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,,min,1,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,,min,1,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,FLS_PROT_PRODUCT_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, FLS_PROT_PRODUCT_TXT, """")",NOM,BLACK,2.0,None,None
 5,T3,FLS_PROT_CORROSION_PROT_LVL_NR,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, FLS_PROT_CORROSION_PROT_LVL_NR, """")",NOM,BLACK,2.0,None,None
@@ -2418,9 +2418,9 @@ TAG7: FLS_TAG_7_PARA_FIRE_PROT_TXT  •  Category: Fire Protection
 Tag Family #37: STING - MEP Fabrication Containment Tag
 TAG7: ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT  •  Category: MEP Fabrication Containment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,FAB_CONTAINMENT_W_MM,,×,0,,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-3,T1,FAB_CONTAINMENT_D_MM,,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,FAB_CONTAINMENT_W_MM,,×,0,,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+3,T1,FAB_CONTAINMENT_D_MM,,mm,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 5,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 6,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
@@ -2470,9 +2470,9 @@ TAG7: ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT  •  Category: MEP Fabrication Contain
 Tag Family #38: STING - MEP Fabrication Ductwork Tag
 TAG7: HVC_TAG_7_PARA_FAB_DUCTWORK_TXT  •  Category: MEP Fabrication Ductwork
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,FAB_DCT_W_MM,,×,0,,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-3,T1,FAB_DCT_H_MM,,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,FAB_DCT_W_MM,,×,0,,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+3,T1,FAB_DCT_H_MM,,mm,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 5,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 6,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
@@ -2522,8 +2522,8 @@ TAG7: HVC_TAG_7_PARA_FAB_DUCTWORK_TXT  •  Category: MEP Fabrication Ductwork
 Tag Family #39: STING - MEP Fabrication Ductwork Stiffeners Tag
 TAG7: HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT  •  Category: MEP Fabrication Ductwork Stiffeners
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,FAB_STIFF_TYPE_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,FAB_STIFF_TYPE_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,FAB_DCT_W_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, FAB_DCT_W_MM, """")",NOM,BLACK,2.0,None,None
 5,T2,FAB_DCT_H_MM,H:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, FAB_DCT_H_MM, """")",NOM,BLACK,2.0,None,None
@@ -2574,8 +2574,8 @@ TAG7: HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT  •  Category: MEP Fabrication Duct
 Tag Family #40: STING - MEP Fabrication Hangers Tag
 TAG7: MEP_TAG_7_PARA_FAB_HANGERS_TXT  •  Category: MEP Fabrication Hangers
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,FAB_HANGER_TYPE_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,FAB_HANGER_TYPE_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,FAB_HANGER_LOAD_KN,Load:,kN,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, FAB_HANGER_LOAD_KN, """")",NOM,BLACK,2.0,None,None
 5,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2623,8 +2623,8 @@ TAG7: MEP_TAG_7_PARA_FAB_HANGERS_TXT  •  Category: MEP Fabrication Hangers
 Tag Family #41: STING - MEP Fabrication Pipework Tag
 TAG7: PLM_TAG_7_PARA_FAB_PIPEWORK_TXT  •  Category: MEP Fabrication Pipework
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,FAB_PIPE_DN_MM,DN,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,FAB_PIPE_DN_MM,DN,mm,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 4,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 5,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
@@ -2673,7 +2673,7 @@ TAG7: PLM_TAG_7_PARA_FAB_PIPEWORK_TXT  •  Category: MEP Fabrication Pipework
 Tag Family #42: STING - Materials Tag
 TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T1,MAT_NAME,,,0,✓,Common,Text,Show Tier 1 - 2,Add directly,NOM,BLACK,2.5,None,None
 3,T1,MAT_CATEGORY,,,0,✓,Common,Text,Show Tier 1 - 3,Add directly,NOM,BLACK,2.5,None,None
 4,T2,MAT_MANUFACTURER,Mfr:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MAT_MANUFACTURER, """")",NOM,BLACK,2.0,None,None
@@ -2738,7 +2738,7 @@ TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 Tag Family #43: STING - Audio Visual Devices Tag
 TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2794,7 +2794,7 @@ TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices
 Tag Family #44: STING - Spaces Tag
 TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_ROOM_AREA_SQ_M,Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")",NOM,BLACK,2.0,None,None
@@ -2844,7 +2844,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
 Tag Family #45: STING - Zones Tag
 TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_ROOM_AREA_SQ_M,Zone Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")",NOM,BLACK,2.0,None,None
@@ -2948,8 +2948,8 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
 Tag Family #46: STING - Tie-In Point Tag (Pipe — Plumbing & Hydraulic)
 TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_TIEIN_FLOW_DIR_TXT,Dir:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_FLOW_DIR_TXT, """")",NOM,BLACK,2.0,None,None
 5,T2,PLM_PPE_FLW_LPS,Flow:,L/s,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_FLW_LPS, """")",NOM,BLACK,2.0,None,None
@@ -3009,8 +3009,8 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 Tag Family #47: STING - Tie-In Point Tag (Duct — HVAC)
 TAG7: HVC_TAG_7_PARA_TIEIN_TXT  •  Category: Ducts
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,HVC_DCT_SZ_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,HVC_DCT_SZ_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_TIEIN_FLOW_DIR_TXT,Dir:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_FLOW_DIR_TXT, """")",NOM,BLACK,2.0,None,None
 5,T2,HVC_DCT_FLW_CFM,Flow:,CFM,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_FLW_CFM, """")",NOM,BLACK,2.0,None,None
@@ -3071,8 +3071,8 @@ TAG7: HVC_TAG_7_PARA_TIEIN_TXT  •  Category: Ducts
 Tag Family #48: STING - Tie-In Point Tag (Conduit — Electrical LV/ELV)
 TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Conduits
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,ELC_CDT_SZ_MM,∅,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,ELC_CDT_SZ_MM,∅,mm,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ELC_CDT_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CDT_MAT_TXT, """")",NOM,BLACK,2.0,None,None
 5,T2,ASS_TIEIN_ELEV_TXT,Elev:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_ELEV_TXT, """")",NOM,BLACK,2.0,None,None
@@ -3127,8 +3127,8 @@ TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Conduits
 Tag Family #49: STING - Tie-In Point Tag (Cable Tray — Electrical)
 TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Cable Trays
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,ELC_CTR_SZ_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,ELC_CTR_SZ_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ELC_CTR_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_MAT_TXT, """")",NOM,BLACK,2.0,None,None
 5,T2,ELC_CTR_FILL_PCT,Fill:,%,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_FILL_PCT, """")",NOM,BLACK,2.0,None,None
@@ -3185,8 +3185,8 @@ TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Cable Trays
 Tag Family #50: STING - Tie-In Point Tag (Fire Protection — Sprinkler / Suppression)
 TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,PLM_PPE_FLW_LPS,Flow:,L/s,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_FLW_LPS, """")",NOM,BLACK,2.0,None,None
 5,T2,PLM_PSR_KPA,|,kPa,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, PLM_PSR_KPA, """")",NOM,BLACK,2.0,None,None
@@ -3244,8 +3244,8 @@ TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System)
 Tag Family #51: STING - Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)
 TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
+2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,PLM_PSR_KPA,Press:,kPa,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PLM_PSR_KPA, """")",NOM,BLACK,2.0,None,None
 5,T2,ASS_TIEIN_FLOW_DIR_TXT,Dir:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_FLOW_DIR_TXT, """")",NOM,BLACK,2.0,None,None
@@ -3304,7 +3304,7 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
 Tag Family #52: STING - MEP Sheet Tag
 TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,SHT_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,SHT_FORM_TXT,Form:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SHT_FORM_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,SHT_LEVEL_TXT,Level:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, SHT_LEVEL_TXT, """")",NOM,BLACK,2.0,None,None
@@ -3339,7 +3339,7 @@ Tag Family #53: STING - MEP Sleeve Tag
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 
 ★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3415,7 +3415,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ELC_LPS_AIRTERM_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+1,T1,ELC_LPS_AIRTERM_TAG_TXT,,,0,✓,Common,Text,LPS Air Terminal Tag,ELC_LPS_AIRTERM_TAG_TXT,BOLD,BLUE,2.5,None,None
 
 ★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3480,7 +3480,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment, Conduits
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ELC_LPS_DOWNCOND_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+1,T1,ELC_LPS_DOWNCOND_TAG_TXT,,,0,✓,Common,Text,LPS Down Conductor Tag,ELC_LPS_DOWNCOND_TAG_TXT,BOLD,BLUE,2.5,None,None
 
 ★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3542,7 +3542,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ELC_LPS_EARTH_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+1,T1,ELC_LPS_EARTH_TAG_TXT,,,0,✓,Common,Text,LPS Earth Electrode Tag,ELC_LPS_EARTH_TAG_TXT,BOLD,BLUE,2.5,None,None
 
 ★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3603,7 +3603,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ELC_LPS_BOND_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+1,T1,ELC_LPS_BOND_TAG_TXT,,,0,✓,Common,Text,LPS Bonding Connection Tag,ELC_LPS_BOND_TAG_TXT,BOLD,BLUE,2.5,None,None
 
 ★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3657,7 +3657,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ELC_LPS_SPD_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+1,T1,ELC_LPS_SPD_TAG_TXT,,,0,✓,Common,Text,LPS Surge Protection Device Tag,ELC_LPS_SPD_TAG_TXT,BOLD,BLUE,2.5,None,None
 
 ★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3672,7 +3672,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ELC_LPS_TESTCLAMP_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+1,T1,ELC_LPS_TESTCLAMP_TAG_TXT,,,0,✓,Common,Text,LPS Test Clamp Tag,ELC_LPS_TESTCLAMP_TAG_TXT,BOLD,BLUE,2.5,None,None
 
 ★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3729,7 +3729,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 Tag Family #60: STING - Specialty Equipment Tag Asset
 TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_SERIAL_NR_TXT,Ser:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_SERIAL_NR_TXT, """")",NOM,BLACK,2.0,None,None
@@ -3786,7 +3786,7 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 Tag Family #61: STING - Specialty Equipment Tag General
 TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+1,T1,ASS_TAG_1_TXT,,,0,✓,Common,Text,ISO 19650 Asset Tag,ASS_TAG_1_TXT,BOLD,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,ASS_FUNC_TXT,Func:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_FUNC_TXT, """")",NOM,BLACK,2.0,None,None
