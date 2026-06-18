@@ -2687,7 +2687,7 @@ Generic Models,CLN_EQUIP_WEIGHT_KG_NR,c8d4f6e2-2003-4d27-8c61-0e7a3f9bb003,NUMBE
 Generic Models,CLN_FGI_REF_TXT,c8d4f6e2-a003-4d27-8c61-0e7a3f9b0003,TEXT,CLN_CLINICAL,Type,FGI Guidelines section reference,False,,,HEALTHCARE,1,0
 Generic Models,CLN_FLOOR_LOAD_KN_M2_NR,c8d4f6e2-2001-4d27-8c61-0e7a3f9bb001,NUMBER,CLN_CLINICAL,Type,Imposed floor load (kN/m²) for heavy imaging equipment [H-23],False,,,HEALTHCARE,1,0
 Generic Models,CLN_HBN_REF_TXT,c8d4f6e2-a002-4d27-8c61-0e7a3f9b0002,TEXT,CLN_CLINICAL,Type,HBN reference (e.g. HBN 04-01 R-1234),False,,,HEALTHCARE,1,0
-Generic Models,CLN_HOIST_TRACK_BOOL,c8d4f6e2-a017-4d27-8c61-0e7a3f9b0017,YESNO,CLN_CLINICAL,Type,Ceiling-hoist track installed,False,,,HEALTHCARE,1,0
+Generic Models,CLN_HOIST_TRACK_BOOL,c8d4f6e2-a017-4d27-8c61-0e7a3f9b0017,TEXT,CLN_CLINICAL,Type,Ceiling-hoist track installed,False,,,HEALTHCARE,1,0
 Generic Models,CLN_HTM_REF_TXT,c8d4f6e2-a004-4d27-8c61-0e7a3f9b0004,TEXT,CLN_CLINICAL,Type,HTM (Health Technical Memorandum) reference,False,,,HEALTHCARE,1,0
 Generic Models,CLN_INFECT_CLASS_TXT,c8d4f6e2-a008-4d27-8c61-0e7a3f9b0008,TEXT,CLN_CLINICAL,Type,"Infection-control class: STD / AIIR / PE / CLASS-N / CLASS-P [CDC, HBN 04-01]",False,,,HEALTHCARE,1,0
 Generic Models,CLN_LIGATURE_RES_BOOL,c8d4f6e2-a014-4d27-8c61-0e7a3f9b0014,YESNO,CLN_CLINICAL,Type,Anti-ligature design applies [HBN 03-01 / FGI Pt 2],False,,,HEALTHCARE,1,0

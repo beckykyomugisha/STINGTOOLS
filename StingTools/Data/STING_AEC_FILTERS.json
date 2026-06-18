@@ -7104,8 +7104,8 @@
         "param": "CLN_HOIST_TRACK_BOOL",
         "kind": "shared",
         "op": "equals",
-        "value": "1",
-        "type": "yesno"
+        "value": "Yes",
+        "type": "string"
       },
       "override": {
         "projColor": "#5E35B1",
