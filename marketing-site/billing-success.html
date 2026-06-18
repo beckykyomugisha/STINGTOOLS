@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Subscription active — Planscape</title>
+<meta name="theme-color" content="#E8912D">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.auth-wrap { max-width: 480px; margin: 48px auto; padding: 0 16px; }
+.auth-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 32px; text-align: center; }
+.auth-card h1 { margin: 0 0 12px; font-size: 24px; }
+.auth-card p { color: var(--muted); margin: 0 0 16px; }
+.auth-card .lead { color: var(--text, inherit); font-size: 16px; }
+.state { display: none; }
+.state.shown { display: block; }
+.btn-primary { display: inline-block; background: var(--accent); color: #fff; border: 0; padding: 12px 24px; font-size: 15px; font-weight: 600; border-radius: 8px; cursor: pointer; text-decoration: none; }
+.btn-primary:hover { background: #d57f1f; }
+.spinner { font-size: 28px; }
+.status-pill { display: inline-block; margin: 0 0 16px; padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; background: rgba(40,167,69,.12); color: #1e7e34; }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <div class="links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+</nav>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="state shown" id="loading">
+      <div class="spinner">⏳</div>
+      <h1>Finalising your subscription…</h1>
+      <p>One moment.</p>
+    </div>
+    <div class="state" id="ok">
+      <div class="spinner">✅</div>
+      <h1>Subscription active</h1>
+      <span class="status-pill" id="status-pill" hidden></span>
+      <p class="lead" id="ok-msg">Your subscription is active.</p>
+      <p><a class="btn-primary" href="/app/">Go to dashboard</a></p>
+    </div>
+  </div>
+</div>
+
+<footer class="site">
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var sessionId = params.get('session_id') || '';
+  var tier = params.get('tier') || '';
+  var product = params.get('product') || '';
+
+  var loading = document.getElementById('loading');
+  var ok = document.getElementById('ok');
+  var okMsg = document.getElementById('ok-msg');
+  var pill = document.getElementById('status-pill');
+
+  function show(el) {
+    loading.classList.remove('shown');
+    el.classList.add('shown');
+  }
+
+  function titleCase(s) {
+    return String(s || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, function (c) {
+      return c.toUpperCase();
+    });
+  }
+
+  // The redirect itself means Stripe took the payment, so we always land on the
+  // success card. /api/auth/me (authenticated via the refresh cookie) lets us
+  // personalise it with the tenant slug + live subscription status, but any
+  // failure there just leaves the generic confirmation in place.
+  function finish(tenant) {
+    var planLabel = tier ? titleCase(tier) : '';
+    if (tenant && tenant.slug) {
+      var line = "Tenant '" + tenant.slug + "' is now on the " +
+        (planLabel || 'paid') + ' tier.';
+      if (product) line += ' (' + titleCase(product) + ')';
+      okMsg.textContent = line;
+    } else if (planLabel) {
+      okMsg.textContent = 'Your subscription is active on the ' + planLabel + ' tier.';
+    }
+    if (tenant && tenant.subscriptionStatus) {
+      pill.textContent = tenant.subscriptionStatus;
+      pill.hidden = false;
+    }
+    show(ok);
+  }
+
+  // 1) Mint a fresh access token from the httpOnly refresh cookie (same origin).
+  // 2) Use it to read the current tenant. Either step failing is non-fatal.
+  fetch('/api/auth/refresh', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  }).then(function (res) {
+    if (!res.ok) throw new Error('refresh');
+    return res.json();
+  }).then(function (j) {
+    var token = j && j.token;
+    if (!token) throw new Error('no token');
+    return fetch('/api/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+  }).then(function (res) {
+    if (!res.ok) throw new Error('me');
+    return res.json();
+  }).then(function (j) {
+    finish(j && j.tenant);
+  }).catch(function () {
+    finish(null);
+  });
+})();
+</script>
+
+</body>
+</html>

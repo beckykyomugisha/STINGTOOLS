@@ -1,0 +1,36 @@
+{
+  "_comment": "KUT project tag-scheme overlay. Copy to <project>/_BIM_COORD/tag_schemes.json. Merged by id over the corporate STING_TAG_SCHEMES.json, project entries win. This enables the kut-temple-example scheme and maps STING building LOC codes to two-digit BEP volume codes. Adjust the LOC map + originator to the agreed BEP volume table once the Owner's BIM standards arrive in week 1 of mobilisation.",
+  "version": "1.0",
+  "schemes": [
+    {
+      "id": "kut-temple-example",
+      "name": "Kampala Uganda Temple (KUT) element identifier",
+      "description": "KUT-<originator>-<volume>-<level>-<discipline>-<number>. LOC maps STING building codes to two-digit BEP volume codes (BLD1 Temple -> 01 ... BLD6 Guard House -> 06, EXT site -> 00). Project + originator codes are read from ProjectInformation at render time.",
+      "origin": "project",
+      "enabled": true,
+      "targetParam": "ASS_TAG_SCHEME_TXT",
+      "separator": "-",
+      "segments": [
+        { "kind": "projectInfo", "param": "PRJ_ORG_PROJECT_CODE_TXT", "fallback": "KUT" },
+        { "kind": "projectInfo", "param": "PRJ_ORG_ORIGINATOR_CODE_TXT", "fallback": "ZZZ" },
+        {
+          "kind": "token",
+          "token": "LOC",
+          "map": {
+            "BLD1": "01",
+            "BLD2": "02",
+            "BLD3": "03",
+            "BLD4": "04",
+            "BLD5": "05",
+            "BLD6": "06",
+            "EXT": "00"
+          },
+          "fallback": "00"
+        },
+        { "kind": "token", "token": "LVL" },
+        { "kind": "token", "token": "DISC" },
+        { "kind": "token", "token": "SEQ" }
+      ]
+    }
+  ]
+}

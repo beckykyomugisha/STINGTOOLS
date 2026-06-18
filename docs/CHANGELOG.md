@@ -3,6 +3,621 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 192 — KUT alignment pack complete)
+
+The Kampala Uganda Temple alignment pack is fully landed across Parts
+A–E (one feature per commit, every commit `dotnet build`-clean against
+the Revit 2025 API; pure-logic engines unit-tested). Per-item detail is
+in the blocks below; this is the consolidated command + asset inventory.
+
+**Commands added (19), by tag → dock-panel location**
+
+| Tag | Mode | Dock-panel location |
+|---|---|---|
+| `TokenConfidenceAudit` | ReadOnly | TAGS · QUALITY ASSURANCE ("Token Conf") |
+| `TagScheme_Render` / `TagScheme_Inspect` / `TagScheme_Audit` | Manual / RO / RO | TAGS · SCHEME TAGS (Phase 191 cmds; buttons added A2) |
+| `LOD_Verify` | ReadOnly | BIM · LOD VERIFICATION |
+| `LOD_Stamp` | Manual | BIM · LOD VERIFICATION |
+| `Program_Audit` | ReadOnly | BIM · LOD VERIFICATION ("Program Audit") |
+| `OwnerStandards_Audit` | ReadOnly | BIM · LOD VERIFICATION ("Owner Standards") |
+| `DeviceCoord_Audit` | ReadOnly | BIM · SPATIAL VALIDATION ("Devices") |
+| `CSI_Assign` | Manual | BIM · CSI / SPECLINK |
+| `SpecLink_Reconcile` | ReadOnly | BIM · CSI / SPECLINK |
+| `Fohlio_Export` / `Fohlio_Audit` | ReadOnly | BIM · FOHLIO FF&E |
+| `Fohlio_Import` | Manual | BIM · FOHLIO FF&E |
+| `ReviewComments_Import` / `_Dashboard` / `_Export` | ReadOnly | BIM · REVIEW COMMENTS (BLUEBEAM) |
+| `ComCheck_Export` (`Lite_ComCheck`) | ReadOnly | ELECTRICAL panel · LPD card |
+| `Hvac_LifeCycleCompare` | ReadOnly | HVAC panel · RPRT tab |
+| `PrototypeDrift_Report` | ReadOnly | BIM · CARBON and CHANGE TRACKING |
+
+All 19 are registered in `StingCommandHandler` and `WorkflowEngine`
+(known-tags + `ResolveCommand`); `ComCheck_Export` also has a
+`Lite_ComCheck` case in `StingElectricalCommandHandler`.
+
+**New shared parameters (7, UUIDv5)**: `ASS_LOD_VERIFIED_TXT`,
+`CSI_SECTION_TXT`, `CSI_TITLE_TXT`, `FOHLIO_REF_TXT`,
+`LTG_HOIST_WEIGHT_KG`, `LTG_HOIST_MOTOR_TXT`, `LTG_HOIST_DROP_MM` — each
+fully registered (ParamRegistry + PARAMETER_REGISTRY.json + MR_PARAMETERS
+txt/csv).
+
+**New ES schema**: `StingFohlioSnapshotSchema` (Fohlio import snapshot).
+
+**Workflow preset**: `WORKFLOW_GateAudit.json` (ValidateTags →
+TokenConfidenceAudit → LOD_Verify → CompletenessDashboard →
+TagScheme_Audit).
+
+**Pure-logic engines unit-tested** (`StingTools.Tags.Tests`, 85 tests):
+`ProgramAuditEngine`, `ReviewCommentTracker`, `CsiMasterFormat`,
+`DeviceCoordination`, `LifeCycleCostEngine` (+ pre-existing
+`SeqAssigner`). Scope-box LOC detection (A4) extends `SpatialAutoDetect`.
+
+**Data files added**: `STING_LOD_MATRIX.json`,
+`STING_OWNER_STANDARDS_PACK.json`, `STING_CSI_MASTERFORMAT_MAP.csv`,
+`STING_DEVICE_COORD_RULES.json`, `STING_COMCHECK_SPACE_MAP.csv`,
+`STING_HVAC_LCC_DEFAULTS.json`, `STING_US_PRESET_OVERLAY.json`,
+`WORKFLOW_GateAudit.json`; Kampala climate entry confirmed; baptismal
+font seed symbol.
+
+**Docs / examples**: `docs/examples/KUT/` (project_config, tag_schemes,
+climate_data, fohlio_connection.json.example, README, REVIT_SMOKE_TEST)
++ `docs/US_STANDARDS_PRESET.md`. Test fixtures under
+`Tests/fixtures/kut/`.
+
+**Standing caveat**: every command ships build-clean but **not yet
+Revit-smoke-tested** — work through `docs/examples/KUT/REVIT_SMOKE_TEST.md`
+in a Revit session before merge to `main`.
+
+#### Completed (Phase 192E4 — Temple seed content)
+
+Temple-specific seed content. **Build verified clean.**
+
+- **Baptismal font** — new `STING_SEED_BaptismalFont` symbol in
+  `Data/Seeds/STING_SEED_PlumbingFixture.json`: DCW + DHW supply, SAN
+  drain, and a recirculation supply/return connector pair (heated +
+  treated loop), plus font params (fill rate `PLM_FIX_FLOWRATE_LMIN`,
+  drain, working volume `PLM_FONT_VOLUME_L`, heater capacity
+  `PLM_FONT_HEATER_KW`, treatment loop `PLM_FONT_TREATMENT_TXT`, recirc
+  flow `PLM_FONT_RECIRC_LMIN`) + a BAPTISMAL_FONT type variant. Added as
+  a separate symbol (not a type variant) because the recirc connectors
+  differ from the base fixture.
+- **Decorative-lighting hoisting params** — `LTG_HOIST_WEIGHT_KG`,
+  `LTG_HOIST_MOTOR_TXT`, `LTG_HOIST_DROP_MM` (A1 §5) fully registered
+  (UUIDv5, group 7 `LTG_CONTROLS`): ParamRegistry constants +
+  UniversalParams fallback, PARAMETER_REGISTRY.json support_params,
+  MR_PARAMETERS.txt/csv. Added to the MEP_Electrical Lighting Schedule
+  field + header lists in `MR_SCHEDULES.csv` (the schedule pipeline reads
+  columns from there — verified) so the hoist columns appear on the
+  lighting schedule.
+
+**Caveats**: font-specific params (`PLM_FONT_*`) ship as family-local
+(shared:false) on the seed — they don't need registry GUIDs; promote to
+shared if a project schedules them. Seed geometry is the schematic
+2D/3D placeholder per the Phase 185 authoring rule; real font geometry
+comes from a manufacturer family via the swap registry.
+
+#### Completed (Phase 192D2 — US standards preset overlay)
+
+Exposes US presets as data where engines are already parameterised — no
+new calculation engines. **Build verified clean.**
+
+- **`Data/STING_US_PRESET_OVERLAY.json`** (new, documented example) —
+  overlay slots for `_BIM_COORD/mep_sizing_rules.json`: `_defaultRegion:
+  US_IP` (duct/pipe → US_IP size + bore tables already in the corporate
+  file), `conduit.maxFillPct: 40` (NEC Ch 9 Table 1, >2 conductors),
+  `cableTray.maxFillPct: 50` (NEC 392.22). Not auto-loaded — the BIM
+  manager copies the slots needed.
+- **`docs/US_STANDARDS_PRESET.md`** (new) — capability map: already
+  US-capable (ASHRAE 90.1 LPD + ComCheck, NEC 392 tray fill, NEC Ch 9
+  conduit fill, NEC demand factors, IEEE 1584 arc flash, Hunter's-method
+  plumbing, US_IP duct/pipe sizes) vs remains BS/EN-only (LPS EN 62305,
+  NFPA 13 hydraulics, IPC drainage, NEC ampacity cable sizing, BS 5422
+  insulation) — flagged, not silently mis-applied.
+- **LPS report EN 62305 note** — `LpsFullReportCommand` now emits an
+  INFO note when the project reads as US-context (resolved climate-site
+  country US, or the address names the US): STING LPS figures are EN
+  62305; under US codes lightning protection is NFPA 780, a performance
+  spec by the engineer of record (A2 makes it a performance spec anyway).
+
+**Caveats**: data + docs + one report note only. No NEC ampacity / NFPA
+13 / IPC engines were added — those are genuine new-engine work, flagged
+in the capability map.
+
+#### Completed (Phase 192E3 — Kampala climate data)
+
+Confirms the project's design-day climate resolves. **Data + docs only;
+build verified clean.**
+
+- `Data/STING_CLIMATE_DATA.json` already ships a **`kampala`** entry
+  (lat 0.042 / lon 32.444 / elev 1155 m; cooling 0.4 % DB 30.3 °C / MCWB
+  20.4 °C; heating 99.6 % 13.7 °C; UTC+3, no DST). Source citation
+  refined to name the ASHRAE 2021 Entebbe station (HUEN / WMO 636800) and
+  flag that the values are an area estimate to confirm before design use.
+- `ClimateRegistry.ByLabelContains` resolves it from
+  `ProjectInformation.Address` (id/label "Kampala" token-matches an
+  address containing "Kampala"); the `DocumentOpened` auto-stamp then
+  writes `PRJ_CLIMATE_SITE_ID` so HVAC commands read it directly.
+- **`docs/examples/KUT/climate_data.json`** (new) — project overlay
+  example for `_BIM_COORD/` so the engineer-of-record can replace the
+  corporate estimate with confirmed ASHRAE values.
+
+**Caveats**: the shipped Kampala cooling/heating values are an Entebbe
+area estimate — confirm against ASHRAE 2021 station data before relying
+on them for sizing (stated in the JSON source + the overlay example).
+
+#### Completed (Phase 192E1 — Prototype drift report)
+
+Answers the recurring Owner peer-review question "what changed vs the
+prototype?". **Build verified clean; not Revit-smoke-tested.**
+
+- **`BIMManager/PrototypeDriftCommand.cs`** (new, tag
+  `PrototypeDrift_Report`, ReadOnly) — user picks the prototype from a
+  loaded RVT link or a second open document (StingListPicker). Compares
+  the current model at **type-level grain (category + type name)** —
+  documented in the output because element-GUID matching across detached
+  prototypes is unreliable. Reports TYPE_ADDED / TYPE_REMOVED,
+  COUNT_CHANGED (instances per matching type), DIM_CHANGED (curated type
+  dimensions: Width/Height/Thickness/Depth/Diameter/Length, mm),
+  ROOM_DELTA (per-room-name count + area). XLSX register grouped by
+  discipline with a Delta column (`STING_PrototypeDrift_<date>.xlsx`).
+- Registered: `PrototypeDrift_Report` in `StingCommandHandler` +
+  `WorkflowEngine`; Prototype Drift button in the dock-panel BIM-tab
+  CARBON and CHANGE TRACKING group.
+
+**Caveats**: command not Revit-smoke-tested — verify in Revit before
+merge. Renamed types surface as one TYPE_ADDED + one TYPE_REMOVED (no
+GUID to correlate across a detached prototype) — type-level is the honest
+grain, as the prompt specifies. No pure-logic unit test (the diff is
+Revit-collector-bound).
+
+#### Completed (Phase 192E2 — 40-year HVAC life-cycle cost comparison)
+
+Satisfies the A1 §17 mechanical "40-year by-year financial comparison
+including graphs" deliverable. **Build verified clean; NPV + escalation +
+replacement-cycle math unit-tested against hand-calculated toy cases
+(92/92 pass).**
+
+- **`Core/Hvac/LifeCycleCostEngine.cs`** (new, Revit-free) — `LccOption`
+  (capital, annual energy, per-m² or flat maintenance, replacement
+  cycles) + `LccInputs` (horizon / escalation% / discount%) +
+  `Compute` → per-option year-by-year rows (nominal + discounted),
+  40-yr nominal + NPV totals, and the nominal/NPV crossover year.
+  Documented convention: capital at year 0 (df 1); a cost in year y is
+  escalated `(1+esc)^(y-1)` and discounted `1/(1+disc)^y`; replacements
+  recur on `y % intervalYears == 0`.
+- **`Data/STING_HVAC_LCC_DEFAULTS.json`** (new, + project overlay
+  `_BIM_COORD/hvac_lcc.json`) — two worked options (VRF heat recovery vs
+  chilled-water AHU+FCU) over 40 yr; energy via direct cost / kWh×tariff /
+  model-derived (Σ HVC_PEAK_SENS_W × EFLH).
+- **`Commands/Hvac/HvacLifeCycleCompareCommand.cs`** (new, tag
+  `Hvac_LifeCycleCompare`, ReadOnly) — resolves energy + floor area from
+  the model where requested, runs the engine, writes a Summary sheet +
+  one year-by-year sheet per option (the chart-data columns) to
+  `STING_HVAC_LCC_<date>.xlsx`; dialog states graphs are charted in Excel.
+- **`StingTools.Tags.Tests/LifeCycleCostEngineTests.cs`** (new, 7 cases)
+  — 3-year hand-calc NPV (with/without escalation), replacement cycle,
+  per-m² maintenance, crossover year, empty-safe.
+- Registered: `Hvac_LifeCycleCompare` in `StingCommandHandler` +
+  `WorkflowEngine`; Life-cycle cost button on the HVAC panel RPRT tab
+  (fall-through dispatch).
+
+**Caveats**: command not Revit-smoke-tested — verify in Revit before
+merge. Graphs are charted from the XLSX columns (STING writes the data,
+not the chart objects). Model-derived energy is a Σ peak × equivalent-
+full-load-hours estimate, not an 8760-hour simulation.
+
+#### Completed (Phase 192D1 — ComCheck lighting input export)
+
+Generates a COMcheck interior-lighting data-entry CSV (A1 lighting
+scope). **Build verified clean; not Revit-smoke-tested.**
+
+- **`Commands/Electrical/Lighting/ComCheckExportCommand.cs`** (new, tag
+  `ComCheck_Export` / `Lite_ComCheck`, ReadOnly) — one block per placed
+  room: COMcheck space type (from `HVC_SPACE_TYPE_TXT` or the room-name
+  map), floor area (ft² + m²), **allowed LPD reused from the existing
+  ASHRAE 90.1 LPD engine** (`LightingPowerDensityCommand.LoadLpdLimits` +
+  `LookupLimit` + `ReadWattage` — the table is NOT re-tabulated here),
+  and the installed fixture schedule per space (type, description, lamps,
+  watts each, quantity, total). Summary block: per-space + project
+  allowed-vs-proposed W with PASS/FAIL. CSV
+  `STING_ComCheck_Lighting_<date>.csv`; the dialog states designers paste
+  into COMcheck (STING does not write the binary `.cck`).
+- **`Data/STING_COMCHECK_SPACE_MAP.csv`** (new, ~30 rows + project
+  overlay `_BIM_COORD/comcheck_space_map.csv`) — room-name keyword →
+  COMcheck Activity/Space type label (longest pattern wins).
+- Registered: `ComCheck_Export` in `StingCommandHandler` +
+  `WorkflowEngine`; `Lite_ComCheck` in `StingElectricalCommandHandler`
+  with a "ComCheck export" button on the Electrical panel's LPD card.
+
+**Caveats**: command not Revit-smoke-tested — verify in Revit before
+merge. No pure-logic unit test (the calc is reused from the LPD engine;
+this command is Revit/aggregation-bound). Lamp count is best-effort from
+a "Number of Lamps" parameter, default 1. The `.cck` XML was assessed not
+cheap to emit; the CSV companion is the deliverable, as the prompt
+allows.
+
+#### Completed (Phase 192B4 — Device Coordination validator)
+
+Coordinates device locations against doors, casework, art/specialty and
+decorative lighting (A1 §7) using bounding-box + wall-host geometry —
+cheap and robust, not a full clash run. **Build verified clean;
+pure geometry unit-tested (79/79 pass).**
+
+- **`Core/Validation/DeviceCoordination.cs`** (new, Revit-free) — `Aabb`
+  (mm; `OverlapsXY`, `PlanarGapMm`) + `ClearanceViolation` +
+  `MountingHeightOutliers` (per-room Z deviation from median) + `Median` +
+  `OnSwingSide` (dot-product sign test) + rule POCOs.
+- **`Data/STING_DEVICE_COORD_RULES.json`** (new, + project overlay
+  `_BIM_COORD/device_coord_rules.json`) — 6 starter rules across 4 types:
+  switch/outlet vs door swing (`doorSwing`), device vs casework/furniture
+  clearance (`clearance`), device + sensor mounting-height consistency
+  (`mountingHeight`), device-overlaps-art/specialty same wall (`overlap`),
+  fire-alarm vs decorative lighting clearance.
+- **`Commands/Validation/DeviceCoordinationCommand.cs`** (new,
+  `DeviceCoord_Audit`, ReadOnly) — builds AABBs (ft→mm) + wall-host +
+  room per element, dispatches per rule type (doorSwing uses
+  FacingOrientation × HandOrientation to test the swept quadrant),
+  groups findings per room, CSV `STING_DeviceCoord_Audit_<date>.csv` +
+  TaskDialog (per-room + first 20).
+- **`StingTools.Tags.Tests/DeviceCoordinationTests.cs`** (new, 8 cases) —
+  overlap, planar gap, clearance, height outliers, median odd/even,
+  swing-side sign.
+- Registered: `DeviceCoord_Audit` in `StingCommandHandler` +
+  `WorkflowEngine`; Devices button in the dock-panel BIM-tab SPATIAL
+  VALIDATION group.
+
+**Caveats**: command not Revit-smoke-tested — verify in Revit before
+merge. doorSwing is a documented bbox + orientation heuristic (swept
+quadrant + planar gap), not a true swing-arc sweep; it flags candidates
+for human review. Geometry is axis-aligned bbox only — a device just
+inside a deep casework bbox reads as a clearance hit (conservative).
+
+#### Completed (Phase 192C1 — Fohlio ExLink profile)
+
+Links the model to the Owner's Fohlio FF&E single source of truth — a
+parameter-sync + reference-link layer ("link, never duplicate"), not a
+data copy. **Build verified clean; not Revit-smoke-tested.**
+
+- **`FOHLIO_REF_TXT`** new shared param (UUIDv5
+  `0ecf2056-1239-52bc-87f8-17c281e67209`) fully registered — the Fohlio
+  item URL/ID link key.
+- **`ExLink/FohlioLink.cs`** (new) — `FohlioMap` (FF&E categories +
+  column mapping STING/Revit param ↔ Fohlio field, `$`-pseudo params for
+  Family/Type/Category/Room, configurable via `_BIM_COORD/fohlio_map.json`)
+  + `IFohlioTransport` interface + `FohlioRestTransport` **Tier-2 stub**
+  (`TestConnection` gate live; list/get/update throw NotImplemented with
+  TODOs) + `FohlioConnection` loader.
+- **`ExLink/FohlioCommands.cs`** (new) — `Fohlio_Export` (ReadOnly, FF&E
+  register → Fohlio-shape CSV), `Fohlio_Import` (Manual; match by Item
+  Tag; **preview/diff TaskDialog before any write**; fill-empty/overwrite;
+  writes `FOHLIO_REF_TXT` + selected fields + ES snapshot), `Fohlio_Audit`
+  (ReadOnly; missing-ref + stale-vs-snapshot + per-category currency KPI).
+- **`Core/Storage/StingFohlioSnapshotSchema.cs`** (new ES schema, GUID
+  `E1A7B2C4-…-1245-…`) — stores the last-imported Fohlio field snapshot
+  per element (ref + JSON + timestamp) so the audit can flag drift.
+- **`docs/examples/KUT/fohlio_connection.json.example`** (new) — the only
+  tracked connection artefact. `.gitignore` now ignores
+  `fohlio_connection.json` + `**/fohlio_connection.json` (verified via
+  `git check-ignore` — the real key file cannot be committed).
+- Registered: `Fohlio_Export` / `_Import` / `_Audit` in
+  `StingCommandHandler` + `WorkflowEngine`; FOHLIO FF&E section on the
+  dock-panel BIM tab.
+
+**Caveats**: commands not Revit-smoke-tested — verify CSV round-trip in
+Revit before merge. Tier-2 REST transport is a clean stub (CSV is the
+contractual path); list/get/update need the Fohlio v2 API docs + a key to
+wire. No pure-logic unit test (Revit/IO-bound, like B2). Import matches by
+`ASS_TAG_1_TXT`; rows whose tag isn't in the model are reported unmatched.
+
+#### Completed (Phase 192C2 — SpecLink / CSI MasterFormat cross-reference)
+
+Keeps model keynotes / classifications reconciled with the RIB SpecLink
+spec TOC (CSI MasterFormat). **Build verified clean; pure resolution +
+reconcile logic unit-tested (71/71 pass).**
+
+- **`CSI_SECTION_TXT` / `CSI_TITLE_TXT`** new shared params (UUIDv5
+  `3c2c7d9d-…` / `160a2335-…`) fully registered (ParamRegistry constants
+  + UniversalParams fallback, PARAMETER_REGISTRY.json support_params,
+  MR_PARAMETERS.txt/csv).
+- **`Data/STING_CSI_MASTERFORMAT_MAP.csv`** (new, ~85 rows + project
+  overlay `_BIM_COORD/csi_map.csv`) — `Category, FamilyRegex, TypeRegex,
+  Sys, Section, Title` rules for divisions 21/22/23/26/27/28 + 08/09/10/
+  12 (and a few 04/05/06/07 neighbours). Codes are starter
+  approximations to confirm against the project spec.
+- **`Core/Classification/CsiMasterFormat.cs`** (new, Revit-free) —
+  `CsiRule` (compiled family/type regexes) + scored `Resolve`
+  (most-specific match wins: category + family + type + SYS qualifiers;
+  ties → earliest rule) + `ParseCsvLines` (skips `#`/blank/header) +
+  `NormalizeSection` + `Reconcile` (spec-gap / over-spec / title-mismatch
+  diff).
+- **`Commands/Classification/CsiCommands.cs`** (new) — `CSI_Assign`
+  (Manual; fill-empty / overwrite picker; writes both params; reports
+  unmapped categories) + `SpecLink_Reconcile` (ReadOnly; header-forgiving
+  TOC CSV/XLSX import; XLSX report
+  `STING_SpecLink_Reconcile_<date>.xlsx`).
+- **`StingTools.Tags.Tests/CsiMasterFormatTests.cs`** (new, 8 cases) —
+  parse skips, family-beats-category, category fallback, SYS resolution,
+  null-when-no-rule, normalise, reconcile gaps/over-spec/mismatch,
+  missing-title-not-mismatch.
+- **`Tests/fixtures/kut/speclink_toc_sample.csv`** (new, 10 rows).
+- Registered: `CSI_Assign` / `SpecLink_Reconcile` in
+  `StingCommandHandler` + `WorkflowEngine`; CSI / SPECLINK section on the
+  dock-panel BIM tab.
+
+**Caveats**: commands not Revit-smoke-tested — verify with the fixture
+before merge. C2 step 4 (add CSI_SECTION_TXT to the COBie/handover export
+columns) was assessed **non-trivial** — `COBIE_ATTRIBUTE_TEMPLATES.csv`
+is keyed per equipment-type RowNamePattern, not a single column list, so
+adding CSI cleanly would touch many rows / the exporter; deferred per the
+"do not refactor exporters" instruction.
+
+#### Completed (Phase 192B2 — Owner Standards Pack)
+
+Encodes the Owner's BIM modeling standards as a configurable rule-pack
+so adopting their week-1 standards is a JSON edit, not a code change.
+**Build verified clean; not Revit-smoke-tested.**
+
+- **`Data/STING_OWNER_STANDARDS_PACK.json`** (new, + project overlay
+  `_BIM_COORD/owner_standards.json` merged by rule id) — starter
+  baseline: required `PRJ_ORG_PROJECT_CODE_TXT` / `_ORIGINATOR_CODE_TXT`
+  (BLOCK), workset `^(BLD[1-6]|EXT)_` prefix (WARN), tag-scheme
+  consistency (WARN), discipline-code-in-list (WARN), no
+  generic/placeholder MEP families (WARN), and the ISO 19650
+  `KUT-ZZZ-XX-XX-M3-A-0001` sheet-number pattern shipped **disabled**
+  until the Owner's number table lands. Each rule carries `severity`
+  (BLOCK/WARN/INFO) + `source` (cited Owner doc section).
+- **`Core/Validation/OwnerStandardsPack.cs`** (new) — rule POCO +
+  registry (corporate + overlay, per-doc cache) + one evaluator that
+  switches over 9 rule types: `paramRequired`, `paramPattern`,
+  `paramInList`, `familyNamePattern`, `typeNamePattern`,
+  `worksetPattern`, `viewNamePattern`, `sheetNumberPattern`,
+  `tagSchemeConsistent`. The scheme rule **reuses
+  `TagSchemeRenderer.Render`** (Phase 191) — it does not duplicate that
+  logic.
+- **`Commands/Validation/OwnerStandardsAuditCommand.cs`** (new,
+  `OwnerStandards_Audit`, ReadOnly) — runs all enabled rules, RAG
+  summary (RED if any BLOCK fails, AMBER on WARN, else GREEN) + per-rule
+  detail with cited sources, CSV
+  (`STING_OwnerStandards_Audit_<date>.csv`) + JSON report to
+  `_BIM_COORD/owner_standards_reports/`.
+- Registered: `OwnerStandards_Audit` in `StingCommandHandler` +
+  `WorkflowEngine` known-tags + `ResolveCommand`; Owner Standards button
+  on the dock-panel BIM tab. `OnDocumentClosing` now also invalidates
+  the LOD-matrix + Owner-standards registries.
+
+**Caveats**: command not Revit-smoke-tested — verify in Revit before
+merge. Evaluator is Revit-bound (reads elements/worksets/views/sheets/
+project-info + TagSchemeRenderer) so it has no pure-logic unit test;
+rule-type coverage is the audit surface. `Project Information` category
+in a rule's `categories` is special-cased to `doc.ProjectInformation`.
+
+#### Completed (Phase 192C3 — Bluebeam comment close-out tracker)
+
+Tracks Owner Bluebeam Studio review-comment close-out — a phase-gate
+condition (A1) and monthly KPI (proposal §4.6). **Build verified clean;
+pure-logic upsert/close-out/KPI unit-tested (63/63 pass).**
+
+- **`Docs/ReviewCommentTracker.cs`** (new, Revit/IO-free) —
+  `ReviewComment` / `ReviewCommentStore` / `ReviewKpiRow` POCOs +
+  `NormalizeStatus` (Bluebeam → Open/Answered/ResolvedPendingOwner/
+  Closed) + `Upsert` (re-import merges by SessionId|CommentId, keeps
+  first-seen, refreshes last-seen, preserves an assigned owner) +
+  `AgeDays` (first-seen → now/last-seen) + `CloseOutRate` + `BuildKpi`
+  (per-gate + ALL row, overdue = open beyond SLA).
+- **`Docs/ReviewCommentCommands.cs`** (new) — `ReviewComments_Import`
+  (CSV/XLSX parse with header-forgiving mapping configurable via
+  `_BIM_COORD/review_comment_map.json`; pick gate; upsert into
+  `_BIM_COORD/review_comments.json`), `ReviewComments_Dashboard`
+  (StingDataGridDialog grid + close-out rate + open count),
+  `ReviewComments_Export` (monthly KPI CSV: gate, total, closed,
+  close-out %, mean age, overdue).
+- **`StingTools.Tags.Tests/ReviewCommentTrackerTests.cs`** (new, 15
+  cases) — status mapping, upsert add/refresh/owner-preserve, close-out
+  rate, age (open vs closed), KPI grouping + overdue. Tracker linked via
+  `<Compile Include>`.
+- **`Tests/fixtures/kut/bluebeam_comments_sample.csv`** (new) — 8-row
+  synthetic Bluebeam summary for the manual command smoke test.
+- Registered: 3 tags in `StingCommandHandler` + `WorkflowEngine`
+  known-tags + `ResolveCommand`; REVIEW COMMENTS section on the
+  dock-panel BIM tab.
+
+**Caveats**: commands (CSV/XLSX/JSON IO + dashboard) not Revit-smoke-
+tested — verify in Revit with the fixture before merge. Owner assignment
++ the ResolvedPendingOwner state are persisted but the dashboard is
+currently read-only (no in-grid owner edit yet).
+
+#### Completed (Phase 192B3 — Program Audit comparator)
+
+Audits model rooms against the Owner's live program Excel template
+(A1 §19) and emits a deficiency log. **Build verified clean; pure-logic
+join/compare unit-tested (48/48 pass).**
+
+- **`Core/Validation/ProgramAuditEngine.cs`** (new, Revit/Excel-free) —
+  `ProgramRow` / `ModelRoomRow` / `ProgramAuditRow` POCOs + `Normalize`
+  (case/space/punctuation-stripping key) + `Compare(program, model,
+  tolerancePct)`. Join order Room Number → exact name → normalised name;
+  unjoined template rows = MissingFromModel, unjoined model rooms =
+  ExtraInModel; area compared within ±tolerance (Compliant/Over/Under),
+  per-type count compared when the template carries a Required Count.
+- **`Commands/Validation/ProgramAuditCommand.cs`** (new, tag
+  `Program_Audit`, ReadOnly) — picks the template (OpenFileDialog),
+  reads it via ClosedXML with header-forgiving column matching
+  (configurable via `_BIM_COORD/program_audit_map.json`: name/number/
+  area/department/count/building header keyword lists + area unit
+  m²/ft² + tolerance), reads placed rooms (OST_Rooms, area > 0),
+  runs the engine, writes `STING_ProgramAudit_<yyyyMMdd>.xlsx` with a
+  per-row Status column + TaskDialog summary (compliant/over/under/
+  missing/extra/count-mismatch + first 15 deficiencies).
+- **`StingTools.Tags.Tests/ProgramAuditEngineTests.cs`** (new, 12 cases)
+  — Normalize, number-over-name join precedence, area bands,
+  missing/extra, normalised-name fallback, count mismatch, no-area
+  match. Links `ProgramAuditEngine.cs` via `<Compile Include>` (pure
+  net8.0, no Revit DLLs).
+- **`Tests/fixtures/kut/program_template_sample.xlsx`** (new) — 5-row
+  fixture for the manual Revit command smoke test.
+- Registered: `Program_Audit` in `StingCommandHandler` +
+  `WorkflowEngine` known-tags + `ResolveCommand`; Program Audit button
+  in the dock-panel BIM-tab LOD VERIFICATION section.
+
+**Caveats**: command (Excel/Revit IO) not Revit-smoke-tested — verify
+in Revit with the fixture before merge. Room area read in ft²×0.0929 →
+m²; template area unit defaults to m² (set `areaUnit:"ft2"` in the map
+overlay otherwise).
+
+#### Completed (Phase 192B1 — LOD Verification Engine)
+
+The single highest-value KUT item: verifies element maturity against a
+milestone LOD matrix (200/300/350/400) at Deliverables A/B/C, the
+conformed set, and the Deliverable D record model. **Build verified
+clean** against the Revit 2025 API; not yet Revit-smoke-tested.
+
+- **`Data/STING_LOD_MATRIX.json`** (new, + project overlay
+  `_BIM_COORD/lod_matrix.json` merged by milestone id / category) — 5
+  milestones, a `"*"` default rule + explicit rules for 19 high-volume
+  categories (walls, floors, doors, windows, mech/elec equipment,
+  lighting/plumbing fixtures, ducts, pipes, conduits, cable trays, air
+  terminals, sprinklers, fire-alarm devices, structural framing/columns,
+  casework, specialty equipment). Per-LOD checks: `requireGeometry`,
+  `forbidPlaceholderFamilies`, `requireTypeNotGeneric`,
+  `requireManufacturerType`, `requiredParams` (`+name` adds to inherited,
+  plain replaces), `requiredDims` (numeric > 0), `inherit`. Checks are
+  limited to what the Revit API can verify — a parameter/naming/
+  geometry-presence maturity proxy, **not a geometric survey** (stated in
+  the JSON description + every command output). `requireNoUnresolvedClash`
+  is honoured as a non-verifiable INFO note, never a hard fail.
+- **`Core/Validation/LodVerificationEngine.cs`** (new) — `LodMatrix` POCOs
+  + `LodMatrixRegistry` (corporate + overlay, per-doc cache) +
+  `Verify(doc, milestoneId, scope) → LodVerificationResult` with
+  per-element pass/fail + reasons, per-category and per-discipline
+  rollups, overall %. Inheritance + `+`/replace list semantics resolved
+  once per category per pass.
+- **`Commands/Validation/LodVerifyCommand.cs`** (new) — `LOD_Verify`
+  (ReadOnly): milestone picker → engine → TaskDialog + CSV
+  (`STING_LOD_<milestone>_Audit.csv`) + JSON gate report to
+  `_BIM_COORD/lod_reports/<milestone>_<yyyyMMddHHmmss>.json` (the Owner
+  gate artefact). `LOD_Stamp` (Manual): writes the milestone id into the
+  new `ASS_LOD_VERIFIED_TXT` on passing elements.
+- **`ASS_LOD_VERIFIED_TXT`** new shared param (UUIDv5
+  `60440963-a414-5667-88f4-d12082344c4d`) registered in ParamRegistry
+  (constant + UniversalParams fallback), PARAMETER_REGISTRY.json
+  support_params, MR_PARAMETERS.txt/csv.
+- **`Data/WORKFLOW_GateAudit.json`** (new) — standing gate chain:
+  ValidateTags → TokenConfidenceAudit → LOD_Verify →
+  CompletenessDashboard → TagScheme_Audit.
+- Registered: `LOD_Verify` / `LOD_Stamp` in `StingCommandHandler` +
+  `WorkflowEngine` known-tags + `ResolveCommand`; LOD VERIFICATION
+  section on the dock-panel BIM tab.
+
+**Caveats**: not Revit-smoke-tested (param-bind via LoadSharedParams,
+LOD_Verify on a real model, gate-report write still pending). Geometry
+check is bbox-presence only (non-degenerate extent in ≥2 axes) — it does
+not validate dimensional correctness; the output says so. `requiredDims`
+reference confirmed-existing params (e.g. `HVC_FLOW_LS`); a required
+param that is unbound on the project reads as a fail at that LOD (correct
+— it should be bound + populated by then).
+
+#### Completed (Phase 192A — KUT: finish the tag-scheme work)
+
+Closes the Phase 191 "gaps you own" list from
+[`PROMPT_KUT_PHASE_192_IMPLEMENTATION.md`](PROMPT_KUT_PHASE_192_IMPLEMENTATION.md)
+Part A. **Build verified clean** against the Revit 2025 API
+(`dotnet build`, 0 warnings / 0 errors) — the Phase 191 commit also
+compiles clean, so the "verify compile" caveat on Phase 191 is
+discharged. Not yet Revit-smoke-tested — verify in Revit before merge.
+
+- **`Tags/TokenConfidenceAuditCommand.cs`** (new, tag
+  `TokenConfidenceAudit`, ReadOnly) — A1. Reporting layer over the
+  pipeline's provenance params (`ASS_LOC_SOURCE_TXT` /
+  `ASS_ZONE_SOURCE_TXT` / `ASS_SYS_DETECT_LAYER_INT`). Classifies
+  LOC/ZONE/SYS per element into High (Room / TYPE_OVERRIDE / Workset /
+  ScopeBox; SYS layers 1–5) / Medium (ProjectInfo; SYS 6) / Low
+  (Default / unset; SYS 7). TaskDialog: band totals, the
+  silent-BLD1-default count (LOC=BLD1 with `LOC_SOURCE=Default` — reads
+  as "Temple" but never confirmed), per-discipline + per-category SYS
+  fallback (top 10), first 10 offender ElementIds. CSV
+  `STING_TokenConfidence_Audit.csv` (one row per low-band element).
+- **A2** — `StingToolsApp.OnDocumentClosing` now invalidates
+  `TagSchemeRegistry` per document. Dock-panel TAGS tab gains a SCHEME
+  TAGS section (Render / Inspect / Audit) + a Token Confidence button
+  in the QA WrapPanel. `TagScheme_Render/Inspect/Audit` +
+  `TokenConfidenceAudit` registered in `WorkflowEngine` known-tags +
+  `ResolveCommand`. NLP patterns added.
+- **A3** — `docs/examples/KUT/` worked example overlay
+  (`project_config.json` six-building LOC + per-building sequence,
+  `tag_schemes.json` enabling `kut-temple-example`, `README.md` setup
+  sequence + BEP detection rules).
+- **A4** — scope-box LOC detection. `SpatialAutoDetect.ScopeBoxLoc` +
+  `BuildScopeBoxLocIndex` + `DetectLocFromScopeBox`; a scope box named
+  `STING-LOC::<loc>` declares a building footprint, and a site element
+  whose bbox centre falls inside (XY) gets that LOC with
+  `LOC_SOURCE="ScopeBox"`. Cached on `PopulationContext.ScopeBoxLocs`;
+  `PopulateAll` consults it only when room/workset detection fell to the
+  project/BLD1 default. Token Confidence Audit bands ScopeBox as High.
+
+**Caveats**: not Revit-smoke-tested (LoadSharedParams param-bind check,
+BatchTag, TokenConfidenceAudit on a real model still pending). Scope-box
+detection uses the element's untransformed bbox centre — hosted families
+whose bbox is degenerate before placement are skipped, falling through to
+the existing default (no regression).
+
+#### Completed (Phase 191 — Tag Scheme engine: project-grammar tag renderings)
+
+Built for the Kampala Uganda Temple (KUT) engagement; generic for any
+project whose Owner mandates a tag/identifier grammar different from
+the STING corporate 8-segment form. **Built without `dotnet build`
+verification (Linux sandbox) — verify in Revit before merge.** The
+companion implementation prompt for the remaining KUT work items lives
+in [`PROMPT_KUT_PHASE_192_IMPLEMENTATION.md`](PROMPT_KUT_PHASE_192_IMPLEMENTATION.md).
+
+- **`Core/TagSchemeEngine.cs`** (new) — `TagScheme` / `TagSchemeSegment`
+  POCOs + `TagSchemeRegistry` (corporate baseline
+  `Data/STING_TAG_SCHEMES.json` + project overlay
+  `<project>/_BIM_COORD/tag_schemes.json`, merged by id, project wins;
+  per-document cache; SHA-256 checksums; render stamp at
+  `_BIM_COORD/.sting_tag_scheme_stamp.json` for drift detection;
+  ProjectInformation value cache) + `TagSchemeRenderer` (segment kinds:
+  `token` with optional value map, `projectInfo`, `literal`). Schemes
+  are *renderings* of the canonical 8 source tokens — one token source
+  of truth, N rendered strings, zero drift by construction. A scheme
+  may never target `ASS_TAG_1_TXT` or a source token parameter.
+- **`Data/STING_TAG_SCHEMES.json`** (new) — `iso19650-element`
+  (PROJECT-ORIGINATOR-VOLUME-LEVEL-DISCIPLINE-NUMBER, reading
+  `PRJ_ORG_PROJECT_CODE_TXT` / `PRJ_ORG_ORIGINATOR_CODE_TXT` at render
+  time) + `kut-temple-example` (six-building volume map BLD1→01 …
+  EXT→00). Both ship disabled; projects opt in via the overlay.
+- **Pipeline hook** — `TagPipelineHelper.RunFullPipeline` renders all
+  enabled schemes right after `WriteTag7All`, so AutoTag / BatchTag /
+  TagAndCombine / TagNewOnly / ReTag **and the real-time IUpdater** emit
+  scheme tags through one code path. No-op when nothing is enabled.
+- **New shared parameter `ASS_TAG_SCHEME_TXT`** (UUIDv5
+  `2c8224df-92e0-567b-a9df-c8cd1e4402a3` in the Planscape docs
+  namespace) — default scheme target container. Registered in
+  `ParamRegistry` (constant + fallback `UniversalParams`),
+  `PARAMETER_REGISTRY.json` (`support_params`, binding universal),
+  `MR_PARAMETERS.txt` + `MR_PARAMETERS.csv`.
+- **Per-building SEQ grouping (`SEQ_INCLUDE_LOC`)** — new
+  `project_config.json` key; `SeqAssigner.BuildSeqKey` gains a LOC-aware
+  overload (`DISC_LOC_SYS_LVL` / `DISC_LOC_ZONE_SYS_LVL`, empty LOC
+  normalises to BLD1). Wired through `TagConfig` (flag + parse + reset +
+  scheme-change warning + `BuildAndWriteTag` key), both counter-scan
+  sites in `TagConfig.Defaults.cs`, and the five command call sites
+  (TokenWriter / PreTagAudit / TagOperationCommands ×3). Default off —
+  existing projects unchanged.
+- **3 new commands** (`Tags/TagSchemeCommands.cs`, dispatched via
+  `TagScheme_Render` / `TagScheme_Inspect` / `TagScheme_Audit`):
+  `RenderSchemeTagsCommand` (batch back-fill + heal, selection-else-
+  project scope, Escape-cancellable, updates render stamp),
+  `TagSchemeInspectCommand` (read-only: scheme list, validity, coverage,
+  checksum drift vs last render), `TagSchemeAuditCommand` (read-only
+  consistency: stored vs re-rendered per element, CSV to output dir —
+  catches hand-edited scheme tags and stale renders).
+
+Caveats: (1) no `dotnet build` run; (2) dock-panel buttons not yet
+added — commands dispatch via handler tags only; (3)
+`TagSchemeRegistry` caches are not yet dropped on document close; (4)
+the Token Confidence Audit (default-value provenance report) is
+specified but not yet implemented — all three are top items in the
+Phase 192 prompt.
+
 #### Completed (BOQ accuracy — review pass 2: each-unit carbon zeroing)
 
 Three corrections to the BOQ engine, appended as the "Review pass 2"

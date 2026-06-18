@@ -1,0 +1,33 @@
+# Cloudflare Worker (cron) for Planscape billing lifecycle jobs.
+# Deploy: cd marketing-site-cron && npx wrangler deploy
+#
+# This is a STANDALONE Worker (not part of the Pages project). It binds the SAME
+# D1 database as the marketing site so it reads/writes the same tenants, sessions,
+# subscriptions, invoices, and webhooks_log tables.
+#
+# Secrets (set via `npx wrangler secret put NAME` or the dashboard):
+#   RESEND_API_KEY         Resend key for lifecycle email (trial reminders, dunning).
+#   SIGNUP_DIGEST_WEBHOOK  Optional Slack/Discord webhook for the 06:00 digest.
+#   ADMIN_API_KEY          Optional — guards the manual /run?job= trigger (testing).
+# Plain vars are below.
+
+name = "planscape-cron"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+
+[vars]
+APP_ORIGIN = "https://planscape.build"
+EMAIL_FROM = "Planscape <noreply@planscape.build>"
+
+# Cron schedule (UTC):
+#   "0 * * * *"  hourly  → expire elapsed trials → read_only + email
+#   "0 9 * * *"  daily   → T-7/T-3/T-1 trial reminders + cap reminders + dunning
+#   "0 6 * * *"  daily   → nightly signup digest to SIGNUP_DIGEST_WEBHOOK
+#   "0 3 * * *"  daily   → cleanup expired sessions/idempotency + archive old webhooks
+[triggers]
+crons = ["0 * * * *", "0 9 * * *", "0 6 * * *", "0 3 * * *"]
+
+[[d1_databases]]
+binding       = "WAITLIST_DB"
+database_name = "planscape-waitlist"
+database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"

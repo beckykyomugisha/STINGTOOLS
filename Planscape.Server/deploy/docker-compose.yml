@@ -1,0 +1,207 @@
+# Planscape Heavy-BIM server — C0 PRODUCTION profile (Oracle Cloud Always Free
+# ARM VM, fronted by a Cloudflare Tunnel).
+#
+# This is a SELF-CONTAINED production compose, distinct from
+# docker/docker-compose.yml (dev) and docker/docker-compose.prod.yml
+# (Caddy + Let's Encrypt + LiveKit). The heavy-BIM box has a different
+# topology:
+#   • Ingress is a Cloudflare Tunnel (outbound-only). The VM opens NO
+#     inbound ports — there is no Caddy, no Let's Encrypt, no :80/:443.
+#     TLS terminates at the Cloudflare edge for api-heavy.planscape.build.
+#   • NO meetings/LiveKit/egress here — that media plane (WS3) lives on a
+#     separate host. This box is reserved for the "C" chunks: clash
+#     detection, BCF round-trip, IFC ingest, file storage, transmittals.
+#
+# It REUSES the existing multi-stage Dockerfile at docker/Dockerfile (which
+# must build from the repo root because Planscape.Shared.csproj links a
+# StingTools/ source file). Do NOT duplicate that Dockerfile.
+#
+# Bring-up (from this directory, on the VM):
+#   cp .env.example .env   # then fill in the secrets
+#   docker compose up -d --build
+# See oracle-vm-setup.md for the full provisioning walkthrough.
+#
+# DRAFT (C0) — scaffolding only. Nothing here is deployed yet.
+
+services:
+  api:
+    build:
+      # Context is the repo root (two levels up from Planscape.Server/deploy/).
+      context: ../..
+      dockerfile: Planscape.Server/docker/Dockerfile
+      args:
+        # Heavy-BIM box DOES want IFC→glTF derivatives. Set IFCCONVERT_URL in
+        # .env to an IfcOpenShell IfcConvert linux64 zip URL (note: pick an
+        # arm64/aarch64 build for the Ampere A1 VM) and set
+        # MODEL_CONVERTER_PROVIDER=ifcconvert. Default "skip" leaves it off.
+        IFCCONVERT_URL: ${IFCCONVERT_URL:-skip}
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      # ── Auth ──
+      # Jwt__Key is what the CURRENT server reads (HS256 signing/validation).
+      # C1 (auth bridge) introduces PlanscapeJwtHandler reading JWT_SECRET as
+      # the SAME value the Cloudflare Workers sign with — until C1 reconciles
+      # the two names, set JWT_KEY == the Workers JWT_SECRET so tokens minted
+      # at planscape.build validate here too.
+      - Jwt__Key=${JWT_KEY:?Set JWT_KEY in .env (== Cloudflare Workers JWT_SECRET, 32+ chars)}
+      - Jwt__Issuer=${JWT_ISSUER:-planscape}
+      - Jwt__Audience=${JWT_AUDIENCE:-Planscape.Client}
+      - Redis__Connection=redis:6379
+      # ── Fresh-DB schema bootstrap ──
+      # The codebase materialises schema from the EF model (EnsureCreated /
+      # CreateTables) plus idempotent patchers, NOT from a complete EF
+      # migration set (see Program.cs ~line 1317 + docs/adr/0001). On a
+      # BRAND-NEW empty DB, leave this true so the full schema is created on
+      # first boot. Once the DB is established you can drop it (the patchers
+      # still run in the Migrate() branch). No manual `dotnet ef` step.
+      - PLANSCAPE_USE_ENSURE_CREATED=${PLANSCAPE_USE_ENSURE_CREATED:-true}
+      # ── Outward URLs: single source of truth ──
+      # The tunnel hostname. Every outward link + CORS derives from it.
+      - Planscape__PublicBaseUrl=${PUBLIC_BASE_URL:-https://api-heavy.planscape.build}
+      - Cors__Origins__0=${CORS_ORIGIN_PRIMARY:-https://planscape.build}
+      - Cors__Origins__1=${CORS_ORIGIN_SECONDARY:-https://api-heavy.planscape.build}
+      # ── File storage ──
+      # Heavy-BIM uploads (IFC/BCF/transmittal artefacts) land on the storage
+      # volume via LocalFileStorageService. MinIO below backs anything that
+      # speaks S3; drop the minio service + these vars for pure local-disk.
+      - Storage__Path=/app/storage
+      - ModelConverter__Provider=${MODEL_CONVERTER_PROVIDER:-null}
+      - ModelConverter__IfcConvertPath=/usr/local/bin/IfcConvert
+      # WS5 — persist the DataProtection key ring so auth/antiforgery survive
+      # restarts (otherwise a new ring is minted each boot).
+      - DataProtection__KeysPath=/app/keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    volumes:
+      - storage:/app/storage
+      - dpkeys:/app/keys
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # No `ports:` — the API is reachable ONLY through the cloudflared service
+    # on the internal compose network. Nothing is published to the host.
+    expose:
+      - "8080"
+
+  # Hangfire background worker (IFC→glTF conversion, DB backup, etc.). Shares
+  # Program.cs with the API; PLANSCAPE_ROLE=worker activates the heavy queues
+  # without exposing HTTP.
+  worker:
+    build:
+      context: ../..
+      dockerfile: Planscape.Server/docker/Dockerfile
+      args:
+        IFCCONVERT_URL: ${IFCCONVERT_URL:-skip}
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - PLANSCAPE_ROLE=worker
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      - Jwt__Key=${JWT_KEY:?Set JWT_KEY in .env (== Cloudflare Workers JWT_SECRET, 32+ chars)}
+      - Jwt__Issuer=${JWT_ISSUER:-planscape}
+      - Jwt__Audience=${JWT_AUDIENCE:-Planscape.Client}
+      - Redis__Connection=redis:6379
+      - Storage__Path=/app/storage
+      - ModelConverter__Provider=${MODEL_CONVERTER_PROVIDER:-null}
+      - ModelConverter__IfcConvertPath=/usr/local/bin/IfcConvert
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      # The API container is the schema steward — wait for it to be healthy so
+      # the worker never races CREATE SCHEMA or queries tables that don't exist.
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - storage:/app/storage
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: planscape
+      POSTGRES_USER: planscape
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Loopback-only — never expose Postgres to the host's public interface.
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U planscape"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
+  # S3-compatible object store for heavy-BIM artefacts. Console bound to
+  # loopback only; the S3 API is internal-network only (the tunnel does not
+  # route to it). Drop this service for pure local-disk storage.
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-planscape}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "127.0.0.1:9001:9001"   # web console — reach via SSH tunnel only
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Cloudflare Tunnel — the ONLY ingress. Outbound-only connection to the
+  # Cloudflare edge; routes api-heavy.planscape.build → http://api:8080 per
+  # cloudflared/config.yml. Needs a locally-managed tunnel credentials file at
+  # cloudflared/credentials.json (gitignored) — see oracle-vm-setup.md.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ./cloudflared/credentials.json:/etc/cloudflared/credentials.json:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Nightly pg_dump to a dedicated backup volume. Mirrors the prod overlay's
+  # pgbackup; retention is handled inside backup.sh.
+  pgbackup:
+    image: postgres:16-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - pgbackups:/backups
+      - ../docker/backup/backup.sh:/usr/local/bin/backup.sh:ro
+    entrypoint: ["/bin/sh", "-c", "crond -f -d 8"]
+    command: []
+    restart: unless-stopped
+
+volumes:
+  pgdata:      # Postgres data — survives restarts/rebuilds.
+  redisdata:
+  storage:     # Heavy-BIM uploaded artefacts (IFC/BCF/transmittals).
+  miniodata:   # S3 object store.
+  dpkeys:      # ASP.NET DataProtection key ring (auth/antiforgery).
+  pgbackups:   # Nightly pg_dump output.

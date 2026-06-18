@@ -7,7 +7,7 @@
 <meta name="description" content="Download, install, and license-bind the Planscape Revit plugin. Works on Revit 2025 / 2026 / 2027.">
 <meta name="theme-color" content="#E8912D">
 <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
-<link rel="canonical" href="https://planscape.co/guides/revit-plugin-setup.html">
+<link rel="canonical" href="https://planscape.build/guides/revit-plugin-setup.html">
 <link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
@@ -42,12 +42,12 @@
       <tr><td>.NET runtime</td><td>.NET 8 desktop runtime (auto-installed if missing)</td></tr>
       <tr><td>RAM</td><td>8 GB minimum, 16 GB recommended for federations &gt; 1 GB</td></tr>
       <tr><td>Disk</td><td>500 MB for the plugin + cache, plus your model footprint</td></tr>
-      <tr><td>Network</td><td>HTTPS outbound to <code>api.planscape.co</code> on port 443</td></tr>
+      <tr><td>Network</td><td>HTTPS outbound to <code>api.planscape.build</code> on port 443</td></tr>
     </tbody>
   </table>
 
   <h2>Step 1 — Download the plugin</h2>
-  <p>Sign in to the web app at <a href="https://planscape.co/">planscape.co</a>. From any project workspace, open <strong>Tools &rsaquo; Download Revit plugin</strong>.</p>
+  <p>Sign in to the web app at <a href="https://planscape.build/">planscape.build</a>. From any project workspace, open <strong>Tools &rsaquo; Download Revit plugin</strong>.</p>
   <p>You get a single ZIP file: <code>StingTools.zip</code> (around 45 MB). It contains:</p>
   <ul>
     <li><code>StingTools.addin</code> — the Revit manifest</li>
@@ -139,9 +139,9 @@
   <h3>The dockable panel won't show</h3>
   <p>Revit hides docked panels by default. Click <strong>View &rsaquo; User Interface &rsaquo; STING Tools Panel</strong> to show it, or use the ribbon "Toggle Panel" button.</p>
 
-  <h3>I get "Cannot connect to api.planscape.co"</h3>
+  <h3>I get "Cannot connect to api.planscape.build"</h3>
   <ul>
-    <li>Most likely cause: your network blocks outbound HTTPS on a corporate firewall. Ask IT to whitelist <code>api.planscape.co</code> on port 443.</li>
+    <li>Most likely cause: your network blocks outbound HTTPS on a corporate firewall. Ask IT to whitelist <code>api.planscape.build</code> on port 443.</li>
     <li>The plugin works offline for most commands. Cloud-sync commands will queue until you're online.</li>
   </ul>
 
@@ -174,7 +174,7 @@
       <div class="brand-row">Plan<span class="dot">·</span>scape</div>
       <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
       <p>📍 Kampala, Uganda</p>
-      <p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
     </div>
     <div class="col">
       <h4>Product</h4>
@@ -187,7 +187,7 @@
       <h4>Learn</h4>
       <a href="/guides/">Guides</a>
       <a href="/tutorials/">Tutorials</a>
-      <a href="https://docs.planscape.co/">Developer docs</a>
+      <a href="https://docs.planscape.build/">Developer docs</a>
       <a href="/contact.html">Contact support</a>
     </div>
     <div class="col">

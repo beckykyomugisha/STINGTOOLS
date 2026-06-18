@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "description": "STING Device Coordination rule pack (Phase 192 B4, A1 §7). Coordinates device locations against doors, casework, art/specialty and decorative lighting using bounding-box + wall-host geometry only (cheap + robust, not a full clash run). Corporate starter baseline; project overlay at <project>/_BIM_COORD/device_coord_rules.json, merged by id. Rule types: clearance (device planar gap to obstacle < minClearanceMm), overlap (device AABB overlaps obstacle AABB in plan), mountingHeight (per-room device Z outliers beyond alignmentToleranceMm from the room median), doorSwing (device on the door's swing side within minClearanceMm). sameWallOnly limits clearance/overlap to device+obstacle hosted on the same wall. Severity BLOCK/WARN/INFO.",
+  "rules": [
+    {
+      "id": "switch-outlet-vs-door-swing",
+      "type": "doorSwing",
+      "deviceCategories": ["Electrical Fixtures", "Lighting Devices"],
+      "againstCategories": ["Doors"],
+      "minClearanceMm": 600,
+      "severity": "WARN",
+      "description": "Switch/outlet on the door swing (hinge) side is obstructed by the open leaf — relocate to the strike side."
+    },
+    {
+      "id": "device-vs-casework-clearance",
+      "type": "clearance",
+      "deviceCategories": ["Electrical Fixtures", "Communication Devices", "Data Devices"],
+      "againstCategories": ["Casework", "Furniture"],
+      "minClearanceMm": 100,
+      "severity": "WARN",
+      "description": "Devices must keep ≥100 mm clearance from casework/furniture so the plate is not buried behind a unit."
+    },
+    {
+      "id": "device-mounting-height-consistency",
+      "type": "mountingHeight",
+      "deviceCategories": ["Electrical Fixtures", "Communication Devices", "Data Devices"],
+      "againstCategories": [],
+      "alignmentToleranceMm": 50,
+      "severity": "INFO",
+      "description": "Switches/outlets/data within a room should sit at a consistent mounting height (±50 mm of the room median)."
+    },
+    {
+      "id": "thermostat-sensor-height-consistency",
+      "type": "mountingHeight",
+      "deviceCategories": ["Mechanical Equipment", "Air Terminals"],
+      "againstCategories": [],
+      "alignmentToleranceMm": 75,
+      "severity": "INFO",
+      "description": "Wall sensors/thermostats within a room should sit at a consistent mounting height (±75 mm of the room median)."
+    },
+    {
+      "id": "device-overlap-art-specialty",
+      "type": "overlap",
+      "deviceCategories": ["Electrical Fixtures", "Fire Alarm Devices", "Communication Devices"],
+      "againstCategories": ["Specialty Equipment"],
+      "sameWallOnly": true,
+      "severity": "WARN",
+      "description": "A device must not overlap art/specialty equipment on the same wall."
+    },
+    {
+      "id": "fire-alarm-vs-decorative-lighting",
+      "type": "clearance",
+      "deviceCategories": ["Fire Alarm Devices"],
+      "againstCategories": ["Lighting Fixtures"],
+      "minClearanceMm": 300,
+      "severity": "WARN",
+      "description": "Fire-alarm sounders/beacons should keep ≥300 mm from decorative luminaires for visibility + access."
+    }
+  ]
+}

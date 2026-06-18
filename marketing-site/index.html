@@ -8,19 +8,19 @@
 <meta property="og:title" content="Planscape — BIM coordination for East African firms">
 <meta property="og:description" content="Revit plugin from $15/firm/month. Add cloud sync + mobile from $35/firm/month. ISO 19650 templates pre-built. Invoiced in your local currency.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://planscape.co/">
-<meta property="og:image" content="https://planscape.co/images/og-card.png">
+<meta property="og:url" content="https://planscape.build/">
+<meta property="og:image" content="https://planscape.build/images/og-card.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Planscape — BIM coordination for East African firms">
 <meta name="twitter:description" content="Revit plugin from $15/mo · cloud platform from $35/mo · ISO 19650 templates · invoiced in UGX/KES/TZS.">
-<meta name="twitter:image" content="https://planscape.co/images/og-card.png">
+<meta name="twitter:image" content="https://planscape.build/images/og-card.png">
 <meta name="theme-color" content="#E8912D">
 <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
 <link rel="icon" type="image/png" href="/images/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
-<link rel="canonical" href="https://planscape.co/">
+<link rel="canonical" href="https://planscape.build/">
 <link rel="stylesheet" href="/assets/site.css">
 <link rel="preconnect" href="https://api.mapbox.com">
 <link rel="preconnect" href="https://client.crisp.chat">
@@ -88,13 +88,13 @@
   "@graph": [
     {
       "@type": "Organization",
-      "@id": "https://planscape.co/#org",
+      "@id": "https://planscape.build/#org",
       "name": "Planscape Ltd",
-      "url": "https://planscape.co",
-      "logo": "https://planscape.co/images/og-card.png",
+      "url": "https://planscape.build",
+      "logo": "https://planscape.build/images/og-card.png",
       "contactPoint": {
         "@type": "ContactPoint",
-        "email": "hello@planscape.co",
+        "email": "hello@planscape.build",
         "contactType": "customer support"
       },
       "address": {
@@ -105,7 +105,7 @@
     },
     {
       "@type": "SoftwareApplication",
-      "@id": "https://planscape.co/#app",
+      "@id": "https://planscape.build/#app",
       "name": "Planscape",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Windows, iOS, Android",
@@ -115,7 +115,7 @@
         "price": "15",
         "priceCurrency": "USD"
       },
-      "publisher": { "@id": "https://planscape.co/#org" }
+      "publisher": { "@id": "https://planscape.build/#org" }
     }
   ]
 }
@@ -142,12 +142,12 @@
   <h1>BIM coordination built for East African firms.</h1>
   <p class="sub">Revit plugin for authors, offline-first mobile for site coordinators, ISO 19650 templates pre-built. Invoiced in shillings, not dollars.</p>
   <div class="cta-row">
-    <a href="/signup" class="primary">Start 30-day free trial</a>
+    <a href="/signup" class="primary">Start 14-day free trial</a>
     <a href="#demo" class="secondary">Watch 90-second demo</a>
   </div>
-  <p style="margin:12px 0 0;font-size:13px;color:var(--muted)">No credit card required · Cancel any time</p>
+  <p style="margin:12px 0 0;font-size:13px;color:var(--muted)">No credit card required · Trial both products · Cancel any time</p>
   <div class="price-strip">
-    Plugin only from <strong>$15/firm/month</strong> · add cloud from <strong>$35/firm/month</strong> · flat per-firm, not per seat
+    STING Tools plugin from <strong>$25/firm/month</strong> · Planscape bundle from <strong>$60/firm/month</strong> · flat per-firm, not per seat
   </div>
 </section>
 
@@ -278,7 +278,7 @@
 
 <div class="cta-band">
   <h2>Stop paying for software you don't use.</h2>
-  <p>30-day free trial. No credit card. Cancel any time.</p>
+  <p>14-day free trial. Trial both products. No credit card. Cancel any time.</p>
   <a href="/signup">Start now</a>
 </div>
 
@@ -288,7 +288,7 @@
       <div class="brand-row">Plan<span class="dot">·</span>scape</div>
       <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms. Revit plugin, offline-first mobile, local currency invoicing.</p>
       <p>📍 Kampala, Uganda</p>
-      <p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
     </div>
     <div class="col">
       <h4>Product</h4>
@@ -301,7 +301,7 @@
       <h4>Learn</h4>
       <a href="/guides/">Guides</a>
       <a href="/tutorials/">Tutorials</a>
-      <a href="https://docs.planscape.co/">Developer docs</a>
+      <a href="https://docs.planscape.build/">Developer docs</a>
       <a href="/contact.html">Contact support</a>
     </div>
     <div class="col">
@@ -326,7 +326,7 @@ function handleDemoForm(e) {
   var btn   = form.querySelector('button');
   btn.disabled = true;
   btn.textContent = 'Sending…';
-  fetch('https://api.planscape.co/marketing/demo-request', {
+  fetch('https://api.planscape.build/marketing/demo-request', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ email: email, source: 'marketing-site' })
@@ -341,7 +341,7 @@ function handleDemoForm(e) {
     btn.disabled = false;
     btn.textContent = 'Send me the demo';
     msg.style.color = '#dc2626';
-    msg.textContent = 'Something went wrong. Email us at hello@planscape.co instead.';
+    msg.textContent = 'Something went wrong. Email us at hello@planscape.build instead.';
   });
 }
 </script>

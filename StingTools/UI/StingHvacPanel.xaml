@@ -924,6 +924,8 @@
                                     Tag="Hvac_PressureClassAudit" Click="Cmd_Click" ToolTip="Verify each duct's estimated ΔP against the active DW/144 class (Phase 183)"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Plant carbon"
                                     Tag="Hvac_CarbonReport" Click="Cmd_Click" ToolTip="Embodied carbon (CIBSE TM65) + refrigerant GWP (IPCC AR6) per mechanical equipment (Phase 183)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Life-cycle cost"
+                                    Tag="Hvac_LifeCycleCompare" Click="Cmd_Click" ToolTip="40-year HVAC life-cycle cost comparison (nominal + NPV, year-by-year XLSX) per A1 §17 — options from STING_HVAC_LCC_DEFAULTS.json"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Diversity"
                                     Tag="Mep_SystemAnalyse" Click="Cmd_Click" ToolTip="System-level diversity report"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="PDF pack"

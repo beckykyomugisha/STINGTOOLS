@@ -2372,11 +2372,22 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Clear Art"  Tag="ClearOverrides"        Click="Cmd_Click" ToolTip="Reset graphic overrides in active view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Pre-Flight" Tag="CombinePreFlight"      Click="Cmd_Click" ToolTip="Combine parameters pre-flight check — verifies container bindings before bulk combine"/>
                                 <Button Style="{StaticResource BlueBtn}"   Content="Complete %" Tag="CompletenessDashboard" Click="Cmd_Click" ToolTip="Per-discipline tag completeness dashboard with percentage RAG status"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Token Conf" Tag="TokenConfidenceAudit"  Click="Cmd_Click" ToolTip="Confidence audit: classify LOC/ZONE/SYS into High/Medium/Low by detection provenance; surfaces silent BLD1 defaults that a completeness % hides"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Dupes"      Tag="FindDuplicates"        Click="Cmd_Click" ToolTip="Find duplicate tag values + select affected elements"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="Stale"      Tag="SelectStale"           Click="Cmd_Click" ToolTip="Select elements with stale tags (moved/changed since tagging)"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Containers" Tag="ContainerPreCheck"     Click="Cmd_Click" ToolTip="Verify all 36+ tag container parameters are bound and writable"/>
                                 <Button Style="{StaticResource BlueBtn}"   Content="QR"         Tag="QRCode"                Click="Cmd_Click" ToolTip="Generate QR code PNG for each selected element (encodes ASS_TAG_1_TXT as sting:// asset URL)"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Codes"      Tag="CodeLegend"            Click="Cmd_Click" ToolTip="Browse all ISO 19650, CDE, discipline, STING parameter and RIBA stage codes in a searchable reference window"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- SCHEME TAGS (Phase 191/192 — project-grammar renderings of the canonical 8 tokens) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ SCHEME TAGS"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}"  Content="Render Scheme" Tag="TagScheme_Render"  Click="Cmd_Click" ToolTip="Render every enabled project tag scheme onto already-tagged elements and update the render stamp"/>
+                                <Button Style="{StaticResource BlueBtn}"   Content="Scheme Inspect" Tag="TagScheme_Inspect" Click="Cmd_Click" ToolTip="List schemes, enablement, validity, checksum drift vs last render, and coverage"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Scheme Audit"   Tag="TagScheme_Audit"   Click="Cmd_Click" ToolTip="Re-render each enabled scheme from current tokens and report mismatches / unrendered tags"/>
                             </WrapPanel>
                         </Border>
 
@@ -3592,6 +3603,72 @@
                                             ToolTip="Family Audit — loaded families: unused, in-place, duplicates"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="V/Sh" Tag="ViewSheetCompleteness" Click="Cmd_Click"
                                             ToolTip="View and sheet completeness audit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Devices" Tag="DeviceCoord_Audit" Click="Cmd_Click"
+                                            ToolTip="Device Coordination audit (A1 §7) — switch/outlet vs door swing, casework clearance, mounting-height outliers, art/specialty overlap, fire-alarm vs decorative lighting"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- LOD VERIFICATION (Phase 192 B1) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LOD VERIFICATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Element maturity vs the milestone LOD matrix (param/naming/geometry proxy)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="LOD Verify" Tag="LOD_Verify" Click="Cmd_Click"
+                                            ToolTip="Verify element maturity against a milestone LOD (Deliverable A/B/C/D); TaskDialog + CSV + JSON gate report"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="LOD Stamp" Tag="LOD_Stamp" Click="Cmd_Click"
+                                            ToolTip="Stamp ASS_LOD_VERIFIED_TXT on every element that passes the picked milestone"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Program Audit" Tag="Program_Audit" Click="Cmd_Click"
+                                            ToolTip="Audit model rooms against the Owner program Excel template — area/count compliance + missing/extra; XLSX deficiency log"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Owner Standards" Tag="OwnerStandards_Audit" Click="Cmd_Click"
+                                            ToolTip="Run the Owner Standards Pack rule-pack (workset prefixes, required PRJ_ORG fields, discipline codes, scheme consistency, sheet naming) — RAG summary + CSV/JSON report"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- BLUEBEAM REVIEW COMMENTS (Phase 192 C3) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="REVIEW COMMENTS (BLUEBEAM)"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Owner Bluebeam Studio comment close-out tracking (phase-gate condition + monthly KPI)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Import" Tag="ReviewComments_Import" Click="Cmd_Click"
+                                            ToolTip="Import a Bluebeam comment summary (CSV/XLSX), assign a gate, upsert into _BIM_COORD/review_comments.json"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Dashboard" Tag="ReviewComments_Dashboard" Click="Cmd_Click"
+                                            ToolTip="Tracked comments grid + close-out rate + open count"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="KPI Export" Tag="ReviewComments_Export" Click="Cmd_Click"
+                                            ToolTip="Monthly KPI CSV — per-gate total / closed / close-out % / mean age / overdue"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- CSI MASTERFORMAT / SPECLINK (Phase 192 C2) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="CSI / SPECLINK"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="CSI MasterFormat classification + RIB SpecLink TOC reconciliation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="CSI Assign" Tag="CSI_Assign" Click="Cmd_Click"
+                                            ToolTip="Resolve + write CSI_SECTION_TXT / CSI_TITLE_TXT from STING_CSI_MASTERFORMAT_MAP.csv (category → family → SYS)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="SpecLink Reconcile" Tag="SpecLink_Reconcile" Click="Cmd_Click"
+                                            ToolTip="Compare model CSI sections against the SpecLink spec TOC — spec gaps / over-spec / title mismatches; XLSX report"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- FOHLIO FF&amp;E (Phase 192 C1) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="FOHLIO FF&amp;E"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Owner FF&amp;E single source of truth — link, never duplicate (FOHLIO_REF_TXT)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Fohlio Export" Tag="Fohlio_Export" Click="Cmd_Click"
+                                            ToolTip="Export the FF&amp;E register in Fohlio import shape (CSV)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Fohlio Import" Tag="Fohlio_Import" Click="Cmd_Click"
+                                            ToolTip="Import a Fohlio export — preview the diff, then write FOHLIO_REF_TXT + selected fields back"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fohlio Audit" Tag="Fohlio_Audit" Click="Cmd_Click"
+                                            ToolTip="FF&amp;E missing FOHLIO_REF_TXT + stale rows (model ≠ last Fohlio snapshot); per-category currency KPI"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -3606,6 +3683,8 @@
                                             ToolTip="Whole-life embodied carbon calculator"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Snapshot" Tag="TakeSnapshot" Click="Cmd_Click"
                                             ToolTip="Snapshot current STING parameter values"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Prototype Drift" Tag="PrototypeDrift_Report" Click="Cmd_Click"
+                                            ToolTip="What changed vs the Owner prototype? Type-level diff (added/removed types, count + dimension drift, room program deltas) vs a loaded link or open document; XLSX by discipline"/>
                                 </WrapPanel>
                                 <Expander Header="Carbon + snapshot ops" FontSize="10" Margin="0,2,0,0">
                                     <WrapPanel Margin="0,4">

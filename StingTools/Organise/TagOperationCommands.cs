@@ -381,7 +381,7 @@ namespace StingTools.Organise
                         if (string.IsNullOrEmpty(disc)) continue;
 
                         // FIX-B02: Use canonical BuildSeqKey for consistent key format
-                        string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
+                        string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone, loc);
                         if (!seqCounters.TryGetValue(seqKey, out _)) seqCounters[seqKey] = 0;
 
                         // Find next unique SEQ
@@ -608,10 +608,11 @@ namespace StingTools.Organise
                 string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
                 string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
                 string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                 if (string.IsNullOrEmpty(disc)) continue;
 
                 // TAG-03: Use canonical BuildSeqKey for consistent grouping with all other commands
-                string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
+                string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone, loc);
                 if (!groups.TryGetValue(key, out var grpList))
                     groups[key] = grpList = new List<Element>();
                 grpList.Add(elem);
@@ -2911,6 +2912,7 @@ namespace StingTools.Organise
                 "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ",
                 // Assembled Tags
                 "ASS_TAG_1 (Full)", "ASS_TAG_2 (Short)", "ASS_TAG_3 (Location)", "ASS_TAG_4 (System)",
+                "SchemeTag (project grammar)",
                 // Validation
                 "TagValid", "TagResolved", "TagComplete", "ValidationIssues",
                 // Status & Classification
@@ -2957,6 +2959,7 @@ namespace StingTools.Organise
                 string tag2 = Gs(el, ParamRegistry.TAG2);
                 string tag3 = Gs(el, ParamRegistry.TAG3);
                 string tag4 = Gs(el, ParamRegistry.TAG4);
+                string schemeTag = Gs(el, ParamRegistry.TAG_SCHEME);
 
                 // Validation
                 bool isValid = TagConfig.TagIsComplete(tag1);
@@ -3057,6 +3060,7 @@ namespace StingTools.Organise
                 sb.Append(Esc(tag2)).Append(',');
                 sb.Append(Esc(tag3)).Append(',');
                 sb.Append(Esc(tag4)).Append(',');
+                sb.Append(Esc(schemeTag)).Append(',');
                 sb.Append(isValid).Append(',');
                 sb.Append(isResolved).Append(',');
                 sb.Append(isComplete).Append(',');
@@ -5115,7 +5119,8 @@ namespace StingTools.Organise
                             string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
                             string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                             string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                            string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
+                            string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                            string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone, loc);
                             seqCounters.TryGetValue(key, out int sqc);
                             seqCounters[key] = sqc + 1;
                             string newSeq = seqCounters[key].ToString().PadLeft(ParamRegistry.NumPad, '0');

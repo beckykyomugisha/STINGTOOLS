@@ -340,7 +340,13 @@ namespace StingTools.Core
             "CreateWalls", "CreateFloors", "CreateCeilings", "CreateRoofs", "CreateDucts", "CreatePipes",
             "FullAutoPopulate", "BatchSchedules", "EvaluateFormulas",
             "AutoTag", "BatchTag", "TagAndCombine", "TagNewOnly", "TagChanged", "FamilyStagePopulate",
-            "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "ValidateTemplate",
+            "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "TokenConfidenceAudit",
+            "TagScheme_Render", "TagScheme_Inspect", "TagScheme_Audit",
+            "LOD_Verify", "LOD_Stamp", "Program_Audit", "OwnerStandards_Audit",
+            "CSI_Assign", "SpecLink_Reconcile",
+            "Fohlio_Export", "Fohlio_Import", "Fohlio_Audit", "DeviceCoord_Audit", "ComCheck_Export",
+            "Hvac_LifeCycleCompare", "PrototypeDrift_Report",
+            "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
             "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
             "CreateDimStyles", "CreateVGOverrides", "ApplyFilters",
@@ -1503,6 +1509,26 @@ namespace StingTools.Core
                 // Validation
                 case "ValidateTags": return new Tags.ValidateTagsCommand();
                 case "PreTagAudit": return new Tags.PreTagAuditCommand();
+                case "TokenConfidenceAudit": return new Tags.TokenConfidenceAuditCommand();
+                case "TagScheme_Render": return new Tags.RenderSchemeTagsCommand();
+                case "TagScheme_Inspect": return new Tags.TagSchemeInspectCommand();
+                case "TagScheme_Audit": return new Tags.TagSchemeAuditCommand();
+                case "LOD_Verify": return new Commands.Validation.LodVerifyCommand();
+                case "LOD_Stamp": return new Commands.Validation.LodStampCommand();
+                case "Program_Audit": return new Commands.Validation.ProgramAuditCommand();
+                case "OwnerStandards_Audit": return new Commands.Validation.OwnerStandardsAuditCommand();
+                case "CSI_Assign": return new Commands.Classification.CsiAssignCommand();
+                case "SpecLink_Reconcile": return new Commands.Classification.SpecLinkReconcileCommand();
+                case "Fohlio_Export": return new ExLink.FohlioExportCommand();
+                case "Fohlio_Import": return new ExLink.FohlioImportCommand();
+                case "Fohlio_Audit": return new ExLink.FohlioAuditCommand();
+                case "DeviceCoord_Audit": return new Commands.Validation.DeviceCoordinationCommand();
+                case "ComCheck_Export": return new Commands.Electrical.Lighting.ComCheckExportCommand();
+                case "Hvac_LifeCycleCompare": return new Commands.Hvac.HvacLifeCycleCompareCommand();
+                case "PrototypeDrift_Report": return new BIMManager.PrototypeDriftCommand();
+                case "ReviewComments_Import": return new Docs.ReviewCommentsImportCommand();
+                case "ReviewComments_Dashboard": return new Docs.ReviewCommentsDashboardCommand();
+                case "ReviewComments_Export": return new Docs.ReviewCommentsExportCommand();
                 case "ValidateTemplate": return new Temp.ValidateTemplateCommand();
 
                 // Templates

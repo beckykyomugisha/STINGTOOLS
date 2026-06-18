@@ -1,0 +1,8 @@
+{
+  "_comment": "KUT (Kampala Uganda Temple) project_config.json worked example. Copy to <project>/_BIM_COORD/project_config.json (or wherever TagConfig.LoadFromFile reads it for this project). Six-building campus: BLD1 Temple, BLD2 Meetinghouse, BLD3 Housing/Ancillary, BLD4 Grounds, BLD5 Utility, BLD6 Guard House, EXT site-wide. SEQ is grouped per building (SEQ_INCLUDE_LOC) so sequence numbers restart per building; ZONE is not part of the sequence key (SEQ_INCLUDE_ZONE false).",
+  "LOC_CODES": ["BLD1", "BLD2", "BLD3", "BLD4", "BLD5", "BLD6", "EXT"],
+  "CUSTOM_VALID_LOC": ["BLD1", "BLD2", "BLD3", "BLD4", "BLD5", "BLD6", "EXT"],
+  "ZONE_CODES": ["Z01", "Z02", "Z03", "Z04", "ZZ"],
+  "SEQ_INCLUDE_LOC": true,
+  "SEQ_INCLUDE_ZONE": false
+}

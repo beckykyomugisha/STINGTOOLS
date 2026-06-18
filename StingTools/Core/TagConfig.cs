@@ -303,6 +303,10 @@ namespace StingTools.Core
         internal static SeqScheme CurrentSeqScheme { get; set; } = SeqScheme.Numeric;
         /// <summary>Whether SEQ resets per zone.</summary>
         internal static bool SeqIncludeZone { get; set; } = false;
+        /// <summary>Phase 191 — whether SEQ groups per location (building/volume),
+        /// giving each building an independent counter on multi-building campuses.
+        /// Set via project_config.json key SEQ_INCLUDE_LOC.</summary>
+        internal static bool SeqIncludeLoc { get; set; } = false;
         /// <summary>Whether SEQ resets per level within DISC-SYS group.</summary>
         internal static bool SeqLevelReset { get; set; } = false;
 
@@ -354,22 +358,22 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(prod)) prod = "GEN";
             if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
 
+            string zoneKey = null;
             if (SeqIncludeZone)
-            {
-                string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
-                return $"{disc}_{zone}_{sys}_{lvl}";
-            }
+                zoneKey = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+            string locKey = null;
+            if (SeqIncludeLoc)
+                locKey = ParameterHelpers.GetString(el, ParamRegistry.LOC);
 
-            return $"{disc}_{sys}_{lvl}";
+            return SeqAssigner.BuildSeqKey(disc, sys, lvl, zoneKey, locKey, SeqIncludeZone, SeqIncludeLoc);
         }
 
         /// <summary>
         /// Build a canonical SEQ key from explicit token values.
         /// Matches the same format as BuildSeqKey(Element) for consistency.
         /// </summary>
-        public static string BuildSeqKey(string disc, string sys, string func, string prod, string lvl, string zone = null)
-            => SeqAssigner.BuildSeqKey(disc, sys, lvl, zone, SeqIncludeZone);
+        public static string BuildSeqKey(string disc, string sys, string func, string prod, string lvl, string zone = null, string loc = null)
+            => SeqAssigner.BuildSeqKey(disc, sys, lvl, zone, loc, SeqIncludeZone, SeqIncludeLoc);
 
         /// <summary>
         /// Build a SEQ string for sequence number n using the configured scheme.
@@ -551,7 +555,7 @@ namespace StingTools.Core
                 {
                     "DISC_MAP","SYS_MAP","PROD_MAP","FUNC_MAP","LOC_CODES","ZONE_CODES","TAG_FORMAT",
                     "TAG_PREFIX","TAG_SUFFIX","CATEGORY_SKIP","CATEGORY_FORCE_SYS","SEQ_SCHEME",
-                    "SEQ_INCLUDE_ZONE","SEQ_LEVEL_RESET","STATUS_DEFAULT","REV_DEFAULT",
+                    "SEQ_INCLUDE_ZONE","SEQ_INCLUDE_LOC","SEQ_LEVEL_RESET","STATUS_DEFAULT","REV_DEFAULT",
                     "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT",
                     "SEPARATOR_HISTORY","AUTO_RUN_WORKFLOW_ON_OPEN","ACTIVE_PRESET",
                     "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath",
@@ -659,6 +663,7 @@ namespace StingTools.Core
                 // A1: Track previous SEQ scheme settings for change warning
                 SeqScheme prevScheme = CurrentSeqScheme;
                 bool prevIncludeZone = SeqIncludeZone;
+                bool prevIncludeLoc = SeqIncludeLoc;
 
                 // Load SEQ scheme settings from config (optional)
                 if (data.TryGetValue("SEQ_SCHEME", out object seqSchemeObj) && seqSchemeObj is string seqSchemeStr)
@@ -672,9 +677,17 @@ namespace StingTools.Core
                     else if (seqZoneObj is string szs) SeqIncludeZone =
                         szs.Equals("true", StringComparison.OrdinalIgnoreCase);
                 }
+                // Phase 191: per-building (volume) sequence grouping
+                if (data.TryGetValue("SEQ_INCLUDE_LOC", out object seqLocObj))
+                {
+                    if (seqLocObj is bool slb) SeqIncludeLoc = slb;
+                    else if (seqLocObj is string sls) SeqIncludeLoc =
+                        sls.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
 
                 // A1: Detect SEQ scheme changes for warning in BuildAndWriteTag
-                if (CurrentSeqScheme != prevScheme || SeqIncludeZone != prevIncludeZone)
+                if (CurrentSeqScheme != prevScheme || SeqIncludeZone != prevIncludeZone
+                    || SeqIncludeLoc != prevIncludeLoc)
                 {
                     _seqSchemeChanged = true;
                     _seqSchemeWarned = false;
@@ -1067,6 +1080,7 @@ namespace StingTools.Core
             // NP11: Reset SEQ scheme state on LoadDefaults to prevent cross-project bleed
             CurrentSeqScheme = SeqScheme.Numeric;
             SeqIncludeZone = false;
+            SeqIncludeLoc = false;
             SeqLevelReset = false;
             _seqSchemeChanged = false;
             _seqSchemeWarned = false;
@@ -2185,15 +2199,13 @@ namespace StingTools.Core
             //   - Duplicate SEQ numbers across mismatched groups
             //   - Counter drift between sessions
             // The tag string itself will be rebuilt from actual stored values later (line 2234+).
-            string seqKey = SeqIncludeZone
-                ? $"{disc}_{zone}_{sys}_{lvl}"
-                : $"{disc}_{sys}_{lvl}";
+            string seqKey = SeqAssigner.BuildSeqKey(disc, sys, lvl, zone, loc, SeqIncludeZone, SeqIncludeLoc);
 
             // A1: Warn once per session when SEQ scheme has changed — counter keys may not
             // match existing tags, leading to duplicate or restarted sequences.
             if (_seqSchemeChanged && !_seqSchemeWarned)
             {
-                StingLog.Warn($"SEQ scheme changed (scheme={CurrentSeqScheme}, includeZone={SeqIncludeZone}). " +
+                StingLog.Warn($"SEQ scheme changed (scheme={CurrentSeqScheme}, includeZone={SeqIncludeZone}, includeLoc={SeqIncludeLoc}). " +
                     "Existing SEQ counters may not align with the new key format. " +
                     "Run 'Assign Numbers' or 'Batch Tag' with Overwrite to re-sequence.");
                 _seqSchemeWarned = true;

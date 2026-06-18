@@ -913,6 +913,77 @@ namespace StingTools.Core
             return !string.IsNullOrEmpty(projectLoc) ? projectLoc : "BLD1";
         }
 
+        // ScopeBoxLoc (plan-rectangle + most-specific selection) lives in the
+        // Revit-free Core/ScopeBoxLoc.cs so it can be unit-tested.
+
+        /// <summary>
+        /// Build the scope-box LOC index: every scope box (OST_VolumeOfInterest)
+        /// named <c>STING-LOC::&lt;locCode&gt;</c> becomes a plan rectangle tagged
+        /// with that LOC code. Empty list when none exist (the common case) —
+        /// the caller falls straight through to the project-info / BLD1 default.
+        /// </summary>
+        public static List<ScopeBoxLoc> BuildScopeBoxLocIndex(Document doc)
+        {
+            var result = new List<ScopeBoxLoc>();
+            if (doc == null) return result;
+            try
+            {
+                var boxes = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                foreach (var box in boxes)
+                {
+                    string name = box?.Name ?? "";
+                    int sep = name.IndexOf("::", StringComparison.OrdinalIgnoreCase);
+                    if (sep < 0 || !name.StartsWith("STING-LOC", StringComparison.OrdinalIgnoreCase)) continue;
+                    string loc = name.Substring(sep + 2).Trim();
+                    if (string.IsNullOrEmpty(loc)) continue;
+
+                    BoundingBoxXYZ bb = box.get_BoundingBox(null);
+                    if (bb == null) continue;
+                    result.Add(new ScopeBoxLoc
+                    {
+                        Loc = loc,
+                        MinX = Math.Min(bb.Min.X, bb.Max.X),
+                        MinY = Math.Min(bb.Min.Y, bb.Max.Y),
+                        MaxX = Math.Max(bb.Min.X, bb.Max.X),
+                        MaxY = Math.Max(bb.Min.Y, bb.Max.Y),
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildScopeBoxLocIndex: {ex.Message}");
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Phase 192 (A4) — LOC from scope-box containment. Returns the LOC code
+        /// of the SMALLEST <c>STING-LOC::*</c> scope box whose plan rectangle
+        /// contains the element's bounding-box centre (XY, Z ignored), or null.
+        /// Smallest-wins makes nested boxes resolve to the most specific building
+        /// and is deterministic when boxes overlap.
+        /// </summary>
+        public static string DetectLocFromScopeBox(List<ScopeBoxLoc> scopeBoxes, Element el)
+        {
+            if (scopeBoxes == null || scopeBoxes.Count == 0 || el == null) return null;
+            try
+            {
+                BoundingBoxXYZ bb = el.get_BoundingBox(null);
+                if (bb == null) return null;
+                double cx = (bb.Min.X + bb.Max.X) * 0.5;
+                double cy = (bb.Min.Y + bb.Max.Y) * 0.5;
+                return ScopeBoxLoc.SmallestContaining(scopeBoxes, cx, cy)?.Loc;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DetectLocFromScopeBox: {ex.Message}");
+            }
+            return null;
+        }
+
         /// <summary>
         /// Detect ZONE code from room data. Checks room name, number, and
         /// Department parameter for zone patterns (Z01-Z04, Wing A/B/C/D, etc.).
@@ -1482,6 +1553,11 @@ namespace StingTools.Core
             /// <summary>Cached grid lines for O(1) WriteGridReference instead of per-element O(n) collector.</summary>
             public List<Grid> CachedGrids { get; set; }
 
+            /// <summary>Phase 192 (A4): cached STING-LOC::&lt;loc&gt; scope-box plan
+            /// rectangles for site-element LOC detection. Empty when no such scope
+            /// boxes exist (the common case).</summary>
+            public List<ScopeBoxLoc> ScopeBoxLocs { get; set; }
+
             /// <summary>GAP-019: Configurable default STATUS (from project_config.json or "NEW").</summary>
             public string DefaultStatus { get; set; } = "NEW";
 
@@ -1624,6 +1700,8 @@ namespace StingTools.Core
                     CachedPhases = phases,
                     LastPhaseId = phases.Count > 0 ? phases.Last().Id : ElementId.InvalidElementId,
                     CachedGrids = grids,
+                    // Phase 192 (A4) — STING-LOC scope-box rectangles for site elements
+                    ScopeBoxLocs = SpatialAutoDetect.BuildScopeBoxLocIndex(doc),
                     // Apply config overrides for STATUS/REV defaults
                     DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
                     DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
@@ -1880,6 +1958,23 @@ namespace StingTools.Core
                     string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
                     bool locFromSpatial = !string.IsNullOrEmpty(loc) && loc != "BLD1";
 
+                    // Phase 192 (A4): scope-box containment — beats the project-info /
+                    // BLD1 default for site elements (civil, external lighting) that
+                    // have no room and no meaningful workset. A genuine room/workset
+                    // signal already in `loc` wins, so only try when detection fell to
+                    // the project default.
+                    bool locFromScopeBox = false;
+                    if (!locFromSpatial || (ctx != null && loc == ctx.ProjectLoc))
+                    {
+                        string sbLoc = SpatialAutoDetect.DetectLocFromScopeBox(ctx?.ScopeBoxLocs, el);
+                        if (!string.IsNullOrEmpty(sbLoc))
+                        {
+                            loc = sbLoc;
+                            locFromSpatial = true;
+                            locFromScopeBox = true;
+                        }
+                    }
+
                     // Phase 67: LOC fallback chain — workset name extraction when spatial/project detection fails
                     // F-04: Hoist wsName to outer scope so the logging block can reuse it (avoids double GetWorkset call)
                     string _cachedWsName = null;
@@ -1923,13 +2018,15 @@ namespace StingTools.Core
                     }
                     result.LocDetected = locFromSpatial;
 
-                    // Track LOC detection source (Phase 67: added Workset layer)
-                    string locSource = locFromSpatial
+                    // Track LOC detection source (Phase 67: Workset layer; Phase 192: ScopeBox layer)
+                    string locSource = locFromScopeBox ? "ScopeBox"
+                        : locFromSpatial
                         ? (loc == ctx?.ProjectLoc ? "ProjectInfo" : "Room")
                         : (!string.IsNullOrEmpty(ctx?.ProjectLoc) ? "ProjectInfo" : "Default");
                     // Phase 67: Override source if workset-detected (was marked locFromSpatial=true above)
                     // F-04: Reuse _cachedWsName from detection block above — no second GetWorkset() call needed
-                    if (locFromSpatial && doc.IsWorkshared)
+                    // Phase 192: a scope-box hit is authoritative — don't let the workset name re-tag it.
+                    if (!locFromScopeBox && locFromSpatial && doc.IsWorkshared)
                     {
                         try
                         {
@@ -4189,6 +4286,16 @@ namespace StingTools.Core
                 // (53 × 2 = 106 per element, 5.3M redundant calls on 50K-element batches).
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
+
+                // Phase 191 — project tag scheme rendering. Renders the same
+                // tokens into any enabled project grammar (e.g. ISO 19650
+                // PROJECT-ORIGINATOR-VOLUME-LEVEL-DISCIPLINE-NUMBER) and
+                // writes the result to the scheme's own container parameter.
+                // No-op when no scheme is enabled for this document. Hooked
+                // here so AutoTag, BatchTag, TagAndCombine, TagNewOnly, ReTag
+                // and the IUpdater all emit scheme tags through one code path.
+                try { TagSchemeRenderer.RenderAll(doc, el, tokenVals); }
+                catch (Exception schEx) { StingLog.Warn($"TagScheme render on {el?.Id}: {schEx.Message}"); }
 
                 // Phase 176 — Lightning Protection System warnings (BS EN 62305).
                 // Cheap inline check: only LPS-tagged families incur the cost

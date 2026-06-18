@@ -185,6 +185,42 @@ namespace StingTools.Core
         /// <summary>Revit Environment.UserName that performed the last tag modification.</summary>
         public const string TAG_MODIFIED_BY = "ASS_TAG_MODIFIED_BY_TXT";
         public const string TAG_MODIFIED_BY_GUID = "c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2f";
+        // ── Project tag scheme (Phase 191) ──────────────────────────────
+        /// <summary>Default target container for project-grammar tag renderings
+        /// (TagSchemeEngine) — e.g. the ISO 19650 PROJECT-ORIGINATOR-VOLUME-
+        /// LEVEL-DISCIPLINE-NUMBER form. Always derived from the source
+        /// tokens; never edited directly. UUIDv5 in the Planscape docs
+        /// namespace a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
+        public const string TAG_SCHEME = "ASS_TAG_SCHEME_TXT";
+        public const string TAG_SCHEME_GUID = "2c8224df-92e0-567b-a9df-c8cd1e4402a3";
+        /// <summary>Phase 192 (B1) — milestone id stamped by LOD_Stamp on elements
+        /// that PASS LodVerificationEngine at that milestone's LOD (e.g.
+        /// "deliverable-c"). UUIDv5 in the Planscape docs namespace
+        /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
+        public const string LOD_VERIFIED = "ASS_LOD_VERIFIED_TXT";
+        public const string LOD_VERIFIED_GUID = "60440963-a414-5667-88f4-d12082344c4d";
+        /// <summary>Phase 192 (C2) — CSI MasterFormat section (e.g. "23 31 00")
+        /// resolved by CSI_Assign from STING_CSI_MASTERFORMAT_MAP.csv. Reconciled
+        /// against the RIB SpecLink spec TOC. UUIDv5 in namespace
+        /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
+        public const string CSI_SECTION = "CSI_SECTION_TXT";
+        public const string CSI_SECTION_GUID = "3c2c7d9d-93e2-5f95-a002-69b17450efe6";
+        public const string CSI_TITLE = "CSI_TITLE_TXT";
+        public const string CSI_TITLE_GUID = "160a2335-1886-5503-b569-28d9e63f5a75";
+        /// <summary>Phase 192 (C1) — Fohlio item URL/ID. The "link, never
+        /// duplicate" key into the Owner's Fohlio FF&amp;E single source of truth.
+        /// UUIDv5 in namespace a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
+        public const string FOHLIO_REF = "FOHLIO_REF_TXT";
+        public const string FOHLIO_REF_GUID = "0ecf2056-1239-52bc-87f8-17c281e67209";
+        /// <summary>Phase 192 (E4) — decorative-lighting hoisting params (A1 §5
+        /// lighting schedule). UUIDv5 in namespace
+        /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
+        public const string LTG_HOIST_WEIGHT_KG = "LTG_HOIST_WEIGHT_KG";
+        public const string LTG_HOIST_WEIGHT_KG_GUID = "f2ec67d7-0d9a-561b-b3f6-11b713ac468e";
+        public const string LTG_HOIST_MOTOR_TXT = "LTG_HOIST_MOTOR_TXT";
+        public const string LTG_HOIST_MOTOR_TXT_GUID = "aabcfa8d-62bb-55bc-8cf2-d84e365a75a5";
+        public const string LTG_HOIST_DROP_MM = "LTG_HOIST_DROP_MM";
+        public const string LTG_HOIST_DROP_MM_GUID = "c110503a-c776-5c6e-8298-24adf24d1fd0";
         // Per-view 8-char "1"/"0" mask gating which segments render in
         // BuildDisplayTag without mutating the canonical ASS_TAG_1_TXT.
         // Bound to OST_Views so users can hide ZONE in a presentation view
@@ -2727,6 +2763,8 @@ namespace StingTools.Core
                 "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
                 "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
                 "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
+                "ASS_TAG_SCHEME_TXT", "ASS_LOD_VERIFIED_TXT",
+                "CSI_SECTION_TXT", "CSI_TITLE_TXT", "FOHLIO_REF_TXT",
             };
 
             // CRASH FIX: Initialize GUID maps from SourceTokens when JSON is missing.

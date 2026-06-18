@@ -1,0 +1,38 @@
+{
+  "version": "1.0",
+  "description": "STING HVAC life-cycle cost defaults (Phase 192 E2). Two worked system options over a 40-year horizon; nominal + NPV. Corporate starter baseline; a project supplies its own scenario at <project>/_BIM_COORD/hvac_lcc.json (overlay replaces this wholesale). Per-option annualEnergyCost may be given directly, or derived as energyKwhPerYear × tariffPerKwh, or (deriveEnergyFromModel:true) as Σ HVC_PEAK_SENS_W × equivalentFullLoadHours ÷ 1000 × tariff. annualMaintCostPerM2 × areaM2 (areaM2 auto-filled from the model floor area when 0) gives annual maintenance; replacements recur every intervalYears at pctOfCapital of the capital cost.",
+  "horizonYears": 40,
+  "escalationPct": 3.0,
+  "discountPct": 5.0,
+  "tariffPerKwh": 0.15,
+  "equivalentFullLoadHours": 2200,
+  "options": [
+    {
+      "name": "Option A — VRF heat recovery",
+      "capitalCost": 850000,
+      "annualEnergyCost": 0,
+      "energyKwhPerYear": 480000,
+      "deriveEnergyFromModel": false,
+      "annualMaintCostPerM2": 9.0,
+      "areaM2": 0,
+      "replacements": [
+        { "component": "Outdoor units", "intervalYears": 15, "pctOfCapital": 0.35 },
+        { "component": "Indoor units / controls", "intervalYears": 12, "pctOfCapital": 0.20 }
+      ]
+    },
+    {
+      "name": "Option B — Chilled-water AHU + FCU",
+      "capitalCost": 1050000,
+      "annualEnergyCost": 0,
+      "energyKwhPerYear": 560000,
+      "deriveEnergyFromModel": false,
+      "annualMaintCostPerM2": 7.0,
+      "areaM2": 0,
+      "replacements": [
+        { "component": "Chillers", "intervalYears": 20, "pctOfCapital": 0.30 },
+        { "component": "Pumps / FCUs", "intervalYears": 12, "pctOfCapital": 0.18 },
+        { "component": "Cooling tower", "intervalYears": 15, "pctOfCapital": 0.10 }
+      ]
+    }
+  ]
+}

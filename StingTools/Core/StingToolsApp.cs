@@ -373,7 +373,18 @@ namespace StingTools.Core
                 // diff for this document so the next session starts clean.
                 try { Drawing.LiveProfileSync.InvalidateCache(e.Document); }
                 catch (Exception ex) { StingLog.Warn($"DocumentClosing LiveProfileSync.InvalidateCache: {ex.Message}"); }
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, level, and drawing-type caches");
+                // Phase 192 (A2) — drop the per-document tag-scheme registry +
+                // ProjectInformation cache so the next document re-reads its own
+                // _BIM_COORD/tag_schemes.json overlay.
+                try { TagSchemeRegistry.InvalidateCache(e.Document); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing TagSchemeRegistry.InvalidateCache: {ex.Message}"); }
+                // Phase 192 (B1/B2) — drop the per-document LOD matrix + Owner
+                // standards pack caches so the next document re-reads its overlays.
+                try { Validation.LodMatrixRegistry.InvalidateCache(e.Document); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing LodMatrixRegistry.InvalidateCache: {ex.Message}"); }
+                try { Validation.OwnerStandardsRegistry.InvalidateCache(e.Document); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing OwnerStandardsRegistry.InvalidateCache: {ex.Message}"); }
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, level, drawing-type, and tag-scheme caches");
             }
             catch (Exception ex)
             {

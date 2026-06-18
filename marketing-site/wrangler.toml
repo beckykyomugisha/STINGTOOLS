@@ -9,20 +9,53 @@
 #   Build output dir:  marketing-site
 #   Root directory:    /
 #
-# This file controls deploy-time options.
+# This file controls deploy-time options + Function bindings.
 
 name = "planscape-marketing"
 pages_build_output_dir = "."
 compatibility_date = "2026-05-01"
 
-# Environment variables — replace placeholders before deploy, or set in the dashboard
-# (Pages → Settings → Environment variables) which is safer for secrets.
+# Project-wide vars (non-secret)
 [vars]
-SITE_URL = "https://planscape.co"
+SITE_URL = "https://planscape.build"
+
+# Auth core (B1) secrets — DO NOT put real values here. Set them as encrypted
+# environment variables / secrets in the Cloudflare dashboard:
+#   Pages → planscape-marketing → Settings → Environment variables (Production).
+#   JWT_SECRET      Secret. 32+ random bytes. Generate: openssl rand -base64 32
+#                   Signs HS256 access tokens. Rotating it invalidates all JWTs.
+#   RESEND_API_KEY  Secret. Resend API key (re_...) for verification / reset email.
+#   APP_ORIGIN      Plain var. Public origin for email links. https://planscape.build
+#   EMAIL_FROM      Plain var (optional). Override the From: address.
+#                   Default: "Planscape <noreply@planscape.build>"
+# The auth Functions reuse the WAITLIST_DB D1 binding below — no new binding needed.
+
+# D1 binding for the waitlist Function (functions/api/waitlist.ts)
+# Created via: wrangler d1 create planscape-waitlist
+[[d1_databases]]
+binding       = "WAITLIST_DB"
+database_name = "planscape-waitlist"
+database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"
 
 # Per-environment overrides
 [env.preview]
 name = "planscape-marketing-preview"
 
+[env.preview.vars]
+SITE_URL = "https://preview.planscape.build"
+
+[[env.preview.d1_databases]]
+binding       = "WAITLIST_DB"
+database_name = "planscape-waitlist"
+database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"
+
 [env.production]
 name = "planscape-marketing"
+
+[env.production.vars]
+SITE_URL = "https://planscape.build"
+
+[[env.production.d1_databases]]
+binding       = "WAITLIST_DB"
+database_name = "planscape-waitlist"
+database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"

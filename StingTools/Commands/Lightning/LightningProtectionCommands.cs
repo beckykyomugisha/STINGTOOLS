@@ -1349,6 +1349,15 @@ namespace StingTools.Commands.Lightning
                 summary.AppendLine($"DOCX render skipped ({docxError}).");
             summary.AppendLine();
             summary.AppendLine($"CSV (audit trail):\n{csvOut ?? "(write failed)"}");
+            // Phase 192 (D2): EN 62305 vs NFPA 780 provenance note for US-context projects.
+            if (IsUsContext(doc))
+            {
+                summary.AppendLine();
+                summary.AppendLine("ⓘ INFO — STING LPS figures are computed to BS EN 62305. This project");
+                summary.AppendLine("reads as US-context; under US codes lightning protection is NFPA 780,");
+                summary.AppendLine("a performance specification by the engineer of record. Treat the EN");
+                summary.AppendLine("62305 output as indicative, not an NFPA 780 compliance statement.");
+            }
             StingLog.Info($"LPS compliance report — docx={docxOut ?? "skipped"} csv={csvOut ?? "fail"}");
             TaskDialog.Show("STING — LPS Report",
                 "LPS Compliance Report (BS EN 62305) generated.\n\n" + summary.ToString());
@@ -1356,6 +1365,26 @@ namespace StingTools.Commands.Lightning
         }
 
         private static string Esc(string s) => LpsCommandsHelpers.CsvEscape(s ?? "");
+
+        /// <summary>Phase 192 (D2): true when the project reads as US-context — the
+        /// resolved climate-site country is US, or the Project Information address
+        /// names the US. Drives the EN 62305 vs NFPA 780 provenance note.</summary>
+        private static bool IsUsContext(Document doc)
+        {
+            try
+            {
+                var site = StingTools.Core.Climate.ClimateRegistry.ActiveSite(doc);
+                if (site != null && string.Equals(site.Country, "US", StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"IsUsContext climate: {ex.Message}"); }
+            try
+            {
+                string addr = (doc?.ProjectInformation?.Address ?? "").ToLowerInvariant();
+                if (addr.Contains("usa") || addr.Contains("united states") || addr.Contains("u.s.")) return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"IsUsContext addr: {ex.Message}"); }
+            return false;
+        }
 
 
         // ── Token + row builders ─────────────────────────────────────

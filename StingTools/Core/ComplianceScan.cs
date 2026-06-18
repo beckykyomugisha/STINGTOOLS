@@ -68,6 +68,15 @@ namespace StingTools.Core
             public int SheetsUntagged { get; set; }
             /// <summary>Phase 39: Sheet tagging compliance percentage.</summary>
             public double SheetCompliancePct => TotalSheets > 0 ? SheetsTagged * 100.0 / TotalSheets : 0;
+            /// <summary>Phase 192: true when at least one tag scheme is enabled for this project.</summary>
+            public bool SchemeEnabled { get; set; }
+            /// <summary>Phase 192: tagged elements whose every enabled-scheme target param is populated.</summary>
+            public int SchemeRendered { get; set; }
+            /// <summary>Phase 192: tagged elements (TAG1 present) with at least one empty enabled-scheme target.</summary>
+            public int SchemeMissing { get; set; }
+            /// <summary>Phase 192: scheme render coverage over tagged elements (100% when none tracked).</summary>
+            public double SchemeCoveragePct =>
+                (SchemeRendered + SchemeMissing) > 0 ? SchemeRendered * 100.0 / (SchemeRendered + SchemeMissing) : 100;
             /// <summary>AE-05: Per-token empty count for granular compliance reporting.</summary>
             public Dictionary<string, int> EmptyTokenCounts { get; } = new Dictionary<string, int>
             {
@@ -128,6 +137,7 @@ namespace StingTools.Core
                 $"{(StatusMissing > 0 ? $"{StatusMissing} no-STATUS | " : "")}" +
                 $"{(StaleCount > 0 ? $"{StaleCount} stale | " : "")}" +
                 $"{(SheetsUntagged > 0 ? $"{SheetsUntagged}/{TotalSheets} sheets untagged | " : "")}" +
+                $"{(SchemeEnabled ? $"scheme {SchemeCoveragePct:F0}%{(SchemeMissing > 0 ? $" ({SchemeMissing} unrendered)" : "")} | " : "")}" +
                 $"{(LpsChecksTotal > 0 ? $"LPS {LpsVerdict} ({LpsChecksFail} fail) | " : "")}" +
                 $"{Untagged} untagged";
 
@@ -232,6 +242,26 @@ namespace StingTools.Core
                     var scanStart = DateTime.UtcNow;
                     const int ScanTimeoutMs = 8000;
 
+                    // Phase 192: resolve enabled-scheme target params ONCE. Zero cost
+                    // when no scheme is enabled (schemeTargets stays null → per-element
+                    // check is skipped entirely).
+                    string[] schemeTargets = null;
+                    try
+                    {
+                        var enabled = TagSchemeRegistry.EnabledSchemes(doc);
+                        if (enabled.Count > 0)
+                        {
+                            schemeTargets = enabled
+                                .Select(s => s.TargetParam)
+                                .Where(p => !string.IsNullOrEmpty(p))
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .ToArray();
+                            if (schemeTargets.Length > 0) result.SchemeEnabled = true;
+                            else schemeTargets = null;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ComplianceScan scheme resolve: {ex.Message}"); }
+
                     foreach (Element elem in scanColl)
                     {
                         if (elem == null || !elem.IsValidObject) continue;
@@ -266,6 +296,20 @@ namespace StingTools.Core
                         }
                         else
                         {
+                            // Phase 192: scheme render coverage — tagged element with any
+                            // empty enabled-scheme target counts as unrendered.
+                            if (schemeTargets != null)
+                            {
+                                bool allRendered = true;
+                                for (int ti = 0; ti < schemeTargets.Length; ti++)
+                                {
+                                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, schemeTargets[ti])))
+                                    { allRendered = false; break; }
+                                }
+                                if (allRendered) result.SchemeRendered++;
+                                else result.SchemeMissing++;
+                            }
+
                             // Parse tag segments to determine completeness
                             // PERF-R1: Use cached separator array; replace LINQ Skip/Take/All with for-loop
                             // DI-001: Rebuild separator array from ParamRegistry if null (first scan or after InvalidateCache)

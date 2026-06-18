@@ -1,0 +1,6 @@
+# Node / Wrangler local artefacts — never committed
+node_modules/
+.wrangler/
+.dev.vars
+.tscheck/
+*.log

@@ -227,6 +227,37 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Phase 192 (B1): LOD verification ──
+                    case "LOD_Verify":               RunCommand<Commands.Validation.LodVerifyCommand>(app); break;
+                    case "LOD_Stamp":                RunCommand<Commands.Validation.LodStampCommand>(app); break;
+
+                    // ── Phase 192 (B3): Program audit vs Owner Excel template ──
+                    case "Program_Audit":            RunCommand<Commands.Validation.ProgramAuditCommand>(app); break;
+
+                    // ── Phase 192 (B2): Owner Standards Pack audit ──
+                    case "OwnerStandards_Audit":     RunCommand<Commands.Validation.OwnerStandardsAuditCommand>(app); break;
+
+                    // ── Phase 192 (C2): CSI MasterFormat / SpecLink ──
+                    case "CSI_Assign":               RunCommand<Commands.Classification.CsiAssignCommand>(app); break;
+                    case "SpecLink_Reconcile":       RunCommand<Commands.Classification.SpecLinkReconcileCommand>(app); break;
+
+                    // ── Phase 192 (B4): Device coordination ──
+                    case "DeviceCoord_Audit":        RunCommand<Commands.Validation.DeviceCoordinationCommand>(app); break;
+
+                    // ── Phase 192 (D1): ComCheck lighting input ──
+                    case "ComCheck_Export":          RunCommand<Commands.Electrical.Lighting.ComCheckExportCommand>(app); break;
+
+                    // ── Phase 192 (E2): HVAC life-cycle cost ──
+                    case "Hvac_LifeCycleCompare":    RunCommand<Commands.Hvac.HvacLifeCycleCompareCommand>(app); break;
+
+                    // ── Phase 192 (E1): Prototype drift ──
+                    case "PrototypeDrift_Report":    RunCommand<BIMManager.PrototypeDriftCommand>(app); break;
+
+                    // ── Phase 192 (C3): Bluebeam review comment tracker ──
+                    case "ReviewComments_Import":     RunCommand<Docs.ReviewCommentsImportCommand>(app); break;
+                    case "ReviewComments_Dashboard":  RunCommand<Docs.ReviewCommentsDashboardCommand>(app); break;
+                    case "ReviewComments_Export":     RunCommand<Docs.ReviewCommentsExportCommand>(app); break;
+
                     // ── Phase 175: Design Options ──
                     case "DesignOptions_Inspect":             RunCommand<Commands.DesignOptions.DesignOptionsInspectCommand>(app); break;
                     case "DesignOptions_MoveTo":              RunCommand<Commands.DesignOptions.MoveToOptionCommand>(app); break;
@@ -911,6 +942,12 @@ namespace StingTools.UI
                     case "CompletenessDashboard": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
                     case "PreTagAudit": RunCommand<Tags.PreTagAuditCommand>(app); break;
                     case "ResolveAllIssues": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
+
+                    // ── Tag Schemes (Phase 191 — project grammar renderings) ──
+                    case "TagScheme_Render": RunCommand<Tags.RenderSchemeTagsCommand>(app); break;
+                    case "TagScheme_Inspect": RunCommand<Tags.TagSchemeInspectCommand>(app); break;
+                    case "TagScheme_Audit": RunCommand<Tags.TagSchemeAuditCommand>(app); break;
+                    case "TokenConfidenceAudit": RunCommand<Tags.TokenConfidenceAuditCommand>(app); break;
 
                     // ── Paragraph & Warning controls (v4.2) ──
                     case "SetParagraphDepth": RunCommand<Tags.SetParagraphDepthCommand>(app); break;
@@ -3619,6 +3656,11 @@ namespace StingTools.UI
                     }
 
                     // ── ExLink commands ──
+                    // ── Phase 192 (C1): Fohlio FF&E link ──
+                    case "Fohlio_Export": RunCommand<ExLink.FohlioExportCommand>(app); break;
+                    case "Fohlio_Import": RunCommand<ExLink.FohlioImportCommand>(app); break;
+                    case "Fohlio_Audit": RunCommand<ExLink.FohlioAuditCommand>(app); break;
+
                     case "ExLinkBrowser": RunCommand<ExLink.ExLinkBrowserCommand>(app); break;
                     case "ExLinkExport": RunCommand<ExLink.ExLinkExportCommand>(app); break;
                     case "ExLinkImport": RunCommand<ExLink.ExLinkImportCommand>(app); break;

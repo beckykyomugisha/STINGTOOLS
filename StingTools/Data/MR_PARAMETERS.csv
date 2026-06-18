@@ -1575,6 +1575,14 @@ Generic Models,ASS_LAST_TOKEN_HASH_TXT,d3a5b1c4-7e9f-4a2c-8b6d-1e3f4a5b6c7d,TEXT
 Generic Models,ASS_TIEIN_REF_TXT,40e9482b-e3d2-5b7d-81cf-61d68303613d,TEXT,ASS_MNG,Type,Ass Tiein Ref [ISO 19650],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_SIZE_TXT,5bc65c4e-492c-5e7f-b892-b9c14b58d20a,TEXT,ASS_MNG,Type,Ass Tiein Size [ISO 19650],False,,,MULTI,1,0
 Generic Models,ASS_TOKEN_LOCK_TXT,c9e5a3b4-d6f7-4a8c-b10d-3e4f5a6b7c8d,TEXT,ASS_MNG,Type,Ass Token Lock [ISO 19650],False,,,MULTI,1,0
+Generic Models,ASS_TAG_SCHEME_TXT,2c8224df-92e0-567b-a9df-c8cd1e4402a3,TEXT,ASS_MNG,Type,Ass Tag Scheme [project grammar rendering ISO 19650],False,,,MULTI,1,0
+Generic Models,ASS_LOD_VERIFIED_TXT,60440963-a414-5667-88f4-d12082344c4d,TEXT,ASS_MNG,Type,Ass Lod Verified [milestone id passed at LOD],False,,,MULTI,1,0
+Generic Models,CSI_SECTION_TXT,3c2c7d9d-93e2-5f95-a002-69b17450efe6,TEXT,ASS_MNG,Type,CSI MasterFormat section [e.g. 23 31 00],False,,,MULTI,1,0
+Generic Models,CSI_TITLE_TXT,160a2335-1886-5503-b569-28d9e63f5a75,TEXT,ASS_MNG,Type,CSI MasterFormat section title,False,,,MULTI,1,0
+Generic Models,FOHLIO_REF_TXT,0ecf2056-1239-52bc-87f8-17c281e67209,TEXT,ASS_MNG,Type,Fohlio item ref [link never duplicate],False,,,MULTI,1,0
+Lighting Fixtures,LTG_HOIST_WEIGHT_KG,f2ec67d7-0d9a-561b-b3f6-11b713ac468e,TEXT,LTG_CONTROLS,Type,Ltg Hoist Weight Kg [A1 §5],False,,,MULTI,1,0
+Lighting Fixtures,LTG_HOIST_MOTOR_TXT,aabcfa8d-62bb-55bc-8cf2-d84e365a75a5,TEXT,LTG_CONTROLS,Type,Ltg Hoist Motor [A1 §5],False,,,MULTI,1,0
+Lighting Fixtures,LTG_HOIST_DROP_MM,c110503a-c776-5c6e-8298-24adf24d1fd0,TEXT,LTG_CONTROLS,Type,Ltg Hoist Drop Mm [A1 §5],False,,,MULTI,1,0
 Generic Models,ASS_WEIGHT_KG_NR,c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa,TEXT,ASS_MNG,Type,Ass Weight Kg [ISO 19650],False,,,MULTI,1,0
 Generic Models,COM_C_PANEL_TXT,d2828a98-abba-5a71-825c-e8b1c6355fe9,TEXT,COM_DAT,Type,Com C Panel [ISO 19650],False,,,MULTI,1,0
 Generic Models,COM_HANDOVER_STATUS_TXT,c7283cb7-804f-6024-edfc-bd3f2085facc,TEXT,COM_DAT,Type,Com Handover Status [ISO 19650],False,,,MULTI,1,0

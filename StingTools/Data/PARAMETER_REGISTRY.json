@@ -14831,6 +14831,97 @@
       "curated": true
     },
     {
+      "param_name": "ASS_TAG_SCHEME_TXT",
+      "guid": "2c8224df-92e0-567b-a9df-c8cd1e4402a3",
+      "description": "Project-grammar tag rendering (TagSchemeEngine) \u2014 derived from source tokens, e.g. ISO 19650 PROJECT-ORIGINATOR-VOLUME-LEVEL-DISCIPLINE-NUMBER",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_LOD_VERIFIED_TXT",
+      "guid": "60440963-a414-5667-88f4-d12082344c4d",
+      "description": "Milestone id stamped by LOD_Stamp on elements that pass LodVerificationEngine at that milestone's LOD (e.g. deliverable-c)",
+      "datatype": "TEXT",
+      "group_id": 1,
+      "group_name": "ASS_MNG",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Asset",
+      "curated": true
+    },
+    {
+      "param_name": "CSI_SECTION_TXT",
+      "guid": "3c2c7d9d-93e2-5f95-a002-69b17450efe6",
+      "description": "CSI MasterFormat section (e.g. 23 31 00) resolved by CSI_Assign; reconciled against the RIB SpecLink spec TOC",
+      "datatype": "TEXT",
+      "group_id": 1,
+      "group_name": "ASS_MNG",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Asset",
+      "curated": true
+    },
+    {
+      "param_name": "CSI_TITLE_TXT",
+      "guid": "160a2335-1886-5503-b569-28d9e63f5a75",
+      "description": "CSI MasterFormat section title (e.g. HVAC Ducts and Casings) resolved by CSI_Assign",
+      "datatype": "TEXT",
+      "group_id": 1,
+      "group_name": "ASS_MNG",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Asset",
+      "curated": true
+    },
+    {
+      "param_name": "FOHLIO_REF_TXT",
+      "guid": "0ecf2056-1239-52bc-87f8-17c281e67209",
+      "description": "Fohlio item URL/ID — the link-never-duplicate key into the Owner FF&E single source of truth (Fohlio ExLink profile)",
+      "datatype": "TEXT",
+      "group_id": 1,
+      "group_name": "ASS_MNG",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Asset",
+      "curated": true
+    },
+    {
+      "param_name": "LTG_HOIST_WEIGHT_KG",
+      "guid": "f2ec67d7-0d9a-561b-b3f6-11b713ac468e",
+      "description": "Decorative-lighting hoist load (kg) — A1 §5 lighting schedule",
+      "datatype": "TEXT",
+      "group_id": 7,
+      "group_name": "LTG_CONTROLS",
+      "binding": "LightingFixtures",
+      "required": false,
+      "discipline": "Electrical",
+      "curated": true
+    },
+    {
+      "param_name": "LTG_HOIST_MOTOR_TXT",
+      "guid": "aabcfa8d-62bb-55bc-8cf2-d84e365a75a5",
+      "description": "Decorative-lighting hoist motor type / reference — A1 §5 lighting schedule",
+      "datatype": "TEXT",
+      "group_id": 7,
+      "group_name": "LTG_CONTROLS",
+      "binding": "LightingFixtures",
+      "required": false,
+      "discipline": "Electrical",
+      "curated": true
+    },
+    {
+      "param_name": "LTG_HOIST_DROP_MM",
+      "guid": "c110503a-c776-5c6e-8298-24adf24d1fd0",
+      "description": "Decorative-lighting hoist drop distance (mm) — A1 §5 lighting schedule",
+      "datatype": "TEXT",
+      "group_id": 7,
+      "group_name": "LTG_CONTROLS",
+      "binding": "LightingFixtures",
+      "required": false,
+      "discipline": "Electrical",
+      "curated": true
+    },
+    {
       "param_name": "ASS_WEIGHT_KG_NR",
       "guid": "c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa",
       "description": "Ass Weight Kg [ISO 19650]",

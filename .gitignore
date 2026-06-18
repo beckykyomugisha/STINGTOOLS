@@ -91,3 +91,9 @@ shared/ifc/psd_out/
 tests/fixtures/*.ifc
 tests/fixtures/*.roundtrip.ifc
 tools/bin/
+
+# Phase 192 C1 - Fohlio API connection (base URL + key) is user-created at
+# runtime under <project>/_BIM_COORD/ and must never be committed. Only the
+# .example template is tracked.
+fohlio_connection.json
+**/fohlio_connection.json
