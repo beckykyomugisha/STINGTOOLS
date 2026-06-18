@@ -3707,7 +3707,7 @@ namespace StingTools.Tags
                         formulasApplied = r.FormulasApplied;
                         formulasSkipped = r.FormulasSkipped;
                         tiersPreserved  = r.TiersPreserved;
-                        labelRebound    = r.LabelRebound;
+                        labelRebound    = r.LabelRebound ? 1 : 0;
                         planTag = modePlans.Count > 1
                             ? $"modes=[{string.Join(",", modePlans.ConvertAll(m => m.Mode))}]"
                             : "single-mode";
