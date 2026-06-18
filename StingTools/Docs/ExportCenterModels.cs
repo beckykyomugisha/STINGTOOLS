@@ -283,6 +283,10 @@ namespace StingTools.Docs
         public List<ExportProfile> Profiles { get; set; } = new();
         public List<ExportSavedSet> SavedSets { get; set; } = new();
         public List<ScheduledExport> ScheduledExports { get; set; } = new();
+        /// <summary>Opt-in: run any due <see cref="ScheduledExports"/> automatically on
+        /// DocumentSaved. Off by default so exported files never appear unexpectedly;
+        /// the manual ExportCenterRunSchedulesCommand path is always available.</summary>
+        public bool EnableSaveTriggeredSchedules { get; set; }
         public List<string> RecentFolders { get; set; } = new();
         public string LastOutputFolder { get; set; }
         public string LastNamingTemplate { get; set; }
