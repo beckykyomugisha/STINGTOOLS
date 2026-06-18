@@ -184,6 +184,29 @@ namespace StingTools.Docs
                     return ids;
                 }
 
+                case "Changed Since Last Export":
+                {
+                    // Issue-driven delta: a sheet is "changed" when it has never been
+                    // exported, or its current revision differs from the last-exported
+                    // revision recorded in state. The biggest automation win for an
+                    // ISO 19650 re-issue — only the drawings that moved go out. Records
+                    // are stamped post-run when the profile's Output.StampLastExport is
+                    // on (default). Salvaged from claude/dreamy-maxwell-prlg44.
+                    var state = LoadState();
+                    var byUid = (state.LastExports ?? new List<SheetExportRecord>())
+                        .GroupBy(r => r.SheetUniqueId)
+                        .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.ExportedUtc).First());
+                    var ids = new List<ElementId>();
+                    foreach (var s in sheets)
+                    {
+                        var (rev, _) = GetCurrentRevision(doc, s);
+                        if (!byUid.TryGetValue(s.UniqueId, out var rec) ||
+                            !string.Equals(rec.Revision ?? "", rev ?? "", StringComparison.OrdinalIgnoreCase))
+                            ids.Add(s.Id);
+                    }
+                    return ids;
+                }
+
                 case "Currently Opened":
                 {
                     // We can only inspect the active UI app from the dialog layer;
@@ -636,7 +659,58 @@ namespace StingTools.Docs
                 StingLog.Error("ExportCenterEngine.Run failed", ex);
                 result.Warnings.Add("Run failed: " + ex.Message);
             }
+            StampLastExports(doc, profile, result);
             return Finalize(profile, result);
+        }
+
+        /// <summary>
+        /// Delta automation (salvaged from claude/dreamy-maxwell-prlg44, scoped to the
+        /// "Changed Since Last Export" feature). After a completed run, persist a
+        /// per-sheet last-export record (revision + path) for every successful,
+        /// single-sheet row so the delta set can tell next time which drawings moved.
+        /// Gated on Output.StampLastExport (default true); skipped for cancelled runs.
+        /// Combined-PDF rows don't map to one sheet and are ignored.
+        /// </summary>
+        private static void StampLastExports(Document doc, ExportProfile profile, ExportRunResult result)
+        {
+            if (doc == null || profile?.Output == null || !profile.Output.StampLastExport) return;
+            if (result == null || result.Cancelled) return;
+            try
+            {
+                var state = LoadState();
+                var byKey = (state.LastExports ?? new List<SheetExportRecord>())
+                    .ToDictionary(r => r.SheetUniqueId + "|" + r.Format, r => r);
+
+                foreach (var r in result.Rows.Where(x => x.Success && !string.IsNullOrEmpty(x.OutputPath)))
+                {
+                    var sheet = ResolveSheet(doc, r.SheetId);
+                    if (sheet == null) continue; // combined rows don't map to one sheet
+                    var (rev, _) = GetCurrentRevision(doc, sheet);
+                    var rec = new SheetExportRecord
+                    {
+                        SheetUniqueId = sheet.UniqueId,
+                        SheetNumber   = sheet.SheetNumber,
+                        Revision      = rev,
+                        Format        = r.Format,
+                        Path          = r.OutputPath,
+                        ExportedUtc   = DateTime.UtcNow,
+                    };
+                    byKey[rec.SheetUniqueId + "|" + rec.Format] = rec;
+                }
+
+                state.LastExports = byKey.Values.ToList();
+                SaveState(state);
+            }
+            catch (Exception ex) { StingLog.Warn($"Last-export stamp: {ex.Message}"); }
+        }
+
+        /// <summary>Resolve a ViewSheet from an ExportResultRow.SheetId string
+        /// (mirrors the long→ElementId parse used by ResolveSet). Returns null for
+        /// combined rows or ids that no longer resolve to a sheet.</summary>
+        private static ViewSheet ResolveSheet(Document doc, string sheetId)
+        {
+            if (string.IsNullOrEmpty(sheetId) || !long.TryParse(sheetId, out long raw)) return null;
+            return doc.GetElement(new ElementId(raw)) as ViewSheet;
         }
 
         /// <summary>
