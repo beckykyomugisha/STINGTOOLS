@@ -187,7 +187,7 @@
       "formula": "if(TAG_WARN_VISIBLE_BOOL, <param>, \"\")",
       "description": "Gates warning text — visible when warnings enabled. Respects TAG_WARN_SEVERITY_FILTER_TXT"
     },
-    "_comment": "Calculated Value templates that tag family labels plug in to. In MR_PARAMETERS v5.3+ every BOOL parameter referenced by one of these templates is stored as TEXT ('Yes'/'No') because Revit label formulas cannot use YESNO parameters as the condition of if(...). STING writers (TagStyleEngine.SetTagFormulaBool, ParameterHelpers.SetYesNo, PresentationModeCommand.SetBool, MigrateTagFamiliesCommand.SetFamilyBool) detect the storage type automatically and write 'Yes'/'No' for TEXT or 1/0 for legacy INTEGER-storage families.",
+    "_comment": "Calculated Value templates that tag family labels plug in to. CONDITION-FORM CONTRACT: every BOOL gate referenced by one of these templates is stored as YESNO in MR_PARAMETERS v5.4+ — YESNO is Revit's native type for an if()/and()/or() condition, so the gate is written BARE: `if(gate, <param>, \"\")`. Do NOT compare a YESNO gate to \"Yes\" — Revit rejects `gate` on a YESNO parameter with 'Inconsistent Units'. The VALUE parameter in the <param> position must stay TEXT (a Revit label can only emit a TEXT result). The emitter (TagConfig.GateToken via FamilyLabelAuthor) picks the form per storage type — it emits bare for YESNO and stays the safety net for any legacy family still holding a gate as TEXT. The file-declared gate type (MR_PARAMETERS.txt) must equal the type bound in the project and in the tag family.",
     "cv_show_tier4": {
       "name": "Show Tier 4",
       "formula": "if(TAG_PARA_STATE_4_BOOL, <param>, \"\")",

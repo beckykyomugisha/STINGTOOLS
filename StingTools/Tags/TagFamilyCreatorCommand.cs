@@ -2971,8 +2971,10 @@ namespace StingTools.Tags
                     sb.AppendLine("── TIER 2 (Standard+) ──");
                     sb.AppendLine("Use CALCULATED VALUES (Type: Text) for each parameter:");
                     sb.AppendLine("  Formula: if(TAG_PARA_STATE_2_BOOL, <param>, \"\")");
-                    sb.AppendLine("  NOTE: All parameters MUST be TEXT type in MR_PARAMETERS.txt.");
-                    sb.AppendLine("  Numeric params (NUMBER/LENGTH/AREA) cause 'Inconsistent Units'.");
+                    sb.AppendLine("  NOTE: VALUE params MUST be TEXT type in MR_PARAMETERS.txt.");
+                    sb.AppendLine("  Gate BOOLs are YESNO — test them bare (a YESNO param is a");
+                    sb.AppendLine("  valid if() condition; comparing it to = \"Yes\" → 'Inconsistent Units').");
+                    sb.AppendLine("  Numeric value params (NUMBER/LENGTH/AREA) cause 'Inconsistent Units'.");
                     sb.AppendLine();
                     FormatTierTable(sb, tier2, paramText);
                 }
@@ -2985,7 +2987,8 @@ namespace StingTools.Tags
                     sb.AppendLine("── TIER 3 (Comprehensive) ──");
                     sb.AppendLine("Use CALCULATED VALUES (Type: Text) for each parameter:");
                     sb.AppendLine("  Formula: if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
-                    sb.AppendLine("  NOTE: All parameters MUST be TEXT type in MR_PARAMETERS.txt.");
+                    sb.AppendLine("  NOTE: VALUE params MUST be TEXT type in MR_PARAMETERS.txt.");
+                    sb.AppendLine("  Gate BOOLs are YESNO — test them bare (no = \"Yes\").");
                     sb.AppendLine();
                     FormatTierTable(sb, tier3, paramText);
                 }
@@ -3267,6 +3270,53 @@ namespace StingTools.Tags
                     report.AppendLine($"  {pname}: {ptype} (should be TEXT)");
                 if (typeMismatches.Count > 20)
                     report.AppendLine($"  ... and {typeMismatches.Count - 20} more");
+            }
+
+            // Gate condition-FORM guard: every gate referenced in a tag label /
+            // style formula must use the condition form that matches its storage
+            // type. YESNO gates (STING's v5.4+ canonical type) must be tested
+            // BARE; a TEXT gate (legacy) must be tested as `GATE = "Yes"`.
+            // Comparing a YESNO gate to "Yes" — or leaving a TEXT gate bare —
+            // raises "Inconsistent Units". Reads the formula source-of-truth +
+            // MR_PARAMETERS.txt.
+            var gateFormIssues = LabelParamTypeValidator.ValidateGateConditionForms();
+            if (gateFormIssues.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine($"⚠ WARNING: {gateFormIssues.Count} tag-formula gate(s) use the wrong condition form");
+                report.AppendLine("Form must match storage: YESNO gate → bare; TEXT gate → GATE = \"Yes\".");
+                foreach (var gi in gateFormIssues.Take(20))
+                    report.AppendLine($"  {gi}");
+                if (gateFormIssues.Count > 20)
+                    report.AppendLine($"  ... and {gateFormIssues.Count - 20} more");
+            }
+            else
+            {
+                report.AppendLine();
+                report.AppendLine("✓ Tag-formula gate condition forms aligned with storage types (0 issues).");
+            }
+
+            // File↔bound type-drift guard: every gate param's file-declared type
+            // (MR_PARAMETERS.txt) must equal the type bound in this document —
+            // the project, or the family when the audit is run inside an open
+            // tag family. A drift here is the root cause PR #324/#325 chased:
+            // the file silently declaring TEXT while the project/family hold
+            // the GUID as Yes/No. Hard finding — re-bind or fix the file.
+            var gateDrift = LabelParamTypeValidator.ValidateGateTypeDrift(doc);
+            if (gateDrift.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine($"⛔ DRIFT: {gateDrift.Count} gate param(s) — file-declared type ≠ bound type");
+                report.AppendLine("MR_PARAMETERS.txt must declare the SAME type the document binds.");
+                foreach (var gd in gateDrift.Take(20))
+                    report.AppendLine($"  {gd}");
+                if (gateDrift.Count > 20)
+                    report.AppendLine($"  ... and {gateDrift.Count - 20} more");
+            }
+            else
+            {
+                report.AppendLine();
+                report.AppendLine("✓ Gate file-declared types match bound types (0 drift).");
             }
 
             // Check bound param types in project
@@ -3555,6 +3605,337 @@ namespace StingTools.Tags
                 StingLog.Error("LabelParamTypeValidator.AutoFix failed", ex);
                 return 0;
             }
+        }
+
+        // ------------------------------------------------------------------
+        // Gate condition-FORM guard (Inconsistent-Units regression guard)
+        // ------------------------------------------------------------------
+
+        /// <summary>One mismatch between a gate's storage type and the
+        /// condition FORM it is written with inside a tag label / style formula.</summary>
+        public sealed class GateFormIssue
+        {
+            public string Source;     // file + locus
+            public string Gate;       // gate parameter name
+            public string Storage;    // "TEXT" / "YESNO" / "UNKNOWN"
+            public string Found;      // "bare" / "= \"Yes\""
+            public string Expected;   // the correct form
+            public string Formula;    // the offending formula snippet
+            public override string ToString() =>
+                $"{Source}: '{Gate}' ({Storage}) written {Found}, expected {Expected}";
+        }
+
+        // Gate-name shapes STING treats as tag-formula boolean gates.
+        private static readonly System.Text.RegularExpressions.Regex GateRefRegex =
+            new System.Text.RegularExpressions.Regex(
+                @"(?<gate>TAG_PARA_STATE_\d+_BOOL|TAG_WARN_VISIBLE_BOOL|TAG_7_SECTION_VISIBLE_[A-F]_BOOL|TAG_[0-9][A-Z0-9_\.]*_BOOL)(?<form>\s*=\s*""Yes"")?",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>
+        /// Permanent regression guard for the "Inconsistent Units" class of bug:
+        /// for every boolean-gate reference inside a tag label / style-row
+        /// formula, assert the CONDITION FORM matches the gate's STORAGE TYPE.
+        ///
+        /// <para>A TEXT gate (STING's v5.3+ default) must appear as
+        /// <c>GATE = "Yes"</c>; a YESNO / Integer gate must appear bare. A bare
+        /// TEXT gate (or a <c>= "Yes"</c> test on a YESNO gate) is flagged —
+        /// the former is the actual Revit "Inconsistent Units" trigger.</para>
+        ///
+        /// <para>Reads the formula source-of-truth (LABEL_DEFINITIONS.json
+        /// calculated_value_templates + per-category warnings, plus the
+        /// STING_TAG_CONFIG_v5_0_*.csv Formula column) and the gate storage
+        /// types from MR_PARAMETERS.txt — so it runs headless (no Revit needed).
+        /// Return / value parameters are NOT inspected here; the existing
+        /// <see cref="ValidateSourceFile"/> covers "value params must be TEXT".</para>
+        /// </summary>
+        public static List<GateFormIssue> ValidateGateConditionForms()
+        {
+            var issues = new List<GateFormIssue>();
+            var storageByGate = LoadGateStorageMap();
+            if (storageByGate.Count == 0) return issues; // can't resolve types → don't false-flag
+
+            // 1) LABEL_DEFINITIONS.json — calculated_value_templates + warnings
+            try
+            {
+                string labelFile = StingToolsApp.FindDataFile("LABEL_DEFINITIONS.json");
+                if (!string.IsNullOrEmpty(labelFile) && File.Exists(labelFile))
+                {
+                    var root = JObject.Parse(File.ReadAllText(labelFile));
+
+                    var cvt = root["calculated_value_templates"] as JObject;
+                    if (cvt != null)
+                        foreach (var prop in cvt.Properties())
+                        {
+                            string f = (prop.Value as JObject)?["formula"]?.ToString();
+                            ScanFormula(f, $"LABEL_DEFINITIONS.json:{prop.Name}", storageByGate, issues);
+                        }
+
+                    // Per-category warnings carry literal if(GATE, PARAM, "") formulas.
+                    var cats = root["category_labels"] as JObject ?? root["categories"] as JObject;
+                    if (cats != null)
+                        foreach (var catProp in cats.Properties())
+                        {
+                            var warnings = (catProp.Value as JObject)?["warnings"] as JArray;
+                            if (warnings == null) continue;
+                            foreach (var w in warnings)
+                            {
+                                string f = (w as JObject)?["formula"]?.ToString();
+                                ScanFormula(f, $"LABEL_DEFINITIONS.json:{catProp.Name}/warnings", storageByGate, issues);
+                            }
+                        }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ValidateGateConditionForms (JSON): {ex.Message}"); }
+
+            // 2) STING_TAG_CONFIG_v5_0_*.csv — the Formula column
+            try
+            {
+                string anyCsv = StingToolsApp.FindDataFile("STING_TAG_CONFIG_v5_0_GEN.csv");
+                string dir = string.IsNullOrEmpty(anyCsv) ? null : Path.GetDirectoryName(anyCsv);
+                if (dir != null && Directory.Exists(dir))
+                {
+                    foreach (string csv in Directory.GetFiles(dir, "STING_TAG_CONFIG_v5_0_*.csv"))
+                    {
+                        string name = Path.GetFileName(csv);
+                        int lineNo = 0;
+                        foreach (string raw in File.ReadLines(csv))
+                        {
+                            lineNo++;
+                            if (string.IsNullOrEmpty(raw) || raw.TrimStart().StartsWith("#")) continue;
+                            int idx = raw.IndexOf("if(", StringComparison.Ordinal);
+                            if (idx < 0) continue;
+                            // CSV un-escape: doubled quotes → single so the regex sees `= "Yes"`.
+                            string formula = raw.Substring(idx).Replace("\"\"", "\"");
+                            ScanFormula(formula, $"{name}:line {lineNo}", storageByGate, issues);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ValidateGateConditionForms (CSV): {ex.Message}"); }
+
+            return issues;
+        }
+
+        /// <summary>Scan one formula string for gate references and compare
+        /// each gate's emitted form against its storage type.</summary>
+        private static void ScanFormula(string formula, string locus,
+            Dictionary<string, string> storageByGate, List<GateFormIssue> issues)
+        {
+            if (string.IsNullOrEmpty(formula)) return;
+            foreach (System.Text.RegularExpressions.Match m in GateRefRegex.Matches(formula))
+            {
+                string gate = m.Groups["gate"].Value;
+                if (!storageByGate.TryGetValue(gate, out string storage)) continue; // unknown → skip
+                bool hasYesCompare = m.Groups["form"].Success;
+
+                if (storage == "TEXT" && !hasYesCompare)
+                {
+                    issues.Add(new GateFormIssue
+                    {
+                        Source = locus, Gate = gate, Storage = "TEXT",
+                        Found = "bare", Expected = $"{gate} = \"Yes\"",
+                        Formula = Trim(formula),
+                    });
+                }
+                else if (storage == "YESNO" && hasYesCompare)
+                {
+                    issues.Add(new GateFormIssue
+                    {
+                        Source = locus, Gate = gate, Storage = "YESNO",
+                        Found = "= \"Yes\"", Expected = gate,
+                        Formula = Trim(formula),
+                    });
+                }
+            }
+        }
+
+        private static string Trim(string s) =>
+            s != null && s.Length > 80 ? s.Substring(0, 80) + "…" : s;
+
+        /// <summary>
+        /// Build gate-name → storage classification ("TEXT" / "YESNO") from
+        /// MR_PARAMETERS.txt. Only the boolean-gate names STING uses in
+        /// tag formulas are returned. TEXT spec → "TEXT"; YESNO spec → "YESNO".
+        /// </summary>
+        private static Dictionary<string, string> LoadGateStorageMap()
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string mrFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                if (string.IsNullOrEmpty(mrFile) || !File.Exists(mrFile)) return map;
+
+                foreach (string line in File.ReadLines(mrFile))
+                {
+                    if (!line.StartsWith("PARAM")) continue;
+                    string[] parts = line.Split('\t');
+                    if (parts.Length < 4) continue;
+                    string name = parts[2];
+                    string spec = parts[3];
+                    if (!IsTagGateName(name)) continue;
+                    map[name] = string.Equals(spec, "YESNO", StringComparison.OrdinalIgnoreCase)
+                        ? "YESNO" : "TEXT"; // every non-YESNO gate is treated as TEXT
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadGateStorageMap: {ex.Message}"); }
+            return map;
+        }
+
+        private static bool IsTagGateName(string n)
+        {
+            if (string.IsNullOrEmpty(n)) return false;
+            if (n.StartsWith("TAG_PARA_STATE_", StringComparison.Ordinal) && n.EndsWith("_BOOL", StringComparison.Ordinal)) return true;
+            if (string.Equals(n, "TAG_WARN_VISIBLE_BOOL", StringComparison.Ordinal)) return true;
+            if (n.StartsWith("TAG_7_SECTION_VISIBLE_", StringComparison.Ordinal) && n.EndsWith("_BOOL", StringComparison.Ordinal)) return true;
+            // 128 style gates: TAG_{size}{style}_{colour}_BOOL — second char is a digit
+            if (n.StartsWith("TAG_", StringComparison.Ordinal) && n.EndsWith("_BOOL", StringComparison.Ordinal)
+                && n.Length > 5 && char.IsDigit(n[4])) return true;
+            return false;
+        }
+
+        // ------------------------------------------------------------------
+        // File↔bound type-drift guard (the check that stops the dictionary
+        // silently diverging from the project / family again)
+        // ------------------------------------------------------------------
+
+        /// <summary>One gate whose MR_PARAMETERS.txt file-declared type does not
+        /// match the type bound in the project / family document.</summary>
+        public sealed class GateTypeDrift
+        {
+            public string Gate;        // gate parameter name
+            public string FileType;    // type declared in MR_PARAMETERS.txt
+            public string BoundType;   // type actually bound in the document
+            public string Document;    // "project: X.rvt" / "family: Y.rfa"
+            public override string ToString() =>
+                $"{Document}: '{Gate}' file={FileType} bound={BoundType}";
+        }
+
+        /// <summary>Broad gate predicate covering every tag-formula GATE param
+        /// (condition position only): the 10 tier states, 6 TAG7 section gates,
+        /// warn/box/scale visibility gates, the 128 style gates, and the 3
+        /// HANDOVER_MODE pattern gates. Display-mirror booleans (a _BOOL that only
+        /// appears in the THAT-value position of <c>if(cond, THAT_BOOL, "")</c>)
+        /// are NOT gates and are intentionally excluded.</summary>
+        private static bool IsAnyGateParam(string n)
+        {
+            if (IsTagGateName(n)) return true; // tier / warn / TAG7 / style
+            if (string.Equals(n, "TAG_BOX_VISIBLE_BOOL", StringComparison.Ordinal)) return true;
+            if (string.Equals(n, "TAG_SCALE_TIER_AUTO_BOOL", StringComparison.Ordinal)) return true;
+            if (n != null && n.StartsWith("HANDOVER_MODE_", StringComparison.Ordinal)
+                && n.EndsWith("_BOOL", StringComparison.Ordinal)) return true;
+            return false;
+        }
+
+        /// <summary>File-declared type ("YESNO"/"TEXT") for every gate param in
+        /// MR_PARAMETERS.txt — the broad gate set (cf. <see cref="IsAnyGateParam"/>).</summary>
+        private static Dictionary<string, string> LoadAllGateFileTypes()
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string mrFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                if (string.IsNullOrEmpty(mrFile) || !File.Exists(mrFile)) return map;
+                foreach (string line in File.ReadLines(mrFile))
+                {
+                    if (!line.StartsWith("PARAM")) continue;
+                    string[] parts = line.Split('\t');
+                    if (parts.Length < 4) continue;
+                    if (!IsAnyGateParam(parts[2])) continue;
+                    map[parts[2]] = string.Equals(parts[3], "YESNO", StringComparison.OrdinalIgnoreCase)
+                        ? "YESNO" : (string.Equals(parts[3], "TEXT", StringComparison.OrdinalIgnoreCase) ? "TEXT" : parts[3]);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadAllGateFileTypes: {ex.Message}"); }
+            return map;
+        }
+
+        /// <summary>Classify a bound parameter's Revit data type into the same
+        /// "YESNO" / "TEXT" vocabulary used by MR_PARAMETERS.txt.</summary>
+        private static string ClassifyForgeType(ForgeTypeId spec)
+        {
+            try
+            {
+                if (spec == null) return "UNKNOWN";
+                if (spec == SpecTypeId.Boolean.YesNo) return "YESNO";
+                if (spec == SpecTypeId.String.Text) return "TEXT";
+                return spec.TypeId; // surface the raw spec for any other type
+            }
+            catch (Exception ex) { StingLog.Warn($"ClassifyForgeType: {ex.Message}"); return "UNKNOWN"; }
+        }
+
+        /// <summary>
+        /// Permanent drift guard: assert that every gate param's file-declared
+        /// type (MR_PARAMETERS.txt) equals the type bound in <paramref name="doc"/>.
+        /// For a family document the gate is read from <see cref="FamilyManager"/>;
+        /// for a project from the binding map. Any mismatch is a hard finding —
+        /// it is the silent file↔reality divergence that re-introduces the
+        /// "Inconsistent Units" failure on re-bind / family re-creation.
+        /// </summary>
+        public static List<GateTypeDrift> ValidateGateTypeDrift(Document doc)
+        {
+            var drifts = new List<GateTypeDrift>();
+            if (doc == null) return drifts;
+
+            var fileTypes = LoadAllGateFileTypes();
+            if (fileTypes.Count == 0) return drifts; // can't resolve file types → don't false-flag
+
+            try
+            {
+                if (doc.IsFamilyDocument && doc.FamilyManager != null)
+                {
+                    string label = $"family: {SafeTitle(doc)}";
+                    foreach (FamilyParameter fp in doc.FamilyManager.Parameters)
+                    {
+                        string name = fp?.Definition?.Name;
+                        if (string.IsNullOrEmpty(name) || !fileTypes.TryGetValue(name, out string ft)) continue;
+                        // Family params expose StorageType, not a binding spec.
+                        string bound = fp.StorageType == StorageType.Integer ? "YESNO"
+                            : fp.StorageType == StorageType.String ? "TEXT"
+                            : fp.StorageType.ToString();
+                        // Integer storage is YESNO *or* a true Integer; only flag a
+                        // clear TEXT/YESNO contradiction, not Integer-vs-YESNO nuance.
+                        if (Conflicts(ft, bound))
+                            drifts.Add(new GateTypeDrift { Gate = name, FileType = ft, BoundType = bound, Document = label });
+                    }
+                }
+                else
+                {
+                    string label = $"project: {SafeTitle(doc)}";
+                    var iter = doc.ParameterBindings.ForwardIterator();
+                    while (iter.MoveNext())
+                    {
+                        var def = iter.Key as InternalDefinition;
+                        if (def == null || !fileTypes.TryGetValue(def.Name, out string ft)) continue;
+                        string bound;
+                        try { bound = ClassifyForgeType(def.GetDataType()); }
+                        catch (Exception ex) { StingLog.Warn($"GetDataType drift: {ex.Message}"); continue; }
+                        if (Conflicts(ft, bound))
+                            drifts.Add(new GateTypeDrift { Gate = def.Name, FileType = ft, BoundType = bound, Document = label });
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ValidateGateTypeDrift: {ex.Message}"); }
+
+            return drifts;
+        }
+
+        /// <summary>True when file-declared and bound types are a genuine
+        /// TEXT↔YESNO contradiction (the failure mode that breaks re-bind).</summary>
+        private static bool Conflicts(string fileType, string boundType)
+        {
+            if (string.IsNullOrEmpty(fileType) || string.IsNullOrEmpty(boundType)) return false;
+            if (boundType == "UNKNOWN") return false;
+            bool fileYesNo = string.Equals(fileType, "YESNO", StringComparison.OrdinalIgnoreCase);
+            bool fileText  = string.Equals(fileType, "TEXT",  StringComparison.OrdinalIgnoreCase);
+            bool boundYesNo = string.Equals(boundType, "YESNO", StringComparison.OrdinalIgnoreCase);
+            bool boundText  = string.Equals(boundType, "TEXT",  StringComparison.OrdinalIgnoreCase);
+            return (fileYesNo && boundText) || (fileText && boundYesNo);
+        }
+
+        private static string SafeTitle(Document doc)
+        {
+            try { return string.IsNullOrEmpty(doc.Title) ? "<untitled>" : doc.Title; }
+            catch { return "<untitled>"; }
         }
     }
 }
