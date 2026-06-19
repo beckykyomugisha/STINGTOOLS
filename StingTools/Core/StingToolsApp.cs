@@ -2209,6 +2209,7 @@ namespace StingTools.Core
                 ("DrawingTypes_Edit",    "Drawing Types", "DT", DrawingColor.MediumPurple, typeof(HubDrawingTypesCommand).FullName),
                 ("TemplateManager_Open", "Template Mgr",  "TM", DrawingColor.DarkViolet,   typeof(HubTemplateManagerCommand).FullName),
                 ("DocumentMgmt_Open",    "Doc Manager",   "DM", DrawingColor.DarkOrange,   typeof(HubDocumentMgmtCommand).FullName),
+                ("ExportCenter",         "Export Center", "EX", DrawingColor.Chocolate,    typeof(HubExportCenterCommand).FullName),
                 ("BOQ_ExportCost",       "BOQ / Cost",    "BQ", DrawingColor.SeaGreen,     typeof(HubBoqExportCostCommand).FullName),
                 ("Fabrication_Open",     "Fabrication",   "FW", DrawingColor.Firebrick,    typeof(HubFabricationCommand).FullName),
                 ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,    typeof(HubPlacementCommand).FullName),
@@ -2566,6 +2567,17 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run(data, "DocumentManager", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubExportCenterCommand : IExternalCommand
+    {
+        // Reuses the existing ExportCenter dispatch tag (→ Docs.ExportCenterCommand
+        // → StingExportCenterDialog), so the Hub button opens the same dialog as
+        // every other Export Centre entry point. No parallel dialog.
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run(data, "ExportCenter", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
