@@ -1154,7 +1154,7 @@ namespace StingTools.UI
             folderRow.Children.Add(browse);
             destSp.Children.Add(folderRow);
 
-            destSp.Children.Add(BindCheck("Open folder when export completes", () => _profile.Output.OpenFolderWhenDone, v => _profile.Output.OpenFolderWhenDone = v));
+            destSp.Children.Add(BindCheck("Open export(s) when done", () => _profile.Output.OpenFolderWhenDone, v => _profile.Output.OpenFolderWhenDone = v));
             destSp.Children.Add(BindCheck("Create folder if it doesn't exist", () => _profile.Output.CreateFolderIfMissing, v => _profile.Output.CreateFolderIfMissing = v));
             destSp.Children.Add(BindCheck("Split into format sub-folders",     () => _profile.Output.SplitByFormatSubFolder, v => _profile.Output.SplitByFormatSubFolder = v));
             destSp.Children.Add(BindCheck("Split by discipline sub-folders",   () => _profile.Output.SplitByDisciplineSubFolder, v => _profile.Output.SplitByDisciplineSubFolder = v));
@@ -1664,12 +1664,7 @@ namespace StingTools.UI
                     () => _cancelRequested);
 
                 ShowResultSummary(result);
-                if (_profile.Output.OpenFolderWhenDone &&
-                    !string.IsNullOrEmpty(_profile.Output.LocalFolder) &&
-                    Directory.Exists(_profile.Output.LocalFolder))
-                {
-                    try { System.Diagnostics.Process.Start("explorer.exe", _profile.Output.LocalFolder); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                }
+                OpenExportOutputs(result);
             }
             finally
             {
@@ -1686,6 +1681,61 @@ namespace StingTools.UI
             foreach (ExportFormats f in Enum.GetValues(typeof(ExportFormats)))
                 if (f != ExportFormats.None && (_profile.Formats & f) != 0) n++;
             return n;
+        }
+
+        /// <summary>
+        /// "Open … when done" handler. Opens the actual produced document(s) in the
+        /// OS default app (e.g. the PDF viewer) for a small batch; for a large batch
+        /// opens the containing folder instead so we don't spawn dozens of viewer
+        /// windows. Falls back to the destination folder when no per-file path
+        /// resolved. Replaces the old explorer-only open, which only ever opened the
+        /// folder and silently no-op'd when the produced files lived in a subfolder.
+        /// </summary>
+        private void OpenExportOutputs(ExportRunResult result)
+        {
+            try
+            {
+                if (_profile?.Output == null || !_profile.Output.OpenFolderWhenDone) return;
+
+                var files = result?.Rows?
+                    .Where(r => r.Success && !string.IsNullOrEmpty(r.OutputPath) && File.Exists(r.OutputPath))
+                    .Select(r => r.OutputPath)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList() ?? new List<string>();
+
+                if (files.Count > 0 && files.Count <= 8)
+                {
+                    foreach (var f in files) ShellOpen(f);   // open each document
+                }
+                else
+                {
+                    string folder = files.Count > 0
+                        ? Path.GetDirectoryName(files[0])
+                        : _profile.Output.LocalFolder;
+                    if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+                        ShellOpen(folder);                   // open the containing folder
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"OpenExportOutputs: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Open a file or folder with the OS shell so a file launches in its default
+        /// app and a folder opens in Explorer. UseShellExecute=true is required in
+        /// .NET 8 to open a document by path (the old Process.Start("explorer.exe",
+        /// path) defaulted to UseShellExecute=false and could silently fail).
+        /// </summary>
+        private static void ShellOpen(string path)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception ex) { StingLog.Warn($"ShellOpen '{path}': {ex.Message}"); }
         }
 
         private void ShowResultSummary(ExportRunResult r)

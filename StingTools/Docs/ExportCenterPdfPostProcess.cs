@@ -124,8 +124,8 @@ namespace StingTools.Docs
                 colour.A = Math.Clamp(pdf.WatermarkOpacityPct, 0, 100) / 100.0;
 
                 var brush = new XSolidBrush(colour);
-                int fontSize = Math.Max(24, pdf.WatermarkFontSize);
-                var font = new XFont("Arial", fontSize, XFontStyleEx.Bold);
+                int baseFontSize = Math.Max(24, pdf.WatermarkFontSize);
+                var cornerFont = new XFont("Arial", baseFontSize, XFontStyleEx.Bold);
 
                 foreach (PdfPage page in doc.Pages)
                 {
@@ -133,25 +133,46 @@ namespace StingTools.Docs
 
                     double w = page.Width.Point;
                     double h = page.Height.Point;
-                    var size = gfx.MeasureString(pdf.WatermarkText, font);
 
                     gfx.Save();
                     switch (pdf.WatermarkPosition)
                     {
                         case "TopLeft":
-                            gfx.DrawString(pdf.WatermarkText, font, brush,
+                        {
+                            var size = gfx.MeasureString(pdf.WatermarkText, cornerFont);
+                            gfx.DrawString(pdf.WatermarkText, cornerFont, brush,
                                 new XPoint(20, 20 + size.Height));
                             break;
+                        }
                         case "BottomRight":
-                            gfx.DrawString(pdf.WatermarkText, font, brush,
+                        {
+                            var size = gfx.MeasureString(pdf.WatermarkText, cornerFont);
+                            gfx.DrawString(pdf.WatermarkText, cornerFont, brush,
                                 new XPoint(w - size.Width - 20, h - 20));
                             break;
-                        default: // DiagonalCentre
-                            gfx.TranslateTransform(w / 2, h / 2);
-                            gfx.RotateTransform(-30);
-                            gfx.DrawString(pdf.WatermarkText, font, brush,
-                                new XPoint(-size.Width / 2, size.Height / 2));
+                        }
+                        default: // DiagonalCentre — large, dead-centre, corner-to-corner
+                        {
+                            // Scale the text so it spans ~70% of the page diagonal,
+                            // then centre it exactly on the page centre via
+                            // XStringFormats.Center. Centre is invariant under the
+                            // page's /Rotate (which pivots about the same centre),
+                            // so this reads centred whatever the sheet orientation.
+                            double diag = Math.Sqrt(w * w + h * h);
+                            var probe = gfx.MeasureString(pdf.WatermarkText, cornerFont);
+                            int big = baseFontSize;
+                            if (probe.Width > 1)
+                                big = (int)Math.Clamp(
+                                    baseFontSize * (diag * 0.70) / probe.Width, baseFontSize, 400);
+                            var bigFont = new XFont("Arial", big, XFontStyleEx.Bold);
+
+                            double angleDeg = -Math.Atan2(h, w) * 180.0 / Math.PI; // corner-to-corner
+                            gfx.TranslateTransform(w / 2.0, h / 2.0);
+                            gfx.RotateTransform(angleDeg);
+                            gfx.DrawString(pdf.WatermarkText, bigFont, brush,
+                                new XPoint(0, 0), XStringFormats.Center);
                             break;
+                        }
                     }
                     gfx.Restore();
                 }
