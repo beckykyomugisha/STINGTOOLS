@@ -18,6 +18,9 @@ using TextBox = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
 using CheckBox = System.Windows.Controls.CheckBox;
 using Panel = System.Windows.Controls.Panel;
+using ContextMenu = System.Windows.Controls.ContextMenu;
+using MenuItem = System.Windows.Controls.MenuItem;
+using Control = System.Windows.Controls.Control;
 using Binding = System.Windows.Data.Binding;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
@@ -73,6 +76,17 @@ namespace StingTools.UI
         private readonly ObservableCollection<SheetRow> _rows = new();
         private bool _exporting;
         private bool _cancelRequested;
+
+        // ── SELECT-panel grouping / bulk-selection (Part 3) ──────────────────────
+        private enum GroupMode { None, Discipline, Level, Series }
+        private GroupMode _groupMode = GroupMode.None;
+        private ComboBox _groupCombo;
+        // Realized group-header tri-state checkboxes, tracked so they can be
+        // refreshed when row selection changes. Each carries its CollectionViewGroup
+        // as DataContext.
+        private readonly List<CheckBox> _groupHeaderChecks = new();
+        private bool _suppressHeaderRefresh;   // re-entrancy guard while we set header state
+        private bool _headerRefreshQueued;      // debounce dispatcher refreshes
 
         // ── Entry point ─────────────────────────────────────────────────────────
 
@@ -426,6 +440,11 @@ namespace StingTools.UI
             DockPanel.SetDock(chips, Dock.Top);
             dock.Children.Add(chips);
 
+            // Bulk-selection + grouping controls (Part 3)
+            var selControls = BuildSelectionControls();
+            DockPanel.SetDock(selControls, Dock.Top);
+            dock.Children.Add(selControls);
+
             // Grid
             _selectGrid = new DataGrid
             {
@@ -454,6 +473,9 @@ namespace StingTools.UI
             _selectGrid.Columns.Add(new DataGridTextColumn { Header = "Size",      Binding = new Binding(nameof(SheetRow.PaperSize)),  Width = 60,  IsReadOnly = true });
             _selectGrid.Columns.Add(new DataGridTextColumn { Header = "CDE",       Binding = new Binding(nameof(SheetRow.CdeStatus)),  Width = 60,  IsReadOnly = true });
 
+            // Collapsible grouping with a tri-state group-header checkbox (Part 3).
+            _selectGrid.GroupStyle.Add(BuildGroupStyle());
+
             dock.Children.Add(_selectGrid);
             return dock;
         }
@@ -471,6 +493,282 @@ namespace StingTools.UI
             b.Child = new TextBlock { Text = label, FontSize = 11 };
             b.MouseLeftButtonUp += (_, __) => { _searchBox.Text = label == "All" ? "" : label; ApplySearchFilter(); };
             return b;
+        }
+
+        // ── SELECT bulk-selection + grouping (Part 3) ────────────────────────────
+
+        private FrameworkElement BuildSelectionControls()
+        {
+            var row = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+
+            var selectAll = new Button { Content = "Select All", Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 0, 6, 0) };
+            selectAll.Click += (_, __) => SetVisibleChecked(true);
+            row.Children.Add(selectAll);
+
+            var deselectAll = new Button { Content = "Deselect All", Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 0, 6, 0) };
+            deselectAll.Click += (_, __) => SetVisibleChecked(false);
+            row.Children.Add(deselectAll);
+
+            var byDisc = new Button { Content = "By discipline ▾", Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 0, 12, 0) };
+            byDisc.Click += OnByDisciplineClick;
+            row.Children.Add(byDisc);
+
+            row.Children.Add(new TextBlock { Text = "Group by:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+            _groupCombo = new ComboBox { Width = 130 };
+            _groupCombo.Items.Add("None");
+            _groupCombo.Items.Add("Discipline");
+            _groupCombo.Items.Add("Level");
+            _groupCombo.Items.Add("Sheet series");
+            _groupCombo.SelectedIndex = 0;
+            _groupCombo.SelectionChanged += (_, __) => ApplyGrouping();
+            row.Children.Add(_groupCombo);
+
+            return row;
+        }
+
+        /// <summary>Rows currently visible under the active search/chip filter,
+        /// in the collection-view's order. A null filter ⇒ every row.</summary>
+        private IEnumerable<SheetRow> VisibleRows()
+        {
+            var view = CollectionViewSource.GetDefaultView(_rows);
+            if (view == null) return _rows.ToList();
+            return view.Cast<SheetRow>().ToList();
+        }
+
+        /// <summary>Check/uncheck every CURRENTLY-VISIBLE row; filtered-out rows
+        /// keep their state (selection survives filter changes).</summary>
+        private void SetVisibleChecked(bool value)
+        {
+            foreach (var r in VisibleRows()) r.IsChecked = value;
+            RefreshGroupHeaders();
+            UpdateStatusLine();
+        }
+
+        private void OnByDisciplineClick(object sender, RoutedEventArgs e)
+        {
+            // Build a fresh checkable menu of the DISTINCT disciplines among the
+            // currently-visible rows. Ticking a discipline checks all its visible
+            // rows; unticking clears them; disciplines union independently.
+            var visible = VisibleRows().ToList();
+            if (visible.Count == 0) return;
+
+            var menu = new ContextMenu();
+            var discGroups = visible
+                .GroupBy(DisciplineBucket)
+                .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var g in discGroups)
+            {
+                string disc = g.Key;
+                int total = g.Count();
+                int checkedCount = g.Count(r => r.IsChecked);
+                var mi = new MenuItem
+                {
+                    Header = $"{disc}  ({checkedCount}/{total})",
+                    IsCheckable = true,
+                    IsChecked = checkedCount == total,   // fully selected ⇒ ticked
+                    StaysOpenOnClick = true,
+                };
+                mi.Click += (_, __) =>
+                {
+                    bool want = mi.IsChecked;
+                    foreach (var r in visible.Where(x => DisciplineBucket(x) == disc))
+                        r.IsChecked = want;
+                    RefreshGroupHeaders();
+                    UpdateStatusLine();
+                };
+                menu.Items.Add(mi);
+            }
+
+            if (sender is UIElement ue)
+            {
+                menu.PlacementTarget = ue;
+                menu.Placement = PlacementMode.Bottom;
+                menu.IsOpen = true;
+            }
+        }
+
+        private void ApplyGrouping()
+        {
+            _groupMode = _groupCombo?.SelectedIndex switch
+            {
+                1 => GroupMode.Discipline,
+                2 => GroupMode.Level,
+                3 => GroupMode.Series,
+                _ => GroupMode.None,
+            };
+
+            var view = CollectionViewSource.GetDefaultView(_rows);
+            if (view == null) return;
+            using (view.DeferRefresh())
+            {
+                view.GroupDescriptions.Clear();
+                _groupHeaderChecks.Clear();
+                if (_groupMode != GroupMode.None)
+                    view.GroupDescriptions.Add(new PropertyGroupDescription(null, new GroupKeyConverter(_groupMode)));
+            }
+        }
+
+        // Group key for a single row under the active grouping mode.
+        private static string GroupKeyFor(SheetRow r, GroupMode mode) => mode switch
+        {
+            GroupMode.Discipline => DisciplineBucket(r),
+            GroupMode.Level      => DeriveLevel(r),
+            GroupMode.Series     => DeriveSeries(r),
+            _                    => "",
+        };
+
+        private static string DisciplineBucket(SheetRow r)
+            => string.IsNullOrWhiteSpace(r?.Discipline) ? "(Other)" : r.Discipline.Trim().ToUpperInvariant();
+
+        // Level bucket derived from the sheet number/title (the export engine's
+        // GetLevelFromSheet is private + the engine is frozen this task, so we
+        // derive a display-only token here using the same ISO level vocabulary).
+        private static string DeriveLevel(SheetRow r)
+        {
+            string s = ((r?.Number ?? "") + " " + (r?.Title ?? "")).ToUpperInvariant();
+            if (System.Text.RegularExpressions.Regex.IsMatch(s, @"\bROOF\b|\bRF\b")) return "RF";
+            if (System.Text.RegularExpressions.Regex.IsMatch(s, @"\bGROUND\b|\bGF\b")) return "GF";
+            var mB = System.Text.RegularExpressions.Regex.Match(s, @"\b(?:BASEMENT|B)\s*0*(\d)\b");
+            if (mB.Success) return "B" + mB.Groups[1].Value;
+            var mL = System.Text.RegularExpressions.Regex.Match(s, @"\b(?:LEVEL|FLOOR|L)\s*0*(\d{1,2})\b");
+            if (mL.Success) return $"L{int.Parse(mL.Groups[1].Value):D2}";
+            return "(No level)";
+        }
+
+        // Series bucket: discipline prefix + leading hundreds digit, e.g. A-101 → "A-1xx".
+        private static string DeriveSeries(SheetRow r)
+        {
+            string disc = DisciplineBucket(r);
+            string num = r?.Number ?? "";
+            var m = System.Text.RegularExpressions.Regex.Match(num, @"(\d)\d*\b");
+            if (m.Success) return $"{disc}-{m.Groups[1].Value}xx";
+            return disc;
+        }
+
+        // ── Group-style (Expander + tri-state header checkbox) ───────────────────
+
+        private GroupStyle BuildGroupStyle()
+        {
+            // Header: [tri-state checkbox] Name (count)
+            var headerTpl = new DataTemplate();
+            var sp = new FrameworkElementFactory(typeof(StackPanel));
+            sp.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+
+            var cb = new FrameworkElementFactory(typeof(CheckBox));
+            cb.SetValue(CheckBox.IsThreeStateProperty, true);
+            cb.SetValue(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center);
+            cb.SetValue(CheckBox.MarginProperty, new Thickness(0, 0, 6, 0));
+            cb.AddHandler(FrameworkElement.LoadedEvent, new RoutedEventHandler(OnGroupHeaderLoaded));
+            cb.AddHandler(FrameworkElement.UnloadedEvent, new RoutedEventHandler(OnGroupHeaderUnloaded));
+            cb.AddHandler(System.Windows.Controls.Primitives.ToggleButton.ClickEvent, new RoutedEventHandler(OnGroupHeaderClick));
+            sp.AppendChild(cb);
+
+            var name = new FrameworkElementFactory(typeof(TextBlock));
+            name.SetBinding(TextBlock.TextProperty, new Binding("Name"));
+            name.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            name.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            sp.AppendChild(name);
+
+            var count = new FrameworkElementFactory(typeof(TextBlock));
+            count.SetBinding(TextBlock.TextProperty, new Binding("ItemCount") { StringFormat = "  ({0})" });
+            count.SetValue(TextBlock.ForegroundProperty, Brushes.Gray);
+            count.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            sp.AppendChild(count);
+
+            headerTpl.VisualTree = sp;
+
+            // Container: collapsible Expander whose Header is the group itself.
+            var containerStyle = new Style(typeof(GroupItem));
+            var tpl = new ControlTemplate(typeof(GroupItem));
+            var exp = new FrameworkElementFactory(typeof(Expander));
+            exp.SetValue(Expander.IsExpandedProperty, true);
+            exp.SetValue(Expander.MarginProperty, new Thickness(0, 2, 0, 2));
+            exp.SetValue(HeaderedContentControl.HeaderTemplateProperty, headerTpl);
+            exp.SetBinding(HeaderedContentControl.HeaderProperty, new Binding());   // DataContext = CollectionViewGroup
+            var ip = new FrameworkElementFactory(typeof(ItemsPresenter));
+            ip.SetValue(FrameworkElement.MarginProperty, new Thickness(16, 0, 0, 0));
+            exp.AppendChild(ip);
+            tpl.VisualTree = exp;
+            containerStyle.Setters.Add(new Setter(Control.TemplateProperty, tpl));
+
+            return new GroupStyle { ContainerStyle = containerStyle };
+        }
+
+        private void OnGroupHeaderLoaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox cb && !_groupHeaderChecks.Contains(cb))
+            {
+                _groupHeaderChecks.Add(cb);
+                SetHeaderState(cb);
+            }
+        }
+
+        private void OnGroupHeaderUnloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox cb) _groupHeaderChecks.Remove(cb);
+        }
+
+        private void OnGroupHeaderClick(object sender, RoutedEventArgs e)
+        {
+            if (_suppressHeaderRefresh) return;
+            if (sender is not CheckBox cb || cb.DataContext is not CollectionViewGroup grp) return;
+            // Tri-state click cycles; collapse to a clean toggle: if every leaf is
+            // already checked, clear the group, otherwise select the whole group.
+            bool anyUnchecked = LeafRows(grp).Any(r => !r.IsChecked);
+            bool target = anyUnchecked;
+            foreach (var r in LeafRows(grp)) r.IsChecked = target;
+            RefreshGroupHeaders();
+            UpdateStatusLine();
+        }
+
+        private static IEnumerable<SheetRow> LeafRows(CollectionViewGroup grp)
+        {
+            foreach (var item in grp.Items)
+            {
+                if (item is SheetRow sr) yield return sr;
+                else if (item is CollectionViewGroup sub)
+                    foreach (var s in LeafRows(sub)) yield return s;
+            }
+        }
+
+        // Debounced refresh of all realized group-header checkboxes.
+        private void ScheduleHeaderRefresh()
+        {
+            if (_headerRefreshQueued || _groupHeaderChecks.Count == 0) return;
+            _headerRefreshQueued = true;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _headerRefreshQueued = false;
+                RefreshGroupHeaders();
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        private void RefreshGroupHeaders()
+        {
+            _suppressHeaderRefresh = true;
+            try { foreach (var cb in _groupHeaderChecks) SetHeaderState(cb); }
+            finally { _suppressHeaderRefresh = false; }
+        }
+
+        private static void SetHeaderState(CheckBox cb)
+        {
+            if (cb?.DataContext is not CollectionViewGroup grp) return;
+            int total = 0, on = 0;
+            foreach (var r in LeafRows(grp)) { total++; if (r.IsChecked) on++; }
+            cb.IsChecked = total == 0 ? false : on == total ? true : on == 0 ? (bool?)false : null;
+        }
+
+        // PropertyGroupDescription helper: keys a row to its group under the
+        // active grouping mode (whole row is passed because the path is null).
+        private sealed class GroupKeyConverter : IValueConverter
+        {
+            private readonly GroupMode _mode;
+            public GroupKeyConverter(GroupMode mode) { _mode = mode; }
+            public object Convert(object value, Type t, object p, System.Globalization.CultureInfo c)
+                => value is SheetRow r ? GroupKeyFor(r, _mode) : "";
+            public object ConvertBack(object value, Type t, object p, System.Globalization.CultureInfo c)
+                => throw new NotSupportedException();
         }
 
         // ── FORMAT panel ────────────────────────────────────────────────────────
@@ -1070,7 +1368,7 @@ namespace StingTools.UI
                         .Cast<ViewSheet>().Where(s => !s.IsTemplate)
                         .OrderBy(s => s.SheetNumber).ToList();
                     foreach (var s in sheets)
-                        _rows.Add(SheetRow.From(_doc, s));
+                        AddRow(SheetRow.From(_doc, s));
                 }
                 else
                 {
@@ -1078,7 +1376,7 @@ namespace StingTools.UI
                         .Cast<View>().Where(v => !v.IsTemplate && !(v is ViewSheet))
                         .OrderBy(v => v.ViewType.ToString()).ThenBy(v => v.Name).ToList();
                     foreach (var v in views)
-                        _rows.Add(SheetRow.FromView(v));
+                        AddRow(SheetRow.FromView(v));
                 }
                 ApplySearchFilter();
                 RefreshNamingPreview();
@@ -1088,6 +1386,16 @@ namespace StingTools.UI
             {
                 StingLog.Warn("ExportCentre RefreshSelectionGrid: " + ex.Message);
             }
+        }
+
+        // Add a row and keep group-header tri-state in sync when its checkbox toggles.
+        private void AddRow(SheetRow row)
+        {
+            row.PropertyChanged += (s, ev) =>
+            {
+                if (ev.PropertyName == nameof(SheetRow.IsChecked)) ScheduleHeaderRefresh();
+            };
+            _rows.Add(row);
         }
 
         private void ApplySearchFilter()
