@@ -1771,6 +1771,7 @@ namespace StingTools.Core
                 case "ClashSessionRefresh":     return new Core.Clash.ClashSessionRefreshCommand();
                 case "ClashSessionClear":       return new Core.Clash.ClashSessionClearCommand();
                 case "ClashMatrixEdit":         return new Core.Clash.ClashMatrixEditCommand();
+                case "ACC_PullClashes":         return new Core.Clash.AccPullClashesCommand();
                 case "BatchSystemPush":         return new Tags.BatchSystemPushCommand();
                 case "ExportSheetRegister":     return new Docs.ExportSheetRegisterCommand();
                 case "COBieHandoverExport":     return new Docs.COBieHandoverExportCommand();
