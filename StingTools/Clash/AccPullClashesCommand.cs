@@ -24,6 +24,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 using StingTools.V6;
 
