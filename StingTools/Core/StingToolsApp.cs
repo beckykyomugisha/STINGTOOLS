@@ -44,6 +44,76 @@ namespace StingTools.Core
         private static UpdaterId _sldUpdaterId = null;
 #pragma warning restore CS0649
 
+        private static bool _resolverRegistered;
+        private static string _depDir;
+
+        /// <summary>
+        /// Register the folder-probe <see cref="AppDomain.AssemblyResolve"/>
+        /// handler that satisfies STING dependency binds from STING's own bin
+        /// directory. Idempotent; safe to call once at startup.
+        /// </summary>
+        private static void RegisterDependencyResolver()
+        {
+            if (_resolverRegistered) return;
+            try
+            {
+                _depDir = Path.GetDirectoryName(AssemblyPath);
+                if (string.IsNullOrEmpty(_depDir)) return;
+                AppDomain.CurrentDomain.AssemblyResolve += ResolveStingDependency;
+                _resolverRegistered = true;
+                StingLog.Info("Dependency resolver registered (folder probe: " + _depDir + ").");
+            }
+            catch (Exception ex) { StingLog.Warn("RegisterDependencyResolver failed: " + ex.Message); }
+        }
+
+        /// <summary>
+        /// Resolve a failed dependency bind from STING's bin directory. Only
+        /// substitutes an assembly we actually ship and whose strong-name token
+        /// matches the request, so a foreign assembly is never returned for a
+        /// signed reference. Returns null (CLR default behaviour) otherwise.
+        /// </summary>
+        private static Assembly ResolveStingDependency(object sender, ResolveEventArgs args)
+        {
+            try
+            {
+                var requested = new AssemblyName(args.Name);
+                string simple = requested.Name;
+                if (string.IsNullOrEmpty(simple) ||
+                    simple.EndsWith(".resources", StringComparison.OrdinalIgnoreCase))
+                    return null;
+
+                // Reuse an already-loaded exact match (avoids loading twice).
+                foreach (var a in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    if (string.Equals(a.GetName().Name, simple, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(a.FullName, args.Name, StringComparison.OrdinalIgnoreCase))
+                        return a;
+                }
+
+                // Only satisfy deps we ship next to StingTools.dll.
+                string candidate = Path.Combine(_depDir, simple + ".dll");
+                if (!File.Exists(candidate)) return null;
+
+                var onDisk = AssemblyName.GetAssemblyName(candidate);
+                byte[] reqTok = requested.GetPublicKeyToken();
+                if (reqTok != null && reqTok.Length > 0)
+                {
+                    byte[] diskTok = onDisk.GetPublicKeyToken();
+                    if (diskTok == null || diskTok.Length == 0 || !reqTok.SequenceEqual(diskTok))
+                        return null; // never substitute a foreign assembly for a signed ref
+                }
+
+                var loaded = Assembly.LoadFrom(candidate);
+                StingLog.Info($"Resolved '{simple}' -> {candidate} (v{onDisk.Version}) for request '{args.Name}'.");
+                return loaded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("ResolveStingDependency('" + args?.Name + "'): " + ex.Message);
+                return null;
+            }
+        }
+
         public Result OnStartup(UIControlledApplication application)
         {
             try
@@ -52,6 +122,17 @@ namespace StingTools.Core
                 DataPath = Path.Combine(
                     Path.GetDirectoryName(AssemblyPath) ?? string.Empty,
                     "data");
+
+                // Dependency isolation. Revit loads EVERY add-in into one shared
+                // AppDomain, so a PDF/Excel-heavy add-in (Naviate, DiRoots/
+                // ProSheets, Ideate, Graitec) can pre-load a DIFFERENT version of a
+                // dependency STING also ships (PdfSharp, ClosedXML, Newtonsoft…).
+                // The default-context copy then shadows ours and STING's strong-
+                // named reference fails to bind ("A strongly-named assembly is
+                // required", 0x80131044 — seen on the Export Centre PDF path). The
+                // folder-probe resolver below forces every STING dependency to bind
+                // to OUR tested copy sitting next to StingTools.dll.
+                RegisterDependencyResolver();
 
                 // Validate data directory and critical files at startup
                 ValidateDataFiles();
