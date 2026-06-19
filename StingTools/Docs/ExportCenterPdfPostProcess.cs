@@ -176,7 +176,9 @@ namespace StingTools.Docs
             pageCount = 0; error = null;
             try
             {
-                using var d = PdfReader.Open(pdfPath, PdfDocumentOpenMode.InformationOnly);
+                // InformationOnly is deprecated in PDFsharp 6 (never implemented);
+                // Import opens read-only for inspection and exposes PageCount.
+                using var d = PdfReader.Open(pdfPath, PdfDocumentOpenMode.Import);
                 pageCount = d.PageCount;
                 if (pageCount <= 0) { error = "PDF reports 0 pages"; return false; }
                 return true;
