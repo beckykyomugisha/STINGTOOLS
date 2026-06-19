@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "description": "Kampala Uganda Temple (KUT) PROJECT OVERLAY for the STING Owner Standards Pack. Merged by rule id over the corporate baseline (StingTools/Data/STING_OWNER_STANDARDS_PACK.json) — project rules win by id. Deploy to <project>/_BIM_COORD/owner_standards.json. This overlay activates the Owner's confirmed week-1 standards for the temple: enables the KUT sheet-number pattern, narrows the discipline taxonomy to the temple's design team (no healthcare codes), and adds the Fohlio FF&E link check. Edit and re-run a gate audit after the Owner issues any revised BIM Modeling Standard.",
+  "rules": [
+    {
+      "id": "sheet-kut-number-pattern",
+      "type": "sheetNumberPattern",
+      "severity": "WARN",
+      "enabled": true,
+      "pattern": "^KUT-[A-Z0-9]{3}-[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z]-\\d{4}$",
+      "description": "Sheet numbers follow the ISO 19650 container form KUT-ZZZ-XX-XX-M3-A-0001. Enabled for KUT — adjust the originator/volume/level/type table to the confirmed Owner number register.",
+      "source": "BEP 3.4 — ISO 19650-2 container naming (KUT-originator-volume-level-type-discipline-number)"
+    },
+    {
+      "id": "discipline-code-valid",
+      "type": "paramInList",
+      "severity": "WARN",
+      "enabled": true,
+      "param": "ASS_DISCIPLINE_COD_TXT",
+      "categories": ["*"],
+      "values": ["A", "S", "M", "E", "P", "FP", "LV", "G"],
+      "description": "Discipline code must be one of the KUT design-team disciplines: A architecture/interiors, S structural, M mechanical, E electrical, P plumbing, FP fire protection, LV low-voltage/comms, G civil/site.",
+      "source": "Proposal 3.6 — model breakdown structure / design-team disciplines"
+    },
+    {
+      "id": "ffe-fohlio-ref",
+      "type": "paramRequired",
+      "severity": "WARN",
+      "enabled": false,
+      "param": "FOHLIO_REF_TXT",
+      "categories": ["Furniture", "Furniture Systems", "Casework", "Specialty Equipment", "Lighting Fixtures"],
+      "description": "FF&E elements should carry a Fohlio item reference (link, never duplicate — proposal 3.3). Ships DISABLED: enable once the Fohlio CSV/XLSX link has been run (ExLink Fohlio_Import) so the references exist to check against. Fohlio remains authoritative for FF&E/O&M; this is a coordination link check, not an authoring requirement.",
+      "source": "A1 — Fohlio FF&E/finishes/O&M database; proposal 3.3 information hierarchy"
+    }
+  ]
+}

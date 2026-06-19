@@ -1,0 +1,15 @@
+{
+  "name": "KUT Monthly Report",
+  "description": "Kampala Uganda Temple — the monthly BIM status report / KPI set from proposal Section 4.6. Chains the read-only metrics that feed the report: model-health score (open clash count + warnings + duplicate elements + unplaced rooms + file-size trend), naming/metadata completeness %, per-discipline compliance, sheet ISO 19650 compliance, the exchange/sheet register, the KPI trend versus prior months, and the composite dashboard. All steps are read-only — safe to run on any published state. Export artefacts land under the project output folder for attachment to the monthly report.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    { "commandTag": "ExportModelHealth", "label": "1. Model-health score (clash / warnings / dupes / unplaced rooms / file-size trend)" },
+    { "commandTag": "CompletenessDashboard", "label": "2. Naming + metadata completeness %" },
+    { "commandTag": "DiscComplianceReport", "label": "3. Per-discipline compliance" },
+    { "commandTag": "SheetComplianceCheck", "label": "4. Sheet ISO 19650 compliance", "optional": true },
+    { "commandTag": "ExportSheetRegister", "label": "5. Sheet / exchange register CSV", "optional": true },
+    { "commandTag": "WorkflowTrend", "label": "6. KPI trend versus prior months", "optional": true },
+    { "commandTag": "FullComplianceDashboard", "label": "7. Composite KPI dashboard for the monthly report" }
+  ]
+}

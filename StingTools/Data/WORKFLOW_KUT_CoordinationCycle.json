@@ -1,0 +1,15 @@
+{
+  "name": "KUT Coordination Cycle",
+  "description": "Kampala Uganda Temple — the fortnightly federation/clash rhythm from proposal Section 4.2. Re-tags stale elements, validates ISO 19650 tags before publish, runs STING rule-based clash (discipline tolerance matrix for clearances/access/maintenance space that ACC cannot express), exports grouped clashes to BCF 2.1 for import as ACC Issues, snapshots model health, and reports per-discipline completeness. Run every cycle so the grouped, prioritised clash report is ready 48 hours before the chaired coordination session. ACC Model Coordination remains the system of record; this is the STING-side smart-triage half that runs alongside it.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    { "commandTag": "RetagStale", "label": "1. Re-tag stale elements before federation", "optional": true, "requiresStaleElements": true },
+    { "commandTag": "ValidateTags", "label": "2. ISO 19650 tag validation before publish" },
+    { "commandTag": "ClashRun", "label": "3. Run STING rule-based clash (hard + discipline tolerance matrix)" },
+    { "commandTag": "ClashBcfExport", "label": "4. Export grouped clashes to BCF 2.1 (import as ACC Issues)" },
+    { "commandTag": "ACCPublish", "label": "5. Publish coordination data to ACC", "optional": true },
+    { "commandTag": "ExportModelHealth", "label": "6. Model-health snapshot (open clash count, warnings, file-size trend)", "optional": true },
+    { "commandTag": "CompletenessDashboard", "label": "7. Per-discipline completeness RAG" }
+  ]
+}

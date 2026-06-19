@@ -1,0 +1,17 @@
+{
+  "name": "KUT Deliverable D",
+  "description": "Kampala Uganda Temple — record-model verification close-out from proposal Section 4.4 (within 60 days of furniture installation). Validates tags, audits token-fill confidence (surfaces silent defaults), verifies LOD 400 maturity against the unified matrix (pick 'deliverable-d' at the milestone prompt), optionally stamps passing elements, reconciles the issued SpecLink TOC, exports the asset/tag audit CSV, snapshots model health, and produces the composite compliance dashboard. The LOD gate report under _BIM_COORD/lod_reports/ plus the audit CSV are the artefacts that accompany the record model to the Owner's catalog. Authoring stays with the design consultants; this workflow verifies, it does not author.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    { "commandTag": "ValidateTags", "label": "1. ISO 19650 tag validation — all 8 segments present + code-valid" },
+    { "commandTag": "TokenConfidenceAudit", "label": "2. Token-fill confidence — flags silent defaults before handover" },
+    { "commandTag": "LOD_Verify", "label": "3. LOD 400 maturity verification (pick 'deliverable-d' at the prompt)" },
+    { "commandTag": "LOD_Stamp", "label": "4. Stamp passing elements with the verified milestone", "optional": true },
+    { "commandTag": "SpecLink_Reconcile", "label": "5. Reconcile issued SpecLink spec TOC against the model", "optional": true },
+    { "commandTag": "AuditTagsCSV", "label": "6. Asset / tag audit CSV" },
+    { "commandTag": "ExportModelHealth", "label": "7. Final model-health report", "optional": true },
+    { "commandTag": "ExportSheetRegister", "label": "8. Sheet register CSV", "optional": true },
+    { "commandTag": "FullComplianceDashboard", "label": "9. Composite compliance dashboard — record sign-off" }
+  ]
+}
